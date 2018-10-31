@@ -4,7 +4,7 @@
 //
 // --------------------------------------------------------------------
 
-// ReadExclusive.cpp : Tests the exclusive-read scenario. We expect a warning from Domino.
+// ReadExclusive.cpp : Tests the exclusive-read scenario. We expect a warning from BuildXL.
 
 #include "stdafx.h"
 
@@ -20,13 +20,13 @@
 // FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
 
-// ReadExclusive : Tests the exclusive-read scenario. We expect a warning from Domino
+// ReadExclusive : Tests the exclusive-read scenario. We expect a warning from BuildXL
 // when running this test.
 //
 // Reads ReadExclusive.in from the working directory (location of DetoursTests.exe)
 // Writes ReadExclusive.out to the working directory (copies the contents from ReadExclusive.in)
 //
-// Returns 0 if successful, non-zero if an error occurred. Under Domino this should be successful
+// Returns 0 if successful, non-zero if an error occurred. Under BuildXL this should be successful
 // because we are reporting exclusive-reads as a warning.
 //
 // Note: adapted from http://msdn.microsoft.com/en-us/library/ms900134.aspx

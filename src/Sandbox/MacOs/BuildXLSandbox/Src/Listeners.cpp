@@ -207,7 +207,7 @@ int Listeners::mpo_vnode_check_exec(kauth_cred_t cred,
     ProcessObject *rootProcess = sandbox->FindTrackedProcess(proc_selfppid());
     if (rootProcess)
     {
-        // report child process to Domino only (tracking happens on 'fork's not 'exec's)
+        // report child process to BuildXL only (tracking happens on 'fork's not 'exec's)
         char absExecPath[MAXPATHLEN];
         int len = sizeof(absExecPath);
         vn_getpath(vp, absExecPath, &len);

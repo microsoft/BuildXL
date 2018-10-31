@@ -111,7 +111,7 @@ void DominoSandbox::InitializePolicyStructures()
 
     policyConfiguration_ =
     {
-        .mpc_name            = kDominoSandboxClassName,
+        .mpc_name            = kBuildXLSandboxClassName,
         .mpc_fullname        = "Sandbox for process liftetime, I/O observation and control",
         .mpc_labelnames      = NULL,
         .mpc_labelname_count = 0,
@@ -286,7 +286,7 @@ bool DominoSandbox::TrackRootProcess(const ProcessObject *process)
 
     pid_t pid = process->getProcessId();
 
-    // if mapping for 'pid' exists --> remove it (this can happen only if clients are nested, e.g., Domino runs Domino)
+    // if mapping for 'pid' exists --> remove it (this can happen only if clients are nested, e.g., BuildXL runs BuildXL)
     ProcessObject *existingProcess = trackedProcesses_->getProcess(pid);
     if (existingProcess)
     {

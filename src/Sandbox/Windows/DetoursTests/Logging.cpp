@@ -7,7 +7,7 @@
 // Logging.cpp : Tests that Logging is working properly for each of the Detoured Windows APIs.
 //
 // For each of these functions, we expect to see one or more Windows API logging messages
-// appear within the Domino unit tests.
+// appear within the BuildXL unit tests.
 //
 // For each of these API calls, we don't care about the error code, or the actual result of the test.
 // It is enough that the call occurs and the program doesn't crash. The call will be logged no matter

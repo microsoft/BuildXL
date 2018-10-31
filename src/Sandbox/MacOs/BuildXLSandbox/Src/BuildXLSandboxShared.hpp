@@ -1,6 +1,6 @@
 //
 //  BuildXLSandboxShared.hpp
-//  DominoSandboxShared
+//  BuildXLSandboxShared
 //
 //  Copyright © 2018 Microsoft. All rights reserved.
 //
@@ -16,7 +16,7 @@
 
 #pragma mark Custom data types
 
-const unsigned int kDominoMaxOperationLength = 64;
+const unsigned int kBuildXLMaxOperationLength = 64;
 
 const unsigned int kProcessNameBufferSize = MAXPATHLEN;
 
@@ -32,9 +32,9 @@ typedef enum
 } CreationDisposition;
 
 typedef enum {
-    kDominoSandboxActionSendPipStarted,
-    kDominoSandboxActionSendPipProcessTerminated,
-    kDominoSandboxActionSendClientAttached,
+    kBuildXLSandboxActionSendPipStarted,
+    kBuildXLSandboxActionSendPipProcessTerminated,
+    kBuildXLSandboxActionSendClientAttached,
 } DominoSandboxAction;
 
 typedef enum {
@@ -43,7 +43,7 @@ typedef enum {
     kIpcActionSetReportQueueSize,
     kIpcActionForceVerboseLogging,
     kIpcActionSetupFailureNotificationHandler,
-    kDominoSandboxMethodCount
+    kBuildXLSandboxMethodCount
 } IpcAction;
 
 typedef struct {
@@ -61,7 +61,7 @@ typedef enum {
 
 typedef struct {
     DWORD type;
-    char operation[kDominoMaxOperationLength];
+    char operation[kBuildXLMaxOperationLength];
     pid_t pid;
     pid_t rootPid;
     DWORD requestedAccess;
@@ -79,14 +79,14 @@ typedef struct {
 
 #pragma mark Macros and defines
 
-#define kDominoBundleIdentifier "com.microsoft.domino.sandbox"
-#define kDominoSandboxClassName "com_microsoft_domino_Sandbox"
-#define kDominoSandboxClientClassName "com_microsoft_domino_SandboxClient"
+#define kBuildXLBundleIdentifier "com.microsoft.buildxl.sandbox"
+#define kBuildXLSandboxClassName "com_microsoft_buildxl_Sandbox"
+#define kBuildXLSandboxClientClassName "com_microsoft_buildxl_SandboxClient"
 
-static os_log_t logger = os_log_create(kDominoBundleIdentifier, "Logger");
+static os_log_t logger = os_log_create(kBuildXLBundleIdentifier, "Logger");
 
-#define log(format, ...) os_log(logger, "[[ %s ]] %s: " #format "\n", kDominoSandboxClassName, __func__, __VA_ARGS__)
-#define log_error(format, ...) os_log_error(logger, "[[ %s ]][ERROR] %s: " #format "\n", kDominoSandboxClassName, __func__, __VA_ARGS__)
+#define log(format, ...) os_log(logger, "[[ %s ]] %s: " #format "\n", kBuildXLSandboxClassName, __func__, __VA_ARGS__)
+#define log_error(format, ...) os_log_error(logger, "[[ %s ]][ERROR] %s: " #format "\n", kBuildXLSandboxClassName, __func__, __VA_ARGS__)
 
 #if DEBUG
 #define log_debug(format, ...) log(format, __VA_ARGS__)

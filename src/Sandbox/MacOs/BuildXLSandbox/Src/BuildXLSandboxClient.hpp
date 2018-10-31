@@ -38,7 +38,7 @@ public:
     IOReturn clientClose(void) override;
     IOReturn clientDied(void) override;
 
-    static const IOExternalMethodDispatch ipcMethods[kDominoSandboxMethodCount];
+    static const IOExternalMethodDispatch ipcMethods[kBuildXLSandboxMethodCount];
 
     IOReturn registerNotificationPort(mach_port_t port,
                                       UInt32 type,

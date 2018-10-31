@@ -18,7 +18,7 @@
 // We don't care about the addition of needed struct padding.
 #pragma warning( disable : 4820 )
 
-// Domino should run on Win7+.
+// BuildXL should run on Win7+.
 #include <WinSDKVer.h>
 #define _WIN32_WINNT _WIN32_WINNT_WIN7
 #include <SDKDDKVer.h>

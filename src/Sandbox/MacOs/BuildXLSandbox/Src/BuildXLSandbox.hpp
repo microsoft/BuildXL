@@ -60,7 +60,7 @@ private:
      *
      * This dictionary is used in the following scenarios:
      *
-     *   - when a pip is started (kDominoSandboxActionSendPipStarted is received)
+     *   - when a pip is started (kBuildXLSandboxActionSendPipStarted is received)
      *     a new ProcessObject instance is created and remembered here;
      *
      *   - when a tracked process spawns a child process, the child process is added here too;

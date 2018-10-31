@@ -122,7 +122,7 @@ IOReturn DominoSandboxClient::clientMemoryForType(UInt32 type, IOOptionBits *opt
 
 #pragma mark IPC implementation
 
-const IOExternalMethodDispatch DominoSandboxClient::ipcMethods[kDominoSandboxMethodCount] =
+const IOExternalMethodDispatch DominoSandboxClient::ipcMethods[kBuildXLSandboxMethodCount] =
 {
     // kIpcActionPipStateChanged
     {
@@ -171,7 +171,7 @@ IOReturn DominoSandboxClient::externalMethod(uint32_t selector, IOExternalMethod
                                           OSObject *target,
                                           void *reference)
 {
-    if (selector < (uint32_t) kDominoSandboxMethodCount)
+    if (selector < (uint32_t) kBuildXLSandboxMethodCount)
     {
         dispatch = (IOExternalMethodDispatch *) &ipcMethods[selector];
 
@@ -232,17 +232,17 @@ IOReturn DominoSandboxClient::PipStateChanged(IpcData *data)
 
     switch (data->action)
     {
-        case kDominoSandboxActionSendPipStarted:
+        case kBuildXLSandboxActionSendPipStarted:
         {
             error = ProcessPipStarted(data);
             break;
         }
-        case kDominoSandboxActionSendPipProcessTerminated:
+        case kBuildXLSandboxActionSendPipProcessTerminated:
         {
             error = ProcessPipTerminated(data);
             break;
         }
-        case kDominoSandboxActionSendClientAttached:
+        case kBuildXLSandboxActionSendClientAttached:
         {
             error = ProcessClientLaunched(data);
             break;

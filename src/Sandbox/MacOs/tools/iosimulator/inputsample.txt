@@ -1,0 +1,8 @@
+[Input]
+/Users/John/Work/Project/src/a.cpp
+/Users/John/Work/Project/src/b.cpp
+/Users/John/Work/Project/src/SomeSubfolder/a.cpp
+[Output]
+/Users/John/Work/Project/out/libraries
+/Users/John/Work/Project/out/symbols
+/Users/John/Work/Project/out/pictures

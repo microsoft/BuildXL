@@ -1,0 +1,34 @@
+.TH sandbox-load 1 "" "" "Domino User Guide"
+.SH NAME
+sandbox-load \- Load DominoSandbox kernel extension for macOS
+.SH SYNOPSIS
+.B sandbox-load
+[--deploy-dir\fR \fIdeploy-dir\fR]
+[--no-reload]
+[--kext] \fIsrc-dir\fR
+.SH DESCRIPTION
+Loads a 'DominoSandbox' kernel extension from a given location.
+
+If DominoSandbox extension is already loaded, depending on whether \fB--no-reload\fR was specified,
+it either immediately exits or unloads the currently loaded extension and proceeds with loading the one
+provided by the \fB--kext\fR switch.
+
+If \fIdeploy-dir\fR is specified, \fIsrc-dir\fR is first copied into '\fIdeploy-dir\fR/DominoSandbox.kext',
+which is then used as the location from which the extension is loaded.
+
+Before loading, the owner of the final extension folder is changed to 'root:wheel' and its permissions are
+set to '555'.  Finally, the extension is loaded from that folder using the 'kextload' utility.
+
+Requires root privileges to execute 'kextload'.
+.SH OPTIONS
+.TP
+.BI --kext " src-dir"
+Required.  Directory containing a compiled DominoSandbox kernel extension binaries.
+The name of this directory must end in ".kext".
+.TP
+.BI --deploy-dir " deploy-dir"
+Optional.  Destination to which to copy the extension from \fIsrc-dir\fR prior to loading it.
+When omitted, the extension is loaded directly from \fIsrc-dir\fR.
+.TP
+.BI --no-reload
+Optional.  When specified, if DominoSandbox extension is already running, it won't be reloaded.

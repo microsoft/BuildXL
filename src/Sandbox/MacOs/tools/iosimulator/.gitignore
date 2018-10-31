@@ -1,0 +1,5 @@
+## Ignore various detritus left behind by common tooling.
+.vscode/
+bin/
+obj/
+*.log

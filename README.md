@@ -32,4 +32,4 @@ The sandbox implementation used here is based instead on KAuth + TrustedBSD Mand
 In terms of performance, this sandbox adds anywhere from 15-40% time overhead to process execution.
 
 ## Demos
-Check out these [demos](Docs/demos) to learn the basics about BuildXL sandboxing and key features.
+Check out these [demos](docs/demos.md) to learn the basics about BuildXL sandboxing and key features.

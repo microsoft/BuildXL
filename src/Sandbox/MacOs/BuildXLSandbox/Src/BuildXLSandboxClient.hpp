@@ -1,6 +1,6 @@
 //
 //  BuildXLSandboxClient.hpp
-//  DominoSandboxClient
+//  BuildXLSandboxClient
 //
 //  Copyright © 2018 Microsoft. All rights reserved.
 //
@@ -15,15 +15,15 @@
 #include "BuildXLSandbox.hpp"
 #include "BuildXLSandboxShared.hpp"
 
-#define DominoSandboxClient com_microsoft_domino_SandboxClient
+#define BuildXLSandboxClient com_microsoft_buildxl_SandboxClient
 
-class DominoSandboxClient : public IOUserClient
+class BuildXLSandboxClient : public IOUserClient
 {
-    OSDeclareDefaultStructors(DominoSandboxClient)
+    OSDeclareDefaultStructors(BuildXLSandboxClient)
 
 private:
 
-    DominoSandbox *sandbox_;
+    BuildXLSandbox *sandbox_;
     task_t task_;
 
 public:
@@ -58,23 +58,23 @@ protected:
 
     // MacSanboxClient IPC function pairs for ipcMethods dispatch table
 
-    static IOReturn sPipStateChanged(DominoSandboxClient *target,
+    static IOReturn sPipStateChanged(BuildXLSandboxClient *target,
                                      void *reference,
                                      IOExternalMethodArguments *arguments);
 
-    static IOReturn sDebugCheck(DominoSandboxClient *target,
+    static IOReturn sDebugCheck(BuildXLSandboxClient *target,
                                 void *reference,
                                 IOExternalMethodArguments *arguments);
 
-    static IOReturn sSetReportQueueSize(DominoSandboxClient *target,
+    static IOReturn sSetReportQueueSize(BuildXLSandboxClient *target,
                                         void *reference,
                                         IOExternalMethodArguments *arguments);
 
-    static IOReturn sToggleVerboseLogging(DominoSandboxClient *target,
+    static IOReturn sToggleVerboseLogging(BuildXLSandboxClient *target,
                                 void *reference,
                                 IOExternalMethodArguments *arguments);
 
-    static IOReturn sSetFailureNotificationHandler(DominoSandboxClient *target,
+    static IOReturn sSetFailureNotificationHandler(BuildXLSandboxClient *target,
                                                    void *reference,
                                                    IOExternalMethodArguments *arguments);
 

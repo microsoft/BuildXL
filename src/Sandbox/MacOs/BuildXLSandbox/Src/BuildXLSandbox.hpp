@@ -1,6 +1,6 @@
 //
 //  BuildXLSandbox.hpp
-//  DominoSandbox
+//  BuildXLSandbox
 //
 //  Copyright © 2018 Microsoft. All rights reserved.
 //
@@ -18,7 +18,7 @@
 #include "ConcurrentSharedDataQueue.hpp"
 #include "ProcessObject.hpp"
 
-#define DominoSandbox com_microsoft_domino_Sandbox
+#define BuildXLSandbox com_microsoft_buildxl_Sandbox
 
 #if RELEASE
     #define kSharedDataQueueSizeDefault 256
@@ -29,17 +29,17 @@
 #define kSharedDataQueueSizeMax 2048
 #define kProcessDictionaryCapacity 1024
 
-class DominoSandbox : public IOService
+class BuildXLSandbox : public IOService
 {
-    OSDeclareDefaultStructors(DominoSandbox)
+    OSDeclareDefaultStructors(BuildXLSandbox)
 
 private:
 
-    kauth_listener_t dominoFileOpListener_ = nullptr;
-    kauth_listener_t dominoVnodeListener_ = nullptr;
+    kauth_listener_t buildxlFileOpListener_ = nullptr;
+    kauth_listener_t buildxlVnodeListener_ = nullptr;
 
     mac_policy_handle_t policyHandle_;
-    struct mac_policy_ops dominoPolicyOps_;
+    struct mac_policy_ops buildxlPolicyOps_;
     struct mac_policy_conf policyConfiguration_;
 
     /*!

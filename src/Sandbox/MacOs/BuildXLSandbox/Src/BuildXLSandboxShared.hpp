@@ -35,7 +35,7 @@ typedef enum {
     kBuildXLSandboxActionSendPipStarted,
     kBuildXLSandboxActionSendPipProcessTerminated,
     kBuildXLSandboxActionSendClientAttached,
-} DominoSandboxAction;
+} BuildXLSandboxAction;
 
 typedef enum {
     kIpcActionPipStateChanged,
@@ -52,7 +52,7 @@ typedef struct {
     pid_t clientPid;
     mach_vm_address_t payload;
     mach_vm_size_t payloadLength;
-    DominoSandboxAction action;
+    BuildXLSandboxAction action;
 } IpcData;
 
 typedef enum {

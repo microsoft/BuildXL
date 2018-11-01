@@ -14,7 +14,7 @@ class FileOpHandler : public AccessHandler
 {
     public:
 
-        FileOpHandler(const ProcessObject *process, DominoSandbox *sandbox) :
+        FileOpHandler(const ProcessObject *process, BuildXLSandbox *sandbox) :
             AccessHandler(process, sandbox) { }
 
         void ReportFileOpAccess(const char *operationName,

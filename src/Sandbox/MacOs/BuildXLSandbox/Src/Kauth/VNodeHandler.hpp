@@ -33,7 +33,7 @@ class VNodeHandler : public AccessHandler
 
     public:
 
-        VNodeHandler(const ProcessObject *process, DominoSandbox *sandbox)
+        VNodeHandler(const ProcessObject *process, BuildXLSandbox *sandbox)
             : AccessHandler(process, sandbox) { }
 
         int HandleVNodeEvent(const kauth_cred_t credential,

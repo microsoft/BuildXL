@@ -22,7 +22,7 @@ extern "C"
 
 #pragma mark IOKit Service and Connection initialization
 
-    io_service_t findDominoSandboxIOKitService()
+    io_service_t findBuildXLSandboxIOKitService()
     {
         io_iterator_t iterator;
 
@@ -39,7 +39,7 @@ extern "C"
         }
         else
         {
-            log_debug("Found DominoSandbox IOKit service at port: %u", service);
+            log_debug("Found BuildXLSandbox IOKit service at port: %u", service);
         }
 
         IOObjectRelease(iterator);
@@ -73,7 +73,7 @@ extern "C"
 
         do
         {
-            io_service_t service = findDominoSandboxIOKitService();
+            io_service_t service = findBuildXLSandboxIOKitService();
             if (service == IO_OBJECT_NULL)
             {
                 log_error("%s", "Failed getting BuildXL Sandbox IOService");
@@ -121,7 +121,7 @@ extern "C"
 #if DEBUG
         uint64_t input = 1;
 #else
-        const char *verboseLoggingEnabled = getenv(DOMINO_VERBOSE_LOG);
+        const char *verboseLoggingEnabled = getenv(BUILDXL_VERBOSE_LOG);
         uint64_t input = verboseLoggingEnabled != NULL ? 1 : 0;
 #endif
         uint32_t inputCount = 1;
@@ -137,7 +137,7 @@ extern "C"
             if (!SendClientAttached())
             {
                 log_error("%s", "Failed sending BuildXL launch signal to kernel extension");
-                memoryInfo->error = KEXT_DOMINO_LAUNCH_SIGNAL_FAIL;
+                memoryInfo->error = KEXT_BUILDXL_LAUNCH_SIGNAL_FAIL;
                 continue;
             }
 
@@ -271,7 +271,7 @@ extern "C"
 
 #pragma mark SendPipStatus functions
 
-    bool SendPipStatus(const pid_t processId, pipid_t pipId, const char *const payload, int payloadLength, DominoSandboxAction action)
+    bool SendPipStatus(const pid_t processId, pipid_t pipId, const char *const payload, int payloadLength, BuildXLSandboxAction action)
     {
         KextConnectionInfo info = GetKextConnectionInfo();
         if (info.connection == IO_OBJECT_NULL)

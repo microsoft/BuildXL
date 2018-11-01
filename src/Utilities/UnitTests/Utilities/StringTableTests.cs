@@ -240,7 +240,7 @@ namespace Test.BuildXL.Utilities
             StringId id3 = st.AddString("hello");
             StringId id4 = st.AddString("goodBYE");
             StringId id5 = st.AddString("HELLOX");
-            StringId id6 = st.AddString("HELL");
+            StringId id6 = st.AddString("HEL");
 
             XAssert.AreNotEqual(id1, id3);
             XAssert.AreNotEqual(id1, id5);

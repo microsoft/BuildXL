@@ -16,7 +16,7 @@ namespace Test.BuildXL.Utilities
         [Fact]
         public async Task FromException()
         {
-            var toThrow = new BuildXLException("Heave, ho");
+            var toThrow = new BuildXLException("Got exception?");
             try
             {
                 await TaskUtilities.FromException<int>(toThrow);

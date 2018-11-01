@@ -22,11 +22,11 @@ extern "C"
 
 #pragma mark IOKit Service and Connection initialization
 
-    io_service_t findDominoSandboxIOKitService()
+    io_service_t findBuildXLSandboxIOKitService()
     {
         io_iterator_t iterator;
 
-        kern_return_t result = IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching(kDominoSandboxClassName), &iterator);
+        kern_return_t result = IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching(kBuildXLSandboxClassName), &iterator);
         if (result != KERN_SUCCESS)
         {
             return IO_OBJECT_NULL;
@@ -35,11 +35,11 @@ extern "C"
         io_service_t service;
         if ((service = IOIteratorNext(iterator)) == IO_OBJECT_NULL)
         {
-            log_error("No matching IOKit service has been found for: %s", kDominoSandboxClassName);
+            log_error("No matching IOKit service has been found for: %s", kBuildXLSandboxClassName);
         }
         else
         {
-            log_debug("Found DominoSandbox IOKit service at port: %u", service);
+            log_debug("Found BuildXLSandbox IOKit service at port: %u", service);
         }
 
         IOObjectRelease(iterator);
@@ -73,10 +73,10 @@ extern "C"
 
         do
         {
-            io_service_t service = findDominoSandboxIOKitService();
+            io_service_t service = findBuildXLSandboxIOKitService();
             if (service == IO_OBJECT_NULL)
             {
-                log_error("%s", "Failed getting Domino Sandbox IOService");
+                log_error("%s", "Failed getting BuildXL Sandbox IOService");
                 info->error = KEXT_SERVICE_NOT_FOUND;
                 continue;
             }
@@ -121,7 +121,7 @@ extern "C"
 #if DEBUG
         uint64_t input = 1;
 #else
-        const char *verboseLoggingEnabled = getenv(DOMINO_VERBOSE_LOG);
+        const char *verboseLoggingEnabled = getenv(BUILDXL_VERBOSE_LOG);
         uint64_t input = verboseLoggingEnabled != NULL ? 1 : 0;
 #endif
         uint32_t inputCount = 1;
@@ -136,8 +136,8 @@ extern "C"
         {
             if (!SendClientAttached())
             {
-                log_error("%s", "Failed sending Domino launch signal to kernel extension");
-                memoryInfo->error = KEXT_DOMINO_LAUNCH_SIGNAL_FAIL;
+                log_error("%s", "Failed sending BuildXL launch signal to kernel extension");
+                memoryInfo->error = KEXT_BUILDXL_LAUNCH_SIGNAL_FAIL;
                 continue;
             }
 
@@ -252,7 +252,7 @@ extern "C"
     {
         char *kextVersion = (char *) calloc(size, sizeof(char));
         CFStringRef kext_bundle_ids[1];
-        kext_bundle_ids[0] = CFSTR(kDominoBundleIdentifier);
+        kext_bundle_ids[0] = CFSTR(kBuildXLBundleIdentifier);
         CFArrayRef query = CFArrayCreate(kCFAllocatorDefault, (const void **)kext_bundle_ids, 1, &kCFTypeArrayCallBacks);
         CFDictionaryRef kextInfo = KextManagerCopyLoadedKextInfo(query, nullptr);
 
@@ -271,7 +271,7 @@ extern "C"
 
 #pragma mark SendPipStatus functions
 
-    bool SendPipStatus(const pid_t processId, pipid_t pipId, const char *const payload, int payloadLength, DominoSandboxAction action)
+    bool SendPipStatus(const pid_t processId, pipid_t pipId, const char *const payload, int payloadLength, BuildXLSandboxAction action)
     {
         KextConnectionInfo info = GetKextConnectionInfo();
         if (info.connection == IO_OBJECT_NULL)
@@ -303,12 +303,12 @@ extern "C"
 
     bool SendPipStarted(const pid_t processId, pipid_t pipId, const char *const famBytes, int famBytesLength)
     {
-        return SendPipStatus(processId, pipId, famBytes, famBytesLength, kDominoSandboxActionSendPipStarted);
+        return SendPipStatus(processId, pipId, famBytes, famBytesLength, kBuildXLSandboxActionSendPipStarted);
     }
 
     bool SendPipProcessTerminated(pipid_t pipId, pid_t processId)
     {
-        return SendPipStatus(processId, pipId, NULL, 0, kDominoSandboxActionSendPipProcessTerminated);
+        return SendPipStatus(processId, pipId, NULL, 0, kBuildXLSandboxActionSendPipProcessTerminated);
     }
 
     bool CheckForDebugMode(bool *isDebugModeEnabled)
@@ -358,7 +358,7 @@ extern "C"
     bool SendClientAttached()
     {
         log_debug("Indicating client launching with PID (%d)", getpid());
-        return SendPipStatus(getpid(), 0, NULL, 0, kDominoSandboxActionSendClientAttached);
+        return SendPipStatus(getpid(), 0, NULL, 0, kBuildXLSandboxActionSendClientAttached);
     }
 
 #pragma mark IOSharedDataQueue consumer code

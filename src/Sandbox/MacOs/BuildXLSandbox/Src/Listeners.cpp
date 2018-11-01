@@ -60,7 +60,7 @@ static int ComputeAbsolutePath(struct vnode *vp, const char *const relPath, size
     return 0;
 }
 
-int Listeners::domino_file_op_listener(kauth_cred_t credential,
+int Listeners::buildxl_file_op_listener(kauth_cred_t credential,
                                        void *idata,
                                        kauth_action_t action,
                                        uintptr_t arg0,
@@ -68,7 +68,7 @@ int Listeners::domino_file_op_listener(kauth_cred_t credential,
                                        uintptr_t arg2,
                                        uintptr_t arg3)
 {
-    DominoSandbox *sandbox = OSDynamicCast(DominoSandbox, reinterpret_cast<OSObject *>(idata));
+    BuildXLSandbox *sandbox = OSDynamicCast(BuildXLSandbox, reinterpret_cast<OSObject *>(idata));
     ProcessObject *pCurrentProcess = sandbox->FindTrackedProcess(proc_selfpid());
     if (pCurrentProcess == nullptr)
     {
@@ -86,7 +86,7 @@ int Listeners::domino_file_op_listener(kauth_cred_t credential,
 
 #pragma mark Scope VNode Callbacks
 
-int Listeners::domino_vnode_listener(kauth_cred_t credential,
+int Listeners::buildxl_vnode_listener(kauth_cred_t credential,
                                      void *idata,
                                      kauth_action_t action,
                                      uintptr_t arg0,
@@ -108,7 +108,7 @@ int Listeners::domino_vnode_listener(kauth_cred_t credential,
         return KAUTH_RESULT_DEFER;
     }
 
-    DominoSandbox *sandbox = OSDynamicCast(DominoSandbox, reinterpret_cast<OSObject *>(idata));
+    BuildXLSandbox *sandbox = OSDynamicCast(BuildXLSandbox, reinterpret_cast<OSObject *>(idata));
     ProcessObject *pCurrentProcess = sandbox->FindTrackedProcess(proc_selfpid());
     if (pCurrentProcess == nullptr)
     {
@@ -143,7 +143,7 @@ int Listeners::mpo_vnode_check_lookup_pre(kauth_cred_t cred,
             break;
         }
 
-        DominoSandbox *sandbox = (DominoSandbox*)g_dispatcher;
+        BuildXLSandbox *sandbox = (BuildXLSandbox*)g_dispatcher;
         ProcessObject *pCurrentProcess = sandbox->FindTrackedProcess(proc_selfpid());
         if (pCurrentProcess == nullptr)
         {
@@ -174,7 +174,7 @@ int Listeners::mpo_vnode_check_readlink(kauth_cred_t cred, struct vnode *vp, str
 {
     do
     {
-        DominoSandbox *sandbox = (DominoSandbox*)g_dispatcher;
+        BuildXLSandbox *sandbox = (BuildXLSandbox*)g_dispatcher;
         ProcessObject *pCurrentProcess = sandbox->FindTrackedProcess(proc_selfpid());
         if (pCurrentProcess == nullptr)
         {
@@ -203,11 +203,11 @@ int Listeners::mpo_vnode_check_exec(kauth_cred_t cred,
                                     void *macpolicyattr,
                                     size_t macpolicyattrlen)
 {
-    DominoSandbox *sandbox = (DominoSandbox*)g_dispatcher;
+    BuildXLSandbox *sandbox = (BuildXLSandbox*)g_dispatcher;
     ProcessObject *rootProcess = sandbox->FindTrackedProcess(proc_selfppid());
     if (rootProcess)
     {
-        // report child process to Domino only (tracking happens on 'fork's not 'exec's)
+        // report child process to BuildXL only (tracking happens on 'fork's not 'exec's)
         char absExecPath[MAXPATHLEN];
         int len = sizeof(absExecPath);
         vn_getpath(vp, absExecPath, &len);
@@ -221,7 +221,7 @@ int Listeners::mpo_vnode_check_exec(kauth_cred_t cred,
 void Listeners::mpo_proc_notify_exit(proc_t proc)
 {
     pid_t pid = proc_pid(proc);
-    DominoSandbox *sandbox = (DominoSandbox*)g_dispatcher;
+    BuildXLSandbox *sandbox = (BuildXLSandbox*)g_dispatcher;
     ProcessObject *trackedProcess = sandbox->FindTrackedProcess(pid);
     if (trackedProcess)
     {
@@ -254,7 +254,7 @@ int Listeners::mpo_cred_label_update_execve(kauth_cred_t old_cred,
 
 void Listeners::mpo_cred_label_associate_fork(kauth_cred_t cred, proc_t proc)
 {
-    DominoSandbox *sandbox = (DominoSandbox*)g_dispatcher;
+    BuildXLSandbox *sandbox = (BuildXLSandbox*)g_dispatcher;
     int pid = proc_pid(proc);
     int ppid = proc_ppid(proc);
 
@@ -279,7 +279,7 @@ int Listeners::mpo_vnode_check_create(kauth_cred_t cred,
                                       struct componentname *cnp,
                                       struct vnode_attr *vap)
 {
-    DominoSandbox *sandbox = (DominoSandbox*)g_dispatcher;
+    BuildXLSandbox *sandbox = (BuildXLSandbox*)g_dispatcher;
     ProcessObject *trackedProcess = sandbox->FindTrackedProcess(proc_selfpid());
     if (trackedProcess)
     {

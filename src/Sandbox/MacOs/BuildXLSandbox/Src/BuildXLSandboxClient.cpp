@@ -1,6 +1,6 @@
 //
 //  BuildXLSandboxClient.cpp
-//  DominoSandboxClient
+//  BuildXLSandboxClient
 //
 //  Copyright © 2018 Microsoft. All rights reserved.
 //
@@ -13,11 +13,11 @@
 
 #define super IOUserClient
 
-OSDefineMetaClassAndStructors(DominoSandboxClient, IOUserClient)
+OSDefineMetaClassAndStructors(BuildXLSandboxClient, IOUserClient)
 
-#pragma mark DominoSandbox client life-cycle
+#pragma mark BuildXLSandbox client life-cycle
 
-bool DominoSandboxClient::initWithTask(task_t owningTask,
+bool BuildXLSandboxClient::initWithTask(task_t owningTask,
                                     void *securityToken,
                                     UInt32 type)
 {
@@ -28,10 +28,10 @@ bool DominoSandboxClient::initWithTask(task_t owningTask,
     return success;
 }
 
-bool DominoSandboxClient::start(IOService *provider)
+bool BuildXLSandboxClient::start(IOService *provider)
 {
-    // Verify that the provider is the DominoSandbox, otherwise fail!
-    sandbox_ = OSDynamicCast(DominoSandbox, provider);
+    // Verify that the provider is the BuildXLSandbox, otherwise fail!
+    sandbox_ = OSDynamicCast(BuildXLSandbox, provider);
     bool success = (sandbox_ != NULL);
     if (success)
     {
@@ -41,17 +41,17 @@ bool DominoSandboxClient::start(IOService *provider)
     return success;
 }
 
-void DominoSandboxClient::stop(IOService *provider)
+void BuildXLSandboxClient::stop(IOService *provider)
 {
     super::stop(provider);
 }
 
-IOReturn DominoSandboxClient::clientClose(void)
+IOReturn BuildXLSandboxClient::clientClose(void)
 {
     return kIOReturnSuccess;
 }
 
-IOReturn DominoSandboxClient::clientDied(void)
+IOReturn BuildXLSandboxClient::clientDied(void)
 {
     // Always called as soon as the user-space client ceases to exist
     log_verbose(sandbox_->verboseLoggingEnabled, "%s", "Releasing resources...");
@@ -61,7 +61,7 @@ IOReturn DominoSandboxClient::clientDied(void)
 
 #pragma mark Fetching memory and data queue notifications
 
-IOReturn DominoSandboxClient::registerNotificationPort(mach_port_t port, UInt32 type, UInt32 ref)
+IOReturn BuildXLSandboxClient::registerNotificationPort(mach_port_t port, UInt32 type, UInt32 ref)
 {
     if (port == MACH_PORT_NULL)
     {
@@ -91,7 +91,7 @@ IOReturn DominoSandboxClient::registerNotificationPort(mach_port_t port, UInt32 
     return kIOReturnSuccess;
 }
 
-IOReturn DominoSandboxClient::clientMemoryForType(UInt32 type, IOOptionBits *options, IOMemoryDescriptor **memory)
+IOReturn BuildXLSandboxClient::clientMemoryForType(UInt32 type, IOOptionBits *options, IOMemoryDescriptor **memory)
 {
     switch (type)
     {
@@ -122,11 +122,11 @@ IOReturn DominoSandboxClient::clientMemoryForType(UInt32 type, IOOptionBits *opt
 
 #pragma mark IPC implementation
 
-const IOExternalMethodDispatch DominoSandboxClient::ipcMethods[kDominoSandboxMethodCount] =
+const IOExternalMethodDispatch BuildXLSandboxClient::ipcMethods[kBuildXLSandboxMethodCount] =
 {
     // kIpcActionPipStateChanged
     {
-        (IOExternalMethodAction) &DominoSandboxClient::sPipStateChanged,
+        (IOExternalMethodAction) &BuildXLSandboxClient::sPipStateChanged,
         0,
         sizeof(IpcData),
         0,
@@ -134,7 +134,7 @@ const IOExternalMethodDispatch DominoSandboxClient::ipcMethods[kDominoSandboxMet
     },
     // kIpcActionDebugCheck
     {
-        (IOExternalMethodAction) &DominoSandboxClient::sDebugCheck,
+        (IOExternalMethodAction) &BuildXLSandboxClient::sDebugCheck,
         0,
         0,
         1,
@@ -142,7 +142,7 @@ const IOExternalMethodDispatch DominoSandboxClient::ipcMethods[kDominoSandboxMet
     },
     // kIpcActionSetReportQueueSize
     {
-        (IOExternalMethodAction) &DominoSandboxClient::sSetReportQueueSize,
+        (IOExternalMethodAction) &BuildXLSandboxClient::sSetReportQueueSize,
         1,
         0,
         0,
@@ -150,7 +150,7 @@ const IOExternalMethodDispatch DominoSandboxClient::ipcMethods[kDominoSandboxMet
     },
     // kIpcActionForceVerboseLogging
     {
-        (IOExternalMethodAction) &DominoSandboxClient::sToggleVerboseLogging,
+        (IOExternalMethodAction) &BuildXLSandboxClient::sToggleVerboseLogging,
         1,
         0,
         0,
@@ -158,7 +158,7 @@ const IOExternalMethodDispatch DominoSandboxClient::ipcMethods[kDominoSandboxMet
     },
     // kIpcActionSetupFailureNotificationHandler
     {
-        (IOExternalMethodAction) &DominoSandboxClient::sSetFailureNotificationHandler,
+        (IOExternalMethodAction) &BuildXLSandboxClient::sSetFailureNotificationHandler,
         0,
         0,
         0,
@@ -166,12 +166,12 @@ const IOExternalMethodDispatch DominoSandboxClient::ipcMethods[kDominoSandboxMet
     },
 };
 
-IOReturn DominoSandboxClient::externalMethod(uint32_t selector, IOExternalMethodArguments *arguments,
+IOReturn BuildXLSandboxClient::externalMethod(uint32_t selector, IOExternalMethodArguments *arguments,
                                           IOExternalMethodDispatch *dispatch,
                                           OSObject *target,
                                           void *reference)
 {
-    if (selector < (uint32_t) kDominoSandboxMethodCount)
+    if (selector < (uint32_t) kBuildXLSandboxMethodCount)
     {
         dispatch = (IOExternalMethodDispatch *) &ipcMethods[selector];
 
@@ -184,7 +184,7 @@ IOReturn DominoSandboxClient::externalMethod(uint32_t selector, IOExternalMethod
     return super::externalMethod(selector, arguments, dispatch, target, reference);
 }
 
-IOReturn DominoSandboxClient::sDebugCheck(DominoSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
+IOReturn BuildXLSandboxClient::sDebugCheck(BuildXLSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
 {
     // This method is defined to only allow for one scalar output in its IPC interface, so it's safe to
     // derefernce it as an array with one element and ingore scalarOutputCount for bounds checking.
@@ -199,29 +199,29 @@ IOReturn DominoSandboxClient::sDebugCheck(DominoSandboxClient *target, void *ref
     return kIOReturnSuccess;
 }
 
-IOReturn DominoSandboxClient::sSetReportQueueSize(DominoSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
+IOReturn BuildXLSandboxClient::sSetReportQueueSize(BuildXLSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
 {
     const uint64_t *reportQueueSize = &arguments->scalarInput[0];
     return target->SetReportQueueSize((uint32_t)*reportQueueSize);
 }
 
-IOReturn DominoSandboxClient::sToggleVerboseLogging(DominoSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
+IOReturn BuildXLSandboxClient::sToggleVerboseLogging(BuildXLSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
 {
     const uint64_t *enabled = &arguments->scalarInput[0];
     return target->ToggleVerboseLogging((*enabled) == 1);
 }
 
-IOReturn DominoSandboxClient::sSetFailureNotificationHandler(DominoSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
+IOReturn BuildXLSandboxClient::sSetFailureNotificationHandler(BuildXLSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
 {
     return target->SetFailureNotificationHandler(arguments->asyncReference);
 }
 
-IOReturn DominoSandboxClient::sPipStateChanged(DominoSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
+IOReturn BuildXLSandboxClient::sPipStateChanged(BuildXLSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
 {
     return target->PipStateChanged((IpcData *)arguments->structureInput);
 }
 
-IOReturn DominoSandboxClient::PipStateChanged(IpcData *data)
+IOReturn BuildXLSandboxClient::PipStateChanged(IpcData *data)
 {
     if (data == nullptr)
     {
@@ -232,17 +232,17 @@ IOReturn DominoSandboxClient::PipStateChanged(IpcData *data)
 
     switch (data->action)
     {
-        case kDominoSandboxActionSendPipStarted:
+        case kBuildXLSandboxActionSendPipStarted:
         {
             error = ProcessPipStarted(data);
             break;
         }
-        case kDominoSandboxActionSendPipProcessTerminated:
+        case kBuildXLSandboxActionSendPipProcessTerminated:
         {
             error = ProcessPipTerminated(data);
             break;
         }
-        case kDominoSandboxActionSendClientAttached:
+        case kBuildXLSandboxActionSendClientAttached:
         {
             error = ProcessClientLaunched(data);
             break;
@@ -254,7 +254,7 @@ IOReturn DominoSandboxClient::PipStateChanged(IpcData *data)
     return error;
 }
 
-IOReturn DominoSandboxClient::ProcessPipStarted(IpcData *data)
+IOReturn BuildXLSandboxClient::ProcessPipStarted(IpcData *data)
 {
     IOReturn status = kIOReturnSuccess;
 
@@ -345,7 +345,7 @@ IOReturn DominoSandboxClient::ProcessPipStarted(IpcData *data)
     return status;
 }
 
-IOReturn DominoSandboxClient::ProcessPipTerminated(IpcData *data)
+IOReturn BuildXLSandboxClient::ProcessPipTerminated(IpcData *data)
 {
     pid_t pid = data->processId;
     pipid_t pipId = data->pipId;
@@ -363,7 +363,7 @@ IOReturn DominoSandboxClient::ProcessPipTerminated(IpcData *data)
     return kIOReturnSuccess;
 }
 
-IOReturn DominoSandboxClient::ProcessClientLaunched(IpcData *data)
+IOReturn BuildXLSandboxClient::ProcessClientLaunched(IpcData *data)
 {
 #if DEBUG
     char name[kProcessNameBufferSize];
@@ -373,25 +373,25 @@ IOReturn DominoSandboxClient::ProcessClientLaunched(IpcData *data)
     return sandbox_->AllocateReportQueueForClientProcess(data->processId);
 }
 
-IOReturn DominoSandboxClient::SetReportQueueSize(UInt32 reportQueueSize)
+IOReturn BuildXLSandboxClient::SetReportQueueSize(UInt32 reportQueueSize)
 {
     sandbox_->SetReportQueueSize(reportQueueSize);
     return kIOReturnSuccess;
 }
 
-IOReturn DominoSandboxClient::ToggleVerboseLogging(bool enabled)
+IOReturn BuildXLSandboxClient::ToggleVerboseLogging(bool enabled)
 {
     sandbox_->verboseLoggingEnabled = enabled;
     return kIOReturnSuccess;
 }
 
-IOReturn DominoSandboxClient::SetFailureNotificationHandler(OSAsyncReference64 ref)
+IOReturn BuildXLSandboxClient::SetFailureNotificationHandler(OSAsyncReference64 ref)
 {
     sandbox_->SetFailureNotificationHandlerForClientPid(proc_selfpid(), ref, this);
     return kIOReturnSuccess;
 }
 
-IOReturn DominoSandboxClient::SendAsyncResult(OSAsyncReference64 ref, IOReturn result)
+IOReturn BuildXLSandboxClient::SendAsyncResult(OSAsyncReference64 ref, IOReturn result)
 {
     // We can extend this method and the actual call to pass along more context if needed later
     return sendAsyncResult64(ref, result, NULL, 0);

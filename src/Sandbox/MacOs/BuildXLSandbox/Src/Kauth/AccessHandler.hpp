@@ -30,7 +30,7 @@ private:
     const ProcessObject *process_;
 
     // TODO: Can we solve this nicer?  Maybe pass a function pointer to SendAccessReport only?
-    DominoSandbox *sandbox_;
+    BuildXLSandbox *sandbox_;
 
     ReportResult DoReport(FileOperationContext fileOperationCtx,
                           PolicyResult policyResult,
@@ -60,7 +60,7 @@ protected:
 
 public:
 
-    AccessHandler(const ProcessObject *process, DominoSandbox *sandbox)
+    AccessHandler(const ProcessObject *process, BuildXLSandbox *sandbox)
         : sandbox_(sandbox), process_(process) { }
 
     inline pid_t GetClientPid()                 const { return process_->getClientPid(); }

@@ -126,7 +126,7 @@ IOReturn ConcurrentSharedDataQueue::InvokeAsyncHandle(IOReturn status)
     
     if (async_ != nullptr)
     {
-        DominoSandboxClient *client = OSDynamicCast(DominoSandboxClient, async_->userClient);
+        BuildXLSandboxClient *client = OSDynamicCast(BuildXLSandboxClient, async_->userClient);
         return client->SendAsyncResult(async_->ref, status);
     }
 

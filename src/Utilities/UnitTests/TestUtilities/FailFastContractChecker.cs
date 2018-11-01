@@ -14,8 +14,8 @@ namespace Test.BuildXL.TestUtilities
     /// <remarks>
     /// <para>
     /// Currently test suite is running under MSTest that has weird issues with exception serialization.
-    /// During contract validation ContractException would be thrown that will hang MSTest console runner.
-    /// To avoid this issue fail fast approach should be used.
+    /// During contract validation ContractException would be thrown that will cause the MSTest console runner
+    /// to stop responding. To avoid this issue fail fast approach should be used.
     ///
     /// Before killing the current process, there is a delay to wait for the test runner to run another test or
     /// cleanup the test to indicate that the test runner is still active.

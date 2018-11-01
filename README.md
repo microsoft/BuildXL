@@ -1,7 +1,7 @@
 # Microsoft Build Accelerator Preview: Windows and MacOS Sandboxes
 
 ## Introduction
-Build Accelerator, BuildXL for short, is a build engine originally developed for large internal teams at Microsoft, and owned by the [Tools for Software Engineers](https://www.microsoft.com/en-us/research/project/tools-for-software-engineers/) team, part of the Microsoft internal engineering systems group. The full engine will be committed to this repo in the first half of 2019.
+Build Accelerator, BuildXL for short, is a build engine originally developed for large internal teams at Microsoft, and owned by the [Tools for Software Engineers](https://www.microsoft.com/en-us/research/project/tools-for-software-engineers/) team, part of the Microsoft internal engineering systems group. BuildXL runs thousands of builds per day on codebases up to a half-terabyte in size with millions of pips (see below) per build. The full engine will be committed to this repo in the first half of 2019.
 
 In the interim we are releasing a few specific portions of the code related to sandboxing processes. Multiple developers in the engineering systems community outside of Microsoft have requested we share this technology and allow us to work together on common approaches.
 

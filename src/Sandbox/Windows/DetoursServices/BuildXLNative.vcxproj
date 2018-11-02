@@ -11,6 +11,9 @@
     <OutputPath Condition="'$(Platform)'=='X64'">$(SolutionDir)bin\$(Configuration)\x64\</OutputPath>
     <OutputPath Condition="'$(Platform)'=='Win32'">$(SolutionDir)bin\$(Configuration)\x86\</OutputPath>
     <OutDir>$(OutputPath)</OutDir>
+    <BaseIntermediateOutputPath>$(SolutionDir)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath Condition="'$(Platform)'=='X64'">$(BaseIntermediateOutputPath)x64\</IntermediateOutputPath>
+    <IntermediateOutputPath Condition="'$(Platform)'=='Win32'">$(BaseIntermediateOutputPath)x86\</IntermediateOutputPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>

@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -37,73 +37,6 @@ namespace Test.BuildXL.Utilities
         public BinaryStringSegment CreateSegment(string value, int startIndex, int length, bool isAscii)
         {
             return CreateSegment(value, isAscii).Subsegment(startIndex, length);
-        }
-
-        public void RunForEncoding(Action<bool> action)
-        {
-            action(true);
-            action(false);
-        }
-
-        public void VerifyStringExhaustive(string value, bool isAscii)
-        {
-            var otherString = "TEST{" + value + "}SURROUND";
-            var otherStringSegment = CreateSegment(otherString, isAscii).Subsegment(5, value.Length);
-
-            var fullSegment = CreateSegment(value, isAscii);
-            var otherFullSegment = CreateSegment(value, isAscii);
-            BinaryStringSegment fullUnicodeSegment = default(BinaryStringSegment);
-            if (isAscii)
-            {
-                // Create a unicode version to compare to.
-                fullUnicodeSegment = CreateSegment(value, isAscii: false);
-                VerifyEquals(fullSegment, fullUnicodeSegment);
-                VerifyEquals(otherStringSegment, fullUnicodeSegment);
-            }
-
-            VerifyEquals(fullSegment, fullSegment);
-            VerifyEquals(fullSegment, otherFullSegment);
-
-            for (int startIndex = 0; startIndex < value.Length; startIndex++)
-            {
-                XAssert.AreEqual(value[startIndex], fullSegment[startIndex]);
-                XAssert.AreEqual(value[startIndex], otherFullSegment[startIndex]);
-
-                for (int length = startIndex; length < value.Length - startIndex; length++)
-                {
-                    var fullPartialSegment = CreateSegment(value.Substring(startIndex, length), isAscii);
-                    var partialSegment = fullSegment.Subsegment(startIndex, length);
-                    var otherPartialSegment = otherStringSegment.Subsegment(startIndex, length);
-                    VerifyEquals(partialSegment, fullPartialSegment);
-                    VerifyEquals(otherPartialSegment, fullPartialSegment);
-                }
-            }
-
-            if (isAscii)
-            {
-                // Verify the Unicode binary segment for the ascii-only character string
-                for (int startIndex = 0; startIndex < value.Length; startIndex++)
-                {
-                    XAssert.AreEqual(value[startIndex], fullUnicodeSegment[startIndex]);
-
-                    for (int length = startIndex; length < value.Length - startIndex; length++)
-                    {
-                        var fullPartialSegment = CreateSegment(value.Substring(startIndex, length), isAscii);
-                        var partialSegment = CreateSegment(value, isAscii).Subsegment(startIndex, length);
-                        VerifyEquals(partialSegment, fullPartialSegment);
-                    }
-                }
-            }
-        }
-
-        public void VerifyEquals(BinaryStringSegment s1, BinaryStringSegment s2)
-        {
-            XAssert.IsTrue(s1.Equals(s2));
-            XAssert.IsTrue(s2.Equals(s1));
-            XAssert.IsTrue(s2 == s1);
-            XAssert.IsTrue(s1 == s2);
-            XAssert.IsFalse(s2 != s1);
-            XAssert.IsFalse(s1 != s2);
         }
 
         [Fact]
@@ -246,6 +179,73 @@ namespace Test.BuildXL.Utilities
                 XAssert.IsFalse(s1 == s2);
                 XAssert.IsTrue(s1 != s2);
             });
+        }
+
+        private void RunForEncoding(Action<bool> action)
+        {
+            action(true);
+            action(false);
+        }
+
+        private void VerifyStringExhaustive(string value, bool isAscii)
+        {
+            var otherString = "TEST{" + value + "}SURROUND";
+            var otherStringSegment = CreateSegment(otherString, isAscii).Subsegment(5, value.Length);
+
+            var fullSegment = CreateSegment(value, isAscii);
+            var otherFullSegment = CreateSegment(value, isAscii);
+            BinaryStringSegment fullUnicodeSegment = default(BinaryStringSegment);
+            if (isAscii)
+            {
+                // Create a unicode version to compare to.
+                fullUnicodeSegment = CreateSegment(value, isAscii: false);
+                VerifyEquals(fullSegment, fullUnicodeSegment);
+                VerifyEquals(otherStringSegment, fullUnicodeSegment);
+            }
+
+            VerifyEquals(fullSegment, fullSegment);
+            VerifyEquals(fullSegment, otherFullSegment);
+
+            for (int startIndex = 0; startIndex < value.Length; startIndex++)
+            {
+                XAssert.AreEqual(value[startIndex], fullSegment[startIndex]);
+                XAssert.AreEqual(value[startIndex], otherFullSegment[startIndex]);
+
+                for (int length = startIndex; length < value.Length - startIndex; length++)
+                {
+                    var fullPartialSegment = CreateSegment(value.Substring(startIndex, length), isAscii);
+                    var partialSegment = fullSegment.Subsegment(startIndex, length);
+                    var otherPartialSegment = otherStringSegment.Subsegment(startIndex, length);
+                    VerifyEquals(partialSegment, fullPartialSegment);
+                    VerifyEquals(otherPartialSegment, fullPartialSegment);
+                }
+            }
+
+            if (isAscii)
+            {
+                // Verify the Unicode binary segment for the ascii-only character string
+                for (int startIndex = 0; startIndex < value.Length; startIndex++)
+                {
+                    XAssert.AreEqual(value[startIndex], fullUnicodeSegment[startIndex]);
+
+                    for (int length = startIndex; length < value.Length - startIndex; length++)
+                    {
+                        var fullPartialSegment = CreateSegment(value.Substring(startIndex, length), isAscii);
+                        var partialSegment = CreateSegment(value, isAscii).Subsegment(startIndex, length);
+                        VerifyEquals(partialSegment, fullPartialSegment);
+                    }
+                }
+            }
+        }
+
+        private void VerifyEquals(BinaryStringSegment s1, BinaryStringSegment s2)
+        {
+            XAssert.IsTrue(s1.Equals(s2));
+            XAssert.IsTrue(s2.Equals(s1));
+            XAssert.IsTrue(s2 == s1);
+            XAssert.IsTrue(s1 == s2);
+            XAssert.IsFalse(s2 != s1);
+            XAssert.IsFalse(s1 != s2);
         }
     }
 }

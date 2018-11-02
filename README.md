@@ -35,6 +35,16 @@ In terms of performance, this sandbox adds anywhere from 15-40% time overhead to
 ## Demos
 Check out these [demos](docs/demos.md) to learn the basics about BuildXL sandboxing and key features.
 
+# Building the Code
+The Windows code in this release contains a hard-coded, required dependency on Windows SDK version 10.0.10240.0. The BuildXL team will be updating the SDK version over time, but upgrading the SDK now will result in build errors.
+
+To install this SDK version in Visual Studio:
+
+1. Open the Visual Studio Installer
+1. Click Modify, then click the Individual Components tab.
+1. Scroll to near the bottom of the list and add a check next to "Windows SDK (10.0.10240.0)".
+1. Click Modify and wait for installation to complete.
+
 
 # Contributing 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.

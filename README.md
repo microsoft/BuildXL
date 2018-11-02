@@ -23,6 +23,8 @@ The accounting capabilities are used for bookkeeping and post-execution rule enf
 
 In terms of performance, this implementation adds 1-5% of time overhead to running a process.
 
+Technical note: The top-level process initiating Detours calls must be a 64-bit process. Detours bootstrapping code is hard-coded to start from 64-bit, matching the requirements for large memory needs for the BuildXL engine for parsing and tracking large repos.
+
 ## MacOS Sandboxing
 Detouring is not a viable pattern on MacOS, so we use a kernel based implementation instead, but producing similar data and blocking capabilities as noted above for Windows.
 

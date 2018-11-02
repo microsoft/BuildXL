@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{F68E3177-2132-4579-A6E3-5E24E1D39A35}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <DefaultWindowsSDKVersion>10.0.10240.0</DefaultWindowsSDKVersion>
+    <OutputPath Condition="'$(Platform)'=='X64'">$(SolutionDir)bin\$(Configuration)\x64\</OutputPath>
+    <OutputPath Condition="'$(Platform)'=='Win32'">$(SolutionDir)bin\$(Configuration)\x86\</OutputPath>
+    <OutDir>$(OutputPath)</OutDir>
+    <BaseIntermediateOutputPath>$(SolutionDir)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath Condition="'$(Platform)'=='X64'">$(BaseIntermediateOutputPath)x64\</IntermediateOutputPath>
+    <IntermediateOutputPath Condition="'$(Platform)'=='Win32'">$(BaseIntermediateOutputPath)x86\</IntermediateOutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <TargetName>
+    </TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <TargetName>
+    </TargetName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>DETOURS_X86_X64;_MBCS;_WINDOWS;_USRDLL;_WINDLL;_UNICODE;UNICODE;VERBOSE=0;DETOURSSERVICES_EXPORTS;BUILDXL_NATIVES_LIBRARY</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Platform)'=='X64'">DETOURS_X64;DETOURS_64BIT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Platform)'=='Win32'">DETOURS_X86;DETOURS_32BIT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\Detours\include</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <BrowseInformation Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</BrowseInformation>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">/FS %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/FS %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/FS %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/FS %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>kernel32.lib;advapi32.lib;uuid.lib;ntdll.lib</AdditionalDependencies>
+    </Link>
+    <Bscmake>
+      <PreserveSbr Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</PreserveSbr>
+    </Bscmake>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Detours\Lib\Detours.vcxproj">
+      <Project>{b17d7e79-6fe3-4d37-939e-3ecdd96e895d}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Assertions.cpp" />
+    <ClCompile Include="DebuggingHelpers.cpp" />
+    <ClCompile Include="DetouredProcessInjector.cpp" />
+    <ClCompile Include="DetouredScope.cpp" />
+    <ClCompile Include="DetoursServices.cpp" />
+    <ClCompile Include="DeviceMap.cpp" />
+    <ClCompile Include="MetadataOverrides.cpp" />
+    <ClCompile Include="PolicySearch.cpp" />
+    <ClCompile Include="SendReport.cpp" />
+    <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="StringOperations.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Assertions.h" />
+    <ClInclude Include="buildXL_mem.h" />
+    <ClInclude Include="CanonicalizedPath.h" />
+    <ClInclude Include="DataTypes.h" />
+    <ClInclude Include="DebuggingHelpers.h" />
+    <ClInclude Include="DetouredFunctions.h" />
+    <ClInclude Include="DetouredFunctionTypes.h" />
+    <ClInclude Include="DetouredProcessInjector.h" />
+    <ClInclude Include="DetouredScope.h" />
+    <ClInclude Include="DetoursHelpers.h" />
+    <ClInclude Include="DetoursServices.h" />
+    <ClInclude Include="DeviceMap.h" />
+    <ClInclude Include="FileAccessHelpers.h" />
+    <ClInclude Include="globals.h" />
+    <ClInclude Include="HandleOverlay.h" />
+    <ClInclude Include="MetadataOverrides.h" />
+    <ClInclude Include="PolicyResult.h" />
+    <ClInclude Include="PolicySearch.h" />
+    <ClInclude Include="SendReport.h" />
+    <ClInclude Include="stdafx-mac-common.h" />
+    <ClInclude Include="stdafx-mac-interop.h" />
+    <ClInclude Include="stdafx-mac-kext.h" />
+    <ClInclude Include="stdafx-win.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="StringOperations.h" />
+    <ClInclude Include="targetver.h" />
+    <ClInclude Include="UnicodeConverter.h" />
+    <ClInclude Include="UniqueHandle.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

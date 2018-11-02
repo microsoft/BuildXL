@@ -99,17 +99,17 @@ namespace BuildXL.Native.IO.Unix
         /// Like PatternMatcher, matching will not line up with Win32 behavior unless you transform the expression
         /// using <see cref="TranslateWin32Expression(string)"/>
         /// </remarks>
-        public static bool MatchesWin32Expression(ReadOnlySpan<char> expression, ReadOnlySpan<char> name, bool ignoreCase = true)
+        public static bool MatchesWin32Expression(string expression, string name, bool ignoreCase = true)
         {
-            return MatchPattern(expression, name, ignoreCase, useExtendedWildcards: true);
+            return MatchPattern(expression.AsSpan(), name.AsSpan(), ignoreCase, useExtendedWildcards: true);
         }
 
         /// <summary>
         /// Return true if the given expression matches the given name. '*' and '?' are wildcards, '\' escapes.
         /// </summary>
-        public static bool MatchesSimpleExpression(ReadOnlySpan<char> expression, ReadOnlySpan<char> name, bool ignoreCase = true)
+        public static bool MatchesSimpleExpression(string expression, string name, bool ignoreCase = true)
         {
-            return MatchPattern(expression, name, ignoreCase, useExtendedWildcards: false);
+            return MatchPattern(expression.AsSpan(), name.AsSpan(), ignoreCase, useExtendedWildcards: false);
         }
 
         // Matching routine description

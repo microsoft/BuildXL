@@ -221,7 +221,7 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public void Equals()
+        public void IsEqual()
         {
             RunForEncoding(isAscii =>
             {

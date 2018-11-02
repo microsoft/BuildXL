@@ -100,7 +100,7 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
-        public void Equals()
+        public void IsEqual()
         {
             var s1 = new StringSegment("ABCDEF");
             var s2 = new StringSegment("ABCDEF", 0, 6);

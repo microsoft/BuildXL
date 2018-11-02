@@ -48,6 +48,15 @@ namespace BuildXL.Processes.Tracing
             }
         }
 
+        public void PipInvalidDetoursDebugFlag2(LoggingContext context)
+        {
+            context.SpecifyErrorWasLogged((int)EventId.PipInvalidDetoursDebugFlag1);
+            if (LogEventLevel.Error <= context.MaximumLevelToLog)
+            {
+                Console.Error.WriteLine($"A non-debug {Branding.ShortProductName} is using a debug DetoursServices.dll.");
+            }
+        }
+
         public void PipProcessStartFailed(LoggingContext context, long pipSemiStableHash, string pipDescription, int errorCode, string message)
         {
             context.SpecifyErrorWasLogged((int)EventId.PipProcessStartFailed);

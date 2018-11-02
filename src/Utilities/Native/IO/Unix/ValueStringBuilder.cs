@@ -69,7 +69,7 @@ namespace BuildXL.Native.IO.Unix
 
         public override string ToString()
         {
-            var s = new string(_chars.Slice(0, _pos));
+            var s = new string(_chars.Slice(0, _pos).ToArray());
             Dispose();
             return s;
         }

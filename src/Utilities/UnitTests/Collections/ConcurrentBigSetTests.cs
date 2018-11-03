@@ -31,13 +31,13 @@ namespace Test.BuildXL.Utilities
             TestOperationsHelper(parallel: true);
         }
 
-        public void TestOperationsHelper(bool parallel)
+        private static void TestOperationsHelper(bool parallel)
         {
-            ConcurrentBigSet<int> set = new ConcurrentBigSet<int>();
+            var set = new ConcurrentBigSet<int>();
             int length = 100000;
             int expectedAddedCount = length;
 
-            int[] indexedItems = new int[length];
+            var indexedItems = new int[length];
 
             // Verify that all bits start off with the default value (false in this case)
             For(length, i =>
@@ -70,7 +70,7 @@ namespace Test.BuildXL.Utilities
                     ((i % 5) != 3) ?
                     set.GetOrAdd(i) :
 
-                    // Test heterogenous add in set
+                    // Test heterogeneous add in set
                     set.GetOrAddItem(new StringIntItem(i.ToString()));
 
                 if (!result.IsFound)
@@ -92,7 +92,7 @@ namespace Test.BuildXL.Utilities
                 {
                     XAssert.AreEqual((i % 4) != 3, set.Contains(i));
 
-                    // Test heterogenous search in set
+                    // Test heterogeneous search in set
                     XAssert.AreEqual((i % 4) != 3, set.ContainsItem(new StringIntItem(i.ToString())));
 
                     if (i < expectedAddedCount)
@@ -105,7 +105,7 @@ namespace Test.BuildXL.Utilities
 
         private struct StringIntItem : IPendingSetItem<int>
         {
-            private string m_value;
+            private readonly string m_value;
 
             public StringIntItem(string value)
             {

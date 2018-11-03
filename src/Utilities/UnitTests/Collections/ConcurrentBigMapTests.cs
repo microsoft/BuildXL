@@ -23,7 +23,7 @@ namespace Test.BuildXL.Utilities
         [Fact]
         public void TestConcurrentBigMapOperations()
         {
-            ConcurrentBigMap<int, string> map = new ConcurrentBigMap<int, string>();
+            var map = new ConcurrentBigMap<int, string>();
             XAssert.IsTrue(map.TryAdd(0, "value"));
             XAssert.IsFalse(map.TryAdd(0, "not added value"));
             XAssert.AreEqual("value", map[0]);
@@ -105,13 +105,13 @@ namespace Test.BuildXL.Utilities
             TestOperationsHelper(parallel: true);
         }
 
-        public void TestOperationsHelper(bool parallel)
+        private static void TestOperationsHelper(bool parallel)
         {
-            ConcurrentBigMap<int, string> map = new ConcurrentBigMap<int, string>();
+            var map = new ConcurrentBigMap<int, string>();
             int length = 100000;
             int expectedAddedCount = length;
 
-            string[] expectedValues = new string[length];
+            var expectedValues = new string[length];
 
             // Verify that all bits start off with the default value (false in this case)
             For(length, i =>

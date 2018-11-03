@@ -26,7 +26,7 @@ namespace Test.BuildXL.Utilities
             TestOperationsHelper(parallel: true);
         }
 
-        public void TestOperationsHelper(bool parallel)
+        private static void TestOperationsHelper(bool parallel)
         {
             var length = 256;
             var mod5Array = new ConcurrentBitArray(12);

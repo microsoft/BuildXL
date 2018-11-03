@@ -267,7 +267,7 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(128, BitSet.RoundToValidBitCount(128));
         }
 
-        public void VerifyContents(BitSet set, params int[] expected)
+        private static void VerifyContents(BitSet set, params int[] expected)
         {
             Array.Sort(expected);
 

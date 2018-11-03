@@ -15,9 +15,9 @@ namespace Test.BuildXL.Utilities.Collections
         public void Empty()
         {
             var col = new MultiValueDictionary<string, string>();
-            Assert.Equal(0, col.Count);
-            Assert.Equal(0, col.Values.Count());
-            Assert.Equal(0, col.Keys.Count());
+            Assert.Empty(col);
+            Assert.Empty(col.Values);
+            Assert.Empty(col.Keys);
             Assert.Equal(string.Empty, Print(col));
         }
 
@@ -26,9 +26,9 @@ namespace Test.BuildXL.Utilities.Collections
         {
             var col = new MultiValueDictionary<string, string>();
             col.Add("A", "1");
-            Assert.Equal(1, col.Count);
-            Assert.Equal(1, col.Values.Count());
-            Assert.Equal(1, col.Keys.Count());
+            Assert.Single(col);
+            Assert.Single(col.Values);
+            Assert.Single(col.Keys);
             Assert.Equal(1, col["A"].Count);
             Assert.Equal(@"A[1]", Print(col));
         }
@@ -42,9 +42,9 @@ namespace Test.BuildXL.Utilities.Collections
             col.Add("A", "3");
 
             // Added in different order to ensure not sorted and insert-order is preserved.
-            Assert.Equal(1, col.Count);
-            Assert.Equal(1, col.Values.Count());
-            Assert.Equal(1, col.Keys.Count());
+            Assert.Single(col);
+            Assert.Single(col.Values);
+            Assert.Single(col.Keys);
             Assert.Equal(3, col["A"].Count);
             Assert.Equal(@"A[2,1,3]", Print(col));
         }
@@ -125,7 +125,7 @@ namespace Test.BuildXL.Utilities.Collections
             Assert.Equal(@"A[2,1]", Print(col));
         }
 
-        private string Print(MultiValueDictionary<string, string> dictionary)
+        private static string Print(MultiValueDictionary<string, string> dictionary)
         {
             var builder = new StringBuilder();
 

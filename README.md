@@ -36,7 +36,9 @@ In terms of performance, this sandbox adds anywhere from 15-40% time overhead to
 Check out these [demos](docs/demos.md) to learn the basics about BuildXL sandboxing and key features.
 
 # Building the Code
-The Windows code in this release contains a hard-coded, required dependency on Windows SDK version 10.0.10240.0. The BuildXL team will be updating the SDK version over time, but upgrading the SDK now will result in build errors.
+
+## Windows
+You should use [Visual Studio](https://visualstudio.microsoft.com/vs/), e.g. Community Edition, to build to code with MSBuild. You need to install the C# and C++ workloads. Additionally, the Windows code in this release contains a hard-coded, required dependency on Windows SDK version 10.0.10240.0. The BuildXL team will be updating the SDK version over time, but upgrading the SDK now will result in build errors.
 
 To install this SDK version in Visual Studio:
 

@@ -1,3 +1,5 @@
+![Build Accelerator Logo](./branding/BuildXLLogo_WithTitleText.svg)
+
 # Microsoft Build Accelerator Preview: Windows and MacOS Sandboxes
 
 ## Introduction

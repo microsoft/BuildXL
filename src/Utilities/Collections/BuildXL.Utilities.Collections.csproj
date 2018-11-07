@@ -7,7 +7,4 @@
   <ItemGroup>
     <PackageReference Include="RuntimeContracts " Version="0.1.7.2" />
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="Microsoft.OneBuild.Collections.dsc" />
-  </ItemGroup>
 </Project>

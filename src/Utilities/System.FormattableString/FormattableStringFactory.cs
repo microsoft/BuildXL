@@ -8,11 +8,13 @@ namespace System.Runtime.CompilerServices
     /// </summary>
     public static class FormattableStringFactory
     {
+#pragma warning disable CS0436 // Type conflicts with imported type
         /// <summary>
         /// Create a <see cref="FormattableString"/> from a composite format string and object
         /// array containing zero or more objects to format.
         /// </summary>
         public static FormattableString Create(string format, params object[] arguments)
+#pragma warning restore CS0436 // Type conflicts with imported type
         {
             if (format == null)
             {
@@ -24,7 +26,9 @@ namespace System.Runtime.CompilerServices
                 throw new ArgumentNullException(nameof(arguments));
             }
 
+#pragma warning disable CS0436 // Type conflicts with imported type
             return new FormattableString(format, arguments);
+#pragma warning restore CS0436 // Type conflicts with imported type
         }
     }
 }

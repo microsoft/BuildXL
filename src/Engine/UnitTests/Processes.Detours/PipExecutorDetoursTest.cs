@@ -3778,18 +3778,9 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        [Fact]
-        public Task TimestampsNormalize()
-        {
-            return Timestamps(normalize: true);
-        }
-
-        [Fact]
-        public Task TimestampsNoNormalize()
-        {
-            return Timestamps(normalize: false);
-        }
-
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
         public async Task Timestamps(bool normalize)
         {
             var context = BuildXLContext.CreateInstanceForTesting();

@@ -94,7 +94,6 @@ namespace Test.BuildXL.Processes
         private static string GetRemoteApiExeLocation()
         {
             string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-            //currentCodeFolder = Path.Combine(currentCodeFolder, "DetoursCrossBitTests");
             Contract.Assume(currentCodeFolder != null);
             return Path.GetFullPath(Path.Combine(currentCodeFolder, "x64", "RemoteApi.exe"));
         }

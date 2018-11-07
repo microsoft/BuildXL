@@ -39,6 +39,9 @@ Check out these [demos](docs/demos.md) to learn the basics about BuildXL sandbox
 
 # Building the Code
 
+## Build Status - Azure DevOps Pipelines
+[![Build Status](https://dev.azure.com/mses/BuildXL/_apis/build/status/Microsoft.BuildXL)](https://dev.azure.com/mses/BuildXL/_build/latest?definitionId=1)
+
 ## Windows
 You should use [Visual Studio](https://visualstudio.microsoft.com/vs/), e.g. Community Edition, to build to code with MSBuild. You need to install the ".NET desktop development", "Desktop development with C++" and ".NET core cross-platform development" workloads. Additionally, the Windows code in this release contains a hard-coded, required dependency on Windows SDK version 10.0.10240.0. The BuildXL team will be updating the SDK version over time, but upgrading the SDK now will result in build errors.
 

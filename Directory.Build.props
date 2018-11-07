@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-      <OutputPath>$(SolutionDir)bin\$(Configuration)\</OutputPath>
-      <OutDir>$(OutputPath)</OutDir>
-      <UseCommonOutputDirectory>True</UseCommonOutputDirectory>
-      <AssemblyOriginatorKeyFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)'))/BuildXL.DevKey.snk</AssemblyOriginatorKeyFile>
-      <DefineConstants>DISABLE_FEATURE_VISUALIZER;FEATURE_CORECLR;FEATURE_SAFE_PROCESS_HANDLE;DISABLE_FEATURE_MEMORYMAP_SECURITY;DISABLE_FEATURE_SYSTEM_MANAGEMENT;DISABLE_FEATURE_HTTPEXCEPTION;DISABLE_FEATURE_VSEXTENSION_INSTALL_CHECK;DISABLE_FEATURE_BOND_RPC;DISABLE_FEATURE_SECURITY_ATTRIBUTES;DISABLE_FEATURE_HTMLWRITER;DISABLE_FEATURE_DISTRIBUTION;DISABLE_FEATURE_FILES_SYSTEM_RIGHTS;DISABLE_FEATURE_EXTENDED_ENCODING</DefineConstants>
+    <OutputPath>$(SolutionDir)bin\$(Configuration)\</OutputPath>
+    <OutDir>$(OutputPath)</OutDir>
+    <UseCommonOutputDirectory>True</UseCommonOutputDirectory>
+    <BaseIntermediateOutputPath>$(SolutionDir)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <AssemblyOriginatorKeyFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)'))/BuildXL.DevKey.snk</AssemblyOriginatorKeyFile>
+    <DefineConstants>DISABLE_FEATURE_VISUALIZER;FEATURE_CORECLR;FEATURE_SAFE_PROCESS_HANDLE;DISABLE_FEATURE_MEMORYMAP_SECURITY;DISABLE_FEATURE_SYSTEM_MANAGEMENT;DISABLE_FEATURE_HTTPEXCEPTION;DISABLE_FEATURE_VSEXTENSION_INSTALL_CHECK;DISABLE_FEATURE_BOND_RPC;DISABLE_FEATURE_SECURITY_ATTRIBUTES;DISABLE_FEATURE_HTMLWRITER;DISABLE_FEATURE_DISTRIBUTION;DISABLE_FEATURE_FILES_SYSTEM_RIGHTS;DISABLE_FEATURE_EXTENDED_ENCODING</DefineConstants>
+    <LangVersion>7.2</LangVersion>
+    <SignAssembly>true</SignAssembly>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 </Project>

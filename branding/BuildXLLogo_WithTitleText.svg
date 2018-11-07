@@ -9,15 +9,14 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="273.43512mm"
-   height="46.868771mm"
-   viewBox="0 0 273.43512 46.868771"
+   width="1023.8738"
+   height="177.14182"
+   id="svg3233"
    version="1.1"
-   id="svg3763"
    inkscape:version="0.92.3 (2405546, 2018-03-11)"
    sodipodi:docname="BuildXLLogo_WithTitleText.svg">
   <defs
-     id="defs3757" />
+     id="defs3235" />
   <sodipodi:namedview
      id="base"
      pagecolor="#ffffff"
@@ -25,19 +24,23 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.35"
-     inkscape:cx="-54.700796"
-     inkscape:cy="-528.57197"
-     inkscape:document-units="mm"
-     inkscape:current-layer="layer1"
+     inkscape:zoom="1.0507988"
+     inkscape:cx="895.1411"
+     inkscape:cy="54.234845"
+     inkscape:document-units="px"
+     inkscape:current-layer="g4624"
      showgrid="false"
      inkscape:window-width="2560"
      inkscape:window-height="1315"
      inkscape:window-x="-13"
      inkscape:window-y="-13"
-     inkscape:window-maximized="1" />
+     inkscape:window-maximized="1"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0" />
   <metadata
-     id="metadata3760">
+     id="metadata3238">
     <rdf:RDF>
       <cc:Work
          rdf:about="">
@@ -52,28 +55,28 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-120.30625,37.886771)">
+     transform="translate(-71.377749,-474.30024)">
     <g
        id="g4624"
-       transform="matrix(0.26458333,0,0,0.26458333,396.35214,-104.50978)">
+       transform="translate(1014.3406,11.228862)">
       <text
          xml:space="preserve"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0%;font-family:Tahoma;-inkscape-font-specification:Tahoma;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#4d4d4d;fill-opacity:1;stroke:none"
-         x="-279.48749"
-         y="328.76001"
+         x="-688.94763"
+         y="540.02789"
          id="text3469"><tspan
            sodipodi:role="line"
-           x="-252.10988"
-           y="328.76001"
+           x="-688.94763"
+           y="540.02789"
            id="tspan3471"
-           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:80.09909058px;line-height:100%;font-family:'Nanum Gothic';-inkscape-font-specification:'Nanum Gothic Bold';text-align:end;writing-mode:lr-tb;text-anchor:end;fill:#4d4d4d">Microsoft </tspan><tspan
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:80.09909058px;line-height:100%;font-family:'MS Reference Sans Serif';-inkscape-font-specification:'MS Reference Sans Serif Bold';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#4d4d4d">Microsoft </tspan><tspan
            id="tspan3473"
            sodipodi:role="line"
-           x="-279.48752"
-           y="408.8591"
-           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:80.09909058px;line-height:100%;font-family:'Nanum Gothic';-inkscape-font-specification:'Nanum Gothic Bold';text-align:end;writing-mode:lr-tb;text-anchor:end;fill:#4d4d4d">Build Accelerator</tspan></text>
+           x="-688.94763"
+           y="620.12695"
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:80.09909058px;line-height:100%;font-family:'MS Reference Sans Serif';-inkscape-font-specification:'MS Reference Sans Serif Bold';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#4d4d4d">Build Accelerator</tspan></text>
       <g
-         transform="matrix(0.66236716,0,0,0.66236716,-7700.7371,892.78862)"
+         transform="matrix(0.66236716,0,0,0.66236716,-8404.0116,1104.0565)"
          id="g3475">
         <path
            inkscape:connector-curvature="0"
@@ -96,6 +99,27 @@
            d="m 11611.188,-829.9375 -224.532,12.90625 v 116.75 z"
            id="path3483" />
       </g>
-    </g>
+      <flowRoot
+         xml:space="preserve"
+         id="flowRoot44"
+         style="font-style:normal;font-weight:normal;font-size:40px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
+         transform="translate(-962.26891,194.06152)"><flowRegion
+           id="flowRegion46"><rect
+             id="rect48"
+             width="1213.3625"
+             height="493.90994"
+             x="904.0741"
+             y="175.92435" /></flowRegion><flowPara
+           id="flowPara50"></flowPara></flowRoot>      <flowRoot
+         xml:space="preserve"
+         id="flowRoot52"
+         style="fill:black;fill-opacity:1;stroke:none;font-family:sans-serif;font-style:normal;font-weight:normal;font-size:40px;line-height:1.25;letter-spacing:0px;word-spacing:0px"><flowRegion
+           id="flowRegion54"><rect
+             id="rect56"
+             width="553.86432"
+             height="138.94191"
+             x="255.99571"
+             y="47.716473" /></flowRegion><flowPara
+           id="flowPara58"></flowPara></flowRoot>    </g>
   </g>
 </svg>

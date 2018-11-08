@@ -4782,25 +4782,8 @@ namespace Test.BuildXL.Processes.Detours
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
 
                 AbsolutePath exePath;
-                string localExePath = string.Empty;
-                try
-                {
-                    localExePath = new System.Uri(AssemblyHelper.GetAssemblyLocation(System.Reflection.Assembly.GetEntryAssembly())).LocalPath;
-#if FEATURE_CORECLR
-                    // Unfortunately when running .NET Core the entry assembly AssemblyHelper returns, is the test assembly
-                    // itself and not the xunit test runner nor the dotnet binary. In that case this test would fail as we have read access
-                    // to the assembly directory, thus constuct a path to an existing binary outside of that path to make the test
-                    // work due to the lack of permissions to read the target.
-                    localExePath = Path.GetDirectoryName(localExePath);
-                    localExePath = Path.Combine(localExePath, "TestProcess\\Win\\Test.BuildXL.Executables.TestProcess.exe");
-#endif
-                }
-                catch
-                {
-                    localExePath = string.Empty;
-                }
+                string localExePath = Directory.GetCurrentDirectory() + "\\TestProcess\\Win\\Test.BuildXL.Executables.TestProcess.exe";
 
-                XAssert.IsTrue(!string.IsNullOrEmpty(localExePath));
                 bool gotten = AbsolutePath.TryCreate(pathTable, localExePath, out exePath);
                 XAssert.IsTrue(gotten);
 

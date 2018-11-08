@@ -592,12 +592,16 @@ namespace Test.BuildXL.Processes
 
 
                     string output = (await result.StandardOutput.ReadValueAsync()).Trim();
+                    testOutputHelper.WriteLine($"------ processOutput: [{output}]");
+
+                    string error = (await result.StandardError.ReadValueAsync()).Trim();
+                    testOutputHelper.WriteLine($"------ processError: [{error}]");
 
                     // there can be multiple instance of WMIC running concurrently,
                     // so we can only check that one of them has this process as the parent
                     var possibleProcessIds = new List<int>();
 
-                    testOutputHelper.WriteLine($"------ processOutput: [{output}]");
+                    
                     foreach (string s in output.Split('\n').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)))
                     {
                         testOutputHelper.WriteLine($"------ s: [{s}]");

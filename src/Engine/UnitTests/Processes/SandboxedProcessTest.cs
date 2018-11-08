@@ -585,7 +585,12 @@ namespace Test.BuildXL.Processes
                 info.FileAccessManifest.FailUnexpectedFileAccesses = false;
                 using (ISandboxedProcess process = await StartProcessAsync(info))
                 {
+                    testOutputHelper.WriteLine($"------ process info: [{System.Diagnostics.ObjectDumper.Dump(process)}]");
+
                     SandboxedProcessResult result = await process.GetResultAsync();
+                    testOutputHelper.WriteLine($"------ process.GetResultAsync() result: [{System.Diagnostics.ObjectDumper.Dump(result)}]");
+
+
                     string output = (await result.StandardOutput.ReadValueAsync()).Trim();
 
                     // there can be multiple instance of WMIC running concurrently,

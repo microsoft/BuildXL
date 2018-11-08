@@ -4782,7 +4782,7 @@ namespace Test.BuildXL.Processes.Detours
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
 
                 AbsolutePath exePath;
-                string localExePath = Directory.GetCurrentDirectory() + "\\TestProcess\\Win\\Test.BuildXL.Executables.TestProcess.exe";
+                string localExePath = Path.Combine(Directory.GetCurrentDirectory(), "TestProcess\\Win\\Test.BuildXL.Executables.TestProcess.exe");
 
                 bool gotten = AbsolutePath.TryCreate(pathTable, localExePath, out exePath);
                 XAssert.IsTrue(gotten);

@@ -14,4 +14,9 @@
   <ItemGroup>
     <ProjectReference Include="..\TestUtilities.XUnit\Test.BuildXL.TestUtilities.XUnit.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

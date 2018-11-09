@@ -563,7 +563,7 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(workingDir, stdout.Trim());
         }
 
-        [Fact]
+        [Fact(Skip = "WMIC module is not available on DevOps Pipeline machines")]
         [Trait("Category", "WindowsOSOnly")]
         public async Task ProcessId()
         {

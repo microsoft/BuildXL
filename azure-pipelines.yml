@@ -2,6 +2,7 @@
 # Build and run tests for .NET Desktop or Windows classic desktop solutions.
 # Add steps that publish symbols, save build artifacts, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/apps/windows/dot-net
+# Schema for test tasks: https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/test/vstest?view=vsts
 
 pool:
   vmImage: 'VS2017-Win2016'
@@ -28,3 +29,4 @@ steps:
   inputs:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+    testAssemblyVer2: '**\*test*.dll!**\*TestAdapter.dll!**\obj\**!**\*DummyWaiter*!**\Test.BuildXL.Executables.TestProcess*'

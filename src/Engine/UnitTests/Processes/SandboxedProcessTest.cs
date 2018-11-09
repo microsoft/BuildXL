@@ -26,13 +26,8 @@ namespace Test.BuildXL.Processes
 {
     public sealed class SandboxedProcessTest : SandboxedProcessTestBase
     {
-        ITestOutputHelper testOutputHelper;
-
         public SandboxedProcessTest(ITestOutputHelper output)
-            : base(output)
-        {
-            testOutputHelper = output;
-        }
+            : base(output) { }
 
         private sealed class MyListener : IDetoursEventListener
         {
@@ -591,30 +586,21 @@ namespace Test.BuildXL.Processes
                     // there can be multiple instance of WMIC running concurrently,
                     // so we can only check that one of them has this process as the parent
                     var possibleProcessIds = new List<int>();
-
-                    testOutputHelper.WriteLine($"------ processOutput: [{output}]");
                     foreach (string s in output.Split('\n').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)))
                     {
-                        testOutputHelper.WriteLine($"------ s: [{s}]");
-
                         string t = s.StartsWith("WMIC.exe", StringComparison.Ordinal) ? s.Substring("WMIC.exe".Length).Trim() : s;
-
-                        testOutputHelper.WriteLine($"------ t: [{t}]");
 
                         int i;
                         if (int.TryParse(t, out i))
                         {
-                            testOutputHelper.WriteLine($"------ i: [{i}]");
                             possibleProcessIds.Add(i);
                         }
                         else
                         {
-                            testOutputHelper.WriteLine("------ int.TryParse(t, out i) failed");
                             XAssert.Fail("Not an integer: {0}", t);
                         }
                     }
 
-                    testOutputHelper.WriteLine($"------ Does possibleProcessIds: [{String.Join(",", possibleProcessIds)}] contain process.ProcessId: [{process.ProcessId}] ?");
                     XAssert.IsTrue(possibleProcessIds.Contains(process.ProcessId));
                 }
             }

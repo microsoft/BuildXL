@@ -5,7 +5,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
-    <PackageReference Include="ObjectDumper.NET" Version="2.0.18311.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
@@ -24,5 +23,10 @@
     <ProjectReference Include="..\..\..\Sandbox\Windows\DetoursServices\DetoursServices.x86.vcxproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

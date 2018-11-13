@@ -1,9 +1,8 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28010.2048
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Utilities.Collections", "src\Utilities\Collections\BuildXL.Utilities.Collections.csproj", "{6FD9CD40-99F8-4BE2-ADD3-6DAB1C0DCA0D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Utilities.Collections", "Public\src\Utilities\Collections\BuildXL.Utilities.Collections.csproj", "{6FD9CD40-99F8-4BE2-ADD3-6DAB1C0DCA0D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{ECC0573A-2013-42D3-B0C4-7AE4FD14AA22}"
 EndProject
@@ -13,7 +12,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Collections", "Collections"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Configuration", "Configuration", "{38DFCC80-EC37-49B0-ADD9-3164D879BD87}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Utilities.Configuration", "src\Utilities\Configuration\BuildXL.Utilities.Configuration.csproj", "{0D26A071-8487-4C88-A11A-D422190B41DF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Utilities.Configuration", "Public\src\Utilities\Configuration\BuildXL.Utilities.Configuration.csproj", "{0D26A071-8487-4C88-A11A-D422190B41DF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Utilities", "Utilities", "{2E52D210-4F94-4EE0-B13E-1272127A8CDC}"
 EndProject
@@ -23,43 +22,43 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Instrumentation", "Instrume
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{B5030396-AE64-4D1E-A420-73EB543CFE67}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Utilities.Instrumentation.Common", "src\Utilities\Instrumentation\Common\BuildXL.Utilities.Instrumentation.Common.csproj", "{351C38FF-C50C-4A5E-BF31-B0AF4EF04BD0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Utilities.Instrumentation.Common", "Public\src\Utilities\Instrumentation\Common\BuildXL.Utilities.Instrumentation.Common.csproj", "{351C38FF-C50C-4A5E-BF31-B0AF4EF04BD0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Interop", "src\Utilities\Interop\BuildXL.Interop.csproj", "{896289ED-6FD2-45E4-979C-1195B3C7D0EC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Interop", "Public\src\Utilities\Interop\BuildXL.Interop.csproj", "{896289ED-6FD2-45E4-979C-1195B3C7D0EC}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Native", "Native", "{FD9BF43A-F49D-47D0-A04D-D6D33F51898C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Native", "src\Utilities\Native\BuildXL.Native.csproj", "{9EA0BD5E-4CAA-4733-9F2D-1C4C66272708}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Native", "Public\src\Utilities\Native\BuildXL.Native.csproj", "{9EA0BD5E-4CAA-4733-9F2D-1C4C66272708}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Storage", "Storage", "{8B493767-9616-4C51-B585-1F6850ED93AE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Storage", "src\Utilities\Storage\BuildXL.Storage.csproj", "{2E2824E0-5941-4FE4-A426-B098C0453441}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Storage", "Public\src\Utilities\Storage\BuildXL.Storage.csproj", "{2E2824E0-5941-4FE4-A426-B098C0453441}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "System.FormattableString", "System.FormattableString", "{533564FC-5C68-403F-A3A9-8F493040545C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "System.FormattableString", "src\Utilities\System.FormattableString\System.FormattableString.csproj", "{1C3A8250-F4A4-4C83-862C-6932841FC296}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "System.FormattableString", "Public\src\Utilities\System.FormattableString\System.FormattableString.csproj", "{1C3A8250-F4A4-4C83-862C-6932841FC296}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "UnitTests", "UnitTests", "{4A9DF5D7-0C85-4B4B-83C9-487CF973D530}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Collections", "Collections", "{52B57B53-93F2-4281-A20E-604ADF4C0025}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Utilities.Collections", "src\Utilities\UnitTests\Collections\Test.BuildXL.Utilities.Collections.csproj", "{A77C8163-C3E2-445D-845E-AC0871CCDA57}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Utilities.Collections", "Public\src\Utilities\UnitTests\Collections\Test.BuildXL.Utilities.Collections.csproj", "{A77C8163-C3E2-445D-845E-AC0871CCDA57}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TestUtilities", "TestUtilities", "{2E9F928E-9807-4DF1-93FC-04F4FAEB3654}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.TestUtilities", "src\Utilities\UnitTests\TestUtilities\Test.BuildXL.TestUtilities.csproj", "{7D7B0DDE-5375-4241-AA28-39B4483E6616}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.TestUtilities", "Public\src\Utilities\UnitTests\TestUtilities\Test.BuildXL.TestUtilities.csproj", "{7D7B0DDE-5375-4241-AA28-39B4483E6616}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TestUtilities.XUnit", "TestUtilities.XUnit", "{27B0DC74-2248-4D8D-BDFF-13AEE7BFC1E3}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.TestUtilities.XUnit", "src\Utilities\UnitTests\TestUtilities.XUnit\Test.BuildXL.TestUtilities.XUnit.csproj", "{8C9755C1-E51F-49E0-80A8-843CDEAA2C95}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.TestUtilities.XUnit", "Public\src\Utilities\UnitTests\TestUtilities.XUnit\Test.BuildXL.TestUtilities.XUnit.csproj", "{8C9755C1-E51F-49E0-80A8-843CDEAA2C95}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Pips", "Pips", "{30FB09CF-CAB0-4474-B814-C6D934FC30BA}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Dll", "Dll", "{F07BBCF3-7234-4A5B-AC16-A260B6C7B8A4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Pips", "src\Pips\Dll\BuildXL.Pips.csproj", "{13228E1D-5679-46A9-B158-E05C9A9C762C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Pips", "Public\src\Pips\Dll\BuildXL.Pips.csproj", "{13228E1D-5679-46A9-B158-E05C9A9C762C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Utilities", "src\Utilities\Utilities\BuildXL.Utilities.csproj", "{A14871FC-6EC6-47DE-BA50-6B8755DC41B2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Utilities", "Public\src\Utilities\Utilities\BuildXL.Utilities.csproj", "{A14871FC-6EC6-47DE-BA50-6B8755DC41B2}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{9D3E624A-37FC-446C-B788-0DC245E62014}"
 	ProjectSection(SolutionItems) = preProject
@@ -70,7 +69,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Processes", "Processes", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Engine", "Engine", "{35426A9B-1CED-478D-AEAE-3D19880DEE1F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Processes", "src\Engine\Processes\BuildXL.Processes.csproj", "{FC78FB05-AC8C-4B77-B306-FEBBCB5AD625}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildXL.Processes", "Public\src\Engine\Processes\BuildXL.Processes.csproj", "{FC78FB05-AC8C-4B77-B306-FEBBCB5AD625}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Sandbox", "Sandbox", "{BB07B9FE-2900-4BF0-822B-78391A0BCDF2}"
 EndProject
@@ -86,39 +85,39 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DetoursTests", "DetoursTest
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Lib", "Lib", "{ED789856-B6F7-4001-9B34-F5840959FFE3}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DetoursTests", "src\Sandbox\Windows\DetoursTests\DetoursTests.vcxproj", "{1EAD2D2D-5FD8-4C48-91F9-22046165F9CF}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DetoursTests", "Public\src\Sandbox\Windows\DetoursTests\DetoursTests.vcxproj", "{1EAD2D2D-5FD8-4C48-91F9-22046165F9CF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{41605E96-37B9-49C3-A14F-B7373E01514D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IOSimulator", "src\Sandbox\MacOs\tools\iosimulator\IOSimulator.csproj", "{C8429384-3792-4EE7-BEE8-017A2BE7CE5E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IOSimulator", "Public\src\Sandbox\MacOs\tools\iosimulator\IOSimulator.csproj", "{C8429384-3792-4EE7-BEE8-017A2BE7CE5E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Utilities", "Utilities", "{DC3BFCF9-A401-4F4D-8D25-AEC47E4AB22C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Utilities", "src\Utilities\UnitTests\Utilities\Test.BuildXL.Utilities.csproj", "{D65979AA-696E-4410-AFDC-7F39FD539A43}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Utilities", "Public\src\Utilities\UnitTests\Utilities\Test.BuildXL.Utilities.csproj", "{D65979AA-696E-4410-AFDC-7F39FD539A43}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Storage.Untracked", "Storage.Untracked", "{D6CD5F23-03A1-4EE3-8D6E-8E23DD99B94A}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Storage.Admin", "src\Utilities\UnitTests\Storage.Untracked\Test.BuildXL.Storage.Admin.csproj", "{BAD900A8-168E-4F53-BD47-8AC2EE4FF2B4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Storage.Admin", "Public\src\Utilities\UnitTests\Storage.Untracked\Test.BuildXL.Storage.Admin.csproj", "{BAD900A8-168E-4F53-BD47-8AC2EE4FF2B4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Storage", "Storage", "{74D9091A-C94B-401D-9020-5E75ADF24522}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Storage", "src\Utilities\UnitTests\Storage\Test.BuildXL.Storage.csproj", "{1C1FD3D4-F352-47C4-9142-2E3BA9631FF4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Storage", "Public\src\Utilities\UnitTests\Storage\Test.BuildXL.Storage.csproj", "{1C1FD3D4-F352-47C4-9142-2E3BA9631FF4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Executables", "Executables", "{2D9B7E31-C018-4F5A-ACDC-B298871A5597}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DummyWaiter", "DummyWaiter", "{635094C7-7285-4ADD-BA58-4A26CF0CA8D9}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Executables.DummyWaiter", "src\Utilities\UnitTests\Executables\DummyWaiter\Test.BuildXL.Executables.DummyWaiter.csproj", "{81F72C5A-AD34-4B95-8B08-1A277FF33BDD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Executables.DummyWaiter", "Public\src\Utilities\UnitTests\Executables\DummyWaiter\Test.BuildXL.Executables.DummyWaiter.csproj", "{81F72C5A-AD34-4B95-8B08-1A277FF33BDD}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TestProcess", "TestProcess", "{EF596D80-075F-41B6-A774-E53F174FA2BD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Executables.TestProcess", "src\Utilities\UnitTests\Executables\TestProcess\Test.BuildXL.Executables.TestProcess.csproj", "{27163FE5-C2C1-41FA-82DF-FAF9374B86C3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Executables.TestProcess", "Public\src\Utilities\UnitTests\Executables\TestProcess\Test.BuildXL.Executables.TestProcess.csproj", "{27163FE5-C2C1-41FA-82DF-FAF9374B86C3}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "UnitTests", "UnitTests", "{7F17C5C1-BB66-48D6-9FA6-857346D75144}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EngineTestUtilities", "EngineTestUtilities", "{A896E6BA-7AA4-47A0-98FF-5AD9D1C520E1}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.EngineTestUtilities", "src\Engine\UnitTests\EngineTestUtilities\Test.BuildXL.EngineTestUtilities.csproj", "{A19AECCF-D1AB-4A84-B6EA-9758D59AB624}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.EngineTestUtilities", "Public\src\Engine\UnitTests\EngineTestUtilities\Test.BuildXL.EngineTestUtilities.csproj", "{A19AECCF-D1AB-4A84-B6EA-9758D59AB624}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Processes", "Processes", "{D9E23219-85A1-439A-B1A3-5AD48E75096C}"
 EndProject
@@ -126,14 +125,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Processes.Detours", "Proces
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Processes.TestPrograms", "Processes.TestPrograms", "{81855DD1-709D-43AA-A6E3-1676E97BB659}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Processes", "src\Engine\UnitTests\Processes\Test.BuildXL.Processes.csproj", "{06FDC8CE-9145-4203-828A-83820F8DCE8D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Processes", "Public\src\Engine\UnitTests\Processes\Test.BuildXL.Processes.csproj", "{06FDC8CE-9145-4203-828A-83820F8DCE8D}"
 	ProjectSection(ProjectDependencies) = postProject
 		{F68E3177-2132-4579-A6E3-5E24E1D39A35} = {F68E3177-2132-4579-A6E3-5E24E1D39A35}
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Processes.Detours", "src\Engine\UnitTests\Processes.Detours\Test.BuildXL.Processes.Detours.csproj", "{930E8D8E-FAD9-4A2D-8CAB-576DB1509137}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.BuildXL.Processes.Detours", "Public\src\Engine\UnitTests\Processes.Detours\Test.BuildXL.Processes.Detours.csproj", "{930E8D8E-FAD9-4A2D-8CAB-576DB1509137}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BuildXLNatives", "src\Sandbox\Windows\DetoursServices\BuildXLNatives.vcxproj", "{F68E3177-2132-4579-A6E3-5E24E1D39A35}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BuildXLNatives", "Public\src\Sandbox\Windows\DetoursServices\BuildXLNatives.vcxproj", "{F68E3177-2132-4579-A6E3-5E24E1D39A35}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "include", "include", "{8955094C-8F67-4E35-8EB8-A63D51497D44}"
 	ProjectSection(SolutionItems) = preProject
@@ -142,15 +141,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "include", "include", "{8955
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "RemoteApi", "RemoteApi", "{3E9EEF91-D095-48D6-8748-3DF5464D9452}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Detours.x64", "src\Sandbox\Windows\Detours\Lib\Detours.x64.vcxproj", "{B17D7E79-6FE3-4D37-939E-3ECDD96E895D}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Detours.x64", "Public\src\Sandbox\Windows\Detours\Lib\Detours.x64.vcxproj", "{B17D7E79-6FE3-4D37-939E-3ECDD96E895D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Detours.x86", "src\Sandbox\Windows\Detours\Lib\Detours.x86.vcxproj", "{C3AFDE79-476E-4F9C-B793-786DDD827539}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Detours.x86", "Public\src\Sandbox\Windows\Detours\Lib\Detours.x86.vcxproj", "{C3AFDE79-476E-4F9C-B793-786DDD827539}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RemoteApi", "src\Engine\UnitTests\Processes.TestPrograms\RemoteApi\RemoteApi.vcxproj", "{C5C423D4-7136-409B-A51B-997C79CF465A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RemoteApi", "Public\src\Engine\UnitTests\Processes.TestPrograms\RemoteApi\RemoteApi.vcxproj", "{C5C423D4-7136-409B-A51B-997C79CF465A}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DetoursServices.x64", "src\Sandbox\Windows\DetoursServices\DetoursServices.x64.vcxproj", "{2DFB7CE7-2007-4EDB-BCC7-77E181D0AF40}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DetoursServices.x64", "Public\src\Sandbox\Windows\DetoursServices\DetoursServices.x64.vcxproj", "{2DFB7CE7-2007-4EDB-BCC7-77E181D0AF40}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DetoursServices.x86", "src\Sandbox\Windows\DetoursServices\DetoursServices.x86.vcxproj", "{49D106A3-292E-4CB5-BC4A-4FC3045B50DB}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DetoursServices.x86", "Public\src\Sandbox\Windows\DetoursServices\DetoursServices.x86.vcxproj", "{49D106A3-292E-4CB5-BC4A-4FC3045B50DB}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Demos", "Demos", "{A994E0BC-0C3D-4E43-939C-BAB02155225B}"
 EndProject
@@ -160,11 +159,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ProcessTree", "ProcessTree"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ReportAccesses", "ReportAccesses", "{E72B4E21-4B73-47EC-9605-B12AA281EB00}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlockAccesses", "src\Demos\BlockAccesses\BlockAccesses.csproj", "{A7E756F6-9598-445B-A503-6BABB78C6B54}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlockAccesses", "Public\src\Demos\BlockAccesses\BlockAccesses.csproj", "{A7E756F6-9598-445B-A503-6BABB78C6B54}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReportAccesses", "src\Demos\ReportAccesses\ReportAccesses.csproj", "{BFA8E3C2-A4CC-4701-BBB9-86EF4386F893}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReportAccesses", "Public\src\Demos\ReportAccesses\ReportAccesses.csproj", "{BFA8E3C2-A4CC-4701-BBB9-86EF4386F893}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProcessTree", "src\Demos\ProcessTree\ProcessTree.csproj", "{59534770-F017-43A4-B8C2-9E224410E3CF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProcessTree", "Public\src\Demos\ProcessTree\ProcessTree.csproj", "{59534770-F017-43A4-B8C2-9E224410E3CF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

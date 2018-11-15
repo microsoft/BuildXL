@@ -13,6 +13,11 @@
 
 #include "io.h"
 
+static int StatFile(const char *path, bool followSymlink, struct stat *result)
+{
+    return followSymlink ? stat(path, result) : lstat(path, result);
+}
+
 int GetTimeStampsForFilePath(const char *path, bool followSymlink, Timestamps *buffer)
 {
     if (buffer == NULL)
@@ -21,7 +26,7 @@ int GetTimeStampsForFilePath(const char *path, bool followSymlink, Timestamps *b
     }
     
     struct stat fileStat;
-    int result = followSymlink ? stat(path, &fileStat) : lstat(path, &fileStat);
+    int result = StatFile(path, followSymlink, &fileStat);
 
     if (result == 0)
     {
@@ -32,6 +37,20 @@ int GetTimeStampsForFilePath(const char *path, bool followSymlink, Timestamps *b
     }
 
     return result;
+}
+
+int GetDeviceAndInodeNumbers(const char *path, bool followSymlink, int32_t *dev, uint64_t *ino)
+{
+    struct stat fileStat;
+    int errorCode = StatFile(path, followSymlink, &fileStat);
+    if (errorCode != 0) // error
+    {
+        return errorCode;
+    }
+
+    *ino = fileStat.st_ino;
+    *dev = fileStat.st_dev;
+    return 0;
 }
 
 int SetAttributeList(const char* path, unsigned int commonAttr, struct timespec spec, bool followSymLink)

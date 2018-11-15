@@ -13,18 +13,20 @@ class TrustedBsdHandler : public AccessHandler
 {
 public:
 
-    TrustedBsdHandler(const ProcessObject *process, BuildXLSandbox *sandbox)
-        : AccessHandler(process, sandbox) { }
+    TrustedBsdHandler(DominoSandbox *sandbox)
+        : AccessHandler(sandbox) { }
 
     int HandleLookup(const char *path);
 
     int HandleReadlink(vnode_t symlinkVNode);
     
     int HandleVNodeCreateEvent(const char *fullPath, const bool isDir, const bool isSymlink);
-
-private:
-
-    AccessCheckResult CheckCreate(PolicyResult policyResult, bool isDir, bool isSymlink);
+    
+    void HandleProcessFork(const pid_t childProcessPid);
+    
+    void HandleProcessExit(const pid_t pid);
+    
+    void HandleProcessUntracked(const pid_t pid);
 };
 
 #endif /* TrustedBSDHandler_hpp */

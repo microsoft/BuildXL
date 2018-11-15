@@ -36,7 +36,7 @@ function getDominoCmd {
     #       - DX0920: detours disabled
     #       - DX0222: file being used as a source file but not under source mount
     #       - DX2825: the execution log might not be usable (cannot find PreviousInputsJournalCheckpoint)
-    echo "$arg_DominoBin/Domino"                                      \
+    echo "$arg_DominoBin/bxl"                                      \
         /server- /nowarn:0909,2840,0900,0920,0222,2825                \
         /cacheConfigFilePath:"$arg_DominoBin/$CACHE_CONFIG_FILE_NAME" \
         /unsafe_DisableDetours                                        \
@@ -104,7 +104,7 @@ function build { #(extraDominoArgs)
         return $ERROR_DOMINO_BIN_NOT_FOLDER
     fi
 
-    local dominoFilesToCheck="Domino Domino.runtimeconfig.json Domino.deps.json $CACHE_CONFIG_FILE_NAME"
+    local dominoFilesToCheck="bxl bxl.runtimeconfig.json bxl.deps.json $CACHE_CONFIG_FILE_NAME"
     for f in $dominoFilesToCheck; do
         if [[ ! -f $arg_DominoBin/$f ]]; then
             print_error "Expected to find file '$f' in '$arg_DominoBin' but that file is not present"
@@ -159,8 +159,8 @@ EOF
     fi
 
     local dominoCmd="$(getDominoCmd) $extraDominoArgs"
-    print_info "${tputBold}Running domino:${tputReset} $dominoCmd"
-    chmod u=rx "$arg_DominoBin/Domino"
+    print_info "${tputBold}Running bxl:${tputReset} $dominoCmd"
+    chmod u=rx "$arg_DominoBin/bxl"
     $dominoCmd
     local dominoExitCode=$?
 

@@ -38,6 +38,15 @@ private:
      */
     ConcurrentDictionary  *reportQueueMappings_;
 
+    /*!
+     * Indicates if an unrecoverable error has occured. This happens when the sandbox was not able to successfully
+     * enqueue an access report message. There is no logic to recover from this and mostly indicates that either a)
+     * the report queue size is to small for the amount of transfered reports or b) the number of connections to the
+     * sandbox kernel connection and with it the number of threads draining the report queues in user space are not
+     * sufficient. After this occures, the extension has to be reloaded!
+     */
+    bool unrecoverableFailureOccurred_;
+
     bool enqueueDataForContainerAndRoundRob(OSArray *container, void *data, UInt32 size);
     bool enqueueDataForAllQueuesInContainer(OSArray *container, void *data, UInt32 size);
 
@@ -99,7 +108,7 @@ public:
 
     /*!
      * Thread-safe version for setting the failure notification async callback handle for all queues inside of
-     * a bucket retrieved by key.
+     * a bucket retrieved by key. Used to indicate an unrecoverable failure to a connected client.
      */
     bool setFailureNotificationHandlerForAllQueues(const OSSymbol *key, OSAsyncReference64 ref, OSObject *client);
 

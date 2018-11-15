@@ -10,18 +10,26 @@
 #include <IOKit/kext/KextManager.h>
 
 #include <signal.h>
+#include <mach/mach_time.h>
 
 #include "Sandbox.h"
 #include "StringOperations.h"
+
+os_log_t logger = os_log_create(kBuildXLBundleIdentifier, "Logger");
 
 extern "C"
 {
 #pragma mark Private forward declarations
 
-    bool SendClientAttached();
+    bool SendClientAttached(KextConnectionInfo info);
 
 #pragma mark IOKit Service and Connection initialization
 
+    void SetLogger(os_log_t newLogger)
+    {
+        logger = newLogger;
+    }
+    
     io_service_t findBuildXLSandboxIOKitService()
     {
         io_iterator_t iterator;
@@ -49,28 +57,10 @@ extern "C"
     kern_return_t openMacSanboxIOKitService(io_service_t service, io_connect_t *connect)
     {
         return IOServiceOpen(service, mach_task_self(), 0, connect);
-
-    }
-
-    static KextConnectionInfoCallback GetKextConnectionInfo = NULL;
-
-    void InitializeKextConnectionInfoCallback(KextConnectionInfoCallback callback)
-    {
-        if (callback == NULL)
-        {
-            return;
-        }
-
-        GetKextConnectionInfo = callback;
     }
 
     void InitializeKextConnection(KextConnectionInfo *info)
     {
-        if (info == NULL)
-        {
-            return;
-        }
-
         do
         {
             io_service_t service = findBuildXLSandboxIOKitService();
@@ -92,6 +82,7 @@ extern "C"
 
             info->connection = connection;
             info->port = IONotificationPortCreate(kIOMasterPortDefault);
+            info->error = 0;
 
             // We need a dedicated CFRunLoop for the async notification delivery to work, thus we dispatch a block
             // into GCD to keep checking for notification messages from the KEXT
@@ -104,14 +95,8 @@ extern "C"
         while(false);
     }
 
-    void InitializeKextSharedMemory(KextSharedMemoryInfo *memoryInfo)
+    void InitializeKextSharedMemory(KextSharedMemoryInfo *memoryInfo, KextConnectionInfo info)
     {
-        if (memoryInfo == NULL)
-        {
-            return;
-        }
-
-        KextConnectionInfo info = GetKextConnectionInfo();
         if (info.connection == IO_OBJECT_NULL)
         {
             memoryInfo->error = KEXT_SERVICE_NOT_FOUND;
@@ -134,7 +119,7 @@ extern "C"
 
         do
         {
-            if (!SendClientAttached())
+            if (!SendClientAttached(info))
             {
                 log_error("%s", "Failed sending BuildXL launch signal to kernel extension");
                 memoryInfo->error = KEXT_BUILDXL_LAUNCH_SIGNAL_FAIL;
@@ -177,24 +162,16 @@ extern "C"
         }
     }
 
-    void DeinitializeKextConnection()
+    void DeinitializeKextConnection(KextConnectionInfo info)
     {
-        KextConnectionInfo info = GetKextConnectionInfo();
-        if (info.connection == IO_OBJECT_NULL)
-        {
-            return;
-        }
-
         log_debug("%s", "Freeing and closing service connection");
 
         if (info.port != NULL) IONotificationPortDestroy(info.port);
         if (info.connection != IO_OBJECT_NULL) IOServiceClose(info.connection);
-        GetKextConnectionInfo = NULL;
     }
 
-    void DeinitializeKextSharedMemory(KextSharedMemoryInfo *memoryInfo)
+    void DeinitializeKextSharedMemory(KextSharedMemoryInfo *memoryInfo, KextConnectionInfo info)
     {
-        KextConnectionInfo info = GetKextConnectionInfo();
         if (info.connection == IO_OBJECT_NULL || memoryInfo == NULL)
         {
             return;
@@ -207,9 +184,8 @@ extern "C"
 
 #pragma mark Async notification facilities
 
-    bool SetFailureNotificationHandler(FailureNotificationCallback callback)
+    bool SetFailureNotificationHandler(FailureNotificationCallback callback, KextConnectionInfo info)
     {
-        KextConnectionInfo info = GetKextConnectionInfo();
         if (info.connection == IO_OBJECT_NULL)
         {
             return false;
@@ -218,6 +194,7 @@ extern "C"
         io_async_ref64_t async;
         async[kIOAsyncCalloutFuncIndex] = (uint64_t)callback;
         async[kIOAsyncCalloutRefconIndex] = (uint64_t)callback;
+
         mach_port_t port = IONotificationPortGetMachPort(info.port);
 
         kern_return_t result = IOConnectCallAsyncScalarMethod(info.connection,
@@ -271,26 +248,25 @@ extern "C"
 
 #pragma mark SendPipStatus functions
 
-    bool SendPipStatus(const pid_t processId, pipid_t pipId, const char *const payload, int payloadLength, BuildXLSandboxAction action)
+    static bool SendPipStatus(const pid_t processId, pipid_t pipId, const char *const payload, int payloadLength,
+                              SandboxAction action, KextConnectionInfo info)
     {
-        KextConnectionInfo info = GetKextConnectionInfo();
         if (info.connection == IO_OBJECT_NULL)
         {
             return false;
         }
 
-        IpcData data =
+        PipStateChangedRequest data =
         {
-            .pipId = pipId,
-            .processId = processId,
-            .clientPid = getpid(),
-            .payload = payload != NULL ? (uintptr_t) payload : 0,
+            .pipId         = pipId,
+            .processId     = processId,
+            .clientPid     = getpid(),
+            .payload       = payload != NULL ? (uintptr_t) payload : 0,
             .payloadLength = (uint64_t) payloadLength,
-            .action = action
+            .action        = action
         };
 
-        kern_return_t result = IOConnectCallMethod(info.connection, kIpcActionPipStateChanged, NULL, 0, &data, sizeof(IpcData),
-                                                   NULL, NULL, NULL, NULL);
+        kern_return_t result = IOConnectCallStructMethod(info.connection, kIpcActionPipStateChanged, &data, sizeof(PipStateChangedRequest), NULL, NULL);
         if (result != KERN_SUCCESS)
         {
             log_error("Failed calling SendPipStatus through IPC interface with error code: %#X for action: %d", result, data.action);
@@ -301,19 +277,18 @@ extern "C"
         return true;
     }
 
-    bool SendPipStarted(const pid_t processId, pipid_t pipId, const char *const famBytes, int famBytesLength)
+    bool SendPipStarted(const pid_t processId, pipid_t pipId, const char *const famBytes, int famBytesLength, KextConnectionInfo info)
     {
-        return SendPipStatus(processId, pipId, famBytes, famBytesLength, kBuildXLSandboxActionSendPipStarted);
+        return SendPipStatus(processId, pipId, famBytes, famBytesLength, kBuildXLSandboxActionSendPipStarted, info);
     }
 
-    bool SendPipProcessTerminated(pipid_t pipId, pid_t processId)
+    bool SendPipProcessTerminated(pipid_t pipId, pid_t processId, KextConnectionInfo info)
     {
-        return SendPipStatus(processId, pipId, NULL, 0, kBuildXLSandboxActionSendPipProcessTerminated);
+        return SendPipStatus(processId, pipId, NULL, 0, kBuildXLSandboxActionSendPipProcessTerminated, info);
     }
 
-    bool CheckForDebugMode(bool *isDebugModeEnabled)
+    bool CheckForDebugMode(bool *isDebugModeEnabled, KextConnectionInfo info)
     {
-        KextConnectionInfo info = GetKextConnectionInfo();
         if (info.connection == IO_OBJECT_NULL)
         {
             return false;
@@ -335,9 +310,8 @@ extern "C"
         return true;
     }
 
-    bool SetReportQueueSize(uint64_t reportQueueSizeMB)
+    bool SetReportQueueSize(uint64_t reportQueueSizeMB, KextConnectionInfo info)
     {
-        KextConnectionInfo info = GetKextConnectionInfo();
         if (info.connection == IO_OBJECT_NULL)
         {
             return false;
@@ -355,10 +329,27 @@ extern "C"
         return true;
     }
 
-    bool SendClientAttached()
+    bool SendClientAttached(KextConnectionInfo info)
     {
         log_debug("Indicating client launching with PID (%d)", getpid());
-        return SendPipStatus(getpid(), 0, NULL, 0, kBuildXLSandboxActionSendClientAttached);
+        return SendPipStatus(getpid(), 0, NULL, 0, kBuildXLSandboxActionSendClientAttached, info);
+    }
+    
+#pragma mark Monitoring
+
+    bool IntrospectKernelExtension(KextConnectionInfo info, IntrospectResponse *result)
+    {
+        if (info.connection == IO_OBJECT_NULL)
+        {
+            return false;
+        }
+        
+        IntrospectRequest request;
+        size_t resultSize = sizeof(IntrospectResponse);
+        kern_return_t status = IOConnectCallStructMethod(info.connection, kIpcActionIntrospect,
+                                                         &request, sizeof(IntrospectRequest),
+                                                         result, &resultSize);
+        return status == KERN_SUCCESS;
     }
 
 #pragma mark IOSharedDataQueue consumer code
@@ -371,7 +362,10 @@ extern "C"
     {
         if (callback == NULL || address == 0 || !MACH_PORT_VALID(port))
         {
-            callback(AccessReport{}, REPORT_QUEUE_CONNECTION_ERROR);
+            if (callback != NULL)
+            {
+                callback(AccessReport{}, REPORT_QUEUE_CONNECTION_ERROR);
+            }
             return;
         }
 
@@ -401,11 +395,17 @@ extern "C"
                     continue;
                 }
 
+                report.stats.dequeueTime = GetMachAbsoluteTime();
                 callback(report, REPORT_QUEUE_SUCCESS);
             }
         }
         while (IODataQueueWaitForAvailableData(queue, port) == kIOReturnSuccess);
 
         log_debug("Exiting ListenForFileAccessReports for PID (%d)", getpid());
+    }
+
+    uint64_t GetMachAbsoluteTime()
+    {
+        return mach_absolute_time();
     }
 }

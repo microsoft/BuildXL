@@ -30,8 +30,14 @@ bool ProcessObject::init(pid_t clientPid, pid_t processPid, void *payload, unsig
         return false;
     }
 
-    reportedPathLookups_ = ConcurrentDictionary::withCapacity(kPathLookupCacheSize, "PathLookupCache");
-    if (!reportedPathLookups_)
+    reportCache_ = ConcurrentDictionary::withCapacity(kPathLookupCacheSize, "ReportCache");
+    if (!reportCache_)
+    {
+        return false;
+    }
+
+    lastPathLookup_ = ThreadLocal::withCapacity(kThreadLocalLookupSize, "LastLookup");
+    if (!lastPathLookup_)
     {
         return false;
     }
@@ -49,6 +55,9 @@ bool ProcessObject::init(pid_t clientPid, pid_t processPid, void *payload, unsig
 
 void ProcessObject::free()
 {
+    log_debug("Process Stats PID(%d) :: #cache hits = %d, #cache misses = %d, cache size = %d, thread local size = %d",
+              getProcessId(), numCacheHits_, numCacheMisses_, reportCache_->getCount(), lastPathLookup_->getCount());
+
     if (payload_)
     {
         IODelete(payload_, char, payloadSize_);
@@ -56,20 +65,23 @@ void ProcessObject::free()
     }
 
     OSSafeReleaseNULL(hashCode_);
-    OSSafeReleaseNULL(reportedPathLookups_);
+    OSSafeReleaseNULL(reportCache_);
+    OSSafeReleaseNULL(lastPathLookup_);
     
     super::free();
 }
 
 bool ProcessObject::isAlreadyReported(const OSSymbol *key) const
 {
-    return reportedPathLookups_->get(key) != nullptr;
+    bool cacheHit = reportCache_->get(key) != nullptr;
+    OSIncrementAtomic(cacheHit ? &numCacheHits_ : &numCacheMisses_);
+    return cacheHit;
 }
 
 bool ProcessObject::addToReportCache(const OSSymbol *key)  const
 {
     if (key == nullptr) return false;
-    return reportedPathLookups_->insert(key, key);
+    return reportCache_->insert(key, key);
 }
 
 const OSSymbol* ProcessObject::computeHashCode(const ProcessObject *process)
@@ -83,6 +95,18 @@ const OSSymbol* ProcessObject::computePidHashCode(const pid_t pid)
     char key[10] = {0};
     snprintf(key, sizeof(key), "%d", pid);
     return OSSymbol::withCString(key);
+}
+
+const OSSymbol* ProcessObject::computeTidHashCode(const uint64_t tid)
+{
+    char key[20] = {0};
+    snprintf(key, sizeof(key), "%lld", tid);
+    return OSSymbol::withCString(key);
+}
+
+const OSSymbol* ProcessObject::computeCurrentTidHashCode()
+{
+    return ProcessObject::computeTidHashCode(thread_tid(current_thread()));
 }
 
 ProcessObject* ProcessObject::withPayload(pid_t clientPid, pid_t processPid, void *payload, unsigned int payloadSize)
@@ -120,6 +144,22 @@ pid_t ProcessObject::getParentProcessPid(pid_t pid)
     pid_t parent_pid = proc_ppid(proc);
     proc_rele(proc);
     return parent_pid;
+}
+
+PipInfo ProcessObject::Introspect() const
+{
+    return
+    {
+        .pid                 = getProcessId(),
+        .clientPid           = getClientPid(),
+        .pipId               = getPipId(),
+        .numCacheHits        = numCacheHits_,
+        .numCacheMisses      = numCacheMisses_,
+        .cacheSize           = reportCache_->getCount(),
+        .treeSize            = getProcessTreeCount(),
+        .numReportedChildren = 0,
+        .children            = {0}
+    };
 }
 
 #undef super

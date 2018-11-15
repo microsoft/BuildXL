@@ -9,18 +9,13 @@
 
 int TrustedBsdHandler::HandleLookup(const char *path)
 {
-    PolicyResult policyResult = PolicyForPath(path);
-
-    AccessCheckResult checkResult = policyResult.CheckReadAccess(
-        RequestedReadAccess::Probe, FileReadContext(FileExistence::Nonexistent));
-
-    FileOperationContext fOp = FileOperationContext::CreateForRead(OpMacLookup, path);
-
-    const OSSymbol *cacheKey = OSSymbol::withCString(path);
-    Report(fOp, policyResult, checkResult, 0, cacheKey);
-    OSSafeReleaseNULL(cacheKey);
-
-    // Never deny lookups
+    // remember last looked up path
+    const OSSymbol *lookupPathSymbol = OSSymbol::withCString(path);
+    SetLastLookedUpPath(lookupPathSymbol);
+    OSSafeReleaseNULL(lookupPathSymbol);
+    
+    // Check, report, but never deny lookups
+    CheckAndReport(kOpMacLookup, path, Checkers::CheckReadNonexistent);
     return KERN_SUCCESS;
 }
 
@@ -37,10 +32,7 @@ int TrustedBsdHandler::HandleReadlink(vnode_t symlinkVNode)
     }
     
     // check read access
-    PolicyResult policyResult = PolicyForPath(path);
-    AccessCheckResult checkResult = policyResult.CheckExistingFileReadAccess();
-    FileOperationContext fOp = FileOperationContext::CreateForRead(OpMacReadlink, path);
-    Report(fOp, policyResult, checkResult);
+    AccessCheckResult checkResult = CheckAndReport(kOpMacReadlink, path, Checkers::CheckRead);
     
     if (checkResult.ShouldDenyAccess())
     {
@@ -53,10 +45,18 @@ int TrustedBsdHandler::HandleReadlink(vnode_t symlinkVNode)
     }
 }
 
-int TrustedBsdHandler::HandleVNodeCreateEvent(const char *fullPath, const bool isDir, const bool isSymlink)
+int TrustedBsdHandler::HandleVNodeCreateEvent(const char *fullPath,
+                                              const bool isDir,
+                                              const bool isSymlink)
 {
-    PolicyResult policyResult = PolicyForPath(fullPath);
-    AccessCheckResult result = CheckCreate(policyResult, isDir, isSymlink);
+    bool enforceDirectoryCreation = CheckDirectoryCreationAccessEnforcement(GetFamFlags());
+    CheckFunc checker =
+        isSymlink                          ? Checkers::CheckCreateSymlink :
+        !isDir                             ? Checkers::CheckWrite :
+        enforceDirectoryCreation           ? Checkers::CheckCreateDirectory :
+                                             Checkers::CheckRead;
+    AccessCheckResult result = CheckAndReport(kOpMacVNodeCreate, fullPath, checker);
+
     if (result.ShouldDenyAccess())
     {
         LogAccessDenied(fullPath, 0, "Operation: VNodeCreate");
@@ -68,18 +68,28 @@ int TrustedBsdHandler::HandleVNodeCreateEvent(const char *fullPath, const bool i
     }
 }
 
-AccessCheckResult TrustedBsdHandler::CheckCreate(PolicyResult policyResult, bool isDir, bool isSymlink)
+void TrustedBsdHandler::HandleProcessFork(const pid_t childProcessPid)
 {
-    AccessCheckResult checkResult =
-        isSymlink ? policyResult.CheckSymlinkCreationAccess() :
-        isDir     ? policyResult.CheckDirectoryAccess(CheckDirectoryCreationAccessEnforcement(GetFamFlags())) :
-                    policyResult.CheckWriteAccess();
-    
-    FileOperationContext fop = ToFileContext(OpMacVNodeCreate,
-                                             GENERIC_WRITE,
-                                             CreationDisposition::CreateAlways,
-                                             policyResult.Path());
-    
-    Report(fop, policyResult, checkResult);
-    return checkResult;
+    if (GetSandbox()->TrackChildProcess(childProcessPid, GetProcess()))
+    {
+        char procName[MAXPATHLEN] = {0};
+        proc_name(childProcessPid, procName, sizeof(procName));
+        ReportChildProcessSpawned(childProcessPid, procName);
+    }
+}
+
+void TrustedBsdHandler::HandleProcessExit(const pid_t pid)
+{
+    ReportProcessExited(pid);
+    HandleProcessUntracked(pid);
+}
+
+void TrustedBsdHandler::HandleProcessUntracked(const pid_t pid)
+{
+    ProcessObject *process = GetProcess();
+    GetSandbox()->UntrackProcess(pid, process);
+    if (process->hasEmptyProcessTree())
+    {
+        ReportProcessTreeCompleted();
+    }
 }

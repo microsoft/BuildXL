@@ -11,7 +11,7 @@
 #include <IOKit/IOLib.h>
 #include "Monitor.hpp"
 
-typedef void (*for_each_fn)(void *data, const OSSymbol *key, const OSObject *value);
+typedef void (*for_each_fn)(void *data, const int index, const OSSymbol *key, const OSObject *value);
 
 // forward declaration
 class ProcessObject;
@@ -31,8 +31,12 @@ private:
     /*! Backing dictinoary */
     OSDictionary *dict_;
 
-    /*! Recursive lock used for synchronization */
-    IORecursiveLock *lock_;
+    /*!
+     * RW lock used for synchronization.
+     *
+     * IMPORTANT: this lock is not recursive!
+     */
+    IORWLock *rwLock_;
 
 public:
 

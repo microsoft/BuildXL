@@ -1,6 +1,5 @@
 //
 //  OpNames.hpp
-//  BuildXLSandbox
 //
 //  Copyright © 2018 Microsoft. All rights reserved.
 //
@@ -10,35 +9,43 @@
 
 // This file is used to automatically generate a .cs file for the Windows builds.
 //
-// Every line that starts with "#define" which when split by " " yields 3 values
-// (empty values being ignored) is picked up and turned into a public const C# definition.
-//
-// That said:
-//   (1) don't add any macros to this file that do not correspond to ReportedFileOperation names,
-//   (2) don't have any operation names that contains the " " character
+// Every line that matches the 'macro_to_apply\((.*),\s*(.*)\)' regular expression (assuming the C# regex syntax)
+// is picked up and turned into a public const string C# definition.
 
-#define OpProcessTreeCompleted      "ProcessTreeCompletedAck"
+#define FOR_ALL_OPERATIONS(macro_to_apply)                               \
+  macro_to_apply(OpProcessStart,              "Process")                 \
+  macro_to_apply(OpProcessExit,               "ProcessExit")             \
+  macro_to_apply(OpProcessTreeCompleted,      "ProcessTreeCompletedAck") \
+  macro_to_apply(OpMacLookup,                 "MAC_LOOKUP")              \
+  macro_to_apply(OpMacReadlink,               "MAC_READLINK")            \
+  macro_to_apply(OpMacVNodeCreate,            "MAC_VNODE_CREATE")        \
+  macro_to_apply(OpKAuthMoveSource,           "FILEOP_RENAME_SOURCE")    \
+  macro_to_apply(OpKAuthMoveDest,             "FILEOP_RENAME_DEST")      \
+  macro_to_apply(OpKAuthCreateHardlinkSource, "FILEOP_LINK_SOURCE")      \
+  macro_to_apply(OpKAuthCreateHardlinkDest,   "FILEOP_LINK_DEST")        \
+  macro_to_apply(OpKAuthCopySource,           "FILEOP_EXCHANGE_SOURCE")  \
+  macro_to_apply(OpKAuthCopyDest,             "FILEOP_EXCHANGE_DEST")    \
+  macro_to_apply(OpKAuthDeleteDir,            "FILEOP_DELETE_DIR")       \
+  macro_to_apply(OpKAuthDeleteFile,           "FILEOP_DELETE_FILE")      \
+  macro_to_apply(OpKAuthOpenDir,              "FILEOP_OPEN_DIR")         \
+  macro_to_apply(OpKAuthReadFile,             "FILEOP_OPEN_FILE")        \
+  macro_to_apply(OpKAuthCreateDir,            "FILEOP_WRITE_DIR")        \
+  macro_to_apply(OpKAuthWriteFile,            "FILEOP_WRITE_FILE")       \
+  macro_to_apply(OpKAuthClose,                "FILEOP_CLOSE")            \
+  macro_to_apply(OpKAuthCloseModified,        "FILEOP_CLOSE_MODIFIED")   \
+  macro_to_apply(OpKAuthVNodeExecute,         "VNODE_EXECUTE")           \
+  macro_to_apply(OpKAuthVNodeWrite,           "VNODE_WRITE")             \
+  macro_to_apply(OpKAuthVNodeRead,            "VNODE_READ")              \
+  macro_to_apply(OpKAuthVNodeProbe,           "VNODE_PROBE")
 
-#define OpMacLookup                 "MAC_LOOKUP"
-#define OpMacReadlink               "MAC_READLINK"
-#define OpMacVNodeCreate            "MAC_VNODE_CREATE"
+#define GEN_ENUM_CONST(name, value) k ## name,
+enum FileOperation : char
+{
+    FOR_ALL_OPERATIONS(GEN_ENUM_CONST)
+    kOpMax
+};
 
-#define OpKAuthMoveSource           "FILEOP_RENAME_SOURCE"
-#define OpKAuthMoveDest             "FILEOP_RENAME_DEST"
-#define OpKAuthCreateHardlinkSource "FILEOP_LINK_SOURCE"
-#define OpKAuthCreateHardlinkDest   "FILEOP_LINK_DEST"
-#define OpKAuthCopySource           "FILEOP_EXCHANGE_SOURCE"
-#define OpKAuthCopyDest             "FILEOP_EXCHANGE_DEST"
-#define OpKAuthDeleteDir            "FILEOP_DELETE_DIR"
-#define OpKAuthDeleteFile           "FILEOP_DELETE_FILE"
-#define OpKAuthOpenDir              "FILEOP_OPEN_DIR"
-#define OpKAuthReadFile             "FILEOP_OPEN_FILE"
-#define OpKAuthCreateDir            "FILEOP_WRITE_DIR"
-#define OpKAuthWriteFile            "FILEOP_WRITE_FILE"
-
-#define OpKAuthVNodeExecute         "VNODE_EXECUTE"
-#define OpKAuthVNodeWrite           "VNODE_WRITE"
-#define OpKAuthVNodeRead            "VNODE_READ"
-#define OpKAuthVNodeProbe           "VNODE_PROBE"
+// defined in OpNames.cpp
+extern const char *OpNames[];
 
 #endif /* OpNames_h */

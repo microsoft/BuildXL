@@ -8,21 +8,21 @@ declare arg_kextSourceDir=""
 declare arg_kextDeployDir=""
 declare arg_noReload=""
 
-readonly DominoSandboxExtensionName="com.microsoft.domino.sandbox"
+readonly BuildXLSandboxExtensionName="com.microsoft.domino.sandbox"
 
-# Prints out DominoSandbox bundle id if it is currently loaded, or empty string otherwise.
-function getRunningDominoSandboxBundleId {
-    echo $(kextstat | grep -o ${DominoSandboxExtensionName})
+# Prints out BuildXLSandbox bundle id if it is currently loaded, or empty string otherwise.
+function getRunningBuildXLSandboxBundleId {
+    echo $(kextstat | grep -o ${BuildXLSandboxExtensionName})
 }
 
-# Unloads DominoSandbox extension if already running
-function unloadDominoSandbox {
-    local bundleId=$(getRunningDominoSandboxBundleId)
+# Unloads BuildXLSandbox extension if already running
+function unloadBuildXLSandbox {
+    local bundleId=$(getRunningBuildXLSandboxBundleId)
     if [[ ! -z $bundleId ]]; then
         print_info " [Unloading] $bundleId"
         kextunload -bundle-id $bundleId
         if [[ $? != 0 ]]; then
-            print_error " Failed to unload existing DominoSandbox extension; extension id: $bundleId"
+            print_error " Failed to unload existing BuildXLSandbox extension; extension id: $bundleId"
             return 1
         fi
     fi
@@ -50,8 +50,8 @@ function redeployKext { # (fromDir, toDir)
     cp -r "$fromDir" "$toDir"
 }
 
-# Loads DominoSandbox extension from 'kextDir' directory by calling 'kextload'.
-function loadDominoSandbox { # (kextDir)
+# Loads BuildXLSandbox extension from 'kextDir' directory by calling 'kextload'.
+function loadBuildXLSandbox { # (kextDir)
     local kextDir="$1"
 
     if [[ -z $kextDir ]]; then
@@ -73,9 +73,9 @@ function loadDominoSandbox { # (kextDir)
     kextload "$kextDir"
 
     # verify extension loaded
-    local runningExt=$(getRunningDominoSandboxBundleId)
+    local runningExt=$(getRunningBuildXLSandboxBundleId)
     if [[ -z $runningExt ]]; then
-        print_error " Failed to load DominoSandbox from $kextDir; see more details below"
+        print_error " Failed to load BuildXLSandbox from $kextDir; see more details below"
         kextutil "$kextDir"
         return 1
     else
@@ -143,14 +143,14 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # just exit if already loaded and --no-reload
-readonly runningExtBundleId=$(getRunningDominoSandboxBundleId)
+readonly runningExtBundleId=$(getRunningBuildXLSandboxBundleId)
 if [[ -n $runningExtBundleId && -n $arg_noReload ]]; then
-    print_info "DominoSandbox is alredy running: $runningExtBundleId"
+    print_info "BuildXLSandbox is already running: $runningExtBundleId"
     exit 0
 fi
 
 # unload currently loaded extension (if any)
-unloadDominoSandbox || exit 1
+unloadBuildXLSandbox || exit 1
 
 # optionally redeploy kext to a new folder
 declare finalKextFolder=""
@@ -161,9 +161,9 @@ else
         print_error "Provided destination location is not a directory: '${arg_kextDeployDir}'"
         exit 1
     fi
-    finalKextFolder="${arg_kextDeployDir}/DominoSandbox.kext"
+    finalKextFolder="${arg_kextDeployDir}/BuildXLSandbox.kext"
     redeployKext "$arg_kextSourceDir" "$finalKextFolder" || exit 1
 fi
 
 # load kext
-loadDominoSandbox "$finalKextFolder"
+loadBuildXLSandbox "$finalKextFolder"

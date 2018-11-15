@@ -9,26 +9,62 @@
 
 #include <IOKit/IOLib.h>
 
+enum LockKind
+{
+    kLockRead,
+    kLockWrite
+};
+
 /*!
  * Can be used to turn instance methods into monitors by allocating a stack variable of this type,
- * passing an IORecursiveLock to its constructor; the constructor acquires the lock (by calling
- * IORecursiveLockLock, while the destructor releases the lock (by calling IORecursiveLockUnlock).
- * Once a stack variable goes out of scope, its destructor is automatically called.
+ * passing a lock to its constructor; the constructor acquires the lock while the destructor releases it.
+ * Once the stack variable goes out of scope, its destructor is automatically called.
  */
 class Monitor
 {
 private:
     
     IORecursiveLock *lock_;
+    IORWLock *rwLock_;
     
 public:
     
     /*!
      * Constructor: aquires a given recursive lock
+     * @param rwLock Lock to acquire
      */
-    Monitor(IORecursiveLock *lock) : lock_(lock)
+    Monitor(IORecursiveLock *lock)
     {
-        IORecursiveLockLock(lock_);
+        lock_   = lock;
+        rwLock_ = nullptr;
+
+        if (lock_)
+        {
+            IORecursiveLockLock(lock_);
+        }
+    }
+    
+    /*!
+     * Constructor: aquires a given read-write lock.
+     * @param rwLock Lock to acquire
+     * @param lockKind Determines whether to acquire read or write
+     */
+    Monitor(IORWLock *rwLock, LockKind lockKind) : rwLock_(rwLock), lock_(nullptr)
+    {
+        lock_   = nullptr;
+        rwLock_ = rwLock;
+
+        if (rwLock_)
+        {
+            if (lockKind == kLockRead)
+            {
+                IORWLockRead(rwLock_);
+            }
+            else
+            {
+                IORWLockWrite(rwLock_);
+            }
+        }
     }
     
     /*!
@@ -36,14 +72,25 @@ public:
      */
     ~Monitor()
     {
-        IORecursiveLockUnlock(lock_);
+        if (lock_)
+        {
+            IORecursiveLockUnlock(lock_);
+        }
+        
+        if (rwLock_)
+        {
+            IORWLockUnlock(rwLock_);
+        }
     }
 };
 
-/*!
- * Declares a local variable of type Monitor which aquires 'lock_' on construction and
- * releases it on destruction (automatically when the variable goes out of scope).
+/*
+ * Macros for declaring a local variable of type Monitor which aquires 'lock_' on construction
+ * and releases it on destruction (automatically when the variable goes out of scope).
  */
-#define EnterMonitor Monitor __monitor_local_var__(lock_);
+
+#define EnterMonitor      Monitor __monitor_local_var(lock_);
+#define EnterReadMonitor  Monitor __monitor_local_var(rwLock_, kLockRead);
+#define EnterWriteMonitor Monitor __monitor_local_var(rwLock_, kLockWrite);
 
 #endif /* Monitor_hpp */

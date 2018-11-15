@@ -1,8 +1,5 @@
-//
-//  ConcurrentSharedDataQueue.cpp
-//
-//  Copyright © 2018 Microsoft. All rights reserved.
-//
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <IOKit/IOMemoryDescriptor.h>
 #include <IOKit/IODataQueueShared.h>
@@ -47,7 +44,7 @@ bool ConcurrentSharedDataQueue::init(UInt32 numEntries, UInt32 entrySize)
     // These resources are released on the client side
     port_ = MACH_PORT_NULL;
     descriptor_ = nullptr;
-    async_ = nullptr;
+    asyncFailureHandle_ = nullptr;
 
     return lock_ && queue_;
 }
@@ -61,10 +58,10 @@ void ConcurrentSharedDataQueue::free()
         OSSafeReleaseNULL(descriptor_);
     }
 
-    if (async_ != nullptr)
+    if (asyncFailureHandle_ != nullptr)
     {
-        async_->userClient = nullptr;
-        IODelete(async_, ClientAsyncHandle, 1);
+        asyncFailureHandle_->userClient = nullptr;
+        IODelete(asyncFailureHandle_, ClientAsyncHandle, 1);
     }
 
     if (lock_)
@@ -108,26 +105,26 @@ bool ConcurrentSharedDataQueue::isDescriptorValid()
     return descriptor_ != nullptr;
 }
 
-void ConcurrentSharedDataQueue::setClientAsyncHandle(OSAsyncReference64 ref, OSObject* client)
+void ConcurrentSharedDataQueue::setClientAsyncFailureHandle(OSAsyncReference64 ref, OSObject* client)
 {
     EnterMonitor
 
-    async_ = IONew(ClientAsyncHandle, 1);
-    if (async_ != nullptr)
+    asyncFailureHandle_ = IONew(ClientAsyncHandle, 1);
+    if (asyncFailureHandle_ != nullptr)
     {
-        bcopy(ref, async_->ref, sizeof(OSAsyncReference64));
-        async_->userClient = client;
+        bcopy(ref, asyncFailureHandle_->ref, sizeof(OSAsyncReference64));
+        asyncFailureHandle_->userClient = client;
     }
 }
 
-IOReturn ConcurrentSharedDataQueue::InvokeAsyncHandle(IOReturn status)
+IOReturn ConcurrentSharedDataQueue::InvokeAsyncFailureHandle(IOReturn status)
 {
     EnterMonitor
     
-    if (async_ != nullptr)
+    if (asyncFailureHandle_ != nullptr)
     {
-        BuildXLSandboxClient *client = OSDynamicCast(BuildXLSandboxClient, async_->userClient);
-        return client->SendAsyncResult(async_->ref, status);
+        BuildXLSandboxClient *client = OSDynamicCast(BuildXLSandboxClient, asyncFailureHandle_->userClient);
+        return client->SendAsyncResult(asyncFailureHandle_->ref, status);
     }
 
     return kIOReturnError;

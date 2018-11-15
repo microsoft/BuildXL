@@ -1,20 +1,23 @@
 //
 //  BuildXLSandbox.cpp
-//  BuildXLSandbox
+//  DominoSandbox
 //
 //  Copyright © 2018 Microsoft. All rights reserved.
 //
 
+#include <kern/clock.h>
+
 #include "BuildXLSandbox.hpp"
-#include "VNodeHandler.hpp"
-#include "FileOpHandler.hpp"
+#include "TrustedBsdHandler.hpp"
 #include "Listeners.hpp"
 
 #define super IOService
 
-OSDefineMetaClassAndStructors(BuildXLSandbox, IOService)
+OSDefineMetaClassAndStructors(DominoSandbox, IOService)
 
-bool BuildXLSandbox::init(OSDictionary *dictionary)
+os_log_t logger = os_log_create(kBuildXLBundleIdentifier, "Logger");
+
+bool DominoSandbox::init(OSDictionary *dictionary)
 {
     if (!super::init(dictionary))
     {
@@ -49,7 +52,7 @@ bool BuildXLSandbox::init(OSDictionary *dictionary)
     return true;
 }
 
-void BuildXLSandbox::free(void)
+void DominoSandbox::free(void)
 {
     UninitializeListeners();
 
@@ -65,7 +68,7 @@ void BuildXLSandbox::free(void)
     super::free();
 }
 
-bool BuildXLSandbox::start(IOService *provider)
+bool DominoSandbox::start(IOService *provider)
 {
     bool success = super::start(provider);
     if (success)
@@ -76,18 +79,18 @@ bool BuildXLSandbox::start(IOService *provider)
     return success;
 }
 
-void BuildXLSandbox::stop(IOService *provider)
+void DominoSandbox::stop(IOService *provider)
 {
     super::stop(provider);
 }
 
-void BuildXLSandbox::InitializePolicyStructures()
+void DominoSandbox::InitializePolicyStructures()
 {
     policyHandle_ = {0};
 
     Listeners::g_dispatcher = this;
 
-    buildxlPolicyOps_ =
+    dominoPolicyOps_ =
     {
         // NOTE: handle preflight instead of mpo_vnode_check_lookup because trying to get the path for a vnode
         //       (vn_getpath) inside of that handler overwhelms the system very quickly
@@ -115,7 +118,7 @@ void BuildXLSandbox::InitializePolicyStructures()
         .mpc_fullname        = "Sandbox for process liftetime, I/O observation and control",
         .mpc_labelnames      = NULL,
         .mpc_labelname_count = 0,
-        .mpc_ops             = &buildxlPolicyOps_,
+        .mpc_ops             = &dominoPolicyOps_,
         .mpc_loadtime_flags  = MPC_LOADTIME_FLAG_UNLOADOK,
         .mpc_field_off       = NULL,
         .mpc_runtime_flags   = 0,
@@ -124,7 +127,7 @@ void BuildXLSandbox::InitializePolicyStructures()
     };
 }
 
-kern_return_t BuildXLSandbox::InitializeListeners()
+kern_return_t DominoSandbox::InitializeListeners()
 {
     InitializePolicyStructures();
     kern_return_t status = mac_policy_register(&policyConfiguration_, &policyHandle_, NULL);
@@ -134,15 +137,15 @@ kern_return_t BuildXLSandbox::InitializeListeners()
         return status;
     }
 
-    buildxlVnodeListener_ = kauth_listen_scope(KAUTH_SCOPE_VNODE, Listeners::buildxl_vnode_listener, reinterpret_cast<void *>(this));
-    if (buildxlVnodeListener_ == nullptr)
+    dominoVnodeListener_ = kauth_listen_scope(KAUTH_SCOPE_VNODE, Listeners::domino_vnode_listener, reinterpret_cast<void *>(this));
+    if (dominoVnodeListener_ == nullptr)
     {
         log_error("%s", "Registering callback for KAUTH_SCOPE_VNODE scope failed!");
         return KERN_FAILURE;
     }
 
-    buildxlFileOpListener_ = kauth_listen_scope(KAUTH_SCOPE_FILEOP, Listeners::buildxl_file_op_listener, reinterpret_cast<void *>(this));
-    if (buildxlFileOpListener_ == nullptr)
+    dominoFileOpListener_ = kauth_listen_scope(KAUTH_SCOPE_FILEOP, Listeners::domino_file_op_listener, reinterpret_cast<void *>(this));
+    if (dominoFileOpListener_ == nullptr)
     {
         log_error("%s", "Registering callback for KAUTH_SCOPE_FILEOP scope failed!");
         return KERN_FAILURE;
@@ -151,38 +154,38 @@ kern_return_t BuildXLSandbox::InitializeListeners()
     return KERN_SUCCESS;
 }
 
-void BuildXLSandbox::UninitializeListeners()
+void DominoSandbox::UninitializeListeners()
 {
-    if (buildxlVnodeListener_ != nullptr)
+    if (dominoVnodeListener_ != nullptr)
     {
-        kauth_unlisten_scope(buildxlVnodeListener_);
+        kauth_unlisten_scope(dominoVnodeListener_);
         log_debug("%s", "Deregistered callback for KAUTH_SCOPE_VNODE scope");
-        buildxlVnodeListener_ = nullptr;
+        dominoVnodeListener_ = nullptr;
     }
 
-    if (buildxlFileOpListener_ != nullptr)
+    if (dominoFileOpListener_ != nullptr)
     {
-        kauth_unlisten_scope(buildxlFileOpListener_);
+        kauth_unlisten_scope(dominoFileOpListener_);
         log_debug("%s", "Deregistered callback for KAUTH_SCOPE_FILEOP scope");
-        buildxlFileOpListener_ = nullptr;
+        dominoFileOpListener_ = nullptr;
     }
 
     mac_policy_unregister(policyHandle_);
     log_debug("%s", "Deregistered TrustedBSD MAC policy callbacks");
 }
 
-void BuildXLSandbox::SetReportQueueSize(UInt32 reportQueueSize)
+void DominoSandbox::SetReportQueueSize(UInt32 reportQueueSize)
 {
     reportQueueSize_ = (reportQueueSize == 0 || reportQueueSize > kSharedDataQueueSizeMax) ? kSharedDataQueueSizeDefault : reportQueueSize;
     log_debug("Size set to: %u", reportQueueSize_);
 }
 
-UInt32 BuildXLSandbox::GetReportQueueEntryCount()
+UInt32 DominoSandbox::GetReportQueueEntryCount()
 {
     return (reportQueueSize_ * 1024 * 1024) / sizeof(AccessReport);
 }
 
-IOReturn BuildXLSandbox::AllocateReportQueueForClientProcess(pid_t pid)
+IOReturn DominoSandbox::AllocateReportQueueForClientProcess(pid_t pid)
 {
     EnterMonitor
 
@@ -196,47 +199,60 @@ IOReturn BuildXLSandbox::AllocateReportQueueForClientProcess(pid_t pid)
 }
 
 typedef struct {
-    int ctxPid;
-    BuildXLSandbox *sandbox;
+    pid_t clientPid;
+    OSArray *pidsToRemove;
 } ReleaseContext;
 
-IOReturn BuildXLSandbox::FreeReportQueuesForClientProcess(pid_t pid)
+IOReturn DominoSandbox::FreeReportQueuesForClientProcess(pid_t clientPid)
 {
     EnterMonitor
 
-    const OSSymbol *key = ProcessObject::computePidHashCode(pid);
-    bool success = reportQueues_->removeQueues(key);
+    const OSSymbol *key = ProcessObject::computePidHashCode(clientPid);
+    reportQueues_->removeQueues(key);
     OSSafeReleaseNULL(key);
 
-    log_debug("Freeing report queues %s for client PID(%d), remaining report queue mappings in wired memory: %d", (success ? "succeeded" : "failed"),
-              pid, reportQueues_->getBucketCount());
+    log_debug("Freed report queues for client PID(%d), remaining report queue mappings in wired memory: %d",
+              clientPid, reportQueues_->getBucketCount());
 
     // Make sure to also cleanup any remaining tracked process objects as the client could have exited abnormally (crashed)
     // and we don't want those objects to stay around any longer
-
+    
     ReleaseContext ctx = {
-        .ctxPid = pid,
-        .sandbox = this
+        .clientPid = clientPid,
+        .pidsToRemove = OSArray::withCapacity(10)
     };
 
-    trackedProcesses_->forEach(&ctx, [](void *data, const OSSymbol *key, const OSObject *value)
+    if (ctx.pidsToRemove == nullptr)
     {
+        log_error("Could not allocate a collection for removal of dangling processes for Client PID %d", clientPid);
+        return kIOReturnError;
+    }
+
+    // find processes to untrack
+    trackedProcesses_->forEach(&ctx, [](void *data, int index, const OSSymbol *key, const OSObject *value)
+    {
+        ReleaseContext *context = (ReleaseContext *)data;
         ProcessObject *process = OSDynamicCast(ProcessObject, value);
-        if (process != nullptr && data != nullptr)
+        if (context != nullptr && process != nullptr && process->getClientPid() == context->clientPid)
         {
-            ReleaseContext *context = (ReleaseContext *)data;
-            if (context != nullptr && process->getClientPid() == context->ctxPid)
-            {
-                log_debug("Released tracked process PID(%d) for client process PID(%d) on cleanup", process->getProcessId(), process->getClientPid());
-                context->sandbox->trackedProcesses_->removeProcess(context->ctxPid);
-            }
+            context->pidsToRemove->setObject(context->pidsToRemove->getCount(), process->getHashCode());
         }
     });
 
-    return success ? kIOReturnSuccess : kIOReturnError;
+    // untrack and remove found processes
+    for (int i = 0; i < ctx.pidsToRemove->getCount(); i++)
+    {
+        const OSSymbol *pidSym = OSDynamicCast(OSSymbol, ctx.pidsToRemove->getObject(i));
+        bool removed = trackedProcesses_->remove(pidSym);
+        log_debug("Remove tracked process PID(%s) for client process PID(%d) on cleanup: %s",
+                  pidSym->getCStringNoCopy(), clientPid, removed ? "Removed" : "Not found");
+    }
+
+    OSSafeReleaseNULL(ctx.pidsToRemove);
+    return kIOReturnSuccess;
 }
 
-IOReturn BuildXLSandbox::SetReportQueueNotificationPort(mach_port_t port, pid_t pid)
+IOReturn DominoSandbox::SetReportQueueNotificationPort(mach_port_t port, pid_t pid)
 {
     EnterMonitor
 
@@ -247,7 +263,7 @@ IOReturn BuildXLSandbox::SetReportQueueNotificationPort(mach_port_t port, pid_t 
     return success ? kIOReturnSuccess : kIOReturnError;
 }
 
-IOMemoryDescriptor* const BuildXLSandbox::GetReportQueueMemoryDescriptor(pid_t pid)
+IOMemoryDescriptor* const DominoSandbox::GetReportQueueMemoryDescriptor(pid_t pid)
 {
     EnterMonitor
 
@@ -258,42 +274,44 @@ IOMemoryDescriptor* const BuildXLSandbox::GetReportQueueMemoryDescriptor(pid_t p
     return descriptor;
 }
 
-bool const BuildXLSandbox::SendFileAccessReport(pid_t clientPid, AccessReport &report, bool roundRobin)
+bool const DominoSandbox::SendFileAccessReport(pid_t clientPid, AccessReport &report, bool roundRobin)
 {
     EnterMonitor
 
     const OSSymbol *key = ProcessObject::computePidHashCode(clientPid);
+
+    AddTimeStampToAccessReport(&report, enqueueTime);
     bool success = reportQueues_->enqueueData(key, &report, sizeof(report), roundRobin);
+
     OSSafeReleaseNULL(key);
 
     log_error_or_debug(verboseLoggingEnabled, !success,
-                       "BuildXLSandbox::SendFileAccessReport ClientPID(%d), PID(%d), Root PID(%d), PIP(%#llX), Operation: %s, Path: %s, Status: %d, Sent: %s",
-                       clientPid, report.pid, report.rootPid, report.pipId, report.operation, report.path, report.status, success ? "succeeded" : "failed");
+                       "DominoSandbox::SendFileAccessReport ClientPID(%d), PID(%d), Root PID(%d), PIP(%#llX), Operation: %s, Path: %s, Status: %d, Sent: %s",
+                       clientPid, report.pid, report.rootPid, report.pipId, OpNames[report.operation], report.path, report.status, success ? "succeeded" : "failed");
 
     return success;
 }
 
-ProcessObject* BuildXLSandbox::FindTrackedProcess(pid_t pid)
+ProcessObject* DominoSandbox::FindTrackedProcess(pid_t pid)
 {
     // NOTE: this has to be very fast when we are not tracking any processes (i.e., trackedProcesses_ is empty)
     //       because this is called on every single file access any process makes
     return trackedProcesses_->getProcess(pid);
 }
 
-bool BuildXLSandbox::TrackRootProcess(const ProcessObject *process)
+bool DominoSandbox::TrackRootProcess(const ProcessObject *process, const uint64_t callbackInvocationTime)
 {
     EnterMonitor
 
     pid_t pid = process->getProcessId();
 
-    // if mapping for 'pid' exists --> remove it (this can happen only if clients are nested, e.g., BuildXL runs BuildXL)
-    ProcessObject *existingProcess = trackedProcesses_->getProcess(pid);
-    if (existingProcess)
+    // if mapping for 'pid' exists --> remove it (this can happen only if clients are nested)
+    TrustedBsdHandler handler = TrustedBsdHandler(this);
+    if (handler.TryInitializeWithTrackedProcess(pid))
     {
-        int oldTreeCount = existingProcess->getProcessTreeCount();
-        UntrackProcess(pid, existingProcess);
-        log_verbose(verboseLoggingEnabled, "Untracking process PID = %d early, parent PID = %d, tree size (old/new) = %d/%d",
-                    pid, existingProcess->getProcessId(), oldTreeCount, existingProcess->getProcessTreeCount());
+        handler.HandleProcessUntracked(pid);
+        log_verbose(verboseLoggingEnabled, "Untracking process PID = %d early, parent PID = %d, tree size = %d",
+                    pid, handler.GetProcessId(), handler.GetProcessTreeSize());
     }
 
     bool inserted = trackedProcesses_->insertProcess(process);
@@ -301,7 +319,7 @@ bool BuildXLSandbox::TrackRootProcess(const ProcessObject *process)
     return inserted;
 }
 
-bool BuildXLSandbox::TrackChildProcess(pid_t childPid, ProcessObject *rootProcess)
+bool DominoSandbox::TrackChildProcess(pid_t childPid, ProcessObject *rootProcess)
 {
     EnterMonitor
 
@@ -333,50 +351,100 @@ bool BuildXLSandbox::TrackChildProcess(pid_t childPid, ProcessObject *rootProces
     return true;
 }
 
-bool BuildXLSandbox::UntrackProcess(pid_t pid, pipid_t expectedPipId)
+bool DominoSandbox::UntrackProcess(pid_t pid, ProcessObject *rootProcess)
 {
     EnterMonitor
 
-    ProcessObject *process = FindTrackedProcess(pid);
-    if (process && (expectedPipId == -1 || process->getPipId() == expectedPipId))
+    log_verbose(verboseLoggingEnabled, "Untracking entry %d --> %d (PipId: %#llX, process tree count: %d)",
+                pid, rootProcess->getProcessId(), rootProcess->getPipId(), rootProcess->getProcessTreeCount());
+
+    // remove the mapping for 'pid'
+    if (!trackedProcesses_->removeProcess(pid))
     {
-        UntrackProcess(pid, process);
-        return true;
+        log_error("Process with PID = %d not found in tracked processes", pid);
+        return false;
     }
     else
     {
-        return false;
+        rootProcess->decrementProcessTreeCount();
+        return true;
     }
 }
 
-void BuildXLSandbox::UntrackProcess(pid_t pid, ProcessObject *process)
+typedef struct {
+    OSDictionary *p2c;
+    IntrospectResponse *response;
+} IntrospectState;
+
+IntrospectResponse DominoSandbox::Introspect() const
 {
-    EnterMonitor
-
-    process->retain();
-    do
+    IntrospectResponse result
     {
-        log_verbose(verboseLoggingEnabled, "Untracking entry %d --> %d (PipId: %#llX, process tree count: %d)",
-                    pid, process->getProcessId(), process->getPipId(), process->getProcessTreeCount());
-
-        // remove the mapping for 'pid'
-        if (!trackedProcesses_->removeProcess(pid))
+        .numAttachedClients  = reportQueues_->getBucketCount(),
+        .numTrackedProcesses = trackedProcesses_->getCount(),
+        .numReportedPips     = 0,
+        .pips                = {0}
+    };
+    
+    OSDictionary *proc2children = OSDictionary::withCapacity(trackedProcesses_->getCount());
+    if (!proc2children)
+    {
+        return result;
+    }
+    
+    IntrospectState forEachState
+    {
+        .p2c = proc2children,
+        .response = &result
+    };
+    
+    // step 1: Create a PID -> PID[] dictionary mapping root PIDs to their child PIDs from the existing
+    //         trackedProcesses_ dictionary which maps PID -> ProcessObject (i.e., tracked process to its root process).
+    //
+    //         Along the way, insert every newly encountered root process into 'result.rootProcesses'.
+    trackedProcesses_->forEach(&forEachState, [](void *data, int idx, const OSSymbol *pidSym, const OSObject *value)
+    {
+        IntrospectState *state = (IntrospectState*)data;
+        ProcessObject *proc = OSDynamicCast(ProcessObject, value);
+        OSArray *children = OSDynamicCast(OSArray, state->p2c->getObject(proc->getHashCode()));
+        if (children == nullptr)
         {
-            log_error("Process with PID = %d not found in tracked processes", pid);
-            break;
+            OSArray *newArray = OSArray::withCapacity(10);
+            children = newArray;
+            if (newArray)
+            {
+                state->p2c->setObject(proc->getHashCode(), newArray);
+                if (state->response->numReportedPips < kMaxReportedPips)
+                {
+                    state->response->pips[state->response->numReportedPips] = proc->Introspect();
+                    state->response->numReportedPips++;
+                }
+            }
+            OSSafeReleaseNULL(newArray);
         }
+        OSNumber *pidNum = OSNumber::withNumber(pidSym->getCStringNoCopy(), 32);
+        children->setObject(children->getCount(), pidNum);
+        OSSafeReleaseNULL(pidNum);
+    });
 
-        // decrement tree count for the given process
-        process->decrementProcessTreeCount();
-
-        // if the process tree is empty, report to clients that the process and all its children exited
-        if (process->hasEmptyProcessTree())
+    // step 2: populate 'children' field for each root process in 'result.rootProcesses'
+    for (int i = 0; i < result.numReportedPips; i++)
+    {
+        const OSSymbol *pidSym = ProcessObject::computePidHashCode(result.pips[i].pid);
+        const OSArray *children = OSDynamicCast(OSArray, proc2children->getObject(pidSym));
+        OSSafeReleaseNULL(pidSym);
+        
+        result.pips[i].numReportedChildren = min(kMaxReportedChildProcesses, children->getCount());
+        for (int j = 0; j < result.pips[i].numReportedChildren; j++)
         {
-            AccessHandler accessHandler = AccessHandler(process, this);
-            accessHandler.ReportProcessTreeCompleted();
+            OSNumber *childPidNum = OSDynamicCast(OSNumber, children->getObject(j));
+            pid_t childPid = childPidNum->unsigned32BitValue();
+            result.pips[i].children[j].pid = childPid;
         }
-    } while (0);
-    process->release();
+    }
+
+    OSSafeReleaseNULL(proc2children);
+    return result;
 }
 
 #undef super

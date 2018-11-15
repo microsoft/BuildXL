@@ -1,6 +1,6 @@
 //
 //  BuildXLSandboxShared.hpp
-//  BuildXLSandboxShared
+//  DominoSandboxShared
 //
 //  Copyright © 2018 Microsoft. All rights reserved.
 //
@@ -13,10 +13,11 @@
 
 #include "stdafx.h"
 #include "DataTypes.h"
+#include "Kauth/OpNames.hpp"
 
 #pragma mark Custom data types
 
-const unsigned int kBuildXLMaxOperationLength = 64;
+const unsigned int kDominoMaxOperationLength = 64;
 
 const unsigned int kProcessNameBufferSize = MAXPATHLEN;
 
@@ -35,7 +36,7 @@ typedef enum {
     kBuildXLSandboxActionSendPipStarted,
     kBuildXLSandboxActionSendPipProcessTerminated,
     kBuildXLSandboxActionSendClientAttached,
-} BuildXLSandboxAction;
+} SandboxAction;
 
 typedef enum {
     kIpcActionPipStateChanged,
@@ -43,7 +44,8 @@ typedef enum {
     kIpcActionSetReportQueueSize,
     kIpcActionForceVerboseLogging,
     kIpcActionSetupFailureNotificationHandler,
-    kBuildXLSandboxMethodCount
+    kIpcActionIntrospect,
+    kSandboxMethodCount
 } IpcAction;
 
 typedef struct {
@@ -52,16 +54,51 @@ typedef struct {
     pid_t clientPid;
     mach_vm_address_t payload;
     mach_vm_size_t payloadLength;
-    BuildXLSandboxAction action;
-} IpcData;
+    SandboxAction action;
+} PipStateChangedRequest;
+
+#define kMaxReportedPips 50
+#define kMaxReportedChildProcesses 20
+
+typedef struct {
+    int8_t placeholder;
+} IntrospectRequest;
+
+typedef struct {
+    pid_t pid;
+} ProcessInfo;
+
+typedef struct {
+    pid_t pid;
+    pid_t clientPid;
+    pipid_t pipId;
+    uint32_t numCacheHits;
+    uint32_t numCacheMisses;
+    uint32_t cacheSize;
+    int32_t treeSize;
+    int8_t numReportedChildren;
+    ProcessInfo children[kMaxReportedChildProcesses];
+} PipInfo;
+
+typedef struct {
+    uint numAttachedClients;
+    uint numTrackedProcesses;
+    uint numReportedPips;
+    PipInfo pips[kMaxReportedPips];
+} IntrospectResponse;
 
 typedef enum {
     FileAccessReporting,
 } ReportQueueType;
 
 typedef struct {
-    DWORD type;
-    char operation[kBuildXLMaxOperationLength];
+    uint64_t creationTime;
+    uint64_t enqueueTime;
+    uint64_t dequeueTime;
+} AccessReportStatistics;
+
+typedef struct {
+    FileOperation operation;
     pid_t pid;
     pid_t rootPid;
     DWORD requestedAccess;
@@ -69,21 +106,17 @@ typedef struct {
     uint reportExplicitly;
     DWORD error;
     pipid_t pipId;
-    DWORD desiredAccess;
-    DWORD shareMode;
-    DWORD disposition;
-    DWORD flagsAndAttributes;
-    DWORD pathId;
     char path[MAXPATHLEN];
+    AccessReportStatistics stats;
 } AccessReport; // 1152 bytes
 
 #pragma mark Macros and defines
 
-#define kBuildXLBundleIdentifier "com.microsoft.buildxl.sandbox"
-#define kBuildXLSandboxClassName "com_microsoft_buildxl_Sandbox"
-#define kBuildXLSandboxClientClassName "com_microsoft_buildxl_SandboxClient"
+#define kBuildXLBundleIdentifier "com.microsoft.domino.sandbox"
+#define kBuildXLSandboxClassName "com_microsoft_domino_Sandbox"
+#define kBuildXLSandboxClientClassName "com_microsoft_domino_SandboxClient"
 
-static os_log_t logger = os_log_create(kBuildXLBundleIdentifier, "Logger");
+extern os_log_t logger;
 
 #define log(format, ...) os_log(logger, "[[ %s ]] %s: " #format "\n", kBuildXLSandboxClassName, __func__, __VA_ARGS__)
 #define log_error(format, ...) os_log_error(logger, "[[ %s ]][ERROR] %s: " #format "\n", kBuildXLSandboxClassName, __func__, __VA_ARGS__)

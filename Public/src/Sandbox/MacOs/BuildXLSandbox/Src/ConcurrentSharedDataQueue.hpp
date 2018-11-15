@@ -39,8 +39,8 @@ private:
     /*! Recursive lock used for synchronization */
     IORecursiveLock *lock_;
 
-    /*! A pointer to a handle containing the queues user client and async callback reference */
-    ClientAsyncHandle *async_;
+    /*! A pointer to an async failure handle */
+    ClientAsyncHandle *asyncFailureHandle_;
 
 public:
 
@@ -82,14 +82,14 @@ public:
     bool isDescriptorValid();
 
     /*!
-     * Enters monitor then tries to set an async callback handle for the client owning the queue
+     * Enters monitor then tries to set an async failure handle for the client owning the queue
      */
-    void setClientAsyncHandle(OSAsyncReference64 ref, OSObject* client);
+    void setClientAsyncFailureHandle(OSAsyncReference64 ref, OSObject* client);
 
     /*!
-     * Enters monitor then checks for a valid handle to the user client async callback and invokes it if present
+     * Enters monitor then checks for a valid async failure handle, invoking it if present
      */
-    IOReturn InvokeAsyncHandle(IOReturn status);
+    IOReturn InvokeAsyncFailureHandle(IOReturn status);
 
 #pragma mark Static Methods
 

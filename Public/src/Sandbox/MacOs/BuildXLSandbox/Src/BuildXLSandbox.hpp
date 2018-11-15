@@ -1,6 +1,6 @@
 //
 //  BuildXLSandbox.hpp
-//  BuildXLSandbox
+//  DominoSandbox
 //
 //  Copyright © 2018 Microsoft. All rights reserved.
 //
@@ -18,7 +18,7 @@
 #include "ConcurrentSharedDataQueue.hpp"
 #include "ProcessObject.hpp"
 
-#define BuildXLSandbox com_microsoft_buildxl_Sandbox
+#define DominoSandbox com_microsoft_domino_Sandbox
 
 #if RELEASE
     #define kSharedDataQueueSizeDefault 256
@@ -29,17 +29,20 @@
 #define kSharedDataQueueSizeMax 2048
 #define kProcessDictionaryCapacity 1024
 
-class BuildXLSandbox : public IOService
+#define AddTimeStampToAccessReport(report, struct_property)\
+do { (report)->stats.struct_property = mach_absolute_time(); }while(0);
+
+class DominoSandbox : public IOService
 {
-    OSDeclareDefaultStructors(BuildXLSandbox)
+    OSDeclareDefaultStructors(DominoSandbox)
 
 private:
 
-    kauth_listener_t buildxlFileOpListener_ = nullptr;
-    kauth_listener_t buildxlVnodeListener_ = nullptr;
+    kauth_listener_t dominoFileOpListener_ = nullptr;
+    kauth_listener_t dominoVnodeListener_ = nullptr;
 
     mac_policy_handle_t policyHandle_;
-    struct mac_policy_ops buildxlPolicyOps_;
+    struct mac_policy_ops dominoPolicyOps_;
     struct mac_policy_conf policyConfiguration_;
 
     /*!
@@ -127,7 +130,7 @@ public:
 #pragma mark Client Failure Notification Mapping
 
     /*!
-     * Sets the async reference callback handle on all queues belonging to a specific user client
+     * Sets the async failure handle on all queues belonging to a specific user client
      */
     inline IOReturn SetFailureNotificationHandlerForClientPid(pid_t pid, OSAsyncReference64 ref, OSObject *client)
     {
@@ -147,7 +150,7 @@ public:
      *
      * This operation corresponds to a client explicitly requesting to track a process.
      */
-    bool TrackRootProcess(const ProcessObject *rootProcess);
+    bool TrackRootProcess(const ProcessObject *rootProcess, const uint64_t callbackInvocationTime);
 
     /*!
      * Starts tracking a process that is a child of an already tracked process.
@@ -158,23 +161,13 @@ public:
     bool TrackChildProcess(pid_t childPid, ProcessObject *rootProcess);
 
     /*!
-     * Stops tracking process 'pid' when its pip id matches a supplied one
-     *
-     * @param pid :: process id of the process to stop tracking
-     * @param expectedPipId :: condition under which to stop tracking process (only when its pip id matches this value);
-     *                         passing -1 overrides this condition check.
-     * @result :: returns True if there was a process with process id 'pid' matching 'expectedPipId' and False otherwise
-     */
-    bool UntrackProcess(pid_t pid, pipid_t expectedPipId = -1);
-
-    /*!
      * Stops tracking process 'pid'.  'rootProcess' must be a parent of 'pid'
      * that has been explicitly requested to be tracked, i.e., the following
      * precondition must hold:
      *
      *   FindTrackedProcess(pid) == rootProcess.
      */
-    void UntrackProcess(pid_t pid, ProcessObject *rootProcess);
+    bool UntrackProcess(pid_t pid, ProcessObject *rootProcess);
 
     /*!
      * Returns a ProcessObject pointer corresponding to 'pid' if such process is being tracked.
@@ -182,6 +175,11 @@ public:
      * NOTE that 'getProcessId()' of the result doesn't have to be equal to 'pid',
      */
     ProcessObject* FindTrackedProcess(pid_t pid);
+    
+    /*!
+     * Introspect the current state of the sandbox.
+     */
+    IntrospectResponse Introspect() const;
 };
 
 #endif /* BuildXLSandbox_hpp */

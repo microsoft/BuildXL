@@ -1,13 +1,10 @@
-//
-//  BuildXLSandboxClient.cpp
-//  BuildXLSandboxClient
-//
-//  Copyright © 2018 Microsoft. All rights reserved.
-//
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <IOKit/IOLib.h>
 
 #include "AccessHandler.hpp"
+#include "TrustedBsdHandler.hpp"
 #include "BuildXLSandboxClient.hpp"
 #include "ProcessObject.hpp"
 
@@ -15,7 +12,7 @@
 
 OSDefineMetaClassAndStructors(BuildXLSandboxClient, IOUserClient)
 
-#pragma mark BuildXLSandbox client life-cycle
+#pragma mark DominoSandbox client life-cycle
 
 bool BuildXLSandboxClient::initWithTask(task_t owningTask,
                                     void *securityToken,
@@ -30,8 +27,8 @@ bool BuildXLSandboxClient::initWithTask(task_t owningTask,
 
 bool BuildXLSandboxClient::start(IOService *provider)
 {
-    // Verify that the provider is the BuildXLSandbox, otherwise fail!
-    sandbox_ = OSDynamicCast(BuildXLSandbox, provider);
+    // Verify that the provider is the DominoSandbox, otherwise fail!
+    sandbox_ = OSDynamicCast(DominoSandbox, provider);
     bool success = (sandbox_ != NULL);
     if (success)
     {
@@ -122,47 +119,55 @@ IOReturn BuildXLSandboxClient::clientMemoryForType(UInt32 type, IOOptionBits *op
 
 #pragma mark IPC implementation
 
-const IOExternalMethodDispatch BuildXLSandboxClient::ipcMethods[kBuildXLSandboxMethodCount] =
+IOExternalMethodDispatch BuildXLSandboxClient::ipcMethods[kSandboxMethodCount] =
 {
     // kIpcActionPipStateChanged
     {
-        (IOExternalMethodAction) &BuildXLSandboxClient::sPipStateChanged,
-        0,
-        sizeof(IpcData),
-        0,
-        0
+        .function                 = (IOExternalMethodAction) &BuildXLSandboxClient::sPipStateChanged,
+        .checkScalarInputCount    = 0,
+        .checkStructureInputSize  = sizeof(PipStateChangedRequest),
+        .checkScalarOutputCount   = 0,
+        .checkStructureOutputSize = 0
     },
     // kIpcActionDebugCheck
     {
-        (IOExternalMethodAction) &BuildXLSandboxClient::sDebugCheck,
-        0,
-        0,
-        1,
-        0
+        .function                 = (IOExternalMethodAction) &BuildXLSandboxClient::sDebugCheck,
+        .checkScalarInputCount    = 0,
+        .checkStructureInputSize  = 0,
+        .checkScalarOutputCount   = 1,
+        .checkStructureOutputSize = 0
     },
     // kIpcActionSetReportQueueSize
     {
-        (IOExternalMethodAction) &BuildXLSandboxClient::sSetReportQueueSize,
-        1,
-        0,
-        0,
-        0
+        .function                 = (IOExternalMethodAction) &BuildXLSandboxClient::sSetReportQueueSize,
+        .checkScalarInputCount    = 1,
+        .checkStructureInputSize  = 0,
+        .checkScalarOutputCount   = 0,
+        .checkStructureOutputSize = 0
     },
     // kIpcActionForceVerboseLogging
     {
-        (IOExternalMethodAction) &BuildXLSandboxClient::sToggleVerboseLogging,
-        1,
-        0,
-        0,
-        0
+        .function                 = (IOExternalMethodAction) &BuildXLSandboxClient::sToggleVerboseLogging,
+        .checkScalarInputCount    = 1,
+        .checkStructureInputSize  = 0,
+        .checkScalarOutputCount   = 0,
+        .checkStructureOutputSize = 0
     },
     // kIpcActionSetupFailureNotificationHandler
     {
-        (IOExternalMethodAction) &BuildXLSandboxClient::sSetFailureNotificationHandler,
-        0,
-        0,
-        0,
-        0
+        .function                 = (IOExternalMethodAction) &BuildXLSandboxClient::sSetFailureNotificationHandler,
+        .checkScalarInputCount    = 0,
+        .checkStructureInputSize  = 0,
+        .checkScalarOutputCount   = 0,
+        .checkStructureOutputSize = 0
+    },
+    // kIpcActionIntrospect
+    {
+        .function                 = (IOExternalMethodAction) &BuildXLSandboxClient::sIntrospectHandler,
+        .checkScalarInputCount    = 0,
+        .checkStructureInputSize  = sizeof(IntrospectRequest),
+        .checkScalarOutputCount   = 0,
+        .checkStructureOutputSize = sizeof(IntrospectResponse)
     },
 };
 
@@ -171,17 +176,14 @@ IOReturn BuildXLSandboxClient::externalMethod(uint32_t selector, IOExternalMetho
                                           OSObject *target,
                                           void *reference)
 {
-    if (selector < (uint32_t) kBuildXLSandboxMethodCount)
+    if (selector < (uint32_t) kSandboxMethodCount)
     {
-        dispatch = (IOExternalMethodDispatch *) &ipcMethods[selector];
-
-        if (!target)
-        {
-            target = this;
-        }
+        return super::externalMethod(selector, arguments, &ipcMethods[selector], this, reference);
     }
-
-    return super::externalMethod(selector, arguments, dispatch, target, reference);
+    else
+    {
+        return super::externalMethod(selector, arguments, dispatch, target, reference);
+    }
 }
 
 IOReturn BuildXLSandboxClient::sDebugCheck(BuildXLSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
@@ -216,12 +218,36 @@ IOReturn BuildXLSandboxClient::sSetFailureNotificationHandler(BuildXLSandboxClie
     return target->SetFailureNotificationHandler(arguments->asyncReference);
 }
 
-IOReturn BuildXLSandboxClient::sPipStateChanged(BuildXLSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
+IOReturn BuildXLSandboxClient::sIntrospectHandler(BuildXLSandboxClient *target, void *ref, IOExternalMethodArguments *args)
 {
-    return target->PipStateChanged((IpcData *)arguments->structureInput);
+    IOMemoryDescriptor *outMemDesc = args->structureOutputDescriptor;
+
+    IOReturn prepared = outMemDesc->prepare();
+    if (prepared != kIOReturnSuccess)
+    {
+        return kIOReturnNoMemory;
+    }
+
+    IOMemoryMap *mmap = args->structureOutputDescriptor->map();
+    if (!mmap)
+    {
+        return kIOReturnNoMemory;
+    }
+    
+    IntrospectResponse result = target->sandbox_->Introspect();
+    memcpy((char*)mmap->getVirtualAddress(), &result, sizeof(result));
+    
+    OSSafeReleaseNULL(mmap);
+    outMemDesc->complete();
+    return kIOReturnSuccess;
 }
 
-IOReturn BuildXLSandboxClient::PipStateChanged(IpcData *data)
+IOReturn BuildXLSandboxClient::sPipStateChanged(BuildXLSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
+{
+    return target->PipStateChanged((PipStateChangedRequest *)arguments->structureInput);
+}
+
+IOReturn BuildXLSandboxClient::PipStateChanged(PipStateChangedRequest *data)
 {
     if (data == nullptr)
     {
@@ -254,7 +280,7 @@ IOReturn BuildXLSandboxClient::PipStateChanged(IpcData *data)
     return error;
 }
 
-IOReturn BuildXLSandboxClient::ProcessPipStarted(IpcData *data)
+IOReturn BuildXLSandboxClient::ProcessPipStarted(PipStateChangedRequest *data)
 {
     IOReturn status = kIOReturnSuccess;
 
@@ -267,6 +293,8 @@ IOReturn BuildXLSandboxClient::ProcessPipStarted(IpcData *data)
     ProcessObject *process = nullptr;
     do
     {
+        uint64_t callbackInvocationTime = mach_absolute_time();
+
         memDesc = IOMemoryDescriptor::withAddressRange(clientAddr, size, kIODirectionNone, task_);
         if (!memDesc)
         {
@@ -316,7 +344,7 @@ IOReturn BuildXLSandboxClient::ProcessPipStarted(IpcData *data)
             continue;
         }
 
-        if (!sandbox_->TrackRootProcess(process))
+        if (!sandbox_->TrackRootProcess(process, callbackInvocationTime))
         {
             status = kIOReturnNoMemory;
             log_error("Tracking root process failed, returning %#x", status);
@@ -345,25 +373,27 @@ IOReturn BuildXLSandboxClient::ProcessPipStarted(IpcData *data)
     return status;
 }
 
-IOReturn BuildXLSandboxClient::ProcessPipTerminated(IpcData *data)
+IOReturn BuildXLSandboxClient::ProcessPipTerminated(PipStateChangedRequest *data)
 {
     pid_t pid = data->processId;
     pipid_t pipId = data->pipId;
     log_verbose(sandbox_->verboseLoggingEnabled, "Pip with PipId = %#llX, PID = %d terminated", pipId, pid);
-    if (sandbox_->UntrackProcess(pid, pipId))
+    TrustedBsdHandler handler = TrustedBsdHandler(sandbox_);
+    if (handler.TryInitializeWithTrackedProcess(pid) && handler.GetPipId() == pipId)
     {
 #if DEBUG
         char name[kProcessNameBufferSize];
         proc_name(data->processId, name, sizeof(name));
         log_debug("Killing process %s(%d)", name, pid);
 #endif
+        handler.HandleProcessUntracked(pid);
         proc_signal(pid, SIGTERM);
     }
 
     return kIOReturnSuccess;
 }
 
-IOReturn BuildXLSandboxClient::ProcessClientLaunched(IpcData *data)
+IOReturn BuildXLSandboxClient::ProcessClientLaunched(PipStateChangedRequest *data)
 {
 #if DEBUG
     char name[kProcessNameBufferSize];

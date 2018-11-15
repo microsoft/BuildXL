@@ -6,7 +6,7 @@
 
 #include <IOKit/IOKitLib.h>
 #include <IOKit/IODataQueueClient.h>
-#include "DominoSandboxShared.hpp"
+#include "BuildXLSandboxShared.hpp"
 
 using namespace std;
 

@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "3C1D7C8120C025F10069CF65"
-               BuildableName = "libDominoInterop.dylib"
+               BuildableName = "libBuildXLInterop.dylib"
                BlueprintName = "Interop"
                ReferencedContainer = "container:Interop.xcodeproj">
             </BuildableReference>
@@ -46,7 +46,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3C1D7C8120C025F10069CF65"
-            BuildableName = "libDominoInterop.dylib"
+            BuildableName = "libBuildXLInterop.dylib"
             BlueprintName = "Interop"
             ReferencedContainer = "container:Interop.xcodeproj">
          </BuildableReference>
@@ -64,7 +64,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3C1D7C8120C025F10069CF65"
-            BuildableName = "libDominoInterop.dylib"
+            BuildableName = "libBuildXLInterop.dylib"
             BlueprintName = "Interop"
             ReferencedContainer = "container:Interop.xcodeproj">
          </BuildableReference>

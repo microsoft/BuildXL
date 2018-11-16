@@ -51,7 +51,7 @@ namespace BuildXL.Demo
             var info =
                     new SandboxedProcessInfo(
                         m_pathTable,
-                        new SimpleSandboxedProcessFileStorage(directoryToEnumerateAsString), 
+                        new SimpleSandboxedProcessFileStorage(directoryToEnumerateAsString),
                         pathToProcess,
                         CreateManifest(AbsolutePath.Create(m_pathTable, pathToProcess), directoriesToBlock),
                         disableConHostSharing: true,
@@ -61,6 +61,7 @@ namespace BuildXL.Demo
                         WorkingDirectory = directoryToEnumerateAsString,
                         PipSemiStableHash = 0,
                         PipDescription = "EnumerateWithBlockedDirectories",
+                        SandboxedKextConnection = OperatingSystemHelper.IsUnixOS ? new SandboxedKextConnection(numberOfKextConnections: 2) : null
                     };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();

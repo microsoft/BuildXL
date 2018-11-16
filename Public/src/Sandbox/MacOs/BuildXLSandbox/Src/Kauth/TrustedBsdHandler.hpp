@@ -13,7 +13,7 @@ class TrustedBsdHandler : public AccessHandler
 {
 public:
 
-    TrustedBsdHandler(const ProcessObject *process, DominoSandbox *sandbox)
+    TrustedBsdHandler(const ProcessObject *process, BuildXLSandbox *sandbox)
         : AccessHandler(process, sandbox) { }
 
     int HandleLookup(const char *path);

@@ -1,4 +1,4 @@
 #!/bin/bash
 
-log show --last 1m --predicate 'eventMessage contains "domino_Sandbox"' | grep "domino_Sandbox" | sed 's/^.*domino_Sandbox ]]//g' "$@"
+log show --last 1m --predicate 'eventMessage contains "buildXL_Sandbox"' | grep "buildXL_Sandbox" | sed 's/^.*buildXL_Sandbox ]]//g' "$@"
 

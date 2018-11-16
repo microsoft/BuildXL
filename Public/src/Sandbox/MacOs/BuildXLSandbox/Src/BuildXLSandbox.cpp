@@ -1,6 +1,6 @@
 //
 //  BuildXLSandbox.cpp
-//  DominoSandbox
+//  BuildXLSandbox
 //
 //  Copyright © 2018 Microsoft. All rights reserved.
 //
@@ -12,9 +12,9 @@
 
 #define super IOService
 
-OSDefineMetaClassAndStructors(DominoSandbox, IOService)
+OSDefineMetaClassAndStructors(BuildXLSandbox, IOService)
 
-bool DominoSandbox::init(OSDictionary *dictionary)
+bool BuildXLSandbox::init(OSDictionary *dictionary)
 {
     if (!super::init(dictionary))
     {
@@ -49,7 +49,7 @@ bool DominoSandbox::init(OSDictionary *dictionary)
     return true;
 }
 
-void DominoSandbox::free(void)
+void BuildXLSandbox::free(void)
 {
     UninitializeListeners();
 
@@ -65,7 +65,7 @@ void DominoSandbox::free(void)
     super::free();
 }
 
-bool DominoSandbox::start(IOService *provider)
+bool BuildXLSandbox::start(IOService *provider)
 {
     bool success = super::start(provider);
     if (success)
@@ -76,18 +76,18 @@ bool DominoSandbox::start(IOService *provider)
     return success;
 }
 
-void DominoSandbox::stop(IOService *provider)
+void BuildXLSandbox::stop(IOService *provider)
 {
     super::stop(provider);
 }
 
-void DominoSandbox::InitializePolicyStructures()
+void BuildXLSandbox::InitializePolicyStructures()
 {
     policyHandle_ = {0};
 
     Listeners::g_dispatcher = this;
 
-    dominoPolicyOps_ =
+    buildXLPolicyOps_ =
     {
         // NOTE: handle preflight instead of mpo_vnode_check_lookup because trying to get the path for a vnode
         //       (vn_getpath) inside of that handler overwhelms the system very quickly
@@ -111,11 +111,11 @@ void DominoSandbox::InitializePolicyStructures()
 
     policyConfiguration_ =
     {
-        .mpc_name            = kDominoSandboxClassName,
+        .mpc_name            = kBuildXLSandboxClassName,
         .mpc_fullname        = "Sandbox for process liftetime, I/O observation and control",
         .mpc_labelnames      = NULL,
         .mpc_labelname_count = 0,
-        .mpc_ops             = &dominoPolicyOps_,
+        .mpc_ops             = &buildXLPolicyOps_,
         .mpc_loadtime_flags  = MPC_LOADTIME_FLAG_UNLOADOK,
         .mpc_field_off       = NULL,
         .mpc_runtime_flags   = 0,
@@ -124,7 +124,7 @@ void DominoSandbox::InitializePolicyStructures()
     };
 }
 
-kern_return_t DominoSandbox::InitializeListeners()
+kern_return_t BuildXLSandbox::InitializeListeners()
 {
     InitializePolicyStructures();
     kern_return_t status = mac_policy_register(&policyConfiguration_, &policyHandle_, NULL);
@@ -134,15 +134,15 @@ kern_return_t DominoSandbox::InitializeListeners()
         return status;
     }
 
-    dominoVnodeListener_ = kauth_listen_scope(KAUTH_SCOPE_VNODE, Listeners::domino_vnode_listener, reinterpret_cast<void *>(this));
-    if (dominoVnodeListener_ == nullptr)
+    buildXLVnodeListener_ = kauth_listen_scope(KAUTH_SCOPE_VNODE, Listeners::buildXL_vnode_listener, reinterpret_cast<void *>(this));
+    if (buildXLVnodeListener_ == nullptr)
     {
         log_error("%s", "Registering callback for KAUTH_SCOPE_VNODE scope failed!");
         return KERN_FAILURE;
     }
 
-    dominoFileOpListener_ = kauth_listen_scope(KAUTH_SCOPE_FILEOP, Listeners::domino_file_op_listener, reinterpret_cast<void *>(this));
-    if (dominoFileOpListener_ == nullptr)
+    buildXLFileOpListener_ = kauth_listen_scope(KAUTH_SCOPE_FILEOP, Listeners::buildXL_file_op_listener, reinterpret_cast<void *>(this));
+    if (buildXLFileOpListener_ == nullptr)
     {
         log_error("%s", "Registering callback for KAUTH_SCOPE_FILEOP scope failed!");
         return KERN_FAILURE;
@@ -151,38 +151,38 @@ kern_return_t DominoSandbox::InitializeListeners()
     return KERN_SUCCESS;
 }
 
-void DominoSandbox::UninitializeListeners()
+void BuildXLSandbox::UninitializeListeners()
 {
-    if (dominoVnodeListener_ != nullptr)
+    if (buildXLVnodeListener_ != nullptr)
     {
-        kauth_unlisten_scope(dominoVnodeListener_);
+        kauth_unlisten_scope(buildXLVnodeListener_);
         log_debug("%s", "Deregistered callback for KAUTH_SCOPE_VNODE scope");
-        dominoVnodeListener_ = nullptr;
+        buildXLVnodeListener_ = nullptr;
     }
 
-    if (dominoFileOpListener_ != nullptr)
+    if (buildXLFileOpListener_ != nullptr)
     {
-        kauth_unlisten_scope(dominoFileOpListener_);
+        kauth_unlisten_scope(buildXLFileOpListener_);
         log_debug("%s", "Deregistered callback for KAUTH_SCOPE_FILEOP scope");
-        dominoFileOpListener_ = nullptr;
+        buildXLFileOpListener_ = nullptr;
     }
 
     mac_policy_unregister(policyHandle_);
     log_debug("%s", "Deregistered TrustedBSD MAC policy callbacks");
 }
 
-void DominoSandbox::SetReportQueueSize(UInt32 reportQueueSize)
+void BuildXLSandbox::SetReportQueueSize(UInt32 reportQueueSize)
 {
     reportQueueSize_ = (reportQueueSize == 0 || reportQueueSize > kSharedDataQueueSizeMax) ? kSharedDataQueueSizeDefault : reportQueueSize;
     log_debug("Size set to: %u", reportQueueSize_);
 }
 
-UInt32 DominoSandbox::GetReportQueueEntryCount()
+UInt32 BuildXLSandbox::GetReportQueueEntryCount()
 {
     return (reportQueueSize_ * 1024 * 1024) / sizeof(AccessReport);
 }
 
-IOReturn DominoSandbox::AllocateReportQueueForClientProcess(pid_t pid)
+IOReturn BuildXLSandbox::AllocateReportQueueForClientProcess(pid_t pid)
 {
     EnterMonitor
 
@@ -197,10 +197,10 @@ IOReturn DominoSandbox::AllocateReportQueueForClientProcess(pid_t pid)
 
 typedef struct {
     int ctxPid;
-    DominoSandbox *sandbox;
+    BuildXLSandbox *sandbox;
 } ReleaseContext;
 
-IOReturn DominoSandbox::FreeReportQueuesForClientProcess(pid_t pid)
+IOReturn BuildXLSandbox::FreeReportQueuesForClientProcess(pid_t pid)
 {
     EnterMonitor
 
@@ -236,7 +236,7 @@ IOReturn DominoSandbox::FreeReportQueuesForClientProcess(pid_t pid)
     return success ? kIOReturnSuccess : kIOReturnError;
 }
 
-IOReturn DominoSandbox::SetReportQueueNotificationPort(mach_port_t port, pid_t pid)
+IOReturn BuildXLSandbox::SetReportQueueNotificationPort(mach_port_t port, pid_t pid)
 {
     EnterMonitor
 
@@ -247,7 +247,7 @@ IOReturn DominoSandbox::SetReportQueueNotificationPort(mach_port_t port, pid_t p
     return success ? kIOReturnSuccess : kIOReturnError;
 }
 
-IOMemoryDescriptor* const DominoSandbox::GetReportQueueMemoryDescriptor(pid_t pid)
+IOMemoryDescriptor* const BuildXLSandbox::GetReportQueueMemoryDescriptor(pid_t pid)
 {
     EnterMonitor
 
@@ -258,7 +258,7 @@ IOMemoryDescriptor* const DominoSandbox::GetReportQueueMemoryDescriptor(pid_t pi
     return descriptor;
 }
 
-bool const DominoSandbox::SendFileAccessReport(pid_t clientPid, AccessReport &report, bool roundRobin)
+bool const BuildXLSandbox::SendFileAccessReport(pid_t clientPid, AccessReport &report, bool roundRobin)
 {
     EnterMonitor
 
@@ -267,26 +267,26 @@ bool const DominoSandbox::SendFileAccessReport(pid_t clientPid, AccessReport &re
     OSSafeReleaseNULL(key);
 
     log_error_or_debug(verboseLoggingEnabled, !success,
-                       "DominoSandbox::SendFileAccessReport ClientPID(%d), PID(%d), Root PID(%d), PIP(%#llX), Operation: %s, Path: %s, Status: %d, Sent: %s",
+                       "BuildXLSandbox::SendFileAccessReport ClientPID(%d), PID(%d), Root PID(%d), PIP(%#llX), Operation: %s, Path: %s, Status: %d, Sent: %s",
                        clientPid, report.pid, report.rootPid, report.pipId, report.operation, report.path, report.status, success ? "succeeded" : "failed");
 
     return success;
 }
 
-ProcessObject* DominoSandbox::FindTrackedProcess(pid_t pid)
+ProcessObject* BuildXLSandbox::FindTrackedProcess(pid_t pid)
 {
     // NOTE: this has to be very fast when we are not tracking any processes (i.e., trackedProcesses_ is empty)
     //       because this is called on every single file access any process makes
     return trackedProcesses_->getProcess(pid);
 }
 
-bool DominoSandbox::TrackRootProcess(const ProcessObject *process)
+bool BuildXLSandbox::TrackRootProcess(const ProcessObject *process)
 {
     EnterMonitor
 
     pid_t pid = process->getProcessId();
 
-    // if mapping for 'pid' exists --> remove it (this can happen only if clients are nested, e.g., Domino runs Domino)
+    // if mapping for 'pid' exists --> remove it (this can happen only if clients are nested, e.g., BuildXL runs BuildXL)
     ProcessObject *existingProcess = trackedProcesses_->getProcess(pid);
     if (existingProcess)
     {
@@ -301,7 +301,7 @@ bool DominoSandbox::TrackRootProcess(const ProcessObject *process)
     return inserted;
 }
 
-bool DominoSandbox::TrackChildProcess(pid_t childPid, ProcessObject *rootProcess)
+bool BuildXLSandbox::TrackChildProcess(pid_t childPid, ProcessObject *rootProcess)
 {
     EnterMonitor
 
@@ -333,7 +333,7 @@ bool DominoSandbox::TrackChildProcess(pid_t childPid, ProcessObject *rootProcess
     return true;
 }
 
-bool DominoSandbox::UntrackProcess(pid_t pid, pipid_t expectedPipId)
+bool BuildXLSandbox::UntrackProcess(pid_t pid, pipid_t expectedPipId)
 {
     EnterMonitor
 
@@ -349,7 +349,7 @@ bool DominoSandbox::UntrackProcess(pid_t pid, pipid_t expectedPipId)
     }
 }
 
-void DominoSandbox::UntrackProcess(pid_t pid, ProcessObject *process)
+void BuildXLSandbox::UntrackProcess(pid_t pid, ProcessObject *process)
 {
     EnterMonitor
 

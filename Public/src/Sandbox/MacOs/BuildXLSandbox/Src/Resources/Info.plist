@@ -23,11 +23,11 @@
 		<key>BuildXLSandbox</key>
 		<dict>
 			<key>CFBundleIdentifier</key>
-			<string>com.microsoft.domino.sandbox</string>
+			<string>com.microsoft.buildXL.sandbox</string>
 			<key>IOClass</key>
-			<string>com_microsoft_domino_Sandbox</string>
+			<string>com_microsoft_buildXL_Sandbox</string>
 			<key>IOMatchCategory</key>
-			<string>com_microsoft_domino_Sandbox</string>
+			<string>com_microsoft_buildXL_Sandbox</string>
 			<key>IOProbeScore</key>
 			<integer>1000</integer>
 			<key>IOProviderClass</key>
@@ -35,7 +35,7 @@
 			<key>IOResourceMatch</key>
 			<string>IOKit</string>
 			<key>IOUserClientClass</key>
-			<string>com_microsoft_domino_SandboxClient</string>
+			<string>com_microsoft_buildXL_SandboxClient</string>
 		</dict>
 	</dict>
 	<key>NSHumanReadableCopyright</key>

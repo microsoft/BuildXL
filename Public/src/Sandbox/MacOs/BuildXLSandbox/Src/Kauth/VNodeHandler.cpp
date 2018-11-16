@@ -78,7 +78,7 @@ char *GetName(VNodeMetaInfo vnodeInfo, bool isDir)
  * in *outStrLenPtr.
  *
  * NOTE: this is only useful when debugging the sandbox kernel extension, i.e., it is not needed
- *       during the regular mode of operation (sandbox kernel extension sending reports to Domino).
+ *       during the regular mode of operation (sandbox kernel extension sending reports to BuildXL).
  */
 bool ConstructVNodeActionString(kauth_action_t action,
                                 bool isDir,

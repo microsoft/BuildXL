@@ -15,7 +15,7 @@
 		3C2614AE20D7E85E00488B0B /* DataTypes.h in Headers */ = {isa = PBXBuildFile; fileRef = 3C2614A620D7E85E00488B0B /* DataTypes.h */; };
 		3C2614AF20D7E85E00488B0B /* PolicySearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C2614A720D7E85E00488B0B /* PolicySearch.cpp */; };
 		3C2614B020D7E85E00488B0B /* StringOperations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C2614A820D7E85E00488B0B /* StringOperations.cpp */; };
-		3C48421D20D27348002760DE /* SandboxCLI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C48421C20D27348002760DE /* SandboxCLI.cpp */; };
+		3C48421D20D27348002760DE /* BuildXLSandboxCLI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C48421C20D27348002760DE /* BuildXLSandboxCLI.cpp */; };
 		3C48422320D290BD002760DE /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C48422220D290BD002760DE /* IOKit.framework */; };
 		3C4B0CB32125B54E00756E5F /* utf8proc.h in Headers */ = {isa = PBXBuildFile; fileRef = 3C4B0CB12125B54E00756E5F /* utf8proc.h */; };
 		3C4B0CB42125B54E00756E5F /* utf8proc.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C4B0CB22125B54E00756E5F /* utf8proc.c */; };
@@ -43,33 +43,13 @@
 		3CF28AC22146922400493F2A /* BuildXLSandboxShared.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3CF28ABB2146922400493F2A /* BuildXLSandboxShared.hpp */; };
 		F5044A9320F80DA200F95904 /* ConcurrentDictionary.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F5044A9120F80DA200F95904 /* ConcurrentDictionary.cpp */; };
 		F5044A9420F80DA200F95904 /* ConcurrentDictionary.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F5044A9220F80DA200F95904 /* ConcurrentDictionary.hpp */; };
-		F51A2BFC2190C67500880752 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F51A2BFB2190C67500880752 /* main.cpp */; };
-		F51A2C002190C7A300880752 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C48422220D290BD002760DE /* IOKit.framework */; };
 		F51AD7F82114DB8F00AE8E7E /* ConcurrentSharedDataQueue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F51AD7F62114DB8F00AE8E7E /* ConcurrentSharedDataQueue.cpp */; };
 		F51AD7FA2114DB8F00AE8E7E /* ConcurrentSharedDataQueue.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F51AD7F72114DB8F00AE8E7E /* ConcurrentSharedDataQueue.hpp */; };
 		F51AD7FF2114DC9E00AE8E7E /* Monitor.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F51AD7FC2114DC9E00AE8E7E /* Monitor.hpp */; };
-		F53982E2218226820075EFE2 /* ThreadLocal.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F53982E0218226820075EFE2 /* ThreadLocal.cpp */; };
-		F53982E4218226820075EFE2 /* ThreadLocal.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F53982E1218226820075EFE2 /* ThreadLocal.hpp */; };
-		F5490C092196345F0036B941 /* ps.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F5490C072196345F0036B941 /* ps.cpp */; };
-		F54F3AFB2190D6E300503673 /* libBuildXLInterop.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = F54F3AFA2190D6E300503673 /* libBuildXLInterop.dylib */; };
-		F557784D219217E60006B275 /* arg_parse.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F557784B219217E60006B275 /* arg_parse.cpp */; };
-		F557784F21921BA20006B275 /* args.hpp in Sources */ = {isa = PBXBuildFile; fileRef = F557784E21921BA20006B275 /* args.hpp */; };
-		F5A804C62182937400626B9C /* Checkers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F5A804C42182937400626B9C /* Checkers.cpp */; };
-		F5A804C72182937400626B9C /* Checkers.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F5A804C52182937400626B9C /* Checkers.hpp */; };
-		F5D014AA2187C35D00067484 /* OpNames.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F5D014A92187C35D00067484 /* OpNames.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		3C48421820D27347002760DE /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-		};
-		F51A2BF72190C67500880752 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -89,8 +69,8 @@
 		3C2614A620D7E85E00488B0B /* DataTypes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = DataTypes.h; path = ../../../Windows/DetoursServices/DataTypes.h; sourceTree = "<group>"; };
 		3C2614A720D7E85E00488B0B /* PolicySearch.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = PolicySearch.cpp; path = ../../../Windows/DetoursServices/PolicySearch.cpp; sourceTree = "<group>"; };
 		3C2614A820D7E85E00488B0B /* StringOperations.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = StringOperations.cpp; path = ../../../Windows/DetoursServices/StringOperations.cpp; sourceTree = "<group>"; };
-		3C48421A20D27347002760DE /* Playground */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Playground; sourceTree = BUILT_PRODUCTS_DIR; };
-		3C48421C20D27348002760DE /* SandboxCLI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SandboxCLI.cpp; sourceTree = "<group>"; };
+		3C48421A20D27347002760DE /* BuildXLSandboxCLI */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = BuildXLSandboxCLI; sourceTree = BUILT_PRODUCTS_DIR; };
+		3C48421C20D27348002760DE /* BuildXLSandboxCLI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = BuildXLSandboxCLI.cpp; sourceTree = "<group>"; };
 		3C48422220D290BD002760DE /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
 		3C4B0CB12125B54E00756E5F /* utf8proc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = utf8proc.h; sourceTree = "<group>"; };
 		3C4B0CB22125B54E00756E5F /* utf8proc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = utf8proc.c; sourceTree = "<group>"; };
@@ -120,26 +100,10 @@
 		3CF28ABB2146922400493F2A /* BuildXLSandboxShared.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = BuildXLSandboxShared.hpp; sourceTree = "<group>"; };
 		F5044A9120F80DA200F95904 /* ConcurrentDictionary.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ConcurrentDictionary.cpp; sourceTree = "<group>"; };
 		F5044A9220F80DA200F95904 /* ConcurrentDictionary.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ConcurrentDictionary.hpp; sourceTree = "<group>"; };
-		F51A2BF92190C67500880752 /* SandboxMonitor */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = SandboxMonitor; sourceTree = BUILT_PRODUCTS_DIR; };
-		F51A2BFB2190C67500880752 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		F51AD7F62114DB8F00AE8E7E /* ConcurrentSharedDataQueue.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ConcurrentSharedDataQueue.cpp; sourceTree = "<group>"; };
 		F51AD7F72114DB8F00AE8E7E /* ConcurrentSharedDataQueue.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ConcurrentSharedDataQueue.hpp; sourceTree = "<group>"; };
 		F51AD7FC2114DC9E00AE8E7E /* Monitor.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Monitor.hpp; sourceTree = "<group>"; };
-		F53982E0218226820075EFE2 /* ThreadLocal.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ThreadLocal.cpp; sourceTree = "<group>"; };
-		F53982E1218226820075EFE2 /* ThreadLocal.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ThreadLocal.hpp; sourceTree = "<group>"; };
 		F5461E48215BEB3B00D7F988 /* OpNames.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = OpNames.hpp; sourceTree = "<group>"; };
-		F5490C052195F0C60036B941 /* render.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = render.hpp; sourceTree = "<group>"; };
-		F5490C072196345F0036B941 /* ps.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ps.cpp; sourceTree = "<group>"; };
-		F5490C082196345F0036B941 /* ps.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ps.hpp; sourceTree = "<group>"; };
-		F54F3AFA2190D6E300503673 /* libBuildXLInterop.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; path = libBuildXLInterop.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
-		F557784B219217E60006B275 /* arg_parse.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = arg_parse.cpp; sourceTree = "<group>"; };
-		F557784C219217E60006B275 /* arg_parse.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = arg_parse.hpp; sourceTree = "<group>"; };
-		F557784E21921BA20006B275 /* args.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = args.hpp; sourceTree = "<group>"; };
-		F5577851219367F70006B275 /* lambda.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = lambda.hpp; sourceTree = "<group>"; };
-		F5849ADF2193D76C009B6BC8 /* libproc.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libproc.tbd; path = usr/lib/libproc.tbd; sourceTree = SDKROOT; };
-		F5A804C42182937400626B9C /* Checkers.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Checkers.cpp; sourceTree = "<group>"; };
-		F5A804C52182937400626B9C /* Checkers.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Checkers.hpp; sourceTree = "<group>"; };
-		F5D014A92187C35D00067484 /* OpNames.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = OpNames.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -155,15 +119,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		F51A2BF62190C67500880752 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				F54F3AFB2190D6E300503673 /* libBuildXLInterop.dylib in Frameworks */,
-				F51A2C002190C7A300880752 /* IOKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -188,8 +143,7 @@
 		3C48421B20D27348002760DE /* CLI */ = {
 			isa = PBXGroup;
 			children = (
-				F51A2C012190C87300880752 /* Playground */,
-				F51A2BFA2190C67500880752 /* SandboxMonitor */,
+				3C48421C20D27348002760DE /* BuildXLSandboxCLI.cpp */,
 			);
 			path = CLI;
 			sourceTree = "<group>";
@@ -197,8 +151,6 @@
 		3C48422120D290BC002760DE /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				F5849ADF2193D76C009B6BC8 /* libproc.tbd */,
-				F54F3AFA2190D6E300503673 /* libBuildXLInterop.dylib */,
 				3C48422220D290BD002760DE /* IOKit.framework */,
 			);
 			name = Frameworks;
@@ -236,8 +188,6 @@
 			children = (
 				3C8327DA2146928000EE8022 /* AccessHandler.cpp */,
 				3C8327DC2146928000EE8022 /* AccessHandler.hpp */,
-				F5A804C42182937400626B9C /* Checkers.cpp */,
-				F5A804C52182937400626B9C /* Checkers.hpp */,
 				3C8327D82146928000EE8022 /* FileOpHandler.cpp */,
 				3C8327DE2146928000EE8022 /* FileOpHandler.hpp */,
 				3C8327DB2146928000EE8022 /* TrustedBsdHandler.cpp */,
@@ -245,7 +195,6 @@
 				3C8327D72146928000EE8022 /* VNodeHandler.cpp */,
 				3C8327DD2146928000EE8022 /* VNodeHandler.hpp */,
 				F5461E48215BEB3B00D7F988 /* OpNames.hpp */,
-				F5D014A92187C35D00067484 /* OpNames.cpp */,
 			);
 			path = Kauth;
 			sourceTree = "<group>";
@@ -263,8 +212,7 @@
 			isa = PBXGroup;
 			children = (
 				3CCA66C520D15BBD0051F984 /* BuildXLSandbox.kext */,
-				3C48421A20D27347002760DE /* Playground */,
-				F51A2BF92190C67500880752 /* SandboxMonitor */,
+				3C48421A20D27347002760DE /* BuildXLSandboxCLI */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -294,8 +242,6 @@
 				F51AD7FC2114DC9E00AE8E7E /* Monitor.hpp */,
 				3CF28AB72146922400493F2A /* ProcessObject.cpp */,
 				3CF28AB82146922400493F2A /* ProcessObject.hpp */,
-				F53982E0218226820075EFE2 /* ThreadLocal.cpp */,
-				F53982E1218226820075EFE2 /* ThreadLocal.hpp */,
 			);
 			path = Src;
 			sourceTree = "<group>";
@@ -306,29 +252,6 @@
 				3CCA66CC20D15BBD0051F984 /* Info.plist */,
 			);
 			path = Resources;
-			sourceTree = "<group>";
-		};
-		F51A2BFA2190C67500880752 /* SandboxMonitor */ = {
-			isa = PBXGroup;
-			children = (
-				F51A2BFB2190C67500880752 /* main.cpp */,
-				F557784B219217E60006B275 /* arg_parse.cpp */,
-				F557784C219217E60006B275 /* arg_parse.hpp */,
-				F557784E21921BA20006B275 /* args.hpp */,
-				F5577851219367F70006B275 /* lambda.hpp */,
-				F5490C052195F0C60036B941 /* render.hpp */,
-				F5490C072196345F0036B941 /* ps.cpp */,
-				F5490C082196345F0036B941 /* ps.hpp */,
-			);
-			path = SandboxMonitor;
-			sourceTree = "<group>";
-		};
-		F51A2C012190C87300880752 /* Playground */ = {
-			isa = PBXGroup;
-			children = (
-				3C48421C20D27348002760DE /* SandboxCLI.cpp */,
-			);
-			path = Playground;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -348,13 +271,11 @@
 				3CF28AC12146922400493F2A /* BuildXLSandboxClient.hpp in Headers */,
 				3C8327E62146928000EE8022 /* FileOpHandler.hpp in Headers */,
 				3C2614AC20D7E85E00488B0B /* PolicyResult.h in Headers */,
-				F53982E4218226820075EFE2 /* ThreadLocal.hpp in Headers */,
 				3CF28ABF2146922400493F2A /* ProcessObject.hpp in Headers */,
 				3CF28AC22146922400493F2A /* BuildXLSandboxShared.hpp in Headers */,
 				3C4B0CB32125B54E00756E5F /* utf8proc.h in Headers */,
 				F51AD7FA2114DB8F00AE8E7E /* ConcurrentSharedDataQueue.hpp in Headers */,
 				F5044A9420F80DA200F95904 /* ConcurrentDictionary.hpp in Headers */,
-				F5A804C72182937400626B9C /* Checkers.hpp in Headers */,
 				3C8327E52146928000EE8022 /* VNodeHandler.hpp in Headers */,
 				3C8327D52146927500EE8022 /* FileAccessManifestParser.hpp in Headers */,
 				3CF28ABD2146922400493F2A /* BuildXLSandbox.hpp in Headers */,
@@ -366,9 +287,9 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		3C48421920D27347002760DE /* Playground */ = {
+		3C48421920D27347002760DE /* BuildXLSandboxCLI */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3C48421E20D27348002760DE /* Build configuration list for PBXNativeTarget "Playground" */;
+			buildConfigurationList = 3C48421E20D27348002760DE /* Build configuration list for PBXNativeTarget "BuildXLSandboxCLI" */;
 			buildPhases = (
 				3C48421620D27347002760DE /* Sources */,
 				3C48421720D27347002760DE /* Frameworks */,
@@ -378,9 +299,9 @@
 			);
 			dependencies = (
 			);
-			name = Playground;
+			name = BuildXLSandboxCLI;
 			productName = MacSanboxCLI;
-			productReference = 3C48421A20D27347002760DE /* Playground */;
+			productReference = 3C48421A20D27347002760DE /* BuildXLSandboxCLI */;
 			productType = "com.apple.product-type.tool";
 		};
 		3CCA66C420D15BBD0051F984 /* BuildXLSandbox */ = {
@@ -401,23 +322,6 @@
 			productReference = 3CCA66C520D15BBD0051F984 /* BuildXLSandbox.kext */;
 			productType = "com.apple.product-type.kernel-extension";
 		};
-		F51A2BF82190C67500880752 /* SandboxMonitor */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = F51A2BFD2190C67500880752 /* Build configuration list for PBXNativeTarget "SandboxMonitor" */;
-			buildPhases = (
-				F51A2BF52190C67500880752 /* Sources */,
-				F51A2BF62190C67500880752 /* Frameworks */,
-				F51A2BF72190C67500880752 /* CopyFiles */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = SandboxMonitor;
-			productName = SandboxMonitor;
-			productReference = F51A2BF92190C67500880752 /* SandboxMonitor */;
-			productType = "com.apple.product-type.tool";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -435,10 +339,6 @@
 						CreatedOnToolsVersion = 9.4;
 						ProvisioningStyle = Automatic;
 					};
-					F51A2BF82190C67500880752 = {
-						CreatedOnToolsVersion = 10.1;
-						ProvisioningStyle = Automatic;
-					};
 				};
 			};
 			buildConfigurationList = 3CCA66BF20D15BBD0051F984 /* Build configuration list for PBXProject "BuildXLSandbox" */;
@@ -454,8 +354,7 @@
 			projectRoot = "";
 			targets = (
 				3CCA66C420D15BBD0051F984 /* BuildXLSandbox */,
-				3C48421920D27347002760DE /* Playground */,
-				F51A2BF82190C67500880752 /* SandboxMonitor */,
+				3C48421920D27347002760DE /* BuildXLSandboxCLI */,
 			);
 		};
 /* End PBXProject section */
@@ -475,7 +374,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3C48421D20D27348002760DE /* SandboxCLI.cpp in Sources */,
+				3C48421D20D27348002760DE /* BuildXLSandboxCLI.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -484,13 +383,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				3C4B0CB72125B62A00756E5F /* utf8proc_data.c in Sources */,
-				F53982E2218226820075EFE2 /* ThreadLocal.cpp in Sources */,
 				3CF28AC02146922400493F2A /* BuildXLSandbox.cpp in Sources */,
 				3C8327E22146928000EE8022 /* AccessHandler.cpp in Sources */,
 				3C8327D42146927500EE8022 /* FileAccessManifestParser.cpp in Sources */,
 				3CF28ABC2146922400493F2A /* BuildXLSandboxClient.cpp in Sources */,
 				3C2614B020D7E85E00488B0B /* StringOperations.cpp in Sources */,
-				F5D014AA2187C35D00067484 /* OpNames.cpp in Sources */,
 				3CF28ABE2146922400493F2A /* ProcessObject.cpp in Sources */,
 				3C2614AF20D7E85E00488B0B /* PolicySearch.cpp in Sources */,
 				3C8327E32146928000EE8022 /* TrustedBsdHandler.cpp in Sources */,
@@ -498,22 +395,10 @@
 				3C4B0CB42125B54E00756E5F /* utf8proc.c in Sources */,
 				3C2614AB20D7E85E00488B0B /* PolicyResult_common.cpp in Sources */,
 				F5044A9320F80DA200F95904 /* ConcurrentDictionary.cpp in Sources */,
-				F5A804C62182937400626B9C /* Checkers.cpp in Sources */,
 				3CED2D4920EE2195009E3F1D /* Listeners.cpp in Sources */,
 				F51AD7F82114DB8F00AE8E7E /* ConcurrentSharedDataQueue.cpp in Sources */,
 				3C8327E02146928000EE8022 /* FileOpHandler.cpp in Sources */,
 				3C8327DF2146928000EE8022 /* VNodeHandler.cpp in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		F51A2BF52190C67500880752 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				F557784D219217E60006B275 /* arg_parse.cpp in Sources */,
-				F51A2BFC2190C67500880752 /* main.cpp in Sources */,
-				F5490C092196345F0036B941 /* ps.cpp in Sources */,
-				F557784F21921BA20006B275 /* args.hpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -531,7 +416,6 @@
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
-				USER_HEADER_SEARCH_PATHS = "../../Windows/DetoursServices/**";
 			};
 			name = Debug;
 		};
@@ -546,7 +430,6 @@
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
-				USER_HEADER_SEARCH_PATHS = "../../Windows/DetoursServices/**";
 			};
 			name = Release;
 		};
@@ -707,55 +590,10 @@
 			};
 			name = Release;
 		};
-		F51A2BFE2190C67500880752 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CODE_SIGN_STYLE = Automatic;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-					"MAC_OS_LIBRARY=1",
-				);
-				HEADER_SEARCH_PATHS = (
-					"$(SOURCE_ROOT)/darwin/**",
-					"$(SOURCE_ROOT)/../Interop/Sandbox",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
-			};
-			name = Debug;
-		};
-		F51A2BFF2190C67500880752 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CODE_SIGN_STYLE = Automatic;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"RELEASE=1",
-					"NDEBUG=1",
-					"MAC_OS_LIBRARY=1",
-				);
-				HEADER_SEARCH_PATHS = (
-					"$(SOURCE_ROOT)/darwin/**",
-					"$(SOURCE_ROOT)/../Interop/Sandbox",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		3C48421E20D27348002760DE /* Build configuration list for PBXNativeTarget "Playground" */ = {
+		3C48421E20D27348002760DE /* Build configuration list for PBXNativeTarget "BuildXLSandboxCLI" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				3C48421F20D27348002760DE /* Debug */,
@@ -778,15 +616,6 @@
 			buildConfigurations = (
 				3CCA66D020D15BBD0051F984 /* Debug */,
 				3CCA66D120D15BBD0051F984 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		F51A2BFD2190C67500880752 /* Build configuration list for PBXNativeTarget "SandboxMonitor" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				F51A2BFE2190C67500880752 /* Debug */,
-				F51A2BFF2190C67500880752 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

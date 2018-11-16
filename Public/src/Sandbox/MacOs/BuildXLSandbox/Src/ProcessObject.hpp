@@ -17,10 +17,8 @@
 #include "FileAccessManifestParser.hpp"
 #include "PolicyResult.h"
 #include "ConcurrentDictionary.hpp"
-#include "ThreadLocal.hpp"
 
 #define kPathLookupCacheSize 1024
-#define kThreadLocalLookupSize 10
 
 class ProcessObject : public OSObject
 {
@@ -35,11 +33,7 @@ private:
     FileAccessManifestParseResult fam_;
     const OSSymbol *hashCode_;
     int processTreeCount_;
-    ConcurrentDictionary *reportCache_;
-    ThreadLocal *lastPathLookup_;
-
-    uint32_t numCacheHits_;
-    uint32_t numCacheMisses_;
+    ConcurrentDictionary *reportedPathLookups_;
 
 public:
 
@@ -55,28 +49,13 @@ public:
 
     FileAccessManifestParseResult getFAM() const { return fam_; }
     FileAccessManifestFlag getFamFlags() const   { return fam_.GetFamFlags(); }
-    
-    void setLastLookedUpPath(const OSSymbol *path)
-    {
-        lastPathLookup_->insert(path);
-    }
-    
-    const char* getLastLookedUpPath()
-    {
-        OSSymbol *value = OSDynamicCast(OSSymbol, lastPathLookup_->get());
-        return value != nullptr ? value->getCStringNoCopy() : nullptr;
-    }
-    
-    PipInfo Introspect() const;
 
 #pragma mark Process Tree Tracking
 
     int getProcessTreeCount() const  { return processTreeCount_; }
     bool hasEmptyProcessTree() const { return OSCompareAndSwap(0, 0, &processTreeCount_); }
-    /*! Returns the value before increment. */
-    int incrementProcessTreeCount() { return OSIncrementAtomic(&processTreeCount_); }
-    /*! Returns the value before decrement. */
-    int decrementProcessTreeCount() { return OSDecrementAtomic(&processTreeCount_); }
+    int incrementProcessTreeCount()  { return OSIncrementAtomic(&processTreeCount_); }
+    int decrementProcessTreeCount()  { return OSDecrementAtomic(&processTreeCount_); }
 
 #pragma mark Report Caching
 
@@ -96,12 +75,6 @@ public:
 
     /*! The caller is responsible for releasing the returned symbol */
     static const OSSymbol* computePidHashCode(pid_t pid);
-    
-    /*! The caller is responsible for releasing the returned symbol */
-    static const OSSymbol* computeTidHashCode(uint64_t tid);
-    
-    /*! The caller is responsible for releasing the returned symbol */
-    static const OSSymbol* computeCurrentTidHashCode();
 
     /*! Given a PID it returns its parent's PID or -1 if not found. */
     static pid_t getParentProcessPid(pid_t pid);

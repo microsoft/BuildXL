@@ -1,5 +1,6 @@
 //
 //  VNodeHandler.cpp
+//  VNodeHandler
 //
 //  Copyright © 2018 Microsoft. All rights reserved.
 //
@@ -77,7 +78,7 @@ char *GetName(VNodeMetaInfo vnodeInfo, bool isDir)
  * in *outStrLenPtr.
  *
  * NOTE: this is only useful when debugging the sandbox kernel extension, i.e., it is not needed
- *       during the regular mode of operation (sandbox kernel extension sending reports to BuildXL).
+ *       during the regular mode of operation (sandbox kernel extension sending reports to Domino).
  */
 bool ConstructVNodeActionString(kauth_action_t action,
                                 bool isDir,
@@ -122,73 +123,139 @@ bool ConstructVNodeActionString(kauth_action_t action,
     return true;
 }
 
-static FlagsToCheckFunc s_handlers[]
+/**
+ * Creates a full path for a vnode.  'vp' may be NULL, in which
+ * case the returned path is NULL (that is, no memory is allocated).
+ * The caller is responsible for handling this memory.
+ *
+ * The return value indicates if the operation succeeded (i.e.,
+ * whether 'result' contains the requested path).
+ */
+bool VNodeHandler::CreateVnodePath(vnode_t vp, char *result, int len)
 {
+    if (vp == nullptr || result == nullptr)
     {
-        .flags     = KAUTH_VNODE_READ_ATTRIBUTES | KAUTH_VNODE_READ_EXTATTRIBUTES | KAUTH_VNODE_READ_SECURITY,
-        .operation = kOpKAuthVNodeProbe,
-        .checker   = Checkers::CheckProbe
-    },
-    {
-        .flags     = KAUTH_VNODE_EXECUTE,
-        .operation = kOpKAuthVNodeExecute,
-        .checker   = Checkers::CheckExecute
-    },
-    {
-        .flags     = KAUTH_VNODE_READ_DATA,
-        .operation = kOpKAuthVNodeRead,
-        .checker   = Checkers::CheckRead
-    },
-    {
-        .flags     = KAUTH_VNODE_GENERIC_WRITE_BITS,
-        .operation = kOpKAuthVNodeWrite,
-        .checker   = Checkers::CheckWrite
+        return false;
     }
-};
 
-static int s_handlersCount = sizeof(s_handlers)/sizeof(s_handlers[0]);
-        
+    int errorCode = vn_getpath(vp, result, &len);
+    if (errorCode != 0)
+    {
+        log_debug("vn_getpath failed with error code %#X", errorCode);
+    }
+
+    return errorCode == 0;
+}
+
+static bool ShouldDeny(AccessCheckResult accessCheck)
+{
+    return accessCheck.ShouldDenyAccess();
+}
+
 int VNodeHandler::HandleVNodeEvent(const kauth_cred_t credential,
                                    const void *idata,
                                    const kauth_action_t action,
-                                   const vfs_context_t ctx,
+                                   const vfs_context_t context,
                                    const vnode_t vp,
                                    const vnode_t dvp,
                                    const uintptr_t arg3)
 {
+    boolean_t isDir = vnode_isdir(vp);
+
     int len = MAXPATHLEN;
     char path[MAXPATHLEN] = {0};
-    int errno = vn_getpath(vp, path, &len);
-    if (errno != 0)
+    if (!CreateVnodePath(vp, path, len))
     {
         return KAUTH_RESULT_DEFER;
     }
-    
-    bool shouldDeny = false;
-    
-    // even after the first match we have to continue looping because multiple flags can be set in a single action
-    for (int i = 0; i < s_handlersCount; i++)
-    {
-        // skip over handlers that don't apply
-        if (!HasAnyFlags(action, s_handlers[i].flags))
-        {
-            continue;
-        }
 
-        AccessCheckResult checkResult = CheckAndReport(s_handlers[i].operation,
-                                                       path, s_handlers[i].checker,
-                                                       ctx, vp);
-        
-        shouldDeny = shouldDeny || checkResult.ShouldDenyAccess();
-    }
-    
-    if (shouldDeny)
+    PolicyResult policyResult = PolicyForPath(path);
+
+    const int readAttrFlags = KAUTH_VNODE_READ_ATTRIBUTES |
+                              KAUTH_VNODE_READ_EXTATTRIBUTES |
+                              KAUTH_VNODE_READ_SECURITY;
+
+    if ((
+            HasAnyFlags(action, readAttrFlags) &&
+            ShouldDeny(CheckProbe(policyResult, isDir))
+        ) || (
+            HasAnyFlags(action, KAUTH_VNODE_EXECUTE) &&
+            ShouldDeny(CheckExecute(policyResult, isDir))
+        ) || (
+            HasAnyFlags(action, KAUTH_VNODE_READ_DATA) &&
+            ShouldDeny(CheckRead(policyResult, isDir))
+        ) || (
+            HasAnyFlags(action, KAUTH_VNODE_GENERIC_WRITE_BITS) &&
+            ShouldDeny(CheckWrite(policyResult, isDir))
+        ))
     {
         LogAccessDenied(path, action);
         return KAUTH_RESULT_DENY;
     }
-    else
-    {
-        return KAUTH_RESULT_DEFER;
-    }
+
+    return KAUTH_RESULT_DEFER;
+}
+
+AccessCheckResult VNodeHandler::CheckExecute(PolicyResult policyResult, bool isDir)
+{
+    RequestedReadAccess requestedAccess = isDir
+        ? RequestedReadAccess::Probe
+        : RequestedReadAccess::Read;
+
+    AccessCheckResult checkResult = policyResult.CheckReadAccess(
+        requestedAccess,
+        FileReadContext(FileExistence::Existent, isDir));
+
+    FileOperationContext fop = ToFileContext(
+        OpKAuthVNodeExecute,
+        GENERIC_READ | GENERIC_EXECUTE,
+        CreationDisposition::OpenExisting,
+        policyResult.Path());
+
+    Report(fop, policyResult, checkResult);
+
+    return checkResult;
+}
+
+AccessCheckResult VNodeHandler::CheckProbe(PolicyResult policyResult, bool isDir)
+{
+    AccessCheckResult checkResult = policyResult.CheckReadAccess(
+        RequestedReadAccess::Probe,
+        FileReadContext(FileExistence::Existent, isDir));
+
+    FileOperationContext fop = FileOperationContext::CreateForRead(OpKAuthVNodeProbe, policyResult.Path());
+    Report(fop, policyResult, checkResult);
+
+    return checkResult;
+}
+
+AccessCheckResult VNodeHandler::CheckRead(PolicyResult policyResult, bool isDir)
+{
+    RequestedReadAccess requestedAccess = isDir
+        ? RequestedReadAccess::Enumerate
+        : RequestedReadAccess::Read;
+
+    AccessCheckResult checkResult = policyResult.CheckReadAccess(
+        requestedAccess,
+        FileReadContext(FileExistence::Existent, isDir));
+
+    FileOperationContext fop = FileOperationContext::CreateForRead(OpKAuthVNodeRead, policyResult.Path());
+    Report(fop, policyResult, checkResult);
+
+    return checkResult;
+}
+
+AccessCheckResult VNodeHandler::CheckWrite(PolicyResult policyResult, bool isDir)
+{
+    AccessCheckResult checkResult = isDir
+        ? policyResult.CheckReadAccess(RequestedReadAccess::Probe, FileReadContext(FileExistence::Existent, isDir))
+        : policyResult.CheckWriteAccess();
+
+    FileOperationContext fop = ToFileContext(OpKAuthVNodeWrite,
+                                             GENERIC_WRITE,
+                                             CreationDisposition::CreateAlways,
+                                             policyResult.Path());
+
+    Report(fop, policyResult, checkResult);
+    return checkResult;
 }

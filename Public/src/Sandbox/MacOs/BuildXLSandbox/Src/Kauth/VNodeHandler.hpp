@@ -1,5 +1,6 @@
 //
 //  VNodeHandler.hpp
+//  VNodeHandler
 //
 //  Copyright © 2018 Microsoft. All rights reserved.
 //
@@ -8,17 +9,9 @@
 #define VNodeHandler_hpp
 
 #include "AccessHandler.hpp"
-#include "OpNames.hpp"
 #include "PolicyResult.h"
 
 #define VNODE_CREATE 0
-
-typedef struct _FlagsToCheckFunc
-{
-    int flags;
-    FileOperation operation;
-    CheckFunc checker;
-} FlagsToCheckFunc;
 
 bool ConstructVNodeActionString(kauth_action_t action,
                                 bool isDir,
@@ -28,17 +21,30 @@ bool ConstructVNodeActionString(kauth_action_t action,
 
 class VNodeHandler : public AccessHandler
 {
-public:
+    private:
 
-    VNodeHandler(DominoSandbox *sandbox) : AccessHandler(sandbox) { }
+        AccessCheckResult CheckExecute(PolicyResult policyResult, bool isDir);
 
-    int HandleVNodeEvent(const kauth_cred_t credential,
-                         const void *idata,
-                         const kauth_action_t action,
-                         const vfs_context_t context,
-                         const vnode_t vp,
-                         const vnode_t dvp,
-                         const uintptr_t arg3);
+        AccessCheckResult CheckProbe(PolicyResult policyResult, bool isDir);
+
+        AccessCheckResult CheckRead(PolicyResult policyResult, bool isDir);
+
+        AccessCheckResult CheckWrite(PolicyResult policyResult, bool isDir);
+
+    public:
+
+        VNodeHandler(const ProcessObject *process, DominoSandbox *sandbox)
+            : AccessHandler(process, sandbox) { }
+
+        int HandleVNodeEvent(const kauth_cred_t credential,
+                             const void *idata,
+                             const kauth_action_t action,
+                             const vfs_context_t context,
+                             const vnode_t vp,
+                             const vnode_t dvp,
+                             const uintptr_t arg3);
+
+        static bool CreateVnodePath(vnode_t vp, char *result, int len);
 };
 
 #endif /* VNodeHandler_hpp */

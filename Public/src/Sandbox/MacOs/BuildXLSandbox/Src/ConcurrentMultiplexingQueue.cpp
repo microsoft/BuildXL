@@ -190,7 +190,7 @@ bool ConcurrentMultiplexingQueue::setFailureNotificationHandlerForAllQueues(cons
     ConcurrentSharedDataQueue *queue;
     while ((queue = OSDynamicCast(ConcurrentSharedDataQueue, iterator->getNextObject())))
     {
-        queue->setClientAsyncFailureHandle(ref, client);
+        queue->setClientAsyncHandle(ref, client);
     }
 
     iterator->release();
@@ -222,7 +222,9 @@ bool ConcurrentMultiplexingQueue::enqueueDataForContainerAndRoundRob(OSArray *co
     ConcurrentSharedDataQueue *queue = OSDynamicCast(ConcurrentSharedDataQueue, container->getLastObject());
     if (queue)
     {
-        if (queue->enqueue(data, size))
+        bool success = queue->enqueue(data, size);
+
+        if (success)
         {
             // Rotate queues, we don't expect to ever store more than kSharedDataQueueCount queues so this is fine!
             // Pseudo round robbin, sharing the load between the number of queus in a given bucket
@@ -246,11 +248,6 @@ bool ConcurrentMultiplexingQueue::enqueueData(const OSSymbol *key, void *data, U
 {
     EnterMonitor
 
-    if (unrecoverableFailureOccurred_)
-    {
-        return false;
-    }
-
     OSArray *container = reportQueueMappings_->getAs<OSArray>(key);
     if (!container)
     {
@@ -267,12 +264,7 @@ bool ConcurrentMultiplexingQueue::enqueueData(const OSSymbol *key, void *data, U
     bool success = roundRobbing ? enqueueDataForContainerAndRoundRob(container, data, size):
                                   enqueueDataForAllQueuesInContainer(container, data, size);
 
-    if (!success)
-    {
-        unrecoverableFailureOccurred_ = true;
-        queue->InvokeAsyncFailureHandle(kIOReturnNoSpace);
-    }
-
+    if (!success) queue->InvokeAsyncHandle(kIOReturnNoSpace);
     container->release();
     return success;
 }

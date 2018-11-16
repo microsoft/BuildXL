@@ -1,5 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+//
+//  BuildXLSandboxClient.hpp
+//  DominoSandboxClient
+//
+//  Copyright © 2018 Microsoft. All rights reserved.
+//
 
 #ifndef BuildXLSandboxClient_hpp
 #define BuildXLSandboxClient_hpp
@@ -11,18 +15,16 @@
 #include "BuildXLSandbox.hpp"
 #include "BuildXLSandboxShared.hpp"
 
-#define BuildXLSandboxClient com_microsoft_domino_SandboxClient
+#define DominoSandboxClient com_microsoft_domino_SandboxClient
 
-class BuildXLSandboxClient : public IOUserClient
+class DominoSandboxClient : public IOUserClient
 {
-    OSDeclareDefaultStructors(BuildXLSandboxClient)
+    OSDeclareDefaultStructors(DominoSandboxClient)
 
 private:
 
     DominoSandbox *sandbox_;
     task_t task_;
-    
-    static IOExternalMethodDispatch ipcMethods[kSandboxMethodCount];
 
 public:
 
@@ -35,6 +37,8 @@ public:
 
     IOReturn clientClose(void) override;
     IOReturn clientDied(void) override;
+
+    static const IOExternalMethodDispatch ipcMethods[kDominoSandboxMethodCount];
 
     IOReturn registerNotificationPort(mach_port_t port,
                                       UInt32 type,
@@ -54,17 +58,31 @@ protected:
 
     // MacSanboxClient IPC function pairs for ipcMethods dispatch table
 
-    static IOReturn sPipStateChanged              (BuildXLSandboxClient *target, void *ref, IOExternalMethodArguments *args);
-    static IOReturn sDebugCheck                   (BuildXLSandboxClient *target, void *ref, IOExternalMethodArguments *args);
-    static IOReturn sSetReportQueueSize           (BuildXLSandboxClient *target, void *ref, IOExternalMethodArguments *args);
-    static IOReturn sToggleVerboseLogging         (BuildXLSandboxClient *target, void *ref, IOExternalMethodArguments *args);
-    static IOReturn sSetFailureNotificationHandler(BuildXLSandboxClient *target, void *ref, IOExternalMethodArguments *args);
-    static IOReturn sIntrospectHandler            (BuildXLSandboxClient *target, void *ref, IOExternalMethodArguments *args);
-    
-    IOReturn PipStateChanged(PipStateChangedRequest *data);
-    IOReturn ProcessPipStarted(PipStateChangedRequest *data);
-    IOReturn ProcessPipTerminated(PipStateChangedRequest *data);
-    IOReturn ProcessClientLaunched(PipStateChangedRequest *data);
+    static IOReturn sPipStateChanged(DominoSandboxClient *target,
+                                     void *reference,
+                                     IOExternalMethodArguments *arguments);
+
+    static IOReturn sDebugCheck(DominoSandboxClient *target,
+                                void *reference,
+                                IOExternalMethodArguments *arguments);
+
+    static IOReturn sSetReportQueueSize(DominoSandboxClient *target,
+                                        void *reference,
+                                        IOExternalMethodArguments *arguments);
+
+    static IOReturn sToggleVerboseLogging(DominoSandboxClient *target,
+                                void *reference,
+                                IOExternalMethodArguments *arguments);
+
+    static IOReturn sSetFailureNotificationHandler(DominoSandboxClient *target,
+                                                   void *reference,
+                                                   IOExternalMethodArguments *arguments);
+
+    IOReturn PipStateChanged(IpcData *data);
+    IOReturn ProcessPipStarted(IpcData *data);
+    IOReturn ProcessPipTerminated(IpcData *data);
+    IOReturn ProcessClientLaunched(IpcData *data);
+    IOReturn ProcessClientWillExit(IpcData *data);
     IOReturn SetReportQueueSize(UInt32 reportQueueSize);
     IOReturn ToggleVerboseLogging(bool enabled);
     IOReturn SetFailureNotificationHandler(OSAsyncReference64 ref);

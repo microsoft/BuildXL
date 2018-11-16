@@ -1,5 +1,6 @@
 //
-//  SandboxCLI.cpp
+//  BuildXLSandboxCLI.c
+//  MacSanboxCLI
 //
 //  Copyright © 2018 Microsoft. All rights reserved.
 //
@@ -61,7 +62,7 @@ void TestUserClient(io_service_t service)
         .processId = getpid() + 1,
         .clientPid = getpid(),
         .payloadLength = 0x4321,
-        .action = kBuildXLSandboxActionSendPipStarted
+        .action = kDominoSandboxActionSendPipStarted
     };
 
     char *buffer = (char *)malloc(payload.payloadLength);
@@ -161,7 +162,7 @@ int main(int argc, char *argv[])
     io_iterator_t iterator;
     bool driverFound = false;
 
-    kernResult = IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching(kBuildXLSandboxClassName), &iterator);
+    kernResult = IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching(kDominoSandboxClassName), &iterator);
     if (kernResult != KERN_SUCCESS)
     {
         fprintf(stderr, "IOServiceGetMatchingServices returned 0x%08x\n\n", kernResult);

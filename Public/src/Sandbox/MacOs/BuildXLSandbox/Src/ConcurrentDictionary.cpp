@@ -39,10 +39,10 @@ bool ConcurrentDictionary::init(uint capacity, const char *name)
     }
     
     name_ = name;
-    rwLock_ = IORWLockAlloc();
+    lock_ = IORecursiveLockAlloc();
     dict_ = OSDictionary::withCapacity(capacity);
 
-    return rwLock_ && dict_;
+    return lock_ && dict_;
 }
 
 void ConcurrentDictionary::free()
@@ -53,10 +53,10 @@ void ConcurrentDictionary::free()
         OSSafeReleaseNULL(dict_);
     }
 
-    if (rwLock_)
+    if (lock_)
     {
-        IORWLockFree(rwLock_);
-        rwLock_ = nullptr;
+        IORecursiveLockFree(lock_);
+        lock_ = nullptr;
     }
 
     super::free();
@@ -64,15 +64,14 @@ void ConcurrentDictionary::free()
 
 void ConcurrentDictionary::forEach(void *data, for_each_fn callback)
 {
-    EnterReadMonitor
+    EnterMonitor
 
     OSCollectionIterator *iterator = OSCollectionIterator::withCollection(dict_);
     iterator->reset();
     OSSymbol *key;
-    int index = 0;
     while ((key = OSDynamicCast(OSSymbol, iterator->getNextObject())))
     {
-        callback(data, index++, key, get(key));
+        callback(data, key, get(key));
     }
     iterator->release();
 }
@@ -84,7 +83,7 @@ bool ConcurrentDictionary::insert(const OSSymbol *key, const OSObject *value)
 {
     if (!key) return false;
 
-    EnterWriteMonitor
+    EnterMonitor
 
     log_trace_dict_info("before insert", key->getCStringNoCopy(), dict_);
     int oldCount = dict_->getCount();
@@ -104,7 +103,7 @@ bool ConcurrentDictionary::remove(const OSSymbol *key)
 {
     if (!key) return false;
 
-    EnterWriteMonitor
+    EnterMonitor
 
     log_trace_dict_info("before remove", key->getCStringNoCopy(), dict_);
     int oldCount = dict_->getCount();
@@ -117,7 +116,7 @@ bool ConcurrentDictionary::remove(const OSSymbol *key)
 
 void ConcurrentDictionary::flushCollection()
 {
-    EnterWriteMonitor
+    EnterMonitor
 
     dict_->flushCollection();
 }
@@ -126,7 +125,7 @@ OSObject* ConcurrentDictionary::get(const OSSymbol *key) const
 {
     if (!key || dict_->getCount() == 0) return nullptr;
 
-    EnterReadMonitor
+    EnterMonitor
 
     return dict_->getObject(key);
 }
@@ -139,6 +138,8 @@ bool ConcurrentDictionary::insertProcess(const ProcessObject *process)
 
 bool ConcurrentDictionary::removeProcess(pid_t pid)
 {
+    EnterMonitor
+
     const OSSymbol *key = ProcessObject::computePidHashCode(pid);
     bool result = remove(key);
     OSSafeReleaseNULL(key);
@@ -148,6 +149,8 @@ bool ConcurrentDictionary::removeProcess(pid_t pid)
 ProcessObject* ConcurrentDictionary::getProcess(pid_t pid)
 {
     if (dict_->getCount() == 0) return nullptr;
+
+    EnterMonitor
 
     const OSSymbol *key = ProcessObject::computePidHashCode(pid);
     ProcessObject *result = OSDynamicCast(ProcessObject, get(key));

@@ -12,7 +12,7 @@ These demos showcase three main features of the sandbox: reporting file accesses
 This demo is able to run an arbitrary process and report back all the file accesses that the process (and its child processes) made. For example, one can run:
 
 ```
-E:\temp>DemoReportAccesses.exe notepad myFile.txt
+E:\temp>dotnet ReportAccesses.dll notepad myFile.txt
 ```
 
 This will actually open notepad.exe and myFile.txt will be created. After exiting notepad, the tool reports:
@@ -55,6 +55,7 @@ var info =
         WorkingDirectory = workingDirectory,
         PipSemiStableHash = 0,
         PipDescription = "Simple sandbox demo",
+        SandboxedKextConnection = OperatingSystemHelper.IsUnixOS ? new SandboxedKextConnection(numberOfKextConnections: 2) : null
     };
 ``` 
 
@@ -95,7 +96,7 @@ E:\TEST
 
 And let's see what happens if we run:
 
-```DemoBlockingEnumerator.exe e:\test e:\test\bin e:\test\obj```
+```dotnet BlockAccesses.dll e:\test e:\test\bin e:\test\obj```
 
 Here we are trying to enumerate ``e:\test`` recursively, but block any access under ``e:\test\obj`` and ``e:\test\bin``. The result is:
 
@@ -174,7 +175,7 @@ The last demo shows how the sandbox can be used to retrieve the process tree of 
 
 For example, let's run a git fetch on an arbitrary repo:
 
-```DemoProcessTree.exe git fetch```
+```dotnet ProcessTree.dll git fetch```
 
 The result is:
 

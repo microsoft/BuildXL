@@ -151,12 +151,7 @@ inline RequestedAccess operator|(RequestedAccess a, RequestedAccess b)
 // Represents the result of performing an access check (applying a PolicyResult to a proposed access and context such as file existence).
 class AccessCheckResult 
 {
-private:
-	AccessCheckResult() {}
-
 public:
-	static inline AccessCheckResult Invalid() { return AccessCheckResult(); }
-
     AccessCheckResult(RequestedAccess requestedAccess, ResultAction result, ReportLevel reportLevel) :
         RequestedAccess(requestedAccess), ResultAction(result), ReportLevel(reportLevel), PathValidity(PathValidity::Valid)
     {

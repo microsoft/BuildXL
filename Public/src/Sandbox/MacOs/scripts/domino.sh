@@ -61,7 +61,7 @@ function checkKextLog {
     print_info "Checking system log for kext error messages"
 
     local kextLogFile="kext-log.txt"
-    log show --last $logInterval --predicate 'eventMessage contains "BuildXLSandbox"' | grep "buildXL_Sandbox" > $kextLogFile
+    log show --last $logInterval --predicate 'eventMessage contains "BuildXLSandbox"' | grep "buildxl_Sandbox" > $kextLogFile
 
     local numKextLogLines=$(wc -l $kextLogFile | awk '{print $1}')
     local numKextErrors=$(grep "ERROR" $kextLogFile | wc -l | awk '{print $1}')
@@ -104,8 +104,8 @@ function build { #(extraBuildXLArgs)
         return $ERROR_BUILDXL_BIN_NOT_FOLDER
     fi
 
-    local buildXLFilesToCheck="BuildXL BuildXL.runtimeconfig.json BuildXL.deps.json $CACHE_CONFIG_FILE_NAME"
-    for f in $buildXLFilesToCheck; do
+    local buildxlFilesToCheck="BuildXL BuildXL.runtimeconfig.json BuildXL.deps.json $CACHE_CONFIG_FILE_NAME"
+    for f in $buildxlFilesToCheck; do
         if [[ ! -f $arg_BuildXLBin/$f ]]; then
             print_error "Expected to find file '$f' in '$arg_BuildXLBin' but that file is not present"
             return $ERROR_BUILDXL_FILE_NOT_PRESENT
@@ -135,8 +135,8 @@ EOF
 
     # Create symlinks for Sdk.Transformers dirs
     if [[ ! -z "$arg_SymlinkSdksInto" ]]; then
-        for buildXLSdkDir in "$arg_BuildXLBin/Sdk/Sdk.Transformers"; do
-            local mySdkDir="$arg_SymlinkSdksInto/$(basename $buildXLSdkDir)"
+        for buildxlSdkDir in "$arg_BuildXLBin/Sdk/Sdk.Transformers"; do
+            local mySdkDir="$arg_SymlinkSdksInto/$(basename $buildxlSdkDir)"
             # delete symlink if already exists
             if [[ -L $mySdkDir ]]; then
                 rm -rf $mySdkDir
@@ -144,8 +144,8 @@ EOF
 
             # create symlink if nothing exists with the same name
             if [[ ! -e $mySdkDir ]]; then
-                print_info "Symlinking sdk folder from BuildXL deployment: $mySdkDir -> $buildXLSdkDir"
-                ln -s "$buildXLSdkDir" "$mySdkDir"
+                print_info "Symlinking sdk folder from BuildXL deployment: $mySdkDir -> $buildxlSdkDir"
+                ln -s "$buildxlSdkDir" "$mySdkDir"
             else
                 print_error "File/folder '$mySdkDir' already exists.  Please remove this folder since this script needs to symlink a built-in SDK to that location."
                 return $ERROR_CANNOT_SYMLINK_SDK
@@ -158,13 +158,13 @@ EOF
         return 0
     fi
 
-    local buildXLCmd="$(getBuildXLCmd) $extraBuildXLArgs"
-    print_info "${tputBold}Running buildXL:${tputReset} $buildXLCmd"
+    local buildxlCmd="$(getBuildXLCmd) $extraBuildXLArgs"
+    print_info "${tputBold}Running buildxl:${tputReset} $buildxlCmd"
     chmod u=rx "$arg_BuildXLBin/BuildXL"
-    $buildXLCmd
-    local buildXLExitCode=$?
+    $buildxlCmd
+    local buildxlExitCode=$?
 
-    if [[ $buildXLExitCode == 0 ]]; then
+    if [[ $buildxlExitCode == 0 ]]; then
         echo "${tputBold}${tputGreen}BuildXL Succeeded${tputReset}"
     else
         echo "${tputBold}${tputRed}BuildXL Failed${tputReset}"
@@ -181,7 +181,7 @@ EOF
         return 1
     fi
 
-    return $buildXLExitCode
+    return $buildxlExitCode
 }
 
 function printHelp {
@@ -197,7 +197,7 @@ function parseArgs {
                 printHelp
                 exit 0
                 ;;
-            --buildXL-bin)
+            --buildxl-bin)
                 arg_BuildXLBin="$2"
                 shift
                 shift

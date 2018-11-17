@@ -561,9 +561,9 @@
 					"MAC_OS_SANDBOX=1",
 				);
 				INFOPLIST_FILE = Src/Resources/Info.plist;
-				MODULE_NAME = com.microsoft.buildXL.sandbox;
+				MODULE_NAME = com.microsoft.buildxl.sandbox;
 				MODULE_VERSION = 1.0.0d1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildXL.sandbox;
+				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = "../../Windows/DetoursServices/**";
 				WRAPPER_EXTENSION = kext;
@@ -581,9 +581,9 @@
 					"MAC_OS_SANDBOX=1",
 				);
 				INFOPLIST_FILE = Src/Resources/Info.plist;
-				MODULE_NAME = com.microsoft.buildXL.sandbox;
+				MODULE_NAME = com.microsoft.buildxl.sandbox;
 				MODULE_VERSION = 1.0.0d1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildXL.sandbox;
+				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = "../../Windows/DetoursServices/**";
 				WRAPPER_EXTENSION = kext;

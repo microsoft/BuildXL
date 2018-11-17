@@ -3084,7 +3084,7 @@ typedef int mpo_proc_check_signal_t(
   @warning Caution should be exercised when implementing access
   controls for wait, since programs often wait for child processes to
   exit.  Failure to be notified of a child process terminating may
-  cause the parent process to hang, or may produce zombie processes.
+  cause the parent process to stop responding, or may produce zombie processes.
 
   @return Return 0 if access is granted, otherwise an appropriate value for
   errno should be returned.
@@ -6163,13 +6163,13 @@ typedef void mpo_vnode_notify_truncate_t(
 
 
 /**
-  @brief Inform MAC policies that a pty slave has been granted
+  @brief Inform MAC policies that a pty worker has been granted
   @param p Responsible process
   @param tp tty data structure
   @param dev Major and minor numbers of device
   @param label Policy label for tp
   
-  Inform MAC policies that a pty slave has been granted.
+  Inform MAC policies that a pty worker has been granted.
 */
 typedef void mpo_pty_notify_grant_t(
 	proc_t p,

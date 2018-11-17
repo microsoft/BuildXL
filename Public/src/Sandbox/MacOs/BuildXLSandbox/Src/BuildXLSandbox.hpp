@@ -18,7 +18,7 @@
 #include "ConcurrentSharedDataQueue.hpp"
 #include "ProcessObject.hpp"
 
-#define BuildXLSandbox com_microsoft_buildXL_Sandbox
+#define BuildXLSandbox com_microsoft_buildxl_Sandbox
 
 #if RELEASE
     #define kSharedDataQueueSizeDefault 256
@@ -35,11 +35,11 @@ class BuildXLSandbox : public IOService
 
 private:
 
-    kauth_listener_t buildXLFileOpListener_ = nullptr;
-    kauth_listener_t buildXLVnodeListener_ = nullptr;
+    kauth_listener_t buildxlFileOpListener_ = nullptr;
+    kauth_listener_t buildxlVnodeListener_ = nullptr;
 
     mac_policy_handle_t policyHandle_;
-    struct mac_policy_ops buildXLPolicyOps_;
+    struct mac_policy_ops buildxlPolicyOps_;
     struct mac_policy_conf policyConfiguration_;
 
     /*!

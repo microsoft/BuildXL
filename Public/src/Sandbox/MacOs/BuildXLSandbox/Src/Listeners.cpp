@@ -60,7 +60,7 @@ static int ComputeAbsolutePath(struct vnode *vp, const char *const relPath, size
     return 0;
 }
 
-int Listeners::buildXL_file_op_listener(kauth_cred_t credential,
+int Listeners::buildxl_file_op_listener(kauth_cred_t credential,
                                        void *idata,
                                        kauth_action_t action,
                                        uintptr_t arg0,
@@ -86,7 +86,7 @@ int Listeners::buildXL_file_op_listener(kauth_cred_t credential,
 
 #pragma mark Scope VNode Callbacks
 
-int Listeners::buildXL_vnode_listener(kauth_cred_t credential,
+int Listeners::buildxl_vnode_listener(kauth_cred_t credential,
                                      void *idata,
                                      kauth_action_t action,
                                      uintptr_t arg0,

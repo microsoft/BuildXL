@@ -79,9 +79,9 @@ typedef struct {
 
 #pragma mark Macros and defines
 
-#define kBuildXLBundleIdentifier "com.microsoft.buildXL.sandbox"
-#define kBuildXLSandboxClassName "com_microsoft_buildXL_Sandbox"
-#define kBuildXLSandboxClientClassName "com_microsoft_buildXL_SandboxClient"
+#define kBuildXLBundleIdentifier "com.microsoft.buildxl.sandbox"
+#define kBuildXLSandboxClassName "com_microsoft_buildxl_Sandbox"
+#define kBuildXLSandboxClientClassName "com_microsoft_buildxl_SandboxClient"
 
 static os_log_t logger = os_log_create(kBuildXLBundleIdentifier, "Logger");
 

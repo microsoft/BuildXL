@@ -87,7 +87,7 @@ void BuildXLSandbox::InitializePolicyStructures()
 
     Listeners::g_dispatcher = this;
 
-    buildXLPolicyOps_ =
+    buildxlPolicyOps_ =
     {
         // NOTE: handle preflight instead of mpo_vnode_check_lookup because trying to get the path for a vnode
         //       (vn_getpath) inside of that handler overwhelms the system very quickly
@@ -115,7 +115,7 @@ void BuildXLSandbox::InitializePolicyStructures()
         .mpc_fullname        = "Sandbox for process liftetime, I/O observation and control",
         .mpc_labelnames      = NULL,
         .mpc_labelname_count = 0,
-        .mpc_ops             = &buildXLPolicyOps_,
+        .mpc_ops             = &buildxlPolicyOps_,
         .mpc_loadtime_flags  = MPC_LOADTIME_FLAG_UNLOADOK,
         .mpc_field_off       = NULL,
         .mpc_runtime_flags   = 0,
@@ -134,15 +134,15 @@ kern_return_t BuildXLSandbox::InitializeListeners()
         return status;
     }
 
-    buildXLVnodeListener_ = kauth_listen_scope(KAUTH_SCOPE_VNODE, Listeners::buildXL_vnode_listener, reinterpret_cast<void *>(this));
-    if (buildXLVnodeListener_ == nullptr)
+    buildxlVnodeListener_ = kauth_listen_scope(KAUTH_SCOPE_VNODE, Listeners::buildxl_vnode_listener, reinterpret_cast<void *>(this));
+    if (buildxlVnodeListener_ == nullptr)
     {
         log_error("%s", "Registering callback for KAUTH_SCOPE_VNODE scope failed!");
         return KERN_FAILURE;
     }
 
-    buildXLFileOpListener_ = kauth_listen_scope(KAUTH_SCOPE_FILEOP, Listeners::buildXL_file_op_listener, reinterpret_cast<void *>(this));
-    if (buildXLFileOpListener_ == nullptr)
+    buildxlFileOpListener_ = kauth_listen_scope(KAUTH_SCOPE_FILEOP, Listeners::buildxl_file_op_listener, reinterpret_cast<void *>(this));
+    if (buildxlFileOpListener_ == nullptr)
     {
         log_error("%s", "Registering callback for KAUTH_SCOPE_FILEOP scope failed!");
         return KERN_FAILURE;
@@ -153,18 +153,18 @@ kern_return_t BuildXLSandbox::InitializeListeners()
 
 void BuildXLSandbox::UninitializeListeners()
 {
-    if (buildXLVnodeListener_ != nullptr)
+    if (buildxlVnodeListener_ != nullptr)
     {
-        kauth_unlisten_scope(buildXLVnodeListener_);
+        kauth_unlisten_scope(buildxlVnodeListener_);
         log_debug("%s", "Deregistered callback for KAUTH_SCOPE_VNODE scope");
-        buildXLVnodeListener_ = nullptr;
+        buildxlVnodeListener_ = nullptr;
     }
 
-    if (buildXLFileOpListener_ != nullptr)
+    if (buildxlFileOpListener_ != nullptr)
     {
-        kauth_unlisten_scope(buildXLFileOpListener_);
+        kauth_unlisten_scope(buildxlFileOpListener_);
         log_debug("%s", "Deregistered callback for KAUTH_SCOPE_FILEOP scope");
-        buildXLFileOpListener_ = nullptr;
+        buildxlFileOpListener_ = nullptr;
     }
 
     mac_policy_unregister(policyHandle_);

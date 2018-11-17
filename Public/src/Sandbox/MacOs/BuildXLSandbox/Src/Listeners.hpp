@@ -29,7 +29,7 @@ public:
     // a member function pointer poses more challenges and unreadable syntax so we go with a direct void pointer instead!
     static void *g_dispatcher;
 
-    static int buildXL_file_op_listener(kauth_cred_t credential,
+    static int buildxl_file_op_listener(kauth_cred_t credential,
                                        void *idata,
                                        kauth_action_t action,
                                        uintptr_t arg0,
@@ -37,7 +37,7 @@ public:
                                        uintptr_t arg2,
                                        uintptr_t arg3);
 
-    static int buildXL_vnode_listener(kauth_cred_t credential,
+    static int buildxl_vnode_listener(kauth_cred_t credential,
                                      void *idata,
                                      kauth_action_t action,
                                      uintptr_t arg0,

@@ -1,27 +1,27 @@
-.TH buildXL.sh 1 "" "" "BuildXL User Guide"
+.TH buildxl.sh 1 "" "" "BuildXL User Guide"
 .SH NAME
-buildXL.sh \- Run BuildXL on macOS
+buildxl.sh \- Run BuildXL on macOS
 .SH SYNOPSIS
-.B buildXL
-[--buildXL-bin \fIbuildXL-dir\fR]
+.B buildxl
+[--buildxl-bin \fIbuildxl-dir\fR]
 [--config \fIconfig-dsc-file\fR]
 [--symlink-sdks-into \fIsdk-dir\fR]
 [--check-kext-log]
 [--load-kext | --no-load-kext]
-[\fIbuildXL-arguments\fI]
+[\fIbuildxl-arguments\fI]
 .SH DESCRIPTION
 A wrapper script for running BuildXL on macOS.
 .SH OPTIONS
 .TP
-.BI --buildXL-bin " buildXL-dir"
-Directory containing BuildXL binaries.  If not specified, defaults to the directory of the buildXL.sh script.
+.BI --buildxl-bin " buildxl-dir"
+Directory containing BuildXL binaries.  If not specified, defaults to the directory of the buildxl.sh script.
 .TP
 .BI --config " config-dsc-dir"
 BuildXLScript main configuration file of the build (typically named 'config.dsc').  If omitted, no build is executed.
 .TP
 .BI --symlink-sdks-into " sdk-dir"
 When specified, prior to running the build this script creates a symlink inside of the \fIsdk-dir\fR
-folder pointing to the Sdk.Transformers folder from \fIbuildXL-dir\fR directory.  This is useful when
+folder pointing to the Sdk.Transformers folder from \fIbuildxl-dir\fR directory.  This is useful when
 the build specification files require the "Transformers" sdk.
 .TP
 .BI --check-kext-log
@@ -32,5 +32,5 @@ reported by BuildXLSandbox.
 Whether or not to attempt to load BuildXLSandbox kernel extension prior to running the build.  When neither 
 is specified, the default is not to automatically load BuildXLSandbox.
 .TP
-.IB buildXL-arguments
+.IB buildxl-arguments
 Arbitrary arguments passed down to the BuildXL binary.

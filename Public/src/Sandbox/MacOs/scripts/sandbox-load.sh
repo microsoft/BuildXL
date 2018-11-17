@@ -8,7 +8,7 @@ declare arg_kextSourceDir=""
 declare arg_kextDeployDir=""
 declare arg_noReload=""
 
-readonly BuildXLSandboxExtensionName="com.microsoft.buildXL.sandbox"
+readonly BuildXLSandboxExtensionName="com.microsoft.buildxl.sandbox"
 
 # Prints out BuildXLSandbox bundle id if it is currently loaded, or empty string otherwise.
 function getRunningBuildXLSandboxBundleId {

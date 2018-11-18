@@ -12,18 +12,18 @@
 
 #define BUILDXL_VERBOSE_LOG                        "BUILDXL_VERBOSE_LOG"
 
-#define KEXT_SERVICE_NOT_FOUND                     0x1
-#define KEXT_SERVICE_COULD_NOT_OPEN                0x2
-#define KEXT_MACH_PORT_CREATION_ERROR              0x4
-#define KEXT_NOTIFICATION_PORT_ERROR               0x8
-#define KEXT_SHARED_MEMORY_CREATION_ERROR          0x10
+#define KEXT_SERVICE_NOT_FOUND                    0x1
+#define KEXT_SERVICE_COULD_NOT_OPEN               0x2
+#define KEXT_MACH_PORT_CREATION_ERROR             0x4
+#define KEXT_NOTIFICATION_PORT_ERROR              0x8
+#define KEXT_SHARED_MEMORY_CREATION_ERROR         0x10
 #define KEXT_BUILDXL_LAUNCH_SIGNAL_FAIL            0x20
 #define KEXT_BUILDXL_CONNECTION_INFO_CALLBACK_FAIL 0x40
-#define KEXT_THREAD_ID_ERROR                       0x80
+#define KEXT_THREAD_ID_ERROR                      0x80
 
-#define REPORT_QUEUE_SUCCESS                       0x1000
-#define REPORT_QUEUE_CONNECTION_ERROR              0x1001
-#define REPORT_QUEUE_DEQUEUE_ERROR                 0x1002
+#define REPORT_QUEUE_SUCCESS                      0x1000
+#define REPORT_QUEUE_CONNECTION_ERROR             0x1001
+#define REPORT_QUEUE_DEQUEUE_ERROR                0x1002
 
 extern "C"
 {

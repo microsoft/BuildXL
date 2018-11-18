@@ -14,13 +14,13 @@
     <ProjectReference Include="..\..\..\Utilities\UnitTests\Executables\TestProcess\Test.BuildXL.Executables.TestProcess.csproj" />
     <ProjectReference Include="..\..\..\Utilities\UnitTests\TestUtilities.XUnit\Test.BuildXL.TestUtilities.XUnit.csproj" />
     <ProjectReference Include="..\EngineTestUtilities\Test.BuildXL.EngineTestUtilities.csproj" />
-    <ProjectReference Include="..\Processes.TestPrograms\RemoteApi\RemoteApi.vcxproj">
+    <ProjectReference Condition="'$(IsWindows)' == 'true'" Include="..\Processes.TestPrograms\RemoteApi\RemoteApi.vcxproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\Sandbox\Windows\DetoursServices\DetoursServices.x64.vcxproj">
+    <ProjectReference Condition="'$(IsWindows)' == 'true'" Include="..\..\..\Sandbox\Windows\DetoursServices\DetoursServices.x64.vcxproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\Sandbox\Windows\DetoursServices\DetoursServices.x86.vcxproj">
+    <ProjectReference Condition="'$(IsWindows)' == 'true'" Include="..\..\..\Sandbox\Windows\DetoursServices\DetoursServices.x86.vcxproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
   </ItemGroup>

@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# compute DOMINO_HOME assuming the folder of this script to be $DOMINO_HOME/MacOs/scripts
 readonly SCRIPTS_DIR=$(cd `dirname ${BASH_SOURCE[0]}` && pwd)
 readonly MACOS_DIR=$(dirname $SCRIPTS_DIR)
 readonly INTEROP_DYLIB_SRC_NAME=libBuildXLInterop.dylib
@@ -47,9 +46,9 @@ fi
 
 mv -v $dylibFile $dylibRenamedFile
 
-# deploy built dylib into $DOMINO_BIN (if $DOMINO_BIN is defined)
-if [[ -d $DOMINO_BIN ]]; then
-    readonly dylibDest=$DOMINO_BIN/$INTEROP_DYLIB_DEST_NAME
+# deploy built dylib into $BUILDXL_BIN (if $BUILDXL_BIN is defined)
+if [[ -d $BUILDXL_BIN ]]; then
+    readonly dylibDest=$BUILDXL_BIN/$INTEROP_DYLIB_DEST_NAME
     if [[ -f $dylibDest ]]; then rm -f $dylibDest; fi
     cp -v $dylibRenamedFile $dylibDest
 fi

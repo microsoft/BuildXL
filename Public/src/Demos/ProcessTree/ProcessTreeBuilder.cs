@@ -97,6 +97,7 @@ namespace BuildXL.Demo
                         WorkingDirectory = workingDirectory,
                         PipSemiStableHash = 0,
                         PipDescription = "Process tree demo",
+                        SandboxedKextConnection = OperatingSystemHelper.IsUnixOS ? new SandboxedKextConnection(numberOfKextConnections: 2) : null
                     };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();

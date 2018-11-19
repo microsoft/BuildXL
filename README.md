@@ -52,6 +52,10 @@ To install this SDK version in Visual Studio:
 1. Scroll to near the bottom of the list and add a check next to "Windows SDK (10.0.10240.0)".
 1. Click Modify and wait for installation to complete.
 
+## MacOS
+1. Install [.Net Core for macOS](https://www.imore.com/how-turn-system-integrity-protection-macos)
+1. Turn off System Integrity Protection in macOS. SIP blocks the installation of the unsigned kernel extension (or Kext) produced by the build. [Instructions](https://www.imore.com/how-turn-system-integrity-protection-macos)
+1. Run ```./macbuild.sh [Release]``` in your terminal emulator
 
 # Contributing 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.

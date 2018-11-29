@@ -942,7 +942,6 @@ BOOL WINAPI DetourRestoreAfterWith()
     DWORD cbData;
 
     pvData = DetourFindPayloadEx(DETOUR_EXE_RESTORE_GUID, &cbData);
-
     if (pvData == NULL || cbData == 0)
     {
         DETOUR_TRACE_ERROR(L"pvData == NULL || cbData == 0\n");

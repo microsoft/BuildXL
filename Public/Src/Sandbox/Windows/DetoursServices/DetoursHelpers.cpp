@@ -512,6 +512,30 @@ void WriteToInternalErrorsFile(PCWSTR format, ...)
     }
 }
 
+/// Decodes a length plus UTF-16 non-null-terminated string written by FileAccessManifest.WriteChars()
+/// into an allocated, null-terminated string. Returns nullptr if the encoded string length is zero.
+wchar_t *CreateStringFromWriteChars(const byte *payloadBytes, size_t &offset, uint32_t *pStrLen = nullptr)
+{
+    uint32_t len = *((uint32_t *)&payloadBytes[offset]);
+    if (pStrLen != nullptr)
+    {
+        *pStrLen = len;
+    }
+    offset += sizeof(uint32_t);
+
+    WCHAR *pStr = nullptr;
+    if (len != 0)
+    {
+        pStr = new wchar_t[len + 1]; // Reserve some space for \0 terminator at end.
+        uint32_t strSizeBytes = sizeof(wchar_t) * (len + 1);
+        ZeroMemory((void*)pStr, strSizeBytes);
+        memcpy_s((void*)pStr, strSizeBytes, (wchar_t*)(&payloadBytes[offset]), sizeof(wchar_t) * len);
+        offset += sizeof(wchar_t) * len;
+    }
+
+    return pStr;
+}
+
 bool ParseFileAccessManifest(
     const void* payload,
     DWORD)
@@ -687,28 +711,11 @@ bool ParseFileAccessManifest(
 
     g_manifestInternalDetoursErrorNotificationFileString = reinterpret_cast<const PManifestInternalDetoursErrorNotificationFileString>(&payloadBytes[offset]);
     g_manifestInternalDetoursErrorNotificationFileString->AssertValid();
-
 #ifdef _DEBUG
     offset += sizeof(uint32_t);
 #endif
-    uint32_t manifestInternalDetoursErrorNotificationFileSize = *(uint32_t*)(&payloadBytes[offset]);
-    offset += sizeof(uint32_t);
-
-    if (manifestInternalDetoursErrorNotificationFileSize != 0)
-    {
-        g_internalDetoursErrorNotificationFile = new wchar_t[manifestInternalDetoursErrorNotificationFileSize + 1]; // Reserve some space for \0 terminator at end.
-        ZeroMemory((void*)g_internalDetoursErrorNotificationFile, sizeof(wchar_t) * (manifestInternalDetoursErrorNotificationFileSize + 1));
-        memcpy_s((void*)g_internalDetoursErrorNotificationFile, sizeof(wchar_t) * (manifestInternalDetoursErrorNotificationFileSize + 1), (wchar_t*)(&payloadBytes[offset]), sizeof(wchar_t) * manifestInternalDetoursErrorNotificationFileSize);
-    }
-    
-    if (g_internalDetoursErrorNotificationFile != nullptr && g_internalDetoursErrorNotificationFile[0] == L'\0')
-    {
-        manifestInternalDetoursErrorNotificationFileSize = 0;
-        delete[] g_internalDetoursErrorNotificationFile;
-        g_internalDetoursErrorNotificationFile = nullptr;
-    }
-
-    offset += sizeof(wchar_t) * manifestInternalDetoursErrorNotificationFileSize;
+    uint32_t manifestInternalDetoursErrorNotificationFileSize;
+    g_internalDetoursErrorNotificationFile = CreateStringFromWriteChars(payloadBytes, offset, &manifestInternalDetoursErrorNotificationFileSize);
 
     PCManifestFlags flags = reinterpret_cast<PCManifestFlags>(&payloadBytes[offset]);
     flags->AssertValid();
@@ -818,6 +825,13 @@ bool ParseFileAccessManifest(
     g_pDetouredProcessInjector->SetDlls(g_lpDllNameX86, g_lpDllNameX64);
 
     offset += dllBlock->GetSize();
+
+    PCManifestSubstituteProcessExecutionShim pShimInfo = reinterpret_cast<PCManifestSubstituteProcessExecutionShim>(&payloadBytes[offset]);
+    pShimInfo->AssertValid();
+#ifdef _DEBUG
+    offset += sizeof(uint32_t);
+#endif
+    g_substituteProcessExecutionShimPath = CreateStringFromWriteChars(payloadBytes, offset);
 
     g_manifestTreeRoot = reinterpret_cast<PCManifestRecord>(&payloadBytes[offset]);
     VerifyManifestRoot(g_manifestTreeRoot);

@@ -540,6 +540,15 @@ typedef struct ManifestDllBlock_t
 typedef const ManifestDllBlock * PCManifestDllBlock;
 
 // ==========================================================================
+// == ManifestSubstituteProcessExecutionShim
+// ==========================================================================
+typedef struct ManifestSubstituteProcessExecutionShim_t
+{
+    GENERATE_TAG("ManifestSubstituteProcessExecutionShim", 0xABCDEF04)
+} ManifestSubstituteProcessExecutionShim_t;
+typedef const ManifestSubstituteProcessExecutionShim_t * PCManifestSubstituteProcessExecutionShim;
+
+// ==========================================================================
 // == ManifestRecord
 // ==========================================================================
 typedef struct ManifestRecord_t

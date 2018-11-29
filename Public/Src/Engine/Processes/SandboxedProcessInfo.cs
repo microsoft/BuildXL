@@ -83,8 +83,9 @@ namespace BuildXL.Processes
             bool testRetries = false,
             LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
-            IKextConnection sandboxedKextConnection = null)
-            : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxedKextConnection)
+            IKextConnection sandboxedKextConnection = null,
+            AnyBuildShimInfo shimInfo = null)
+            : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxedKextConnection, shimInfo: shimInfo)
         {
         }
 
@@ -101,11 +102,17 @@ namespace BuildXL.Processes
             bool testRetries = false,
             LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
-            IKextConnection sandboxedKextConnection = null)
+            IKextConnection sandboxedKextConnection = null,
+            AnyBuildShimInfo shimInfo = null)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(fileStorage != null);
             Contract.Requires(fileName != null);
+            if (shimInfo != null)
+            {
+                Contract.Requires(fileAccessManifest != null, "When an AnyBuildShimInfo is provided a FileAccessManifest is required");
+                fileAccessManifest.AnyBuildShimInfo = shimInfo;
+            }
 
             PathTable = pathTable;
             FileAccessManifest = fileAccessManifest;
@@ -136,7 +143,8 @@ namespace BuildXL.Processes
             IDetoursEventListener detoursEventListener = null,
             IKextConnection sandboxedKextConnection = null,
             ContainerConfiguration containerConfiguration = null,
-            FileAccessManifest fileAccessManifest = null)
+            FileAccessManifest fileAccessManifest = null,
+            AnyBuildShimInfo shimInfo = null)
             : this(
                   pathTable,
                   fileStorage,
@@ -147,7 +155,8 @@ namespace BuildXL.Processes
                   testRetries,
                   loggingContext,
                   detoursEventListener,
-                  sandboxedKextConnection)
+                  sandboxedKextConnection,
+                  shimInfo)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(fileStorage != null);

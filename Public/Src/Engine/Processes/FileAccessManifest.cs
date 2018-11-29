@@ -361,7 +361,7 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// True whan the sandbox is integrated in QBuild. False otherwise.
+        /// True when the sandbox is integrated in QBuild. False otherwise.
         /// </summary>
         /// <remarks>Note: this is only an option that is set programmatically. Not controlled by a command line option.</remarks>
         public bool QBuildIntegrated
@@ -422,6 +422,15 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// Optional AnyBuild shim execution information.
+        /// </summary>
+        /// <remarks>
+        /// Internal since this is set as a side effect of initializing a FileAccessManifest
+        /// in <see cref="SandboxedProcessInfo"/>.
+        /// </remarks>
+        internal AnyBuildShimInfo AnyBuildShimInfo { get; set; }
+
+        /// <summary>
         /// Adds a policy to an entire scope
         /// </summary>
         public void AddScope(AbsolutePath path, FileAccessPolicy mask, FileAccessPolicy values)
@@ -448,7 +457,17 @@ namespace BuildXL.Processes
 
             m_rootNode.AddNodeWithScope(this, path, new FileAccessScope(mask, values), expectedUsn ?? ReportedFileAccess.NoUsn);
         }
+
+        private void WriteAnyBuildShimBlock(BinaryWriter writer)
+        {
+#if DEBUG
+            writer.Write(0xABCDEF04); // "ABCDEF04"
+#endif
+            WriteChars(writer,
+                AnyBuildShimInfo?.SubstituteProcessExecutionShimPath.ToString(m_pathTable) ?? null);
+        }
         
+        // See unmanaged decoder at DetoursHelpers.cpp :: CreateStringFromWriteChars()
         private static void WriteChars(BinaryWriter writer, string str)
         {
             var strLen = (uint)(string.IsNullOrEmpty(str) ? 0 : str.Length);
@@ -751,6 +770,7 @@ namespace BuildXL.Processes
                 WritePipId(writer, PipId);
                 WriteReportBlock(writer, setup);
                 WriteDllBlock(writer, setup);
+                WriteAnyBuildShimBlock(writer);
                 WriteManifestTreeBlock(writer);
 
                 return new ArraySegment<byte>(stream.GetBuffer(), 0, (int)stream.Position);

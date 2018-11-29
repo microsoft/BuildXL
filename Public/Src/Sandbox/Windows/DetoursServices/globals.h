@@ -60,6 +60,8 @@ extern bool g_BreakOnAccessDenied;
 extern LPCSTR g_lpDllNameX86;
 extern LPCSTR g_lpDllNameX64;
 
+extern wchar_t *g_substituteProcessExecutionShimPath;
+
 extern DetouredProcessInjector* g_pDetouredProcessInjector;
 
 //

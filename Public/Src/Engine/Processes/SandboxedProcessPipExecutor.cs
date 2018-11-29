@@ -149,6 +149,8 @@ namespace BuildXL.Processes
 
         private readonly VmInitializer m_vmInitializer;
 
+        private readonly AnyBuildShimInfo m_anyBuildShimInfo;
+
         /// <summary>
         /// The active sandboxed process (if any)
         /// </summary>
@@ -182,7 +184,8 @@ namespace BuildXL.Processes
             int remainingUserRetryCount = 0,
             bool isQbuildIntegrated = false,
             VmInitializer vmInitializer = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            AnyBuildShimInfo shimInfo = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -275,6 +278,7 @@ namespace BuildXL.Processes
             m_loggingConfiguration = loggingConfig;
             m_remainingUserRetryCount = remainingUserRetryCount;
             m_tempDirectoryCleaner = tempDirectoryCleaner;
+            m_anyBuildShimInfo = shimInfo;
 
             m_sharedOpaqueDirectoryRoots = m_pip.DirectoryOutputs
                 .Where(directory => directory.IsSharedOpaque)
@@ -631,7 +635,8 @@ namespace BuildXL.Processes
                         m_containerConfiguration,
                         m_pip.TestRetries,
                         m_loggingContext,
-                        sandboxedKextConnection: sandboxedKextConnection)
+                        sandboxedKextConnection: sandboxedKextConnection,
+                        shimInfo: m_anyBuildShimInfo)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,

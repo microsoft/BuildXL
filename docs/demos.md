@@ -41,7 +41,7 @@ C:\ProgramData\Microsoft\Windows\Caches\{DDF571F2-BE98-426D-8288-1A9A39C3FDA2}.2
 This demo works on mac as well, but only supports absolute paths in the arguments.
 
 ```
-~/BuildXL$ dotnet <repo_root>\bin/Debug/ReportAccesses.dll /bin/echo
+~/BuildXL$ dotnet <repo_root>/bin/Debug/ReportAccesses.dll /bin/echo
 Process '/bin/echo' ran under BuildXL sandbox with arguments '' and returned with exit code '0'. Sandbox reports 48 file accesses:
 /bin/echo
 /usr/lib/dyld

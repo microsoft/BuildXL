@@ -153,7 +153,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Demos", "Demos", "{A994E0BC
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BlockAccesses", "BlockAccesses", "{4C1B6832-F8B3-4827-90E5-D1D2EFAF23EA}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SandboxedProcessReporter", "SandboxedProcessReporter", "{8D399ABE-AF7F-48DF-8DFF-97CEA1B22EAA}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ReportProcesses", "ReportProcesses", "{8D399ABE-AF7F-48DF-8DFF-97CEA1B22EAA}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ReportAccesses", "ReportAccesses", "{E72B4E21-4B73-47EC-9605-B12AA281EB00}"
 EndProject
@@ -161,7 +161,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlockAccesses", "Public\src
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReportAccesses", "Public\src\Demos\ReportAccesses\ReportAccesses.csproj", "{BFA8E3C2-A4CC-4701-BBB9-86EF4386F893}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SandboxedProcessReporter", "Public\src\Demos\ProcessTree\SandboxedProcessReporter.csproj", "{59534770-F017-43A4-B8C2-9E224410E3CF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReportProcesses", "Public\src\Demos\ReportProcesses\ReportProcesses.csproj", "{59534770-F017-43A4-B8C2-9E224410E3CF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

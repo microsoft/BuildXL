@@ -12,16 +12,16 @@ namespace BuildXL.Demo
     /// <summary>
     /// Runs a given process under the sandbox and builds a (historical) process tree based on the execution
     /// </summary>
-    public class SandboxedProcessReporter
+    public class ProcessReporter
     {
         private readonly LoggingContext m_loggingContext;
         private readonly PathTable m_pathTable;
 
         /// <nodoc/>
-        public SandboxedProcessReporter()
+        public ProcessReporter()
         {
             m_pathTable = new PathTable();
-            m_loggingContext = new LoggingContext(nameof(SandboxedProcessReporter));
+            m_loggingContext = new LoggingContext(nameof(ProcessReporter));
         }
 
         /// <summary>

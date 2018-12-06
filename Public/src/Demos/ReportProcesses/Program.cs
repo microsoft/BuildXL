@@ -31,8 +31,8 @@ namespace BuildXL.SandboxDemo
             var tool = args[0];
             var arguments = string.Join(" ", args.Skip(1));
 
-            var sandboxedProcessReporter = new SandboxedProcessReporter();
-            var reportedProcesses = sandboxedProcessReporter.RunProcessAndReportTree(tool, arguments);
+            var processReporter = new ProcessReporter();
+            var reportedProcesses = processReporter.RunProcessAndReportTree(tool, arguments);
 
             PrintProcesses(tool, reportedProcesses);
 

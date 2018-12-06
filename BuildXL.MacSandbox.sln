@@ -128,7 +128,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlockAccesses", "Public\src
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReportAccesses", "Public\src\Demos\ReportAccesses\ReportAccesses.csproj", "{BFA8E3C2-A4CC-4701-BBB9-86EF4386F893}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProcessTree", "Public\src\Demos\ProcessTree\ProcessTree.csproj", "{59534770-F017-43A4-B8C2-9E224410E3CF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReportProcesses", "Public\src\Demos\ReportProcesses\ReportProcesses.csproj", "{59534770-F017-43A4-B8C2-9E224410E3CF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

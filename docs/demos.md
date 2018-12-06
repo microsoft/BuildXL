@@ -170,7 +170,6 @@ Denied -> [Probe] e:\test\bin\t1.exe
 ```
 And given that the probe was blocked, there was not even an attempt to read from those files, since they failed at enumeration time to begin with.
 
-
 Let's jump now into more details to understand how this was achieved. If we look at how the manifest was constructed, we can see the following:
 
 ```cs 

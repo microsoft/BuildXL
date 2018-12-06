@@ -265,8 +265,6 @@ C:\Program Files\Git\cmd\git.exe [ran 4369.9082ms]
    └──C:\Program Files\Git\mingw64\libexec\git-core\git.exe [ran 94.806ms]
 ```
 
-_The mac sandbox does not send process parent info yet, so this demo is not supported on the mac._
-
 The demo is printing out the process tree, including the elapsed running time for each process.
 
 Let's jump into the code. The manifest creation for this demo is not super interesting, the only relevant part being setting a specific flag to log the data of all processes:
@@ -295,3 +293,5 @@ All the processes (main and children) are reported in ``SandboxedProcessResult.P
 /// Public/Src/Demos/ProcessTree/Program.cs
 Console.WriteLine($"{indent}{reportedProcess.Path} [ran {(reportedProcess.ExitTime - reportedProcess.CreationTime).TotalMilliseconds}ms]");
 ```
+
+_The mac sandbox does not send process parent info yet, so this demo is not supported on the mac._

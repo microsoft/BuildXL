@@ -207,7 +207,6 @@ var allAccesses = result
 
 ``SandboxedProcessResult.FileAccesses`` contains all the reported accesses. So we just iterate over them and print some of the details.
 
-
 This demo works on mac as well (with the same directory structure as before)
 
 ```
@@ -242,7 +241,6 @@ Denied -> [Read] /Users/BuildXLUser/test/bin/t1
 Allowed -> [Enumerate] /Users/BuildXLUser/test/source
 Allowed -> [Read] /Users/BuildXLUser/test/source/t1.txt
 ```
-
 
 ## Retrieving the process tree
 The last demo shows how the sandbox can be used to retrieve the process tree of a process that was run under the sandbox. The process tree contains all the historical information. This is, any child process that was created during the execution of the main process is reported, together with structured information that contains IO and CPU counters, elapsed times, etc.

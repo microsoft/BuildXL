@@ -38,40 +38,6 @@ C:\Users\username\AppData\Local\Microsoft\Windows\Caches\cversions.3.db
 C:\ProgramData\Microsoft\Windows\Caches\{DDF571F2-BE98-426D-8288-1A9A39C3FDA2}.2.ver0x0000000000000000.db
 ```
 
-This demo works on mac as well, but only supports absolute paths in the arguments.
-
-```
-~/BuildXL$ dotnet <repo_root>/bin/Debug/ReportAccesses.dll /bin/echo
-Process '/bin/echo' ran under BuildXL sandbox with arguments '' and returned with exit code '0'. Sandbox reports 48 file accesses:
-/bin/echo
-/usr/lib/dyld
-/private/var/db/dyld/dyld_shared_cache_x86_64h
-/usr/lib/libSystem.B.dylib
-/usr/lib/system/libcache.dylib
-/usr/lib/system/libcommonCrypto.dylib
-/usr/lib/system/libcompiler_rt.dylib
-/usr/lib/system/libcopyfile.dylib
-...
-...
-...
-...
-/usr/lib/system/libsystem_notify.dylib
-/usr/lib/system/libsystem_sandbox.dylib
-/dev/dtracehelper
-/usr/lib/system/libsystem_secinit.dylib
-/usr/lib/system/libsystem_kernel.dylib
-/usr/lib/system/libsystem_platform.dylib
-/AppleInternal
-/usr/lib/system/libsystem_pthread.dylib
-/usr/lib/system/libsystem_symptoms.dylib
-/usr/lib/system/libsystem_trace.dylib
-/usr/lib/system/libunwind.dylib
-/usr/lib/system/libxpc.dylib
-/usr/lib/libobjc.A.dylib
-/usr/lib/libc++abi.dylib
-/usr/lib/libc++.1.dylib
-```
-
 Let's take a closer look at the code to understand how this happened. A sandbox is configured via `SandboxedProcessInfo`. The main information to be provided here is 1) what process to run 2) the arguments to be passed and 3) the manifest to be used to configure the sandbox:
 
 ```cs
@@ -109,6 +75,40 @@ We are creating a manifest that configures the sandbox so:
 * Child processes are also monitored (`MonitorChildProcesses = true`)
 
 As a result of this configuration, all file accesses are allowed and reported. Each file access carries structured information that includes the type of operation, disposition, attributes, etc. In this simple demo we are just printing out the path of each access.
+
+This demo works on mac as well, but only supports absolute paths in the arguments.
+
+```
+~/BuildXL$ dotnet <repo_root>/bin/Debug/ReportAccesses.dll /bin/echo
+Process '/bin/echo' ran under BuildXL sandbox with arguments '' and returned with exit code '0'. Sandbox reports 48 file accesses:
+/bin/echo
+/usr/lib/dyld
+/private/var/db/dyld/dyld_shared_cache_x86_64h
+/usr/lib/libSystem.B.dylib
+/usr/lib/system/libcache.dylib
+/usr/lib/system/libcommonCrypto.dylib
+/usr/lib/system/libcompiler_rt.dylib
+/usr/lib/system/libcopyfile.dylib
+...
+...
+...
+...
+/usr/lib/system/libsystem_notify.dylib
+/usr/lib/system/libsystem_sandbox.dylib
+/dev/dtracehelper
+/usr/lib/system/libsystem_secinit.dylib
+/usr/lib/system/libsystem_kernel.dylib
+/usr/lib/system/libsystem_platform.dylib
+/AppleInternal
+/usr/lib/system/libsystem_pthread.dylib
+/usr/lib/system/libsystem_symptoms.dylib
+/usr/lib/system/libsystem_trace.dylib
+/usr/lib/system/libunwind.dylib
+/usr/lib/system/libxpc.dylib
+/usr/lib/libobjc.A.dylib
+/usr/lib/libc++abi.dylib
+/usr/lib/libc++.1.dylib
+```
 
 ## Blocking accesses (Public/Src/Demos/BlockAccesses)
 
@@ -171,41 +171,6 @@ Denied -> [Probe] e:\test\bin\t1.exe
 And given that the probe was blocked, there was not even an attempt to read from those files, since they failed at enumeration time to begin with.
 
 
-This demo works on mac as well (with the same directory structure as above)
-
-```
-~$ dotnet BuildXL/bin/Debug/BlockAccesses.dll ~/test/ ~/test/obj/ ~/test/bin/
-Enumerated the directory '/Users/BuildXLUser/test/'. The following accesses were reported:
-Allowed -> [Read] /usr/bin/find
-Allowed -> [Read] /usr/lib/dyld
-Allowed -> [Probe] /usr/bin/find
-Allowed -> [Probe] /private/var/db/dyld/dyld_shared_cache_x86_64h
-Allowed -> [Probe] /usr/lib/libSystem.B.dylib
-...
-...
-...
-...
-Allowed -> [Probe] /usr/lib/libc++.1.dylib
-Allowed -> [Probe] /AppleInternal/XBS/.isChrooted
-Allowed -> [Read] find
-Allowed -> [Read] /bin/cat
-Allowed -> [Probe] /bin/cat
-Allowed -> /bin/cat
-Allowed -> /usr/bin/find
-Allowed -> [Probe] /Users/BuildXLUser/test
-Allowed -> [Enumerate] /Users/BuildXLUser/test
-Allowed -> [Enumerate] /Users/BuildXLUser/test/obj
-Allowed -> [Probe] /Users/BuildXLUser/test/obj
-Allowed -> [Probe] /Users/BuildXLUser/test/bin
-Allowed -> [Probe] /Users/BuildXLUser/test/source
-Denied -> [Read] /Users/BuildXLUser/test/obj/t1.obj
-Allowed -> [Enumerate] /Users/BuildXLUser/test/bin
-Denied -> [Read] /Users/BuildXLUser/test/obj/src2.txt
-Denied -> [Read] /Users/BuildXLUser/test/bin/t1
-Allowed -> [Enumerate] /Users/BuildXLUser/test/source
-Allowed -> [Read] /Users/BuildXLUser/test/source/t1.txt
-```
-
 Let's jump now into more details to understand how this was achieved. If we look at how the manifest was constructed, we can see the following:
 
 ```cs 
@@ -242,6 +207,43 @@ var allAccesses = result
 
 ``SandboxedProcessResult.FileAccesses`` contains all the reported accesses. So we just iterate over them and print some of the details.
 
+
+This demo works on mac as well (with the same directory structure as before)
+
+```
+~$ dotnet BuildXL/bin/Debug/BlockAccesses.dll ~/test/ ~/test/obj/ ~/test/bin/
+Enumerated the directory '/Users/BuildXLUser/test/'. The following accesses were reported:
+Allowed -> [Read] /usr/bin/find
+Allowed -> [Read] /usr/lib/dyld
+Allowed -> [Probe] /usr/bin/find
+Allowed -> [Probe] /private/var/db/dyld/dyld_shared_cache_x86_64h
+Allowed -> [Probe] /usr/lib/libSystem.B.dylib
+...
+...
+...
+...
+Allowed -> [Probe] /usr/lib/libc++.1.dylib
+Allowed -> [Probe] /AppleInternal/XBS/.isChrooted
+Allowed -> [Read] find
+Allowed -> [Read] /bin/cat
+Allowed -> [Probe] /bin/cat
+Allowed -> /bin/cat
+Allowed -> /usr/bin/find
+Allowed -> [Probe] /Users/BuildXLUser/test
+Allowed -> [Enumerate] /Users/BuildXLUser/test
+Allowed -> [Enumerate] /Users/BuildXLUser/test/obj
+Allowed -> [Probe] /Users/BuildXLUser/test/obj
+Allowed -> [Probe] /Users/BuildXLUser/test/bin
+Allowed -> [Probe] /Users/BuildXLUser/test/source
+Denied -> [Read] /Users/BuildXLUser/test/obj/t1.obj
+Allowed -> [Enumerate] /Users/BuildXLUser/test/bin
+Denied -> [Read] /Users/BuildXLUser/test/obj/src2.txt
+Denied -> [Read] /Users/BuildXLUser/test/bin/t1
+Allowed -> [Enumerate] /Users/BuildXLUser/test/source
+Allowed -> [Read] /Users/BuildXLUser/test/source/t1.txt
+```
+
+
 ## Retrieving the process tree
 The last demo shows how the sandbox can be used to retrieve the process tree of a process that was run under the sandbox. The process tree contains all the historical information. This is, any child process that was created during the execution of the main process is reported, together with structured information that contains IO and CPU counters, elapsed times, etc.
 
@@ -266,11 +268,7 @@ C:\Program Files\Git\cmd\git.exe [ran 4369.9082ms]
    └──C:\Program Files\Git\mingw64\libexec\git-core\git.exe [ran 94.806ms]
 ```
 
-A sample demo run on mac looks like this:
-
-```
-~/BuildXL$ dotnet <repo_root>/bin/Debug/ProcessTree.dll /bin/echo
-```
+_The mac sandbox does not send process parent info yet, so this demo is not supported on the mac._
 
 The demo is printing out the process tree, including the elapsed running time for each process.
 

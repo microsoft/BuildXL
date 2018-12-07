@@ -11,7 +11,7 @@ using BuildXL.Processes;
 namespace BuildXL.SandboxDemo
 {
     /// <summary>
-    /// A process is run under the sandbox and the process tree is reported
+    /// A process is run under the sandbox and the list of spawned processes is reported
     /// </summary>
     public class Program
     {
@@ -32,7 +32,7 @@ namespace BuildXL.SandboxDemo
             var arguments = string.Join(" ", args.Skip(1));
 
             var processReporter = new ProcessReporter();
-            var reportedProcesses = processReporter.RunProcessAndReportTree(tool, arguments);
+            var reportedProcesses = processReporter.RunProcessAndReport(tool, arguments);
 
             PrintProcesses(tool, reportedProcesses);
 
@@ -44,7 +44,7 @@ namespace BuildXL.SandboxDemo
             Console.WriteLine($"Process '{tool}' ran under the sandbox. These processes were launched in the sandbox:");
             foreach (var reportedProcess in reportedProcesses)
             {
-                Console.WriteLine($"{string.Empty}{reportedProcess.Path} [ran {(reportedProcess.ExitTime - reportedProcess.CreationTime).TotalMilliseconds}ms]");
+                Console.WriteLine($"{reportedProcess.Path} [ran {(reportedProcess.ExitTime - reportedProcess.CreationTime).TotalMilliseconds}ms]");
             }
         }
 

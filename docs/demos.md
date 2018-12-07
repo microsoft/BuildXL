@@ -241,31 +241,29 @@ Allowed -> [Enumerate] /Users/BuildXLUser/test/source
 Allowed -> [Read] /Users/BuildXLUser/test/source/t1.txt
 ```
 
-## Retrieving the process tree
-The last demo shows how the sandbox can be used to retrieve the process tree of a process that was run under the sandbox. The process tree contains all the historical information. This is, any child process that was created during the execution of the main process is reported, together with structured information that contains IO and CPU counters, elapsed times, etc.
+## Retrieving the process list
+The last demo shows how the sandbox can be used to retrieve the list of processes spwaned by a process that was run under the sandbox. All child process that was created during the execution of the main process is reported, together with structured information that contains IO and CPU counters, elapsed times, etc.
 
 For example, let's run a git fetch on an arbitrary repo:
 
 ```
-dotnet <repo_root>\bin\Debug\ProcessTree.dll git fetch
+dotnet <repo_root>\bin\Debug\ReportProcesses.dll git fetch
 ```
 
 The result is:
 
 ```
-Process 'git' ran under the sandbox. The process tree is the following:
-C:\Program Files\Git\cmd\git.exe [ran 4369.9082ms]
-└──C:\Program Files\Git\mingw64\bin\git.exe [ran 4205.3507ms]
-   ├──C:\Program Files\Git\mingw64\libexec\git-core\git.exe [ran 3954.624ms]
-      └──C:\Program Files\Git\mingw64\libexec\git-core\git-remote-https.exe [ran 3253.4994ms]
-         └──C:\Program Files\Git\mingw64\libexec\git-core\git.exe [ran 1338.9764ms]
-            └──C:\Program Files\Git\mingw64\libexec\git-core\git.exe [ran 1004.7528ms]
-   ├──C:\Program Files\Git\mingw64\libexec\git-core\git.exe [ran 98.0952ms]
-   ├──C:\Program Files\Git\mingw64\libexec\git-core\git.exe [ran 132.415ms]
-   └──C:\Program Files\Git\mingw64\libexec\git-core\git.exe [ran 94.806ms]
+Process 'git' ran under the sandbox. These processes were launched in the sandbox:
+C:\Program Files\Git\cmd\git.exe [ran 675.7914ms]
+C:\Program Files\Git\mingw64\bin\git.exe [ran 608.794ms]
+C:\Program Files\Git\mingw64\libexec\git-core\git.exe [ran 528.7287ms]
+C:\Program Files\Git\mingw64\libexec\git-core\git-remote-https.exe [ran 488.156ms]
+C:\Program Files\Git\mingw64\libexec\git-core\git.exe [ran 35.8792ms]
+C:\Program Files\Git\mingw64\libexec\git-core\git.exe [ran 37.1245ms]
+C:\Program Files\Git\mingw64\libexec\git-core\git.exe [ran 30.3581ms]
 ```
 
-The demo is printing out the process tree, including the elapsed running time for each process.
+The demo is printing out the process list, including the elapsed running time for each process.
 
 Let's jump into the code. The manifest creation for this demo is not super interesting, the only relevant part being setting a specific flag to log the data of all processes:
 
@@ -279,19 +277,31 @@ Let's jump into the code. The manifest creation for this demo is not super inter
 };
 ```
 
-The list of processes are reported as part of the sandbox result. So in this case we are just creating a tree, for nicer visualization, and printing out some of the reported information that is associated to each process:
+The list of processes are reported as part of the sandbox result:
 
 ```cs
-// Public/Src/Demos/ProcessTree/ProcessTreeBuilder.cs
+// Public/Src/Demos/ReportProcesses/ProcessReporter.cs
 SandboxedProcessResult result = RunProcessUnderSandbox(pathToProcess, arguments);
 // The sandbox reports all processes as a list. Let's make them a tree for better visualization.
 return ComputeTree(result.Processes);
 ```
-All the processes (main and children) are reported in ``SandboxedProcessResult.Processes`` as a list of processes. After the tree is constructed, we decided to print the path of the process executable, and the running time:
+All the processes (main and children) are reported in ``SandboxedProcessResult.Processes`` as a list of processes. Here, we decided to print the path of the process executable, and the running time:
 
 ```cs
-/// Public/Src/Demos/ProcessTree/Program.cs
-Console.WriteLine($"{indent}{reportedProcess.Path} [ran {(reportedProcess.ExitTime - reportedProcess.CreationTime).TotalMilliseconds}ms]");
+/// Public/Src/Demos/ReportProcesses/Program.cs
+Console.WriteLine($"{reportedProcess.Path} [ran {(reportedProcess.ExitTime - reportedProcess.CreationTime).TotalMilliseconds}ms]");
 ```
 
-_The mac sandbox does not send process parent info yet, so this demo is not supported on the mac._
+Here is the process list reported on Mac
+
+```
+BuildXL sukadkol$ dotnet bin/Debug/ReportProcesses.dll /usr/bin/git fetch
+Process '/usr/bin/git' ran under the sandbox. These processes were launched in the sandbox:
+/usr/bin/git [ran 0ms]
+/Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git-remote-http [ran 0ms]
+/Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git [ran 0ms]
+/Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git [ran 0ms]
+/Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git [ran 0ms]
+/Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git [ran 0ms]
+/Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git [ran 0.001ms]
+```

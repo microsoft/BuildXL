@@ -10,7 +10,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 namespace BuildXL.Demo
 {
     /// <summary>
-    /// Runs a given process under the sandbox and builds a (historical) process tree based on the execution
+    /// Runs a given process under the sandbox and retrieve a list of process spawned by the execution
     /// </summary>
     public class ProcessReporter
     {
@@ -25,16 +25,16 @@ namespace BuildXL.Demo
         }
 
         /// <summary>
-        /// Runs the given process with the given arguments and reports back the process tree, which includes
-        /// the main process and all its children processes
+        /// Runs the given process with the given arguments and reports back the list of processes spawned,
+        /// which includes the main process and all its children processes
         /// </summary>
         /// <remarks>
-        /// Each reported process in the tree contains process data, such as start/end time, arguments, CPU counters, etc.
+        /// Each reported process in the list contains process data, such as start/end time, arguments, CPU counters, etc.
         /// </remarks>
-        public IReadOnlyList<ReportedProcess> RunProcessAndReportTree(string pathToProcess, string arguments)
+        public IReadOnlyList<ReportedProcess> RunProcessAndReport(string pathToProcess, string arguments)
         {
             var result = RunProcessUnderSandbox(pathToProcess, arguments);
-            // The sandbox reports all processes as a list. Let's make them a tree for better visualization.
+            // The sandbox reports all processes as a list.
             return result.Processes;
         }
 
@@ -57,7 +57,7 @@ namespace BuildXL.Demo
                         Arguments = arguments,
                         WorkingDirectory = workingDirectory,
                         PipSemiStableHash = 0,
-                        PipDescription = "Process tree demo",
+                        PipDescription = "Process list demo",
                         SandboxedKextConnection = OperatingSystemHelper.IsUnixOS ? new SandboxedKextConnection(numberOfKextConnections: 2) : null
                     };
 
@@ -75,9 +75,9 @@ namespace BuildXL.Demo
             {
                 // We don't want to block any accesses
                 FailUnexpectedFileAccesses = false,
-                // We are particularly interested in monitoring children, since we are after the process tree
+                // Monitor children processes spawned
                 MonitorChildProcesses = true,
-                // Let's turn on process data collection, so we can report a richer tree
+                // Optional data about the processes
                 LogProcessData = true
             };
 

@@ -2,14 +2,16 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using BuildXL.Demo;
+using BuildXL.Processes;
 
 namespace BuildXL.SandboxDemo
 {
     /// <summary>
-    /// A process is run under the sandbox and the process tree is reported
+    /// A process is run under the sandbox and the list of spawned processes is reported
     /// </summary>
     public class Program
     {
@@ -29,28 +31,20 @@ namespace BuildXL.SandboxDemo
             var tool = args[0];
             var arguments = string.Join(" ", args.Skip(1));
 
-            var processTreeBuilder = new ProcessTreeBuilder();
-            var processTree = processTreeBuilder.RunProcessAndReportTree(tool, arguments);
+            var processReporter = new ProcessReporter();
+            var reportedProcesses = processReporter.RunProcessAndReport(tool, arguments);
 
-            PrintTree(tool, processTree);
+            PrintProcesses(tool, reportedProcesses);
 
             return 0;
         }
 
-        private static void PrintTree(string tool, ProcessTree processTree)
+        private static void PrintProcesses(string tool, IReadOnlyList<ReportedProcess> reportedProcesses)
         {
-            Console.WriteLine($"Process '{tool}' ran under the sandbox. The process tree is the following:");
-            PrintNode(string.Empty, processTree.Root);
-        }
-
-        private static void PrintNode(string indent, ProcessNode processNode)
-        {
-            var reportedProcess = processNode.ReportedProcess;
-            Console.WriteLine($"{indent}{reportedProcess.Path} [ran {(reportedProcess.ExitTime - reportedProcess.CreationTime).TotalMilliseconds}ms]");
-            foreach (var childrenProcess in processNode.Children)
+            Console.WriteLine($"Process '{tool}' ran under the sandbox. These processes were launched in the sandbox:");
+            foreach (var reportedProcess in reportedProcesses)
             {
-                var newIndent = new string(' ', indent.Length) + (childrenProcess == processNode.Children.Last() ? "└──" : "├──");
-                PrintNode(newIndent, childrenProcess);
+                Console.WriteLine($"{reportedProcess.Path} [ran {(reportedProcess.ExitTime - reportedProcess.CreationTime).TotalMilliseconds}ms]");
             }
         }
 

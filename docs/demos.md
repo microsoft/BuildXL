@@ -242,7 +242,7 @@ Allowed -> [Read] /Users/BuildXLUser/test/source/t1.txt
 ```
 
 ## Retrieving the process list
-The last demo shows how the sandbox can be used to retrieve the list of processes spwaned by a process that was run under the sandbox. All child processes that are created during the execution of the main process is reported, together with structured information that contains IO and CPU counters, elapsed times, etc.
+The last demo shows how the sandbox can be used to retrieve the list of processes spawned by a process that was run under the sandbox. All child processes that are created during the execution of the main process is reported, together with structured information that contains IO and CPU counters, elapsed times, etc.
 
 For example, let's run a git fetch on an arbitrary repo:
 

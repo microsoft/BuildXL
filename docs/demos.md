@@ -282,8 +282,8 @@ The list of processes are reported as part of the sandbox result:
 ```cs
 // Public/Src/Demos/ReportProcesses/ProcessReporter.cs
 SandboxedProcessResult result = RunProcessUnderSandbox(pathToProcess, arguments);
-// The sandbox reports all processes as a list. Let's make them a tree for better visualization.
-return ComputeTree(result.Processes);
+// The sandbox reports all processes as a list.
+return result.Processes;
 ```
 All the processes (main and children) are reported in ``SandboxedProcessResult.Processes`` as a list of processes. Here, we decided to print the path of the process executable, and the running time:
 
@@ -295,7 +295,7 @@ Console.WriteLine($"{reportedProcess.Path} [ran {(reportedProcess.ExitTime - rep
 Here is the process list reported on Mac
 
 ```
-BuildXL sukadkol$ dotnet bin/Debug/ReportProcesses.dll /usr/bin/git fetch
+~/BuildXL$ dotnet bin/Debug/ReportProcesses.dll /usr/bin/git fetch
 Process '/usr/bin/git' ran under the sandbox. These processes were launched in the sandbox:
 /usr/bin/git [ran 0ms]
 /Applications/Xcode.app/Contents/Developer/usr/libexec/git-core/git-remote-http [ran 0ms]

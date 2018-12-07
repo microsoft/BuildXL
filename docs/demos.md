@@ -242,7 +242,7 @@ Allowed -> [Read] /Users/BuildXLUser/test/source/t1.txt
 ```
 
 ## Retrieving the process list
-The last demo shows how the sandbox can be used to retrieve the list of processes spwaned by a process that was run under the sandbox. All child process that was created during the execution of the main process is reported, together with structured information that contains IO and CPU counters, elapsed times, etc.
+The last demo shows how the sandbox can be used to retrieve the list of processes spwaned by a process that was run under the sandbox. All child processes that are created during the execution of the main process is reported, together with structured information that contains IO and CPU counters, elapsed times, etc.
 
 For example, let's run a git fetch on an arbitrary repo:
 
@@ -265,15 +265,15 @@ C:\Program Files\Git\mingw64\libexec\git-core\git.exe [ran 30.3581ms]
 
 The demo is printing out the process list, including the elapsed running time for each process.
 
-Let's jump into the code. The manifest creation for this demo is not super interesting, the only relevant part being setting a specific flag to log the data of all processes:
+Let's jump into the code. The manifest creation for this demo is not super interesting, the only relevant part being setting a specific flag to log the data of all spawned processes:
 
 ```cs
-// Public/Src/Demos/ProcessTree/ProcessTreeBuilder.cs
+// Public/Src/Demos/ProcessTree/ProcessReporter.cs
  var fileAccessManifest = new FileAccessManifest(pathTable)
 {
     ...
-    // Let's turn on process data collection, so we can report a richer tree
-    LogProcessData = true
+    // Monitor children processes spawned
+    MonitorChildProcesses = true,
 };
 ```
 

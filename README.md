@@ -1,5 +1,7 @@
 # Microsoft Build Accelerator Preview: Windows and MacOS Sandboxes
 
+
+
 ## Introduction
 Build Accelerator, BuildXL for short, is a build engine originally developed for large internal teams at Microsoft, and owned by the [Tools for Software Engineers](https://www.microsoft.com/en-us/research/project/tools-for-software-engineers/) team, part of the Microsoft internal engineering systems group. BuildXL runs 30,000+ builds per day on mono-repo codebases up to a half-terabyte in size with a half-million pips (see below) per build, using distribution to thousands of datacenter machines and petabytes of source code, package, and build output caching.
 

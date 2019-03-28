@@ -351,21 +351,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             Contract.Requires(contentHashes != null);
 
-            try
-            {
-                return await Workflows.RunWithFallback(
-                    contentHashes,
-                    hashes => Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint),
-                    hashes => _remotePinner(operationContext, hashes, operationContext.Token, urgencyHint),
-                    result => result.Succeeded,
-                    // Exclude the empty hash because it is a special case which is hard coded for place/openstream/pin.
-                    async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Where(x => !(_settings.EmptyFileHashShortcutEnabled && contentHashes[x.Index].IsEmptyHash())).Select(x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
-            }
-            catch (Exception e)
-            {
-                Tracer.Error(operationContext, e);
-                throw;
-            }
+            return await Workflows.RunWithFallback(
+                contentHashes,
+                hashes => Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint),
+                hashes => _remotePinner(operationContext, hashes, operationContext.Token, urgencyHint),
+                result => result.Succeeded,
+                // Exclude the empty hash because it is a special case which is hard coded for place/openstream/pin.
+                async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Where(x => !(_settings.EmptyFileHashShortcutEnabled && contentHashes[x.Index].IsEmptyHash())).Select(x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
         }
 
         /// <inheritdoc />
@@ -408,8 +400,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// <inheritdoc />
         public IEnumerable<ContentHash> EnumeratePinnedContentHashes()
         {
-            var session = Inner as IHibernateContentSession;
-            return session != null
+            return Inner is IHibernateContentSession session
                 ? session.EnumeratePinnedContentHashes()
                 : Enumerable.Empty<ContentHash>();
         }
@@ -432,7 +423,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // First try to place file by fetching files based on locally stored locations for the hash
             // Then fallback to fetching file based on global locations  (i.e. Redis) minus the locally stored locations which were already checked
 
-            BuildXL.Utilities.AsyncOut<GetBulkLocationsResult> localGetBulkResult = new BuildXL.Utilities.AsyncOut<GetBulkLocationsResult>();
+            var localGetBulkResult = new BuildXL.Utilities.AsyncOut<GetBulkLocationsResult>();
 
             return Workflows.RunWithFallback(
                 hashesWithPaths,
@@ -701,7 +692,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // Create an action block to process all the requested remote pins while limiting the number of simultaneously executed.
             var pinnings = new List<RemotePinning>(hashes.Count);
             var pinningOptions = new ExecutionDataflowBlockOptions() { CancellationToken = cancel, MaxDegreeOfParallelism = _settings.PinConfiguration?.MaxIOOperations ?? 1 };
-            var pinningAction = new ActionBlock<RemotePinning>(async (pinning) => await PinRemoteAsync(operationContext, pinning, cancel, isLocal: origin == GetBulkOrigin.Local), pinningOptions);
+            var pinningAction = new ActionBlock<RemotePinning>(async pinning => await PinRemoteAsync(operationContext, pinning, cancel, isLocal: origin == GetBulkOrigin.Local), pinningOptions);
 
             // Process the requests in pages so we can make bulk calls, but not too big bulk calls, to the content location store.
             foreach (IReadOnlyList<ContentHash> pageHashes in hashes.GetPages(ContentLocationStore.PageSize))
@@ -736,10 +727,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             // Wait for all the pinning actions to complete.
             pinningAction.Complete();
-            await pinningAction.Completion;
+
+            try
+            {
+                await pinningAction.Completion;
+            }
+            catch (TaskCanceledException)
+            {
+                // Cancellation token provided to an action block can be canceled.
+                // Ignoring the exception in this case.
+            }
 
             // The return type should probably be just Task<IList<PinResult>>, but higher callers require the Indexed wrapper and that the PinResults be encased in Tasks.
-            return pinnings.Select(x => x.Result).AsIndexed().AsTasks();
+            return pinnings.Select(x => x.Result ?? createCanceledPutResult()).AsIndexed().AsTasks();
+
+            PinResult createCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PinResult>();
         }
 
         // The dataflow framework can process only a single object, and returns no output from that processing. By combining the input and output of each remote pinning into a single object,

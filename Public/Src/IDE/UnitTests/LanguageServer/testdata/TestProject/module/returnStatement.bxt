@@ -1,0 +1,32 @@
+interface ObjectLiteralType {
+    objectLiteralTypePropertyOne?: boolean;
+    objectLiteralTypePropertyTwo?: boolean;
+};
+
+interface SecondObjectLiteralType {
+    secondObjectLiteralTypePropertyOne?: boolean;
+    secondObjectLiteralTypePropertyTwo?: boolean;
+};
+
+interface DerivedObjectLiteralType extends ObjectLiteralType {
+    derivedObjectLiteralTypePropertyOne?: boolean;
+    derivedObjectLiteralTypePropertyTwo?: boolean;
+};
+
+function returnObjectLiteralType() : ObjectLiteralType {
+    return {
+        objectLiteralTypePropertyOne: true
+    };
+}
+
+function returnDerivedObjectLiteralType() : DerivedObjectLiteralType {
+    return {
+        objectLiteralTypePropertyOne: true
+    };
+}
+
+function returnUnionType() : (ObjectLiteralType | SecondObjectLiteralType) {
+    return {
+        objectLiteralTypePropertyOne: true
+    };
+}

@@ -1,0 +1,1 @@
+powershell -NoProfile -ExecutionPolicy RemoteSigned %~dp0\buildVsix.ps1 -configuration %1

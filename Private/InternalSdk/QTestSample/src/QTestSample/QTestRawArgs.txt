@@ -1,0 +1,1 @@
+/TestCaseFilter:"TestCategory!=QTestSkip"

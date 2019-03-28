@@ -1,0 +1,16 @@
+// Tracks important fingerprint store stats for monitoring growth and garbage collection
+finalstatistics 
+| where EventInfo_Time > ago(3d)
+| extend numFingerprintEvents = extract("\"FingerprintStore_NumFingerprintComputationEvents\":\"([0-9]*)\"", 1, tostring(Payload), typeof(long)) 
+| extend numFingerprintPuts = extract("\"FingerprintStore_NumPipFingerprintEntriesPut\":\"([0-9]*)\"", 1, tostring(Payload), typeof(long)) 
+| extend numDirectoryPuts = extract("\"FingerprintStore_NumDirectoryMembershipEntriesPut\":\"([0-9]*)\"", 1, tostring(Payload), typeof(long))
+| extend numPathSetPuts = extract("\"FingerprintStore_NumPathSetEntriesPut\":\"([0-9]*)\"", 1, tostring(Payload), typeof(long))
+| extend numFingerprintEntries = extract("\"FingerprintStore_NumPipFingerprintEntriesRemaining\":\"([0-9]*)\"", 1, tostring(Payload), typeof(long))
+| extend numContentHashEntries = extract("\"FingerprintStore_NumContentHashEntriesRemaining\":\"([0-9]*)\"", 1, tostring(Payload), typeof(long))
+| extend sizeStorageFilesMB = extract("\"FingerprintStore_TotalStorageFilesSizeBytes\":\"([0-9]*)\"", 1, tostring(Payload), typeof(long)) / (1024 * 1024)
+| extend numStorageFiles = extract("\"FingerprintStore_SnapshotNumStorageFilesHardlinked\":\"([0-9]*)\"", 1, tostring(Payload), typeof(long))
+| extend garbageCollectionTimeMs = extract("\"FingerprintStore_GarbageCollectionTimeMs\":\"([0-9]*)\"", 1, tostring(Payload), typeof(long))
+| extend numFingerprintEntriesGarbageCollected = extract("\"FingerprintStore_NumPipFingerprintEntriesGarbageCollected\":\"([0-9]*)\"", 1, tostring(Payload), typeof(long))
+| extend numContentHashEntriesGarbageCollected = extract("\"FingerprintStore_NumContentHashEntriesGarbageCollected\":\"([0-9]*)\"", 1, tostring(Payload), typeof(long))
+| where Payload contains "FingerprintStore" and numFingerprintEvents > 0
+| project EventInfo_Time, MachineName, TotalProcessPips, numFingerprintEntries, numContentHashEntries, numStorageFiles, sizeStorageFilesMB, numFingerprintEvents, numFingerprintPuts, numPathSetPuts, numDirectoryPuts, numFingerprintEntriesGarbageCollected, numContentHashEntriesGarbageCollected, garbageCollectionTimeMs, Environment, SessionId, UserName

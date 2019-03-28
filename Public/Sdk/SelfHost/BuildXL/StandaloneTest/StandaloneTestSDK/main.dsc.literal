@@ -1,0 +1,175 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
+import * as XUnitRunnerConsole from "xunit.runner.console";
+import * as NETCoreSDK from "NETCoreSDK";
+
+const xunitConsolePackage = importFrom("xunit.runner.console").pkg.contents;
+const netCoreSdkContents = importFrom("NETCoreSDK").pkg.contents;
+
+const unsupportedTraits = ["MiniBuildTester"];
+
+export interface TestArguments extends ConsoleArguments {
+    testAssembly: File;
+    parallelCategories?: string[];
+    limitCategories?: string[];
+    skipCategories?: string[];
+    untracked?: boolean;
+    untrackTestDirectory?: boolean;
+    classes?: string[];
+    wrapInDotNet?: boolean;
+    description?: string;
+}
+
+function getDefaultConsoleArgs(testAssembly: File, outDir: Directory): ConsoleArguments {
+    return <ConsoleArguments>{
+        parallel: "none",
+        noColor: true,
+        noShadow: true,
+        useAppDomains: false,
+        noLogo: true,
+        xmlFile: p`${outDir}/${testAssembly.name.concat('.xunit.results.xml')}`,
+    };
+}
+
+function categoryToTrait(cat: string) {
+    return {name: "Category", value: cat};
+};
+
+function wrapInDotNetExe(args: Transformer.ExecuteArguments): Transformer.ExecuteArguments {
+    return Object.merge<Transformer.ExecuteArguments>(
+        args,
+        {
+            tool: {
+                exe: f`${netCoreSdkContents.root}/dotnet.exe`,
+            },
+            arguments: [
+                Cmd.argument(Artifact.input(args.tool.exe))
+                ].prependWhenMerged(),
+            dependencies: [
+                netCoreSdkContents
+            ]
+        });
+}
+
+function wrapInUntrackedCmdExe(args: Transformer.ExecuteArguments): Transformer.ExecuteArguments {
+    return Object.merge<Transformer.ExecuteArguments>(
+        args, 
+        {
+            tool: {
+                exe: Environment.getFileValue("COMSPEC"),
+            },
+            unsafe: {
+                hasUntrackedChildProcesses: true
+            },
+            arguments: [
+                Cmd.argument("/D"),
+                Cmd.argument("/C"),
+                Cmd.argument(Artifact.input(args.tool.exe))
+            ].prependWhenMerged()
+        });
+}
+
+function getEnvFilterCSV(envVarFilterSuffix: string): string[] {
+    const csv  = Environment.getStringValue(`[StandaloneTest]Filter.${envVarFilterSuffix}`);
+    return csv ? csv.split(",") : undefined;
+}
+
+function getEnvOverridenStringArrayValues(originalValues: string[], envVarFilterSuffix: string): string[] {
+    return (getEnvFilterCSV(envVarFilterSuffix) || originalValues) || [];
+}
+
+@@public
+export function runUnitTest(args: TestArguments): DerivedFile[] {
+    Contract.requires(args !== undefined);
+    Contract.requires(args.testAssembly !== undefined);
+
+    let limitTraits = getEnvOverridenStringArrayValues(args.limitCategories, "limitCategories").map(categoryToTrait);
+    let skipTraits = getEnvOverridenStringArrayValues(args.skipCategories, "skipCategories").map(categoryToTrait);
+    let parallelTraits = getEnvOverridenStringArrayValues(args.parallelCategories, "parallelCategories").map(categoryToTrait);
+    let classes = getEnvOverridenStringArrayValues(args.classes, "classes");
+
+    // If limit categories are specified, then it gets higher priority than parallel categories.
+    // TODO: In the future, we can add a parameter whether or not to run limit categories in parallel.
+    if (limitTraits.length > 0) {
+        return runSingleUnitTest(
+            args.override<TestArguments>(
+                {
+                    traits: limitTraits,
+                    noTraits: skipTraits,
+                    classes: classes,
+                }));
+    } else if (parallelTraits.length > 0) {
+        const traitResults = parallelTraits.mapMany(
+            trait => runSingleUnitTest(args.override<TestArguments>(
+                {
+                    traits: [trait],
+                    noTraits: skipTraits,
+                    classes: classes,
+                })));
+        const noTraitResults = runSingleUnitTest(args.override<TestArguments>(
+                {
+                    noTraits: [...skipTraits, ...parallelTraits],
+                    classes: classes,
+                }));
+        return [
+            ...traitResults,
+            ...noTraitResults
+        ];
+    } else {
+        return runSingleUnitTest(args.override<TestArguments>({ noTraits: skipTraits, classes: classes }));
+    }
+}
+
+export function runSingleUnitTest(args: TestArguments): DerivedFile[] {
+
+    const testRoot = d`${args.testAssembly.parent}`;
+
+    const tool : Transformer.ToolDefinition = {
+        exe: args.wrapInDotNet
+            ? f`${testRoot}/xunit.console.dll`
+            : f`${xunitConsolePackage.root}/tools/net452/xunit.console.exe`,
+        runtimeDirectoryDependencies: [
+            xunitConsolePackage,
+        ],
+        dependsOnWindowsDirectories: true,
+        prepareTempDirectory: true,
+        untrackedDirectoryScopes: [d`${Context.getMount("ProgramData").path}/microsoft/netFramework/breadcrumbStore`],
+    };
+
+    args = args.override<TestArguments>(
+        {
+            noTraits: (args.noTraits || []).concat(unsupportedTraits.map(categoryToTrait))
+        });
+
+    const outDir = Context.getNewOutputDirectory("xunit");
+    const consoleArgs = getDefaultConsoleArgs(args.testAssembly, outDir).override<ConsoleArguments>(args);
+
+    let commandLineArgs : Argument[] = CreateCommandLineArgument(args.testAssembly, consoleArgs);
+    commandLineArgs = [...commandLineArgs, ...((args.classes || []).map(c => Cmd.option("-class ",   c)))];
+    
+    let execArguments : Transformer.ExecuteArguments = {
+        tool: tool,
+        arguments: commandLineArgs,
+        dependencies: [
+            ...globR(testRoot, "*"),
+        ],
+        warningRegex: "^(?=a)b",
+        workingDirectory: testRoot,
+        unsafe: args.untrackTestDirectory ? {untrackedScopes: [testRoot]} : undefined,
+    };
+
+    if (args.wrapInDotNet) {
+        execArguments = wrapInDotNetExe(execArguments);
+    }
+
+    if (args.untracked) {
+        execArguments = wrapInUntrackedCmdExe(execArguments);
+    }
+
+    const result = Transformer.execute(execArguments);
+
+    return result.getOutputFiles();
+}
+

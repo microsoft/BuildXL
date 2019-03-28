@@ -1,0 +1,33 @@
+let start = ago(30d);
+let end = ago(0d);
+dominoInvocationProcessed
+| where EventInfo_Time  > start
+    and EventInfo_Time  < end
+| where OfficeBuildType == "product"
+| where Customer == "Office"
+ | join kind= leftouter (
+   eventcount | project SessionId , toint(['14001']),
+   toint(['14002']),
+   toint(['14003']), 
+   toint(['14004']),
+   toint(['14005']),
+   toint(['14006']), 
+   toint(['14007']),
+   toint(['14008']), 
+   toint(['14009']), 
+   toint(['14010']), 
+   toint(['14011'])  
+) on SessionId 
+| summarize sessions = count(), 
+ProcessPipsUncacheable = sum(['14001']),
+NoCriticalPathTableHits = sum(['14002']),
+NoSourceFilesUnchanged = sum(['14003']),
+ServerModeDisabled = sum(['14004']),
+GraphCacheCheckJournalDisabled = sum(['14005']),
+SlowCacheInitialization = sum(['14006']),
+LowMemory = sum(['14007']),
+ExportFingerprintsEnabled = sum(['14008']),
+ExportGraphEnabled = sum(['14009']),
+BuildHasPerfSmells = sum(['14010']),
+LogProcessesEnabled = sum(['14011'])
+by Customer, Infra, Role 

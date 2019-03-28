@@ -1,0 +1,13 @@
+Cases/continueTarget3.ts(4,1): error TS7028: Unused label.
+
+
+==== Cases/continueTarget3.ts (1 errors) ====
+    // @allowUnusedLabels: true
+    
+    target1:
+    target2:
+    ~~~~~~~
+!!! error TS7028: Unused label.
+    while (true) {
+      continue target1;
+    }

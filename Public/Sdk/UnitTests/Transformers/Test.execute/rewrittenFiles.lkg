@@ -1,0 +1,13 @@
+
+Transformer.copyFile(f`./src/input`, f`./Out/destination`);
+Transformer.execute({
+    tool: {exe: f`./src/stringInput.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [],
+    },
+    workingDirectory: d`./Out/working`,
+    dependencies: [f`./src/stringInput.exe`, f`./Out/destination`],
+    implicitOutputs: [f`./Out/destination`],
+});

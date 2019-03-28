@@ -1,0 +1,10 @@
+Transformer.writeFile(
+    f`./Out/out.json`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            "{\r\n  's': 'str',\r\n  'a': 'atom',\r\n  'r': 'f\\\\rel',\r\n  'b': true,\r\n  'n': 1,\r\n  'l': [\r\n    1,\r\n    2\r\n  ],\r\n  'h': [\r\n    'one',\r\n    'two'\r\n  ],\r\n  'm': [\r\n    {\r\n      'key': 2,\r\n      'value': {\r\n        'x': 'two'\r\n      }\r\n    },\r\n    {\r\n      'key': 1,\r\n      'value': {\r\n        'x': 'one'\r\n      }\r\n    },\r\n    {\r\n      'key': 3,\r\n      'value': {\r\n        'x': 'three'\r\n      }\r\n    }\r\n  ],\r\n  'o': {\r\n    's': 'str'\r\n  }\r\n}",
+        ],
+    }
+);

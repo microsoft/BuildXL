@@ -1,0 +1,84 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AddSourceFileConfigurationNotReceived" xml:space="preserve">
+    <value>The configuration for adding a source file has not been received.</value>
+  </data>
+  <data name="CancelActionTitle" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="ContinueActionTitle" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+  <data name="HoverEnumFormat" xml:space="preserve">
+    <value>enum {0} {{ {1} }}</value>
+  </data>
+  <data name="HoverEnumMemberFormat" xml:space="preserve">
+    <value>{0}, {1}</value>
+  </data>
+  <data name="HoverImportFormat" xml:space="preserve">
+    <value>import {{ {0} }} from '{1}'</value>
+  </data>
+  <data name="HoverInnerTupleTypeFormat" xml:space="preserve">
+    <value>{0}, {1}</value>
+  </data>
+  <data name="HoverInnerUnionFormat" xml:space="preserve">
+    <value>{0} | {1}</value>
+  </data>
+  <data name="HoverInterfaceFormat" xml:space="preserve">
+    <value>interface {0}</value>
+  </data>
+  <data name="HoverJustSymbolOrTypeFormat" xml:space="preserve">
+    <value>{0}</value>
+  </data>
+  <data name="HoverSymbolAndStringFormat" xml:space="preserve">
+    <value>{0} : {1}</value>
+  </data>
+  <data name="HoverTupleTypeFormat" xml:space="preserve">
+    <value>[{0}]</value>
+  </data>
+  <data name="HoverTypeArgumentsInnerFormat" xml:space="preserve">
+    <value>{0}, {1}</value>
+  </data>
+  <data name="HoverTypeArgumentsTypeFormat" xml:space="preserve">
+    <value>{0}&lt;{1}&gt;</value>
+  </data>
+  <data name="HoverUnionFormat" xml:space="preserve">
+    <value>({0})</value>
+  </data>
+  <data name="LoadingWorkspace" xml:space="preserve">
+    <value>{ShortScriptName} activated, loading workspace..</value>
+  </data>
+  <data name="ModuleNotFoundInWorkspace" xml:space="preserve">
+    <value>The module '{0}' cannot be found in the workspace.</value>
+  </data>
+  <data name="OpenLogFileMessageActionTitle" xml:space="preserve">
+    <value>Open log</value>
+  </data>
+  <data name="RenameWarningMessage" xml:space="preserve">
+    <value>This rename operation has {0} file references. This may take a long time and affect IDE performance while the rename is running. Are you sure you want to continue?</value>
+  </data>
+  <data name="StringLiteralHoverFormat" xml:space="preserve">
+    <value>"{0}"</value>
+  </data>
+  <data name="WorkspaceLoadingComplete" xml:space="preserve">
+    <value>Workspace loading complete.</value>
+  </data>
+  <data name="WorkspaceParsingFailed" xml:space="preserve">
+    <value>Workspace parsing failed. Log file avaliable at '{0}'.</value>
+  </data>
+  <data name="WorkspaceParsingFailedCannotPerformAction" xml:space="preserve">
+    <value>Cannot process action as workspace has not yet been loaded</value>
+  </data>
+</root>

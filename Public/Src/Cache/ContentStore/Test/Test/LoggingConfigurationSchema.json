@@ -1,0 +1,32 @@
+﻿{
+	"$schema": "http://json-schema.org/draft-04/schema",
+	"title": "JSON Schema for LoggingConfiguration JSON file format",
+
+	"type": "object",
+
+  "properties": {
+    "Types": {
+      "type": "array",
+      "description": "Zero or more logger types to activate.",
+      "items": {
+        "enum": [ "Console", "DebugPrint", "File", "RollingMemory" ]
+      }
+    },
+    "ConsoleSeverity": {
+      "enum": ["Diagnostic","Debug","Info","Warning","Error","Fatal","Always"],
+      "description": "Max Severity for console filtering."
+    },
+    "FileBaseName": {
+      "type": "string",
+      "description": "Base name of the log file."
+    },
+    "FileSeverity": {
+      "enum": [ "Diagnostic", "Debug", "Info", "Warning", "Error", "Fatal", "Always" ],
+      "description": "Max Severity for file filtering."
+    },
+    "FileAutoFlush": {
+      "type": "boolean",
+      "description": "If true, log file is flushed every write."
+    }
+  }
+}

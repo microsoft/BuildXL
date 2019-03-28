@@ -1,0 +1,22 @@
+# ETW
+*.etl
+*.etl.zip
+
+# NuGet Restore
+*.nuget.targets
+*.nuget.props
+project.lock.json
+Script/CredentialProvider.VSS.exe
+Script/nuget.exe
+*.nupkg
+
+build.*
+buildd.*
+QuickBuild.log
+QLogs/
+__cacheOutput/
+VersionGeneration/
+QTestLogs/
+QLocal/
+Logs/
+out/

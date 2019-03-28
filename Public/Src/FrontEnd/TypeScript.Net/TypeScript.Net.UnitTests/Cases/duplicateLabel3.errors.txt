@@ -1,0 +1,19 @@
+Cases/duplicateLabel3.ts(3,1): error TS7028: Unused label.
+Cases/duplicateLabel3.ts(6,5): error TS7028: Unused label.
+
+
+==== Cases/duplicateLabel3.ts (2 errors) ====
+    // @allowUnusedLabels: true
+    
+    target:
+    ~~~~~~
+!!! error TS7028: Unused label.
+    while (true) {
+      function f() {
+        target:
+        ~~~~~~
+!!! error TS7028: Unused label.
+        while (true) {
+        }
+      }
+    }

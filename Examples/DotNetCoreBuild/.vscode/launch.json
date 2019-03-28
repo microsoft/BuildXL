@@ -1,0 +1,18 @@
+{
+    // To use BuildXL DScript debugger:
+    //   - run BuildXL with /debugScript option;
+    //   - wait until BuildXL blocks and displays something like: "message DX0457: Waiting for a debugger to connect (blocking)";
+    //   - go to VsCode, place some breakpoints, switch to the "Debug" view, and choose "Attach to running BuildXL DScript";
+    //   - BuildXL should continue at this point; if DScript evaluation hits any of your breakpoints, the execution will 
+    //     pause and you will be able to step through it in the VsCode debugger.
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Attach to running BuildXL DScript",
+            "type": "dscript",
+            "request": "attach",
+            "address": "localhost",
+            "debugServer": 41177
+        }
+    ]
+}

@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Args_Expected_file_content_table_path" xml:space="preserve">
+    <value>A path to the file content table to validate must be specified as the only positional argument.</value>
+  </data>
+  <data name="Args_NoDirSpecPath" xml:space="preserve">
+    <value>Unable to get directory name of {0}: {1}</value>
+  </data>
+  <data name="Args_NotRecognized" xml:space="preserve">
+    <value>The option '{0}' is not recognized.</value>
+  </data>
+  <data name="Failed_create_volume_map" xml:space="preserve">
+    <value>Failed to establish a layout of local volumes: {0}</value>
+  </data>
+  <data name="Failed_to_load_table" xml:space="preserve">
+    <value>Failed to load the file content table at path '{0}': {1}</value>
+  </data>
+  <data name="Help_DisplayHelp_Help" xml:space="preserve">
+    <value>Display this usage message (Short form:/?)</value>
+  </data>
+  <data name="Help_DIsplayHelp_NoLogo" xml:space="preserve">
+    <value>Suppress copyright message</value>
+  </data>
+  <data name="Help_DisplayHelp_Usage" xml:space="preserve">
+    <value>usage: [options] &lt;path to file content table&gt;</value>
+  </data>
+  <data name="Help_Logo_Copyright" xml:space="preserve">
+    <value>Copyright (C) Microsoft Corporation. All rights reserved.</value>
+  </data>
+  <data name="Help_Logo_VersionInfo" xml:space="preserve">
+    <value>{LongProductName} - File Content Table Verifier version 0.0.0.0</value>
+  </data>
+  <data name="Incorrect_entry" xml:space="preserve">
+    <value>Incorrect file content table entry:&lt;Path '{0}', Expected Hash {1}, Actual Hash {2}, USN {3}&gt;</value>
+  </data>
+  <data name="Verification_summary" xml:space="preserve">
+    <value>Checked {0} entries ({1} invalid) in {2}</value>
+  </data>
+  <data name="Bad_table_path" xml:space="preserve">
+    <value>Unable to parse the path '{0}'. Expected a path to a file content table.</value>
+  </data>
+  <data name="Verifying_path" xml:space="preserve">
+    <value>Verifying {0}</value>
+  </data>
+</root>

@@ -1,0 +1,4 @@
+   .create-or-alter function with (folder = "sync test",docstring = "Domino invocation") DominoFuncSyncTest() {
+   dominoinvocation 
+   | take 1 
+   }

@@ -1,0 +1,1 @@
+Transformer.sealSourceDirectory(d`./src`, Transformer.SealSourceDirectoryOption.allDirectories);

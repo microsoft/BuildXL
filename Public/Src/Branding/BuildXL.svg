@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   id="BuildXL Icon"
+   version="1.1"
+   viewBox="0 0 100 100"
+   height="100mm"
+   width="100mm">
+  <defs
+     id="defs3771" />
+  <g
+     transform="translate(0,-197)"
+     id="g1">
+    <g
+       transform="matrix(1.0213108,0,0,1.0213108,-1.0654398,-5.2637608)"
+       id="g2">
+      <path
+         style="fill:#b92701;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.28185838"
+         d="m 1.0972048,209.30975 v 30.92515 l 28.8639892,1.65592 v -15.91619 z"
+         id="topleft" />
+      <path
+         style="fill:#971400;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.28185838"
+         d="M 29.961194,252.10819 1.0972048,253.7641 v 30.92516 L 29.961194,268.02438 Z"
+         id="bottomleft" />
+      <path
+         style="fill:#d83b01;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.28185838"
+         d="m 35.6071,209.30975 v 32.90697 l 63.286217,3.63773 z"
+         id="topright" />
+      <path
+         style="fill:#e76434;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.28185838"
+         d="M 98.893317,248.14456 35.6071,251.78229 v 32.90697 z"
+         id="bottomright" />
+    </g>
+  </g>
+</svg>

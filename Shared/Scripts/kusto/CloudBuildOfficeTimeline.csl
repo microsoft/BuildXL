@@ -1,0 +1,117 @@
+let timeframe = ago(10d);
+let domino_in_cb = dominocompletion 
+| where EventInfo_Time > timeframe
+| where UserName in ("_qcloud1", "_qcloud2", "cbwdg1", "cbwdg2")
+| where ExitCode == 0
+| project SessionId, Environment, ProcessRunningTime
+| join (
+    dominoinvocation  
+    | where EventInfo_Time > timeframe
+    | project 
+        SessionId, RelatedSessionIdentifier, CommandLine, BuildInfo_CommitId,
+        BuildType = case(
+            Environment contains "EnlistmentBuild", "enlist",
+            Environment contains "MetaBuild", "meta",
+            Environment contains "ProductBuild", "product", 
+            "Other"),
+        Role = case(
+            CommandLine contains "distributedBuildRole:worker", "worker",
+            CommandLine contains "distributedBuildRole:master", "master",
+            "master"
+            )
+    | join kind=leftouter (
+        database("CloudBuildProd").BuildInfo
+        | where TIMESTAMP > timeframe
+        | where ReturnCode == "Success"
+        | project 
+            BuildQueue, BuildId, OwnerStampId, BuildControllerMachineName, 
+            BuildStartTime = StartTime, 
+            QBits = extract(@"/([^/]*)\?root", 1, CloudBuildTools)
+      ) on $left.RelatedSessionIdentifier == $right.BuildId
+  ) on SessionId
+;
+let cachedata = icachestatistics
+| summarize    
+    cache_SQLit_getchl_count = sum(tolong(SQLiteMemoizationStore_GetContentHashListCallCount)),
+    cache_SQLit_getchl_sec = sum(tolong(SQLiteMemoizationStore_GetContentHashListCallMs)) / 1000.0,
+    cache_vsts_getchl_count = sum(tolong(BuildCacheCache_GetContentHashListCallCount)),
+    cache_vsts_getchl_sec = sum(tolong(BuildCacheCache_GetContentHashListCallMs)) / 1000.0,
+    cache_vsts_incorp_sec = sum(tolong(BuildCacheCache_IncorporateStringFingerprintsCallMs )) / 1000.0,    
+    cache_vsts_incorp_count = sum(tolong(BuildCacheCache_IncorporateStringFingerprintsCallCount)),
+    cache_redis_getchl_count = sum(tolong(DistributedCache_GetContentHashListCallCount)),
+    cache_redis_getchl_sec = sum(tolong(DistributedCache_GetContentHashListCallMs) - tolong(BuildCacheCache_GetContentHashListCallMs)) / 1000.0,
+    cache_redis_incorp_count = sum(tolong(DistributedCache_IncorporateStringFingerprintsCallCount)),
+    cache_redis_incorp_sec = sum(tolong(DistributedCache_IncorporateStringFingerprintsCallMs) - tolong(BuildCacheCache_IncorporateStringFingerprintsCallMs)) / 1000.0    
+    by SessionId
+;
+let dominoinvocation_with_stats = domino_in_cb
+| join (finalstatistics | where EventInfo_Time > timeframe) on SessionId
+| join (cachedata) on SessionId
+| extend 
+    master_TimeToFirstPipMs = case(Role != "worker", tolong(TimeToFirstPipMs), -1), 
+    master_EndToEndSec = case(Role != "worker", tolong(ProcessRunningTime), -1)
+;
+//
+//
+let result = dominoinvocation_with_stats
+| summarize 
+    // header
+    LocalTime = min(BuildStartTime) - 7h,
+    domino_bits = max(BuildInfo_CommitId),
+    qbits = max(QBits),
+    builders = countif(tolong(PipExecution_ExecuteProcessDurationMs) > 0),
+    process_pips = sum(tolong(TotalProcessPips)),
+    process_pips_hits = sum(tolong(ProcessPipCacheHits)),
+    process_hit_pct = sum(tolong(ProcessPipCacheHits)) / (0.01 * sum(tolong(TotalProcessPips))),
+    E2E_m = max(tolong(master_EndToEndSec)) / (1000 * 60),
+    E2E_s = max(tolong(master_EndToEndSec)) / (1000),
+    s1 = "  |",
+    // Pre-Execute phase
+    m_TTFP_s = sumif(tolong(TimeToFirstPipSyntheticMs), Role == "master") / 1000,
+    m_CacheInit_s = sumif(tolong(CacheInitialization_TimeWaitedMs), Role == "master") / 1000, // Time the master was blocked on the cache initializing
+    m_GraphCheck_s = sumif(tolong(GraphCacheReuseCheck_DurationMs), Role == "master") / 1000, // This is the check & download from cache
+    m_GraphReloadAndHistoric_s = sumif(tolong(GraphCacheReload_DurationMs), Role == "master") / 1000, // This is just the deserialization time, but it also includes fetching & deserializing the historicmetadatacache
+    m_GraphCons_s = sumif(tolong(GraphConstruction_DurationMs), Role == "master") / 1000, // Total graph construction time
+    // These are the constituent parts of graph construction when it isn't reloaded
+        //ds_initialize_sec = max(tolong(InitializeResolvers_DurationMs)) / 1000.0, // This is usually zero
+        //ds_parse_sec = max(tolong(Parse_DurationMs)) / 1000.0,
+        //ds_evaluate_sec = max(tolong(Evaluate_DurationMs)) / 1000.0,
+    m_ApplyFilter_s = sumif(tolong(ApplyingFilterToPips_DurationMs), Role == "master") / 1000, // Time spent filtering pips
+    m_SchedAfterFilt_s = sumif(tolong(ApplyFilterAndScheduleReadyNodes_DurationMs) - tolong(ApplyingFilterToPips_DurationMs), Role == "master") / 1000, // Time spent scheduling after filtering
+    m_HistoricRetrieval_s = sumif(extractjson("$.PipCaching_HistoricRetrievalDurationMs", tostring(Payload), typeof(long)), Role == "master") / 1000, // Time spent retrieving the historic metadata from cache
+    m_HistoricDeserialize_s = sumif(extractjson("$.PipCaching_HistoricDeserializationDurationMs", tostring(Payload), typeof(long)), Role == "master") / 1000, // Time spent deserializing historic metadata
+    s2 = "  |",
+    // Worker times
+    w_TTFP_s = sumif(tolong(TimeToFirstPipSyntheticMs), Role == "worker") / (1000 * countif(Role == "worker" and tolong(TimeToFirstPipSyntheticMs) > 0)),
+    w_GraphCheck_s = sumif(tolong(GraphCacheReuseCheck_DurationMs), Role == "worker") / (1000 * countif(Role == "worker" and tolong(GraphCacheReuseCheck_DurationMs) > 0)),
+    w_GraphReloadAndHistoric_s = sumif(tolong(GraphCacheReload_DurationMs), Role == "worker") / (1000 * countif(Role == "worker" and tolong(GraphCacheReload_DurationMs) > 0)), 
+    s3 = "  |",
+    // Critical path times
+    critExe_s = sumif(tolong(CriticalPath_ExeDurationMs), Role == "master") / 1000, // This is just the deserialization time
+    critPip_s = sumif(tolong(CriticalPath_PipDurationMs), Role == "master") / 1000, // Total graph construction time   
+    s4 = "  |",
+    perf_loaded = case(
+       max(toint(Engine_PerformanceDataRetrievedFromDisk)) == 1, "FromDisk",
+       max(toint(Engine_PerformanceDataRetrievedFromCache)) == 1, "FromCache",
+       "None"),
+    m_PostProcess_s = sumif(extractjson("$.Engine_ProcessPostExecutionTasksDurationMs", tostring(Payload), typeof(long)), Role == "master") / 1000, // Time spend in PostProcessing tasks before shutting down
+    m_EngineCacheDispose_s = sumif(tolong(Engine_EngineCacheDisposeDurationMs), Role == "master") / 1000, // Time spend in EngineCacheDispose 
+    s100 = "|",   
+    master_machine = max(BuildControllerMachineName),
+    machines = makelist(MachineName)
+  by OwnerStampId, BuildQueue, RelatedSessionIdentifier, BuildType
+| order by OwnerStampId, BuildQueue, RelatedSessionIdentifier, BuildType
+;
+//
+//
+let summary = result 
+| summarize 
+    total_workers = count()
+    by OwnerStampId, bin(LocalTime, 1d);
+result
+| where BuildType == "product"
+| where BuildQueue == "OfficeClientPreProd_1709_retail_X64" or BuildQueue == "OfficeClientGen5_1709_retail_X64" or BuildQueue == "OfficeClientTestPerf_1709_retail_X64"
+| where BuildQueue == "OfficeClientTestPerf_1709_retail_X64"
+//| where process_hit_pct > 90
+| order by E2E_s desc
+        

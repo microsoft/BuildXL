@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RuleSet Name="Tool Rules" ToolsVersion="12.0">
+
+  <!-- Common rules. -->
+  <Include Path="..\..\Build\CodeAnalysis.ruleset" Action="Default" />
+
+  <!-- Project overrides. -->
+  <Rules AnalyzerId="Microsoft.Analyzers.ManagedCodeAnalysis" RuleNamespace="Microsoft.Rules.Managed">
+
+    <!-- DoNotCatchGeneralExceptionTypes -->
+    <Rule Id="CA1031" Action="None" />
+
+    <!-- ReviewUnusedParameters, application parameter often unused in command classes. -->
+    <Rule Id="CA1801" Action="None" />
+
+    <!-- AvoidUncalledPrivateCode, CLAP verbs are discovered at runtime without compile-time references. -->
+    <Rule Id="CA1811" Action="None" />
+
+  </Rules>
+
+</RuleSet>

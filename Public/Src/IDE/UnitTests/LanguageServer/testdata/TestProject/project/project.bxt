@@ -1,0 +1,39 @@
+import {Transformer} from "Sdk.Transformers";
+import * as Module from "BuildXL.DScript.LanguageServer.UnitTests.Data.Module";
+
+@@public
+export const callingDeployDirectly = Module.deploy({
+    contents: [
+        f`project.bxt`
+    ]
+});
+
+@@public
+export const callingAlias = Module.deployAlias({ 
+    contents: [
+        Transformer.sealDirectory(d`.`, glob(d`.`, "*"))
+    ]
+});
+
+@@public
+export const value = Module.functionWithMultipleParameters("hello", undefined, ["a", "b", "c"]).name;
+
+// this validates that we can figure out the type of an anonymous object literal
+// so long as we have the context of which argument it is in a function call
+const value2 = Module.TakeSampleInterface({
+    // we've left two fields unfilled in so those should come back (but not 'c' since it's already set)
+    c: 100 
+}, 101);
+
+namespace A.B.C {
+
+    @@public
+    export const a = 'hello world - a';
+
+    export const b = 'hello world - b';
+}
+
+// Separate test case: intellisense in the following case was throwing an exception
+interface IFoo {x:number};
+const completionForGenerics1 = {x:42};
+const completionForGenerics2 = completionForGenerics1.override<IFoo>(/*here*/{x: 43});

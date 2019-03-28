@@ -1,0 +1,24 @@
+{
+    "configurations" : [
+    {
+        "propertyName" : "sources",
+        "functionName" : "build",
+        "argumentPosition" : "0",
+        "argumentTypeName" : "Arguments",
+        "argumentTypeModuleName" : "Build.Wdg.Native.Tools.StaticLibrary"
+    },
+    {
+        "propertyName" : "sources",
+        "functionName" : "build",
+        "argumentPosition" : "0",
+        "argumentTypeName" : "Arguments",
+        "argumentTypeModuleName" : "Build.Wdg.Native.Tools.Dll"
+    },
+    {
+        "propertyName" : "sources",
+        "functionName" : "build",
+        "argumentPosition" : "0",
+        "argumentTypeName" : "Arguments",
+        "argumentTypeModuleName" : "Build.Wdg.Native.Tools.Exe"
+    }]
+}

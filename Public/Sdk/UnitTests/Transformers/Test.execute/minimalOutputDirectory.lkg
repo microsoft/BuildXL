@@ -1,0 +1,13 @@
+
+Transformer.execute({
+    tool: {exe: f`./src/tool.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [],
+    },
+    workingDirectory: d`./Out/working`,
+    dependencies: [f`./src/tool.exe`],
+    implicitOutputs: [d`./Out/outputFolder`],
+});
+Transformer.sealDynamicDirectory(d`./Out/outputFolder`);

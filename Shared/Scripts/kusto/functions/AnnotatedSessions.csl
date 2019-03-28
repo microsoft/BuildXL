@@ -1,0 +1,195 @@
+.create-or-alter function with (folder = "common", docstring = "AnnotatedSessions", skipvalidation = "true") AnnotatedSessions(startDate:datetime, endDate:datetime)
+{
+let exceptionRegex = @"(?:.*\s?)\.(\S*Exception:[^\n\r]*)";
+let buildXlFuncNameRegex = @"at\s[^\\/].*?((Domino|BuildXL)\.[^NU][\w.]*[\w<]+>?)";
+let anyFuncNameRegex = @"at\s.*?([A-Z][\w]*\.[\w.]*[\w<]+>?)";
+let matchPathsRegex = @"[\S\\/]*\S[\\/][\S\\/]*";
+let matchNumsRegex = @"\d+";
+let pathsReplacement = "[path]";
+let numsReplacement = "[#]";
+// 1. Query the dominoinvocation table to collect all of the builds of domino to look at.
+//      Apply time filter
+//      Extract some details out of the Environemtn to categorize the build
+//      This will result in a row for every domino.exe invocation. Note that they may be
+//      many domino.exe invocations in a single build session. SessionId is a GUID for
+//      every domino.exe invocation.
+//
+let annotatedSessions =
+dominoinvocation
+| where EventInfo_Time >= startDate and EventInfo_Time <= endDate
+| where BuildInfo_IsDeveloperBuild != "True"
+| extend OfficeBuildType = case(
+            Environment contains "EnlistmentBuild", "enlist",
+            Environment contains "MetaBuild", "meta",
+            Environment contains "ProductBuild", "product", 
+            ""),
+    Codebase = extract("(Tenant=|Branch=)([^;]*)", 2, Environment),
+    EnvironmentShort = extract("([^;]*)", 1 , Environment),
+    CBQueue = extract("(cloudBuildQueue=)([^;]*)", 2 , Environment),
+    Infra = case(
+        UserName == "_qcloud1" or UserName == "_qcloud2" , "CB",
+        (Environment contains "Dev" or Environment contains "WrapItUp") and UserName != "tpctext" and UserName != "y-arnold", "Dev",
+        Environment contains "Self" and UserName != "tsebuild", "Dev",
+        "Lab")
+    | extend Customer = 
+        case(
+            EnvironmentShort contains "APEX", "APEX",
+            EnvironmentShort contains "Office", "Office",
+            EnvironmentShort contains "OSGTools", "OsgTools",
+            EnvironmentShort contains "OSG", "WDG",
+            EnvironmentShort contains "Self", "TSE",
+            "Unknown") 
+| project SessionId, RelatedSessionIdentifier , BuildInfo_IsDeveloperBuild, Environment, EventInfo_Time, OfficeBuildType, Codebase, Customer, CBQueue, Infra, BuildInfo_Build , BuildInfo_CommitId, UserName, MachineInfo_OsVersion 
+| join kind= leftouter(
+//
+// 2. Join against the dominocompletion table.
+//      For all non-crash builds we expect to have a corresponding dominocompletion event.
+//      This event has categorized ExitKind (success, usererror, infrastructureerror, internalerror)
+//      as well as the ErrorBucket for errors that are categorized
+//
+dominocompletion
+| project SessionId, ErrorBucket, ExitKind 
+) on SessionId 
+| join kind= leftouter (
+//
+// 3. Join against dominocatastrophicfailure to see if the invocation crashed
+//      
+dominocatastrophicfailure
+| project SessionId, Exception, RootCause, FirstInsfrastructureError, FirstInternalError , FirstUserError , LastInfrastructureError , LastInternalError , LastUserError 
+) on SessionId 
+// This determines whether we classify the invocation as an internal error or not.
+// Crashes are always internal errors. InfrastructureErrors are treated as internal errors
+// if TSE owns the infrastructure the build was run on (CloudBuild based builds)
+| extend InternalError = case(
+    isnotempty(Exception), 1,
+    ExitKind == "InternalError" or (Infra == "CB" and ExitKind == "InfrastructureError"), 1,
+    0)
+    // Correlates all domino.exe invocations in the wider build session. Don't confuse this with "SessionId" which
+    // is per domino.exe invocation.
+| extend UniqueSession = case(
+    isnotempty(RelatedSessionIdentifier), RelatedSessionIdentifier,
+    //isnotempty(RelatedSessionId), RelatedSessionId,
+    SessionId)
+    // Assigns the internal error bucket for the domino.exe invocation.
+| extend ErrorBucket_InternalErrorOnly = case(InternalError == 1, ErrorBucket, "")
+| extend Bucket = case(
+    isnotempty(Exception), "Crash",
+    isnotempty(ErrorBucket_InternalErrorOnly), ErrorBucket_InternalErrorOnly,
+    isnotempty(ExitKind), "",
+    "MissingDominoCompletionEvent")
+        // Parse the exception for relevant pieces to generate a suggested bug name
+| extend ExceptionDescription = replace(matchNumsRegex, numsReplacement, (replace(matchPathsRegex, pathsReplacement, extract(exceptionRegex, 1, Exception))))
+| extend BuildXlFunctionName = extract(buildXlFuncNameRegex, 1, Exception)
+| extend FunctionName = iff(isnull(BuildXlFunctionName) or isempty(BuildXlFunctionName), extract(anyFuncNameRegex, 1, Exception), BuildXlFunctionName)
+| extend SuggestedBugName = substring(strcat(FunctionName, ": ", ExceptionDescription), 0, 255)
+    // Update the case below to add in new crash bug patterns
+| extend KnownBug =
+    case(
+        Exception contains "FileContentManager.SetFileArtifactContentHash" and Exception contains "File name should only differ by casing", "1261677",
+        Exception contains "Thunk.QualifiedEvaluate" and Exception contains "Assumption failed", "1261674",
+        Exception contains "FileContentTable.LoadInternal" and Exception contains "BigBuffer", "F 6/29/18 1267216",
+        Exception contains "PathBasedFilter.cs" and Exception contains "Precondition failed", "F 5/29/18 1267223",
+        Exception contains "PathAtom.cs" and Exception contains "DirectoryMembershipTrackingFingerprinter.ComputeFingerprint", "1271206",
+        Exception contains "Engine.EngineSerializer" and Exception contains "DeflateStream.ValidateParameters", "F 6/1/18 1271216",
+        Exception contains "DominoAppServer.ListenClient" and Exception contains "Pipe is broken", "F 12/7/18 1271219",
+        Exception contains "ConfigurationConversionHelper.ConvertAndRegisterSourceFile" and Exception contains "CharArraySegment.cs", "1271212",
+        Exception contains "FingerprintStore.GarbageCollect" and Exception contains "TimeSpan overflowed", "F 6/7/18 1279389",
+        Exception contains "VsDomino.WriteDominoCmd" and Exception contains "NullReferenceException", "1281738",
+        Exception contains "FileChangeTrackingSet.CheckAndMaybeInvalidateAntiDependencies" and Exception contains "Path has been determined to be present", "1281750",
+        Exception contains "StringTable.AddString" and Exception contains "NullReferenceException", "1281755",
+        Exception contains "DominoScheduler.cs:line 3167" and Exception contains "NullReferenceException", "1286588",
+        Exception contains "Distribution.FileArtifactKeyedHash" and Exception contains "LockRecursionException", "1286601",
+        Exception contains "FileAccessReportLine.TryParse" and Exception contains "Assumption failed", "1286603",
+        Exception contains "FrontEndHostController.DownloadFile" and Exception contains "Precondition failed", "F 6/28/18 1291189",
+        Exception contains "ObservedInputProcessingResult.GetPathSet" and Exception contains "Precondition failed", "F 7/20/18 1290374",
+        Exception contains "WorkerService.Exit" and Exception contains "NullReferenceException", "F 7/5/18 1296984",
+        Exception contains "SandboxedProcessPipExecutor.TryLogOutputAsync" and Exception contains "Precondition failed", "1297041",
+        Exception contains "IsValidRecordExtensionKey", "F 7/9/18 1299882",
+        Exception contains "QuickBuild.QuickBuildResolver" and Exception contains "Precondition failed", "1301017",
+        Exception contains "RocksDbStore.Put" and Exception contains "SEHException", "F 7/12/18 1301030",
+        Exception contains "Windows.FileSystemWin.ReadFileUsnByHandle" and Exception contains "0x5", "1301032",
+        Exception contains "FileContentManager.ReportContent" and Exception contains "set multiple times", "1301034",
+        Exception contains "OperationTracker.Assert" and Exception contains "started for completed parent", "1305596",
+        Exception contains "DominoScriptInterpreterBase.ParseSourceFileContent" and Exception contains "not in a correct format", "1305597",
+        Exception contains "ReleaseSpecCacheMemory" and Exception contains "Incorrect function", "1305598",
+        Exception contains "ThreadPoolWorkQueue.Dispatch" and Exception contains "I/O device error", "1305599",
+        Exception contains "CacheCoreCacheInitializer.GetLoggedStatistics" and Exception contains "key", "F 8/24/18 1314546",
+        Exception contains "LocalDiskContentStore.ComputePathHash" and Exception contains "Index was outside the bounds of the array", "1314547",
+        Exception contains "The build has failed but the logging infrastructure has not encountered an error", "F 11/9/18 1314548",
+        Exception contains "FileChangeTrackingSet.TryProbeAndTrackPath" and Exception contains "NullReferenceException", "1318914",
+        Exception contains "FingerprintStore.TryGetLruEntriesMap" and Exception contains "Unexpected character", "F 8/8/18 1318934",
+        Exception contains "error should have been logged during waiting for attaching to the master", "F 8/9/18 1318919",
+        Exception contains "Worker.GetExpectedRamUsageMb" and Exception contains "DivideByZeroException", "F 8/23/18 1332020",
+        Exception contains "DominoEngine.ReloadEngineSchedule" and Exception contains "PipExecutionContext", "F 8/30/18 1330827",
+        Exception contains "DominoScript.ConfigurationConversionHelper.ValidateConfigFile" and Exception contains "Precondition failed", "1339722",
+        Exception contains "If the access is a file content read, then the FileContentInfo", "1343435",
+        Exception contains "ValidateSuccessMatches" and Exception contains "11224", "1352675",
+        Exception contains "IsSharedOpaqueOutput" and Exception contains "Failed to check status of a given path", "1352677",
+        Exception contains "IndexOutOfRangeException" and Exception contains "PipDataBuilder.Add", "1344281",
+        Exception contains "StringTable.cs:line 569", "1348980",
+        Exception contains "Microsoft.WindowsAzure.Storage.Core.Util.StorageAsyncResult", "1348981",
+        Exception contains "FingerprintStore.Open" and Exception contains "Delete directory", "F 10/15/18 1358309",
+        Exception contains "FlagSharedOpaqueOutputs" and Exception contains "Object reference not set", "F 10/4/18 1353799",
+        Exception contains "ReportSurvivingChildProcesses", "F 10/5/18 1354736",
+        Exception contains "DirectoryMembershipFilter.Include" and Exception contains "Precondition failed", "F 10/18/18 1364598",
+        SuggestedBugName contains "Domino.DominoApp.RunInternal: TaskCanceledException: A task was canceled.", "1364595", 
+        Exception contains "CoreHashingHelperBase.AddInnerHash" and Exception contains "Assertion failed", "1369716",
+        Exception contains "Sandbox failure: E00002DB", "1375985",
+        Exception contains "GetSealDirectoryKind" and Exception contains "KeyNotFoundException", "1382040",
+        Exception contains "FileContentManager.CollectPipFilesToMaterialize" and Exception contains "same key", "1382043",
+        Exception contains "EngineState.get_PipGraph()" and Exception contains "Precondition failed", "F 11/8/18 1384794",
+        SuggestedBugName contains "Domino.Engine.MountsTable.CreateAndRegister: NativeWin[#]Exception: Native: [#]x[#]: The system cannot find the file specified", "1400136",
+        Exception contains "Collections.ConcurrentBigSet" and Exception contains "Index was outside the bounds of the array", "F 12/15/18 1400173",
+        Exception contains "FingerprintStoreCacheUtilities.TryRetrieveFingerprintStoreAsync" and Exception contains "StringTable is being serialized", "F 12/12/18 1406938",
+        SuggestedBugName contains "Domino.Scheduler.Performance.PerformanceDataUtilities.TryRetrieveRunningTimeTableAsync: ContractException: Assertion failed: StringTable is being serialized. No new entry can be added..", "F 1/1/19 1418018",
+        SuggestedBugName contains "Domino.Scheduler.Performance.PerformanceDataUtilities.TryRetrieveRunningTimeTableAsync: ContractException: Assertion failed: HierarchicalNameTable is being serialized. No new entry can be added..", "F 1/1/19 1418018",
+        SuggestedBugName contains "Domino.Engine.EngineSchedule.ScrubExtraneousFilesAndDirectories: ContractException: Assertion failed: StringTable is being serialized. No new entry can be added..", "1419013",
+        SuggestedBugName contains "Domino.Engine.EngineSchedule.ScrubExtraneousFilesAndDirectories: ContractException: Assertion failed: HierarchicalNameTable is being serialized. No new entry can be added..", "1419013",
+        SuggestedBugName contains "Domino.Engine.DominoEngine.ValidateSuccessMatches: DominoException: No error should be logged if status is success. Errors logged: [#], [#]", "1419015",
+        SuggestedBugName contains "Domino.Processes.SandboxedProcessOutputBuilder.AppendLine: ContractException: Assertion failed.", "1419016",
+        "")
+//
+// 4. Join against the CB data
+//
+| join kind = leftouter (
+    database("CloudBuildProd").BuildInfo
+| project InProbation , BuildQueue, InternalRetryCount, BuildId, ReturnType 
+) on $left.UniqueSession == $right.BuildId
+//
+// 5. Merge all domino.exe invocations into a single overall session
+//
+| summarize SessionId = any(SessionId), 
+    EventInfo_Time = min(EventInfo_Time), 
+    BuildInfo_Build = any(BuildInfo_Build), 
+    KnownBug = max(KnownBug), 
+    BucketGroup = max(Bucket), 
+    RootCause = max(RootCause), 
+    Exception = max(Exception), 
+    InternalError = iff(sum(InternalError) > 0, 1, 0),
+    BuildQueue = any(BuildQueue), 
+    CBCanRetry = max(InternalRetryCount), 
+    CBReturnType = any(ReturnType), 
+    BuildInfo_CommitId = any(BuildInfo_CommitId),
+    SuggestedBugName = max(SuggestedBugName)
+    by UniqueSession, Customer, Codebase, Infra, InProbation, UserName
+//
+// 6. Annotate which sessions should be reported in the MSR
+| extend MSRReportable = case(
+    // Don't look at self-host builds
+    Customer == "TSE", 0,
+    // If running in CB, don't look at queues that are in probation or where the InProbation field is blank. Blank means there was no correspond record in the CloudBuildProd datbase which means it was CloudBuildCBTest or another environment
+    (Infra == "CB" and (isempty(InProbation) or InProbation == 1)), 0,
+    // Ignore Crashes with known root cause buckets (failed deployment, server mode build where client is killed, out of disk space, etc)
+    (RootCause != "" and RootCause != "Unknown"), 0,
+    // Otherwise this is an MSR reportable session
+    1)
+// 
+// 7. Collapse together non-internal error sessions to limit the number of records returned by the query
+| extend TimeBucket = iff(InternalError == 1, EventInfo_Time, startofday(EventInfo_Time))
+| summarize SessionCount = count(), UniqueSession = max(UniqueSession), SessionId = max(SessionId) by TimeBucket, BuildInfo_Build, KnownBug, BucketGroup, RootCause, Exception, InternalError, BuildQueue, CBCanRetry, CBReturnType, BuildInfo_CommitId, Customer, Codebase, Infra, InProbation, UserName, MSRReportable, SuggestedBugName
+| extend week = startofweek(TimeBucket)
+| extend BuildUrl = strcat("http://b/build/", UniqueSession);
+annotatedSessions;
+}
+// Example call for sessions over the past week:
+// AnnotatedSessions(ago(7d), now())

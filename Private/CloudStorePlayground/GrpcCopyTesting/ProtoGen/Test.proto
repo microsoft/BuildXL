@@ -1,0 +1,28 @@
+﻿syntax = "proto3";
+
+//option java_multiple_files = true;
+//option java_package = "io.grpc.examples.helloworld";
+//option java_outer_classname = "HelloWorldProto";
+//option objc_class_prefix = "HLW";
+
+package helloworld;
+
+service Copier {
+  rpc Copy (CopyRequest) returns (stream CopyReply) {}
+}
+
+message CopyRequest {
+  string name = 1;
+  int64 offset = 2;
+  CopyCompression compression = 3;
+}
+
+message CopyReply {
+  int64 index = 1;
+  bytes content = 2;
+}
+
+enum CopyCompression {
+  none = 0;
+  gzip = 1;
+}

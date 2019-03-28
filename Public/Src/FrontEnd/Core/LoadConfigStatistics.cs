@@ -1,0 +1,85 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using BuildXL.FrontEnd.Workspaces;
+using BuildXL.FrontEnd.Core.Tracing;
+using BuildXL.FrontEnd.Sdk;
+
+namespace BuildXL.FrontEnd.Core
+{
+    /// <summary>
+    /// Statistics object for a configuration processing.
+    /// </summary>
+    public class LoadConfigStatistics : ILoadConfigStatistics
+    {
+        /// <inheritdoc />
+        public Counter FileCountCounter { get; } = new Counter();
+
+        /// <inheritdoc />
+        public int FileCount => FileCountCounter.Count;
+
+        /// <inheritdoc />
+        public Counter TotalDuration { get; } = new Counter();
+
+        /// <inheritdoc />
+        public int TotalDurationMs => (int) TotalDuration.AggregateDuration.TotalMilliseconds;
+
+        /// <inheritdoc />
+        public Counter ParseDuration { get; } = new Counter();
+
+        /// <inheritdoc />
+        public int ParseDurationMs => (int) ParseDuration.AggregateDuration.TotalMilliseconds;
+
+        /// <inheritdoc />
+        public Counter ConversionDuration { get; } = new Counter();
+
+        /// <inheritdoc />
+        public int ConversionDurationMs => (int) ConversionDuration.AggregateDuration.TotalMilliseconds;
+    }
+
+    /// <summary>
+    /// Statistics interface for a configuration processing.
+    /// </summary>
+    public interface ILoadConfigStatistics : IConfigurationStatistics
+    {
+        /// <nodoc />
+        Counter FileCountCounter { get; }
+
+        /// <nodoc />
+        int FileCount { get; }
+
+        /// <nodoc />
+        Counter TotalDuration { get; }
+
+        /// <nodoc />
+        int TotalDurationMs { get; }
+
+        /// <nodoc />
+        Counter ParseDuration { get; }
+
+        /// <nodoc />
+        int ParseDurationMs { get; }
+
+        /// <nodoc />
+        Counter ConversionDuration { get; }
+
+        /// <nodoc />
+        int ConversionDurationMs { get; }
+    }
+
+    /// <nodoc />
+    public static class LoadConfigStatisticsExtensions
+    {
+        /// <nodoc />
+        public static LoadConfigurationStatistics ToLoggingStatistics(this ILoadConfigStatistics statistics)
+        {
+            return new LoadConfigurationStatistics
+                   {
+                       ElapsedMilliseconds = statistics.TotalDurationMs,
+                       ElapsedMillisecondsConvertion = statistics.ConversionDurationMs,
+                       ElapsedMillisecondsParse = statistics.ParseDurationMs,
+                       FileCount = statistics.FileCount,
+                   };
+        }
+    }
+}

@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AwaitCommand" xml:space="preserve">
+    <value>Sending command '/await:{0}'</value>
+  </data>
+  <data name="ConfigAndPlatform" xml:space="preserve">
+    <value>Building using Configuration '{0}' and Platform '{1}'</value>
+  </data>
+  <data name="FailureMessage" xml:space="preserve">
+    <value>Failed to build value: '{0}'</value>
+  </data>
+  <data name="HostEventNotFound" xml:space="preserve">
+    <value>No system event for {ShortProductName} host found with name '{0}'.</value>
+  </data>
+  <data name="LaunchWaitMessage" xml:space="preserve">
+    <value>Waiting for {ShortProductName} process to launch...</value>
+  </data>
+  <data name="SuccessMessage" xml:space="preserve">
+    <value>Build succeeded for value: '{0}'</value>
+  </data>
+  <data name="GlobalPropertiesIncorrectType" xml:space="preserve">
+    <value>Instance of '{0}' does not match with the type '{1}'</value>
+  </data>
+  <data name="ListenRequiresCommand" xml:space="preserve">
+    <value>Parameter 'Command' should be specified with /listen</value>
+  </data>
+  <data name="MissingGlobalProperties" xml:space="preserve">
+    <value>Could not get instance of '{0}' to get global properties</value>
+  </data>
+  <data name="NoListenOrSendCommandTogether" xml:space="preserve">
+    <value>Command /listen and /sendCommand cannot be combined together</value>
+  </data>
+  <data name="RequireListenOrSendCommand" xml:space="preserve">
+    <value>Either /listen or /sendCommand is expected</value>
+  </data>
+  <data name="SendCommandMissingArguments" xml:space="preserve">
+    <value>Command /sendCommand:await should include valid spec file and {ShortProductName} value. Ensure that BuildXL SpecFile and BuildXL Value propery are defined in MSBuild project file.</value>
+  </data>
+</root>

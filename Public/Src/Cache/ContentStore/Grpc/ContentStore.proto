@@ -1,0 +1,267 @@
+﻿syntax = "proto3";
+
+package ContentStore.Grpc;
+
+// Defines an interface of a content server
+service ContentServer {
+    rpc Hello(HelloRequest) returns (HelloResponse) {}
+
+    rpc GetStats(GetStatsRequest) returns (GetStatsResponse) {}
+
+    rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse) {}
+
+    rpc Pin(PinRequest) returns (PinResponse) {}
+
+    rpc PinBulk(PinBulkRequest) returns (PinBulkResponse) {}
+
+    rpc PlaceFile(PlaceFileRequest) returns (PlaceFileResponse) {}
+
+    rpc PutFile(PutFileRequest) returns (PutFileResponse) {}
+
+    rpc ShutdownSession(ShutdownRequest) returns (ShutdownResponse) {}
+
+    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse) {}
+
+    rpc RemoveFromTracker(RemoveFromTrackerRequest) returns (RemoveFromTrackerResponse) {}
+
+    rpc CopyFile(CopyFileRequest) returns (stream CopyFileResponse) {}
+}
+
+// Defines an interface of a cache server
+service CacheServer {
+    rpc AddOrGetContentHashList(AddOrGetContentHashListRequest) returns (AddOrGetContentHashListResponse) {}
+
+    rpc GetContentHashList(GetContentHashListRequest) returns (GetContentHashListResponse) {}
+
+    rpc GetSelectors(GetSelectorsRequest) returns (GetSelectorsResponse) {}
+
+    rpc IncorporateStrongFingerprints(IncorporateStrongFingerprintsRequest) returns (IncorporateStrongFingerprintsResponse) {}
+}
+
+// Headers
+message RequestHeader {
+    int32 SessionId = 1;
+    string TraceId = 2;
+}
+
+message ResponseHeader {
+    bool Succeeded = 1;
+    int32 Result = 2;
+    string ErrorMessage = 3;
+    string Diagnostics = 4;
+    int64 ServerReceiptTimeUtcTicks = 5;
+}
+
+// Requests/Responses
+
+// Hello
+message HelloRequest {
+}
+
+message HelloResponse {
+    bool Success = 1;
+    int32 Capabilities = 2;
+}
+
+// GetStats
+message GetStatsRequest {
+}
+
+message GetStatsResponse {
+    bool Success = 1;
+    map<string, int64> Statistics = 2;
+}
+
+// CreateSession
+message CreateSessionRequest {
+    string TraceId = 1;
+    string CacheName = 2;
+    string SessionName = 3;
+    int32 ImplicitPin = 4;
+    int32 Capabilities = 5;
+}
+
+message CreateSessionResponse {
+    int32 SessionId = 1;
+    string ErrorMessage = 2;
+    string TempDirectory = 3;
+}
+
+// Pin
+message PinRequest {
+    RequestHeader Header = 1;
+    int32 HashType = 2;
+    bytes ContentHash = 3;
+}
+
+message PinResponse {
+     ResponseHeader Header = 1;
+}
+
+// PinBulk
+message PinBulkRequest {
+    RequestHeader Header = 1;
+    repeated ContentHashAndHashTypeData Hashes = 2;
+}
+
+message PinBulkResponse {
+    map<int32, ResponseHeader> Header = 1;
+}
+
+// PlaceFile
+message PlaceFileRequest {
+    RequestHeader Header = 1;
+    int32 HashType = 2;
+    bytes ContentHash = 3;
+    string Path = 4;
+    int32 FileAccessMode = 5;
+    int32 FileReplacementMode = 6;
+    int32 FileRealizationMode = 7;
+}
+
+message PlaceFileResponse {
+    ResponseHeader Header = 1;
+    int64 ContentSize = 2;
+}
+
+// PutFile
+message PutFileRequest {
+    RequestHeader Header = 1;
+    int32 HashType = 2;
+    bytes ContentHash = 3;
+    string Path = 4;
+    int32 FileRealizationMode = 5;
+}
+
+message PutFileResponse {
+    ResponseHeader Header = 1;
+    int32 HashType = 2;
+    bytes ContentHash = 3;
+    int64 ContentSize = 4;
+}
+
+// Shutdown
+message ShutdownRequest {
+    RequestHeader Header = 1;
+}
+
+message ShutdownResponse {
+}
+
+// Heartbeat
+message HeartbeatRequest {
+    RequestHeader Header = 1;
+}
+
+message HeartbeatResponse {
+    ResponseHeader Header = 1;
+}
+
+// RemoveFromTracker
+message RemoveFromTrackerRequest {
+    string TraceId = 1;
+}
+
+message RemoveFromTrackerResponse {
+    ResponseHeader Header = 1;
+    int64 FilesEvicted = 2;
+}
+
+// AddOrGetContentHashList
+message AddOrGetContentHashListRequest {
+    RequestHeader Header = 1;
+    StrongFingerprintData Fingerprint = 2;
+    ContentHashListWithDeterminismData HashList = 3;
+}
+
+message AddOrGetContentHashListResponse {
+    ResponseHeader Header = 1;
+    ContentHashListWithDeterminismData HashList = 2;
+}
+
+// GetContentHashList
+message GetContentHashListRequest {
+    RequestHeader Header = 1;
+    StrongFingerprintData Fingerprint = 2;
+}
+
+message GetContentHashListResponse {
+    ResponseHeader Header = 1;
+    ContentHashListWithDeterminismData HashList = 2;
+}
+
+// GetSelectors
+message GetSelectorsRequest {
+    RequestHeader Header = 1;
+    bytes WeakFingerprint = 2;
+    int32 level = 3;
+}
+
+message GetSelectorsResponse {
+    ResponseHeader Header = 1;
+    repeated SelectorData Selectors = 2;
+    bool HasMore = 3;
+}
+
+// IncorporateStrongFingerprints
+message IncorporateStrongFingerprintsRequest {
+    RequestHeader Header = 1;
+    repeated StrongFingerprintData StrongFingerprints = 2;
+}
+
+message IncorporateStrongFingerprintsResponse {
+    ResponseHeader Header = 1;
+}
+
+
+// Common data types
+
+message ContentHashAndHashTypeData {
+    int32 HashType = 1;
+    bytes ContentHash = 2;
+}
+
+message StrongFingerprintData {
+    bytes WeakFingerprint = 1;
+    SelectorData Selector = 2;
+}
+
+message CacheDeterminismData {
+    bytes Guid = 1;
+    int64 ExpirationUtc = 2;
+}
+
+message ContentHashListWithDeterminismData {
+    CacheDeterminismData CacheDeterminism = 1;
+    ContentHashListData ContentHashList = 2;
+}
+
+message ContentHashListData {
+    repeated ContentHashAndHashTypeData ContentHashes = 1;
+    bytes Payload = 2;
+}
+
+message SelectorData {
+    ContentHashAndHashTypeData ContentHash = 1;
+    bytes Output = 2;
+}
+
+message CopyFileRequest {
+    string TraceId = 1;
+    int32 HashType = 2;
+    bytes ContentHash = 3;
+    string Drive = 4;
+    int64 Offset = 5;
+    CopyCompression compression = 6;
+}
+
+message CopyFileResponse {
+    ResponseHeader Header = 1;
+    bytes Content = 2;
+    int64 Index = 3;
+}
+
+enum CopyCompression {
+    none = 0;
+    gzip = 1;
+}

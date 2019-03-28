@@ -1,0 +1,14 @@
+Cases/stringLiteralTypesInferenceAtComparisonLocations3.ts(5,7): error TS2322: Type '"cat"' is not assignable to type '"tiger" | "koala"'.
+  Type '"cat"' is not assignable to type '"koala"'.
+
+
+==== Cases/stringLiteralTypesInferenceAtComparisonLocations3.ts (1 errors) ====
+    const x : "tiger" | "koala" = "tiger";
+    
+    switch (x) {
+    	case "tiger":
+    	case "cat":
+          ~~~~~
+!!! error TS2322: Type '"cat"' is not assignable to type '"tiger" | "koala"'.
+!!! error TS2322:   Type '"cat"' is not assignable to type '"koala"'.
+    }

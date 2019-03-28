@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/01/nuspec.xsd">
+  <metadata minClientVersion="2.12">
+    <id>runtime.osx-x64.BuildXL</id>
+    <version>0.0.0</version>
+    <title>runtime.osx-x64.BuildXL</title>
+    <authors>Microsoft</authors>
+    <owners>microsoft,buildxl,bxl</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>The BuildXL runtime libraries and sandbox kernel extension for macOS. The package contains both, debug and signed release binaries.</description>
+    <copyright>© Microsoft Corporation. All rights reserved.</copyright>
+    <serviceable>true</serviceable>
+  </metadata>
+</package>

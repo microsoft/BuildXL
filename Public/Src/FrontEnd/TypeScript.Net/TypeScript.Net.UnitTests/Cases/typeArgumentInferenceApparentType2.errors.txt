@@ -1,0 +1,20 @@
+Cases/typeArgumentInferenceApparentType2.ts(2,30): error TS2304: Cannot find name 'Iterable'.
+Cases/typeArgumentInferenceApparentType2.ts(3,30): error TS2304: Cannot find name 'Iterable'.
+Cases/typeArgumentInferenceApparentType2.ts(5,13): error TS2322: Type '{}' is not assignable to type 'T'.
+
+
+==== Cases/typeArgumentInferenceApparentType2.ts (3 errors) ====
+    //@target: ES6
+    function method<T>(iterable: Iterable<T>): T {
+                                 ~~~~~~~~
+!!! error TS2304: Cannot find name 'Iterable'.
+        function inner<U extends Iterable<T>>() {
+                                 ~~~~~~~~
+!!! error TS2304: Cannot find name 'Iterable'.
+            var u: U;
+            var res: T = method(u);
+                ~~~
+!!! error TS2322: Type '{}' is not assignable to type 'T'.
+        }
+        return;
+    }

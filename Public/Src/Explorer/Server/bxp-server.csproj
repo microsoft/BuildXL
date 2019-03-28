@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <RootNamespace>Domino.Explorer.Server</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Analyzers\" />
+    <Folder Include="wwwroot\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNet.WebUtilities" Version="1.0.0-rc1-final" />
+    <PackageReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.Extensions.Primitives" Version="2.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Domino.Engine">
+      <HintPath>..\..\..\..\Out\Bin\debug\win-x64\Domino.Engine.dll</HintPath>
+    </Reference>
+    <Reference Include="Domino.Execution.Analyzer">
+      <HintPath>..\..\..\..\Out\Bin\debug\win-x64\Domino.Execution.Analyzer.dll</HintPath>
+    </Reference>
+    <Reference Include="Domino.Pips">
+      <HintPath>..\..\..\..\Out\Bin\debug\win-x64\Domino.Pips.dll</HintPath>
+    </Reference>
+    <Reference Include="Domino.Processes">
+      <HintPath>..\..\..\..\Out\Bin\debug\win-x64\Domino.Processes.dll</HintPath>
+    </Reference>
+    <Reference Include="Domino.Scheduler">
+      <HintPath>..\..\..\..\Out\Bin\debug\win-x64\Domino.Scheduler.dll</HintPath>
+    </Reference>
+    <Reference Include="Domino.Storage">
+      <HintPath>..\..\..\..\Out\Bin\debug\win-x64\Domino.Storage.dll</HintPath>
+    </Reference>
+    <Reference Include="Domino.ToolSupport">
+      <HintPath>..\..\..\..\Out\Bin\debug\win-x64\Domino.ToolSupport.dll</HintPath>
+    </Reference>
+    <Reference Include="Domino.Tracing">
+      <HintPath>..\..\..\..\Out\Bin\debug\win-x64\Domino.Tracing.dll</HintPath>
+    </Reference>
+    <Reference Include="Domino.Utilities">
+      <HintPath>..\..\..\..\Out\Bin\debug\win-x64\Domino.Utilities.dll</HintPath>
+    </Reference>
+    <Reference Include="Domino.Utilities.Instrumentation.Common">
+      <HintPath>..\..\..\..\Out\Bin\debug\win-x64\Domino.Utilities.Instrumentation.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="Domino.VisualizationModel">
+      <HintPath>..\..\..\..\Out\Bin\debug\win-x64\Domino.VisualizationModel.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.OneBuild.Collections">
+      <HintPath>..\..\..\..\Out\Bin\debug\win-x64\Microsoft.OneBuild.Collections.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

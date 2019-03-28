@@ -1,0 +1,12 @@
+Cases/stringLiteralTypesInferenceAtComparisonLocations.ts(3,5): error TS2365: Operator '===' cannot be applied to types '"tiger" | "koala"' and '"cat"'.
+
+
+==== Cases/stringLiteralTypesInferenceAtComparisonLocations.ts (1 errors) ====
+    const x : "tiger" | "koala" = "tiger";
+    
+    if (x === "cat") 
+        ~~~~~~~~~~~
+!!! error TS2365: Operator '===' cannot be applied to types '"tiger" | "koala"' and '"cat"'.
+    {
+       
+    } 

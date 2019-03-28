@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Build\Common.props" />
+  <PropertyGroup>
+    <ProjectGuid>{C2EEC7B8-D435-4989-96DC-F90E57044FFF}</ProjectGuid>
+    <RootNamespace>MemoizationStoreInterfaces</RootNamespace>
+    <AssemblyName>Microsoft.MemoizationStoreInterfaces</AssemblyName>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <None Include="project.json" />
+    <AdditionalFiles Include="stylecop.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\ContentStore\Interfaces\ContentStoreInterfaces-NetCore.csproj">
+      <Project>{87db81ec-c7de-41b9-a675-2185b4ce0b02}</Project>
+      <Name>ContentStoreInterfaces</Name>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNet.Contracts" Version="1.10.10126.4" />
+  </ItemGroup>
+</Project>

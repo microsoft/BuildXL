@@ -1,0 +1,80 @@
+// Example call for crashes over the past week:
+// CrashBugSummary(ago(7d), now())
+
+.create-or-alter function with (folder = "triage", docstring = "CrashBugSummary", skipvalidation = "true") CrashBugSummary(startDate:datetime, endDate:datetime)
+{
+let annotatedSessions = AnnotatedSessions(startDate, endDate);
+//
+//
+// *****
+// Domino crashes for the past week with unknown causes
+// *****
+let unknownCrashSessions = annotatedSessions
+| where BucketGroup == "Crash"
+| where RootCause == "Unknown"
+| project SessionId, UniqueSession, InProbation, TimeBucket, KnownBug, BuildInfo_Build, Customer, Codebase, Infra, UserName, SuggestedBugName, Exception, InternalError, BuildQueue, CBCanRetry, CBReturnType, BuildInfo_CommitId;
+//
+//
+// *****
+// Summarized view of Domino crashes for the past week with unknown causes
+// *****
+let crashSummary = unknownCrashSessions
+| extend FormerBuildVersionDateFormat = todatetime(strcat_array(extract_all(@"\d\.(\d{4})(\d{2})(\d{2})\.[.\d]*", dynamic([1, 2, 3]), tostring(BuildInfo_Build))[0], "-"))
+| extend BuildVersionDate = iff(isnull(FormerBuildVersionDateFormat) or isempty(FormerBuildVersionDateFormat), todatetime(strcat_array(extract_all(@"\d\.\d.\d-(\d{4})(\d{2})(\d{2})\.[.\d]*", dynamic([1, 2, 3]), tostring(BuildInfo_Build))[0], "-")), FormerBuildVersionDateFormat)
+| summarize Count = count(), AllCustomers = makeset(Customer), AllUsers = makeset(UserName), AllInfras = makeset(Infra), AllBuildQueues = makeset(BuildQueue), arg_max(BuildVersionDate, *) by SuggestedBugName
+| extend CollapsedInfo = strcat(
+    "DominoBuild: ", BuildInfo_Build, "\n",  
+    "Time(UTC): ", TimeBucket, "\n", 
+    "SessionId: ", SessionId, "\n", 
+    "RelatedSessionId: ", UniqueSession, "\n",
+    "Customer: ", Customer, "\n",
+    "Infra: ", Infra, "\n",
+    "Username: ", UserName, "\n"
+    "Codebase: ", Codebase, "\n", 
+    "DominoCommit: ", BuildInfo_CommitId, "\n",
+    "\nAGGREGATES\n"
+    "Count: ", Count, "\n",
+    "Customers: ", AllCustomers, "\n", 
+    "Infras: ", AllInfras, "\n", 
+    "Users: ", AllUsers, "\n", 
+    "BuildQueues: ", AllBuildQueues, "\n")
+| extend BugRepro = strcat(CollapsedInfo, "\n", Exception, "\n")
+| project BuildVersionDate, Count, SuggestedBugName, BugRepro, AllCustomers, AllUsers, AllInfras, AllBuildQueues;
+//
+//
+// *****
+// Bug work item info from Azure DevOps
+// *****
+let bugInfo = cluster('1es').database('VSTSAnalytics').WorkItemV2
+| where OrganizationName ==  "mseng.visualstudio.com" and TeamProject == "1ES"  
+| where AreaPath contains @"1ES\MichaelP - Team" or AreaPath contains @"1ES\DavidW - Team"
+| where WorkItemType == "Bug"
+| extend ResolvedDate = todatetime(strcat_array(extract_all(@"(\d{2})/(\d{2})/(\d{4})", dynamic([3, 1, 2]), tostring(Data["Microsoft.VSTS.Common.ResolvedDate"]))[0], "-"))
+| extend ClosedDate = todatetime(strcat_array(extract_all(@"(\d{2})/(\d{2})/(\d{4})", dynamic([3, 1, 2]), tostring(Data["Microsoft.VSTS.Common.ClosedDate"]))[0], "-"))
+| extend FixDate = iff(isnull(ResolvedDate), ClosedDate, ResolvedDate) // Prefer resolved date over closed date
+| project FixDate, Title, WorkItemId;
+//
+//
+// *****
+// Domino crash bug summary for the past week
+//
+// -----
+// BugAction categorization guide:
+// <ActionName> => <Action to execute using AzDev UI>: <Action category criteria>
+//
+// Note VSTSAnalytics data only refreshes once a day, so FixDate may be incorrect for recently altered bugs 
+// -----
+// File => File new bug: No bug matches "SuggestedBugName" for crash
+// Update => Comment on bug with hit count for the week: Existing bug matching "SuggestedBugName", but no FixDate
+// Reactivate => Reactivate existing bug: Existing bug with FixDate where FixDate is after BuildVersionDate
+// Ignore => Ignore bug: Existing bug with FixDate where FixDate is before BuildVersionDate
+// -----
+// *****
+let crashBugSummary = crashSummary 
+| join kind = leftouter( bugInfo ) on $left.SuggestedBugName == $right.Title
+| extend BugAction = iff(isnull(WorkItemId) or isempty(WorkItemId), "File", iff(isnull(FixDate), "Update", iff(FixDate < BuildVersionDate, "Reactivate", "Ignore")))
+| sort by BugAction, Count
+| project BugAction, WorkItemId, Count, SuggestedBugName, BugRepro;
+//
+crashBugSummary;
+}

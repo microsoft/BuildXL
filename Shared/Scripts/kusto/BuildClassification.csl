@@ -1,0 +1,36 @@
+let start = ago(1d);
+let end = ago(0d);
+dominoinvocation
+| where EventInfo_Time  > start
+    and EventInfo_Time  < end
+| extend OfficeBuildType = case(
+            Environment contains "EnlistmentBuild", "enlist",
+            Environment contains "MetaBuild", "meta",
+            Environment contains "ProductBuild", "product", 
+            ""),
+    Codebase = extract("(Tenant=|Branch=)([^;]*)", 2, Environment),
+    EnvironmentShort = extract("([^;]*)", 1 , Environment),
+    CBQueue = extract("(cloudBuildQueue=)([^;]*)", 2 , Environment),
+    Role = extract("(distributedBuildRole:)([^ ]*)", 2 , CommandLine),
+    Infra = case(
+        UserName == "_qcloud1" or UserName == "_qcloud2" , "CB",
+        (Environment contains "Dev" or Environment contains "WrapItUp") and UserName != "tpctext" and UserName != "y-arnold", "Dev",
+        (Environment contains "OSGTools") and UserName != "tsebuild", "Dev",
+        Environment contains "Self" and UserName != "tsebuild", "Dev",
+        "Lab")
+    | extend Customer = 
+        case(
+            EnvironmentShort contains "Office", "Office",
+            EnvironmentShort contains "OSGTools", "OsgTools",
+            EnvironmentShort contains "OSG", "WDG",
+            EnvironmentShort contains "Self", "TSE",
+            "Unknown")
+    | extend UniqueSession = case(
+    isempty(RelatedSessionIdentifier), SessionId,
+    RelatedSessionIdentifier)
+| where BuildInfo_IsDeveloperBuild == "False"
+// For CB, only look at non-probation queue
+| join kind = leftouter (
+    database("CloudBuildProd").BuildInfo
+) on $left.UniqueSession == $right.BuildId
+    | project SessionId, UniqueSession, OfficeBuildType, Codebase, Customer, CBQueue, Role, Infra, InProbation 

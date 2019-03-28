@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{0000000A-0000-00AA-AA00-0AA00A00A00A}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <OutDir>objd\amd64</OutDir>
+    <RootNamespace>SomeNamespace</RootNamespace>
+    <AssemblyName>SomeName</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="SomeFile.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <FilesToCopy Include="copy1.dll" />
+    <FilesToCopy Include="copy2.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <DestFiles Include="target\$(Configuration)\$(Platform)\folder1\copy1.dll" />
+    <DestFiles Include="target\$(Configuration)\$(Platform)\folder2\copy2.dll" />
+  </ItemGroup>
+  <Target Name="CustomTarget">
+    <Copy SourceFiles="@(FilesToCopy)" DestinationFiles="@(DestFiles)" />
+  </Target>
+</Project>

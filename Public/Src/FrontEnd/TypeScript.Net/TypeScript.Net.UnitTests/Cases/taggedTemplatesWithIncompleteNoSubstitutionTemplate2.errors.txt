@@ -1,0 +1,13 @@
+Cases/taggedTemplatesWithIncompleteNoSubstitutionTemplate2.ts(7,4): error TS1160: Unterminated template literal.
+
+
+==== Cases/taggedTemplatesWithIncompleteNoSubstitutionTemplate2.ts (1 errors) ====
+    // @target: es6
+    
+    function f(x: TemplateStringsArray, y: string, z: string) {
+    }
+    
+    // Incomplete call, not enough parameters, at EOF.
+    f `
+       
+!!! error TS1160: Unterminated template literal.

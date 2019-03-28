@@ -1,0 +1,149 @@
+Transformer.sealPartialDirectory(d`./src/artifactDirSNone`, []);
+Transformer.sealPartialDirectory(d`./src/artifactDirSIn`, []);
+Transformer.execute({
+    tool: {exe: f`./src/stringInput.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argStr", "strValue"],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argNum", "123"],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argAtom", "atomValue"],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argArtifactPathNone", p`./src/artifactPathNone`],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argArtifactPathIn", p`./src/artifactPathIn`],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argArtifactPathOut", p`./Out/artifactPathOut`],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argArtifactFileNone", p`./src/artifactFileNone`],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argArtifactFileIn", p`./src/artifactFileIn`],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argArtifactDirNone", p`./src/artifactDirNone`],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argArtifactDirOut", p`./Out/artifactDirOut`],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argArtifactSDirNone", p`./src/artifactDirSNone`],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argArtifactSDirIn", p`./src/artifactDirSIn`],
+            },
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["argPrimaryStrRaw"],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argPrimaryStrRegular", "argPrimaryStrRaw"],
+            },
+            "argPrimaryStrFlag",
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: ["1234"],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argPrimaryNumRegular", "1235"],
+            },
+            "argPrimaryNumFlag",
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["argPrimaryAtomRegular", "argPrimaryAtomRaw"],
+            },
+            "argPrimaryAtomFlag",
+            {
+                escaping: "NoEscaping",
+                separator: "",
+                items: [
+                    "compound",
+                    {
+                        escaping: "NoEscaping",
+                        separator: "-compoundSeparator-",
+                        items: [
+                            "compoundStrValue",
+                            "123",
+                            "compoundAtomValue",
+                            p`./src/compoundFileIn`,
+                        ],
+                    },
+                ],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["valuesStr", "valuesStrValue1"],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["valuesStr", "valueStrValue2"],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["valuesInputArtifact", p`./src/valuesFileIn1`],
+            },
+            {
+                escaping: "CRuntimeArgumentRules",
+                separator: "",
+                items: ["valuesInputArtifact", p`./src/valuesFileIn2`],
+            },
+            "noNameString",
+        ],
+    },
+    workingDirectory: d`./Out/working`,
+    dependencies: [
+        f`./src/stringInput.exe`,
+        f`./src/artifactPathIn`,
+        f`./src/artifactFileIn`,
+        f`./src/compoundFileIn`,
+        f`./src/valuesFileIn1`,
+        f`./src/valuesFileIn2`,
+        d`./src/artifactDirSIn`,
+    ],
+    implicitOutputs: [f`./Out/artifactPathOut`, f`./Out/file1.out`, d`./Out/artifactDirOut`],
+});
+Transformer.sealDynamicDirectory(d`./Out/artifactDirOut`);

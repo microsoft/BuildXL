@@ -1,0 +1,48 @@
+// Aggregates build information from multiple Kusto tables by Domino session
+let annotatedSessions = AnnotatedSessions(ago(90d), now());
+//
+// ===============================================
+// Task specific queries. Uncomment the appropriate query below based on your needs
+// Bulk uncomment:  ctrl-k, ctrl-u
+// Bulk comment:    ctrl-k, ctrl-c
+// ===============================================
+//
+//
+// ***** 
+// MSR reliability rate
+// *****
+// annotatedSessions
+// | where MSRReportable == 1
+// | extend IsInternal = case(InternalError > 0, 1, 0)
+// | extend IsInteranAndCBNotRetryable = case(IsInternal > 0 and CBCanRetry == 0, 1, 0)
+// | extend month = startofmonth(TimeBucket)
+// | summarize min(TimeBucket), SessionCount = sum(SessionCount), sum(IsInternal), sum(IsInteranAndCBNotRetryable) by Infra, month
+// | extend reliability = 100.0 - (100.0 * (sum_IsInternal * 1.0 / SessionCount))
+// | extend reliabilityCBRetry = 100.0 - (100.0 * (sum_IsInteranAndCBNotRetryable * 1.0 / SessionCount))
+//
+//
+// *****
+// Summary of recent internal errors
+// *****
+// annotatedSessions
+// | where MSRReportable == 1
+// | where InternalError > 0
+// | summarize SessionCount = sum(SessionCount) by BucketGroup
+// | order by SessionCount desc
+//
+//
+// *****
+// Looking at recent internal error details
+// *****
+// annotatedSessions
+// | where MSRReportable == 1
+// | where InternalError > 0
+//
+//
+// *****
+// All Domino crashes for the past week summarized by root cause
+// *****
+// annotatedSessions
+// | where isempty(RootCause) == false
+// | summarize SessionCount = sum(SessionCount) by RootCause 
+// | top 20 by SessionCount desc

@@ -1,0 +1,3 @@
+export const aliasToAFunction = myExportedFunction;
+
+export const myFoo = aliasToAFunction({});

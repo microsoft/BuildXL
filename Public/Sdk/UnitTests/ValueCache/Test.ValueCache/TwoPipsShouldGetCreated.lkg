@@ -1,0 +1,16 @@
+Transformer.writeFile(
+    f`./Out/out1.txt`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: ["FileContent"],
+    }
+);
+Transformer.writeFile(
+    f`./Out/out2.txt`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: ["FileContent"],
+    }
+);

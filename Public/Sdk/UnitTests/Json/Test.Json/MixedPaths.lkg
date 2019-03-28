@@ -1,0 +1,16 @@
+Transformer.writeFile(
+    f`./Out/out.json`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            "{\r\n  'p': '",
+            p`./path`,
+            "',\r\n  'f': '",
+            p`./file`,
+            "',\r\n  'd': '",
+            p`./dir`,
+            "'\r\n}",
+        ],
+    }
+);

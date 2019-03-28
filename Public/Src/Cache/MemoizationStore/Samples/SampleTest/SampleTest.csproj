@@ -1,0 +1,160 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\packages\xunit.runner.visualstudio.2.1.0\build\net20\xunit.runner.visualstudio.props" Condition="Exists('..\packages\xunit.runner.visualstudio.2.1.0\build\net20\xunit.runner.visualstudio.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{683AB2EC-7130-4E4A-B2EC-4070C30E9974}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>SampleTest</RootNamespace>
+    <AssemblyName>SampleTest</AssemblyName>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <ProjectTypeGuids>{3AC096D0-A1C2-E12C-1390-A8335801FDAB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <TestProjectType>UnitTest</TestProjectType>
+    <TargetFrameworkProfile />
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="EntityFramework, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
+      <HintPath>..\packages\EntityFramework.6.0.0\lib\net45\EntityFramework.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="EntityFramework.SqlServer, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
+      <HintPath>..\packages\EntityFramework.6.0.0\lib\net45\EntityFramework.SqlServer.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="FluentAssertions, Version=4.2.2.0, Culture=neutral, PublicKeyToken=33f2691a05b67b6a, processorArchitecture=MSIL">
+      <HintPath>..\packages\FluentAssertions.4.2.2\lib\net45\FluentAssertions.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="FluentAssertions.Core, Version=4.2.2.0, Culture=neutral, PublicKeyToken=33f2691a05b67b6a, processorArchitecture=MSIL">
+      <HintPath>..\packages\FluentAssertions.4.2.2\lib\net45\FluentAssertions.Core.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.ContentStore, Version=3.4.0.0, Culture=neutral, PublicKeyToken=1055fbdf2d8b69e0, processorArchitecture=MSIL">
+      <HintPath>..\packages\ContentStoreLibrary.3.4.0\lib\net451\Microsoft.ContentStore.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.ContentStoreInterfaces, Version=3.2.0.0, Culture=neutral, PublicKeyToken=1055fbdf2d8b69e0, processorArchitecture=MSIL">
+      <HintPath>..\packages\ContentStoreInterfaces.3.2.0\lib\net451\Microsoft.ContentStoreInterfaces.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.ContentStoreInterfacesTest, Version=3.2.0.0, Culture=neutral, PublicKeyToken=1055fbdf2d8b69e0, processorArchitecture=MSIL">
+      <HintPath>..\packages\ContentStoreInterfacesTest.3.2.0\lib\net451\Microsoft.ContentStoreInterfacesTest.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.ContentStoreTest, Version=3.4.0.0, Culture=neutral, PublicKeyToken=1055fbdf2d8b69e0, processorArchitecture=MSIL">
+      <HintPath>..\packages\ContentStoreTest.3.4.0\lib\net451\Microsoft.ContentStoreTest.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.MemoizationStore, Version=3.7.0.0, Culture=neutral, PublicKeyToken=1055fbdf2d8b69e0, processorArchitecture=MSIL">
+      <HintPath>..\packages\MemoizationStoreLibrary.3.7.0\lib\net451\Microsoft.MemoizationStore.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.MemoizationStoreInterfaces, Version=4.0.0.0, Culture=neutral, PublicKeyToken=1055fbdf2d8b69e0, processorArchitecture=MSIL">
+      <HintPath>..\packages\MemoizationStoreInterfaces.4.0.0\lib\net451\Microsoft.MemoizationStoreInterfaces.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.MemoizationStoreInterfacesTest, Version=3.4.0.0, Culture=neutral, PublicKeyToken=1055fbdf2d8b69e0, processorArchitecture=MSIL">
+      <HintPath>..\packages\MemoizationStoreInterfacesTest.3.4.0\lib\net451\Microsoft.MemoizationStoreInterfacesTest.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.MemoizationStoreTest, Version=3.6.0.0, Culture=neutral, PublicKeyToken=1055fbdf2d8b69e0, processorArchitecture=MSIL">
+      <HintPath>..\packages\MemoizationStoreTest.3.6.0\lib\net451\Microsoft.MemoizationStoreTest.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.QualityTools.UnitTestFramework" />
+    <Reference Include="Moq, Version=4.2.1510.2205, Culture=neutral, PublicKeyToken=69f491c39445e920, processorArchitecture=MSIL">
+      <HintPath>..\packages\Moq.4.2.1510.2205\lib\net40\Moq.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Data.SQLite, Version=1.0.107.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Data.SQLite.Core.1.0.107.0\lib\net451\System.Data.SQLite.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Data.SQLite.EF6, Version=1.0.107.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Data.SQLite.EF6.1.0.107.0\lib\net451\System.Data.SQLite.EF6.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Data.SQLite.Linq, Version=1.0.107.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Data.SQLite.Linq.1.0.107.0\lib\net451\System.Data.SQLite.Linq.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Threading.Tasks.Dataflow, Version=4.5.24.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Tpl.Dataflow.4.5.24\lib\portable-net45+win8+wpa81\System.Threading.Tasks.Dataflow.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="xunit.abstractions, Version=2.0.0.0, Culture=neutral, PublicKeyToken=8d05b1bb7a6fdb6c, processorArchitecture=MSIL">
+      <HintPath>..\packages\xunit.abstractions.2.0.0\lib\net35\xunit.abstractions.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="xunit.assert, Version=2.1.0.3179, Culture=neutral, PublicKeyToken=8d05b1bb7a6fdb6c, processorArchitecture=MSIL">
+      <HintPath>..\packages\xunit.assert.2.1.0\lib\dotnet\xunit.assert.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="xunit.core, Version=2.1.0.3179, Culture=neutral, PublicKeyToken=8d05b1bb7a6fdb6c, processorArchitecture=MSIL">
+      <HintPath>..\packages\xunit.extensibility.core.2.1.0\lib\dotnet\xunit.core.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="xunit.execution.desktop, Version=2.1.0.3179, Culture=neutral, PublicKeyToken=8d05b1bb7a6fdb6c, processorArchitecture=MSIL">
+      <HintPath>..\packages\xunit.extensibility.execution.2.1.0\lib\net45\xunit.execution.desktop.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="CustomMemoizationSessionTests.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\System.Data.SQLite.Core.1.0.107.0\build\net451\System.Data.SQLite.Core.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\System.Data.SQLite.Core.1.0.107.0\build\net451\System.Data.SQLite.Core.targets'))" />
+    <Error Condition="!Exists('..\packages\xunit.runner.visualstudio.2.1.0\build\net20\xunit.runner.visualstudio.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\xunit.runner.visualstudio.2.1.0\build\net20\xunit.runner.visualstudio.props'))" />
+    <Error Condition="!Exists('..\packages\ContentStoreInterfaces.3.2.0\build\ContentStoreInterfaces.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\ContentStoreInterfaces.3.2.0\build\ContentStoreInterfaces.props'))" />
+    <Error Condition="!Exists('..\packages\ContentStoreInterfacesTest.3.2.0\Build\ContentStoreInterfacesTest.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\ContentStoreInterfacesTest.3.2.0\Build\ContentStoreInterfacesTest.props'))" />
+    <Error Condition="!Exists('..\packages\ContentStoreLibrary.3.4.0\build\ContentStoreLibrary.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\ContentStoreLibrary.3.4.0\build\ContentStoreLibrary.props'))" />
+    <Error Condition="!Exists('..\packages\ContentStoreTest.3.4.0\build\ContentStoreTest.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\ContentStoreTest.3.4.0\build\ContentStoreTest.props'))" />
+    <Error Condition="!Exists('..\packages\MemoizationStoreInterfaces.4.0.0\build\MemoizationStoreInterfaces.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\MemoizationStoreInterfaces.4.0.0\build\MemoizationStoreInterfaces.props'))" />
+    <Error Condition="!Exists('..\packages\MemoizationStoreInterfacesTest.3.4.0\build\MemoizationStoreInterfacesTest.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\MemoizationStoreInterfacesTest.3.4.0\build\MemoizationStoreInterfacesTest.props'))" />
+    <Error Condition="!Exists('..\packages\MemoizationStoreLibrary.3.7.0\build\MemoizationStoreLibrary.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\MemoizationStoreLibrary.3.7.0\build\MemoizationStoreLibrary.props'))" />
+    <Error Condition="!Exists('..\packages\MemoizationStoreTest.3.6.0\build\MemoizationStoreTest.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\MemoizationStoreTest.3.6.0\build\MemoizationStoreTest.props'))" />
+  </Target>
+  <Import Project="..\packages\System.Data.SQLite.Core.1.0.107.0\build\net451\System.Data.SQLite.Core.targets" Condition="Exists('..\packages\System.Data.SQLite.Core.1.0.107.0\build\net451\System.Data.SQLite.Core.targets')" />
+</Project>

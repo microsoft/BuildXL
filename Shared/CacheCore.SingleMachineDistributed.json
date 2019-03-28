@@ -1,0 +1,21 @@
+{
+    "Assembly": "BuildXL.Cache.VerticalAggregator",
+    "LocalCache": {
+        "MaxCacheSizeInMB": 10240,
+        "CacheId": "SelfhostCS2L1",
+        "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
+        "CacheLogPath": "[BuildXLSelectedLogPath]",
+        "Type": "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory",
+        "CacheRootPath": "{objectRoot}:\\Cache\\M{machineNumber}"
+    },
+    "RemoteIsReadOnly": false,
+    "WriteThroughCasData": true,
+    "RemoteCache": {
+        "Assembly": "BuildXL.Cache.BasicFilesystem",
+        "CacheRootPath": "{escapedMasterCacheRoot}",
+        "StrictMetadataCasCoupling": true,
+        "Type": "BuildXL.Cache.BasicFilesystem.BasicFilesystemCacheFactory",
+        "CacheId": "DistributedBuildBasicFileSystemL2"
+    },
+    "Type": "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory"
+}

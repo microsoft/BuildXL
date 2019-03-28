@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Create a scenario where these targets run based on already hooked targets.-->
+  <Target Name="CustomBeforeCopyTarget"  BeforeTargets="Build">
+    <Copy SourceFiles="@(FilesToCopy)" DestinationFiles="@(FilesToCopy-> 'target\$(Configuration)\$(Platform)\folder1\%(FileName)%(Extension)')" />
+  </Target>
+  <Target Name="CustomAfterCopyTarget" AfterTargets="Build">
+    <Copy SourceFiles="@(CustomFilesToCopy)" DestinationFiles="@(CustomFilesToCopy-> 'target\$(Configuration)\$(Platform)\folder1\%(FileName)%(Extension)')" />
+  </Target>
+  <Target Name="Build" />
+  
+  <!-- Add targets that are hooked onto non-existent targets and will not execute. -->
+  <Target Name="CustomBeforeNonExistentCopyTarget"  BeforeTargets="DefaultNonExistentTarget">
+    <Copy SourceFiles="@(FilesToCopy)" DestinationFiles="@(FilesToCopy-> 'target\$(Configuration)\$(Platform)\folder2\%(FileName)%(Extension)')" />
+  </Target>
+  <Target Name="DefaultNonExistentTarget" />
+  
+  <!-- Add targets that are compounded i.e. run Before a target scheduled by a BeforeTarget -->
+  <Target Name="TargetBeforeCustomCopyTarget" BeforeTargets="CustomBeforeCopyTarget">
+    <Copy SourceFiles="@(CustomFilesToCopy)" DestinationFiles="@(CustomFilesToCopy-> 'target\$(Configuration)\$(Platform)\folder3\%(FileName)%(Extension)')" />
+  </Target>
+  <Target Name="MultiLevelTargetBeforeCustomCopyTarget" AfterTargets="TargetBeforeCustomCopyTarget">
+    <Copy SourceFiles="@(FilesToCopy)" DestinationFiles="@(FilesToCopy-> 'target\$(Configuration)\$(Platform)\folder4\%(FileName)%(Extension)')" />
+  </Target>
+</Project>

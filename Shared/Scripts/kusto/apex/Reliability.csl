@@ -1,0 +1,25 @@
+dominoinvocation
+| where EventInfo_Time > ago(7d)
+| where (DeviceInfo_OsName contains "osx" or DeviceInfo_OsName == "Mac OS X")
+        and BuildInfo_CommitId != "[Developer Build]"
+        and BuildInfo_CommitId != "[DevBuild]"
+| join kind = leftouter (dominocatastrophicfailure) on SessionId
+| join kind = leftouter (dominomacoscrashreport) on $left.SessionId == $right.CrashSessionId
+| join kind = leftouter (dominocompletion) on SessionId
+| extend InternalError = case (
+        Exception != "", 1,
+        toint(ExitCode) == -1, 1,
+        Filename != "", 1, // crash report file name
+    0)
+| extend NoCleanExit = case (
+        InternalError == 1, 1,
+        ExitCode == "", 1,
+    0)
+//// uncomment this and comment out the summarize clause to drill down into errors
+//| where NoCleanExit == 1
+//| project EventInfo_Time, BuildInfo_Build, MachineName, UserName, InternalError, ErrorBucket, ExitCode, Exception, Crash_Report = Content
+| summarize BuildCount = count(),
+    InternalErrors = sum(InternalError),
+    NoCleanExitEvent = sum(NoCleanExit),
+    CleanExitReliability = 100.0 - (100.0 *sum(NoCleanExit)) / count(),
+    NoInternalErrorReliability = 100.0 - (100.0 *sum(InternalError)) / count() by startofweek(EventInfo_Time)

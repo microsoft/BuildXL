@@ -1,0 +1,8 @@
+interface SomeFunctionArguments {
+    someProperty?: boolean;
+}
+
+function someFunction(args: SomeFunctionArguments) : void {
+}
+
+const callSomeFunctoin = someFunction({});

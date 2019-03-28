@@ -1,0 +1,7 @@
+The 'testHardLink' tool will read the content of this file character by character.
+After every read character, the tool will probe a different file, and then sleep 
+for some short amount of time.  The length of this file, thus, affects the running
+time of the test processes.
+
+The purpose of all this is to test sandboxing when multiple processes are accessing
+the same physical file via different hard links.

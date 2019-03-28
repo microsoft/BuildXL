@@ -1,0 +1,12 @@
+const f1 = f`foO.dsc`;
+const f2 = f`foo.Dsc`;
+const f3 = f`foo.dsc/${''}`;
+
+const d1 = d`foo.dsc`;
+const p1 = p`foo.dsc`;
+
+const a1 = a`atom`;
+const a2 = a`atom`;
+
+const str = 'foo.dsc'; // should not be part of the result
+const str2 = 'atom'; // should not be part of the result

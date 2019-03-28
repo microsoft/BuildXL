@@ -1,0 +1,7 @@
+public partial interface (\w+)==>interface $1
+bool==>boolean
+(\s+)/// <summary.+==>$1/**
+(\s+)/// </summary.+==>$1*/
+(\s+)///==>$1*
+(\s+)\[(.+?)\]==>$1@@$2
+(\s+)(\w+) (\w+) { get; }==>$1$3: $2;

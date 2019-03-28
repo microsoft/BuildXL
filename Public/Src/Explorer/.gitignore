@@ -1,0 +1,6 @@
+Server/bin
+Server/obj
+Server/wwwroot
+Server/Properties/PublishProfiles
+
+Client/node_modules

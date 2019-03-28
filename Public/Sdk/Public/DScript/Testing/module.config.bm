@@ -1,0 +1,4 @@
+module({
+    name: "Sdk.Testing",
+    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences
+});

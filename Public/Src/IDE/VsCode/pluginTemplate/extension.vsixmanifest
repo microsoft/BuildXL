@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <Identity Language="en-US" Id="dscript" Version="0.0.0" Publisher="Microsoft"/>
+    <DisplayName>BuildXL DScript</DisplayName>
+    <Description xml:space="preserve">BuildXL DScript Visual Studio Code Extension</Description>
+    <Tags>theme,color-theme,snippet,dscript,DScript,dsc,__ext_.dsc,__ext_.bc,__ext_.bm,__ext_.bp,__ext_.bl,__ext_.bxt</Tags>
+    <Categories>Other</Categories>
+    <GalleryFlags>Public</GalleryFlags>
+    <Badges></Badges>
+    <Properties>
+      <Property Id="Microsoft.VisualStudio.Code.Engine" Value="^1.8.0" />
+      <Property Id="Microsoft.VisualStudio.Code.ExtensionDependencies" Value="" />
+      <Property Id="Microsoft.VisualStudio.Services.Links.Source" Value="https://aka.ms/BuildXLGit" />
+      <Property Id="Microsoft.VisualStudio.Services.Links.Getstarted" Value="https://aka.ms/BuildXLGit" />
+      <Property Id="Microsoft.VisualStudio.Services.Links.Repository" Value="https://aka.ms/BuildXLGit" />
+      <Property Id="Microsoft.VisualStudio.Services.GitHubFlavoredMarkdown" Value="true" />
+    </Properties>
+    <License>extension/License.txt</License>
+    <Icon>Extension\Resources\BuildXL.ico</Icon>
+  </Metadata>
+  <Installation>
+    <InstallationTarget Id="Microsoft.VisualStudio.Code"/>
+  </Installation>
+  <Dependencies/>
+  <Assets>
+    <Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true" />
+    <Asset Type="Microsoft.VisualStudio.Services.Content.License" Path="extension/License.txt" Addressable="true" />
+    <Asset Type="Microsoft.VisualStudio.Services.Icons.Default" Path="extension/resources/BuildXL.ico" Addressable="true" />
+  </Assets>
+</PackageManifest>

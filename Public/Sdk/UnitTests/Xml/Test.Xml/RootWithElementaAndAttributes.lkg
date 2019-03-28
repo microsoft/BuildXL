@@ -1,0 +1,8 @@
+Transformer.writeFile(
+    f`./Out/out.xml`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: ["<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<root a1=\"v1\" a2=\"v2\">\r\n  <c1 />\r\n  <c2 a1c=\"v1c\" />\r\n</root>"],
+    }
+);

@@ -1,0 +1,74 @@
+//let officeObuilds = cluster("kusto.aria.microsoft.com").database("DevMachineTelemetry").obuildinfo
+//| project RelatedSessionIdentifier = tolower(substring(BuildTaskID, 1, strlen(BuildTaskID) - 2));
+//
+//
+let invocationsSmall = dominoinvocation
+| where EventInfo_Time  > ago(7d)
+| where UserName != "y-arnold" and UserName != "_qcloud1" and UserName != "_qcloud2"
+| where Environment contains "Office"
+| where RelatedSessionIdentifier  != "00000000-0000-0000-0000-000000000000"
+| project EventInfo_Time, SessionId, Environment, UserName, RelatedSessionIdentifier
+// Statistics we want for all (enlist/meta/product) builds
+| join kind= leftouter (
+   finalstatistics 
+   | project SessionId, 
+   TimeToEngineRunCompleteMs, 
+   TimeToFirstPipMs,
+   CritPathExe_s =  toint(CriticalPath_ExeDurationMs)/ 1000.0,
+   CritPathPip_s =  toint(CriticalPath_PipDurationMs)/ 1000.0
+) on SessionId
+;
+//
+let enlistMeta = invocationsSmall
+| project Enlist_session = SessionId,
+Environment,
+Enlist_Start = EventInfo_Time,
+Enlist_s = toint(TimeToEngineRunCompleteMs) / 1000.0,
+RelatedSessionIdentifier
+| where Environment contains "Enlist"
+| join kind= leftouter (
+   invocationsSmall 
+    | where Environment contains "Meta"
+    | project Meta_session = SessionId ,
+    Meta_Start = EventInfo_Time,
+    Meta_s = toint(TimeToEngineRunCompleteMs) / 1000.0,
+    RelatedSessionIdentifier
+) on $left.RelatedSessionIdentifier == $right.RelatedSessionIdentifier
+; 
+//
+let session = enlistMeta
+| join kind= leftouter (
+   invocationsSmall 
+    | where Environment contains "Product"
+    | project Product_Session = SessionId ,
+    Product_Start = EventInfo_Time ,
+    Product_s = toint(TimeToEngineRunCompleteMs) / 1000.0,
+    RelatedSessionIdentifier,
+    CritPathExe_s,
+    CritPathPip_s
+) on $left.RelatedSessionIdentifier == $right.RelatedSessionIdentifier
+| project Enlist_session, Meta_session, Product_Session, RelatedSessionIdentifier, Environment, Enlist_Start, Meta_Start, Product_Start, Enlist_s, Meta_s, Product_s, CritPathExe_s, CritPathPip_s
+;
+//
+session
+| join kind= leftouter (
+   finalstatistics
+   | extend IncSkipProcs = extractjson("$.PipExecution_IncrementalSkipProcessDueToCleanMaterialized", tostring(Payload), typeof(long))
+) on $left.Product_Session == $right.SessionId 
+| join kind= leftouter (
+   buildsetcalculatorprocessstats 
+) on $left.Product_Session == $right.SessionId
+| project
+Enlist_Start,
+Enlist_s,
+Meta_s,
+Product_s,
+Total_s = iff(isempty(Enlist_s), 0.0, Enlist_s) + iff(isempty(Meta_s), 0.0, Meta_s) + iff(isempty(Product_s), 0.0, Product_s),// + Meta_s + Product_s,
+UserName,
+ConstructGraph = (toint(Parse_DurationMs) + toint(Evaluate_DurationMs)) / 1000.0,
+CacheWaited = toint(CacheInitialization_TimeWaitedMs) / 1000.0,
+TTFP_s = toint(TimeToFirstPipMs) / 1000.0,
+TTFPE_s = extractjson("$.TimeToFirstPipExecutedMs", tostring(Payload), typeof(long)) / 1000.0,
+CritPathExe_s,
+CritPathPip_s,
+ProcessesInGraph, ProcessesIgnored =(toint(ProcessesInGraph) - toint(ProcessesInBuildCone)), IncScheduleNoop = toint(ProcessesSkippedByIncrementalScheduling) - toint(IncSkipProcs), IncSkipProcs,  Hits = (toint(ProcessPipCacheHits) - IncSkipProcs), ProcessPipCacheMisses

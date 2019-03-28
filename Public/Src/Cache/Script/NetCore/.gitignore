@@ -1,0 +1,9 @@
+*.nupkg
+
+ContentStoreInterfaces/build/*
+ContentStoreInterfaces/lib/net451/*
+ContentStoreInterfaces/lib/netstandard2.0/*
+
+MemoizationStoreInterfaces/build/*
+MemoizationStoreInterfaces/lib/net451/*
+MemoizationStoreInterfaces/lib/netstandard2.0/*

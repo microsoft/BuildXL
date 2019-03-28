@@ -1,0 +1,9 @@
+{
+    "appDomain": "denied",
+    "diagnosticMessages": true,
+    "methodDisplay": "classAndMethod",
+    "parallelizeAssembly": true,
+    "parallelizeTestCollections": true,
+    "maxParallelThreads": 48,
+    "shadowCopy": false
+}

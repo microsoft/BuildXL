@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>MemoizationStoreInterfaces</id>
+    <version>15.1250-netcore</version>
+    <title>MemoizationStoreInterfaces</title>
+    <authors>Microsoft</authors>
+    <owners>Microsoft</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <licenseUrl>https://github.com/Microsoft/BuildXL/blob/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/microsoft/BuildXL</projectUrl>
+    <description>MemoizationStore is a managed library for working with cached build artifacts.
+      Source code lives on GitHub at https://github.com/microsoft/BuildXL</description>
+    <summary>MemoizationStore is a managed library for caching build artifacts.</summary>
+    <copyright>Copyright (c) Microsoft</copyright>
+    <tags>build content cache .NET 4.5.1 and .NET Standard 2.0 C#</tags>
+    <dependencies>
+      <dependency id="DotNet.Contracts" version="1.10.10126.4" />
+      <dependency id="ContentStoreInterfaces" version="15.1250-netcore" />
+    </dependencies>
+  </metadata>
+</package>

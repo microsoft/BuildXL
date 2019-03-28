@@ -1,0 +1,66 @@
+let start = datetime(2017-11-01 00:01:21.9170000);
+let end = datetime(2017-12-01 00:01:21.9170000);
+dominoinvocation
+| where EventInfo_Time  > start
+    and EventInfo_Time  < end
+| where tolower(CommandLine) !contains ("worker")
+// Do some classification of the build for slicing & dicing
+| extend OfficeBuildType = case(
+            Environment contains "EnlistmentBuild", "enlist",
+            Environment contains "MetaBuild", "meta",
+            Environment contains "ProductBuild", "product", 
+            ""),
+    Branch = extract("(Tenant=|Branch=)([^;]*)", 2, Environment),
+    EnvironmentShort = extract("([^;]*)", 1 , Environment),
+    BuildQueue = extract("(cloudBuildQueue=)([^;]*)", 2 , Environment),
+    Infra = case(
+        UserName == "_qcloud1" or UserName == "_qcloud2" , "CB",
+        (Environment contains "Dev" or Environment contains "WrapItUp") and UserName != "tpctext" and UserName != "y-arnold", "Dev",
+        "Lab"),
+    UU = iff(isempty(UserName), User, UserName)
+    | extend Env = 
+        case(
+            EnvironmentShort contains "Office", "Office",
+            EnvironmentShort contains "OSGTools", "OsgTools",
+            EnvironmentShort contains "OSG", "WDG",
+            "Unknown")
+    | project EventInfo_Time, SessionId, RelatedSessionIdentifier, OfficeBuildType, Branch, EnvironmentShort, Env, BuildQueue, UserName, Infra, UU 
+ | join kind= leftouter (
+   dominocompletion 
+   | project ExitKind, ProcessRunningTime, SessionId 
+   | extend e2e_s = tolong(ProcessRunningTime) / 1000
+) on SessionId
+| join kind= leftouter (
+   finalstatistics
+   | project ProcessPipCacheHits , ProcessPipCacheMisses , TimeToFirstPipMs, SessionId, Payload 
+   | extend TTFPE_s = extractjson("$.TimeToFirstPipExecutedMs", tostring(Payload), typeof(long)) / 1000,
+        TTFP_s = tolong(TimeToFirstPipMs) / 1000
+) on SessionId 
+| join kind= leftouter (
+   finalstatistics
+   | project  SessionId, GraphCacheReload_DurationMs 
+) on SessionId  
+| extend
+    // Calculate the cache hit rate. This assumes 100% for builds with 0 pips becuase incrmental scheudling keeps those from being recorded
+    GraphHitRate = iff(tolong(ProcessPipCacheHits) + tolong(ProcessPipCacheMisses) > 0, tolong(ProcessPipCacheHits) / (1.0 * tolong(ProcessPipCacheHits) + tolong(ProcessPipCacheMisses)) * 100, 100.0),
+    // Figure out if there was a graph cache hit
+    GraphHit = iff(tolong(GraphCacheReload_DurationMs) > 0, true, false)
+// Create the final projection of the data to return
+| project EventInfo_Time,
+    SessionId,
+    UU,
+    RelatedSessionIdentifier,
+    Env,
+    OfficeBuildType,
+    Branch,
+    EnvironmentShort,
+    Infra,
+    BuildQueue,
+    ExitKind,
+    e2e_s,
+    ProcessPipCacheHits,
+    ProcessPipCacheMisses,
+    TTFP_s,
+    TTFPE_s,
+    GraphHitRate,
+    GraphHit 

@@ -1,0 +1,95 @@
+
+Transformer.sealPartialDirectory(d`./src/seal2`, [f`./src/seal2/file2`]);
+Transformer.sealPartialDirectory(d`./src/seal1`, [f`./src/seal1/file1`]);
+Transformer.execute({
+    tool: {exe: f`./src/tool/tool.exe`},
+    tags: ["aTag", "zTag"],
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [],
+    },
+    workingDirectory: d`./Out/working`,
+    dependencies: [
+        f`./src/tool/nested.exe`,
+        f`./src/tool/tool.exe`,
+        f`./src/tool/helper.dll`,
+        f`./src/input/file.txt`,
+        f`./src/stdIn.txt`,
+        d`./src/seal2`,
+        d`./src/seal1`,
+    ],
+    implicitOutputs: [
+        f`./Out/outputFile1.txt`,
+        f`./Out/outputFile2.txt`,
+        f`./Out/outputFile3.txt`,
+        f`./Out/stdOut.txt`,
+        f`./Out/stdErr.txt`,
+        d`./Out/dynamicSealedDirectory`,
+    ],
+    optionalImplicitOutputs: [
+        f`./Out/optionalImplicitOutput1.txt`,
+        f`./Out/optionalImplicitOutput2.txt`,
+        f`./Out/optionalImplicitOutput3.txt`,
+        f`./Out/optionalImplicitOutput4.txt`,
+    ],
+    consoleInput: f`./src/stdIn.txt`,
+    consoleOutput: p`./Out/stdOut.txt`,
+    consoleError: p`./Out/stdErr.txt`,
+    environmentVariables: [{name: "TEMP", value: p`./Out/Temp`}, {name: "TMP", value: p`./Out/Temp`}, {name: "env1", isPassThrough: true}],
+    warningRegex: "warningRegEx",
+    acquireSemaphores: [
+        {
+            name: "semaphore1",
+            incrementBy: 2,
+            limit: 2,
+        },
+        {
+            name: "semaphore2",
+            incrementBy: 1,
+            limit: 1,
+        },
+        {
+            name: "mutex1",
+            incrementBy: 1,
+            limit: 1,
+        },
+        {
+            name: "mutex2",
+            incrementBy: 1,
+            limit: 1,
+        },
+    ],
+    successExitCodes: [
+        0,
+        1,
+        2,
+        4,
+    ],
+    tempDirectory: d`./Out/Temp`,
+    additionalTempDirectories: [d`./Out/extraTemp1`, d`./Out/extraTemp2`, undefined],
+    unsafe: {
+        untrackedPaths: [p`./src/tool/untrackedFile.txt`],
+        untrackedScopes: [
+            p`./src/tool/untrackedDirectory`,
+            p`./src/tool/untrackedDirectoryScope`,
+            p`\${Context.getMount('Windows').path}`,
+            p`\${Context.getMount('InternetCache').path}`,
+            p`\${Context.getMount('InternetHistory').path}`,
+            p`\${Context.getMount('ProgramFiles').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramFilesX86').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
+            p`\${Context.getMount('AppData').path}`,
+            p`\${Context.getMount('LocalAppData').path}`,
+            p`./Out/Temp`,
+            p`./src/untrackedScopeOnPip`,
+            p`./src/untrackedPathOnPip`,
+            p`./Out/extraTemp1`,
+            p`./Out/extraTemp2`,
+        ],
+        hasUntrackedChildProcesses: true,
+        allowPreservedOutputs: true,
+    },
+    keepOutputsWritable: true,
+});
+Transformer.sealDynamicDirectory(d`./Out/dynamicSealedDirectory`, ["aTag", "zTag"]);

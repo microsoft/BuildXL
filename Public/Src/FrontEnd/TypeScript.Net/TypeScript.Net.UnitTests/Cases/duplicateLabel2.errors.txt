@@ -1,0 +1,17 @@
+Cases/duplicateLabel2.ts(3,1): error TS7028: Unused label.
+Cases/duplicateLabel2.ts(5,3): error TS1114: Duplicate label 'target'
+
+
+==== Cases/duplicateLabel2.ts (2 errors) ====
+    // @allowUnusedLabels: true
+    
+    target:
+    ~~~~~~
+!!! error TS7028: Unused label.
+    while (true) {
+      target:
+      ~~~~~~
+!!! error TS1114: Duplicate label 'target'
+      while (true) {
+      }
+    }

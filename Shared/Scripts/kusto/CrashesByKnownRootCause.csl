@@ -1,0 +1,47 @@
+// Domino crashes in the past week with root causes that are known, these categories are:
+// ConsoleNotConnected
+// OutOfDiskSpace
+// CorruptedCache
+// MissingRuntimeDependency
+// OutOfMemory
+
+dominocatastrophicfailure
+| join kind = leftouter ( dominoinvocation
+    | where EventInfo_Time  > now(-100d)
+        and BuildInfo_IsDeveloperBuild == "False"
+    | summarize min(EventInfo_Time) by BuildInfo_CommitId
+) on BuildInfo_CommitId
+| where EventInfo_Time  > now(-7d)
+    and BuildInfo_IsDeveloperBuild == "False"
+    and RootCause != "Unknown"
+| join kind = leftouter ( dominoinvocation ) on SessionId
+| project
+    RootCause,
+    EventInfo_Time,
+    SessionId,
+    BatmonId = RelatedSessionIdentifier,
+    EnvironmentShort=split(Environment, ";")[0],
+    UserName,
+    BuildInfo_CommitId,
+    BuildFirstSeen = min_EventInfo_Time,
+    Exception,
+    Correlation1=split(Environment, ";")[1],
+    Correlation2=split(Environment, ";")[2],
+    MachineName
+ | order by RootCause desc, Exception desc, EventInfo_Time desc
+ | serialize n = row_number()
+ | project n,
+ RootCause,
+    EventInfo_Time,
+    BatmonId,
+    EnvironmentShort,
+    UserName,
+    BuildInfo_CommitId,
+    BuildFirstSeen,
+    Exception,
+    SessionId,
+    Correlation1,
+    Correlation2,
+    MachineName
+// Uncomment the "where" clause below to search for crashes by RootCause type
+// | where RootCause == "ConsoleNotConnected"

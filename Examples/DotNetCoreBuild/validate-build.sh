@@ -5,6 +5,7 @@ readonly ARGS="$@"
 
 function run_build {
     local additionalArgs="$@"
+    chmod +x $MY_DIR/validate-build-kext.sh
     $MY_DIR/validate-build-kext.sh /logsDirectory:"$bxlLogDir" /o:"$bxlObjDir" $ARGS $additionalArgs
 }
 

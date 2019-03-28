@@ -4,9 +4,7 @@ readonly MY_DIR=$(cd `dirname ${BASH_SOURCE[0]}` && pwd)
 readonly ARGS="$@"
 
 function run_build {
-    local additionalArgs="$@"
-    chmod +x $MY_DIR/validate-build-kext.sh
-    $MY_DIR/validate-build-kext.sh /logsDirectory:"$bxlLogDir" /o:"$bxlObjDir" $ARGS $additionalArgs
+    /bin/bash $MY_DIR/validate-build-kext.sh /logsDirectory:"$bxlLogDir" /o:"$bxlObjDir" $ARGS "$@"
 }
 
 function check_graph_reloaded {

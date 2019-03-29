@@ -678,6 +678,56 @@ namespace Test.BuildXL.Storage
             XAssert.ArePathEqual(expectedFinalPath, maybeResult.Result);
         }
 
+        [Trait("Category", "WindowsOSOnly")] // TODO for non Windows
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void TestResolveSymlinkWithMixedDirectorySymlinkAndJunction()
+        {
+            // File and directory layout:
+            //    Enlist
+            //    |
+            //    +---Intermediate
+            //    |   \---Current
+            //    |       \---X64
+            //    |              file.lnk ==> ..\..\..\Target\file.txt
+            //    +---Data
+            //    |   \---Source
+            //    |
+            //    +---Source ==> \Enlist\Data\Source (junction)
+            //    |   \---X64 ==> ..\Intermediate\Current\X64 (directory symlink)
+            //    |
+            //    \---Target
+            //        \---X64
+            //                file.txt
+
+            // Create a symlink Enlist/Intermediate/Current/X64/file.lnk --> ../../../Target/X64/file.txt.
+            string symlinkFile = GetFullPath(R("Enlist", "Intermediate", "Current", "X64", "file.lnk"));
+            FileUtilities.CreateDirectory(GetFullPath(R("Enlist", "Intermediate", "Current", "X64")));
+            XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlinkFile, R("..", "..", "..", "Target", "X64", "file.txt"), isTargetFile: true));
+
+            // Create a junction Enlist/Source --> Enlist/Data/Source.
+            FileUtilities.CreateDirectory(GetFullPath(R("Enlist", "Data", "Source")));
+            FileUtilities.CreateDirectory(GetFullPath(R("Enlist", "Source")));
+            FileUtilities.CreateJunction(GetFullPath(R("Enlist", "Source")), GetFullPath(R("Enlist", "Data", "Source")));
+
+            // Create directory symlink.
+            string symlinkDirectory = GetFullPath(R("Enlist", "Source", "X64"));
+            XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlinkDirectory, R("..", "Intermediate", "Current", "X64"), isTargetFile: false));
+
+            string expectedFinalPath = GetFullPath(R("Enlist", "Target", "X64", "file.txt"));
+
+            // Resolve symlink Enlist/Source/x64/file.lnk by supplying the symlink relative target path (../../../Target/X64/file.txt).
+            var maybeResult = FileUtilities.ResolveSymlinkTarget(GetFullPath(R("Enlist", "Source", "X64", "file.lnk")), R("..", "..", "..", "Target", "X64", "file.txt"));
+            XAssert.PossiblySucceeded(maybeResult);
+
+            XAssert.ArePathEqual(expectedFinalPath, maybeResult.Result);
+
+            // Resolve symlink Enlist/Source/X64/file.lnk without supplying the symlink target path
+            maybeResult = FileUtilities.ResolveSymlinkTarget(GetFullPath(R("Enlist", "Source", "X64", "file.lnk")));
+            XAssert.PossiblySucceeded(maybeResult);
+
+            XAssert.ArePathEqual(expectedFinalPath, maybeResult.Result);
+        }
+
         [Fact]
         public void SetAndGetFileTimestamps()
         {

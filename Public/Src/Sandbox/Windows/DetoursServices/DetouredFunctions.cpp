@@ -473,6 +473,8 @@ static bool TryResolveRelativeTarget(_In_ const wstring& path, _In_ const wstrin
     vector<wstring> needToBeProcessed;
     vector<wstring> processed;
 
+    // Split path into atoms that need to be processed one-by-one.
+    // For example, C:\P1\P2\P3\symlink --> symlink, P3, P1, P2, C:
     SplitPathsReverse(path, needToBeProcessed);
 
     while (!needToBeProcessed.empty())
@@ -483,6 +485,7 @@ static bool TryResolveRelativeTarget(_In_ const wstring& path, _In_ const wstrin
 
         if (!result.empty())
         {
+            // Append directory separator as necessary.
             if (result[result.length() - 1] != L'\\' && atom[0] != L'\\')
             {
                 result.append(L"\\");
@@ -493,12 +496,16 @@ static bool TryResolveRelativeTarget(_In_ const wstring& path, _In_ const wstrin
 
         if (needToBeProcessed.empty())
         {
-            // The last atom is the one that we are going to replace.
+            // The last atom is the symlink that we are going to replace.
             break;
         }
 
         if (GetReparsePointType(result.c_str()) == IO_REPARSE_TAG_SYMLINK)
         {
+            // Prefix path is a directory symlink.
+            // For example, C:\P1\P2 is a directory symlink.
+
+            // Get the next target of the directory symlink.
             wstring target;
             if (!TryGetNextTarget(result, INVALID_HANDLE_VALUE, target))
             {
@@ -507,14 +514,18 @@ static bool TryResolveRelativeTarget(_In_ const wstring& path, _In_ const wstrin
 
             if (GetRootLength(target.c_str()) > 0)
             {
-                // Target is an absolute path -> restart symlink resolution.
+                // The target of the directory symlink is a rooted path:
+                // - clear result so far,
+                // - restart all the processed atoms,
+                // - initialize the atoms to be processed.
                 result.clear();
                 processed.clear();
                 SplitPathsReverse(target, needToBeProcessed);
             }
             else
             {
-                // Target is a relative path.
+                // The target of the directory symlink is a relative path, then resolve it by "combining"
+                // the directory symlink (stored in the result) and the relative target.
                 if (!TryResolveRelativeTarget(result, target, &processed, &needToBeProcessed))
                 {
                     return false;
@@ -523,6 +534,7 @@ static bool TryResolveRelativeTarget(_In_ const wstring& path, _In_ const wstrin
         }
     }
 
+    // Finally, resolve the last atom, i.e., the symlink atom.
     if (!TryResolveRelativeTarget(result, relativeTarget, nullptr, nullptr))
     {
         return false;
@@ -538,6 +550,7 @@ static bool TryGetNextPath(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_
 {
     wstring target;
 
+    // Get the next target of a reparse point path.
     if (!TryGetNextTarget(path, hInput, target))
     {
         return false;
@@ -545,10 +558,12 @@ static bool TryGetNextPath(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_
 
     if (GetRootLength(target.c_str()) > 0)
     {
+        // The next target is a rooted path, then return it as is.
         result.assign(target);
     }
     else
     {
+        // The next target is a relative path, then resolve it first.
         if (!TryResolveRelativeTarget(path, target, result))
         {
             return false;

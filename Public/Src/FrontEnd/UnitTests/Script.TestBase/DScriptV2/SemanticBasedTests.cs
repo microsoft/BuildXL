@@ -27,6 +27,7 @@ namespace Test.DScript.Ast.DScriptV2
                 PreserveFullNames = true,
                 NameResolutionSemantics = NameResolutionSemantics.ImplicitProjectReferences,
                 UseSpecPublicFacadeAndAstWhenAvailable = false,
+                EnableIncrementalFrontEnd = true,
             };
         }
 

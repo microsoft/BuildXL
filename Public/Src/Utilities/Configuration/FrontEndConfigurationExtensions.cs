@@ -16,7 +16,7 @@ namespace BuildXL.Utilities.Configuration
         // Defaults
 
         /// <nodoc/>
-        public const bool DefaultEnableIncrementalFrontEnd = true;
+        public const bool DefaultEnableIncrementalFrontEnd = false;
 
         /// <nodoc/>
         public const bool DefaultProfileScript = false;

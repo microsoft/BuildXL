@@ -3,6 +3,7 @@
 
 using System.Linq;
 using BuildXL.Pips.Operations;
+using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -13,6 +14,13 @@ namespace Test.DScript.Ast.DScriptV2
     {
         public BuildExtentTests(ITestOutputHelper output) : base(output)
         {
+        }
+
+        protected override FrontEndConfiguration GetFrontEndConfiguration(bool isDebugged)
+        {
+            var config = CreateV2FrontEndConfiguration(isDebugged);
+            config.EnableIncrementalFrontEnd = true;
+            return config;
         }
 
         /// <summary>

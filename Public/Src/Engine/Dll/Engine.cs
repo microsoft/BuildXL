@@ -1003,17 +1003,6 @@ namespace BuildXL.Engine
                 // Disable viewer
                 mutableConfig.Viewer = ViewerMode.Disable;
 
-                // If CacheLookup and CPU multiplier is not given by the dev, set them to 0 in CloudBuild to reduce the master overhead.
-                if (!mutableConfig.Schedule.MasterCacheLookupMultiplier.HasValue)
-                {
-                    mutableConfig.Schedule.MasterCacheLookupMultiplier = 0;
-                }
-
-                if (!mutableConfig.Schedule.MasterCpuMultiplier.HasValue)
-                {
-                    mutableConfig.Schedule.MasterCpuMultiplier = 0;
-                }
-
                 // Enable historic ram based throttling in CloudBuild by default if it is not explicitly disabled.
                 mutableConfig.Schedule.UseHistoricalRamUsageInfo = initialCommandLineConfiguration.Schedule.UseHistoricalRamUsageInfo ?? true;
 

@@ -1,6 +1,7 @@
 BuildXL supports a wide variety of build languages and packaging systems. The engine is architected by allowing multiple frontends to coordinate and collaborate on constructing a build graph. Examples of frontends are:
 
 * MsBuild (in development)
+* CMake (in development)
 * Ninja (in development)
 * NuGet
 * DScript

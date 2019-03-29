@@ -44,7 +44,7 @@ Other build types can be performed as well:
 ### Windows
 You should use Windows 10 with BuildXL. You do not need to install [Visual Studio](https://visualstudio.microsoft.com/vs/) to get a working build, but see the section below on using VS with BuildXL for developing in the BuildXL codebase.
 
-### MacOS
+### macOS
 
 To run BuildXL on macOS you need to install:
 

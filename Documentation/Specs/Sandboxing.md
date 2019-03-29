@@ -21,7 +21,7 @@ In terms of performance, this implementation adds 1-5% of time overhead to runni
 
 Technical note: The top-level process initiating Detours calls must be a 64-bit process. Detours bootstrapping code is hard-coded to start from 64-bit, matching the requirements for large memory needs for the BuildXL engine for parsing and tracking large repos.
 
-## MacOS Sandboxing
+## macOS Sandboxing
 Interposing system calls (akin to Detouring on Windows) is possible on macOS, but comes with a major restriction: it is not applicable to "protected" system processes.  Another drawback of this approach is making sure that all relevant system calls are interposed, the list of which may be huge and not readily available.  Our sandbox for macOS avoids those restrictions by being implemented as a Darwin kernel extension, producing similar data and blocking capabilities as noted above for Windows.
 
 An initial implementation of the sandbox, not provided here, was solely based on [KAuth](https://developer.apple.com/library/archive/technotes/tn2127/_index.html).  While providing listeners for intercepting and blocking many different system calls, KAuth lacks support for the following:

@@ -22,11 +22,16 @@ In terms of performance, this implementation adds 1-5% of time overhead to runni
 Technical note: The top-level process initiating Detours calls must be a 64-bit process. Detours bootstrapping code is hard-coded to start from 64-bit, matching the requirements for large memory needs for the BuildXL engine for parsing and tracking large repos.
 
 ## MacOS Sandboxing
-Detouring is not a viable pattern on MacOS, so we use a kernel based implementation instead, but producing similar data and blocking capabilities as noted above for Windows.
+Interposing system calls (akin to Detouring on Windows) is possible on macOS, but comes with a major restriction: it is not applicable to "protected" system processes.  Another drawback of this approach is making sure that all relevant system calls are interposed, the list of which may be huge and not readily available.  Our sandbox for macOS avoids those restrictions by being implemented as a Darwin kernel extension, producing similar data and blocking capabilities as noted above for Windows.
 
-An initial implementation of the sandbox, not provided here, used KAuth + Interpose, but it ran into trouble with Interpose skipping "protected processes," and KAuth caching optimizing away some callbacks and not showing some filesystem operations.
+An initial implementation of the sandbox, not provided here, was solely based on [KAuth](https://developer.apple.com/library/archive/technotes/tn2127/_index.html).  While providing listeners for intercepting and blocking many different system calls, KAuth lacks support for the following:
+  - _process tree observability_: `exec` system calls can be observed, but neither `fork`s nor process exiting can be observed;
+  - _symlinks_: creation of a "fast" symlink (which amounts to creating a single VNode) is not observable;
+  - _absent file probes_: when a nonexistent file is probed, a `VNODE_SEARCH` event can be observed, but it only carries the path of the directory being searched, not the path of the file being looked up.
 
-The sandbox implementation used here is based instead on KAuth + TrustedBSD Mandatory Access Control (MAC). This implementation taps into TrustedBSD's MAC, the same subsystem used by the MacOS App Sandbox. It provides full process-tree observability and access control, including getting callbacks for all reads, writes, probes, and enumerations, plus seeing all spawn and exec calls for child process tracking.
+Furthermore, repeated `VNODE_SEARCH` events against the same directory are cached (even when performed by different processes!) so not all of them can be observed from KAuth listeners.
+
+The sandbox implementation used here is based instead on KAuth + TrustedBSD Mandatory Access Control (MAC). This implementation taps into TrustedBSD's MAC, the same subsystem used by the MacOS App Sandbox. It provides full process tree observability and access control, including getting callbacks for all reads, writes, probes, and enumerations, plus seeing all spawn and exec calls for child process tracking.
 
 In terms of performance, this sandbox adds anywhere from 10-25% time overhead to process execution.
 

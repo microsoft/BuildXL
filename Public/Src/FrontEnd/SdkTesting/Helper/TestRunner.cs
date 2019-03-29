@@ -307,6 +307,8 @@ export function test(args: TestArguments): TestResult {{
                         UsePartialEvaluation = true,
                         UseSpecPublicFacadeAndAstWhenAvailable = false,
                         ConstructAndSaveBindingFingerprint = false,
+                        // Some of the DS tests fail when incremental frontend is not used
+                        EnableIncrementalFrontEnd = true,
                     },
                     Engine =
                     {

@@ -8,6 +8,8 @@
 #include <IOKit/IOLib.h>
 #include "BuildXLSandboxShared.hpp"
 
+#define ResourceManager BXL_CLASS(ResourceManager)
+
 /*!
  * This class is where resource usage information is collected and where all the decisions are made
  * regarding any throttling due to insufficient available resources.

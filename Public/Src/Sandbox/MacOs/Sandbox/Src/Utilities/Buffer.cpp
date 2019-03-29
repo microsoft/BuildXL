@@ -1,16 +1,16 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#include "IOBuffer.hpp"
+#include "Buffer.hpp"
 #include "BuildXLSandboxShared.hpp"
 
 #define super OSObject
 
-OSDefineMetaClassAndStructors(IOBuffer, OSObject)
+OSDefineMetaClassAndStructors(Buffer, OSObject)
 
-IOBuffer* IOBuffer::create(size_t size)
+Buffer* Buffer::create(size_t size)
 {
-    IOBuffer *instance = new IOBuffer;
+    Buffer *instance = new Buffer;
     if (instance)
     {
         bool initialized = instance->init(size);
@@ -24,7 +24,7 @@ IOBuffer* IOBuffer::create(size_t size)
     return instance;
 }
 
-bool IOBuffer::init(size_t size)
+bool Buffer::init(size_t size)
 {
     if (!super::init())
     {
@@ -37,7 +37,7 @@ bool IOBuffer::init(size_t size)
     return buffer_ != nullptr;
 }
 
-void IOBuffer::free()
+void Buffer::free()
 {
     if (buffer_ != nullptr)
     {

@@ -54,7 +54,6 @@
 		F54B6ADA21D3E37A00069515 /* ResourceManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F54B6AD821D3E37A00069515 /* ResourceManager.cpp */; };
 		F54B6ADB21D3E37A00069515 /* ResourceManager.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F54B6AD921D3E37A00069515 /* ResourceManager.hpp */; };
 		F557784D219217E60006B275 /* arg_parse.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F557784B219217E60006B275 /* arg_parse.cpp */; };
-        F557784F21921BA20006B275 /* args.hpp in Sources */ = {isa = PBXBuildFile; fileRef = F557784E21921BA20006B275 /* args.hpp */; };
 		F57355F0224444A400264A6C /* Sandbox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F57355EF224444A400264A6C /* Sandbox.cpp */; };
 		F57355F22244450600264A6C /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F57355F12244450600264A6C /* CoreFoundation.framework */; };
 		F57355F32244456B00264A6C /* StringOperations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C2614A820D7E85E00488B0B /* StringOperations.cpp */; };
@@ -63,8 +62,8 @@
 		F577F05121BEE0270066F2EF /* Trie.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F577F04F21BEE0270066F2EF /* Trie.hpp */; };
 		F582B84121ACCD5300741F8B /* CacheRecord.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F582B83F21ACCD5300741F8B /* CacheRecord.cpp */; };
 		F582B84221ACCD5300741F8B /* CacheRecord.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F582B84021ACCD5300741F8B /* CacheRecord.hpp */; };
-		F58A1DAF224C025300724AA2 /* IOBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F58A1DAD224C025300724AA2 /* IOBuffer.cpp */; };
-		F58A1DB0224C025300724AA2 /* IOBuffer.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F58A1DAE224C025300724AA2 /* IOBuffer.hpp */; };
+		F58A1DAF224C025300724AA2 /* Buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F58A1DAD224C025300724AA2 /* Buffer.cpp */; };
+		F58A1DB0224C025300724AA2 /* Buffer.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F58A1DAE224C025300724AA2 /* Buffer.hpp */; };
 		F58E9195220B562B0083C57E /* liblfds711.h in Headers */ = {isa = PBXBuildFile; fileRef = F58E9132220B562B0083C57E /* liblfds711.h */; };
 		F58E9196220B562B0083C57E /* lfds711_list_addonly_singlylinked_unordered.h in Headers */ = {isa = PBXBuildFile; fileRef = F58E9134220B562B0083C57E /* lfds711_list_addonly_singlylinked_unordered.h */; };
 		F58E9197220B562B0083C57E /* lfds711_stack.h in Headers */ = {isa = PBXBuildFile; fileRef = F58E9135220B562B0083C57E /* lfds711_stack.h */; };
@@ -248,8 +247,8 @@
 		F582B83F21ACCD5300741F8B /* CacheRecord.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CacheRecord.cpp; sourceTree = "<group>"; };
 		F582B84021ACCD5300741F8B /* CacheRecord.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CacheRecord.hpp; sourceTree = "<group>"; };
 		F5849ADF2193D76C009B6BC8 /* libproc.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libproc.tbd; path = usr/lib/libproc.tbd; sourceTree = SDKROOT; };
-		F58A1DAD224C025300724AA2 /* IOBuffer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IOBuffer.cpp; sourceTree = "<group>"; };
-		F58A1DAE224C025300724AA2 /* IOBuffer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = IOBuffer.hpp; sourceTree = "<group>"; };
+		F58A1DAD224C025300724AA2 /* Buffer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Buffer.cpp; sourceTree = "<group>"; };
+		F58A1DAE224C025300724AA2 /* Buffer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Buffer.hpp; sourceTree = "<group>"; };
 		F58E9132220B562B0083C57E /* liblfds711.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = liblfds711.h; sourceTree = "<group>"; };
 		F58E9134220B562B0083C57E /* lfds711_list_addonly_singlylinked_unordered.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lfds711_list_addonly_singlylinked_unordered.h; sourceTree = "<group>"; };
 		F58E9135220B562B0083C57E /* lfds711_stack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lfds711_stack.h; sourceTree = "<group>"; };
@@ -778,8 +777,8 @@
 				F51BBBEA22246B6A0092A806 /* AutoRelease.hpp */,
 				F5044A9120F80DA200F95904 /* ConcurrentDictionary.cpp */,
 				F5044A9220F80DA200F95904 /* ConcurrentDictionary.hpp */,
-				F58A1DAD224C025300724AA2 /* IOBuffer.cpp */,
-				F58A1DAE224C025300724AA2 /* IOBuffer.hpp */,
+				F58A1DAD224C025300724AA2 /* Buffer.cpp */,
+				F58A1DAE224C025300724AA2 /* Buffer.hpp */,
 				F51AD7FC2114DC9E00AE8E7E /* Monitor.hpp */,
 				F5B25229220CA6C400662376 /* Stopwatch.cpp */,
 				F5B2522A220CA6C400662376 /* Stopwatch.hpp */,
@@ -816,7 +815,7 @@
 				3C2614AD20D7E85E00488B0B /* StringOperations.h in Headers */,
 				F58E9202220B595C0083C57E /* utf8proc.h in Headers */,
 				3C8327E12146928000EE8022 /* TrustedBsdHandler.hpp in Headers */,
-				F58A1DB0224C025300724AA2 /* IOBuffer.hpp in Headers */,
+				F58A1DB0224C025300724AA2 /* Buffer.hpp in Headers */,
 				3CF28AC12146922400493F2A /* BuildXLSandboxClient.hpp in Headers */,
 				F58E91A3220B562B0083C57E /* lfds711_list_addonly_singlylinked_ordered.h in Headers */,
 				3C8327E62146928000EE8022 /* FileOpHandler.hpp in Headers */,
@@ -1007,7 +1006,7 @@
 				F58E91D7220B562B0083C57E /* lfds711_queue_bounded_manyproducer_manyconsumer_dequeue.c in Sources */,
 				F58E91CC220B562B0083C57E /* lfds711_hash_addonly_query.c in Sources */,
 				F58E91A9220B562B0083C57E /* lfds711_list_addonly_singlylinked_unordered_query.c in Sources */,
-				F58A1DAF224C025300724AA2 /* IOBuffer.cpp in Sources */,
+				F58A1DAF224C025300724AA2 /* Buffer.cpp in Sources */,
 				F58E91B5220B562B0083C57E /* lfds711_btree_addonly_unbalanced_query.c in Sources */,
 				F58E91DC220B562B0083C57E /* lfds711_ringbuffer_read.c in Sources */,
 				F58E91A7220B562B0083C57E /* lfds711_list_addonly_singlylinked_unordered_insert.c in Sources */,

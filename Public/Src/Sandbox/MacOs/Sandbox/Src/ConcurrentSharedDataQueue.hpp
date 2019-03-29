@@ -26,6 +26,8 @@ typedef struct{
     OSAsyncReference64 ref;
 } ClientAsyncHandle;
 
+#define ConcurrentSharedDataQueue BXL_CLASS(ConcurrentSharedDataQueue)
+
 /*!
  * A straightforward wrapper around IOSharedDataQueue to provide a thread-safe way of enqueuing entries.
  */

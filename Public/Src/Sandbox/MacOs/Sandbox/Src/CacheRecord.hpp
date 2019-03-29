@@ -9,6 +9,8 @@
 #include "BuildXLSandboxShared.hpp"
 #include "FileAccessHelpers.h"
 
+#define CacheRecord BXL_CLASS(CacheRecord)
+
 /*!
  * A cache record where we keep track of already reported accesses for a given path.
  */

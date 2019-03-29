@@ -7,9 +7,12 @@
 #include <IOKit/IOService.h>
 #include <IOKit/IOLib.h>
 #include "Monitor.hpp"
+#include "BuildXLSandboxShared.hpp"
 
 typedef void (*for_each_fn)(void *data, const int index, const OSSymbol *key, const OSObject *value);
 typedef void (*on_change_fn)(void *data, const int oldCount, const int newCount);
+
+#define ConcurrentDictionary BXL_CLASS(ConcurrentDictionary)
 
 /*!
  * A straightforward wrapper around OSDictionary to provide a thread-safe implementation of a dictionary.

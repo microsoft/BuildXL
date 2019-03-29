@@ -6,6 +6,10 @@
 
 #include <IOKit/IOLib.h>
 #include <IOKit/IOService.h>
+#include "BuildXLSandboxShared.hpp"
+
+#define Node BXL_CLASS(Node)
+#define Trie BXL_CLASS(Trie)
 
 /*!
  * A node in a Trie.

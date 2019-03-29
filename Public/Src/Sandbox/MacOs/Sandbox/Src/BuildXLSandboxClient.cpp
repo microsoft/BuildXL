@@ -4,7 +4,7 @@
 #include <IOKit/IOLib.h>
 
 #include "AccessHandler.hpp"
-#include "IOBuffer.hpp"
+#include "Buffer.hpp"
 #include "TrustedBsdHandler.hpp"
 #include "BuildXLSandboxClient.hpp"
 #include "SandboxedPip.hpp"
@@ -301,7 +301,7 @@ IOReturn BuildXLSandboxClient::ProcessPipStarted(PipStateChangedRequest *data)
     mach_vm_size_t size = data->payloadLength;
 
     // Allocate buffer for storing the pip payload
-    IOBuffer *ioBuffer = IOBuffer::create(size);
+    Buffer *ioBuffer = Buffer::create(size);
     AutoRelease _b(ioBuffer);
     if (ioBuffer == nullptr)
     {

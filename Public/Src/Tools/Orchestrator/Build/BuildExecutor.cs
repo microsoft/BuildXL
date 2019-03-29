@@ -46,7 +46,7 @@ namespace BuildXL.Orchestrator.Build
                 }
             });
 
-            Logger.Info($"Launching: {process.StartInfo.FileName} {process.StartInfo.Arguments}");
+            Logger.Info($"Launching File: {process.StartInfo.FileName} with Arguments: {process.StartInfo.Arguments}");
 
             process.StartInfo.CreateNoWindow = true;
             process.StartInfo.UseShellExecute = false;

@@ -23,6 +23,7 @@ namespace Orchestrator {
             importFrom("Microsoft.TeamFoundationServer.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.TeamFoundation.DistributedTask.WebApi").pkg,
+            importFrom("Microsoft.TeamFoundation.DistributedTask.Common.Contracts").pkg
         ],
     });
 }

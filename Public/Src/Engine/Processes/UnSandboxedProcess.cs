@@ -308,12 +308,9 @@ namespace BuildXL.Processes
 
 #if PLATFORM_OSX
             // TODO: TASK 1488150
-            // When targeting macOS and runnung on VSTS agents, we make sure the 'execute bit' has been set on the binary about to be started
-            // as VSTS VMs currently have issues around file permission preservance
-            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AGENT_NAME")))
-            {
-                SetFilePermissionsForFilePath(ProcessInfo.FileName, FilePermissions.S_IRWXU);
-            }
+            // When targeting macOS, we make sure the 'execute bit' has been set on the binary about to be started,
+            // especially running on VSTS VMs currently has issues around file permission preservance
+            SetFilePermissionsForFilePath(ProcessInfo.FileName, FilePermissions.S_IRWXU);
 #endif
 
             Process = new Process();

@@ -49,8 +49,19 @@ namespace Test.BuildXL.Utilities
             Case(@"x\\\""y\\\""x", asWord: @"x\\\\\\\""y\\\\\\\""x", asApplicationName: Invalid),
         };
 
+
         public CommandLineEscapingTests(ITestOutputHelper output)
             : base(output) { }
+
+        [Theory]
+        [InlineData("DEBUG;TRACE;DEFTEMP", "\"DEBUG;TRACE;DEFTEMP\"", "DEBUG;TRACE;DEFTEMP")]
+        public void TestPlatformSpecificWordEscaping(string value, string asWordOnUnix, string asWordOnWindows)
+        {
+            var expected = OperatingSystemHelper.IsUnixOS
+                ? asWordOnUnix
+                : asWordOnWindows;
+            XAssertEscapingCase(expected, value, CommandLineEscaping.EscapeAsCommandLineWord);
+        }
 
         [Fact]
         public void TestCommandLineWordEscaping()

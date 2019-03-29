@@ -20,6 +20,9 @@ using Xunit.Abstractions;
 using static BuildXL.ToolSupport.CommandLineUtilities;
 using static Test.Tool.Analyzers.AnalyzerTestBase;
 using BuildXLConfiguration = BuildXL.Utilities.Configuration;
+using System;
+using static BuildXL.Scheduler.Tracing.FingerprintStore;
+using System.Linq;
 
 namespace Test.Tool.Analyzers
 {
@@ -109,7 +112,7 @@ namespace Test.Tool.Analyzers
                 PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
                 ArtifactToPrint(absentFile),
                 ObservedInputConstants.AbsentPathProbe,
-                ObservedInputConstants.ExistingFileProbe);
+                ObservedInputConstants.FileContentRead);
         }
 
         [Fact]
@@ -401,18 +404,20 @@ namespace Test.Tool.Analyzers
             FileArtifact nestedFile = CreateSourceFile(ArtifactToPrint(dir));
             ScheduleRunResult buildB = RunScheduler().AssertCacheMiss(pip.PipId);
 
-            var fingerprintStoreDirectory = buildB.Config.Logging.FingerprintStoreLogDirectory;
-
-            using (var store = FingerprintStore.Open(fingerprintStoreDirectory.ToString(Context.PathTable)).Result)
+            // On a strong fingerprint miss, both the execution and cache lookup store will store fingerprints
+            using (var executionStore = FingerprintStore.Open(ResultToStoreDirectory(buildB)).Result)
+            using (var cacheLookupStore = FingerprintStore.Open(ResultToStoreDirectory(buildB, cacheLookupStore: true)).Result)
             {
-                XAssert.IsTrue(store.TryGetFingerprintStoreEntryBySemiStableHash(pip.FormattedSemiStableHash, out var entry));
+                XAssert.IsTrue(executionStore.TryGetFingerprintStoreEntryBySemiStableHash(pip.FormattedSemiStableHash, out var entry));
+                XAssert.IsTrue(cacheLookupStore.TryGetFingerprintStoreEntryBySemiStableHash(pip.FormattedSemiStableHash, out var cacheLookupEntry));
 
                 // Parse the entry for the directory membership fingerprint key
                 var reader = new JsonReader(entry.StrongFingerprintEntry.StrongFingerprintToInputs.Value);
                 XAssert.IsTrue(reader.TryGetPropertyValue(ObservedInputConstants.DirectoryEnumeration, out string directoryMembershipFingerprint));
 
                 // Remove the directory memberhsip entry
-                store.RemoveContentHashForTesting(directoryMembershipFingerprint);
+                executionStore.RemoveContentHashForTesting(directoryMembershipFingerprint);
+                cacheLookupStore.RemoveContentHashForTesting(directoryMembershipFingerprint);
             }
 
             var result = RunAnalyzer(buildA, buildB).AssertPipMiss(
@@ -659,6 +664,94 @@ namespace Test.Tool.Analyzers
         }
 
         /// <summary>
+        /// Checks that <see cref="FingerprintStoreExecutionLogTarget.CacheLookupFingerprintStore"/> is used before the <see cref="FingerprintStoreExecutionLogTarget.ExecutionFingerprintStore"/>
+        /// when looking for fingerprints from the newer build.
+        /// </summary>
+        [Fact]
+        public void EnsureCacheLookupStoreIsFirst()
+        {
+            // Read only mount
+            var sealDir = CreateUniqueDirectory(ReadonlyRoot);
+            // Set up absent file under source seal directory
+            var absentFile = CreateSourceFile(sealDir);
+            File.Delete(ArtifactToString(absentFile));
+            var absentFileDir = CreateAndScheduleSealDirectoryArtifact(sealDir, SealDirectoryKind.SourceAllDirectories);
+
+            // Create a pip that will have a strong fingerprint miss if absentFile is created
+            var ops = new Operation[]
+            {
+                Operation.Probe(absentFile, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            };
+
+            var builder = CreatePipBuilder(ops);
+            builder.AddInputDirectory(absentFileDir);
+
+            var pipA = SchedulePipBuilder(builder).Process;
+
+            var srcB = CreateSourceFile();
+            var pipB = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(srcB),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            }).Process;
+
+            var build1 = RunScheduler().AssertCacheMiss(pipA.PipId);
+
+            // Create /absentFile
+            File.WriteAllText(ArtifactToString(absentFile), "asdf");
+            var build2 = RunScheduler().AssertCacheMiss(pipA.PipId);
+
+            var correctOut1 = RunAnalyzer(build1, build2).AssertPipMiss(
+                pipA,
+                PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
+                ArtifactToPrint(absentFile),
+                ObservedInputConstants.AbsentPathProbe,
+                ObservedInputConstants.FileContentRead).FileOutput;
+
+            FingerprintStoreEntry pipAEntry = default;
+            FingerprintStoreSession(ResultToStoreDirectory(build2), store =>
+            {
+                // Remove pipA's entry from the execution-time fingerprintStore, and replace it with a dummy entry (pipB's) that will diff incorrectly if used
+                store.TryGetFingerprintStoreEntryBySemiStableHash(pipA.FormattedSemiStableHash, out pipAEntry);
+                store.RemoveFingerprintStoreEntryForTesting(pipAEntry);
+
+                store.TryGetFingerprintStoreEntryBySemiStableHash(pipB.FormattedSemiStableHash, out var pipBEntry);
+                // Route's pipA's key to point to the same fingerprint info as pipB's
+                // If this store is used now to analyze pipA, the analysis will be incorrect
+                pipBEntry.PipToFingerprintKeys = new System.Collections.Generic.KeyValuePair<string, PipFingerprintKeys>(pipA.FormattedSemiStableHash, pipBEntry.PipToFingerprintKeys.Value);
+                store.PutFingerprintStoreEntry(pipBEntry);
+            },
+            readOnly: false);
+
+            // Make sure the diff is still correct, which implies the cache lookup fingerprint store is still being used
+            var correctOut2 = RunAnalyzer(build1, build2).AssertPipMiss(
+                pipA,
+                PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
+                ArtifactToPrint(absentFile),
+                ObservedInputConstants.AbsentPathProbe,
+                ObservedInputConstants.FileContentRead).FileOutput;
+
+            XAssert.AreEqual(correctOut1, correctOut2);
+
+            // Remove pipA's entry from the cache lookup store
+            FingerprintStoreSession(ResultToStoreDirectory(build2, cacheLookupStore: true), store =>
+            {
+                store.RemoveFingerprintStoreEntryForTesting(pipAEntry);
+            },
+            readOnly: false);
+
+            // Ensure that the analyzer falls-back on the execution-time store when the cache-lookup store is missing entries
+            // srcB from pipB's dependencies will show up in the analysis because of earlier manipulation of the execution-time store
+            var incorrectOut = RunAnalyzer(build1, build2).AssertPipMiss(
+                pipA,
+                PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
+                ArtifactToPrint(srcB)).FileOutput;
+
+            XAssert.AreNotEqual(correctOut2, incorrectOut);
+        }
+
+        /// <summary>
         /// Matches the string representation of <see cref="FileOrDirectoryArtifact"/> used by the fingerprint store
         /// when serializing to JSON.
         /// </summary>
@@ -671,7 +764,31 @@ namespace Test.Tool.Analyzers
         {
             if (Configuration.Logging.CacheMissAnalysisOption == CacheMissAnalysisOption.LocalMode())
             {
-                AssertLogContains(caseSensitive: false, requiredLogMessages: requiredMessages);
+                var messages = requiredMessages.Select((s) => ObservedInputConstants.ToExpandedString(s));
+                AssertLogContains(caseSensitive: false, requiredLogMessages: messages.ToArray());
+            }
+        }
+
+        private string ResultToStoreDirectory(ScheduleRunResult result, bool cacheLookupStore = false)
+        {
+            return cacheLookupStore ? result.Config.Logging.CacheLookupFingerprintStoreLogDirectory.ToString(Context.PathTable) : result.Config.Logging.FingerprintStoreLogDirectory.ToString(Context.PathTable);
+        }
+
+        /// <summary>
+        /// Encapsulates one "session" with a fingerprint store.
+        /// </summary>
+        /// <param name="storeDirectory">
+        /// Directory of the fingerprint store.
+        /// </param>
+        /// <param name="storeOps">
+        /// The store operations to execute.
+        /// </param>
+        public static CounterCollection<FingerprintStoreCounters> FingerprintStoreSession(string storeDirectory, Action<FingerprintStore> storeOps, bool readOnly = true, FingerprintStoreTestHooks testHooks = null)
+        {
+            using (var fingerprintStore = FingerprintStore.Open(storeDirectory, readOnly: readOnly, testHooks: testHooks).Result)
+            {
+                storeOps(fingerprintStore);
+                return fingerprintStore.Counters;
             }
         }
         protected override void Dispose(bool disposing)
@@ -752,7 +869,7 @@ namespace Test.Tool.Analyzers
         {
             foreach (var message in messages)
             {
-                XAssert.IsTrue(result.FileOutput.Contains(message), "Expected message: \"{0}\" to appear in analyzer output: \"{1}\"", message, result.FileOutput);
+                XAssert.IsTrue(result.FileOutput.Contains(ObservedInputConstants.ToExpandedString(message)), "Expected message: \"{0}\" to appear in analyzer output: \"{1}\"", ObservedInputConstants.ToExpandedString(message), result.FileOutput);
             }
 
             return result;

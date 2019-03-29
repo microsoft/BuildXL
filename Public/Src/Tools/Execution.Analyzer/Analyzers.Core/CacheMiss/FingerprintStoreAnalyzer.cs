@@ -131,9 +131,13 @@ namespace BuildXL.Execution.Analyzer
 
         private FingerprintStoreReader m_newReader;
 
+        private FingerprintStoreReader m_newCacheLookupReader;
+
         private string m_oldStoreLocation;
 
         private string m_newStoreLocation;
+
+        private string m_newCacheLookupStoreLocation;
 
         /// <summary>
         /// Constructor.
@@ -143,7 +147,7 @@ namespace BuildXL.Execution.Analyzer
         {
             if (analysisInputOld.ExecutionLogPath.Equals(analysisInputNew.ExecutionLogPath, StringComparison.OrdinalIgnoreCase))
             {
-                var fingerprintStoreDirectories = Directory.GetDirectories(Path.GetDirectoryName(analysisInputNew.ExecutionLogPath), Scheduler.Scheduler.FingerprintStoreDirectory + "*", SearchOption.AllDirectories);
+                var fingerprintStoreDirectories = Directory.GetDirectories(Path.GetDirectoryName(analysisInputNew.ExecutionLogPath), Scheduler.Scheduler.FingerprintStoreDirectory, SearchOption.AllDirectories);
                 if (fingerprintStoreDirectories.Length != 2)
                 {
                     throw new BuildXLException($"Expecting two '{Scheduler.Scheduler.FingerprintStoreDirectory}' directories under log path '{Path.GetDirectoryName(analysisInputNew.ExecutionLogPath)}'");
@@ -152,6 +156,8 @@ namespace BuildXL.Execution.Analyzer
                 {
                     m_oldStoreLocation = fingerprintStoreDirectories.First(x => !x.EndsWith(Scheduler.Scheduler.FingerprintStoreDirectory));
                     m_newStoreLocation = fingerprintStoreDirectories.First(x => x.EndsWith(Scheduler.Scheduler.FingerprintStoreDirectory));
+                    m_newCacheLookupStoreLocation = fingerprintStoreDirectories.FirstOrDefault(x => x.EndsWith(Scheduler.Scheduler.FingerprintStoreDirectory + LogFileExtensions.CacheLookupFingerprintStore));
+
                     Console.WriteLine($"Comparing old fingerprint store {m_oldStoreLocation} with new one {m_newStoreLocation}");
                     m_model = new AnalysisModel(CachedGraph);
                 }
@@ -160,8 +166,17 @@ namespace BuildXL.Execution.Analyzer
             {
                 m_oldStoreLocation = GetStoreLocation(analysisInputOld);
                 m_newStoreLocation = GetStoreLocation(analysisInputNew);
-                m_model = new AnalysisModel(CachedGraph);
+                try
+                {
+                    m_newCacheLookupStoreLocation = GetStoreLocation(analysisInputNew, LogFileExtensions.CacheLookupFingerprintStore);
+                }
+                catch (BuildXLException)
+                {
+                    m_newCacheLookupStoreLocation = null;
+                }
             }
+
+            m_model = new AnalysisModel(CachedGraph);
         }
 
         protected override void ReadEvents()
@@ -169,10 +184,14 @@ namespace BuildXL.Execution.Analyzer
             // Do nothing. This analyzer does not read events.
         }
 
-        public static string GetStoreLocation(AnalysisInput analysisInput)
+        public static string GetStoreLocation(AnalysisInput analysisInput, string storeSuffix = "")
         {
-            var fingerprintStoreDirectories = Directory.GetDirectories(Path.GetDirectoryName(analysisInput.ExecutionLogPath), Scheduler.Scheduler.FingerprintStoreDirectory, SearchOption.AllDirectories);
-            if (fingerprintStoreDirectories.Length != 1)
+            var fingerprintStoreDirectories = Directory.GetDirectories(Path.GetDirectoryName(analysisInput.ExecutionLogPath), Scheduler.Scheduler.FingerprintStoreDirectory + storeSuffix, SearchOption.AllDirectories);
+            if (fingerprintStoreDirectories.Length == 0)
+            {
+                throw new BuildXLException($"Zero '{Scheduler.Scheduler.FingerprintStoreDirectory}' directories under log path '{Path.GetDirectoryName(analysisInput.ExecutionLogPath)}'");
+            }
+            else if (fingerprintStoreDirectories.Length > 1)
             {
                 throw new BuildXLException($"More than one '{Scheduler.Scheduler.FingerprintStoreDirectory}' directories under log path '{Path.GetDirectoryName(analysisInput.ExecutionLogPath)}'");
             }
@@ -206,6 +225,8 @@ namespace BuildXL.Execution.Analyzer
         {
             m_oldReader = FingerprintStoreReader.Create(m_oldStoreLocation, Path.Combine(OutputDirectory, "old")).Result;
             m_newReader = FingerprintStoreReader.Create(m_newStoreLocation, Path.Combine(OutputDirectory, "new")).Result;
+
+            m_newCacheLookupReader = m_newCacheLookupStoreLocation != null ? FingerprintStoreReader.Create(m_newCacheLookupStoreLocation, Path.Combine(OutputDirectory, "new" + LogFileExtensions.CacheLookupFingerprintStore)).Result : null;
 
             m_writer = new StreamWriter(Path.Combine(OutputDirectory, AnalysisFileName));
             if (!NoBanner)
@@ -290,24 +311,45 @@ namespace BuildXL.Execution.Analyzer
 
         private void AnalyzePip(PipCacheMissInfo miss, Process pip, TextWriter writer)
         {
-            (pip as Process).TryComputePipUniqueOutputHash(PathTable, out var pipUniqueOutputHash, m_model.CachedGraph.MountPathExpander);
+            string pipUniqueOutputHashStr = null;
+           
+            if ((pip as Process).TryComputePipUniqueOutputHash(PathTable, out var pipUniqueOutputHash, m_model.CachedGraph.MountPathExpander))
+            {
+                pipUniqueOutputHashStr = pipUniqueOutputHash.ToString();
+            }
             WriteLine(pip.GetDescription(PipGraph.Context));
 
-            var result = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
-                writer,
-                miss,
-                () => m_oldReader.StartPipRecordingSession(pip, pipUniqueOutputHash.ToString()),
-                () => m_newReader.StartPipRecordingSession(pip, pipUniqueOutputHash.ToString()));
+            var analysisResult = CacheMissAnalysisResult.Invalid;
+            if (m_newCacheLookupReader != null
+                && miss.CacheMissType == PipCacheMissType.MissForDescriptorsDueToStrongFingerprints
+                && m_newCacheLookupReader.Store.ContainsFingerprintStoreEntry(pip.FormattedSemiStableHash, pipUniqueOutputHashStr))
+            {
+                // Strong fingerprint miss analysis is most accurate when compared to the fingerprints computed at cache lookup time
+                // because those fingerprints capture the state of the disk at cache lookup time, including dynamic observations
+                analysisResult = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
+                    writer,
+                    miss,
+                    () => m_oldReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
+                    () => m_newCacheLookupReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr));
+            }
+            else
+            {
+                analysisResult = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
+                    m_writer,
+                    miss,
+                    () => m_oldReader.StartPipRecordingSession(pip, pipUniqueOutputHash.ToString()),
+                    () => m_newReader.StartPipRecordingSession(pip, pipUniqueOutputHash.ToString()));
+            }
 
-            if (result == CacheMissAnalysisResult.MissingFromOldBuild)
+            if (analysisResult == CacheMissAnalysisResult.MissingFromOldBuild)
             {
                 Tracing.Logger.Log.FingerprintStorePipMissingFromOldBuild(LoggingContext);
             }
-            else if (result == CacheMissAnalysisResult.MissingFromNewBuild)
+            else if (analysisResult == CacheMissAnalysisResult.MissingFromNewBuild)
             {
                 Tracing.Logger.Log.FingerprintStorePipMissingFromNewBuild(LoggingContext);
             }
-            else if (result == CacheMissAnalysisResult.UncacheablePip)
+            else if (analysisResult == CacheMissAnalysisResult.UncacheablePip)
             {
                 Tracing.Logger.Log.FingerprintStoreUncacheablePipAnalyzed(LoggingContext);
             }

@@ -21,12 +21,14 @@ using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using KVP = System.Collections.Generic.KeyValuePair<string, string>;
 using PipKVP = System.Collections.Generic.KeyValuePair<string, BuildXL.Scheduler.Tracing.FingerprintStore.PipFingerprintKeys>;
 using System.Collections.Generic;
+using BuildXL.Native.IO;
+using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Scheduler.Tracing
 {
     /// <summary>
-    /// Logging target for sending inputs to fingerprint computation to fingerprint input store.
-    /// Encapsulates the logic for serializing entries for the fingerprint store.
+    /// Logging target for sending inputs to fingerprint computation to <see cref="FingerprintStore"/> instances.
+    /// Encapsulates the logic for serializing entries for <see cref="FingerprintStore"/> instances.
     /// </summary>
     public sealed class FingerprintStoreExecutionLogTarget : ExecutionLogTargetBase
     {
@@ -46,9 +48,20 @@ namespace BuildXL.Scheduler.Tracing
         internal readonly PipContentFingerprinter PipContentFingerprinter;
 
         /// <summary>
-        /// Key-value store for storing fingerprint computation data.
+        /// Key-value store for storing fingerprint computation data computed at:
+        /// 1. Pip execution time
+        /// 2. Cache lookup time if there is a cache hit (data from cache hits should be representative of the data that would have come from executing the pip)
         /// </summary>
-        internal readonly FingerprintStore FingerprintStore;
+        internal readonly FingerprintStore ExecutionFingerprintStore;
+
+        /// <summary>
+        /// Key-value store for storing fingerprint computation data computed at:
+        /// 1. Cache lookup time if there is a strong fingerprint mismatch
+        /// 
+        /// To prevent storing redudant data, only strong fingerprint mismatches are stored. The weak fingerprint of a pip composed entirely of static information
+        /// and will not change throughout the build, so the weak fingerprint stored in the <see cref="ExecutionFingerprintStore"/> at pip execution time is sufficient.
+        /// </summary>
+        internal readonly FingerprintStore CacheLookupFingerprintStore;
 
         /// <summary>
         /// Maintains the order of cache misses seen in a build.
@@ -66,14 +79,21 @@ namespace BuildXL.Scheduler.Tracing
         public override bool CanHandleWorkerEvents => true;
 
         /// <summary>
+        /// <see cref="FingerprintStoreMode"/>
+        /// </summary>
+        public FingerprintStoreMode FingerprintStoreMode { get; }
+
+        /// <summary>
         /// Counters, shared with <see cref="Tracing.FingerprintStore"/>.
         /// </summary>
-        public CounterCollection<FingerprintStoreCounters> Counters => FingerprintStore.Counters;
+        public CounterCollection<FingerprintStoreCounters> Counters { get; }
 
         private readonly Task<RuntimeCacheMissAnalyzer> m_runtimeCacheMissAnalyzerTask;
         private RuntimeCacheMissAnalyzer RuntimeCacheMissAnalyzer => m_runtimeCacheMissAnalyzerTask.GetAwaiter().GetResult();
 
         private bool CacheMissAnalysisEnabled => RuntimeCacheMissAnalyzer != null;
+
+        private bool CacheLookupStoreEnabled => CacheLookupFingerprintStore != null && !CacheLookupFingerprintStore.Disabled;
 
         /// <summary>
         /// Creates a <see cref="FingerprintStoreExecutionLogTarget"/>.
@@ -87,38 +107,85 @@ namespace BuildXL.Scheduler.Tracing
             PipExecutionContext context,
             PipTable pipTable,
             PipContentFingerprinter pipContentFingerprinter,
-            string fingerprintStoreDirectory,
             LoggingContext loggingContext,
             IConfiguration configuration,
             EngineCache cache,
             IReadonlyDirectedGraph graph,
+            CounterCollection<FingerprintStoreCounters> counters,
             IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance = null,
             FingerprintStoreTestHooks testHooks = null)
         {
+            var fingerprintStorePathString = configuration.Layout.FingerprintStoreDirectory.ToString(context.PathTable);
+            var cacheLookupFingerprintStorePathString = configuration.Logging.CacheLookupFingerprintStoreLogDirectory.ToString(context.PathTable);
+
+            try
+            {
+                FileUtilities.CreateDirectoryWithRetry(fingerprintStorePathString);
+            }
+            catch (BuildXLException ex)
+            {
+                Logger.Log.FingerprintStoreUnableToCreateDirectory(loggingContext, fingerprintStorePathString, ex.Message);
+                throw new BuildXLException("Unable to create fingerprint store directory: ", ex);
+            }
+
             var maxEntryAge = new TimeSpan(hours: 0, minutes: configuration.Logging.FingerprintStoreMaxEntryAgeMinutes, seconds: 0);
-            var possibleStore = FingerprintStore.Open(
-                fingerprintStoreDirectory,
+            var possibleExecutionStore = FingerprintStore.Open(
+                fingerprintStorePathString,
                 maxEntryAge: maxEntryAge,
                 mode: configuration.Logging.FingerprintStoreMode,
                 loggingContext: loggingContext,
+                counters: counters,
                 testHooks: testHooks);
 
-            if (possibleStore.Succeeded)
+            Possible<FingerprintStore> possibleCacheLookupStore = new Failure<string>("No attempt to create a cache lookup fingerprint store yet.");
+            if (configuration.Logging.FingerprintStoreMode != FingerprintStoreMode.ExecutionFingerprintsOnly)
+            {
+                try
+                {
+                    FileUtilities.CreateDirectoryWithRetry(cacheLookupFingerprintStorePathString);
+                }
+                catch (BuildXLException ex)
+                {
+                    Logger.Log.FingerprintStoreUnableToCreateDirectory(loggingContext, fingerprintStorePathString, ex.Message);
+                    throw new BuildXLException("Unable to create fingerprint store directory: ", ex);
+                }
+
+                possibleCacheLookupStore = FingerprintStore.Open(
+                    cacheLookupFingerprintStorePathString,
+                    maxEntryAge: maxEntryAge,
+                    mode: configuration.Logging.FingerprintStoreMode,
+                    loggingContext: loggingContext,
+                    counters: counters,
+                    testHooks: testHooks);
+            }
+
+            if (possibleExecutionStore.Succeeded
+                && (possibleCacheLookupStore.Succeeded || configuration.Logging.FingerprintStoreMode == FingerprintStoreMode.ExecutionFingerprintsOnly))
             {
                 return new FingerprintStoreExecutionLogTarget(
                     loggingContext,
                     context,
                     pipTable,
                     pipContentFingerprinter,
-                    possibleStore.Result,
+                    possibleExecutionStore.Result,
+                    possibleCacheLookupStore.Succeeded ? possibleCacheLookupStore.Result : null,
                     configuration,
                     cache,
                     graph,
+                    counters,
                     runnablePipPerformance);
             }
             else
             {
-                Logger.Log.FingerprintStoreUnableToOpen(loggingContext, possibleStore.Failure.DescribeIncludingInnerFailures());
+                if (!possibleExecutionStore.Succeeded)
+                {
+                    Logger.Log.FingerprintStoreUnableToOpen(loggingContext, possibleExecutionStore.Failure.DescribeIncludingInnerFailures());
+                }
+                
+                if (!possibleCacheLookupStore.Succeeded)
+                {
+                    Logger.Log.FingerprintStoreUnableToOpen(loggingContext, possibleCacheLookupStore.Failure.DescribeIncludingInnerFailures());
+                }
             }
 
             return null;
@@ -133,16 +200,23 @@ namespace BuildXL.Scheduler.Tracing
             PipTable pipTable,
             PipContentFingerprinter pipContentFingerprinter,
             FingerprintStore fingerprintStore,
+            FingerprintStore cacheLookupFingerprintStore,
             IConfiguration configuration,
             EngineCache cache,
             IReadonlyDirectedGraph graph,
+            CounterCollection<FingerprintStoreCounters> counters,
             IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance)
         {
             m_context = context;
             m_pipTable = pipTable;
             PipContentFingerprinter = pipContentFingerprinter;
-            FingerprintStore = fingerprintStore;
+            ExecutionFingerprintStore = fingerprintStore;
+            CacheLookupFingerprintStore = cacheLookupFingerprintStore;
+            // Cache lookup store is per-build state and doesn't need to be garbage collected (vs. execution fignerprint store which is persisted build-over-build)
+            CacheLookupFingerprintStore?.GarbageCollectCancellationToken.Cancel();
             m_pipCacheMissesQueue = new ConcurrentQueue<PipCacheMissInfo>();
+            Counters = counters;
+            FingerprintStoreMode = configuration.Logging.FingerprintStoreMode;
             m_runtimeCacheMissAnalyzerTask = RuntimeCacheMissAnalyzer.TryCreateAsync(
                 this,
                 loggingContext,
@@ -151,6 +225,8 @@ namespace BuildXL.Scheduler.Tracing
                 cache,
                 graph,
                 runnablePipPerformance);
+
+            Contract.Assume(FingerprintStoreMode == FingerprintStoreMode.ExecutionFingerprintsOnly || CacheLookupFingerprintStore != null, "Unless /storeFingerprints flag is set to /storeFingerprints:ExecutionFingerprintsOnly, the cache lookup FingerprintStore must exist.");
         }
 
         /// <summary>
@@ -168,7 +244,7 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public override void DirectoryMembershipHashed(DirectoryMembershipHashedEventData data)
         {
-            if (FingerprintStore.Disabled)
+            if (ExecutionFingerprintStore.Disabled)
             {
                 return;
             }
@@ -178,10 +254,10 @@ namespace BuildXL.Scheduler.Tracing
                 Counters.IncrementCounter(FingerprintStoreCounters.NumDirectoryMembershipEvents);
 
                 var stringContentHash = ContentHashToString(data.DirectoryFingerprint.Hash);
-                if (!FingerprintStore.ContainsContentHash(stringContentHash))
+                if (!ExecutionFingerprintStore.ContainsContentHash(stringContentHash))
                 {
                     Counters.IncrementCounter(FingerprintStoreCounters.NumDirectoryMembershipEntriesPut);
-                    FingerprintStore.PutContentHash(stringContentHash, JsonSerialize(data));
+                    ExecutionFingerprintStore.PutContentHash(stringContentHash, JsonSerialize(data));
                 }
             }
         }
@@ -216,6 +292,7 @@ namespace BuildXL.Scheduler.Tracing
         /// { path set hash : path set inputs }
         /// </summary>
         private FingerprintStoreEntry CreateAndStoreFingerprintStoreEntry(
+            FingerprintStore fingerprintStore,
             Process pip,
             PipFingerprintKeys pipFingerprintKeys,
             WeakContentFingerprint weakFingerprint,
@@ -224,14 +301,14 @@ namespace BuildXL.Scheduler.Tracing
             // If we got this far, a new pip is being put in the store
             Counters.IncrementCounter(FingerprintStoreCounters.NumPipFingerprintEntriesPut);
 
-            UpdateOrStorePipUniqueOutputHashEntry(pip);
+            UpdateOrStorePipUniqueOutputHashEntry(fingerprintStore, pip);
 
             // A content hash-keyed entry will have the same value as long as the key is the same, so overwriting it is unnecessary
-            var mustStorePathEntry = !FingerprintStore.ContainsContentHash(pipFingerprintKeys.PathSetHash) || CacheMissAnalysisEnabled;
+            var mustStorePathEntry = !fingerprintStore.ContainsContentHash(pipFingerprintKeys.FormattedPathSetHash) || CacheMissAnalysisEnabled;
 
             var entry = CreateFingerprintStoreEntry(pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData, mustStorePathEntry);
 
-            FingerprintStore.PutFingerprintStoreEntry(entry, storePathSet: mustStorePathEntry);
+            fingerprintStore.PutFingerprintStoreEntry(entry, storePathSet: mustStorePathEntry);
             return entry;
         }
 
@@ -254,57 +331,133 @@ namespace BuildXL.Scheduler.Tracing
                     StrongFingerprintToInputs = new KVP(pipFingerprintKeys.StrongFingerprint, JsonSerialize(weakFingerprint, strongFingerprintData.PathSetHash, strongFingerprintData.ObservedInputs)),
                     // { path set hash : path set inputs }
                     // If fingerprint comparison is enabled, the entry should contain the pathset json.
-                    PathSetHashToInputs = mustStorePathEntry ? new KVP(pipFingerprintKeys.PathSetHash, JsonSerialize(strongFingerprintData)) : default,
+                    PathSetHashToInputs = mustStorePathEntry ? new KVP(pipFingerprintKeys.FormattedPathSetHash, JsonSerialize(strongFingerprintData)) : default,
                 }
             };
         }
 
         /// <summary>
-        /// Processes a fingerprint computed for cache lookup. This will put or overwrite an entry in the fingerprint store
+        /// Puts <see cref="FingerprintStoreEntry"/> to the <see cref="ExecutionFingerprintStore"/> if the same entry does not exist.
+        /// </summary>
+        /// <returns>
+        /// True, if the entry was added; false if the entry already exists.
+        /// </returns>
+        private bool TryPutExecutionFingerprintStoreEntry(Process pip, WeakContentFingerprint weakFingerprint, ProcessStrongFingerprintComputationData strongFingerprintData)
+        {
+            var strongFingerprint = strongFingerprintData.ComputedStrongFingerprint;
+            var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash));
+
+            // Skip overwriting the same value on cache hits
+            if (SameValueEntryExists(ExecutionFingerprintStore, pip, pipFingerprintKeys))
+            {
+                // No fingerprint entry needs to be stored for this pip, but it's unique output hash entry might need to be updated
+                UpdateOrStorePipUniqueOutputHashEntry(ExecutionFingerprintStore, pip);
+                return false;
+            }
+            else
+            {
+                CreateAndStoreFingerprintStoreEntry(ExecutionFingerprintStore, pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Processes a fingerprint computed for cache lookup.
+        /// This will put or overwrite an entry in the <see cref="ExecutionFingerprintStore"/>
         /// if two conditions are met:
         /// 1. The fingerprint computed has a strong fingerprint match from the cache.
         /// 2. The fingerprint computed does not already exist with the same value in the fingerprint store.
+        /// 
+        /// This will put an entry in the <see cref="CacheLookupFingerprintStore"/> for every strong fingerprint cache miss.
         /// </summary>
         private void ProcessFingerprintComputedForCacheLookup(ProcessFingerprintComputationEventData data)
         {
-            // Strong fingerprint misses need to be analyzed during cache-lookup to get a precise reason.
-            RuntimeCacheMissAnalyzer?.AnalyzeForCacheLookup(data);
-
             var maybeStrongFingerprintData = SelectStrongFingerprintComputationData(data);
 
             if (maybeStrongFingerprintData == null)
             {
                 // Weak fingerprint miss, relevant fingerprint information will be recorded at execution time
-                Counters.IncrementCounter(FingerprintStoreCounters.NumFingerprintComputationSkippedWeakFingerprintMiss);
+                Counters.IncrementCounter(FingerprintStoreCounters.NumCacheLookupFingerprintComputationSkipped);
+                return;
+            }
+            
+            if (!maybeStrongFingerprintData.Value.Succeeded)
+            {
+                // Something went wrong when computing the strong fingerprint
+                // Don't bother attempting to store or analyze data since the data may be partial and cause failures
+                Counters.IncrementCounter(FingerprintStoreCounters.NumCacheLookupFingerprintComputationSkipped);
                 return;
             }
 
+            var pip = GetProcess(data.PipId);
+            var weakFingerprint = data.WeakFingerprint;
             var strongFingerprintData = maybeStrongFingerprintData.Value;
 
-            if (!strongFingerprintData.IsStrongFingerprintHit)
+            // Cache hit, update execution fingerprint store entry, if necessary, to match what would have been executed
+            if (strongFingerprintData.IsStrongFingerprintHit)
             {
-                // Strong fingerprint miss, relevant fingerprint information will be recorded at execution time
-                Counters.IncrementCounter(FingerprintStoreCounters.NumFingerprintComputationSkippedStrongFingerprintMiss);
-                return;
+                if (TryPutExecutionFingerprintStoreEntry(pip, weakFingerprint, maybeStrongFingerprintData.Value))
+                {
+                    Counters.IncrementCounter(FingerprintStoreCounters.NumHitEntriesPut);
+                }
+                else
+                {
+                    Counters.IncrementCounter(FingerprintStoreCounters.NumFingerprintComputationSkippedSameValueEntryExists);
+                }
             }
-
-            Process pip = GetProcess(data.PipId);
-            var weakFingerprint = data.WeakFingerprint;
-            var strongFingerprint = strongFingerprintData.ComputedStrongFingerprint;
-
-            var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash));
-            // Skip overwriting the same value on cache hits
-            if (SameValueEntryExists(pip, pipFingerprintKeys))
+            // Strong fingerprint cache miss, store the most relevant fingerprint to the cache lookup fingerprint store
+            else if (CacheLookupStoreEnabled || CacheMissAnalysisEnabled)
             {
-                // No fingerprint entry needs to be stored for this pip, but it's unique output hash entry might need to be updated
-                UpdateOrStorePipUniqueOutputHashEntry(pip);
+                // Try and find the strong fingerprint from the cache that matches the path set stored in the fingerprint store
+                var foundMatchingPathset = false;
+                var storeToUse = RuntimeCacheMissAnalyzer == null ? ExecutionFingerprintStore : RuntimeCacheMissAnalyzer.PreviousFingerprintStore;
+                if (storeToUse.TryGetPipFingerprintKeys(pip.FormattedSemiStableHash, out var pfk))
+                {
+                    foreach (var sf in data.StrongFingerprintComputations)
+                    {
+                        if (pfk.FormattedPathSetHash == ContentHashToString(sf.PathSetHash))
+                        {
+                            strongFingerprintData = sf;
+                            foundMatchingPathset = true;
+                            break;
+                        }
+                    }
+                }
 
-                Counters.IncrementCounter(FingerprintStoreCounters.NumFingerprintComputationSkippedSameValueEntryExists);
-                return;
+                if (strongFingerprintData.Succeeded)
+                {
+                    var strongFingerprint = strongFingerprintData.ComputedStrongFingerprint;
+                    var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash));
+                    FingerprintStoreEntry newEntry = null;
+
+                    if (CacheLookupStoreEnabled)
+                    {
+                        // All directory membership fingerprint entries are stored in the ExecutionFingerprintStore as they are computed during the build
+                        // Copy any necessary directory membership fingerprint entries to the CacheLookupStore on a need-to-have basis
+                        foreach (var input in strongFingerprintData.ObservedInputs)
+                        {
+                            if (input.PathEntry.DirectoryEnumeration)
+                            {
+                                var hashKey = ContentHashToString(input.Hash);
+                                if (ExecutionFingerprintStore.TryGetContentHashValue(hashKey, out var directoryMembership))
+                                {
+                                    CacheLookupFingerprintStore.PutContentHash(hashKey, directoryMembership);
+                                }
+                            }
+                        }
+
+                        Counters.IncrementCounter(FingerprintStoreCounters.NumCacheLookupFingerprintComputationStored);
+                        newEntry = CreateAndStoreFingerprintStoreEntry(CacheLookupFingerprintStore, pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
+                    }
+
+                    if (foundMatchingPathset)
+                    {
+                        newEntry = newEntry ?? CreateFingerprintStoreEntry(pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
+                        // Strong fingerprint misses need to be analyzed during cache-lookup to get a precise reason.
+                        RuntimeCacheMissAnalyzer?.AnalyzeForCacheLookup(newEntry, pip);
+                    }
+                }
             }
-
-            CreateAndStoreFingerprintStoreEntry(pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
-            Counters.IncrementCounter(FingerprintStoreCounters.NumHitEntriesPut);
         }
 
         /// <summary>
@@ -330,7 +483,7 @@ namespace BuildXL.Scheduler.Tracing
                 var weakFingerprint = data.WeakFingerprint;
                 var strongFingerprint = strongFingerprintData.ComputedStrongFingerprint;
                 var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash));
-                newEntry = CreateAndStoreFingerprintStoreEntry(pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
+                newEntry = CreateAndStoreFingerprintStoreEntry(ExecutionFingerprintStore, pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
             }
 
             RuntimeCacheMissAnalyzer?.AnalyzeForExecution(newEntry, pip);
@@ -349,7 +502,7 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
         {
-            if (FingerprintStore.Disabled)
+            if (ExecutionFingerprintStore.Disabled)
             {
                 return;
             }
@@ -374,7 +527,7 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public override void PipCacheMiss(PipCacheMissEventData data)
         {
-            if (FingerprintStore.Disabled)
+            if (ExecutionFingerprintStore.Disabled)
             {
                 return;
             }
@@ -397,9 +550,9 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Checks if an entry for the pip with the same fingerprints already exists in the store.
         /// </summary>
-        private bool SameValueEntryExists(Process pip, PipFingerprintKeys newKeys)
+        private bool SameValueEntryExists(FingerprintStore fingerprintStore, Process pip, PipFingerprintKeys newKeys)
         {
-            var keyFound = FingerprintStore.TryGetPipFingerprintKeys(pip.FormattedSemiStableHash, out PipFingerprintKeys oldKeys);
+            var keyFound = fingerprintStore.TryGetPipFingerprintKeys(pip.FormattedSemiStableHash, out PipFingerprintKeys oldKeys);
             return keyFound 
                 && oldKeys.WeakFingerprint == newKeys.WeakFingerprint
                 && oldKeys.StrongFingerprint == newKeys.StrongFingerprint;
@@ -411,16 +564,16 @@ namespace BuildXL.Scheduler.Tracing
         /// The pip unique output hash is more stable that the pip formatted semi stable hash. If it can be computed
         /// and does not already exist, store an entry to act as the primary lookup key.
         /// </summary>
-        private void UpdateOrStorePipUniqueOutputHashEntry(Process pip)
+        private void UpdateOrStorePipUniqueOutputHashEntry(FingerprintStore fingerprintStore, Process pip)
         {
             if (pip.TryComputePipUniqueOutputHash(m_context.PathTable, out var outputHash, PipContentFingerprinter.PathExpander))
             {
-                var entryExists = FingerprintStore.TryGetPipUniqueOutputHashValue(outputHash.ToString(), out var oldSemiStableHash);
+                var entryExists = fingerprintStore.TryGetPipUniqueOutputHashValue(outputHash.ToString(), out var oldSemiStableHash);
                 if (!entryExists // missing
                     || (entryExists && oldSemiStableHash != pip.FormattedSemiStableHash)) // out-of-date
                 {
                     Counters.IncrementCounter(FingerprintStoreCounters.NumPipUniqueOutputHashEntriesPut);
-                    FingerprintStore.PutPipUniqueOutputHash(outputHash, pip.FormattedSemiStableHash);
+                    fingerprintStore.PutPipUniqueOutputHash(outputHash, pip.FormattedSemiStableHash);
                 }
             }
         }
@@ -507,21 +660,23 @@ namespace BuildXL.Scheduler.Tracing
             using (Counters.StartStopwatch(FingerprintStoreCounters.FingerprintStoreLoggingTime))
             {
                 // Store the ordered pip cache miss list as one blob
-                FingerprintStore.PutCacheMissList(m_pipCacheMissesQueue.ToList());
+                ExecutionFingerprintStore.PutCacheMissList(m_pipCacheMissesQueue.ToList());
+
+                // We should first dispose the fingerprintStore in the RunCacheMissAnalyzer
+                // because that might be the snapshot version of FingerprintStore
+                // in case cache miss analysis is in the local-mode.
+                RuntimeCacheMissAnalyzer?.Dispose();
+
+                // For performance, cancel garbage collect for builds with no cache misses
+                if (!m_fingerprintComputedForExecution)
+                {
+                    ExecutionFingerprintStore.GarbageCollectCancellationToken.Cancel();
+                }
+
+                ExecutionFingerprintStore.Dispose();
+                CacheLookupFingerprintStore?.Dispose();
             }
 
-            // We should first dispose the fingerprintStore in the RunCacheMissAnalyzer
-            // because that might be the snapshot version of FingerprintStore
-            // in case cache miss analysis is in the local-mode.
-            RuntimeCacheMissAnalyzer?.Dispose();
-
-            // For performance, cancel garbage collect for builds with no cache misses
-            if (!m_fingerprintComputedForExecution)
-            {
-                FingerprintStore.GarbageCollectCancellationToken.Cancel();
-            }
-
-            FingerprintStore.Dispose();
             base.Dispose();
         }
     }

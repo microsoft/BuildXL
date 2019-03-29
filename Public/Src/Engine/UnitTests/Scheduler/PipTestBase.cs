@@ -26,7 +26,6 @@ using Xunit.Abstractions;
 
 using static BuildXL.Interop.MacOS.IO;
 using System.Threading;
-using BuildXL.Scheduler;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -512,6 +511,12 @@ namespace Test.BuildXL.Scheduler
             Directory.CreateDirectory(path.ToString(Context.PathTable));
             return path;
         }
+
+        /// <summary>
+        /// Creates a unique directory and wraps it in a <see cref="DirectoryArtifact"/>.
+        /// </summary>
+        protected DirectoryArtifact CreateUniqueDirectoryArtifact(string root = null, string prefix = null) 
+            => DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(root, prefix));
 
         /// <summary>
         /// Creates a file artifact with the given name under the given root

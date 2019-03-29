@@ -53,7 +53,7 @@ namespace BuildXL.Scheduler.Tracing
 
                 if (option.Mode == CacheMissMode.Local)
                 {
-                    possibleStore = FingerprintStore.CreateSnapshot(logTarget.FingerprintStore, loggingContext);
+                    possibleStore = FingerprintStore.CreateSnapshot(logTarget.ExecutionFingerprintStore, loggingContext);
                 }
                 else
                 {
@@ -122,6 +122,12 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         private ConcurrentDictionary<PipId, PipCacheMissInfo> m_pipCacheMissesDict;
 
+        /// <summary>
+        /// A previous build's <see cref="FingerprintStore"/> that can be used for cache miss comparison.
+        /// This may also be a snapshot of the current build's main <see cref="FingerprintStore"/> at the beginning of the build.
+        /// </summary>
+        public FingerprintStore PreviousFingerprintStore => m_fingerprintStoreToCompare;
+
         private RuntimeCacheMissAnalyzer(
             FingerprintStoreExecutionLogTarget logTarget,
             LoggingContext loggingContext,
@@ -145,55 +151,17 @@ namespace BuildXL.Scheduler.Tracing
             m_pipCacheMissesDict.Add(cacheMissInfo.PipId, cacheMissInfo);
         }
 
-        internal void AnalyzeForCacheLookup(ProcessFingerprintComputationEventData data)
+        internal void AnalyzeForCacheLookup(FingerprintStoreEntry newEntry, Process pip)
         {
-            var pipId = data.PipId;
-            using (var watch = new CacheMissTimer(pipId, this))
-            {
-                // During cache-lookup, we only perform cache miss analysis for strong fingerprint misses.
-                if (!m_pipCacheMissesDict.TryGetValue(data.PipId, out PipCacheMissInfo info)
-                    || info.CacheMissType != PipCacheMissType.MissForDescriptorsDueToStrongFingerprints)
-                {
-                    return;
-                }
-
-                if (!IsCacheMissEligible(pipId))
-                {
-                    return;
-                }
-
-                Process pip = m_logTarget.GetProcess(pipId);
-                if (!TryGetFingerprintStoreEntry(pip, out FingerprintStoreEntry oldEntry))
-                {
-                    return;
-                }
-
-                // WeakFingerprint must match
-                if (!string.Equals(oldEntry.PipToFingerprintKeys.Value.WeakFingerprint, data.WeakFingerprint.Hash.ToString()))
-                {
-                    return;
-                }
-
-                foreach (var computation in data.StrongFingerprintComputations)
-                {
-                    if (!computation.IsStrongFingerprintHit
-                        && string.Equals(ContentHashToString(computation.PathSetHash), oldEntry.PipToFingerprintKeys.Value.PathSetHash))
-                    {
-                        // If pathSets do match and it is a strongfingerprint miss, we can perform the cache miss analysis
-                        // First, we need to create the entry.
-                        var pipFingerprintKeys = new PipFingerprintKeys(data.WeakFingerprint, computation.ComputedStrongFingerprint, ContentHashToString(computation.PathSetHash));
-                        var newEntry = m_logTarget.CreateFingerprintStoreEntry(pip, pipFingerprintKeys, data.WeakFingerprint, computation);
-
-                        Counters.IncrementCounter(FingerprintStoreCounters.CacheMissAnalysisCacheLookupAnalyzeCount);
-
-                        PerformCacheMissAnalysis(pip, oldEntry, newEntry, true);
-                        return;
-                    }
-                }
-            }
+            Analyze(newEntry, pip, fromCacheLookup: true);
         }
 
         internal void AnalyzeForExecution(FingerprintStoreEntry newEntry, Process pip)
+        {
+            Analyze(newEntry, pip, fromCacheLookup: false);
+        }
+
+        private void Analyze(FingerprintStoreEntry newEntry, Process pip, bool fromCacheLookup)
         {
             using (var watch = new CacheMissTimer(pip.PipId, this))
             {
@@ -207,7 +175,7 @@ namespace BuildXL.Scheduler.Tracing
                     return;
                 }
 
-                PerformCacheMissAnalysis(pip, oldEntry, newEntry, false);
+                PerformCacheMissAnalysis(pip, oldEntry, newEntry, fromCacheLookup);
             }
         }
 
@@ -237,7 +205,7 @@ namespace BuildXL.Scheduler.Tracing
                         writer,
                         missInfo,
                         () => new FingerprintStoreReader.PipRecordingSession(m_fingerprintStoreToCompare, oldEntry),
-                        () => new FingerprintStoreReader.PipRecordingSession(m_logTarget.FingerprintStore, newEntry));
+                        () => new FingerprintStoreReader.PipRecordingSession(m_logTarget.ExecutionFingerprintStore, newEntry));
 
                     // The diff sometimes contains several empty new lines at the end.
                     var reason = writer.ToString().TrimEnd(Environment.NewLine.ToCharArray());

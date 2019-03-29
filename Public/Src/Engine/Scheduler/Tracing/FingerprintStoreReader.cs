@@ -19,10 +19,10 @@ namespace BuildXL.Scheduler.Tracing
     /// </summary>
     public sealed class FingerprintStoreReader : IDisposable
     {
-        /// <summary>   
-        /// The fingerprint store.
+        /// <summary>
+        /// The underlying <see cref="FingerprintStore"/> for finer-grained access to data.
         /// </summary>
-        private FingerprintStore m_store;
+        public FingerprintStore Store { get; private set; }
 
         /// <summary>
         /// Directory for outputting individual pip information.
@@ -32,7 +32,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Version of the store opened.
         /// </summary>
-        public int StoreVersion => m_store.StoreVersion;
+        public int StoreVersion => Store.StoreVersion;
 
         /// <summary>
         /// Constructor helper method
@@ -53,7 +53,7 @@ namespace BuildXL.Scheduler.Tracing
             Contract.Requires(store != null);
             Contract.Requires(!string.IsNullOrEmpty(outputDirectory));
 
-            m_store = store;
+            Store = store;
             m_outputDirectory = outputDirectory;
             Directory.CreateDirectory(m_outputDirectory);
         }
@@ -63,7 +63,7 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public bool TryGetCacheMissList(out IReadOnlyList<PipCacheMissInfo> cacheMissList)
         {
-            return m_store.TryGetCacheMissList(out cacheMissList);
+            return Store.TryGetCacheMissList(out cacheMissList);
         }
 
         /// <summary>
@@ -74,9 +74,9 @@ namespace BuildXL.Scheduler.Tracing
         public PipRecordingSession StartPipRecordingSession(Process pip, string pipUniqueOutputHash)
         {
             TextWriter writer = new StreamWriter(Path.Combine(m_outputDirectory, pip.SemiStableHash.ToString("x16", CultureInfo.InvariantCulture) + ".txt"));
-            m_store.TryGetFingerprintStoreEntry(pipUniqueOutputHash, pip.FormattedSemiStableHash, out var entry);
+            Store.TryGetFingerprintStoreEntry(pipUniqueOutputHash, pip.FormattedSemiStableHash, out var entry);
 
-            return new PipRecordingSession(m_store, entry, writer);
+            return new PipRecordingSession(Store, entry, writer);
         }
 
         /// <summary>
@@ -87,9 +87,9 @@ namespace BuildXL.Scheduler.Tracing
         public PipRecordingSession StartPipRecordingSession(string pipFormattedSemistableHash)
         {
             TextWriter writer = new StreamWriter(Path.Combine(m_outputDirectory, pipFormattedSemistableHash + ".txt"));
-            m_store.TryGetFingerprintStoreEntryBySemiStableHash(pipFormattedSemistableHash, out var entry);
+            Store.TryGetFingerprintStoreEntryBySemiStableHash(pipFormattedSemistableHash, out var entry);
 
-            return new PipRecordingSession(m_store, entry, writer);
+            return new PipRecordingSession(Store, entry, writer);
         }
 
         /// <summary>
@@ -97,7 +97,7 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public void Dispose()
         {
-            m_store.Dispose();
+            Store.Dispose();
         }
 
         /// <summary>
@@ -333,28 +333,21 @@ namespace BuildXL.Scheduler.Tracing
                 var values = observedInputNode.Values;
                 values.Clear();
 
+                string expandedType = ObservedInputConstants.ToExpandedString(observedInputType);
                 switch (observedInputType)
                 {
                     case ObservedInputConstants.AbsentPathProbe:
-                        values.Add(ObservedInputType.AbsentPathProbe.ToString());
+                    case ObservedInputConstants.ExistingFileProbe:
+                    case ObservedInputConstants.ExistingDirectoryProbe:
+                        values.Add(expandedType);
                         break;
-
                     case ObservedInputConstants.FileContentRead:
-                        values.Add($"{ObservedInputType.FileContentRead.ToString()}:{observedInputHash}");
+                        values.Add($"{expandedType}:{observedInputHash}");
                         break;
-
                     case ObservedInputConstants.DirectoryEnumeration:
-                        values.Add($"{ObservedInputType.DirectoryEnumeration.ToString()}:{observedInputHash}");
+                        values.Add($"{expandedType}:{observedInputHash}");
                         // [8] "Members":"[src_1, src_2]"
                         AddDirectoryMembershipBranch(observedInputHash, pathSetNode);
-                        break;
-
-                    case ObservedInputConstants.ExistingDirectoryProbe:
-                        values.Add(ObservedInputType.ExistingDirectoryProbe.ToString());
-                        break;
-
-                    case ObservedInputConstants.ExistingFileProbe:
-                        values.Add(ObservedInputType.ExistingFileProbe.ToString());
                         break;
                 }
 

@@ -140,11 +140,11 @@ namespace BuildXL.Scheduler
         public const string DefaultSchedulerFileChangeTrackerFile = "SchedulerFileChangeTracker";
 
         /// <summary>
-        /// Fingerprint store directory name.
+        /// <see cref="FingerprintStore"/> directory name.
         /// </summary>
         public const string FingerprintStoreDirectory = "FingerprintStore";
-
-        #endregion
+        
+        #endregion Constants
 
         #region State
 
@@ -929,6 +929,7 @@ namespace BuildXL.Scheduler
 
         private PipCountersByGroupAggregator m_groupedPipCounters;
         private readonly CounterCollection<PipExecutionStep> m_pipExecutionStepCounters = new CounterCollection<PipExecutionStep>();
+        private readonly CounterCollection<FingerprintStoreCounters> m_fingerprintStoreCounters = new CounterCollection<FingerprintStoreCounters>();
 
         private sealed class CriticalPathStats
         {
@@ -1174,6 +1175,7 @@ namespace BuildXL.Scheduler
                     m_pipContentFingerprinter,
                     cache,
                     DataflowGraph,
+                    m_fingerprintStoreCounters,
                     m_runnablePipPerformance,
                     m_testHooks?.FingerprintStoreTestHooks);
 
@@ -1334,8 +1336,6 @@ namespace BuildXL.Scheduler
 
                 if (m_fingerprintStoreTarget != null)
                 {
-                    // Capture the counters before disposing
-                    var counters = m_fingerprintStoreTarget.Counters;
                     // Dispose the fingerprint store to allow copying the files
                     m_fingerprintStoreTarget.Dispose();
 
@@ -1345,9 +1345,13 @@ namespace BuildXL.Scheduler
                         m_loggingContext,
                         Context.PathTable,
                         m_configuration,
-                        counters);
+                        m_fingerprintStoreCounters);
 
-                    counters.LogAsStatistics("FingerprintStore", m_loggingContext);
+                    m_fingerprintStoreCounters.LogAsStatistics("FingerprintStore", m_loggingContext);
+                    if (m_testHooks?.FingerprintStoreTestHooks != null)
+                    {
+                        m_testHooks.FingerprintStoreTestHooks.Counters = m_fingerprintStoreCounters;
+                    }
                 }
 
                 return !HasFailed && shutdownServicesSucceeded;
@@ -2428,10 +2432,10 @@ namespace BuildXL.Scheduler
 
             var directoryOutputs = executionResult.DirectoryOutputs;
             ExecutionLog?.PipExecutionDirectoryOutputs(new PipExecutionDirectoryOutputs
-                                                       {
-                                                           PipId = runnablePip.PipId,
-                                                           DirectoryOutputs = directoryOutputs,
-                                                       });
+            {
+                PipId = runnablePip.PipId,
+                DirectoryOutputs = directoryOutputs,
+            });
         }
 
         private async Task ScheduleDependents(PipResult result, bool succeeded, RunnablePip runnablePip, PipRuntimeInfo pipRuntimeInfo)
@@ -5704,32 +5708,21 @@ namespace BuildXL.Scheduler
             PipContentFingerprinter fingerprinter,
             EngineCache cache,
             IReadonlyDirectedGraph graph,
+            CounterCollection<FingerprintStoreCounters> fingerprintStoreCounters,
             IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance = null,
             FingerprintStoreTestHooks testHooks = null)
         {
             if (configuration.FingerprintStoreEnabled())
             {
-                var fingerprintStorePathString = configuration.Layout.FingerprintStoreDirectory.ToString(context.PathTable);
-
-                try
-                {
-                    FileUtilities.CreateDirectoryWithRetry(fingerprintStorePathString);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Log.FingerprintStoreUnableToCreateDirectory(loggingContext, fingerprintStorePathString, ex.Message);
-                    throw new BuildXLException("Unable to create fingerprint store directory: ", ex);
-                }
-
                 return FingerprintStoreExecutionLogTarget.Create(
                     context,
                     pipTable,
                     fingerprinter,
-                    fingerprintStorePathString,
                     loggingContext,
                     configuration,
                     cache,
                     graph,
+                    fingerprintStoreCounters,
                     runnablePipPerformance,
                     testHooks);
             }

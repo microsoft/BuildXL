@@ -703,9 +703,15 @@ namespace BuildXL.Engine
                 logging.EngineCacheCorruptFilesLogDirectory = logging.EngineCacheLogDirectory.Combine(pathTable, EngineSerializer.CorruptFilesLogLocation);
             }
 
+            var fingerprintsLogDirectory = logging.LogsDirectory.Combine(pathTable, LogFileExtensions.FingerprintsLogDirectory);
             if (!logging.FingerprintStoreLogDirectory.IsValid)
             {
-                logging.FingerprintStoreLogDirectory = logging.EngineCacheLogDirectory.Combine(pathTable, Scheduler.Scheduler.FingerprintStoreDirectory);
+                logging.FingerprintStoreLogDirectory = fingerprintsLogDirectory.Combine(pathTable, Scheduler.Scheduler.FingerprintStoreDirectory);
+            }
+
+            if (!logging.CacheLookupFingerprintStoreLogDirectory.IsValid)
+            {
+                logging.CacheLookupFingerprintStoreLogDirectory = fingerprintsLogDirectory.Combine(pathTable, Scheduler.Scheduler.FingerprintStoreDirectory + LogFileExtensions.CacheLookupFingerprintStore);
             }
 
             if (mutableConfig.Cache.HistoricMetadataCache == true && !logging.HistoricMetadataCacheLogDirectory.IsValid)
@@ -2890,7 +2896,7 @@ namespace BuildXL.Engine
 
             // Don't scrub any of the paths flagged as non-scrubbable
             nonScrubbablePaths.AddRange(FrontEndController.GetNonScrubbablePaths());
-            
+
             void AddToNonScrubbableAbsolutePaths(AbsolutePath[] paths)
             {
                 foreach (AbsolutePath path in paths)

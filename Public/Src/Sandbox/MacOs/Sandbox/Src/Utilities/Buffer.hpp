@@ -1,19 +1,21 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#ifndef IOBuffer_hpp
-#define IOBuffer_hpp
-
+#ifndef Buffer_hpp
+#define Buffer_hpp
 
 #include <IOKit/IOService.h>
 #include <IOKit/IOLib.h>
+#include "BuildXLSandboxShared.hpp"
+
+#define Buffer BXL_CLASS(Buffer)
 
 /*!
  * A reference-counted buffer
  */
-class IOBuffer : public OSObject
+class Buffer : public OSObject
 {
-    OSDeclareDefaultStructors(IOBuffer);
+    OSDeclareDefaultStructors(Buffer);
 
 private:
 
@@ -51,7 +53,7 @@ public:
      * When object creation succeeds but initialization fails, 'release' is called on the created
      * object and nullptr is returned.
      */
-    static IOBuffer* create(size_t size);
+    static Buffer* create(size_t size);
 };
 
-#endif /* IOBuffer_hpp */
+#endif /* Buffer_hpp */

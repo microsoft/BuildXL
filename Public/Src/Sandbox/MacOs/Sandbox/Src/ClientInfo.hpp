@@ -12,6 +12,8 @@
 typedef ConcurrentSharedDataQueue::EnqueueArgs EnqueueArgs;
 typedef ConcurrentSharedDataQueue::InitArgs InitArgs;
 
+#define ClientInfo BXL_CLASS(ClientInfo)
+
 /*!
  * Various information associated with a connected client.
  */

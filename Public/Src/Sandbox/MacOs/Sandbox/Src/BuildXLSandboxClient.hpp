@@ -11,7 +11,7 @@
 #include "BuildXLSandbox.hpp"
 #include "BuildXLSandboxShared.hpp"
 
-#define BuildXLSandboxClient com_microsoft_buildxl_SandboxClient
+#define BuildXLSandboxClient BXL_CLASS(SandboxClient)
 
 class BuildXLSandboxClient : public IOUserClient
 {

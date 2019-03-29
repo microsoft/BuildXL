@@ -6,6 +6,8 @@
 
 #include "SandboxedPip.hpp"
 
+#define SandboxedProcess BXL_CLASS(SandboxedProcess)
+
 /*!
  * Represents a process being tracked.
  *

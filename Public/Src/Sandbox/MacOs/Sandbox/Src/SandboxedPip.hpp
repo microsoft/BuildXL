@@ -13,10 +13,12 @@
 #include "BuildXLSandboxShared.hpp"
 #include "CacheRecord.hpp"
 #include "FileAccessManifestParser.hpp"
-#include "IOBuffer.hpp"
+#include "Buffer.hpp"
 #include "PolicyResult.h"
 #include "ThreadLocal.hpp"
 #include "Trie.hpp"
+
+#define SandboxedPip BXL_CLASS(SandboxedPip)
 
 /*!
  * Represents the root of the process tree being tracked.
@@ -41,7 +43,7 @@ private:
     pid_t processId_;
 
     /*! File access manifest payload bytes */
-    IOBuffer *payload_;
+    Buffer *payload_;
 
     /*! File access manifest (contains pointers into the 'payload_' byte array */
     FileAccessManifestParseResult fam_;
@@ -63,7 +65,7 @@ private:
         return CacheRecord::create();
     };
 
-    bool init(pid_t clientPid, pid_t processPid, IOBuffer *payload);
+    bool init(pid_t clientPid, pid_t processPid, Buffer *payload);
 
 protected:
 
@@ -146,7 +148,7 @@ public:
 #pragma mark Static Methods
 
     /*! Factory method. The caller is responsible for releasing the returned object. */
-    static SandboxedPip* create(pid_t clientPid, pid_t processPid, IOBuffer *payload);
+    static SandboxedPip* create(pid_t clientPid, pid_t processPid, Buffer *payload);
 };
 
 #endif /* SandboxedPip_hpp */

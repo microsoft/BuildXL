@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
+import * as MacOS from "Sdk.MacOS";
 
 const monoFrameworkPath = "MONO_HOME";
 const monoExecutable = Context.getCurrentHost().os !== "win" ? findMonoExecutable() : undefined;
@@ -12,7 +13,7 @@ function findMonoExecutable() {
         : f`/Library/Frameworks/Mono.framework/Versions/Current/Commands/mono`;
 
    if (!File.exists(result)) {
-         Contract.fail(`Could not find Mono installed on your system at - please ensure mono is installed per: https://www.mono-project.com/docs/getting-started/install/ and is accessable in your PATH!`);
+         Contract.fail(`Could not find Mono installed on your system at - please ensure Mono is installed per: https://www.mono-project.com/docs/getting-started/install/ and is accessable in your PATH!`);
    }
 
     return result;
@@ -23,9 +24,15 @@ const monoTool: Transformer.ToolDefinition = {
     dependsOnWindowsDirectories: true,
     dependsOnAppDataDirectory: true,
     prepareTempDirectory: true,
+    runtimeDirectoryDependencies: MacOS.systemFolderInputDeps,
+    runtimeDependencies: MacOS.filesAndSymlinkInputDeps,
     untrackedDirectoryScopes: [
-        d`/etc`,
-    ]
+        d`${Context.getMount("DeploymentRoot").path.parent}`,
+        d`${Context.getMount("UserProfile").path}/.mono`,
+        d`/Library/Frameworks/Mono.framework`,
+        ...MacOS.untrackedSystemFolderDeps
+    ],
+    untrackedFiles: MacOS.untrackedFiles
 };
 
 @@public
@@ -41,6 +48,7 @@ export function execute(args: Transformer.ExecuteArguments): Transformer.Execute
             Cmd.argument(Artifact.input(args.tool.exe)),
             ...(args.arguments || [])
         ],
+        allowUndeclaredSourceReads: args.allowUndeclaredSourceReads,
         workingDirectory: args.workingDirectory,
         dependencies: args.dependencies,
         outputs: args.outputs,

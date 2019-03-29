@@ -9,7 +9,8 @@ import * as Managed from "Sdk.Managed";
 
 namespace PrivatePackages {
     export declare const qualifier : {
-        configuration: "debug" | "release"
+        configuration: "debug" | "release",
+        targetRuntime: "win-x64"
     };
 
     const net451Qualifier : BuildXLSdk.DefaultQualifierWithNet451 = { configuration: qualifier.configuration, targetFramework: "net451", targetRuntime: "win-x64" };
@@ -36,7 +37,7 @@ namespace PrivatePackages {
                         importFrom("BuildXL.Utilities").withQualifier(net461Qualifier).KeyValueStore.dll.runtime,
                         importFrom("BuildXL.Utilities").withQualifier(net461Qualifier).Native.dll.runtime,
                         importFrom("BuildXL.Utilities").withQualifier(net461Qualifier).Storage.dll.runtime,
-        
+
                         ...importFrom("RuntimeContracts").withQualifier({ targetFramework: net461Qualifier.targetFramework }).pkg.runtime,
                     ],
                 },
@@ -56,7 +57,7 @@ namespace PrivatePackages {
                         importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).KeyValueStore.dll.runtime,
                         importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Native.dll.runtime,
                         importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Storage.dll.runtime,
-        
+
                         ...importFrom("RuntimeContracts").withQualifier({ targetFramework: net472Qualifier.targetFramework }).pkg.runtime,
                     ],
                 },
@@ -111,7 +112,7 @@ namespace PrivatePackages {
 
     @@public
     export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
-        definition: deployment, 
-        targetLocation: r`${qualifier.configuration}/private/pkgs`, 
+        definition: deployment,
+        targetLocation: r`${qualifier.configuration}/private/pkgs`,
     });
 }

@@ -235,13 +235,26 @@ namespace BuildXL.Utilities
 
         private static bool ContainsDelimiter(string s)
         {
-            foreach (char c in s)
+            if (OperatingSystemHelper.IsUnixOS)
             {
-                if (c <= ' ')
+                foreach (char c in s)
                 {
-                    if (c == ' ' || c == '\t')
+                    if (c == ' ' || c == '\t' || c == ';')
                     {
                         return true;
+                    }
+                }
+            }
+            else
+            {
+                foreach (char c in s)
+                {
+                    if (c <= ' ')
+                    {
+                        if (c == ' ' || c == '\t')
+                        {
+                            return true;
+                        }
                     }
                 }
             }

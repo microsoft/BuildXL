@@ -42,7 +42,7 @@ function setMinimal() {
 }
 
 function setInternal() {
-    arg_Positional+=("/p:[Sdk.BuildXL]microsoftInternal=1")
+    arg_Positional+=(/sandboxKind:macOsKext "/p:[Sdk.BuildXL]microsoftInternal=1")
 }
 
 function compileWithBxl() {

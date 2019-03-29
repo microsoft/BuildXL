@@ -22,6 +22,7 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Stores.DistributedContentStoreSettings;
+using TaskExtensions = BuildXL.Cache.ContentStore.Interfaces.Extensions.TaskExtensions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
@@ -137,6 +138,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 {
                     Tracer.Debug(operationContext, $"Attempt #{attemptCount}: Copying {hashInfo.ContentHash} with {hashInfo.Locations.Count} locations");
                     bool retry;
+
                     (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(
                         operationContext,
                         _workingDirectory,
@@ -163,10 +165,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         break;
                     }
 
+                    if (attemptCount == _retryIntervals.Count - 1)
+                    {
+                        // This is the last attempt, no need to wait any more.
+                        break;
+                    }
+
                     TimeSpan waitDelay = _retryIntervals[attemptCount];
                     Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash}...");
 
                     attemptCount++;
+
                     await Task.Delay(waitDelay, cts);
                 }
 
@@ -195,6 +204,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             catch (Exception ex)
             {
                 traceCopyFailed(operationContext);
+
+                if (cts.IsCancellationRequested)
+                {
+                    return CreateCanceledPutResult();
+                }
+
                 return new ErrorResult(ex).AsResult<PutResult>();
             }
 
@@ -204,6 +219,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 _counters[DistributedContentCopierCounters.RemoteFilesFailedCopy].Increment();
             }
         }
+
+        private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();
 
         /// <nodoc />
         private async Task<(PutResult result, bool retry)> WalkLocationsAndCopyAndPutAsync(
@@ -238,7 +255,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     Tracer.Debug(
                         context,
                         $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} to temp path {tempLocation} because cancellation was requested.");
-                    return (result: new ErrorResult("The operation was canceled").AsResult<PutResult>(), retry: false);
+                    return (result: CreateCanceledPutResult(), retry: false);
                 }
 
                 // Both Puts will attempt to Move the file into the cache. If the Put is successful, then the temporary file
@@ -256,7 +273,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     CopyFileResult copyFileResult = null;
                     try
                     {
-                        copyFileResult = await GatedIoOperationAsync((ts) => context.PerformOperationAsync(
+                        copyFileResult = await GatedIoOperationAsync(ts => context.PerformOperationAsync(
                             Tracer,
                             async () =>
                             {

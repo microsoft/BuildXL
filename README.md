@@ -23,7 +23,7 @@ See the Examples/ folder for basic project examples. See the [Demos](Public/Src/
 # Building the Code
 
 ## Build Status - Azure DevOps Pipelines
-[![Build Status](https://dev.azure.com/ms/BuildXL/_apis/build/status/Microsoft.BuildXL)](https://dev.azure.com/ms/BuildXL/_build/latest?definitionId=1)
+[![Build status](https://dev.azure.com/mseng/Domino/_apis/build/status/BuildXL/BuildXL%20Rolling?branchName=master)](https://dev.azure.com/mseng/Domino/_build/latest?definitionId=8196)
 
 ## Command Line Build and Test
 This repo uses DScript files for its own build. From the root of the enlistment run: `bxl.cmd` which will:

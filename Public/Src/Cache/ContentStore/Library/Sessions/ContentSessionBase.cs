@@ -85,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
         /// <nodoc />
         protected abstract Task<PinResult> PinCoreAsync(
-            OperationContext operatonContext,
+            OperationContext operationContext,
             ContentHash contentHash,
             UrgencyHint urgencyHint,
             Counter retryCounter);

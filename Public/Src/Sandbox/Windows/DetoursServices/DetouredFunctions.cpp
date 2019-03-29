@@ -146,8 +146,286 @@ static DWORD DetourGetFinalPathByHandle(_In_ HANDLE hFile, _Inout_ wstring& full
     return ERROR_SUCCESS;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////// Symlink traversal utilities /////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /// <summary>
-/// Resolves the reparse points in the path prefix. 
+/// Split paths into path atoms and insert them into <code>atoms</code> in reverse order.
+/// </summary>
+static void SplitPathsReverse(_In_ const wstring& path, _Inout_ vector<wstring>& atoms)
+{
+    size_t length = path.length();
+
+    if (length >= 2 && IsDirectorySeparator(path[length - 1]))
+    {
+        // Skip ending directory separator without trimming the path.
+        --length;
+    }
+
+    size_t rootLength = GetRootLength(path.c_str());
+
+    if (length <= rootLength)
+    {
+        return;
+    }
+
+    size_t i = length - 1;
+    wstring dir = path;
+
+    while (i >= rootLength)
+    {
+        while (i > rootLength && !IsDirectorySeparator(dir[i]))
+        {
+            --i;
+        }
+
+        if (i >= rootLength)
+        {
+            atoms.push_back(dir.substr(i));
+        }
+
+        dir = dir.substr(0, i);
+
+        if (i == 0)
+        {
+            break;
+        }
+
+        --i;
+    }
+
+    if (!dir.empty())
+    {
+        atoms.push_back(dir);
+    }
+}
+
+/// <summary>
+/// Gets target name from <code>REPARSE_DATA_BUFFER</code>.
+/// </summary>
+static void GetTargetNameFromReparseData(_In_ PREPARSE_DATA_BUFFER pReparseDataBuffer, _In_ DWORD reparsePointType, _Out_ wstring& name)
+{
+    // In what follows, we first try to extract target name in the path buffer using the PrintNameOffset.
+    // If it is empty or a single space, we try to extract target name from the SubstituteNameOffset.
+    // This is pretty much guess-work. Tools like mklink and CreateSymbolicLink API insert the target name
+    // from the PrintNameOffset. But others may use DeviceIoControl directly to insert the target name from SubstituteNameOffset.
+    if (reparsePointType == IO_REPARSE_TAG_SYMLINK)
+    {
+        name.assign(
+            pReparseDataBuffer->SymbolicLinkReparseBuffer.PathBuffer + pReparseDataBuffer->SymbolicLinkReparseBuffer.PrintNameOffset / sizeof(WCHAR),
+            (size_t)pReparseDataBuffer->SymbolicLinkReparseBuffer.PrintNameLength / sizeof(WCHAR));
+
+        if (name.size() == 0 || name == L" ")
+        {
+            name.assign(
+                pReparseDataBuffer->SymbolicLinkReparseBuffer.PathBuffer + pReparseDataBuffer->SymbolicLinkReparseBuffer.SubstituteNameOffset / sizeof(WCHAR),
+                (size_t)pReparseDataBuffer->SymbolicLinkReparseBuffer.SubstituteNameLength / sizeof(WCHAR));
+        }
+    }
+    else if (reparsePointType == IO_REPARSE_TAG_MOUNT_POINT)
+    {
+        name.assign(
+            pReparseDataBuffer->MountPointReparseBuffer.PathBuffer + pReparseDataBuffer->MountPointReparseBuffer.PrintNameOffset / sizeof(WCHAR),
+            (size_t)pReparseDataBuffer->MountPointReparseBuffer.PrintNameLength / sizeof(WCHAR));
+
+        if (name.size() == 0 || name == L" ")
+        {
+            name.assign(
+                pReparseDataBuffer->MountPointReparseBuffer.PathBuffer + pReparseDataBuffer->MountPointReparseBuffer.SubstituteNameOffset / sizeof(WCHAR),
+                (size_t)pReparseDataBuffer->MountPointReparseBuffer.SubstituteNameLength / sizeof(WCHAR));
+        }
+    }
+}
+
+/// <summary>
+/// Gets the next symlink target of a path.
+/// </summary>
+static bool TryGetNextTarget(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_ wstring& target)
+{
+    DWORD lastError = GetLastError();
+
+    HANDLE hFile = hInput != INVALID_HANDLE_VALUE
+        ? hInput
+        : CreateFileW(
+            path.c_str(),
+            GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+            NULL,
+            OPEN_EXISTING,
+            FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
+            NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        SetLastError(lastError);
+        return false;
+    }
+
+    DWORD bufferSize = INITIAL_REPARSE_DATA_BUILDXL_DETOURS_BUFFER_SIZE_FOR_FILE_NAMES;
+    DWORD errorCode = ERROR_INSUFFICIENT_BUFFER;
+    DWORD bufferReturnedSize = 0;
+
+    vector<char> buffer;
+    while (errorCode == ERROR_MORE_DATA || errorCode == ERROR_INSUFFICIENT_BUFFER)
+    {
+        buffer.clear();
+        buffer.resize(bufferSize);
+        BOOL success = DeviceIoControl(
+            hFile,
+            FSCTL_GET_REPARSE_POINT,
+            nullptr,
+            0,
+            buffer.data(),
+            bufferSize,
+            &bufferReturnedSize,
+            nullptr);
+
+        bufferSize *= 2;
+        if (success)
+        {
+            errorCode = ERROR_SUCCESS;
+        }
+        else
+        {
+            errorCode = GetLastError();
+        }
+    }
+
+    if (errorCode != ERROR_SUCCESS)
+    {
+        if (hFile != hInput)
+        {
+            CloseHandle(hFile);
+        }
+
+        SetLastError(lastError);
+
+        return false;
+    }
+
+    PREPARSE_DATA_BUFFER pReparseDataBuffer = (PREPARSE_DATA_BUFFER)buffer.data();
+
+    DWORD reparsePointType = pReparseDataBuffer->ReparseTag;
+
+    if (!IsActionableReparsePointType(reparsePointType))
+    {
+        if (hFile != hInput)
+        {
+            CloseHandle(hFile);
+        }
+
+        SetLastError(lastError);
+
+        return false;
+    }
+
+    GetTargetNameFromReparseData(pReparseDataBuffer, reparsePointType, target);
+
+    if (hFile != hInput)
+    {
+        CloseHandle(hFile);
+    }
+
+    SetLastError(lastError);
+
+    return true;
+}
+
+/// <summary>
+/// Resolves a reparse point path with respect to its relative target.
+/// </summary>
+/// <remarks>
+/// Given a reparse point path A\B\C and its relative target D\E\F, this method
+/// simply "combines" A\B and D\E\F. The symlink C is essentially replaced by the relative target D\E\F.
+/// </remarks>
+static bool TryResolveRelativeTarget(
+    _Inout_ wstring& result, 
+    _In_ const wstring& relativeTarget, 
+    _In_ vector<wstring> *processed, 
+    _In_ vector<wstring> *needToBeProcessed)
+{
+    // Trim directory separator ending.
+    if (result[result.length() - 1] == L'\\')
+    {
+        result = result.substr(0, result.length() - 1);
+    }
+
+    // Skip last path atom.
+    size_t lastSeparator = result.find_last_of(L'\\');
+    if (lastSeparator == std::string::npos)
+    {
+        return false;
+    }
+
+    if (processed != nullptr)
+    {
+        if (processed->empty())
+        {
+            return false;
+        }
+
+        processed->pop_back();
+    }
+
+    // Handle '.' and '..' in the relative target.
+    size_t pos = 0;
+    size_t length = relativeTarget.length();
+    bool startWithDotSlash = length >= 2 && relativeTarget[pos] == L'.' && relativeTarget[pos + 1] == L'\\';
+    bool startWithDotDotSlash = length >= 3 && relativeTarget[pos] == L'.' && relativeTarget[pos + 1] == L'.' && relativeTarget[pos + 2] == L'\\';
+
+    while ((startWithDotDotSlash || startWithDotSlash) && lastSeparator != std::string::npos)
+    {
+        if (startWithDotSlash)
+        {
+            pos += 2;
+            length -= 2;
+        }
+        else
+        {
+            pos += 3;
+            length -= 3;
+            lastSeparator = result.find_last_of(L'\\', lastSeparator - 1);
+            if (processed != nullptr && !processed->empty())
+            {
+                if (processed->empty())
+                {
+                    return false;
+                }
+
+                processed->pop_back();
+            }
+        }
+
+        startWithDotSlash = length >= 2 && relativeTarget[pos] == L'.' && relativeTarget[pos + 1] == L'\\';
+        startWithDotDotSlash = length >= 3 && relativeTarget[pos] == L'.' && relativeTarget[pos + 1] == L'.' && relativeTarget[pos + 2] == L'\\';
+    }
+
+    if (lastSeparator == std::string::npos && startWithDotDotSlash)
+    {
+        return false;
+    }
+
+    wstring slicedTarget;
+    slicedTarget.append(relativeTarget, pos, length);
+
+    result = result.substr(0, lastSeparator != std::string::npos ? lastSeparator : 0);
+
+    if (needToBeProcessed != nullptr)
+    {
+        SplitPathsReverse(slicedTarget, *needToBeProcessed);
+    }
+    else
+    {
+        result.push_back(L'\\');
+        result.append(slicedTarget);
+    }
+
+    return true;
+}
+
+/// <summary>
+/// Resolves the reparse points with relative target. 
 /// </summary>
 /// <remarks>
 /// This method resolves reparse points that occur in the path prefix. This method should only be called when path itself
@@ -190,320 +468,116 @@ static DWORD DetourGetFinalPathByHandle(_In_ HANDLE hFile, _Inout_ wstring& full
 /// with ..\target\file2.txt results in a correct path, i.e., repo\target\file2.txt. The same reasoning can be given for repo\source\symlink1.link, and its resolution results in
 /// a non-existent path target\file1.txt.
 /// </remarks>
-static wstring ResolveReparsePointPrefixes(const wstring& path)
+static bool TryResolveRelativeTarget(_In_ const wstring& path, _In_ const wstring& relativeTarget, _Inout_ wstring& result)
 {
-    size_t length = path.length();
+    vector<wstring> needToBeProcessed;
+    vector<wstring> processed;
 
-    if (length >= 2 && IsDirectorySeparator(path[length - 1]))
+    SplitPathsReverse(path, needToBeProcessed);
+
+    while (!needToBeProcessed.empty())
     {
-        // Skip ending directory separator without trimming the path.
-        --length;
-    }
+        wstring atom = needToBeProcessed.back();
+        needToBeProcessed.pop_back();
+        processed.push_back(atom);
 
-    size_t rootLength = GetRootLength(path.c_str());
-
-    if (length <= rootLength)
-    {
-        return path;
-    }
-
-    size_t i = length - 1;
-    vector<wstring> atoms;
-    wstring dir = path;
-
-    while (i >= rootLength)
-    {
-        while (i > rootLength && !IsDirectorySeparator(dir[i]))
+        if (!result.empty())
         {
-            --i;
+            if (result[result.length() - 1] != L'\\' && atom[0] != L'\\')
+            {
+                result.append(L"\\");
+            }
         }
 
-        if (i >= rootLength)
+        result.append(atom);
+
+        if (needToBeProcessed.empty())
         {
-            atoms.push_back(dir.substr(i));
-        }
-
-        --i;
-        dir = dir.substr(0, i + 1);
-    }
-
-    if (GetReparsePointType(dir.c_str()) == IO_REPARSE_TAG_SYMLINK)
-    {
-        HANDLE hFile = CreateFileW(
-            dir.c_str(),
-            NULL,
-            NULL,
-            NULL,
-            OPEN_EXISTING,
-            FILE_FLAG_BACKUP_SEMANTICS,
-            NULL);
-
-        if (hFile == INVALID_HANDLE_VALUE)
-        {
-            return path;
-        }
-
-        if (DetourGetFinalPathByHandle(hFile, dir) != ERROR_SUCCESS)
-        {
-            CloseHandle(hFile);
-            return path;
-        }
-
-        CloseHandle(hFile);
-    }
-
-    while (!atoms.empty())
-    {
-        dir = dir + atoms.back();
-        atoms.pop_back();
-
-        if (atoms.empty())
-        {
+            // The last atom is the one that we are going to replace.
             break;
         }
 
-        if (GetReparsePointType(dir.c_str()) == IO_REPARSE_TAG_SYMLINK)
+        if (GetReparsePointType(result.c_str()) == IO_REPARSE_TAG_SYMLINK)
         {
-            HANDLE hFile = CreateFileW(
-                dir.c_str(),
-                NULL,
-                NULL,
-                NULL,
-                OPEN_EXISTING,
-                FILE_FLAG_BACKUP_SEMANTICS,
-                NULL);
-
-            if (hFile == INVALID_HANDLE_VALUE)
+            wstring target;
+            if (!TryGetNextTarget(result, INVALID_HANDLE_VALUE, target))
             {
-                return path;
+                return false;
             }
 
-            if (DetourGetFinalPathByHandle(hFile, dir) != ERROR_SUCCESS)
+            if (GetRootLength(target.c_str()) > 0)
             {
-                CloseHandle(hFile);
-                return path;
+                // Target is an absolute path -> restart symlink resolution.
+                result.clear();
+                processed.clear();
+                SplitPathsReverse(target, needToBeProcessed);
             }
-
-            CloseHandle(hFile);
+            else
+            {
+                // Target is a relative path.
+                if (!TryResolveRelativeTarget(result, target, &processed, &needToBeProcessed))
+                {
+                    return false;
+                }
+            }
         }
     }
 
-    return dir;
+    if (!TryResolveRelativeTarget(result, relativeTarget, nullptr, nullptr))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 /// <summary>
-/// Gets target name from <code>REPARSE_DATA_BUFFER</code>.
+/// Get the next path of a reparse point path.
 /// </summary>
-static void GetTargetNameFromReparseData(_In_ PREPARSE_DATA_BUFFER pReparseDataBuffer, _In_ DWORD reparsePointType, _Out_ wstring& name)
+static bool TryGetNextPath(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_ wstring& result)
 {
-    // In what follows, we first try to extract target name in the path buffer using the PrintNameOffset.
-    // If it is empty or a single space, we try to extract target name from the SubstituteNameOffset.
-    // This is pretty much guess-work. Tools like mklink and CreateSymbolicLink API insert the target name
-    // from the PrintNameOffset. But others may use DeviceIoControl directly to insert the target name from SubstituteNameOffset.
-    if (reparsePointType == IO_REPARSE_TAG_SYMLINK)
-    {
-        name.assign(
-            pReparseDataBuffer->SymbolicLinkReparseBuffer.PathBuffer + pReparseDataBuffer->SymbolicLinkReparseBuffer.PrintNameOffset / sizeof(WCHAR),
-            (size_t)pReparseDataBuffer->SymbolicLinkReparseBuffer.PrintNameLength / sizeof(WCHAR));
+    wstring target;
 
-        if (name.size() == 0 || name == L" ") 
+    if (!TryGetNextTarget(path, hInput, target))
+    {
+        return false;
+    }
+
+    if (GetRootLength(target.c_str()) > 0)
+    {
+        result.assign(target);
+    }
+    else
+    {
+        if (!TryResolveRelativeTarget(path, target, result))
         {
-            name.assign(
-                pReparseDataBuffer->SymbolicLinkReparseBuffer.PathBuffer + pReparseDataBuffer->SymbolicLinkReparseBuffer.SubstituteNameOffset / sizeof(WCHAR),
-                (size_t)pReparseDataBuffer->SymbolicLinkReparseBuffer.SubstituteNameLength / sizeof(WCHAR));
+            return false;
         }
     }
-    else if (reparsePointType == IO_REPARSE_TAG_MOUNT_POINT)
-    {
-        name.assign(
-            pReparseDataBuffer->MountPointReparseBuffer.PathBuffer + pReparseDataBuffer->MountPointReparseBuffer.PrintNameOffset / sizeof(WCHAR),
-            (size_t)pReparseDataBuffer->MountPointReparseBuffer.PrintNameLength / sizeof(WCHAR));
 
-        if (name.size() == 0 || name == L" ")
-        {
-            name.assign(
-                pReparseDataBuffer->MountPointReparseBuffer.PathBuffer + pReparseDataBuffer->MountPointReparseBuffer.SubstituteNameOffset / sizeof(WCHAR),
-                (size_t)pReparseDataBuffer->MountPointReparseBuffer.SubstituteNameLength / sizeof(WCHAR));
-        }
-    }
+    return true;
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////// Symlink traversal utilities /////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 /// <summary>
 /// Gets chains of the paths leading to and including the final path given the file name.
 /// </summary>
-/// <remarks>
-/// If the file is non-existent, then this function returns the file name itself.
-/// If the file is not a reparse point, then this function returns the full path of the file name by calling <code>DetourGetFinalPathByHandle</code>.
-/// If the file is a reparse point, this function recurses until the previous two conditions are satisfied.
-/// This function can fail if invocations of <code>DeviceIoControl</code> (to get reparse point data) fails, or <code>DetourGetFinalPathByHandle</code> fails.
-/// </remarks>
-static DWORD DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE hInput, _Inout_ vector<wstring>& finalPaths)
+static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE hInput, _Inout_ vector<wstring>& finalPaths)
 {
     finalPaths.push_back(path.GetPathString());
 
-    HANDLE hFile = hInput == INVALID_HANDLE_VALUE
-        ? CreateFileW(
-            path.GetPathString(),
-            GENERIC_READ,
-            FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
-            NULL,
-            OPEN_EXISTING,
-            FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, // Need to open with reparse point flag, otherwise DeviceIoControl does not work.
-            NULL)
-        : hInput;
+    wstring nextPath;
 
-    if (hFile == INVALID_HANDLE_VALUE)
+    if (!TryGetNextPath(path.GetPathString(), hInput, nextPath))
     {
-        // Unable to open a file handle, return the given file name as the final path.
-        // As we consider it success, we set the last error to success to invalidate last error from opening handle.
-        SetLastError(ERROR_SUCCESS);
-        return ERROR_SUCCESS;
+        return;
     }
 
-    if (!IsReparsePoint(path.GetPathString()))
-    {
-        // Opened file is not a reparse point.
-        if (hFile != hInput)
-        {
-            CloseHandle(hFile);
-        }
-
-        return ERROR_SUCCESS;
-    }
-
-    DWORD bufferSize = INITIAL_REPARSE_DATA_BUILDXL_DETOURS_BUFFER_SIZE_FOR_FILE_NAMES;
-    DWORD errorCode = ERROR_INSUFFICIENT_BUFFER;
-    DWORD bufferReturnedSize = 0;
-
-    vector<char> buffer;
-    while (errorCode == ERROR_MORE_DATA || errorCode == ERROR_INSUFFICIENT_BUFFER)
-    {
-        buffer.clear();
-        buffer.resize(bufferSize);
-        BOOL success = DeviceIoControl(
-            hFile,
-            FSCTL_GET_REPARSE_POINT,
-            nullptr,
-            0,
-            buffer.data(),
-            bufferSize,
-            &bufferReturnedSize,
-            nullptr);
-
-        bufferSize *= 2;
-        if (success)
-        {
-            errorCode = ERROR_SUCCESS;
-        }
-        else
-        {
-            errorCode = GetLastError();
-        }
-    }
-
-    if (errorCode == ERROR_SUCCESS)
-    {
-        PREPARSE_DATA_BUFFER pReparseDataBuffer = (PREPARSE_DATA_BUFFER)buffer.data();
-
-        DWORD reparsePointType = pReparseDataBuffer->ReparseTag;
-
-        if (!IsActionableReparsePointType(reparsePointType))
-        {
-            // Opened file is not an actionable reparse point.
-            if (hFile != hInput)
-            {
-                CloseHandle(hFile);
-            }
-
-            return ERROR_SUCCESS;
-        }
-
-        wstring fullPathStr;
-
-        if (reparsePointType == IO_REPARSE_TAG_SYMLINK)
-        {
-            if ((pReparseDataBuffer->SymbolicLinkReparseBuffer.Flags & SYMLINK_FLAG_RELATIVE) == 0)
-            {
-                GetTargetNameFromReparseData(pReparseDataBuffer, reparsePointType, fullPathStr);
-            }
-            else
-            {
-                // the relative path for a symlink is resolved relative to the directory specified in
-                // the path and not the actual canonical directory the symlink lives in.
-                wstring srcPath = ResolveReparsePointPrefixes(path.GetPathString());
-
-                if (srcPath[srcPath.length() - 1] == L'\\')
-                {
-                    // Trim ending.
-                    srcPath = srcPath.substr(0, srcPath.length() - 1);
-                }
-
-                size_t lastSeparator = srcPath.find_last_of(L'\\');
-                if (lastSeparator == std::string::npos)
-                {
-                    // If it is not a directory, then it is an invalid name.
-                    if (hFile != hInput)
-                    {
-                        CloseHandle(hFile);
-                    }
-
-                    return ERROR_INVALID_NAME;
-                }
-
-                size_t prevLastSeparator = std::string::npos;
-                
-                wstring relativePath;
-                GetTargetNameFromReparseData(pReparseDataBuffer, reparsePointType, relativePath);
-                
-                size_t pos = 0;
-                size_t length = relativePath.length();
-                bool startWithDotSlash = length >= 2 && relativePath[pos] == L'.' && relativePath[pos + 1] == L'\\';
-                bool startWithDotDotSlash = length >= 3 && relativePath[pos] == L'.' && relativePath[pos + 1] == L'.' && relativePath[pos + 2] == L'\\';
-
-                while ((startWithDotDotSlash || startWithDotSlash) && lastSeparator != std::string::npos)
-                {
-                    if (startWithDotSlash)
-                    {
-                        pos += 2;
-                        length -= 2;
-                    }
-                    else
-                    {
-                        pos += 3;
-                        length -= 3;
-                        prevLastSeparator = lastSeparator;
-                        lastSeparator = srcPath.find_last_of(L'\\', lastSeparator - 1);
-                    }
-
-                    startWithDotSlash = length >= 2 && relativePath[pos] == L'.' && relativePath[pos + 1] == L'\\';
-                    startWithDotDotSlash = length >= 3 && relativePath[pos] == L'.' && relativePath[pos + 1] == L'.' && relativePath[pos + 2] == L'\\';
-                }
-
-                fullPathStr.append(srcPath, 0, lastSeparator != std::string::npos ? lastSeparator : prevLastSeparator);
-                fullPathStr.push_back(L'\\');
-                fullPathStr.append(relativePath, pos, length);
-            }
-        }
-        else
-        {
-            GetTargetNameFromReparseData(pReparseDataBuffer, reparsePointType, fullPathStr);
-        }
-
-        if (hFile != hInput)
-        {
-            CloseHandle(hFile);
-        }
-
-        // Recurse by following the chain of symlinks.
-        return DetourGetFinalPaths(CanonicalizedPath::Canonicalize(fullPathStr.c_str()), INVALID_HANDLE_VALUE, finalPaths);
-    }
-
-    if (hFile != hInput)
-    { 
-        CloseHandle(hFile);
-    }
-
-    return errorCode;
+    DetourGetFinalPaths(CanonicalizedPath::Canonicalize(nextPath.c_str()), INVALID_HANDLE_VALUE, finalPaths);
 }
 
 /// <summary>
@@ -688,13 +762,8 @@ static bool EnforceChainOfReparsePointAccesses(
         return true;
     }
 
-    DWORD lastError = GetLastError();
     vector<wstring> fullPaths;
-    if ((lastError = DetourGetFinalPaths(path, reparsePointHandle, fullPaths)) != ERROR_SUCCESS)
-    {
-        SetLastError(lastError);
-        return false;
-    }
+    DetourGetFinalPaths(path, reparsePointHandle, fullPaths);
 
     bool success = true;
 

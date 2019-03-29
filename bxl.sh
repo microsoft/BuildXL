@@ -42,13 +42,12 @@ function setMinimal() {
 }
 
 function setInternal() {
-    arg_Positional+=("/p:[Sdk.BuildXL]microsoftInternal=1")
+    arg_Positional+=(/sandboxKind:macOsKext "/p:[Sdk.BuildXL]microsoftInternal=1")
 }
 
 function compileWithBxl() {
     local args=(
         --config "$MY_DIR/config.dsc"
-        /sandboxKind:macOsKext
         /p:[Sdk.Deployment]Diagnostics.enabled=true
         /fancyConsoleMaxStatusPips:10
         /nowarn:11319 # DX11319: nuget version mismatch

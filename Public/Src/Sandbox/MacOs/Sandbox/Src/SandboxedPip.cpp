@@ -7,7 +7,7 @@
 
 OSDefineMetaClassAndStructors(SandboxedPip, OSObject)
 
-bool SandboxedPip::init(pid_t clientPid, pid_t processPid, IOBuffer *payload)
+bool SandboxedPip::init(pid_t clientPid, pid_t processPid, Buffer *payload)
 {
     if (!super::init())
     {
@@ -61,7 +61,7 @@ void SandboxedPip::free()
     super::free();
 }
 
-SandboxedPip* SandboxedPip::create(pid_t clientPid, pid_t processPid, IOBuffer *payload)
+SandboxedPip* SandboxedPip::create(pid_t clientPid, pid_t processPid, Buffer *payload)
 {
     SandboxedPip *instance = new SandboxedPip;
     if (instance == nullptr)

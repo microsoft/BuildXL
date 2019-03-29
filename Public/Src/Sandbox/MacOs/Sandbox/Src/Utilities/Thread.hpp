@@ -6,6 +6,9 @@
 
 #include <IOKit/IOService.h>
 #include <IOKit/IOLib.h>
+#include "BuildXLSandboxShared.hpp"
+
+#define Thread BXL_CLASS(Thread)
 
 /*!
  * A thin abstraction around kernel threads.

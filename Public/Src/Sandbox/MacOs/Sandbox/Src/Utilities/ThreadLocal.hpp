@@ -8,6 +8,8 @@
 #include <IOKit/IOLib.h>
 #include "Trie.hpp"
 
+#define ThreadLocal BXL_CLASS(ThreadLocal)
+
 /*!
  * A straightforward wrapper around a concurrent dictionary that uses current thread's id as the implicit key.
  */

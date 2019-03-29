@@ -15,8 +15,6 @@
 #include "ResourceManager.hpp"
 #include "SandboxedProcess.hpp"
 
-#define BuildXLSandbox com_microsoft_buildxl_Sandbox
-
 #if RELEASE
     #define kSharedDataQueueSizeDefault 256
 #else
@@ -24,8 +22,6 @@
 #endif
 
 #define kSharedDataQueueSizeMax 2048
-#define kProcessDictionaryCapacity 1024
-#define kConnectedClientsDictionaryCapacity 1
 
 #define AddTimeStampToAccessReport(report, struct_property)\
 do { (report)->stats.struct_property = mach_absolute_time(); }while(0);

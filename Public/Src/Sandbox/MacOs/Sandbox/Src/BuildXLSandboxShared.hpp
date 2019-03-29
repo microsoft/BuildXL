@@ -259,9 +259,10 @@ inline bool HasAllFlags(const T source, const T bitMask)
 
 #pragma mark Macros and defines
 
+#define BXL_CLASS(name) com_microsoft_buildxl_ ## name
+#define BuildXLSandbox BXL_CLASS(Sandbox)
 #define kBuildXLBundleIdentifier "com.microsoft.buildxl.sandbox"
-#define kBuildXLSandboxClassName "com_microsoft_buildxl_Sandbox"
-#define kBuildXLSandboxClientClassName "com_microsoft_buildxl_SandboxClient"
+#define kBuildXLSandboxClassName "com_microsoft_buildxl_Sandbox" // this string must match the value of BuildXLSandbox
 
 extern os_log_t logger;
 

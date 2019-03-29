@@ -54,6 +54,7 @@
 		F54B6ADA21D3E37A00069515 /* ResourceManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F54B6AD821D3E37A00069515 /* ResourceManager.cpp */; };
 		F54B6ADB21D3E37A00069515 /* ResourceManager.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F54B6AD921D3E37A00069515 /* ResourceManager.hpp */; };
 		F557784D219217E60006B275 /* arg_parse.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F557784B219217E60006B275 /* arg_parse.cpp */; };
+		F557784F21921BA20006B275 /* args.hpp in Sources */ = {isa = PBXBuildFile; fileRef = F557784E21921BA20006B275 /* args.hpp */; };
 		F57355F0224444A400264A6C /* Sandbox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F57355EF224444A400264A6C /* Sandbox.cpp */; };
 		F57355F22244450600264A6C /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F57355F12244450600264A6C /* CoreFoundation.framework */; };
 		F57355F32244456B00264A6C /* StringOperations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C2614A820D7E85E00488B0B /* StringOperations.cpp */; };

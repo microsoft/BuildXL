@@ -89,7 +89,7 @@ REM ************************************************************
 		)
 
 	:CreateBranchName
-		set PR_BRANCH_NAME=personal/%USERNAME%/pr/%PrName%
+		set PR_BRANCH_NAME=pr/%PrName%
 
 	:CheckIfExists
 		for /f %%R in ('git branch -r --list */%PR_BRANCH_NAME%') do (
@@ -117,13 +117,31 @@ REM ************************************************************
 			goto :Error
 		)
 
+	:ExtractRemote
+		//for /F "usebackq" %%i in (`git remote -v ^| findstr /VC:"Microsoft/BuildXL.git"`) do set PR_REMOTE=%%i
+		REM: the Delims are tab and space intentionally
+		for /F "usebackq tokens=1,2 delims=	 " %%i in (`git remote -v ^| findstr /VC:"Microsoft/BuildXL.git"`) do (
+			set PR_REMOTE_NAME=%%i
+			set PR_REMOTE_URI=%%j
+		)
+		if "%PR_REMOTE_NAME%" == "" (
+			echo --------------------------------------------------------------------------------------
+			echo - FAILURE  :-(  Could not determine a git 'remote' that is not Microsoft/BuildXL.git -
+			echo --------------------------------------------------------------------------------------
+			exit /b 1
+			goto :Error
+		)
+
 	:ForcePushToServer
-		call git push --force origin HEAD:%PR_BRANCH_NAME%
+		call git push --force %PR_REMOTE_NAME% HEAD:%PR_BRANCH_NAME%
 		if %ERRORLEVEL% NEQ 0 (
 			echo >&2 Failed to force-push to branch %PR_BRANCH_NAME%
 			goto :Error
 		)
-		start https://dev.azure.com/mseng/_git/Domino/pullrequestcreate?targetRef=master^&sourceRef=%PR_BRANCH_NAME%
+		set PR_REMOTE_CREATE=%PR_REMOTE_URI:.git=/pull/new/!PR_BRANCH_NAME!%
+		echo %PR_REMOTE_CREATE%
+		start %PR_REMOTE_CREATE%
+		REM start https://dev.azure.com/mseng/_git/Domino/pullrequestcreate?targetRef=master^&sourceRef=%PR_BRANCH_NAME%
 
 
 	goto :Success

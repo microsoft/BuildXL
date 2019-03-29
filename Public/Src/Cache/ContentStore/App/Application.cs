@@ -434,7 +434,7 @@ namespace BuildXL.Cache.ContentStore.App
             }
             catch (Exception exception)
             {
-                _tracer.Error(context, exception);
+                _tracer.Error(context, exception, "Unhandled exception in RunContentStore.");
             }
         }
 

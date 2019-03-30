@@ -27,7 +27,9 @@ const monoTool: Transformer.ToolDefinition = {
     runtimeDirectoryDependencies: MacOS.systemFolderInputDeps,
     runtimeDependencies: MacOS.filesAndSymlinkInputDeps,
     untrackedDirectoryScopes: [
-        d`${Context.getMount("DeploymentRoot").path.parent}`,
+        ...addIfLazy(Context.getCurrentHost().os !== "win", () => [
+            d`${Context.getMount("DeploymentRoot").path.parent}`,
+        ]),
         d`${Context.getMount("UserProfile").path}/.mono`,
         d`/Library/Frameworks/Mono.framework`,
         ...MacOS.untrackedSystemFolderDeps

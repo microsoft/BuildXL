@@ -8,14 +8,14 @@ namespace Transformer {
         return _PreludeAmbientHack_Transformer.copyFile(sourceFile, destinationFile, tags, description, keepOutputsWritable);
     }
 
-        /** The different kind of supported output artifacts. 
-     * If a Path or File is passed directly, they are interpreted as required outputs. 
-     * If a Directory is passed directly, it is interpreted as an (exclusive) opaque directory 
-     * Otherwise, kinds associated to each of these entities are passed explicitly via DirectoryOutput or FileOrPathOutput 
+        /** The different kind of supported output artifacts.
+     * If a Path or File is passed directly, they are interpreted as required outputs.
+     * If a Directory is passed directly, it is interpreted as an (exclusive) opaque directory
+     * Otherwise, kinds associated to each of these entities are passed explicitly via DirectoryOutput or FileOrPathOutput
      * */
     @@public
     export type Output = Path | File | Directory | DirectoryOutput | FileOrPathOutput;
-    
+
     @@public
     @@obsolete("Please use 'Output' instead")
     export type OutputArtifact = Path | File | Directory;
@@ -23,7 +23,7 @@ namespace Transformer {
     /** Kinds of input artifact that can be argument types for the inputs functions. */
     @@public
     export type Input = File | StaticDirectory;
-    
+
     /** Kinds of input artifact that can be argument types for the inputs functions. */
     @@public
     export type InputArtifact = File | StaticDirectory;
@@ -34,8 +34,8 @@ namespace Transformer {
         kind: OutputDirectoryKind;
         directory: Directory;
     }
-    
-    /** An output directory can be shared or exclusive 
+
+    /** An output directory can be shared or exclusive
      * Note: Shared directories is an experimental feature, use it at your own risk.
      */
     @@public
@@ -51,7 +51,7 @@ namespace Transformer {
     /** An output file can be required, optional or temporary. */
     @@public
     export type FileExistenceKind = "required" | "optional" | "temporary";
-     
+
     @@public
     export interface RunnerArguments {
         tool?: ToolDefinition;
@@ -59,118 +59,118 @@ namespace Transformer {
         /** Arbitrary pip tags. */
         tags?: string[];
 
-        /** 
+        /**
          * Arbitrary pip description.
          * Pip description does not affect pip cacheability.
          */
         description?: string;
-    }   
+    }
 
         /** Schedules a new pip, according to given arguments. */
         @@public
         export function execute(args: ExecuteArguments): ExecuteResult {
             return <ExecuteResult>_PreludeAmbientHack_Transformer.execute(args);
         }
-    
+
         @@public
         export interface ExecuteArguments extends ExecuteArgumentsCommon {
-            /** Regular process pips that make calls to one or more service 
+            /** Regular process pips that make calls to one or more service
               * pips should use this field to declare those dependencies
               * (so that they don't get scheduled for execution before all
               * the services have started). */
             servicePipDependencies?: ServiceId[];
-    
-            /** Whether to grant the read/write permissions of this pip to 
-              * the declared service pips (permissions are granted only 
+
+            /** Whether to grant the read/write permissions of this pip to
+              * the declared service pips (permissions are granted only
               * throughout the lifetime of this pip). */
             delegatePermissionsToServicePips?: PermissionDelegationMode;
         }
-        
+
         /** Different options for delegating permissions of a process to a service pip. */
         @@public
-        export const enum PermissionDelegationMode { 
+        export const enum PermissionDelegationMode {
             /** Don't grant any permissions at all. */
             none,
-    
+
             /** Grant permissions only throughout the lifetime of the caller pip. */
             temporary,
-    
+
             /** Grant permissions permanently, i.e., until the service pip terminates. */
             permanent
-        } 
-    
+        }
+
         @@public
         export interface ExecuteArgumentsCommon extends RunnerArguments {
             /** Command-line arguments. */
             arguments: Argument[];
-    
+
             /** Working directory. */
             workingDirectory: Directory;
-    
+
             /** Tools dependencies. */
             dependencies?: InputArtifact[];
-    
+
             /** Implicit outputs. */
             // TODO: Uncomment this out once we move the selfhost to not use this field
             // @@obsolete("Please use 'Outputs' instead")
             implicitOutputs?: OutputArtifact[];
-    
+
             /** Optional (or temporary) implicit outputs. */
             // TODO: Uncomment this out once we move the selfhost to not use this field
             // @@obsolete("Please use 'Outputs' instead")
             optionalImplicitOutputs?: OutputArtifact[];
-    
+
             /** Tool outputs */
             outputs?: Output[];
-    
+
             /** Console input. */
             consoleInput?: File | Data;
-    
+
             /** Redirect console output to file. */
             consoleOutput?: Path;
-    
+
             /** Specifies the standard error file to use for the process. */
             consoleError?: Path;
-    
+
             /** Environment variables. */
             environmentVariables?: EnvironmentVariable[];
-    
+
             /** Regex that would be used to extract warnings from the output. */
             warningRegex?: string;
-            
+
             /** Regex that would be used to extract errors from the output. */
             errorRegex?: string;
-    
+
             /** Semaphores to acquire */
             acquireSemaphores?: SemaphoreInfo[];
-    
+
             /** Mutexes to acquire */
             acquireMutexes?: string[];
-    
+
             /** A custom set of success exit codes. Any other exit code would indicate failure. If unspecified, by default, 0 is the only successful exit code. */
             successExitCodes?: number[];
-    
+
             /** A custom set of exit codes that causes pip to be retried by BuildXL. If an exit code is also in the successExitCode, then the pip is not retried on exiting with that exit code. */
             retryExitCodes?: number[];
-    
+
             /** Temporary directory for the tool to use (use Context.getTempDirectory() to obtain one), and set TEMP and TMP. */
             tempDirectory?: Directory;
-    
+
             /** Additional temporary directories, but none set TEMP or TMP. */
             additionalTempDirectories?: Directory[];
-    
+
             /** Unsafe arguments */
             unsafe?: UnsafeExecuteArguments;
-    
+
             /** Whether to mark this process as "light". */
             isLight?: boolean;
-    
+
             /** Set outputs to remain writable */
             keepOutputsWritable?: boolean;
-			
+
 			/** Whether this process should run in an isolated container (i.e. filesystem isolation)
 			 * When running in a container, the isolation level can be controlled by 'containerIsolationLevel' field.
-			 * Note: this is an experimental feature for now, use at your own risk 
+			 * Note: this is an experimental feature for now, use at your own risk
 			 * Default is globally controlled by the sandbox configuration
 			 * */
 			runInContainer?: boolean;
@@ -180,7 +180,7 @@ namespace Transformer {
 			 * Default is globally controlled by the sandbox configuration
 			 * TODO: input isolation is not implemented
 			 */
-			 containerIsolationLevel?: ContainerIsolationLevel;
+			containerIsolationLevel?: ContainerIsolationLevel;
 
 			/**
 			 * The policy to apply when a double write occurs.
@@ -188,7 +188,7 @@ namespace Transformer {
 			 */
 			doubleWritePolicy?: DoubleWritePolicy;
         }
-    
+
         @@public
         export interface ExecuteResult {
             getOutputFile(output: Path): DerivedFile;
@@ -196,23 +196,23 @@ namespace Transformer {
             getRequiredOutputFiles(): DerivedFile[];
             getOutputDirectory(dir: Directory): OpaqueDirectory;
         }
-    
+
         @@public
         export type EnvironmentValueType = string | boolean | number | Path | Path[] | File | File[] | Directory | Directory[] | StaticDirectory | StaticDirectory[];
-    
+
         @@public
         export interface EnvironmentVariable {
             name: string;
             value: EnvironmentValueType;
             separator?: string;
         }
-    
+
         @@public
         export const enum ExitCodeSuccessCriteria {
             zeroIsSuccess = 1,
             zeroOr255IsSuccess,
         }
-        
+
         @@public
         export interface UnsafeExecuteArguments {
             untrackedPaths?: (File | Directory)[];
@@ -221,7 +221,7 @@ namespace Transformer {
             allowPreservedOutputs?: boolean;
             passThroughEnvironmentVariables?: string[];
         }
-    
+
         /**
          * Data for a declared semaphore
          */
@@ -229,10 +229,10 @@ namespace Transformer {
         export interface SemaphoreInfo {
             /** The maximum value */
             limit: number;
-    
+
             /** The resource name */
             name: string;
-    
+
             /** The semaphore value */
             incrementBy: number;
         }
@@ -263,19 +263,19 @@ namespace Transformer {
         /** Additional input dependencies. */
         fileDependencies?: InputArtifact[];
 
-        /** Maximum number of retries to establish a connection. */        
+        /** Maximum number of retries to establish a connection. */
         maxConnectRetries?: number;
 
         /** Delay in milliseconds between two consecutive retries to establish a connection. */
         connectRetryDelayMillis?: number;
 
-        /** 
-         * Files not to materialize eagerly.  
-         * 
+        /**
+         * Files not to materialize eagerly.
+         *
          * IPC pips may want to use this option when they will explicitly request file materialization
          * from BuildXL, via a BuildXL service identified by the Transformer.getIpcServerMoniker()
          * moniker, just before the files are needed.  This makes sense for pips that expect that often
-         * times they will not have to access the actual files on disk.  
+         * times they will not have to access the actual files on disk.
          */
         lazilyMaterializedDependencies?: File[];
 
@@ -298,7 +298,7 @@ namespace Transformer {
 
     /**
      * Opaque type representing a moniker used for inter-process communication (IPC).
-     * 
+     *
      * A value of this type should not be created directly; instead, always use Transformer.getNewIpcMoniker().
      */
     @@public
@@ -306,7 +306,7 @@ namespace Transformer {
         __ipcMonikerBrand: any;
     }
 
-        
+
     /** Seals specified root folder with a set of files; the created pip is tagged with 'tags'. */
     @@public
     export function sealDirectory(root: Directory, files: File[], tags?: string[], description?: string): StaticDirectory {
@@ -325,7 +325,7 @@ namespace Transformer {
         return _PreludeAmbientHack_Transformer.sealPartialDirectory(root, files, tags, description);
     }
 
-	/** Creates a shared opaque directory whose content is the aggregation of a collection of shared opaque directories. 
+	/** Creates a shared opaque directory whose content is the aggregation of a collection of shared opaque directories.
      * The provided root can be any arbitrary directory that is a common ancestor to all the provided directories
     */
     @@public
@@ -333,7 +333,7 @@ namespace Transformer {
         return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(root, directories);
     }
 
-	
+
     /** Options for sealing source directory. */
     @@public
     export const enum SealSourceDirectoryOption {
@@ -343,16 +343,16 @@ namespace Transformer {
         allDirectories,
     }
 
-    
+
     /** Schedules a new service pip. */
     @@public
     export function createService(args: CreateServiceArguments): CreateServiceResult {
         return <CreateServiceResult>_PreludeAmbientHack_Transformer.createService(args);
     }
 
-    /** 
+    /**
      * Returns a new moniker for any IPC, as provided by Domino.Ipc.dll.
-     * 
+     *
      * A moniker must be provided to every 'ipcSend' call because a moniker is used to identify
      * the communication channel for the inter-process communication.
      */
@@ -360,7 +360,7 @@ namespace Transformer {
     export function getNewIpcMoniker(): IpcMoniker {
         return _PreludeAmbientHack_Transformer.getNewIpcMoniker();
     }
-    
+
     /**
      * Returns the moniker identifying the BuildXL IPC server.
      */
@@ -407,23 +407,23 @@ namespace Transformer {
         /** List of nested tools used by current executable. */
         nestedTools?: ToolDefinition[];
 
-        /** 
+        /**
          * The files that are runtime dependencies for this executable.
-         * 
+         *
          * Unlike "untrackedFiles", BuildXL is tracking if these files change.
          */
         runtimeDependencies?: File[];
 
-        /** 
+        /**
          * The directories that are runtime dependencies for this executable.
          * The executable may access any files under these directories.
-         * 
+         *
          * Unlike "untrackedDirectoryScopes", BuildXL is tracking if these files change.
          */
         runtimeDirectoryDependencies?: StaticDirectory[];
 
         /** Runtime environment for the executable.  */
-        runtimeEnvironment?: RuntimeEnvironment; 
+        runtimeEnvironment?: RuntimeEnvironment;
 
         /** This tool needs a temporary directory. */
         prepareTempDirectory?: boolean;
@@ -431,9 +431,9 @@ namespace Transformer {
         /** True if the executable depends on Windows directories. This signals that accesses to the Windows Directories should be allowed. */
         dependsOnWindowsDirectories?: boolean;
 
-        /** 
+        /**
          * True if the executable depends on the per-user AppData directory. Setting this to true means that AppData
-         * will be an untracked directory scope and the specific location of AppData will not be included in the pip's fingerpint. 
+         * will be an untracked directory scope and the specific location of AppData will not be included in the pip's fingerpint.
          */
         dependsOnAppDataDirectory?: boolean;
 
@@ -449,18 +449,18 @@ namespace Transformer {
         /** Provides a hard timeout after which the Process will be marked as failure due to timeout and terminated. */
         timeoutInMilliseconds?: number;
 
-        /** 
+        /**
          * Sets an interval value that indicates after which time BuildXL will issue a warnings that the process is running longer
          * than anticipated */
         warningTimeoutInMilliseconds?: number;
-        
+
         // TODO: unimplemented
         /*
             producesPathIndependentOutputs?: boolean;
             // tags?: string[]; moved to RunnerArguments
         */
     }
-    
+
     /**
      * Specifies specific settings that should be used when launching a CLR application. These settings are implemented
      * by setting specific environment variables for the launched process. This can be used to run an application under
@@ -479,7 +479,7 @@ namespace Transformer {
 
         /** Value for COMPLUS_DbgJitDebugLaunchSetting environment variable. */
         dbgJitDebugLaunchSetting?: boolean;
-        
+
         /**
          * Force all apps to use the checked in CLR, despite <supportedRuntime> elements in the config.
          * We need this to deal with tools that specify supportedRuntime v4.0 or v4.0.30319 since we can
@@ -492,8 +492,8 @@ namespace Transformer {
         defaultVersion?: string;
     }
 
-    /** 
-     * Information about the runtime environment of a process. 
+    /**
+     * Information about the runtime environment of a process.
      */
     @@public
     export interface RuntimeEnvironment {
@@ -516,7 +516,7 @@ namespace Transformer {
          */
         clrOverride?: ClrConfig;
     }
-       
+
     /**
      * Version information for an assembly, OS, or CLR. Corresponds to System.Version as described at:
      * http://msdn.microsoft.com/en-us/library/System.Version(v=vs.110).aspx
@@ -524,10 +524,10 @@ namespace Transformer {
     @@public
     export interface Version {
         /** The build number. */
-        buildNumber?: number; 
+        buildNumber?: number;
 
         /** The major version number. Must be non-negative. */
-        major: number; 
+        major: number;
 
         /** The minor version number. Must be non-negative. */
         minor: number;
@@ -535,9 +535,9 @@ namespace Transformer {
         /** The revision number. */
         revision?: number;
     }
-        /** 
+        /**
      * Writes lines to a new file; the created write-pip is tagged with 'tags'.
-     * If FileContent is an array, an optional separator can be passed that will be used to join the lines. New line is the default separator. 
+     * If FileContent is an array, an optional separator can be passed that will be used to join the lines. New line is the default separator.
      **/
     @@public
     export function writeFile(destinationFile: Path, content: FileContent, tags?: string[], separator?: string, description?: string): DerivedFile {
@@ -561,18 +561,18 @@ namespace Transformer {
     export function writeAllText(destinationFile: Path, content: string, tags?: string[], description?: string): DerivedFile {
         return _PreludeAmbientHack_Transformer.writeAllText(destinationFile, content, tags, description);
     }
- 
+
     /** Interface for data. */
     @@public
     export type Data = string | number | Path | PathFragment | CompoundData | Directory;
-    
+
     /** Interface for compound data. */
     @@public
     export interface CompoundData {
         separator?: string;
         contents: Data[];
     }
-    
+
     /** The content of a file that can be written using writeFile. */
     @@public
     export type FileContent = PathFragment | Path | (PathFragment | Path)[];
@@ -582,12 +582,12 @@ export namespace Annotation {
     @@public
     export type AnnotationResult = (a: any) => any;
 
-    /** 
+    /**
      * Placeholder that should be used as a body for ambient annotations.
-     * 
+     *
      * DScript extends TypeScript language with support of ambient decorators (i.e. decorators with no additional behavior).
      * Such annotations could be used on type declarations and doesn't have any runtime semantics.
-     * 
+     *
      * DScript uses the same set of rules that TypeScript has and requires all ambient decorators to return a function.
      * To simplify following this contract, every function that is expected to be used as an annotation should return annotationBody.
      */
@@ -614,8 +614,8 @@ namespace Artifact {
         return createArtifact(value, ArtifactKind.output);
     }
 
-	/** 
-     * Creates a shared opaque directory from a directory. 
+	/**
+     * Creates a shared opaque directory from a directory.
      * This is an unsafe feature, the current implementation is in a prototyping stage. Use at your own risk.
      * */
 	@@public
@@ -636,7 +636,7 @@ namespace Artifact {
      */
     @@public
     export function rewritten(originalInput: File, outputPath?: Path): Artifact {
-        return outputPath !== undefined 
+        return outputPath !== undefined
             ? createArtifact(outputPath, ArtifactKind.rewritten, originalInput)
             : createArtifact(originalInput, ArtifactKind.rewritten);
     }
@@ -747,10 +747,10 @@ export namespace Cmd {
 
     /**
      * Specifies whether the process can use response files.
-     * If the argument is true, then it forces the remaining arguments into a response file. 
+     * If the argument is true, then it forces the remaining arguments into a response file.
      * If false, then a response file is only used if the command-line for the tool exceeds the maximum allowed
      * by the system.
-     * 
+     *
      * By default, the prefix for response file is "@". Some tools, like C# or C++ compiler accepts a response
      * file in the form of "@file.rsp", where "@" is the prefix.
      *
@@ -925,8 +925,8 @@ namespace Tool {
          * For example, the following string /pathB:\src represents an option named 'path' and value 'B:\src'. */
         notSupported,
 
-        /** Means that for scalar options option name and the value maybe separated by an optional separator character and are of the following 
-         * form /[opt][optional separator][value]. For example, the following strings /mode:strict and /modestrict represent an option named 'mode' 
+        /** Means that for scalar options option name and the value maybe separated by an optional separator character and are of the following
+         * form /[opt][optional separator][value]. For example, the following strings /mode:strict and /modestrict represent an option named 'mode'
         * and value 'strict'. */
         supported,
 
@@ -989,6 +989,6 @@ namespace Tool {
     export function builder(metadata: BuilderMetadata): Annotation.AnnotationResult {
         return Annotation.annotationBody;
     }
-	
-	
+
+
 }

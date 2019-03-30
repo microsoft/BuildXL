@@ -125,9 +125,10 @@ export function pack(args: Arguments): PackResult {
 
     let execArgs = <Transformer.ExecuteArguments>{
         tool: args.tool || tool,
-        tags: (args.tags || ["package"] ),
+        tags: (args.tags || ["package"]),
         arguments: arguments,
         workingDirectory: outDir,
+        allowUndeclaredSourceReads: Context.getCurrentHost().os === "macOS",
         dependencies: nuspecData.dependencies,
         outputs: [
             nupkgPath

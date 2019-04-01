@@ -107,7 +107,6 @@ namespace BuildXL.Scheduler.Tracing
 
         private readonly FingerprintStoreExecutionLogTarget m_logTarget;
         private CounterCollection<FingerprintStoreCounters> Counters => m_logTarget.Counters;
-        private readonly FingerprintStore m_fingerprintStoreToCompare;
         private readonly LoggingContext m_loggingContext;
         private readonly NodeVisitor m_visitor;
         private readonly VisitationTracker m_changedPips;
@@ -126,20 +125,20 @@ namespace BuildXL.Scheduler.Tracing
         /// A previous build's <see cref="FingerprintStore"/> that can be used for cache miss comparison.
         /// This may also be a snapshot of the current build's main <see cref="FingerprintStore"/> at the beginning of the build.
         /// </summary>
-        public FingerprintStore PreviousFingerprintStore => m_fingerprintStoreToCompare;
+        public FingerprintStore PreviousFingerprintStore { get; }
 
         private RuntimeCacheMissAnalyzer(
             FingerprintStoreExecutionLogTarget logTarget,
             LoggingContext loggingContext,
             PipExecutionContext context,
-            FingerprintStore fingerprintStoreToCompare,
+            FingerprintStore previousFingerprintStore,
             IReadonlyDirectedGraph graph,
             IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance)
         {
             m_loggingContext = loggingContext;
             m_logTarget = logTarget;
             m_context = context;
-            m_fingerprintStoreToCompare = fingerprintStoreToCompare;
+            PreviousFingerprintStore = previousFingerprintStore;
             m_visitor = new NodeVisitor(graph);
             m_changedPips = new VisitationTracker(graph);
             m_pipCacheMissesDict = new ConcurrentDictionary<PipId, PipCacheMissInfo>();
@@ -204,7 +203,7 @@ namespace BuildXL.Scheduler.Tracing
                     CacheMissAnalysisUtilities.AnalyzeCacheMiss(
                         writer,
                         missInfo,
-                        () => new FingerprintStoreReader.PipRecordingSession(m_fingerprintStoreToCompare, oldEntry),
+                        () => new FingerprintStoreReader.PipRecordingSession(PreviousFingerprintStore, oldEntry),
                         () => new FingerprintStoreReader.PipRecordingSession(m_logTarget.ExecutionFingerprintStore, newEntry));
 
                     // The diff sometimes contains several empty new lines at the end.
@@ -251,14 +250,14 @@ namespace BuildXL.Scheduler.Tracing
             using (Counters.StartStopwatch(FingerprintStoreCounters.CacheMissFindOldEntriesTime))
             {
                 process.TryComputePipUniqueOutputHash(m_context.PathTable, out var pipUniqueOutputHash, m_logTarget.PipContentFingerprinter.PathExpander);
-                return m_fingerprintStoreToCompare.TryGetFingerprintStoreEntry(pipUniqueOutputHash.ToString(), process.FormattedSemiStableHash, out entry);
+                return PreviousFingerprintStore.TryGetFingerprintStoreEntry(pipUniqueOutputHash.ToString(), process.FormattedSemiStableHash, out entry);
             }
         }
 
         /// <nodoc/>
         public void Dispose()
         {
-            m_fingerprintStoreToCompare.Dispose();
+            PreviousFingerprintStore.Dispose();
         }
 
         private struct CacheMissTimer : IDisposable

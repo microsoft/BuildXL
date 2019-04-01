@@ -327,7 +327,7 @@ namespace BuildXL.FrontEnd.Download
             }
             catch (TaskCanceledException e)
             {
-                string message = m_context.CancellationToken.IsCancellationRequested ? "Download manually canceled" : e.Message;
+                string message = m_context.CancellationToken.IsCancellationRequested ? "Download manually canceled." : e.Message;
                 m_logger.DownloadFailed(m_context.LoggingContext, downloadData.Settings.ModuleName, downloadData.Settings.Url, message);
                 return EvaluationResult.Canceled;
             }

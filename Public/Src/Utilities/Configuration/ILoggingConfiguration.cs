@@ -95,10 +95,15 @@ namespace BuildXL.Utilities.Configuration
         int FingerprintStoreMaxEntryAgeMinutes { get; }
 
         /// <summary>
-        /// Specifies the path to the fingerprint store log directory. The log directory represents a snapshot of the fingerprint store at the
+        /// Specifies the path to the fingerprint store log directory. The log directory represents a snapshot of the persistent fingerprint store at the
         /// end of a particular build.
         /// </summary>
         AbsolutePath FingerprintStoreLogDirectory { get; }
+
+        /// <summary>
+        /// Specifies the path to the cache lookup fingerprint store log directory. This is a per-build store and does not persist build-over-build.
+        /// </summary>
+        AbsolutePath CacheLookupFingerprintStoreLogDirectory { get; }
 
         /// <summary>
         /// Specifies the path to the historic metadata cache log directory.

@@ -19,23 +19,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// Gets the GRPC port.
         /// </summary>
         public int GrpcPort { get; }
-
-        /// <summary>
-        /// Creates a configuration based on grpc.
-        /// </summary>
-        public static ServiceClientRpcConfiguration CreateGrpc(int grpcPort, TimeSpan? heartbeatInterval = null)
-        {
-            return new ServiceClientRpcConfiguration(grpcPort, heartbeatInterval);
-        }
-
-        /// <summary>
-        /// Creates a configuration based on grpc.
-        /// The method left for backward compatibility.
-        /// </summary>
-        public static ServiceClientRpcConfiguration CreateGrpc(uint grpcPort, TimeSpan? heartbeatInterval = null)
-        {
-            return CreateGrpc((int)grpcPort, heartbeatInterval);
-        }
+        
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ServiceClientRpcConfiguration"/> class.

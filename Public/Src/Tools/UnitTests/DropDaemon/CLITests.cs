@@ -142,10 +142,10 @@ namespace Test.Tool.DropDaemon
                 }
                 
                 // for each required switch, create a test case where that switch is omitted
-                foreach (var selectedSwith in requiredSwitches)
+                foreach (var selectedSwitch in requiredSwitches)
                 {
                     var switchesToInclude = string.Join(" ", requiredSwitches
-                        .Except(new[] { selectedSwith })
+                        .Except(new[] { selectedSwitch })
                         .Select(switchName => $"--{switchName}"));
                     var cmdline = $"{cmd.Name} {switchesToInclude}";
                     yield return new[] { cmdline };
@@ -155,7 +155,7 @@ namespace Test.Tool.DropDaemon
 
         /// <summary>
         ///     For each public property of <see cref="DropConfig"/> and <see cref="DaemonConfig"/>
-        ///     we add a command-line parameter to a command ilne, parse the command line, and assert that
+        ///     we add a command-line parameter to a command line, parse the command line, and assert that
         ///     the property of the resulting config object matches the value we passed on the command line.
         /// </summary>
         [Theory]

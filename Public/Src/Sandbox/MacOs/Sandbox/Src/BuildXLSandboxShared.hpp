@@ -269,7 +269,7 @@ static_assert(false, "BUILDXL_CLASS_PREFIX not defined (shold be something like:
 
 #define CONCAT(prefix, name) prefix ## name
 #define XCONCAT(macro, name) CONCAT(macro, name)
-#define BXL_CLASS(name)      XCONCAT(BXL_CLASS_PREFIX, name)
+#define BXL_CLASS(name)      XCONCAT(BUILDXL_CLASS_PREFIX, name)
 
 #define STR(s) #s
 #define XSTR(macro) STR(macro)

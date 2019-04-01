@@ -2130,7 +2130,7 @@ namespace BuildXL.Engine
             }
             catch (BuildXLException ex)
             {
-                Logger.Log.FailedToAcquireDirectoryDeletionLock(loggingContext, ex.ToStringDemystified());
+                Logger.Log.FailedToAcquireDirectoryDeletionLock(loggingContext, ex.Message);
             }
             finally
             {

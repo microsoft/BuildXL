@@ -2,7 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc;
@@ -14,6 +17,7 @@ using BuildXL.Storage;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
+using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Test.BuildXL.TestUtilities.Xunit;
 using Tool.DropDaemon;
@@ -311,41 +315,40 @@ namespace Test.Tool.DropDaemon
             });
         }
 
-        [Fact]
-        public void TestAddDirectoryToDrop()
+        [Theory]
+        [InlineData(".*")]              // all files
+        [InlineData(".*a\\.txt$")]      // only a.txt
+        [InlineData(".*(a|c)\\.txt$")]  // a.txt and c.txt
+        [InlineData(".*d\\.txt$")]      // no files
+        public void TestAddDirectoryToDropWithFilters(string filter)
         {
-            var dropPaths = new System.Collections.Generic.List<string>();
-            var expectedDropPaths = new System.Collections.Generic.HashSet<string>();
-            string directoryId = "123:1:12345";
-
             // TestOutputDirectory
             // |- foo <directory>  <- 'uploading' this directory
+            //    |- a.txt
             //    |- b.txt
-            //    |- c.txt
             //    |- bar <directory>
-            //       |- d.txt
+            //       |- c.txt
 
-            var path = Path.Combine(TestOutputDirectory, "foo");
-            if (Directory.Exists(path))
+            string remoteDirectoryPath = "remoteDirectory";
+            string fakeDirectoryId = "123:1:12345";
+            var directoryPath = Path.Combine(TestOutputDirectory, "foo");
+
+            var files = new List<(string fileName, string remoteFileName)>
             {
-                Directory.Delete(path, recursive: true);
+                (Path.Combine(directoryPath, "a.txt"), $"{remoteDirectoryPath}/a.txt"),
+                (Path.Combine(directoryPath, "b.txt"), $"{remoteDirectoryPath}/b.txt"),
+                (Path.Combine(directoryPath, "bar", "c.txt"), $"{remoteDirectoryPath}/bar/c.txt"),
+            };
+
+            var dropPaths = new List<string>();
+            var expectedDropPaths = new HashSet<string>();
+            var regex = new Regex(filter, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            expectedDropPaths.AddRange(files.Where(a => regex.IsMatch(a.fileName)).Select(a => a.remoteFileName));
+            
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
             }
-            Directory.CreateDirectory(path);
-
-            var fileFooB = Path.Combine(TestOutputDirectory, "foo", "b.txt");
-            File.WriteAllText(fileFooB, Guid.NewGuid().ToString());
-            expectedDropPaths.Add("remote/b.txt");
-
-            var fileFooC = Path.Combine(TestOutputDirectory, "foo", "c.txt");
-            File.WriteAllText(fileFooC, Guid.NewGuid().ToString());
-            expectedDropPaths.Add("remote/c.txt");
-
-            path = Path.Combine(TestOutputDirectory, "foo", "bar");
-            Directory.CreateDirectory(path);
-
-            var fileFooBarD = Path.Combine(TestOutputDirectory, "foo", "bar", "d.txt");
-            File.WriteAllText(fileFooBarD, Guid.NewGuid().ToString());
-            expectedDropPaths.Add("remote/bar/d.txt");
 
             var dropClient = new MockDropClient(addFileFunc: (item) =>
             {
@@ -354,40 +357,40 @@ namespace Test.Tool.DropDaemon
             });
 
             var ipcProvider = IpcFactory.GetProvider();
+            
+            // this lambda mocks BuildXL server receiving 'GetSealedDirectoryContent' API call and returning a response
             var ipcExecutor = new LambdaIpcOperationExecutor(op =>
             {
-                // this lambda mocks BuildXL server receiving 'GetSealedDirectoryContent' API call and returning a response
-
-                var cmd = ReceiveGetSealedDirectoryContentCommandAndCheckItMatchesDirectoryId(op.Payload, directoryId);
+                var cmd = ReceiveGetSealedDirectoryContentCommandAndCheckItMatchesDirectoryId(op.Payload, fakeDirectoryId);
 
                 // Now 'fake' the response - here we only care about the 'FileName' field.
                 // In real life it's not the case, but this is a test and our custom addFileFunc
                 // in dropClient simply collects the drop file names.
-                var result = new System.Collections.Generic.List<SealedDirectoryFile>
-                {
-                    CreateFakeSealedDirectoryFile(fileFooB),
-                    CreateFakeSealedDirectoryFile(fileFooC),
-                    CreateFakeSealedDirectoryFile(fileFooBarD)
-                };
+                var result = files.Select(a => CreateFakeSealedDirectoryFile(a.fileName)).ToList();
 
                 return IpcResult.Success(cmd.RenderResult(result));
             });
 
-            WithSetup(dropClient, async (daemon, etwListener) =>
-            {
-                await WithIpcServer(
-                    ipcProvider,
-                    ipcExecutor,
-                    new ServerConfig(),
-                    async (moniker, mockServer) =>
-                    {
-                        var client = new Client(ipcProvider.GetClient(ipcProvider.RenderConnectionString(moniker), new ClientConfig()));
+            WithIpcServer(
+                ipcProvider,
+                ipcExecutor,
+                new ServerConfig(),
+                (moniker, mockServer) =>
+                {
+                    var bxlApiClient = new Client(ipcProvider.GetClient(ipcProvider.RenderConnectionString(moniker), new ClientConfig()));
+                    WithSetup(
+                        dropClient,
+                        (daemon, etwListener) =>
+                        {
+                            var addArtifactsCommand = Program.ParseArgs($"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter {filter}", new UnixParser());
+                            var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
 
-                        var ipcResult = await daemon.AddDirectoryAsync(Path.Combine(TestOutputDirectory, "foo"), directoryId, "remote", TestChunkDedup, client);
-                        XAssert.IsTrue(ipcResult.Succeeded, ipcResult.Payload);
-                        XAssert.AreSetsEqual(expectedDropPaths, dropPaths, expectedResult: true);
-                    });
-            });
+                            XAssert.IsTrue(ipcResult.Succeeded, ipcResult.Payload);
+                            XAssert.AreSetsEqual(expectedDropPaths, dropPaths, expectedResult: true);
+                        },
+                        bxlApiClient);
+                    return Task.CompletedTask;
+                }).GetAwaiter().GetResult();
         }
 
         private static SealedDirectoryFile CreateFakeSealedDirectoryFile(string fileName)

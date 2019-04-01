@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Service
                 nameByDrive.Add(kvp.Value.DriveLetter.ToString(), kvp.Key);
             }
 
-            _grpcContentServer = new GrpcContentServer(logger, Capabilities.ContentOnly,this, nameByDrive, StoresByName);
+            _grpcContentServer = new GrpcContentServer(logger, Capabilities.ContentOnly, this, nameByDrive, StoresByName);
         }
 
         /// <inheritdoc />

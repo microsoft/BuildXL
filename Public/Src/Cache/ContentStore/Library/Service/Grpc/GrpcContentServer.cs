@@ -156,7 +156,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Implements a copy file request.
         /// </summary>
-        public async Task CopyFile(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context)
+        public async Task CopyFileAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context)
         {
             LogRequestHandling();
 
@@ -169,7 +169,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     new CopyFileResponse
                     {
                         Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{request.Drive}' is an invalid cache."),
-                        Content = null
                     });
             }
 
@@ -179,7 +178,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     new CopyFileResponse
                     {
                         Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{name}' is an invalid cache name."),
-                        Content = null
                     });
             }
 
@@ -190,7 +188,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     new CopyFileResponse
                     {
                         Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{request.Drive}' does not support copying."),
-                        Content = null
                     });
                 return;
             }
@@ -206,7 +203,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     new CopyFileResponse
                     {
                         Header = new ResponseHeader(startTime, false, (int)openStreamResult.Code, openStreamResult.ErrorMessage, openStreamResult.Diagnostics),
-                        Content = null
                     });
             }
         }
@@ -471,6 +467,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 _contentServer = contentServer;
             }
+
+            /// <inheritdoc />
+            public override Task CopyFile(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context) => _contentServer.CopyFileAsync(request, responseStream, context);
 
             /// <inheritdoc />
             public override Task<HelloResponse> Hello(HelloRequest request, ServerCallContext context) => _contentServer.HelloAsync(request, context.CancellationToken);

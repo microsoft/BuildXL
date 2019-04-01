@@ -382,7 +382,7 @@ namespace BuildXL.Scheduler.Tracing
             }
             
             var strongFingerprintData = maybeStrongFingerprintData.Value;
-            if (strongFingerprintData.Succeeded)
+            if (!strongFingerprintData.Succeeded)
             {
                 // Something went wrong when computing the strong fingerprint
                 // Don't bother attempting to store or analyze data since the data may be partial and cause failures

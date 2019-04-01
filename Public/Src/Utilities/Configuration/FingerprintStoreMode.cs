@@ -28,5 +28,11 @@ namespace BuildXL.Utilities.Configuration
         /// An alternative scheme is to just delete the existing store altogether, but that risks data loss of entries unused in a particular build.
         /// </remarks>
         IgnoreExistingEntries = 2,
+
+        /// <summary>
+        /// Only store fingerprints computed at execution time. 
+        /// This will reduce reads/writes on strong fingerprint cache misses by skipping storing any fingerprints from cache lookup time, which are useful for strong fingerprint analysis.
+        /// </summary>
+        ExecutionFingerprintsOnly = 3,
     }
 }

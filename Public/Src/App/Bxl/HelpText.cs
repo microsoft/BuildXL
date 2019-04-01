@@ -296,7 +296,7 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/storeFingerprints:<Default|IgnoreExistingEntries>",
+                "/storeFingerprints:<Default|ExecutionFingerprintsOnly|IgnoreExistingEntries>",
                 Strings.HelpText_DisplayHelp_StoreFingerprintsWithMode,
                 HelpLevel.Verbose);
 

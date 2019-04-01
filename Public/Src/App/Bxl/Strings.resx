@@ -878,7 +878,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>When enabled, {ShortProductName} will not flag as violations absent path probes that coexist with writes under output directories for those same paths.</value>
   </data>
   <data name="HelpText_DisplayHelp_StoreFingerprintsWithMode" xml:space="preserve">
-    <value>Stores fingerprint computation information for each pip seen in the build in a peristent key-value store that can be accessed from the logs. "Default" mode will check for pre-existing entries before overwriting entries. "IgnoreExistingEntries" mode will overwrite entries without doing any (random) reads, this is only recommended on spin drives experiencing slowdowns. </value>
+    <value>Stores fingerprint computation information for each pip seen in the build in a peristent key-value store that can be accessed from the logs. "Default" mode will check for pre-existing entries before overwriting entries. "ExecutionFingerprintsOnly" mode will only store fingerprints computed when a pip executes. On strong fingerprint cache misses, setting this will SKIP storing fingerprints computed at cache lookup time, which are useful for analyzing strong fingerprint misses. "IgnoreExistingEntries" mode will overwrite entries without doing any (random) reads, this is only recommended on spin drives experiencing slowdowns. </value>
   </data>
   <data name="HelpText_DisplayHelp_UseFileContentTable" xml:space="preserve">
     <value>When enabled, use file content table. Defaults to on on Windows, but off on Unix</value>

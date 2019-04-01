@@ -53,6 +53,11 @@ namespace Test.BuildXL.Scheduler
 
         private JournalState m_journalState;
 
+        /// <summary>
+        /// Whether the scheduler should log all of its statistics at the end of every run.
+        /// </summary>
+        public bool ShouldLogSchedulerStats { get; set; } = false;
+
         /// <nodoc/>
         public SchedulerIntegrationTestBase(ITestOutputHelper output) : base(output)
         {
@@ -409,6 +414,15 @@ namespace Test.BuildXL.Scheduler
                 bool success = testScheduler.WhenDone().GetAwaiter().GetResult();
                 testScheduler.SaveFileChangeTrackerAsync(LoggingContext).Wait();
 
+                if (ShouldLogSchedulerStats)
+                {
+                    // Logs are not written out normally during these tests, but LogStats depends on the existence of the logs directory
+                    // to write out the stats perf JSON file
+                    var logsDir = config.Logging.LogsDirectory.ToString(Context.PathTable);
+                    Directory.CreateDirectory(logsDir);
+                    testScheduler.LogStats(LoggingContext);
+                }
+
                 return new ScheduleRunResult
                 {
                     Graph = graph,
@@ -420,7 +434,7 @@ namespace Test.BuildXL.Scheduler
                     ProcessPipCountersByFilter = testScheduler.ProcessPipCountersByFilter,
                     ProcessPipCountersByTelemetryTag = testScheduler.ProcessPipCountersByTelemetryTag,
                     SchedulerState = new SchedulerState(testScheduler)
-                };               
+                };
             }
         }
 

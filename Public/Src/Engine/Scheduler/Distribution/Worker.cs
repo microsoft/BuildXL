@@ -421,27 +421,54 @@ namespace BuildXL.Scheduler.Distribution
                 loadFactor = 1;
             }
 
-            if (AcquiredProcessSlots >= (EffectiveTotalProcessSlots * loadFactor))
+            var processRunnablePip = runnablePip as ProcessRunnablePip;
+            var acquiredSlots = m_acquiredProcessSlots;
+            var totalSlotsNeeded = acquiredSlots + processRunnablePip.Process.Weight;
+
+            // If a process has a weight higher than the total number of process slots, still allow it to run as long as there are no other
+            // processes running (the number of acquired slots is 0)
+            bool processSlotsAcquired = false;
+            if (acquiredSlots == 0
+                && Interlocked.CompareExchange(ref m_acquiredProcessSlots, processRunnablePip.Process.Weight, 0) == 0)
             {
-                limitingResource = WorkerResource.AvailableProcessSlots;
-                return false;
+                processSlotsAcquired = true;
+            }
+            else if (totalSlotsNeeded <= (EffectiveTotalProcessSlots * loadFactor)
+                && Interlocked.CompareExchange(ref m_acquiredProcessSlots, totalSlotsNeeded, acquiredSlots) == acquiredSlots)
+            {
+                processSlotsAcquired = true;
             }
 
-            var processRunnablePip = runnablePip as ProcessRunnablePip;
+            Contract.Assert(processRunnablePip != null);
             StringId limitingResourceName = StringId.Invalid;
-            if (processRunnablePip != null &&
-                processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip), out limitingResourceName))
+            if (processSlotsAcquired && processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip), out limitingResourceName))
             {
-                Interlocked.Increment(ref m_acquiredProcessSlots);
                 OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
                 runnablePip.AcquiredResourceWorker = this;
                 limitingResource = null;
                 return true;
             }
 
-            limitingResource = limitingResourceName == m_ramSemaphoreNameId
-                ? WorkerResource.AvailableMemoryMb
-                : WorkerResource.CreateSemaphoreResource(limitingResourceName.ToString(runnablePip.Environment.Context.StringTable));
+            // Failure cases
+            if (processSlotsAcquired)
+            {
+                // Release the acquired slots
+                Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Process.Weight);
+
+                if (limitingResourceName == m_ramSemaphoreNameId)
+                {
+                    limitingResource = WorkerResource.AvailableMemoryMb;
+                }
+                else
+                {
+                    limitingResource = WorkerResource.CreateSemaphoreResource(limitingResourceName.ToString(runnablePip.Environment.Context.StringTable));
+                }
+            }
+            else
+            {
+                limitingResource = WorkerResource.AvailableProcessSlots;
+            }
+
             return false;
         }
 
@@ -510,7 +537,7 @@ namespace BuildXL.Scheduler.Distribution
             {
                 Contract.Assert(processRunnablePip.Resources.HasValue);
 
-                Interlocked.Decrement(ref m_acquiredProcessSlots);
+                Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Process.Weight);
 
                 var resources = processRunnablePip.Resources.Value;
                 m_workerSemaphores.ReleaseResources(resources);

@@ -168,57 +168,6 @@ namespace Tool.DropDaemon
         }
 
         /// <summary>
-        /// This is used only for testing, particulary <code>Client.GetSealedDirectoryContent</code>
-        /// </summary>
-        internal async Task<IIpcResult> AddDirectoryAsync(string directoryPath, string directoryId, string dropDirectoryPath, bool enableChunkDedup, Client apiClient)
-        {
-            Contract.Requires(!string.IsNullOrEmpty(directoryPath));
-            Contract.Requires(!string.IsNullOrEmpty(directoryId));
-            Contract.Requires(dropDirectoryPath != null);
-
-            if (apiClient == null)
-            {
-                return new IpcResult(
-                    IpcResultStatus.ExecutionError,
-                    "ApiClient is not initialized");
-            }
-
-            DirectoryArtifact directoryArtifact = DirectoryId.Parse(directoryId);
-
-            var maybeResult = await apiClient.GetSealedDirectoryContent(directoryArtifact, directoryPath);
-            if (!maybeResult.Succeeded)
-            {
-                return new IpcResult(
-                    IpcResultStatus.GenericError,
-                    "could not get the directory content from BuildXL server:" + maybeResult.Failure.Describe());
-            }
-
-            List<SealedDirectoryFile> directoryContent = maybeResult.Result;
-
-            var addFileTasks = directoryContent.Select(
-                file =>
-                {
-                    var remoteFileName = Inv(
-                        "{0}/{1}",
-                        dropDirectoryPath,
-                        // we need to convert '\' into '/' because this path would be a part of a drop url
-                        GetRelativePath(directoryPath, file.FileName).Replace('\\', '/'));
-
-                    var dropItem = new DropItemForBuildXLFile(
-                        apiClient,
-                        file.FileName,
-                        FileId.ToString(file.Artifact),
-                        enableChunkDedup,
-                        file.ContentInfo,
-                        remoteFileName);
-                    return AddFileAsync(dropItem);
-                }).ToArray();
-
-            var ipcResults = await BuildXL.Utilities.Tasks.TaskUtilities.SafeWhenAll(addFileTasks);
-            return IpcResult.Merge(ipcResults);
-        }
-
-        /// <summary>
         /// Gets file's path relative to a given root.
         /// The method assumes that file is under the root; however it does not enforce this assumption.
         /// </summary>

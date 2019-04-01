@@ -179,7 +179,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 ServiceClientRpcConfiguration rpcConfiguration;
                 if (cacheConfig.GrpcPort != 0)
                 {
-                    rpcConfiguration = ServiceClientRpcConfiguration.CreateGrpc((int)cacheConfig.GrpcPort);
+                    rpcConfiguration = new ServiceClientRpcConfiguration((int)cacheConfig.GrpcPort);
                 }
                 else
                 {

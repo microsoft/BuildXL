@@ -41,7 +41,7 @@ namespace ContentStoreTest.Stores
         {
             return new ServiceClientContentStoreConfiguration(
                        cacheName,
-                       ServiceClientRpcConfiguration.CreateGrpc((int)serviceConfiguration.GrpcPort),
+                       new ServiceClientRpcConfiguration((int)serviceConfiguration.GrpcPort),
                        scenario)
                    {
                         RetryCount = retryCount,

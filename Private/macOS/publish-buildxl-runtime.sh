@@ -347,7 +347,7 @@ updateRequiredKextVersion $version
 buildBuildXLBinaries
 updateBuildXLConfigDscFile $version
 
-for conf in Debug Release
+for conf in debug release
 do
     declare destDir=$(find $nugetDestDir -iname $conf)
     if [[ -z $destDir ]]; then

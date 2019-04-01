@@ -87,6 +87,8 @@
 		F58E9204220B5B3C0083C57E /* utf8proc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = utf8proc.c; sourceTree = "<group>"; };
 		F58E9205220B5B3C0083C57E /* utf8proc_data.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = utf8proc_data.c; sourceTree = "<group>"; };
 		F58E9206220B5B3C0083C57E /* utf8proc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utf8proc.h; sourceTree = "<group>"; };
+		F598838E22527E8700A7A2D9 /* BundleInfoTest.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BundleInfoTest.xcconfig; path = ../BundleInfoTest.xcconfig; sourceTree = "<group>"; };
+		F598838F22527E8700A7A2D9 /* BundleInfo.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BundleInfo.xcconfig; path = ../BundleInfo.xcconfig; sourceTree = "<group>"; };
 		F5CF3B0820C1E3C500DC1B2E /* FileAccessManifestParser.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = FileAccessManifestParser.cpp; path = ../Sandbox/Src/FileAccessManifest/FileAccessManifestParser.cpp; sourceTree = "<group>"; };
 		F5CF3B0920C1E3C500DC1B2E /* FileAccessManifestParser.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = FileAccessManifestParser.hpp; path = ../Sandbox/Src/FileAccessManifest/FileAccessManifestParser.hpp; sourceTree = "<group>"; };
 		F5CF3B0C20C1E3DC00DC1B2E /* BuildXLSandboxShared.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = BuildXLSandboxShared.hpp; path = ../Sandbox/Src/BuildXLSandboxShared.hpp; sourceTree = "<group>"; };
@@ -146,6 +148,8 @@
 		3C1D7C7920C025F10069CF65 = {
 			isa = PBXGroup;
 			children = (
+				F598838F22527E8700A7A2D9 /* BundleInfo.xcconfig */,
+				F598838E22527E8700A7A2D9 /* BundleInfoTest.xcconfig */,
 				3C6495C021A6E2E20083FD3A /* Aria */,
 				F55A72F020D412F100069365 /* CLI */,
 				3CD2972920D173D900399B9B /* External */,
@@ -430,8 +434,9 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		3C1D7C8420C025F10069CF65 /* Debug */ = {
+		3C1D7C8420C025F10069CF65 /* debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F598838F22527E8700A7A2D9 /* BundleInfo.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -473,7 +478,8 @@
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
-					"$(inherited)",
+                    "BXL_BUNDLE_IDENTIFIER=$(BXL_BUNDLE_IDENTIFIER)",
+                    "BXL_CLASS_PREFIX=$(BXL_CLASS_PREFIX)",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -486,10 +492,11 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 			};
-			name = Debug;
+			name = debug;
 		};
-		3C1D7C8520C025F10069CF65 /* Release */ = {
+		3C1D7C8520C025F10069CF65 /* release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F598838F22527E8700A7A2D9 /* BundleInfo.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -533,13 +540,19 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"NDEBUG=1",
+                    "RELEASE=1",
+                    "BXL_BUNDLE_IDENTIFIER=$(BXL_BUNDLE_IDENTIFIER)",
+                    "BXL_CLASS_PREFIX=$(BXL_CLASS_PREFIX)",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = macosx;
 			};
-			name = Release;
+			name = release;
 		};
-		3C1D7C8720C025F10069CF65 /* Debug */ = {
+		3C1D7C8720C025F10069CF65 /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -556,9 +569,9 @@
 				SKIP_INSTALL = YES;
 				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
-			name = Debug;
+			name = debug;
 		};
-		3C1D7C8820C025F10069CF65 /* Release */ = {
+		3C1D7C8820C025F10069CF65 /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -572,9 +585,9 @@
 				SKIP_INSTALL = YES;
 				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
-			name = Release;
+			name = release;
 		};
-		3C245101219C565400EBC811 /* Debug */ = {
+		3C245101219C565400EBC811 /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -583,9 +596,9 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
-			name = Debug;
+			name = debug;
 		};
-		3C245102219C565400EBC811 /* Release */ = {
+		3C245102219C565400EBC811 /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -593,9 +606,9 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
-			name = Release;
+			name = release;
 		};
-		3C6495C721A6E2E20083FD3A /* Debug */ = {
+		3C6495C721A6E2E20083FD3A /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -614,9 +627,9 @@
 				PRODUCT_NAME = BuildXLAria;
 				SKIP_INSTALL = YES;
 			};
-			name = Debug;
+			name = debug;
 		};
-		3C6495C821A6E2E20083FD3A /* Release */ = {
+		3C6495C821A6E2E20083FD3A /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -634,7 +647,7 @@
 				PRODUCT_NAME = BuildXLAria;
 				SKIP_INSTALL = YES;
 			};
-			name = Release;
+			name = release;
 		};
 /* End XCBuildConfiguration section */
 
@@ -642,38 +655,38 @@
 		3C1D7C7D20C025F10069CF65 /* Build configuration list for PBXProject "Interop" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3C1D7C8420C025F10069CF65 /* Debug */,
-				3C1D7C8520C025F10069CF65 /* Release */,
+				3C1D7C8420C025F10069CF65 /* debug */,
+				3C1D7C8520C025F10069CF65 /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = release;
 		};
 		3C1D7C8620C025F10069CF65 /* Build configuration list for PBXNativeTarget "Interop" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3C1D7C8720C025F10069CF65 /* Debug */,
-				3C1D7C8820C025F10069CF65 /* Release */,
+				3C1D7C8720C025F10069CF65 /* debug */,
+				3C1D7C8820C025F10069CF65 /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = release;
 		};
 		3C245103219C565400EBC811 /* Build configuration list for PBXNativeTarget "CoreDumpTester" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3C245101219C565400EBC811 /* Debug */,
-				3C245102219C565400EBC811 /* Release */,
+				3C245101219C565400EBC811 /* debug */,
+				3C245102219C565400EBC811 /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = release;
 		};
 		3C6495C921A6E2E20083FD3A /* Build configuration list for PBXNativeTarget "Aria" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3C6495C721A6E2E20083FD3A /* Debug */,
-				3C6495C821A6E2E20083FD3A /* Release */,
+				3C6495C721A6E2E20083FD3A /* debug */,
+				3C6495C821A6E2E20083FD3A /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = release;
 		};
 /* End XCConfigurationList section */
 	};

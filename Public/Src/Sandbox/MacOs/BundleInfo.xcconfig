@@ -1,0 +1,2 @@
+BXL_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox
+BXL_CLASS_PREFIX = com_microsoft_buildxl_

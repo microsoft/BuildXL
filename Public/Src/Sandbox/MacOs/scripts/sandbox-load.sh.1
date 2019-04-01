@@ -8,6 +8,7 @@ sandbox-load \- Load BuildXLSandbox kernel extension for macOS
 [--enable-counters]
 [--verbose-logging]
 [--kext] \fIsrc-dir\fR
+[--kext-bundle-id] \fIbundle-id\fR
 .SH DESCRIPTION
 Loads a 'BuildXLSandbox' kernel extension from a given location.
 
@@ -24,9 +25,12 @@ set to '555'.  Finally, the extension is loaded from that folder using the 'kext
 Requires root privileges to execute 'kextload'.
 .SH OPTIONS
 .TP
-.BI --kext " src-dir"
+.BI --kext "src-dir"
 Required.  Directory containing a compiled BuildXLSandbox kernel extension binaries.
 The name of this directory must end in ".kext".
+.TP
+.BI --kext-bundle-id "bundle-id"
+Optional.  The bundle id of the BuildXL sandbox kernel extension.  Defaults to "com.microsoft.buildxl.sandbox".
 .TP
 .BI --deploy-dir " deploy-dir"
 Optional.  Destination to which to copy the extension from \fIsrc-dir\fR prior to loading it.

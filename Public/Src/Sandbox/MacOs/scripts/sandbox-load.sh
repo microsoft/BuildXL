@@ -9,12 +9,11 @@ declare arg_kextDeployDir=""
 declare arg_noReload=""
 declare arg_enableCounters=""
 declare arg_verboseLogging=""
-
-readonly BuildXLSandboxExtensionName="com.microsoft.buildxl.sandbox"
+declare arg_buildXLBundleId="com.microsoft.buildxl.sandbox"
 
 # Prints out BuildXLSandbox bundle id if it is currently loaded, or empty string otherwise.
 function getRunningBuildXLSandboxBundleId {
-    echo $(kextstat | grep -o ${BuildXLSandboxExtensionName})
+    echo $(kextstat | grep -o ${arg_buildXLBundleId})
 }
 
 # Unloads BuildXLSandbox extension if already running
@@ -110,6 +109,11 @@ function parseArgs {
                 ;;
             --no-reload)
                 arg_noReload=1
+                shift
+                ;;
+            --kext-bundle-id)
+                arg_buildXLBundleId="$2"
+                shift
                 shift
                 ;;
             --enable-counters)

@@ -26,6 +26,7 @@ using Xunit.Abstractions;
 
 using static BuildXL.Interop.MacOS.IO;
 using System.Threading;
+using BuildXL.Scheduler;
 
 namespace Test.BuildXL.Scheduler
 {

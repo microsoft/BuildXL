@@ -381,7 +381,8 @@ namespace BuildXL.Scheduler.Tracing
                 return;
             }
             
-            if (!maybeStrongFingerprintData.Value.Succeeded)
+            var strongFingerprintData = maybeStrongFingerprintData.Value;
+            if (strongFingerprintData.Succeeded)
             {
                 // Something went wrong when computing the strong fingerprint
                 // Don't bother attempting to store or analyze data since the data may be partial and cause failures
@@ -391,7 +392,6 @@ namespace BuildXL.Scheduler.Tracing
 
             var pip = GetProcess(data.PipId);
             var weakFingerprint = data.WeakFingerprint;
-            var strongFingerprintData = maybeStrongFingerprintData.Value;
 
             // Cache hit, update execution fingerprint store entry, if necessary, to match what would have been executed
             if (strongFingerprintData.IsStrongFingerprintHit)
@@ -424,38 +424,35 @@ namespace BuildXL.Scheduler.Tracing
                     }
                 }
 
-                if (strongFingerprintData.Succeeded)
-                {
-                    var strongFingerprint = strongFingerprintData.ComputedStrongFingerprint;
-                    var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash));
-                    FingerprintStoreEntry newEntry = null;
+                var strongFingerprint = strongFingerprintData.ComputedStrongFingerprint;
+                var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash));
+                FingerprintStoreEntry newEntry = null;
 
-                    if (CacheLookupStoreEnabled)
+                if (CacheLookupStoreEnabled)
+                {
+                    // All directory membership fingerprint entries are stored in the ExecutionFingerprintStore as they are computed during the build
+                    // Copy any necessary directory membership fingerprint entries to the CacheLookupStore on a need-to-have basis
+                    foreach (var input in strongFingerprintData.ObservedInputs)
                     {
-                        // All directory membership fingerprint entries are stored in the ExecutionFingerprintStore as they are computed during the build
-                        // Copy any necessary directory membership fingerprint entries to the CacheLookupStore on a need-to-have basis
-                        foreach (var input in strongFingerprintData.ObservedInputs)
+                        if (input.PathEntry.DirectoryEnumeration)
                         {
-                            if (input.PathEntry.DirectoryEnumeration)
+                            var hashKey = ContentHashToString(input.Hash);
+                            if (ExecutionFingerprintStore.TryGetContentHashValue(hashKey, out var directoryMembership))
                             {
-                                var hashKey = ContentHashToString(input.Hash);
-                                if (ExecutionFingerprintStore.TryGetContentHashValue(hashKey, out var directoryMembership))
-                                {
-                                    CacheLookupFingerprintStore.PutContentHash(hashKey, directoryMembership);
-                                }
+                                CacheLookupFingerprintStore.PutContentHash(hashKey, directoryMembership);
                             }
                         }
-
-                        Counters.IncrementCounter(FingerprintStoreCounters.NumCacheLookupFingerprintComputationStored);
-                        newEntry = CreateAndStoreFingerprintStoreEntry(CacheLookupFingerprintStore, pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
                     }
 
-                    if (foundMatchingPathset)
-                    {
-                        newEntry = newEntry ?? CreateFingerprintStoreEntry(pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
-                        // Strong fingerprint misses need to be analyzed during cache-lookup to get a precise reason.
-                        RuntimeCacheMissAnalyzer?.AnalyzeForCacheLookup(newEntry, pip);
-                    }
+                    Counters.IncrementCounter(FingerprintStoreCounters.NumCacheLookupFingerprintComputationStored);
+                    newEntry = CreateAndStoreFingerprintStoreEntry(CacheLookupFingerprintStore, pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
+                }
+
+                if (foundMatchingPathset)
+                {
+                    newEntry = newEntry ?? CreateFingerprintStoreEntry(pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
+                    // Strong fingerprint misses need to be analyzed during cache-lookup to get a precise reason.
+                    RuntimeCacheMissAnalyzer?.AnalyzeForCacheLookup(newEntry, pip);
                 }
             }
         }

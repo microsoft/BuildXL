@@ -364,7 +364,7 @@ do
         "$buildxlDir/Out/Bin/$conf/osx-x64/native/macOS/$KEXT_NAME"                                                \
         $destDir
 
-    if [[ $conf == "Release" ]]; then
+    if [[ $conf == "release" ]]; then
         prepareKextForSigning                                           \
             "$buildxlDir/Out/Bin/$conf/osx-x64/native/macOS/$KEXT_NAME" \
             $(pwd)/BuildXLSandbox-Release-$(date +%Y-%m-%d).zip         \

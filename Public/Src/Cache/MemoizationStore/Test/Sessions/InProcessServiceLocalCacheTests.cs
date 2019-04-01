@@ -46,7 +46,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             {
                 GrpcPortFileName = null, // Port is well known at configuration time, no need to expose it.
             };
-            var serviceClientConfiguration = new ServiceClientContentStoreConfiguration(CacheName, ServiceClientRpcConfiguration.CreateGrpc(serverConfiguration.GrpcPort), "Scenario-" + Guid.NewGuid());
+            var serviceClientConfiguration = new ServiceClientContentStoreConfiguration(CacheName, new ServiceClientRpcConfiguration(serverConfiguration.GrpcPort), "Scenario-" + Guid.NewGuid());
             Func<AbsolutePath, ICache> contentStoreFactory = CreateBackendCache;
             var serviceClient = new TestInProcessServiceClientCache(Logger, FileSystem, contentStoreFactory, serverConfiguration, serviceClientConfiguration);
             return serviceClient;

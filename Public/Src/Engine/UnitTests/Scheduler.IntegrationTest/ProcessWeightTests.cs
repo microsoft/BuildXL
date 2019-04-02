@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using BuildXL.Scheduler.Distribution;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
@@ -16,31 +17,46 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             // Turns on logging for most scheduler stats, including the limiting resource stat looked for by these tests
             ShouldLogSchedulerStats = true;
+            // If not explicitly set, max processes is a function of the number of cores on the machine
+            // Explicitly limit it so that powerful machines don't spawn a bunch of processes
+            Configuration.Schedule.MaxProcesses = 5;
         }
 
-        [Theory]
-        [InlineData(-1)] // Make sure a weights of < 1 are treated the same as a weight of 1
-        [InlineData(0)]
-        [InlineData(1)]
-        public void CanRunUpToMaxProcessesInParallel(int defaultWeight)
+        [Fact]
+        public void CanRunUpToMaxProcessesInParallel()
         {
-            CreateAndScheduleProcessWithWeight(defaultWeight, numProcesses: Configuration.Schedule.MaxProcesses);
+            CreateAndScheduleProcessWithWeight(1, numProcesses: Configuration.Schedule.MaxProcesses);
 
             RunScheduler().AssertSuccess();
             AssertProcessConcurrencyWeightLimited(false);
         }
 
-        [Theory]
-        [InlineData(-1)] // Make sure a weights of < 1 are treated the same as a weight of 1
-        [InlineData(0)]
-        [InlineData(1)]
-        public void CannotRunGreaterThanMaxProcessesInParallel(int defaultWeight)
+        [Fact]
+        public void CannotRunGreaterThanMaxProcessesInParallel()
         {
             // Schedule one over max concurrent processes
-            CreateAndScheduleProcessWithWeight(defaultWeight, numProcesses: Configuration.Schedule.MaxProcesses + 1);
+            CreateAndScheduleProcessWithWeight(1, numProcesses: Configuration.Schedule.MaxProcesses + 1);
 
             RunScheduler().AssertSuccess();
             AssertProcessConcurrencyWeightLimited(true);
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void OnlyPositiveWeights(int weight)
+        {
+            Exception exception = null;
+            try
+            {
+                CreateAndScheduleProcessWithWeight(weight);
+            }
+            catch (Exception ex)
+            {
+                exception = ex;
+            }
+
+            XAssert.AreNotEqual(null, exception);
         }
 
         [Fact]

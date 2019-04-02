@@ -421,7 +421,7 @@ namespace BuildXL.Scheduler.Distribution
                 loadFactor = 1;
             }
 
-            var processRunnablePip = runnablePip as ProcessRunnablePip;
+            var processRunnablePip = (ProcessRunnablePip) runnablePip;
             var acquiredSlots = m_acquiredProcessSlots;
             var totalSlotsNeeded = acquiredSlots + processRunnablePip.Process.Weight;
 

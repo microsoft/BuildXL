@@ -126,7 +126,7 @@ namespace Transformer {
          * Default is globally controlled by the sandbox configuration
          * TODO: input isolation is not implemented
          */
-         containerIsolationLevel?: ContainerIsolationLevel;
+        containerIsolationLevel?: ContainerIsolationLevel;
 
         /**
          * The policy to apply when a double write occurs.

@@ -107,7 +107,7 @@ namespace BuildXL.Pips.Builders
         /// The weighted value of this pip when limiting concurrency of process pips.
         /// The higher the weight, the fewer process pips that can run in parallel.
         /// </summary>
-        public int Weight { get; set; } = 1;
+        public int? Weight { get; set; } = null;
 
         /// <nodoc />
         public TimeSpan? Timeout { get; set; }

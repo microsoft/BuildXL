@@ -440,7 +440,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             // TODO: Regex. Should we follow ECMA, C#, JavaScript?
 
             // Weight.
-            var weight = Converter.ExtractInt(obj, m_weight);
+            var weight = Converter.ExtractOptionalInt(obj, m_weight);
             if (weight != null)
             {
                 processBuilder.Weight = weight.Value;

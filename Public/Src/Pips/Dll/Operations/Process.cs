@@ -339,7 +339,7 @@ namespace BuildXL.Pips.Operations
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
             DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
-            int weight = 1)
+            int? weight = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -369,6 +369,7 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(tags.IsValid);
             // If the process needs to run in a container, the redirected directory has to be set
             Contract.Requires((options & Options.NeedsToRunInContainer) == Options.None || uniqueRedirectedDirectoryRoot.IsValid);
+            Contract.Requires(!weight.HasValue || weight.Value > 0, "Process weight values must be positive.");
 
 #if DEBUG   // a little too expensive for release builds
             Contract.Requires(Contract.Exists(dependencies, d => d == executable), "The executable must be declared as a dependency");
@@ -438,7 +439,7 @@ namespace BuildXL.Pips.Operations
             ProcessAbsentPathProbeInUndeclaredOpaquesMode = absentPathProbeMode;
             DoubleWritePolicy = doubleWritePolicy;
             ContainerIsolationLevel = containerIsolationLevel;
-            Weight = weight > 0 ? weight : 1;
+            Weight = weight.HasValue ? weight.Value: 1;
         }
 
         /// <summary>
@@ -484,7 +485,7 @@ namespace BuildXL.Pips.Operations
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
             DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
-            int weight = 1)
+            int? weight = null)
         {
             return new Process(
                 executable ?? Executable,
@@ -526,7 +527,7 @@ namespace BuildXL.Pips.Operations
                 absentPathProbeMode,
                 doubleWritePolicy,
                 containerIsolationLevel,
-                weight > 0 ? weight : 1);
+                weight);
         }
 
         /// <inheritdoc />
@@ -745,7 +746,7 @@ namespace BuildXL.Pips.Operations
                 absentPathProbeMode: (AbsentPathProbeInUndeclaredOpaquesMode)reader.ReadByte(),
                 doubleWritePolicy: (DoubleWritePolicy)reader.ReadByte(),
                 containerIsolationLevel: (ContainerIsolationLevel)reader.ReadByte(),
-                weight: reader.ReadInt32()
+                weight: reader.ReadInt32Compact()
                 );
         }
 
@@ -790,7 +791,7 @@ namespace BuildXL.Pips.Operations
             writer.Write((byte)ProcessAbsentPathProbeInUndeclaredOpaquesMode);
             writer.Write((byte)DoubleWritePolicy);
             writer.Write((byte)ContainerIsolationLevel);
-            writer.Write(Weight);
+            writer.WriteCompact(Weight);
         }
         #endregion
     }

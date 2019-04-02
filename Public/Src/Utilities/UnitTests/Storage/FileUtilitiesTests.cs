@@ -616,7 +616,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [Trait("Category", "WindowsOSOnly")] // TODO for non Windows
+        [Trait("Category", "WindowsOSOnly")] // Windows OS only because junctions do not exist on other platforms.
         [TheoryIfSupported(requiresSymlinkPermission: true)]
         [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
         public void TestResolveSymlinkWithDirectorySymlinkOrJunction(bool useJunction, bool oneDotDot)
@@ -676,6 +676,100 @@ namespace Test.BuildXL.Storage
             XAssert.PossiblySucceeded(maybeResult);
 
             XAssert.ArePathEqual(expectedFinalPath, maybeResult.Result);
+        }
+
+        [Trait("Category", "WindowsOSOnly")] // Windows OS only because junctions do not exist on other platforms.
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void TestResolveSymlinkWithMixedDirectorySymlinkAndJunction()
+        {
+            // File and directory layout:
+            //    Enlist
+            //    |
+            //    +---Intermediate
+            //    |   \---Current
+            //    |       \---X64
+            //    |              file.lnk ==> ..\..\..\Target\file.txt
+            //    +---Data
+            //    |   \---Source
+            //    |
+            //    +---Source ==> \Enlist\Data\Source (junction)
+            //    |   \---X64 ==> ..\Intermediate\Current\X64 (directory symlink)
+            //    |
+            //    \---Target
+            //        \---X64
+            //                file.txt
+
+            // Create a symlink Enlist/Intermediate/Current/X64/file.lnk --> ../../../Target/X64/file.txt.
+            string symlinkFile = GetFullPath(R("Enlist", "Intermediate", "Current", "X64", "file.lnk"));
+            FileUtilities.CreateDirectory(GetFullPath(R("Enlist", "Intermediate", "Current", "X64")));
+            XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlinkFile, R("..", "..", "..", "Target", "X64", "file.txt"), isTargetFile: true));
+
+            // Create a junction Enlist/Source --> Enlist/Data/Source.
+            FileUtilities.CreateDirectory(GetFullPath(R("Enlist", "Data", "Source")));
+            FileUtilities.CreateDirectory(GetFullPath(R("Enlist", "Source")));
+            FileUtilities.CreateJunction(GetFullPath(R("Enlist", "Source")), GetFullPath(R("Enlist", "Data", "Source")));
+
+            // Create directory symlink.
+            string symlinkDirectory = GetFullPath(R("Enlist", "Source", "X64"));
+            XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlinkDirectory, R("..", "Intermediate", "Current", "X64"), isTargetFile: false));
+
+            string expectedFinalPath = GetFullPath(R("Enlist", "Target", "X64", "file.txt"));
+
+            // Resolve symlink Enlist/Source/x64/file.lnk by supplying the symlink relative target path (../../../Target/X64/file.txt).
+            var maybeResult = FileUtilities.ResolveSymlinkTarget(GetFullPath(R("Enlist", "Source", "X64", "file.lnk")), R("..", "..", "..", "Target", "X64", "file.txt"));
+            XAssert.PossiblySucceeded(maybeResult);
+
+            XAssert.ArePathEqual(expectedFinalPath, maybeResult.Result);
+
+            // Resolve symlink Enlist/Source/X64/file.lnk without supplying the symlink target path
+            maybeResult = FileUtilities.ResolveSymlinkTarget(GetFullPath(R("Enlist", "Source", "X64", "file.lnk")));
+            XAssert.PossiblySucceeded(maybeResult);
+
+            XAssert.ArePathEqual(expectedFinalPath, maybeResult.Result);
+        }
+
+        [Trait("Category", "WindowsOSOnly")] // Windows OS only because junctions do not exist on other platforms.
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void TestResolveRelativeSymlinks()
+        {
+            VerifyResolveRelativeSymlink(
+                expected: R("A1", "A2", "A4", "A5", "A7"),
+                link:     C(DL(R("A1", "A2", "A3"), R("A4")), R("A5", "A6")), 
+                target:   R("A7"));
+
+            VerifyResolveRelativeSymlink(
+                expected: R("B1", "B4", "B7"),
+                link:     C(DL(R("B1", "B2", "B3"), R("..", "B4")), R("B5", "B6")),
+                target:   R("..", "B7"));
+
+            VerifyResolveRelativeSymlink(
+                expected: R("C1", "C2", "C3", "C5", "C7"),
+                link:     C(J(R("C1", "C2", "C3"), R("C4")), R("C5", "C6")),
+                target:   R("C7"));
+
+            VerifyResolveRelativeSymlink(
+                expected: R("D1", "D2", "D3", "D7"),
+                link:     C(J(R("D1", "D2", "D3"), R("D1", "D4")), R("D5", "D6")),
+                target:   R("..", "D7"));
+
+            VerifyResolveRelativeSymlink(
+                expected: R("E1", "E2", "E3", "E7", "E10"),
+                link:     C(DL(J(R("E1", "E2", "E3"), R("E1", "E4")), R("E5", "E6"), R("..", "E7")), R("E8", "E9")),
+                target:   R("..", "E10"));
+
+            VerifyResolveRelativeSymlink(
+                expected: R("F1", "F4", "F5", "F6", "F10"),
+                link:     C(J(DL(R("F1", "F2", "F3"), R("..", "F4")), R("F5", "F6"), R("F1", "F7")), R("F8", "F9")),
+                target:   R("..", "F10"));
+        }
+
+        private void VerifyResolveRelativeSymlink(string expected, string link, string target)
+        {
+            expected = GetFullPath(expected);
+            link = FL(link, target);
+            var maybeActual = FileUtilities.FileSystem.TryResolveReparsePointRelativeTarget(link, target);
+            XAssert.IsTrue(maybeActual.Succeeded, maybeActual.Succeeded ? string.Empty : maybeActual.Failure.Describe());
+            XAssert.AreEqual(expected.ToUpperInvariant(), maybeActual.Result.ToUpperInvariant());
         }
 
         [Fact]
@@ -925,6 +1019,79 @@ namespace Test.BuildXL.Storage
             XAssert.Fail("Creating a hardlink failed unexpectedly: {0:G}", status);
             return false;
         }
+
+        private string J(string path, string target)
+        {
+            if (!FileUtilities.FileSystem.IsPathRooted(path))
+            {
+                path = GetFullPath(path);
+            }
+
+            if (!FileUtilities.FileSystem.IsPathRooted(target))
+            {
+                target = GetFullPath(target);
+            }
+
+            FileUtilities.CreateDirectory(target);
+            FileUtilities.CreateDirectory(path);
+            FileUtilities.CreateJunction(path, target);
+
+            return path;
+        }
+
+        private string J(string path, string relative, string target)
+        {
+            return J(Path.Combine(path, relative), target);
+        }
+
+        private string DL(string path, string target)
+        {
+            if (!FileUtilities.FileSystem.IsPathRooted(path))
+            {
+                path = GetFullPath(path);
+            }
+
+            string parentPath = Path.GetDirectoryName(path);
+            FileUtilities.CreateDirectory(parentPath);
+            var maybeSymlink = FileUtilities.TryCreateSymbolicLink(path, target, isTargetFile: false);
+            XAssert.IsTrue(maybeSymlink.Succeeded, maybeSymlink.Succeeded ? string.Empty : maybeSymlink.Failure.Describe());
+
+            if (!FileUtilities.FileSystem.IsPathRooted(target))
+            {
+                FileUtilities.CreateDirectory(Path.GetFullPath(Path.Combine(parentPath, target)));
+            }
+            else
+            {
+                FileUtilities.CreateDirectory(target);
+            }
+
+            return path;
+        }
+
+        private string DL(string path, string relative, string target)
+        {
+            return DL(Path.Combine(path, relative), target);
+        }
+
+        private string FL(string path, string target)
+        {
+            string parentPath = Path.GetDirectoryName(path);
+            FileUtilities.CreateDirectory(parentPath);
+            var maybeSymlink = FileUtilities.TryCreateSymbolicLink(path, target, isTargetFile: true);
+            XAssert.IsTrue(maybeSymlink.Succeeded, maybeSymlink.Succeeded ? string.Empty : maybeSymlink.Failure.Describe());
+
+            return path;
+        }
+
+        private string FL(string path, string relative, string target)
+        {
+            return FL(Path.Combine(path, relative), target);
+        }
+
+        private string C(string path, string relative) 
+            => FileUtilities.FileSystem.IsPathRooted(path) 
+            ? Path.Combine(path, relative) 
+            : Path.Combine(GetFullPath(path), relative);
 
         private static void WithNewFileMemoryMapped(string path, Action action)
         {

@@ -348,12 +348,13 @@ namespace BuildXL.Native.IO
         Possible<string> TryGetReparsePointTarget(SafeFileHandle handle, string sourcePath);
 
         /// <summary>
-        /// Resolves reparse point prefixes in the path.
+        /// Resolves reparse point relative target.
         /// </summary>
         /// <remarks>
-        /// See more remarks in the implementation details.
+        /// Given a reparse point path P and its relative target T, we try to get the absolute path target.
+        /// See more remarks in the implementation.
         /// </remarks>
-        Possible<string> ResolveReparsePointPrefixes(string path);
+        Possible<string> TryResolveReparsePointRelativeTarget(string path, string relativeTarget);
 
         #endregion
 

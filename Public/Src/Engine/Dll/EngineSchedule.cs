@@ -590,7 +590,7 @@ namespace BuildXL.Engine
                 {
                     var storeResult = await m_cache.TrySaveFingerprintStoreAsync(
                         loggingContext,
-                        configuration.Logging.FingerprintStoreLogDirectory,
+                        configuration.Logging.ExecutionFingerprintStoreLogDirectory,
                         Context.PathTable,
                         storeKey,
                         configuration.Schedule.EnvironmentFingerprint);

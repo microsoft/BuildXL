@@ -703,15 +703,19 @@ namespace BuildXL.Engine
                 logging.EngineCacheCorruptFilesLogDirectory = logging.EngineCacheLogDirectory.Combine(pathTable, EngineSerializer.CorruptFilesLogLocation);
             }
 
-            var fingerprintsLogDirectory = logging.LogsDirectory.Combine(pathTable, LogFileExtensions.FingerprintsLogDirectory);
-            if (!logging.FingerprintStoreLogDirectory.IsValid)
+            if (!logging.FingerprintsLogDirectory.IsValid)
             {
-                logging.FingerprintStoreLogDirectory = fingerprintsLogDirectory.Combine(pathTable, Scheduler.Scheduler.FingerprintStoreDirectory);
+                logging.FingerprintsLogDirectory = logging.LogsDirectory.Combine(pathTable, LogFileExtensions.FingerprintsLogDirectory);
+            }
+
+            if (!logging.ExecutionFingerprintStoreLogDirectory.IsValid)
+            {
+                logging.ExecutionFingerprintStoreLogDirectory = logging.FingerprintsLogDirectory.Combine(pathTable, Scheduler.Scheduler.FingerprintStoreDirectory);
             }
 
             if (!logging.CacheLookupFingerprintStoreLogDirectory.IsValid)
             {
-                logging.CacheLookupFingerprintStoreLogDirectory = fingerprintsLogDirectory.Combine(pathTable, Scheduler.Scheduler.FingerprintStoreDirectory + LogFileExtensions.CacheLookupFingerprintStore);
+                logging.CacheLookupFingerprintStoreLogDirectory = logging.FingerprintsLogDirectory.Combine(pathTable, Scheduler.Scheduler.FingerprintStoreDirectory + LogFileExtensions.CacheLookupFingerprintStore);
             }
 
             if (mutableConfig.Cache.HistoricMetadataCache == true && !logging.HistoricMetadataCacheLogDirectory.IsValid)

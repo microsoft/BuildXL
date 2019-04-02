@@ -264,6 +264,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleProcessPipCacheMiss(LoggingContext loggingContext, string pipDescription, string fingerprint);
 
         [GeneratedEvent(
+            (ushort)EventId.ProcessPipCacheMissWithProcessWeight,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.Storage,
+            Message = "[{pipDescription}] Cache miss (fingerprint '{fingerprint}'): Process will be executed. Process weight: {weight}.")]
+        internal abstract void ProcessPipCacheMissWithProcessWeight(LoggingContext loggingContext, string pipDescription, string fingerprint, string weight);
+
+        [GeneratedEvent(
             (ushort)EventId.ProcessPipCacheHit,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

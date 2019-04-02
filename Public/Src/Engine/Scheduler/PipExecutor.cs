@@ -2061,10 +2061,22 @@ namespace BuildXL.Scheduler
                     Contract.Assert(pipCacheMiss.Value.CacheMissType != PipCacheMissType.Invalid, "Must have valid cache miss reason");
                     environment.Counters.IncrementCounter((PipExecutorCounter)pipCacheMiss.Value.CacheMissType);
 
-                    Logger.Log.ScheduleProcessPipCacheMiss(
-                        operationContext,
-                        cacheableProcess.Description,
-                        runnableFromCacheResult.Fingerprint.ToString());
+                    if (processRunnable.Process.Weight > 1)
+                    {
+                        Logger.Log.ProcessPipCacheMissWithProcessWeight(
+                            operationContext,
+                            cacheableProcess.Description,
+                            runnableFromCacheResult.Fingerprint.ToString(),
+                            processRunnable.Process.Weight.ToString());
+                    }
+                    else
+                    {
+                        Logger.Log.ScheduleProcessPipCacheMiss(
+                            operationContext,
+                            cacheableProcess.Description,
+                            runnableFromCacheResult.Fingerprint.ToString());
+                    }
+
                     environment.State.ExecutionLog?.PipCacheMiss(pipCacheMiss.Value);
                 }
 

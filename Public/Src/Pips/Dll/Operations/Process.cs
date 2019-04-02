@@ -277,10 +277,11 @@ namespace BuildXL.Pips.Operations
         public ServiceInfo ServiceInfo { get; }
 
         /// <summary>
-        /// The weighted value of this pip when limiting concurrency of process pips.
-        /// The default weight for a process pip is 1, and the max valid weight is <see cref="IScheduleConfiguration.MaxProcesses"/>.
-        /// The higher the weight, the fewer process pips that can run in parallel.
-        /// No additional processes can be run concurrently while the sum of weights of all running processes is >= the build's weight limit (which is the max valid weight).
+        /// The # of process slots this process requires when limiting concurrency of process pips.
+        /// The total weight of all proceses running concurrently must be less than or equal to the number of available process slots.
+        /// The # of available process slots is typically a function of the number of cores on the machine, but can also be limited by runtime resource exhaustion or be set per-build by configuration.
+        /// Valid input range for the weight is [min Int32, max Int32] though all values will be effectively coerced to fit within [1, # of process slots]
+        /// If a given weight is greater than or equal to # of available process slots, the process will run alone.
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.None)]
         public int Weight { get; }

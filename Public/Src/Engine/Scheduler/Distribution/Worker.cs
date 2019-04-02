@@ -394,10 +394,11 @@ namespace BuildXL.Scheduler.Distribution
         }
 
         /// <summary>
-        /// Try acquire given resources on the worker
+        /// Try acquire given resources on the worker. This must be called from a thread-safe context to prevent race conditions.
         /// </summary>
         internal bool TryAcquire(RunnablePip runnablePip, out WorkerResource? limitingResource, double loadFactor = 1)
         {
+            Contract.Requires(runnablePip.PipType == PipType.Ipc || runnablePip.PipType == PipType.Process);
             Contract.Ensures(Contract.Result<bool>() == (limitingResource == null), "Must set a limiting resource when resources cannot be acquired");
 
             if (!IsAvailable)
@@ -421,54 +422,28 @@ namespace BuildXL.Scheduler.Distribution
                 loadFactor = 1;
             }
 
-            var processRunnablePip = (ProcessRunnablePip) runnablePip;
-            var acquiredSlots = m_acquiredProcessSlots;
-            var totalSlotsNeeded = acquiredSlots + processRunnablePip.Process.Weight;
-
+            var processRunnablePip = runnablePip as ProcessRunnablePip;
             // If a process has a weight higher than the total number of process slots, still allow it to run as long as there are no other
             // processes running (the number of acquired slots is 0)
-            bool processSlotsAcquired = false;
-            if (acquiredSlots == 0
-                && Interlocked.CompareExchange(ref m_acquiredProcessSlots, processRunnablePip.Process.Weight, 0) == 0)
+            if (AcquiredProcessSlots != 0 && AcquiredProcessSlots + processRunnablePip.Process.Weight > (EffectiveTotalProcessSlots * loadFactor))
             {
-                processSlotsAcquired = true;
-            }
-            else if (totalSlotsNeeded <= (EffectiveTotalProcessSlots * loadFactor)
-                && Interlocked.CompareExchange(ref m_acquiredProcessSlots, totalSlotsNeeded, acquiredSlots) == acquiredSlots)
-            {
-                processSlotsAcquired = true;
+                limitingResource = WorkerResource.AvailableProcessSlots;
+                return false;
             }
 
-            Contract.Assert(processRunnablePip != null);
             StringId limitingResourceName = StringId.Invalid;
-            if (processSlotsAcquired && processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip), out limitingResourceName))
+            if (processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip), out limitingResourceName))
             {
+                Interlocked.Add(ref m_acquiredProcessSlots, processRunnablePip.Process.Weight);
                 OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
                 runnablePip.AcquiredResourceWorker = this;
                 limitingResource = null;
                 return true;
             }
 
-            // Failure cases
-            if (processSlotsAcquired)
-            {
-                // Release the acquired slots
-                Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Process.Weight);
-
-                if (limitingResourceName == m_ramSemaphoreNameId)
-                {
-                    limitingResource = WorkerResource.AvailableMemoryMb;
-                }
-                else
-                {
-                    limitingResource = WorkerResource.CreateSemaphoreResource(limitingResourceName.ToString(runnablePip.Environment.Context.StringTable));
-                }
-            }
-            else
-            {
-                limitingResource = WorkerResource.AvailableProcessSlots;
-            }
-
+            limitingResource = limitingResourceName == m_ramSemaphoreNameId
+                ? WorkerResource.AvailableMemoryMb
+                : WorkerResource.CreateSemaphoreResource(limitingResourceName.ToString(runnablePip.Environment.Context.StringTable));
             return false;
         }
 

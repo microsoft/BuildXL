@@ -382,7 +382,6 @@ namespace BuildXL.Engine.Cache.Artifacts
             using (Counters.StartStopwatch(LocalDiskContentStoreCounter.TryDiscoverTime_OpenProbeHandle))
             {
                 OpenFileResult openResult = default;
-
                 Helpers.RetryOnFailure(
                     lastAttempt =>
                     {
@@ -400,7 +399,8 @@ namespace BuildXL.Engine.Cache.Artifacts
                         }
 
                         return openResult.Succeeded;
-                    });
+                    },
+                    numberOfAttempts: OperatingSystemHelper.IsUnixOS ? 1 : 3);
 
                 if (!openResult.Succeeded)
                 {
@@ -477,8 +477,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                     Contract.Assert(handle != null && !handle.IsInvalid);
 
                     // We have seen few cases where closing of the stream throws an ERROR_INCORRECT_FUNCTION native error.
-                    // This happened 4 times in office meta build and could be a result of opening a non-file stream while coding a BuildXL Spec build
-                    // file. Or a failing stable drive.
+                    // This could be a result of opening a non-file stream while coding a BuildXL Spec build file.
                     //
                     // Either way, catch the exception and make it an recoverable one.
                     try

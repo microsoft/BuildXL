@@ -584,8 +584,8 @@ namespace Tool.DropDaemon
             {
                 return new IpcResult(IpcResultStatus.ExecutionError, error);
             }
-            
-            var finalListOfFilesToUpload = dropFileItems.Concat(dropDirectoryMemberItems).ToLookup(f => f.Hash == WellKnownContentHashes.AbsentFile);
+
+            var finalListOfFilesToUpload = dropFileItems.Concat(dropDirectoryMemberItems).ToLookup(f => WellKnownContentHashUtilities.IsAbsentFileHash(f.Hash));
 
             // first, check if there are any absent source files
             if (finalListOfFilesToUpload[true].Any(f => !f.IsOutputFile))

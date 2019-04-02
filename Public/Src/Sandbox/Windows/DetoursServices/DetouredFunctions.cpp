@@ -1514,7 +1514,7 @@ NTSTATUS HandleFileModeInformation(
         DELETE,
         0,
         OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
+        FILE_FLAG_DELETE_ON_CLOSE,
         sourcePath.c_str());
 
     PolicyResult sourcePolicyResult;

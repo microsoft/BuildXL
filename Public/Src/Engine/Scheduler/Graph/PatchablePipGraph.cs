@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
+using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -489,6 +490,12 @@ namespace BuildXL.Scheduler.Graph
             {
                 list.Add(pip.PipId.Value, pip);
             }
+        }
+
+        /// <inheritdoc />
+        public void ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
+        {
+            m_builder.ApplyCurrentOsDefaults(processBuilder);
         }
     }
 }

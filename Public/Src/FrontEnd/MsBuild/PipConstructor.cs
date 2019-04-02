@@ -723,7 +723,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             processBuilder.Executable = cmdExeArtifact;
             processBuilder.AddInputFile(cmdExeArtifact);
-            processBuilder.AddUntrackedWindowsDirectories();
+            processBuilder.AddCurrentHostOSDirectories();
             processBuilder.AddUntrackedAppDataDirectories();
             processBuilder.AddUntrackedProgramDataDirectories();
 

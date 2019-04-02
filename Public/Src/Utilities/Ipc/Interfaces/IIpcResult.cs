@@ -12,7 +12,7 @@ namespace BuildXL.Ipc.Interfaces
     public enum IpcResultStatus : byte
     {
         /// <summary>
-        /// Indicates successeful execution.
+        /// Indicates successful execution.
         /// </summary>
         Success = 0,
 
@@ -37,6 +37,11 @@ namespace BuildXL.Ipc.Interfaces
         /// Indicates that an error occured on the server while executing the operation.
         /// </summary>
         ExecutionError = 4,
+
+        /// <summary>
+        /// Indicates that the pip input is invalid.
+        /// </summary>
+        InvalidInput = 5,
     }
 
     /// <summary>

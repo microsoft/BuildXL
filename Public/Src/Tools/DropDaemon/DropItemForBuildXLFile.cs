@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Storage;
 using BuildXL.Utilities;
@@ -18,11 +19,21 @@ namespace Tool.DropDaemon
     public sealed class DropItemForBuildXLFile : DropItemForFile
     {
         /// <summary>Prefix for the error message of the exception that gets thrown when a materialized file is a symlink.</summary>
-        internal const string MaterializationResultIsSymlinkeErrorPrefix = "File materialization succeeded, but file found on disk is a symlink: ";
+        internal const string MaterializationResultIsSymlinkErrorPrefix = "File materialization succeeded, but file found on disk is a symlink: ";
 
+        /// <summary>
+        /// File content hash
+        /// </summary>
+        public readonly ContentHash Hash;
+        
         private readonly Func<string, bool> m_symlinkTester;
         private readonly FileArtifact m_file;
         private readonly Client m_client;
+        
+        /// <summary>
+        /// Whether it is an output file or not 
+        /// </summary>
+        public bool IsOutputFile => m_file.IsOutputFile;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private readonly bool m_chunkDedup;
@@ -52,6 +63,7 @@ namespace Tool.DropDaemon
             m_file = FileId.Parse(fileId);
             m_client = client;
             m_chunkDedup = chunkDedup;
+            Hash = fileContentInfo.Hash;
         }
 
         /// <summary>
@@ -79,7 +91,7 @@ namespace Tool.DropDaemon
 
             if (m_symlinkTester(FullFilePath))
             {
-                throw new DropDaemonException(MaterializationResultIsSymlinkeErrorPrefix + FullFilePath);
+                throw new DropDaemonException(MaterializationResultIsSymlinkErrorPrefix + FullFilePath);
             }
 
 #if DEBUG

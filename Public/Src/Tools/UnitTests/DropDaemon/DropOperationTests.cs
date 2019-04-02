@@ -293,7 +293,7 @@ namespace Test.Tool.DropDaemon
                         // addfile files
                         IIpcResult result = daemon.AddFileAsync(addFileItem).GetAwaiter().GetResult();
                         XAssert.IsFalse(result.Succeeded, "expected addfile to fail; instead it succeeded and returned payload: " + result.Payload);
-                        XAssert.IsTrue(result.Payload.Contains(DropItemForBuildXLFile.MaterializationResultIsSymlinkeErrorPrefix));
+                        XAssert.IsTrue(result.Payload.Contains(DropItemForBuildXLFile.MaterializationResultIsSymlinkErrorPrefix));
                     });
             });
         }
@@ -391,6 +391,39 @@ namespace Test.Tool.DropDaemon
                         bxlApiClient);
                     return Task.CompletedTask;
                 }).GetAwaiter().GetResult();
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestAddingFilesWithAbsentFileHashToDrop(bool isSourceFile)
+        {
+            var dropPaths = new List<string>();
+
+            var dropClient = new MockDropClient(addFileFunc: (item) =>
+            {
+                dropPaths.Add(item.RelativeDropPath);
+                return Task.FromResult(AddFileResult.Associated);
+            });
+           
+            var ipcProvider = IpcFactory.GetProvider();
+            var bxlApiClient = new Client(ipcProvider.GetClient(ipcProvider.CreateNewConnectionString(), new ClientConfig()));
+
+            WithSetup(
+                dropClient, 
+                (daemon, etwListener) =>
+                {
+                    // only hash and file rewrite count are important here; the rest are just fake values
+                    var addArtifactsCommand = Program.ParseArgs($"addartifacts --ipcServerMoniker {daemon.Config.Moniker} --file non-existent-file.txt --dropPath remote-file-name.txt --hash VSO0:010000000000000000000000000000000000000000000000000000000000000000_-1 --fileId 12345:{(isSourceFile ? 0 : 1)}", new UnixParser());
+                    var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
+
+                    XAssert.IsTrue(dropPaths.Count == 0);
+                    
+                    // if an absent file is a source file, drop operation should have failed; otherwise, we simply skip it
+                    XAssert.AreEqual(isSourceFile ? false : true, ipcResult.Succeeded);
+                    XAssert.AreEqual(isSourceFile ? IpcResultStatus.InvalidInput : IpcResultStatus.Success, ipcResult.ExitCode);
+                },
+                bxlApiClient);
         }
 
         private static SealedDirectoryFile CreateFakeSealedDirectoryFile(string fileName)

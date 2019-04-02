@@ -15,15 +15,15 @@ namespace Execution.Analyzer {
         skipDocumentationGeneration: true,
         sources: globR(d`.`, "*.cs"),
         references: [
-            ...addIfLazy(BuildXLSdk.isFullFramework, () => [
+            ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.IO.dll,
                 NetFx.System.Web.dll,
                 NetFx.System.Xml.dll,
                 NetFx.System.Xml.Linq.dll,
                 NetFx.System.IO.Compression.dll,
                 NetFx.System.Net.Http.dll,
-                NetFx.System.Runtime.Serialization.dll,
-            ]),
+                NetFx.System.Runtime.Serialization.dll
+            ),
             ...(BuildXLSdk.isDotNetCoreBuild 
                 // There is a bug in the dotnetcore generation of this package
                 ? [importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").withQualifier({targetFramework: "netstandard1.3"}).pkg]

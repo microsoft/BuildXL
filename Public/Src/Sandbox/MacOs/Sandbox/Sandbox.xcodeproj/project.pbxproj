@@ -54,7 +54,6 @@
 		F54B6ADA21D3E37A00069515 /* ResourceManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F54B6AD821D3E37A00069515 /* ResourceManager.cpp */; };
 		F54B6ADB21D3E37A00069515 /* ResourceManager.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F54B6AD921D3E37A00069515 /* ResourceManager.hpp */; };
 		F557784D219217E60006B275 /* arg_parse.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F557784B219217E60006B275 /* arg_parse.cpp */; };
-		F557784F21921BA20006B275 /* args.hpp in Sources */ = {isa = PBXBuildFile; fileRef = F557784E21921BA20006B275 /* args.hpp */; };
 		F57355F0224444A400264A6C /* Sandbox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F57355EF224444A400264A6C /* Sandbox.cpp */; };
 		F57355F22244450600264A6C /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F57355F12244450600264A6C /* CoreFoundation.framework */; };
 		F57355F32244456B00264A6C /* StringOperations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C2614A820D7E85E00488B0B /* StringOperations.cpp */; };
@@ -346,6 +345,8 @@
 		F58E91FD220B595B0083C57E /* utf8proc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = utf8proc.c; sourceTree = "<group>"; };
 		F58E91FE220B595B0083C57E /* utf8proc_data.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = utf8proc_data.c; sourceTree = "<group>"; };
 		F58E91FF220B595B0083C57E /* utf8proc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utf8proc.h; sourceTree = "<group>"; };
+		F598838C22527E7400A7A2D9 /* BundleInfoTest.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BundleInfoTest.xcconfig; path = ../BundleInfoTest.xcconfig; sourceTree = "<group>"; };
+		F598838D22527E7400A7A2D9 /* BundleInfo.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BundleInfo.xcconfig; path = ../BundleInfo.xcconfig; sourceTree = "<group>"; };
 		F5A804C42182937400626B9C /* Checkers.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Checkers.cpp; sourceTree = "<group>"; };
 		F5A804C52182937400626B9C /* Checkers.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Checkers.hpp; sourceTree = "<group>"; };
 		F5B25229220CA6C400662376 /* Stopwatch.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Stopwatch.cpp; sourceTree = "<group>"; };
@@ -441,6 +442,8 @@
 		3CCA66BB20D15BBD0051F984 = {
 			isa = PBXGroup;
 			children = (
+				F598838D22527E7400A7A2D9 /* BundleInfo.xcconfig */,
+				F598838C22527E7400A7A2D9 /* BundleInfoTest.xcconfig */,
 				3CCA66C720D15BBD0051F984 /* Src */,
 				F58E912F220B562A0083C57E /* External */,
 				3CCA66C620D15BBD0051F984 /* Products */,
@@ -1072,8 +1075,9 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		3CCA66CD20D15BBD0051F984 /* Debug */ = {
+		3CCA66CD20D15BBD0051F984 /* debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F598838D22527E7400A7A2D9 /* BundleInfo.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -1114,10 +1118,11 @@
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
 					"DEBUG=1",
 					"_DEBUG=1",
 					"MACH_ASSERT=1",
+                    "BUILDXL_BUNDLE_IDENTIFIER=$(BUILDXL_BUNDLE_IDENTIFIER)",
+                    "BUILDXL_CLASS_PREFIX=$(BUILDXL_CLASS_PREFIX)",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -1130,10 +1135,11 @@
 				ONLY_ACTIVE_ARCH = YES;
 				USER_HEADER_SEARCH_PATHS = "../../Public/Src/Sandbox/Windows/DetoursServices/**";
 			};
-			name = Debug;
+			name = debug;
 		};
-		3CCA66CE20D15BBD0051F984 /* Release */ = {
+		3CCA66CE20D15BBD0051F984 /* release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F598838D22527E7400A7A2D9 /* BundleInfo.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -1174,6 +1180,8 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"RELEASE=1",
 					"NDEBUG=1",
+                    "BUILDXL_BUNDLE_IDENTIFIER=$(BUILDXL_BUNDLE_IDENTIFIER)",
+                    "BUILDXL_CLASS_PREFIX=$(BUILDXL_CLASS_PREFIX)",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -1185,9 +1193,9 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				USER_HEADER_SEARCH_PATHS = "../../Public/Src/Sandbox/Windows/DetoursServices/**";
 			};
-			name = Release;
+			name = release;
 		};
-		3CCA66D020D15BBD0051F984 /* Debug */ = {
+		3CCA66D020D15BBD0051F984 /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -1200,14 +1208,13 @@
 				INFOPLIST_FILE = Src/Resources/Info.plist;
 				MODULE_NAME = com.microsoft.buildxl.sandbox;
 				MODULE_VERSION = 1.0.0d1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = "../../Windows/DetoursServices/**";
 				WRAPPER_EXTENSION = kext;
 			};
-			name = Debug;
+			name = debug;
 		};
-		3CCA66D120D15BBD0051F984 /* Release */ = {
+		3CCA66D120D15BBD0051F984 /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -1220,20 +1227,18 @@
 				INFOPLIST_FILE = Src/Resources/Info.plist;
 				MODULE_NAME = com.microsoft.buildxl.sandbox;
 				MODULE_VERSION = 1.0.0d1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.microsoft.buildxl.sandbox;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = "../../Windows/DetoursServices/**";
 				WRAPPER_EXTENSION = kext;
 			};
-			name = Release;
+			name = release;
 		};
-		F51A2BFE2190C67500880752 /* Debug */ = {
+		F51A2BFE2190C67500880752 /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
 					"$(inherited)",
 					"MAC_OS_LIBRARY=1",
 				);
@@ -1245,16 +1250,15 @@
 				SDKROOT = macosx;
 				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
-			name = Debug;
+			name = debug;
 		};
-		F51A2BFF2190C67500880752 /* Release */ = {
+		F51A2BFF2190C67500880752 /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"RELEASE=1",
-					"NDEBUG=1",
+                    "$(inherited)",
 					"MAC_OS_LIBRARY=1",
 				);
 				HEADER_SEARCH_PATHS = "$(SOURCE_ROOT)/../Interop/Sandbox";
@@ -1264,7 +1268,7 @@
 				SDKROOT = macosx;
 				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
-			name = Release;
+			name = release;
 		};
 /* End XCBuildConfiguration section */
 
@@ -1272,29 +1276,29 @@
 		3CCA66BF20D15BBD0051F984 /* Build configuration list for PBXProject "Sandbox" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3CCA66CD20D15BBD0051F984 /* Debug */,
-				3CCA66CE20D15BBD0051F984 /* Release */,
+				3CCA66CD20D15BBD0051F984 /* debug */,
+				3CCA66CE20D15BBD0051F984 /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = release;
 		};
 		3CCA66CF20D15BBD0051F984 /* Build configuration list for PBXNativeTarget "BuildXLSandbox" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3CCA66D020D15BBD0051F984 /* Debug */,
-				3CCA66D120D15BBD0051F984 /* Release */,
+				3CCA66D020D15BBD0051F984 /* debug */,
+				3CCA66D120D15BBD0051F984 /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = release;
 		};
 		F51A2BFD2190C67500880752 /* Build configuration list for PBXNativeTarget "SandboxMonitor" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				F51A2BFE2190C67500880752 /* Debug */,
-				F51A2BFF2190C67500880752 /* Release */,
+				F51A2BFE2190C67500880752 /* debug */,
+				F51A2BFF2190C67500880752 /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = release;
 		};
 /* End XCConfigurationList section */
 	};

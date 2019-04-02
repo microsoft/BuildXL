@@ -28,18 +28,18 @@ namespace Deployment {
                     : [{
                         subfolder: a`Contents`,
                         contents: [
-                            Sandbox.kextPlist,
+                            Sandbox.kext.plist,
                             {
                                 subfolder: a`MacOS`,
-                                contents: [ Sandbox.kextSandbox ]
+                                contents: [ Sandbox.kext.sandbox ]
                             },
                             {
                                 subfolder: a`Resources`,
-                                contents: [ Sandbox.kextLicense ]
+                                contents: [ Sandbox.kext.license ]
                             },
                             {
                                 subfolder: a`_CodeSignature`,
-                                contents: [ Sandbox.kextCodeRes ]
+                                contents: [ Sandbox.kext.codeRes ]
                             }
                         ]
                     }]
@@ -53,10 +53,10 @@ namespace Deployment {
                     : [{
                         subfolder: a`Contents`,
                         contents: [
-                            Sandbox.kextdSYMPlist,
+                            Sandbox.kext.dSYMPlist,
                             {
                                 subfolder: r`Resources/DWARF`,
-                                contents: [ Sandbox.kextdSYMDwarf ]
+                                contents: [ Sandbox.kext.dSYMDwarf ]
                             }
                         ]
                     }]

@@ -67,5 +67,15 @@ namespace BuildXL.Utilities.Configuration
         /// A file containing rpc log entries
         /// </summary>
         public const string RpcLog = ".DistributionRpc.log";
+
+        /// <summary>
+        /// A folder for cache miss information
+        /// </summary>
+        public const string FingerprintsLogDirectory = "Fingerprints";
+
+        /// <summary>
+        /// Suffix for the folder containing the FingerprintStore for cache lookup fingerprints.
+        /// </summary>
+        public const string CacheLookupFingerprintStore = ".CacheLookup";
     }
 }

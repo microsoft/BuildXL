@@ -4,8 +4,8 @@
 const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal");
 
 // These packages are Microsoft internal packages.
-// These consist of internally repackaged products that we can't push to a public feed and have to rely on users installing locally
-// Or they contain code which is internal and can't be open sourced due to tying into Microsoft internal systems
+// These consist of internally repackaged products that we can't push to a public feed and have to rely on users installing locally.
+// Or they contain code which is internal and can't be open sourced due to tying into Microsoft internal systems.
 // The dependent code is still open sourced, but not compiled in the public repo.
 export const pkgs = isMicrosoftInternal ? [
     { id: "Bond.NET", version: "3.2.0" },
@@ -15,7 +15,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Applications.Telemetry.Desktop", version: "1.1.152" },
 
     // Runtime dependencies used for macOS deployments
-    { id: "runtime.osx-x64.BuildXL", version: "1.84.99" },
+    { id: "runtime.osx-x64.BuildXL", version: "1.88.99" },
     { id: "Aria.Cpp.SDK.osx-x64", version: "8.5.4" },
 
     { id: "CB.QTest", version: "19.01.24.103038" },

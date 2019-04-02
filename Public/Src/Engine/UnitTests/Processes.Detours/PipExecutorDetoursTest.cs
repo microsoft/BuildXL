@@ -5686,12 +5686,12 @@ namespace Test.BuildXL.Processes.Detours
                 //    +---icache
                 //    |   \---current
                 //    |       \---x64
-                //    |              symlink.imports.link ==> ..\..\..\target\x64\hello.txt, or
-                //    |                                   ==> ..\..\target\x64\hello.txt
+                //    |              symlink.imports.link ==> ..\..\..\targets\x64\hello.txt, or
+                //    |                                   ==> ..\..\targets\x64\hello.txt
                 //    +---imports
-                //    |   \---x64 ==> icache\current\x64
+                //    |   \---x64 ==> ..\icache\current\x64
                 //    |
-                //    \---target
+                //    \---targets
                 //        \---x64
                 //               hello.txt
 
@@ -5813,6 +5813,116 @@ namespace Test.BuildXL.Processes.Detours
                         SetExpectedFailures(1, 0);
                     }
                 }
+            }
+        }
+
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CallAccessNestedSiblingSymLinkOnFilesThroughMixedDirectorySymlinkAndJunction(bool relativeDirectorySymlinkTarget)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                // File and directory layout:
+                //    Enlist
+                //    |
+                //    +---icache
+                //    |   \---current
+                //    |       \---x64
+                //    |              symlink.imports.link ==> ..\..\..\targets\x64\hello.txt
+                //    +---data
+                //    |   \---imports
+                //    |
+                //    +---imports ==> \Enlist\data\imports (junction)
+                //    |   \---x64 ==> ..\icache\current\x64 (or \Enlist\icache\current\x64) (directory symlink)
+                //    |
+                //    \---targets
+                //        \---x64
+                //               hello.txt
+
+                // access: imports\x64\symlink.imports.link
+
+                var dataImports = tempFiles.GetDirectory(pathTable, @"data\imports");
+                var imports = tempFiles.GetDirectory(pathTable, "imports");
+                EstablishJunction(imports.ToString(pathTable), dataImports.ToString(pathTable));
+
+                var sourceDir = tempFiles.GetDirectory(pathTable, @"imports\x64");
+                var sourceOfSymlink = tempFiles.GetFileName(pathTable, sourceDir, "symlink.imports.link");
+
+                var intermediateDir = tempFiles.GetDirectory(pathTable, @"icache\current\x64");
+                var intermediateSymlink = tempFiles.GetFileName(pathTable, intermediateDir, "symlink.imports.link");
+
+                var targetDir = tempFiles.GetDirectory(pathTable, @"targets\x64");
+                var targetFile = tempFiles.GetFileName(pathTable, targetDir, "hello.txt");
+
+                WriteFile(pathTable, targetFile, "aaa");
+
+                // Force creation of relative symlinks.
+                string currentDirectory = Directory.GetCurrentDirectory();
+
+                Directory.SetCurrentDirectory(intermediateDir.ToString(pathTable));
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink("symlink.imports.link", @"..\..\..\targets\x64\hello.txt", true));
+
+                Directory.SetCurrentDirectory(currentDirectory);
+
+                if (relativeDirectorySymlinkTarget)
+                {
+                    // Force creation of relative symlinks.
+                    currentDirectory = Directory.GetCurrentDirectory();
+                    Directory.SetCurrentDirectory(sourceDir.GetParent(pathTable).ToString(pathTable));
+                    FileUtilities.DeleteDirectoryContents("x64", deleteRootDirectory: true);
+                    XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink("x64", @"..\icache\current\x64", false));
+                    Directory.SetCurrentDirectory(currentDirectory);
+                }
+                else
+                {
+                    FileUtilities.DeleteDirectoryContents(sourceDir.ToString(pathTable), deleteRootDirectory: true);
+                    XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(sourceDir.ToString(pathTable), intermediateDir.ToString(pathTable), false));
+                }
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallAccessNestedSiblingSymLinkOnFiles",
+                    inputFiles:
+                        ReadOnlyArray<FileArtifact>.FromWithoutCopy(
+                            FileArtifact.CreateSourceFile(sourceOfSymlink),
+                            FileArtifact.CreateSourceFile(intermediateSymlink),
+                            FileArtifact.CreateSourceFile(targetFile)),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                string errorString;
+
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreRepPoints: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString);
+
+                VerifyNormalSuccess(context, result);
+
+                VerifyFileAccesses(
+                    context,
+                    result.AllReportedFileAccesses,
+                    new[]
+                    {
+                        // Since we access imports\x64\symlink.imports.link and imports\x64 --> icache\current\x64 is a directory symlink,
+                        // we only report imports\x64\symlink.imports.link and targets\x64\hello.txt. Note that we do not report
+                        // all possible forms of path when enforcing chain of symlinks. In this case, we do not report icache\current\x64\symlink.imports.link.
+                        (sourceOfSymlink, RequestedAccess.Read, FileAccessStatus.Allowed),
+                        (targetFile, RequestedAccess.Read, FileAccessStatus.Allowed)
+                    });
             }
         }
 

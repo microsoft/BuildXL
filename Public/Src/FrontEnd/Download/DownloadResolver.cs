@@ -307,6 +307,7 @@ namespace BuildXL.FrontEnd.Download
             {
                 using (var httpClient = new HttpClient())
                 {
+                    httpClient.Timeout = TimeSpan.FromMinutes(10);
                     var response = await httpClient.GetAsync((Uri)downloadData.DownloadUri, m_context.CancellationToken);
                     response.EnsureSuccessStatusCode();
                     var stream = await response.Content.ReadAsStreamAsync();
@@ -324,8 +325,10 @@ namespace BuildXL.FrontEnd.Download
                         new FileInfo(downloadFilePathAsString).Length);
                 }
             }
-            catch (TaskCanceledException)
+            catch (TaskCanceledException e)
             {
+                string message = m_context.CancellationToken.IsCancellationRequested ? "Download manually canceled." : e.Message;
+                m_logger.DownloadFailed(m_context.LoggingContext, downloadData.Settings.ModuleName, downloadData.Settings.Url, message);
                 return EvaluationResult.Canceled;
             }
             catch (HttpRequestException e)

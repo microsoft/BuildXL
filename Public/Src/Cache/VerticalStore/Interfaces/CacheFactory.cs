@@ -290,6 +290,8 @@ namespace BuildXL.Cache.Interfaces
                 }
             }
 
+            // We used to validate that the JSON config had no fields that did not correspond to a field in our config, but this caused issues when we added new flags, since old versions of the cache would break
+            //  when used with newer configs. Because of that, we removed that validation.
             return target;
         }
     }

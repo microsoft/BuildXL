@@ -290,24 +290,6 @@ namespace BuildXL.Cache.Interfaces
                 }
             }
 
-            foreach (string key in cacheData.Keys)
-            {
-                switch (key)
-                {
-                    case DictionaryKeyFactoryTypeName:
-                    case DictionaryKeyFactoryAssemblyName:
-                        break;
-                    default:
-
-                        if (target.GetType().GetProperty(key) == null)
-                        {
-                            return new IncorrectJsonConfigDataFailure("{0} does not support setting '{1}' in Json configuration data", configName, key);
-                        }
-
-                        break;
-                }
-            }
-
             return target;
         }
     }

@@ -127,7 +127,7 @@ namespace MsBuildGraphBuilderTool
             GraphBuilderReporter reporter,
             IReadOnlyDictionary<string, string> assemblyPathsToLoad,
             string locatedMsBuildPath,
-            string projectEntryPoint,
+            IReadOnlyCollection<string> projectEntryPoints,
             string enlistmentRoot,
             IReadOnlyDictionary<string, string> globalProperties,
             IReadOnlyCollection<string> entryPointTargets,
@@ -138,9 +138,10 @@ namespace MsBuildGraphBuilderTool
                 reporter.ReportMessage("Parsing MSBuild specs and constructing the build graph...");
 
                 var projectInstanceToProjectCache = new ConcurrentDictionary<ProjectInstance, Project>();
-                var thisQualifierProjectCollection = new ProjectCollection(globalProperties: globalProperties?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+                var globalPropertiesDict = globalProperties?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                var thisQualifierProjectCollection = new ProjectCollection(globalProperties: globalPropertiesDict);
                 var projectGraph = new ProjectGraph(
-                    projectEntryPoint, 
+                    projectEntryPoints.Select(entryPoint => new ProjectGraphEntryPoint(entryPoint, globalPropertiesDict)), 
                     thisQualifierProjectCollection, 
                     (projectPath, globalProps, projectCollection) => ProjectInstanceFactory(projectPath, globalProps, projectCollection, projectInstanceToProjectCache));
 

@@ -46,7 +46,7 @@ namespace Test.ProjectGraphBuilder
             MsBuildGraphBuilder.BuildGraphAndSerialize(
                 new MSBuildGraphBuilderArguments(
                     TestOutputDirectory,
-                    entryPoint,
+                    new[] { entryPoint },
                     outputFile,
                     globalProperties: null,
                     mSBuildSearchLocations: new[] {TestDeploymentDir},
@@ -73,7 +73,7 @@ namespace Test.ProjectGraphBuilder
             {
                 var arguments = new MSBuildGraphBuilderArguments(
                     TestOutputDirectory,
-                    entryPoint,
+                    new[] { entryPoint },
                     outputFile,
                     globalProperties: null,
                     mSBuildSearchLocations: new[] {TestDeploymentDir},

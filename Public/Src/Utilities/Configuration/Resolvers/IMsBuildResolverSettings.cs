@@ -60,7 +60,7 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// If not provided, BuildXL will try to find a candidate under the root traversal
         /// </remarks>
-        PathAtom? FileNameEntryPoint { get; }
+        IReadOnlyList<RelativePath> FileNameEntryPoints { get; }
 
         /// <summary>
         /// Targets to execute on the entry point project.

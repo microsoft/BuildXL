@@ -142,7 +142,7 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
      * Optional file name for the project or solution that should be used to start parsing (under the root traversal)
      * If not provided, BuildXL will try to find a candidate under the root traversal
      */
-    fileNameEntryPoint?: PathAtom;
+    fileNameEntryPoints?: RelativePath[];
     
     /**
      * Targets to execute on the entry point project. If not provided, the default targets are used.

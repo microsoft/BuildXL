@@ -22,7 +22,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// <summary>
         /// Path to the entry point project to parse
         /// </summary>
-        public string ProjectToParse { get; }
+        public IReadOnlyCollection<string> ProjectToParse { get; }
 
         /// <summary>
         /// Path to the file were the graph will be serialized to
@@ -54,15 +54,15 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
 
         /// <nodoc/>
         public MSBuildGraphBuilderArguments(
-            string enlistmentRoot, 
-            string projectToParse, 
+            string enlistmentRoot,
+            IReadOnlyCollection<string> projectToParse, 
             string outputPath, 
             IReadOnlyDictionary<string, string> globalProperties, 
             IReadOnlyCollection<string> mSBuildSearchLocations, 
             IReadOnlyCollection<string> entryPointTargets)
         {
             Contract.Requires(!string.IsNullOrEmpty(enlistmentRoot));
-            Contract.Requires(!string.IsNullOrEmpty(projectToParse));
+            Contract.Requires(projectToParse != null);
             Contract.Requires(!string.IsNullOrEmpty(outputPath));
             Contract.Requires(mSBuildSearchLocations != null);
             Contract.Requires(entryPointTargets != null);
@@ -80,7 +80,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         {
             return 
 $@"Enlistment root: {EnlistmentRoot}
-Project entry point: {ProjectToParse}
+Project entry point: {string.Join(" ", ProjectToParse)}
 Serialized graph path: {OutputPath}
 Global properties: {(GlobalProperties == null ? "null" : string.Join(" ", GlobalProperties.Select(kvp => $"[{kvp.Key}]={kvp.Value}")))}
 Search locations: {string.Join(" ", MSBuildSearchLocations)}";

@@ -33,10 +33,9 @@ namespace BuildXL.Cache.Tests
 
         // This is a config string that should cause the in-memory cache to fail to get constructed
         private static readonly string inMemoryCacheConfigFailureJSONData = @"{{ 
-            ""Assembly"":""BuildXL.Cache.InMemory"",
+            ""Assembly"":""BadAssemblyNameShouldFail"",
             ""Type"":""BuildXL.Cache.InMemory.MemCacheFactory"", 
             ""CacheId"":""{0}"",
-            ""BadOption"":""SouldNeverWork"",
             ""StrictMetadataCasCoupling"":{1},
             ""IsAuthoritative"":{2}
         }}";

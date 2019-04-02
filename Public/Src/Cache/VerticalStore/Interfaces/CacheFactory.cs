@@ -290,24 +290,8 @@ namespace BuildXL.Cache.Interfaces
                 }
             }
 
-            foreach (string key in cacheData.Keys)
-            {
-                switch (key)
-                {
-                    case DictionaryKeyFactoryTypeName:
-                    case DictionaryKeyFactoryAssemblyName:
-                        break;
-                    default:
-
-                        if (target.GetType().GetProperty(key) == null)
-                        {
-                            return new IncorrectJsonConfigDataFailure("{0} does not support setting '{1}' in Json configuration data", configName, key);
-                        }
-
-                        break;
-                }
-            }
-
+            // We used to validate that the JSON config had no fields that did not correspond to a field in our config, but this caused issues when we added new flags, since old versions of the cache would break
+            //  when used with newer configs. Because of that, we removed that validation.
             return target;
         }
     }

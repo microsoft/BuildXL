@@ -286,7 +286,7 @@ namespace BuildXL.Scheduler.Tracing
             /// String used to represent path set hash used in strong fingerprint.
             /// It is up to the caller to decide the string representation for this field.
             /// </summary>
-            public string PathSetHash;
+            public string FormattedPathSetHash;
 
             /// <summary>
             /// Constructor for convenience.
@@ -298,7 +298,7 @@ namespace BuildXL.Scheduler.Tracing
             {
                 WeakFingerprint = weakFingerprint.ToString();
                 StrongFingerprint = strongFingerprint.ToString();
-                PathSetHash = pathSetHash;
+                FormattedPathSetHash = pathSetHash;
             }
 
             /// <inheritdoc />
@@ -309,7 +309,7 @@ namespace BuildXL.Scheduler.Tracing
                 {
                     writer.Add(PropertyNames.WeakFingerprint, keys.WeakFingerprint);
                     writer.Add(PropertyNames.StrongFingerprint, keys.StrongFingerprint);
-                    writer.Add(PropertyNames.PathSet, keys.PathSetHash);
+                    writer.Add(PropertyNames.PathSet, keys.FormattedPathSetHash);
                 },
                 formatting: Newtonsoft.Json.Formatting.Indented);
             }
@@ -553,7 +553,7 @@ namespace BuildXL.Scheduler.Tracing
                 Get(ColumnNames.Default).AddOrUpdate(pipFormattedSemiStableHash, true, (k, v) => true);
                 Get(ColumnNames.WeakFingerprints).AddOrUpdate(pipFormattedSemiStableHash, true, (k, v) => true);
                 Get(ColumnNames.StrongFingerprints).AddOrUpdate(pipFormattedSemiStableHash, true, (k, v) => true);
-                Get(ColumnNames.ContentHashes).AddOrUpdate(pfk.PathSetHash, true, (k, v) => true);
+                Get(ColumnNames.ContentHashes).AddOrUpdate(pfk.FormattedPathSetHash, true, (k, v) => true);
             }
 
             /// <summary>
@@ -581,7 +581,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Counters, shared with <see cref="FingerprintStoreExecutionLogTarget"/>.
         /// </summary>
-        public CounterCollection<FingerprintStoreCounters> Counters = new CounterCollection<FingerprintStoreCounters>();
+        public CounterCollection<FingerprintStoreCounters> Counters { get; }
 
         /// <summary>
         /// Test hooks.
@@ -634,19 +634,24 @@ namespace BuildXL.Scheduler.Tracing
         /// <param name="loggingContext">
         /// Optional logging context to log failures.
         /// </param>
-        /// <param name="testHooks">
-        /// Optional test hooks.
-        /// </param>
         /// <param name="mode">
         /// Optional <see cref="FingerprintStoreMode"/>.
+        /// </param>
+        /// <param name="counters">
+        /// Optional <see cref="CounterCollection"/> of <see cref="FingerprintStoreCounters"/> to use 
+        /// if sharing counters across objects. If not provided, counters will be created local to just this store.
+        /// </param>
+        /// <param name="testHooks">
+        /// Optional test hooks.
         /// </param>
         public static Possible<FingerprintStore> Open(
             string storeDirectory,
             bool readOnly = false,
             TimeSpan? maxEntryAge = null,
             LoggingContext loggingContext = null,
-            FingerprintStoreTestHooks testHooks = null,
-            FingerprintStoreMode mode = FingerprintStoreMode.Default)
+            FingerprintStoreMode mode = FingerprintStoreMode.Default,
+            CounterCollection<FingerprintStoreCounters> counters = null,
+            FingerprintStoreTestHooks testHooks = null)
         {
             Contract.Requires(mode != FingerprintStoreMode.Invalid);
 
@@ -688,7 +693,7 @@ namespace BuildXL.Scheduler.Tracing
 
             if (possibleAccessor.Succeeded)
             {
-                return new FingerprintStore(possibleAccessor.Result, maxEntryAge, mode, loggingContext, testHooks);
+                return new FingerprintStore(possibleAccessor.Result, maxEntryAge, mode, loggingContext, counters, testHooks);
             }
             else
             {
@@ -704,7 +709,7 @@ namespace BuildXL.Scheduler.Tracing
             try
             {
                 var accessor = new KeyValueStoreAccessor(store.Accessor);
-                return new FingerprintStore(accessor, maxEntryAge: null, mode: store.m_mode, loggingContext: loggingContext, testHooks: null);
+                return new FingerprintStore(accessor, maxEntryAge: null, mode: store.m_mode, loggingContext: loggingContext, counters: null, testHooks: null);
             }
             catch (Exception ex)
             {
@@ -712,10 +717,11 @@ namespace BuildXL.Scheduler.Tracing
             }
         }
 
-        private FingerprintStore(KeyValueStoreAccessor accessor, TimeSpan? maxEntryAge, FingerprintStoreMode mode, LoggingContext loggingContext, FingerprintStoreTestHooks testHooks)
+        private FingerprintStore(KeyValueStoreAccessor accessor, TimeSpan? maxEntryAge, FingerprintStoreMode mode, LoggingContext loggingContext, CounterCollection<FingerprintStoreCounters> counters, FingerprintStoreTestHooks testHooks)
         {
             Accessor = accessor;
             m_mode = mode;
+            Counters = counters ?? new CounterCollection<FingerprintStoreCounters>();
             m_testHooks = testHooks;
 
             // Don't track or modify TTL of entries during read only sessions
@@ -1058,7 +1064,7 @@ namespace BuildXL.Scheduler.Tracing
             pipFingerprintKeys = new PipFingerprintKeys();
             if (!reader.TryGetPropertyValue(PropertyNames.WeakFingerprint, out pipFingerprintKeys.WeakFingerprint)
                 || !reader.TryGetPropertyValue(PropertyNames.StrongFingerprint, out pipFingerprintKeys.StrongFingerprint)
-                || !reader.TryGetPropertyValue(PropertyNames.PathSet, out pipFingerprintKeys.PathSetHash))
+                || !reader.TryGetPropertyValue(PropertyNames.PathSet, out pipFingerprintKeys.FormattedPathSetHash))
             {
                 return false;
             }
@@ -1092,12 +1098,12 @@ namespace BuildXL.Scheduler.Tracing
             var reader = new JsonReader(strongFingerprintInputs);
 
             // Path sets are stored separately, so extract path set inputs
-            if (!TryGetContentHashValue(pipFingerprintKeys.PathSetHash, out var pathSetInputs))
+            if (!TryGetContentHashValue(pipFingerprintKeys.FormattedPathSetHash, out var pathSetInputs))
             {
                 return false;
             }
 
-            strongFingerprintEntry.PathSetHashToInputs = new KVP(pipFingerprintKeys.PathSetHash, pathSetInputs);
+            strongFingerprintEntry.PathSetHashToInputs = new KVP(pipFingerprintKeys.FormattedPathSetHash, pathSetInputs);
             return true;
         }
 
@@ -1204,10 +1210,7 @@ namespace BuildXL.Scheduler.Tracing
             return keyFound;
         }
 
-        /// <summary>
-        /// Checks if a content hash already exists in the store.
-        /// </summary>
-        public bool ContainsContentHash(string contentHash)
+        private bool ContainsInternal(string key, string columnFamilyName = null)
         {
             if (m_mode == FingerprintStoreMode.IgnoreExistingEntries)
             {
@@ -1218,11 +1221,44 @@ namespace BuildXL.Scheduler.Tracing
             Analysis.IgnoreResult(
                 Accessor.Use(store =>
                 {
-                    keyFound = store.Contains(contentHash.ToString(), ColumnNames.ContentHashes);
+                    keyFound = store.Contains(key, columnFamilyName);
                 })
             );
 
             return keyFound;
+        }
+
+        /// <summary>
+        /// Checks if a content hash already exists in the store.
+        /// </summary>
+        public bool ContainsContentHash(string contentHash)
+        {
+            return ContainsInternal(contentHash.ToString(), ColumnNames.ContentHashes);
+        }
+
+        /// <summary>
+        /// Checks if a <see cref="FingerprintStoreEntry"/> exists in the store for the given pip.
+        /// </summary>
+        /// <param name="pipFormattedSemiStableHash">
+        /// The pip's <see cref="BuildXL.Pips.Operations.Pip.FormattedSemiStableHash"/>.
+        /// </param>
+        /// <param name="pipUniqueOutputHash">
+        /// The pip's unique output hash as computed by <see cref="BuildXL.Pips.Operations.Process.TryComputePipUniqueOutputHash(PathTable, out long, PathExpander)"/>.
+        /// </param>
+        public bool ContainsFingerprintStoreEntry(string pipFormattedSemiStableHash, string pipUniqueOutputHash = null)
+        {
+            if (pipUniqueOutputHash != null)
+            {
+                // Prioritize looking up the entry using pip unique output hash as the pip identifier first
+                // The pip unique output hash is more stable across builds than the formatted semi stable hash
+                if (TryGetPipUniqueOutputHashValue(pipUniqueOutputHash, out var semiStableHash)
+                    && ContainsInternal(semiStableHash))
+                {
+                    return true;
+                }
+            }
+
+            return ContainsInternal(pipFormattedSemiStableHash);
         }
 
         /// <summary>
@@ -1236,7 +1272,7 @@ namespace BuildXL.Scheduler.Tracing
                     {
                         writer.Add(FingerprintStoreConstants.WeakFingerprint, pfk.WeakFingerprint);
                         writer.Add(FingerprintStoreConstants.StrongFingerprint, pfk.StrongFingerprint);
-                        writer.Add(ObservedPathEntryConstants.PathSet, pfk.PathSetHash);
+                        writer.Add(ObservedPathEntryConstants.PathSet, pfk.FormattedPathSetHash);
                     });
             }
         }
@@ -1443,6 +1479,22 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <summary>
+        /// TESTING ONLY. Removes a content hash entry from the store. Internal for testing.
+        /// </summary>
+        internal void RemoveFingerprintStoreEntryForTesting(FingerprintStoreEntry entry)
+        {
+            Analysis.IgnoreResult(
+                Accessor.Use(store =>
+                {
+                    store.Remove(entry.PipToFingerprintKeys.Key);
+                    store.Remove(entry.PipToFingerprintKeys.Value.WeakFingerprint, ColumnNames.WeakFingerprints);
+                    store.Remove(entry.PipToFingerprintKeys.Value.StrongFingerprint, ColumnNames.StrongFingerprints);
+                    store.Remove(entry.PipToFingerprintKeys.Value.FormattedPathSetHash, ColumnNames.ContentHashes);
+                })
+            );
+        }
+
+        /// <summary>
         /// Creates a snapshot of the fingerprint store in the log directory
         /// specified by the configuration.
         /// </summary>
@@ -1554,15 +1606,15 @@ namespace BuildXL.Scheduler.Tracing
         /// <inheritdoc />
         public void Dispose()
         {
-            if (m_testHooks != null)
-            {
-                m_testHooks.Counters = Counters;
-            }
-
             // Garbage collect on write sessions
             if (!Accessor.ReadOnly)
             {
                 GarbageCollect();
+            }
+
+            if (m_testHooks != null)
+            {
+                m_testHooks.Counters = Counters;
             }
 
             Accessor.Dispose();

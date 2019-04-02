@@ -50,7 +50,7 @@ export interface Arguments {
     scheme?: string;
 
     /** Use this build configuration when building each target. */
-    configuration?: "debug" | "release";
+    configuration?: string;
 
     /** Use this architecture when building each target. */
     arch?: string;
@@ -64,18 +64,13 @@ export interface Arguments {
     /** Exclusive semaphores to acquire */
     semaphores?: string[];
 
-     /** override xcconfig */
-     xcconfig?: File;
+    /** override xcconfig */
+    xcconfig?: File;
 }
 
 @@public
 export function execute(args: Arguments): Transformer.ExecuteResult {
     Contract.requires(args.derivedDataPath !== undefined);
-
-    const conf =
-        args.configuration === "debug" ? "Debug" :
-        args.configuration === "release" ? "Release" :
-        undefined;
 
     const wd = Context.getNewOutputDirectory("xcodebuild");
 
@@ -88,7 +83,7 @@ export function execute(args: Arguments): Transformer.ExecuteResult {
             Cmd.option("-target ", args.target),
             Cmd.option("-workspace ", Artifact.none(args.workspace)),
             Cmd.option("-scheme ", args.scheme),
-            Cmd.option("-configuration ", conf),
+            Cmd.option("-configuration ", args.configuration),
             Cmd.option("-arch ", args.arch),
             Cmd.option("-derivedDataPath ", Artifact.output(args.derivedDataPath)),
             Cmd.option("-xcconfig ", Artifact.input(args.xcconfig)),

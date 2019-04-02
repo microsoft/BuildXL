@@ -514,6 +514,12 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Creates a unique directory and wraps it in a <see cref="DirectoryArtifact"/>.
+        /// </summary>
+        protected DirectoryArtifact CreateUniqueDirectoryArtifact(string root = null, string prefix = null) 
+            => DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(root, prefix));
+
+        /// <summary>
         /// Creates a file artifact with the given name under the given root
         /// </summary>
         public FileArtifact CreateFileArtifactWithName(string name, string root)

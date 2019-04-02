@@ -259,10 +259,24 @@ inline bool HasAllFlags(const T source, const T bitMask)
 
 #pragma mark Macros and defines
 
-#define BXL_CLASS(name) com_microsoft_buildxl_ ## name
-#define BuildXLSandbox BXL_CLASS(Sandbox)
-#define kBuildXLBundleIdentifier "com.microsoft.buildxl.sandbox"
-#define kBuildXLSandboxClassName "com_microsoft_buildxl_Sandbox" // this string must match the value of BuildXLSandbox
+#ifndef BUILDXL_BUNDLE_IDENTIFIER
+static_assert(false, "BUILDXL_BUNDLE_IDENTIFIER not defined (shold be something like: com.microsoft.buildxl.sandbox)");
+#endif
+
+#ifndef BUILDXL_CLASS_PREFIX
+static_assert(false, "BUILDXL_CLASS_PREFIX not defined (shold be something like: com_microsoft_buildxl_)");
+#endif
+
+#define CONCAT(prefix, name) prefix ## name
+#define XCONCAT(macro, name) CONCAT(macro, name)
+#define BXL_CLASS(name)      XCONCAT(BUILDXL_CLASS_PREFIX, name)
+
+#define STR(s) #s
+#define XSTR(macro) STR(macro)
+
+#define BuildXLSandbox           BXL_CLASS(Sandbox)
+#define kBuildXLSandboxClassName XSTR(BuildXLSandbox)
+#define kBuildXLBundleIdentifier XSTR(BUILDXL_BUNDLE_IDENTIFIER)
 
 extern os_log_t logger;
 

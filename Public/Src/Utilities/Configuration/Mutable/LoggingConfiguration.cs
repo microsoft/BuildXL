@@ -31,6 +31,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EngineCacheLogDirectory = AbsolutePath.Invalid;
             EngineCacheCorruptFilesLogDirectory = AbsolutePath.Invalid;
             FingerprintStoreLogDirectory = AbsolutePath.Invalid;
+            CacheLookupFingerprintStoreLogDirectory = AbsolutePath.Invalid;
             HistoricMetadataCacheLogDirectory = AbsolutePath.Invalid;
             ReplayWarnings = true;
             SubstSource = AbsolutePath.Invalid;
@@ -63,6 +64,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FingerprintStoreMode = template.FingerprintStoreMode;
             FingerprintStoreMaxEntryAgeMinutes = template.FingerprintStoreMaxEntryAgeMinutes;
             FingerprintStoreLogDirectory = pathRemapper.Remap(template.FingerprintStoreLogDirectory);
+            CacheLookupFingerprintStoreLogDirectory = pathRemapper.Remap(template.CacheLookupFingerprintStoreLogDirectory);
             HistoricMetadataCacheLogDirectory = pathRemapper.Remap(template.HistoricMetadataCacheLogDirectory);
             EngineCacheLogDirectory = pathRemapper.Remap(template.EngineCacheLogDirectory);
             EngineCacheCorruptFilesLogDirectory = pathRemapper.Remap(template.EngineCacheCorruptFilesLogDirectory);
@@ -169,6 +171,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath FingerprintStoreLogDirectory { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath CacheLookupFingerprintStoreLogDirectory { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath HistoricMetadataCacheLogDirectory { get; set; }

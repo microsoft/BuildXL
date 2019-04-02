@@ -287,7 +287,7 @@ namespace BuildXL.Utilities.Tracing
         InvalidInputSinceSourceFileCannotBeInsideOutputDirectory = 299,
         ScheduleProcessConfiguredUncacheable = 300,
 
-        ProcessPipCacheMissWithProcessWeight = 301,
+        ProcessPipProcessWeight = 301,
 
         // Reserved = 306,
         // Reserved = 307,

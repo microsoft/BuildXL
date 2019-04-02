@@ -370,7 +370,6 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(tags.IsValid);
             // If the process needs to run in a container, the redirected directory has to be set
             Contract.Requires((options & Options.NeedsToRunInContainer) == Options.None || uniqueRedirectedDirectoryRoot.IsValid);
-            Contract.Requires(!weight.HasValue || weight.Value > 0, "Process weight values must be positive.");
 
 #if DEBUG   // a little too expensive for release builds
             Contract.Requires(Contract.Exists(dependencies, d => d == executable), "The executable must be declared as a dependency");
@@ -440,7 +439,7 @@ namespace BuildXL.Pips.Operations
             ProcessAbsentPathProbeInUndeclaredOpaquesMode = absentPathProbeMode;
             DoubleWritePolicy = doubleWritePolicy;
             ContainerIsolationLevel = containerIsolationLevel;
-            Weight = weight.HasValue ? weight.Value: 1;
+            Weight = weight.HasValue && weight.Value > 0 ? weight.Value : 1;
         }
 
         /// <summary>

@@ -22,20 +22,26 @@ namespace IntegrationTest.BuildXL.Scheduler
             Configuration.Schedule.MaxProcesses = 5;
         }
 
-        [Fact]
-        public void CanRunUpToMaxProcessesInParallel()
+        [Theory]
+        [InlineData(1)]
+        [InlineData(0)] // < 0 should be treated as 1
+        [InlineData(-1)]
+        public void CanRunUpToMaxProcessesInParallel(int weight)
         {
-            CreateAndScheduleProcessWithWeight(1, numProcesses: Configuration.Schedule.MaxProcesses);
+            CreateAndScheduleProcessWithWeight(weight, numProcesses: Configuration.Schedule.MaxProcesses);
 
             RunScheduler().AssertSuccess();
             AssertProcessConcurrencyWeightLimited(false);
         }
 
-        [Fact]
-        public void CannotRunGreaterThanMaxProcessesInParallel()
+        [Theory]
+        [InlineData(1)]
+        [InlineData(0)] // < 0 should be treated as 1
+        [InlineData(-1)]
+        public void CannotRunGreaterThanMaxProcessesInParallel(int weight)
         {
             // Schedule one over max concurrent processes
-            CreateAndScheduleProcessWithWeight(1, numProcesses: Configuration.Schedule.MaxProcesses + 1);
+            CreateAndScheduleProcessWithWeight(weight, numProcesses: Configuration.Schedule.MaxProcesses + 1);
 
             RunScheduler().AssertSuccess();
             AssertProcessConcurrencyWeightLimited(true);
@@ -44,19 +50,11 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(0)]
         [InlineData(-1)]
-        public void OnlyPositiveWeights(int weight)
+        [InlineData(99999999)]
+        public void WeightsOutsideOfRangeStillRun(int weight)
         {
-            Exception exception = null;
-            try
-            {
-                CreateAndScheduleProcessWithWeight(weight);
-            }
-            catch (Exception ex)
-            {
-                exception = ex;
-            }
-
-            XAssert.AreNotEqual(null, exception);
+            CreateAndScheduleProcessWithWeight(weight);
+            RunScheduler().AssertSuccess();
         }
 
         [Fact]

@@ -3384,6 +3384,12 @@ namespace BuildXL.Scheduler
                     {
                         MarkPipStartExecuting();
 
+                        if (processRunnable.Process.Weight > 1)
+                        {
+                            // Only log for pips with non-standard process weights
+                            Logger.Log.ProcessPipProcessWeight(loggingContext, processRunnable.Description, processRunnable.Process.Weight);
+                        }
+
                         processRunnable.Executed = true;
                         var executionResult = await worker.ExecuteProcessAsync(processRunnable);
 

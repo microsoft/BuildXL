@@ -199,7 +199,7 @@ namespace BuildXL.FrontEnd.Core
 
             // .NET Core builds do not support nuget at all, so we use files from disk regardless of their correctness
             // Reuse package from disk when fingerprint matches or when the fingeprint check is disabled.
-            if (FrontEndConfiguration.RespectWeakFingerprintForNugetUpToDateCheck() && packageHash.Value.FingerprintHash != weakPackageFingerprint)
+            if (FrontEndConfiguration.RespectWeakFingerprintForNugetUpToDateCheck() && packageHash.Value.FingerprintText != weakPackageFingerprint)
             {
                 m_logger.CanNotReusePackageHashFile(
                     LoggingContext,

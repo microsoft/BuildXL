@@ -64,7 +64,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             StoreFingerprints = template.StoreFingerprints;
             FingerprintStoreMode = template.FingerprintStoreMode;
             FingerprintStoreMaxEntryAgeMinutes = template.FingerprintStoreMaxEntryAgeMinutes;
-            FingerprintsLogDirectory = pathRemapper.Remap(template.FingerprintsLogDirectory)
+            FingerprintsLogDirectory = pathRemapper.Remap(template.FingerprintsLogDirectory);
             ExecutionFingerprintStoreLogDirectory = pathRemapper.Remap(template.ExecutionFingerprintStoreLogDirectory);
             CacheLookupFingerprintStoreLogDirectory = pathRemapper.Remap(template.CacheLookupFingerprintStoreLogDirectory);
             HistoricMetadataCacheLogDirectory = pathRemapper.Remap(template.HistoricMetadataCacheLogDirectory);

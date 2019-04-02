@@ -6,6 +6,8 @@ import * as Managed from "Sdk.Managed";
 namespace Storage {
     @@public
     export const dll = BuildXLSdk.test({
+        // TODO: QTest
+        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         assemblyName: "Test.BuildXL.Storage",
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),

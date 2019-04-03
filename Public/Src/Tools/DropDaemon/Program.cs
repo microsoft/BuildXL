@@ -570,13 +570,24 @@ namespace Tool.DropDaemon
                     filePath: files[i],
                     fileId: fileIds[i],
                     fileContentInfo: FileContentInfo.Parse(hashes[i]),
-                    relativeDropPath: dropPaths[i]));
+                    relativeDropPath: dropPaths[i])).ToLookup(f => WellKnownContentHashUtilities.IsAbsentFileHash(f.Hash));
+
+            // If a user specified a particular file to be added to drop, this file must be a part of drop.
+            // The missing files will not get into the drop, so we emit an error.
+            if (dropFileItems[true].Any())
+            {
+                return new IpcResult(
+                    IpcResultStatus.InvalidInput, 
+                    Inv("The following files are missing, but they are a part of the drop command:{0}{1}", 
+                        Environment.NewLine,
+                        string.Join(Environment.NewLine, dropFileItems[true])));
+            }
 
             (IEnumerable<DropItemForBuildXLFile> dropDirectoryMemberItems, string error) = await CreateDropItemsForDirectoriesAsync(
-                conf, 
-                daemon, 
-                directoryPaths, 
-                directoryIds, 
+                conf,
+                daemon,
+                directoryPaths,
+                directoryIds,
                 directoryDropPaths,
                 initializedFilters);
 
@@ -585,25 +596,25 @@ namespace Tool.DropDaemon
                 return new IpcResult(IpcResultStatus.ExecutionError, error);
             }
 
-            var finalListOfFilesToUpload = dropFileItems.Concat(dropDirectoryMemberItems).ToLookup(f => WellKnownContentHashUtilities.IsAbsentFileHash(f.Hash));
+            var groupedDirectoriesContent = dropDirectoryMemberItems.ToLookup(f => WellKnownContentHashUtilities.IsAbsentFileHash(f.Hash));
 
-            // first, check if there are any absent source files
-            if (finalListOfFilesToUpload[true].Any(f => !f.IsOutputFile))
+            // we allow missing files inside of directories only if those files are output files (e.g., optional or temporary files) 
+            if (groupedDirectoriesContent[true].Any(f => !f.IsOutputFile))
             {
                 return new IpcResult(
                     IpcResultStatus.InvalidInput, 
-                    Inv("Missing source file(s) cannot be uploaded:{0}{1}", 
+                    Inv("Uploading missing source file(s) is not supported:{0}{1}", 
                         Environment.NewLine,
-                        string.Join(Environment.NewLine, finalListOfFilesToUpload[true].Where(f => !f.IsOutputFile))));
+                        string.Join(Environment.NewLine, groupedDirectoriesContent[true].Where(f => !f.IsOutputFile))));
             }
             
-            if (!finalListOfFilesToUpload[false].Any())
+            // return early if there is nothing to upload
+            if (!dropFileItems[false].Any() && !groupedDirectoriesContent[false].Any())
             {
                 return new IpcResult(IpcResultStatus.Success, string.Empty);
             }
-
-            // do not attempt to upload files with AbsentFile hash
-            return await AddDropItemsAsync(daemon, finalListOfFilesToUpload[false]);
+            
+            return await AddDropItemsAsync(daemon, dropFileItems[false].Concat(groupedDirectoriesContent[false]));
         }
 
         private static (Regex[], string error) InitializeDirectoryFilters(string[] filters)

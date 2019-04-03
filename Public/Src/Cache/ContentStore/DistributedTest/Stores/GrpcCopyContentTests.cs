@@ -26,6 +26,7 @@ using Xunit;
 
 namespace ContentStoreTest.Distributed.Stores
 {
+    [Trait("Category", "WindowsOSOnly")]
     public class GrpcCopyContentTests : TestBase
     {
         private const int FileSize = 1000;

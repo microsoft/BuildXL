@@ -21,6 +21,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// </summary>
     public class GrpcFileCopier : IAbsolutePathFileCopier
     {
+        private const int DefaultGrpcPort = 7089;
         private Context _context;
         private int _grpcPort;
 
@@ -48,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
-            using (var client = GrpcCopyClient.Create(System.Net.IPAddress.Any.ToString(), 7089))
+            using (var client = GrpcCopyClient.Create(System.Net.IPAddress.Any.ToString(), DefaultGrpcPort))
             {
                 copyFileResult = await client.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken, contentSize);
             }
@@ -84,9 +85,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public Task<CopyFileResult> CopyToAsync(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
+        public async Task<CopyFileResult> CopyToAsync(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            // Extract host and contentHash from sourcePath
+            (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
+
+            CopyFileResult copyFileResult = null;
+            // Contact hard-coded port on source
+            using (var client = GrpcCopyClient.Create(System.Net.IPAddress.Any.ToString(), DefaultGrpcPort))
+            {
+                copyFileResult = await client.CopyToAsync(_context, contentHash, destinationStream, cancellationToken, expectedContentSize);
+            }
+
+            return copyFileResult;
         }
     }
 }

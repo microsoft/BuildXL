@@ -1332,7 +1332,7 @@ NTSTATUS HandleFileLinkInformation(
 
 
     FileOperationContext targetOpContext = FileOperationContext(
-        L"ZwSetLinkInformationFile_Dest",
+        L"ZwSetLinkInformationFile",
         DELETE,
         0,
         OPEN_EXISTING,
@@ -1421,7 +1421,7 @@ NTSTATUS HandleFileDispositionInformation(
     }
 
     FileOperationContext sourceOpContext = FileOperationContext(
-        L"ZwSetDispositionInformationFile_Source",
+        L"ZwSetDispositionInformationFile",
         DELETE,
         0,
         OPEN_EXISTING,
@@ -1496,7 +1496,7 @@ NTSTATUS HandleFileModeInformation(
     {
         if (getFinalPathByHandle != ERROR_SUCCESS)
         {
-            Dbg(L"HandleFileDispositionInformation: DetourGetFinalPathByHandle: %d", getFinalPathByHandle);
+            Dbg(L"HandleFileModeInformation: DetourGetFinalPathByHandle: %d", getFinalPathByHandle);
         }
 
         SetLastError(lastError);
@@ -1510,11 +1510,11 @@ NTSTATUS HandleFileModeInformation(
     }
 
     FileOperationContext sourceOpContext = FileOperationContext(
-        L"ZwSetModeInformationFile_Source",
+        L"ZwSetModeInformationFile",
         DELETE,
         0,
         OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
+        FILE_FLAG_DELETE_ON_CLOSE,
         sourcePath.c_str());
 
     PolicyResult sourcePolicyResult;
@@ -1583,7 +1583,7 @@ NTSTATUS HandleFileNameInformation(
     {
         if (getFinalPathByHandle != ERROR_SUCCESS)
         {
-            Dbg(L"HandleFileRenameInformation: DetourGetFinalPathByHandle: %d", getFinalPathByHandle);
+            Dbg(L"HandleFileNameInformation: DetourGetFinalPathByHandle: %d", getFinalPathByHandle);
         }
 
         SetLastError(lastError);
@@ -3257,7 +3257,7 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
 
     // Check to see if we can write at the symlink location.
     FileOperationContext opContextSrc = FileOperationContext(
-        L"CreateSymbolicLinkSource",
+        L"CreateSymbolicLink_Source",
         GENERIC_WRITE,
         0,
         CREATE_ALWAYS,

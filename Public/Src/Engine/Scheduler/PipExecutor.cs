@@ -625,7 +625,6 @@ namespace BuildXL.Scheduler
                         operationContext,
                         operation.Payload,
                         connectionString,
-                        ipcResult.ExitCode.ToString(),
                         ipcResult.Payload);
                 }
                 else

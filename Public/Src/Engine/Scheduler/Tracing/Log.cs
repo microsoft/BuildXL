@@ -151,12 +151,11 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
             EventTask = (ushort)Events.Tasks.PipExecutor,
-            Message = "IPC operation '{operation}' could not be executed via IPC moniker '{moniker}'.  Reason: {reason}. Error: {message}")]
+            Message = "IPC operation '{operation}' could not be executed via IPC moniker '{moniker}'.  IPC operation input is invalid. Error: {message}")]
         internal abstract void PipIpcFailedDueToInvalidInput(
             LoggingContext loggingContext,
             string operation,
             string moniker,
-            string reason,
             string message);
 
         [GeneratedEvent(

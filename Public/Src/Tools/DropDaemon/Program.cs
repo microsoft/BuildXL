@@ -562,7 +562,7 @@ namespace Tool.DropDaemon
                 return new IpcResult(IpcResultStatus.ExecutionError, filterInitError);
             }
 
-            var dropFileItems = Enumerable
+            var dropFileItemsKeyedByIsAbsent = Enumerable
                 .Range(0, files.Length)
                 .Select(i => new DropItemForBuildXLFile(
                     daemon.ApiClient,
@@ -574,13 +574,13 @@ namespace Tool.DropDaemon
 
             // If a user specified a particular file to be added to drop, this file must be a part of drop.
             // The missing files will not get into the drop, so we emit an error.
-            if (dropFileItems[true].Any())
+            if (dropFileItemsKeyedByIsAbsent[true].Any())
             {
                 return new IpcResult(
                     IpcResultStatus.InvalidInput, 
                     Inv("The following files are missing, but they are a part of the drop command:{0}{1}", 
                         Environment.NewLine,
-                        string.Join(Environment.NewLine, dropFileItems[true])));
+                        string.Join(Environment.NewLine, dropFileItemsKeyedByIsAbsent[true])));
             }
 
             (IEnumerable<DropItemForBuildXLFile> dropDirectoryMemberItems, string error) = await CreateDropItemsForDirectoriesAsync(
@@ -609,12 +609,12 @@ namespace Tool.DropDaemon
             }
             
             // return early if there is nothing to upload
-            if (!dropFileItems[false].Any() && !groupedDirectoriesContent[false].Any())
+            if (!dropFileItemsKeyedByIsAbsent[false].Any() && !groupedDirectoriesContent[false].Any())
             {
                 return new IpcResult(IpcResultStatus.Success, string.Empty);
             }
             
-            return await AddDropItemsAsync(daemon, dropFileItems[false].Concat(groupedDirectoriesContent[false]));
+            return await AddDropItemsAsync(daemon, dropFileItemsKeyedByIsAbsent[false].Concat(groupedDirectoriesContent[false]));
         }
 
         private static (Regex[], string error) InitializeDirectoryFilters(string[] filters)

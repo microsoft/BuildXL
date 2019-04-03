@@ -51,7 +51,7 @@ namespace BuildXL.Scheduler
         /// Checks whether <paramref name="hash"/> is an AbsentFile hash. Note: this method does a hash algorithm agnostic check 
         /// </summary>
         /// <remarks>
-        /// ContentHash contains not only the hash itself, but also the also the algorithm used to create the hash.
+        /// ContentHash contains not only the hash itself, but also the algorithm used to create the hash.
         /// Before comparing any hash with WellKnownContentHashes.AbsentFile, one needs to ensure that
         /// ContentHashingUtilities.HashInfo has been initialized (i.e., the algorithm has been selected).
         /// In some specific cases, it might not be possible. This method covers the scenario where we

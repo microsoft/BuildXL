@@ -453,12 +453,11 @@ namespace Test.Tool.DropDaemon
             var ipcExecutor = new LambdaIpcOperationExecutor(op =>
             {
                 var cmd = ReceiveGetSealedDirectoryContentCommandAndCheckItMatchesDirectoryId(op.Payload, fakeDirectoryId);
-
+                
                 var file = new SealedDirectoryFile(
                     Path.Combine(directoryPath, "file.txt"),
                     new FileArtifact(new AbsolutePath(1), isSourceFile ? 0 : 1),
-                    // AbsentFile hash
-                    FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.CreateSpecialValue(1)));
+                    FileContentInfo.CreateWithUnknownLength(global::BuildXL.Scheduler.WellKnownContentHashes.AbsentFile));
 
                 return IpcResult.Success(cmd.RenderResult(new List<SealedDirectoryFile> { file }));
             });

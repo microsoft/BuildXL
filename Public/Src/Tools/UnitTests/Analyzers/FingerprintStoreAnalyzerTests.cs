@@ -771,7 +771,7 @@ namespace Test.Tool.Analyzers
 
         private string ResultToStoreDirectory(ScheduleRunResult result, bool cacheLookupStore = false)
         {
-            return cacheLookupStore ? result.Config.Logging.CacheLookupFingerprintStoreLogDirectory.ToString(Context.PathTable) : result.Config.Logging.FingerprintStoreLogDirectory.ToString(Context.PathTable);
+            return cacheLookupStore ? result.Config.Logging.CacheLookupFingerprintStoreLogDirectory.ToString(Context.PathTable) : result.Config.Logging.ExecutionFingerprintStoreLogDirectory.ToString(Context.PathTable);
         }
 
         /// <summary>

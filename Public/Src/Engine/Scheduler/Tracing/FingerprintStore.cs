@@ -1506,7 +1506,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             using (counters?.StartStopwatch(FingerprintStoreCounters.SnapshotTime))
             {
-                var logDirectory = configuration.Logging.FingerprintStoreLogDirectory.ToString(pathTable);
+                var logDirectory = configuration.Logging.ExecutionFingerprintStoreLogDirectory.ToString(pathTable);
                 var filesToCopy = new List<Task<bool>>();
                 var hardLinkFailureSeen = false;
 

@@ -464,7 +464,7 @@ namespace Test.BuildXL.FingerprintStore
             var build = RunScheduler().AssertSuccess();
 
             // No logs should have been recorded
-            XAssert.IsFalse(Directory.Exists(build.Config.Logging.FingerprintStoreLogDirectory.ToString(Context.PathTable)));
+            XAssert.IsFalse(Directory.Exists(build.Config.Logging.ExecutionFingerprintStoreLogDirectory.ToString(Context.PathTable)));
 
             // No directory should have been created
             var fingerprintStoreDirectory = build.Config.Layout.FingerprintStoreDirectory;
@@ -1302,7 +1302,7 @@ namespace Test.BuildXL.FingerprintStore
 
         private string ResultToStoreDirectory(ScheduleRunResult result, bool cacheLookupStore = false)
         {
-            return cacheLookupStore ? result.Config.Logging.CacheLookupFingerprintStoreLogDirectory.ToString(Context.PathTable) : result.Config.Logging.FingerprintStoreLogDirectory.ToString(Context.PathTable);
+            return cacheLookupStore ? result.Config.Logging.CacheLookupFingerprintStoreLogDirectory.ToString(Context.PathTable) : result.Config.Logging.ExecutionFingerprintStoreLogDirectory.ToString(Context.PathTable);
         }
 
         /// <summary>
@@ -1345,7 +1345,7 @@ namespace Test.BuildXL.FingerprintStore
         public static ScheduleRunResult AssertCacheMissWithFingerprintStore(this ScheduleRunResult result, PathTable pathTable, PathExpander pathExpander, params PipId[] pipIds)
         {
             var misses = new HashSet<PipId>();
-            FingerprintStoreTests.FingerprintStoreSession(result.Config.Logging.FingerprintStoreLogDirectory.ToString(pathTable), store =>
+            FingerprintStoreTests.FingerprintStoreSession(result.Config.Logging.ExecutionFingerprintStoreLogDirectory.ToString(pathTable), store =>
             {
                 XAssert.IsTrue(store.TryGetCacheMissList(out var cacheMissList));
                 foreach (var miss in cacheMissList)

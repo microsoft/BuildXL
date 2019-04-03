@@ -393,14 +393,17 @@ namespace BuildXL.Engine.Cache.Artifacts
                             openFlags,
                             out handle);
 
-                        if (!openResult.Succeeded && openResult.Status == OpenFileStatus.Timeout)
+                        if (openResult.Status == OpenFileStatus.Timeout ||
+                            openResult.Status == OpenFileStatus.SharingViolation)
                         {
                             Tracing.Logger.Log.TimeoutOpeningFileForHashing(m_loggingContext, expandedPath);
+                            return false; // returning "not done", i.e., do retry
                         }
-
-                        return openResult.Succeeded;
-                    },
-                    numberOfAttempts: OperatingSystemHelper.IsUnixOS ? 1 : 3);
+                        else
+                        {
+                            return true; // returning "done", i.e., don't retry
+                        }
+                    });
 
                 if (!openResult.Succeeded)
                 {

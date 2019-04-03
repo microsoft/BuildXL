@@ -54,7 +54,6 @@ function setInternal() {
 function compileWithBxl() {
     local args=(
         --config "$MY_DIR/config.dsc"
-        /p:[Sdk.Deployment]Diagnostics.enabled=true
         /fancyConsoleMaxStatusPips:10
         /nowarn:11319 # DX11319: nuget version mismatch
         "$@"

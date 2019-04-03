@@ -816,7 +816,7 @@ namespace BuildXL.Native.IO.Unix
         {
             try
             {
-                FileAttributes attributes = TryGetFileAttributes(path);
+                FileAttributes attributes = File.GetAttributes(path);
 
                 if ((attributes & FileAttributes.ReparsePoint) == 0)
                 {

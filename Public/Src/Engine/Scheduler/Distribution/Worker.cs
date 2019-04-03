@@ -394,10 +394,11 @@ namespace BuildXL.Scheduler.Distribution
         }
 
         /// <summary>
-        /// Try acquire given resources on the worker
+        /// Try acquire given resources on the worker. This must be called from a thread-safe context to prevent race conditions.
         /// </summary>
         internal bool TryAcquire(RunnablePip runnablePip, out WorkerResource? limitingResource, double loadFactor = 1)
         {
+            Contract.Requires(runnablePip.PipType == PipType.Ipc || runnablePip.PipType == PipType.Process);
             Contract.Ensures(Contract.Result<bool>() == (limitingResource == null), "Must set a limiting resource when resources cannot be acquired");
 
             if (!IsAvailable)
@@ -421,18 +422,19 @@ namespace BuildXL.Scheduler.Distribution
                 loadFactor = 1;
             }
 
-            if (AcquiredProcessSlots >= (EffectiveTotalProcessSlots * loadFactor))
+            var processRunnablePip = runnablePip as ProcessRunnablePip;
+            // If a process has a weight higher than the total number of process slots, still allow it to run as long as there are no other
+            // processes running (the number of acquired slots is 0)
+            if (AcquiredProcessSlots != 0 && AcquiredProcessSlots + processRunnablePip.Process.Weight > (EffectiveTotalProcessSlots * loadFactor))
             {
                 limitingResource = WorkerResource.AvailableProcessSlots;
                 return false;
             }
 
-            var processRunnablePip = runnablePip as ProcessRunnablePip;
             StringId limitingResourceName = StringId.Invalid;
-            if (processRunnablePip != null &&
-                processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip), out limitingResourceName))
+            if (processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip), out limitingResourceName))
             {
-                Interlocked.Increment(ref m_acquiredProcessSlots);
+                Interlocked.Add(ref m_acquiredProcessSlots, processRunnablePip.Process.Weight);
                 OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
                 runnablePip.AcquiredResourceWorker = this;
                 limitingResource = null;
@@ -510,7 +512,7 @@ namespace BuildXL.Scheduler.Distribution
             {
                 Contract.Assert(processRunnablePip.Resources.HasValue);
 
-                Interlocked.Decrement(ref m_acquiredProcessSlots);
+                Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Process.Weight);
 
                 var resources = processRunnablePip.Resources.Value;
                 m_workerSemaphores.ReleaseResources(resources);

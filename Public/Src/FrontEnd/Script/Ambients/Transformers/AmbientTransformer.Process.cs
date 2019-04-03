@@ -124,6 +124,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_toolDependsOnAppDataDirectory;
         private SymbolAtom m_toolPrepareTempDirectory;
         private SymbolAtom m_toolDescription;
+        private SymbolAtom m_weight;
         
         private SymbolAtom m_runtimeEnvironmentMinimumOSVersion;
         private SymbolAtom m_runtimeEnvironmentMaximumOSVersion;
@@ -230,6 +231,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeErrorRegex = Symbol("errorRegex");
             m_executeAllowedSurvivingChildProcessNames = Symbol("allowedSurvivingChildProcessNames");
             m_executeNestedProcessTerminationTimeoutMs = Symbol("nestedProcessTerminationTimeoutMs");
+            m_weight = Symbol("weight");
 
             m_argN = Symbol("n");
             m_argV = Symbol("v");
@@ -436,6 +438,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // TODO: Regex. Should we follow ECMA, C#, JavaScript?
+
+            // Weight.
+            var weight = Converter.ExtractOptionalInt(obj, m_weight);
+            if (weight != null)
+            {
+                processBuilder.Weight = weight.Value;
+            }
 
             // Acquired semaphores.
             var acquireSemaphores = Converter.ExtractArrayLiteral(obj, m_executeAcquireSemaphores, allowUndefined: true);

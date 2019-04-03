@@ -3,14 +3,15 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Exceptions;
-using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Service.Grpc;
-using CLAP;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using Microsoft.Practices.TransientFaultHandling;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Service.Grpc;
+using Microsoft.Practices.TransientFaultHandling;
+using CLAP;
 
 namespace BuildXL.Cache.ContentStore.App
 {
@@ -47,12 +48,12 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                using (var rpcClient = new GrpcCopyClient(host, grpcPort))
+                using (var rpcClient = GrpcCopyClient.Create(host, grpcPort))
                 {
                     var finalPath = new AbsolutePath(destinationPath);
 
                     // This action is synchronous to make sure the calling application doesn't exit before the method returns.
-                    var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.CopyFileAsync(context, hash, finalPath)).Result;
+                    var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.CopyFileAsync(context, hash, finalPath, CancellationToken.None)).Result;
                     if (!copyFileResult.Succeeded)
                     {
                         throw new CacheException(copyFileResult.ErrorMessage);

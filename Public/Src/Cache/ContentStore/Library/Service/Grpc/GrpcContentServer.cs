@@ -156,57 +156,65 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Implements a copy file request.
         /// </summary>
-        public async Task CopyFile(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context)
+        public async Task CopyFileAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context)
         {
-            LogRequestHandling();
-
             DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new Context(new Guid(request.TraceId), _logger);
 
-            if (!_nameByDrive.TryGetValue(request.Drive, out string name))
+            try
+            {
+                LogRequestHandling();
+
+                var cacheContext = new Context(new Guid(request.TraceId), _logger);
+
+                if (!_nameByDrive.TryGetValue(request.Drive, out string name))
+                {
+                    await responseStream.WriteAsync(
+                        new CopyFileResponse
+                        {
+                            Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{request.Drive}' is an invalid cache."),
+                        });
+                }
+
+                if (!_contentStoreByCacheName.TryGetValue(name, out var cache))
+                {
+                    await responseStream.WriteAsync(
+                        new CopyFileResponse
+                        {
+                            Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{name}' is an invalid cache name."),
+                        });
+                }
+
+
+                if (!(cache is IStreamStore copyStore))
+                {
+                    await responseStream.WriteAsync(
+                        new CopyFileResponse
+                        {
+                            Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{request.Drive}' does not support copying."),
+                        });
+                    return;
+                }
+
+                var openStreamResult = await copyStore.StreamContentAsync(cacheContext, request.ContentHash.ToContentHash((HashType)request.HashType));
+                if (openStreamResult.Succeeded)
+                {
+                    await StreamContentAsync(openStreamResult, responseStream, startTime);
+                }
+                else
+                {
+                    await responseStream.WriteAsync(
+                        new CopyFileResponse
+                        {
+                            Header = new ResponseHeader(startTime, false, (int)openStreamResult.Code, openStreamResult.ErrorMessage, openStreamResult.Diagnostics),
+                        });
+                }
+            }
+            catch (Exception e)
             {
                 await responseStream.WriteAsync(
                     new CopyFileResponse
                     {
-                        Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{request.Drive}' is an invalid cache."),
-                        Content = null
-                    });
-            }
-
-            if (!_contentStoreByCacheName.TryGetValue(name, out var cache))
-            {
-                await responseStream.WriteAsync(
-                    new CopyFileResponse
-                    {
-                        Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{name}' is an invalid cache name."),
-                        Content = null
-                    });
-            }
-
-
-            if (!(cache is IStreamStore copyStore))
-            {
-                await responseStream.WriteAsync(
-                    new CopyFileResponse
-                    {
-                        Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{request.Drive}' does not support copying."),
-                        Content = null
-                    });
-                return;
-            }
-
-            var openStreamResult = await copyStore.StreamContentAsync(cacheContext, request.ContentHash.ToContentHash((HashType)request.HashType));
-            if (openStreamResult.Succeeded)
-            {
-                await StreamContentAsync(openStreamResult, responseStream, startTime);
-            }
-            else
-            {
-                await responseStream.WriteAsync(
-                    new CopyFileResponse
-                    {
-                        Header = new ResponseHeader(startTime, false, (int)openStreamResult.Code, openStreamResult.ErrorMessage, openStreamResult.Diagnostics),
-                        Content = null
+                        Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.Unknown, e.ToString()),
                     });
             }
         }
@@ -471,6 +479,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 _contentServer = contentServer;
             }
+
+            /// <inheritdoc />
+            public override Task CopyFile(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context) => _contentServer.CopyFileAsync(request, responseStream, context);
 
             /// <inheritdoc />
             public override Task<HelloResponse> Hello(HelloRequest request, ServerCallContext context) => _contentServer.HelloAsync(request, context.CancellationToken);

@@ -33,6 +33,7 @@ namespace DistributedTest {
                 importFrom("BuildXL.Utilities").Collections.dll,
                 importFrom("BuildXL.Utilities").KeyValueStore.dll,
                 importFrom("BuildXL.Utilities").Native.dll,
+                importFrom("Grpc.Core").pkg,
                 importFrom("Sdk.Selfhost.RocksDbSharp").pkg,
 
                 importFrom("StackExchange.Redis.StrongName").pkg,

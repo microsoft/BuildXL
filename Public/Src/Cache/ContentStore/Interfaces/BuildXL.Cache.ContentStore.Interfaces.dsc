@@ -28,8 +28,9 @@ namespace Interfaces {
         ],
         allowUnsafeBlocks: true,
         internalsVisibleTo: [
-            "BuildXL.Cache.ContentStore.Interfaces.Test",
             "BuildXL.Cache.ContentStore",
+            "BuildXL.Cache.ContentStore.Distributed",
+            "BuildXL.Cache.ContentStore.Interfaces.Test",
         ],
     });
 }

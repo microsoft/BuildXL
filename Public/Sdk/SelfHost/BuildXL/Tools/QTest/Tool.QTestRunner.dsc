@@ -103,7 +103,10 @@ export function runQTest(args: QTestArguments): Result {
         );
         qTestDirToDeploy = Transformer.sealDirectory(
             qTestDirtoDeployCreated,
-            copiedFiles
+            copiedFiles,
+            undefined,
+            undefined,
+            true
         );
     } 
 

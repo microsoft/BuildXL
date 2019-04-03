@@ -67,8 +67,8 @@ namespace BuildXL.Scheduler.Tracing
                         Contract.Assert(option.Mode == CacheMissMode.Remote);
                         foreach (var key in option.Keys)
                         {
-                            var cacheSavePath = configuration.Logging.EngineCacheLogDirectory
-                                .Combine(context.PathTable, Scheduler.FingerprintStoreDirectory + "_" + key);
+                            var cacheSavePath = configuration.Logging.FingerprintsLogDirectory
+                                .Combine(context.PathTable, Scheduler.FingerprintStoreDirectory + "." + key);
 #pragma warning disable AsyncFixer02 // This should explicitly happen synchronously since it interacts with the PathTable and StringTable
                             var result = cache.TryRetrieveFingerprintStoreAsync(loggingContext, cacheSavePath, context.PathTable, key, configuration.Schedule.EnvironmentFingerprint).Result;
 #pragma warning restore AsyncFixer02

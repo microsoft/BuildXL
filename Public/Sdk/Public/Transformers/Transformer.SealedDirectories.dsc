@@ -4,8 +4,8 @@
 namespace Transformer {
     /** Seals specified root folder with a set of files; the created pip is tagged with 'tags'. */
     @@public
-    export function sealDirectory(root: Directory, files: File[], tags?: string[], description?: string): FullStaticContentDirectory {
-        return _PreludeAmbientHack_Transformer.sealDirectory(root, files, tags, description);
+    export function sealDirectory(root: Directory, files: File[], tags?: string[], description?: string, scrub?: boolean): FullStaticContentDirectory {
+        return _PreludeAmbientHack_Transformer.sealDirectory(root, files, tags, description, scrub);
     }
 
     /** Seals specified root folder without the need to specify all files provided root is under a readonly mount; the created pip is tagged with 'tags'. */

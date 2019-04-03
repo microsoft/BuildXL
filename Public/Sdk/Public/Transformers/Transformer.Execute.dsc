@@ -10,21 +10,21 @@ namespace Transformer {
 
     @@public
     export interface ExecuteArguments extends ExecuteArgumentsCommon {
-        /** Regular process pips that make calls to one or more service
+        /** Regular process pips that make calls to one or more service 
           * pips should use this field to declare those dependencies
           * (so that they don't get scheduled for execution before all
           * the services have started). */
         servicePipDependencies?: ServiceId[];
 
-        /** Whether to grant the read/write permissions of this pip to
-          * the declared service pips (permissions are granted only
+        /** Whether to grant the read/write permissions of this pip to 
+          * the declared service pips (permissions are granted only 
           * throughout the lifetime of this pip). */
         delegatePermissionsToServicePips?: PermissionDelegationMode;
     }
-
+    
     /** Different options for delegating permissions of a process to a service pip. */
     @@public
-    export const enum PermissionDelegationMode {
+    export const enum PermissionDelegationMode { 
         /** Don't grant any permissions at all. */
         none,
 
@@ -33,7 +33,7 @@ namespace Transformer {
 
         /** Grant permissions permanently, i.e., until the service pip terminates. */
         permanent
-    }
+    } 
 
     @@public
     export interface ExecuteArgumentsCommon extends ExecuteArgumentsComposible {
@@ -83,7 +83,7 @@ namespace Transformer {
 
         /** Regex that would be used to extract warnings from the output. */
         warningRegex?: string;
-
+        
         /** Regex that would be used to extract errors from the output. */
         errorRegex?: string;
 
@@ -116,7 +116,7 @@ namespace Transformer {
 
         /** Whether this process should run in an isolated container (i.e. filesystem isolation)
          * When running in a container, the isolation level can be controlled by 'containerIsolationLevel' field.
-         * Note: this is an experimental feature for now, use at your own risk
+         * Note: this is an experimental feature for now, use at your own risk 
          * Default is globally controlled by the sandbox configuration
          */
         runInContainer?: boolean;
@@ -134,12 +134,12 @@ namespace Transformer {
          */
         doubleWritePolicy?: DoubleWritePolicy;
 
-        /** Whether this process should allow undeclared reads from source files. A source
+        /** Whether this process should allow undeclared reads from source files. A source 
          * file is considered to be a file that is not written during the build.
          * Note: this option turns static enforcements based on source file declarations into dynamic
          * ones. The downside is that potential build errors will be reported later in time, during the
          * execution phase, and only based on runtime observations. This means that even if there is something
-         * wrong, BuildXL may not see it if the running build doesn't hit it. The advise is: statically declare all
+         * wrong, BuildXL may not see it if the running build doesn't hit it. The advise is: statically declare all 
          * sources if possible, and only use this option for the sources where static predictions are not available. */
         allowUndeclaredSourceReads?: boolean;
 
@@ -161,6 +161,15 @@ namespace Transformer {
          * for a pip. The pip will still be stored to the cache for sake of supporting distribution.
          */
         disableCacheLookup?: boolean;
+
+        /**
+         * The # of process slots this process requires when limiting concurrency of process pips.
+         * The total weight of all proceses running concurrently must be less than or equal to the # of available process slots.
+         * The # of available process slots is typically a function of the number of cores on the machine, but can also be limited by runtime resource exhaustion or be set per-build by configuration.
+         * Valid input range for the weight is [min Int32, max Int32] though all values will be effectively coerced to fit within [1, # of process slots]
+         * If a given weight is greater than or equal to # of available process slots, the process will run alone.
+         */
+        weight?: number;
     }
 
     @@public
@@ -186,7 +195,7 @@ namespace Transformer {
         zeroIsSuccess = 1,
         zeroOr255IsSuccess,
     }
-
+    
     @@public
     export interface UnsafeExecuteArguments {
         untrackedPaths?: (File | Directory)[];

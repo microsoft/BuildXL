@@ -59,7 +59,7 @@ namespace _PreludeAmbientHack_Transformer {
     export declare function writeData(destinationFile: Path, content: any, tags?: string[], description?: string): DerivedFile;
     export declare function writeAllLines(destinationFile: Path, contents: any[], tags?: string[], description?: string): DerivedFile;
     export declare function writeAllText(destinationFile: Path, content: string, tags?: string[], description?: string): DerivedFile;
-        export declare function sealDirectory(root: Directory, files: File[], tags?: string[], description?: string): FullStaticContentDirectory;
+    export declare function sealDirectory(root: Directory, files: File[], tags?: string[], description?: string, scrub?: boolean): FullStaticContentDirectory;
     export declare function sealSourceDirectory(root: Directory, option?: number, tags?: string[], description?: string, patterns?: string[]): SourceDirectory;
     export declare function sealPartialDirectory(root: Directory, files: File[], tags?: string[], description?: string): PartialStaticContentDirectory;
     export declare function composeSharedOpaqueDirectories(root: Directory, directories: SharedOpaqueDirectory[]): SharedOpaqueDirectory;

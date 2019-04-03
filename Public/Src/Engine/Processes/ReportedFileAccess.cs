@@ -339,18 +339,6 @@ namespace BuildXL.Processes
                             break;
                         }
 
-                    case ReportedFileOperation.ZwSetLinkInformationFileSource:
-                        {
-                            sb.Append("ZwSetLinkInformationFile([Source], ...)");
-                            break;
-                        }
-
-                    case ReportedFileOperation.ZwSetLinkInformationFileDest:
-                        {
-                            sb.Append("ZwSetLinkInformationFile(..., [Destination])");
-                            break;
-                        }
-
                     case ReportedFileOperation.MoveFileWithProgressSource:
                         {
                             sb.Append("MoveFileWithProgress([Source]...)");
@@ -360,18 +348,6 @@ namespace BuildXL.Processes
                     case ReportedFileOperation.MoveFileWithProgressDest:
                         {
                             sb.Append("MoveFileWithProgress([Dest]...)");
-                            break;
-                        }
-
-                    case ReportedFileOperation.CreateSymbolicLinkSource:
-                        {
-                            sb.Append("CreateSymbolicLinkSource([Source], ...)");
-                            break;
-                        }
-
-                    case ReportedFileOperation.CreateSymbolicLinkDestination:
-                        {
-                            sb.Append("CreateSymbolicLinkSource(..., [Destination])");
                             break;
                         }
 

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,34 +24,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// </summary>
     public sealed class GrpcCopyClient : IShutdown<BoolResult>
     {
-        private static ConcurrentDictionary<(string, int), GrpcCopyClient> _clientPool = new ConcurrentDictionary<(string, int), GrpcCopyClient>();
-
-        /// <summary>
-        /// Use an existing GRPC client if possible, else create a new one.
-        /// </summary>
-        /// <param name="host">Name of the host for the server (e.g. 'localhost').</param>
-        /// <param name="grpcPort">GRPC port on the server.</param>
-        public static GrpcCopyClient Create(string host, int grpcPort)
-        {
-            Console.WriteLine($"Creating GRPC client for {host},{grpcPort}");
-            if (_clientPool.TryGetValue((host, grpcPort), out var existingClient))
-            {
-                return existingClient;
-            }
-            // TODO: Add case where _clientPool has exceeded some maximum count
-            else
-            {
-                var newClient = new GrpcCopyClient(host, grpcPort);
-
-                if (!_clientPool.TryAdd((host, grpcPort), newClient))
-                {
-                    throw new CacheException($"Unable to add new {nameof(GrpcCopyClient)} to pool");
-                }
-
-                return newClient;
-            }
-        }
-
         private readonly Channel _channel;
         private readonly ContentServer.ContentServerClient _client;
         private readonly string _host;
@@ -83,6 +56,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _grpcPort = grpcPort;
         }
 
+        /// <summary>
+        /// Use an existing GRPC client if possible, else create a new one.
+        /// </summary>
+        /// <param name="host">Name of the host for the server (e.g. 'localhost').</param>
+        /// <param name="grpcPort">GRPC port on the server.</param>
+        public static GrpcCopyClient Create(string host, int grpcPort)
+        {
+            // TODO: Add caching of GrpcCopyClient objects
+            // TODO: Add case where _clientPool has exceeded some maximum count
+            return new GrpcCopyClient(host, grpcPort);
+        }
+
         /// <inheritdoc />
         public async Task<BoolResult> ShutdownAsync(Context context)
         {
@@ -94,50 +79,66 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             ShutdownCompleted = true;
-            _clientPool.TryRemove((_host, _grpcPort), out var copyClient);
             return BoolResult.Success;
+        }
+
+        /// <summary>
+        /// Copies file to local path
+        /// </summary>
+        public async Task<CopyFileResult> CopyFileAsync(Context context, ContentHash contentHash, AbsolutePath destinationPath, CancellationToken cancellationToken, long fileSize = -1, bool enableCompression = false)
+        {
+            try
+            {
+                using (var stream = new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, ContentStore.Grpc.Utils.DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                {
+                    return await CopyToAsync(context, contentHash, stream, cancellationToken, fileSize, enableCompression);
+                }
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is InvalidOperationException)
+            {
+                return new CopyFileResult(CopyFileResult.ResultCode.DestinationPathError, ex, $"Error copying to file {destinationPath.Path}");
+            }
         }
 
         /// <summary>
         /// Copies file to stream
         /// </summary>
-        public async Task<CopyFileResult> CopyFileAsync(Context context, ContentHash contentHash, AbsolutePath destinationPath, long fileSize = -1, bool enableCompression = false)
+        public async Task<CopyFileResult> CopyToAsync(Context context, ContentHash contentHash, Stream stream, CancellationToken cancellationToken, long fileSize = -1, bool enableCompression = false)
         {
             // TODO: Pipe through flag for compression type
             CopyCompression compression = enableCompression ? CopyCompression.Gzip : CopyCompression.None;
-            AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(new CopyFileRequest()
-            {
-                TraceId = context.Id.ToString(),
-                HashType = (int)contentHash.HashType,
-                ContentHash = contentHash.ToByteString(),
-                // TODO: If `Drive` is expected to be the drive of the file on the source machine, then this should have nothing to do with the destination's drive
-                Drive = destinationPath.DriveLetter.ToString(),
-                Offset = 0,
-                Compression = compression
-            });
-
-            IAsyncStreamReader<CopyFileResponse> replyStream = response.ResponseStream;
             long bytesReceived = 0L;
 
-            using (var stream = new
-                FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, ContentStore.Grpc.Utils.DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan))
+            try
             {
-                bytesReceived = await StreamContentAsync(stream, response.ResponseStream);
-
-                while (await replyStream.MoveNext(CancellationToken.None))
+                AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(new CopyFileRequest
                 {
-                    CopyFileResponse oneOfManyReply = replyStream.Current;
-                    bytesReceived += oneOfManyReply.Content.Length;
-                    oneOfManyReply.Content.WriteTo(stream);
-                }
+                    TraceId = context.Id.ToString(),
+                    HashType = (int)contentHash.HashType,
+                    ContentHash = contentHash.ToByteString(),
+                    // TODO: If `Drive` is expected to be the drive of the file on the source machine, then this should have nothing to do with the destination's drive
+                    Drive = "B",
+                    Offset = 0,
+                    Compression = compression
+                });
+
+                bytesReceived = await StreamContentAsync(stream, response.ResponseStream);
+            }
+            catch (RpcException r) when (r.StatusCode == StatusCode.Unavailable && r.Message.Contains("Connect Failed"))
+            {
+                return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, r, $"Failed to connect to server {_host} at port {_grpcPort}");
             }
 
-            if (fileSize >= 0 && bytesReceived != fileSize)
+            if (bytesReceived == 0)
+            {
+                return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Received {bytesReceived} bytes for {contentHash}. Source file does not exist");
+            }
+            else if (fileSize >= 0 && bytesReceived != fileSize)
             {
                 return new CopyFileResult(CopyFileResult.ResultCode.InvalidHash, $"Received {bytesReceived} bytes for {contentHash}, expected {fileSize}");
             }
 
-            return CopyFileResult.Success;
+            return CopyFileResult.SuccessWithSize(bytesReceived);
         }
 
         private async Task<long> StreamContentAsync(Stream fileStream, IAsyncStreamReader<CopyFileResponse> replyStream)
@@ -175,5 +176,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             // noop for now
         }
 
+        /// <inheritdoc />
+        public override bool Equals(object obj)
+        {
+            return obj is GrpcCopyClient client
+                && _host == client._host
+                && _grpcPort == client._grpcPort;
+        }
+
+        /// <inheritdoc />
+        public override int GetHashCode()
+        {
+            return BuildXL.Utilities.HashCodeHelper.Combine(_host.GetHashCode(), _grpcPort);
+        }
     }
 }

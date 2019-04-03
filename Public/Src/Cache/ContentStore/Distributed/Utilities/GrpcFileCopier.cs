@@ -50,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             // Contact hard-coded port on source
             using (var client = GrpcCopyClient.Create(System.Net.IPAddress.Any.ToString(), 7089))
             {
-                copyFileResult = await client.CopyFileAsync(_context, contentHash, destinationPath, contentSize);
+                copyFileResult = await client.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken, contentSize);
             }
 
             return copyFileResult;
@@ -73,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             }
             var hashTypeLiteral = segments.ElementAt(segments.Count - 1 - 2);
 
-            if (!Enum.TryParse<HashType>(hashTypeLiteral, out HashType hashType))
+            if (!Enum.TryParse(hashTypeLiteral, out HashType hashType))
             {
                 throw new InvalidOperationException($"{hashTypeLiteral} is not a valid member of {nameof(HashType)}");
             }

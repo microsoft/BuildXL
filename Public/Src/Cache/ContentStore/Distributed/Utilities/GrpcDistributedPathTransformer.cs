@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             return
                 Encoding.UTF8.GetBytes(
-                    Path.Combine("\\\\" + _localMachineName, networkPathRoot).ToUpperInvariant());
+                    Path.Combine(@"\\" + _localMachineName, networkPathRoot).ToUpperInvariant());
         }
 
         /// <inheritdoc />

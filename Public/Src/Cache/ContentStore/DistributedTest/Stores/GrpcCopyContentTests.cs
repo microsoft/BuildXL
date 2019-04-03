@@ -3,11 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Redis.Credentials;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -23,7 +20,6 @@ using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Native.IO;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
 using Xunit;
@@ -56,17 +52,58 @@ namespace ContentStoreTest.Distributed.Stores
                 putResult.ShouldBeSuccess();
 
                 // Copy the file out via GRPC
-                (await client.CopyFileAsync(_context, putResult.ContentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), FileSize)).ShouldBeSuccess();
+                (await client.CopyFileAsync(_context, putResult.ContentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None, FileSize)).ShouldBeSuccess();
+            });
+        }
+
+        [Fact]
+        public async Task CopyNonexistingFile()
+        {
+            await RunTestCase(nameof(CopyNonexistingFile), async (rootPath, session, client) =>
+            {
+                // Write a random file to put into the cache
+                var content = ThreadSafeRandom.GetBytes(FileSize);
+                var contentHash = HashingExtensions.CalculateHash(content, HashType.Vso0);
+
+                // Copy the file out via GRPC
+                var copyFileResult = await client.CopyFileAsync(_context, contentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None, FileSize);
+
+                Assert.False(copyFileResult.Succeeded);
+                Assert.Equal(CopyFileResult.ResultCode.SourcePathError, copyFileResult.Code);
+                Assert.StartsWith("Received 0 bytes for ", copyFileResult.ErrorMessage);
+            });
+        }
+
+        [Fact]
+        public async Task WrongPort()
+        {
+            await RunTestCase(nameof(WrongPort), async (rootPath, session, client) =>
+            {
+                // Write a random file to put into the cache
+                var content = ThreadSafeRandom.GetBytes(FileSize);
+                var contentHash = HashingExtensions.CalculateHash(content, HashType.Vso0);
+
+                // Copy the file out via GRPC
+                var host = "localhost";
+                var bogusPort = PortExtensions.GetNextAvailablePort();
+                using (client = GrpcCopyClient.Create(host, bogusPort))
+                {
+                    var copyFileResult = await client.CopyFileAsync(_context, contentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None, FileSize);
+                    Assert.Equal(CopyFileResult.ResultCode.SourcePathError, copyFileResult.Code);
+                    Assert.Contains($"Failed to connect to server {host} at port {bogusPort}", copyFileResult.ErrorMessage);
+                }
             });
         }
 
         private async Task RunTestCase(string testName, Func<AbsolutePath, IContentSession, GrpcCopyClient, Task> testAct)
         {
+            var cacheName = testName + "_cache";
+
             using (var directory = new DisposableDirectory(FileSystem))
             {
                 var rootPath = directory.Path;
 
-                var namedCacheRoots = new Dictionary<string, AbsolutePath> { { "cacheName", rootPath } };
+                var namedCacheRoots = new Dictionary<string, AbsolutePath> { { cacheName, rootPath } };
                 var grpcPort = PortExtensions.GetNextAvailablePort();
                 var grpcPortFileName = Guid.NewGuid().ToString();
                 var configuration = new ServiceConfiguration(
@@ -88,7 +125,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var server = new LocalContentServer(FileSystem, Logger, testName, contentStoreFactory, new LocalServerConfiguration(configuration));
 
                 await server.StartupAsync(_context).ShouldBeSuccess();
-                var createSessionResult = await server.CreateSessionAsync(new OperationContext(_context), "sessionName", "cacheName", ImplicitPin.PutAndGet, Capabilities.ContentOnly);
+                var createSessionResult = await server.CreateSessionAsync(new OperationContext(_context), testName, cacheName, ImplicitPin.PutAndGet, Capabilities.ContentOnly);
                 createSessionResult.ShouldBeSuccess();
 
                 (int sessionId, AbsolutePath tempDir) = createSessionResult.Value;

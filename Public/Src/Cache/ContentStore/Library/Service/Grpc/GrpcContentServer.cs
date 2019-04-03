@@ -158,51 +158,63 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public async Task CopyFileAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context)
         {
-            LogRequestHandling();
-
             DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new Context(new Guid(request.TraceId), _logger);
 
-            if (!_nameByDrive.TryGetValue(request.Drive, out string name))
+            try
+            {
+                LogRequestHandling();
+
+                var cacheContext = new Context(new Guid(request.TraceId), _logger);
+
+                if (!_nameByDrive.TryGetValue(request.Drive, out string name))
+                {
+                    await responseStream.WriteAsync(
+                        new CopyFileResponse
+                        {
+                            Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{request.Drive}' is an invalid cache."),
+                        });
+                }
+
+                if (!_contentStoreByCacheName.TryGetValue(name, out var cache))
+                {
+                    await responseStream.WriteAsync(
+                        new CopyFileResponse
+                        {
+                            Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{name}' is an invalid cache name."),
+                        });
+                }
+
+
+                if (!(cache is IStreamStore copyStore))
+                {
+                    await responseStream.WriteAsync(
+                        new CopyFileResponse
+                        {
+                            Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{request.Drive}' does not support copying."),
+                        });
+                    return;
+                }
+
+                var openStreamResult = await copyStore.StreamContentAsync(cacheContext, request.ContentHash.ToContentHash((HashType)request.HashType));
+                if (openStreamResult.Succeeded)
+                {
+                    await StreamContentAsync(openStreamResult, responseStream, startTime);
+                }
+                else
+                {
+                    await responseStream.WriteAsync(
+                        new CopyFileResponse
+                        {
+                            Header = new ResponseHeader(startTime, false, (int)openStreamResult.Code, openStreamResult.ErrorMessage, openStreamResult.Diagnostics),
+                        });
+                }
+            }
+            catch (Exception e)
             {
                 await responseStream.WriteAsync(
                     new CopyFileResponse
                     {
-                        Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{request.Drive}' is an invalid cache."),
-                    });
-            }
-
-            if (!_contentStoreByCacheName.TryGetValue(name, out var cache))
-            {
-                await responseStream.WriteAsync(
-                    new CopyFileResponse
-                    {
-                        Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{name}' is an invalid cache name."),
-                    });
-            }
-
-
-            if (!(cache is IStreamStore copyStore))
-            {
-                await responseStream.WriteAsync(
-                    new CopyFileResponse
-                    {
-                        Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{request.Drive}' does not support copying."),
-                    });
-                return;
-            }
-
-            var openStreamResult = await copyStore.StreamContentAsync(cacheContext, request.ContentHash.ToContentHash((HashType)request.HashType));
-            if (openStreamResult.Succeeded)
-            {
-                await StreamContentAsync(openStreamResult, responseStream, startTime);
-            }
-            else
-            {
-                await responseStream.WriteAsync(
-                    new CopyFileResponse
-                    {
-                        Header = new ResponseHeader(startTime, false, (int)openStreamResult.Code, openStreamResult.ErrorMessage, openStreamResult.Diagnostics),
+                        Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.Unknown, e.ToString()),
                     });
             }
         }

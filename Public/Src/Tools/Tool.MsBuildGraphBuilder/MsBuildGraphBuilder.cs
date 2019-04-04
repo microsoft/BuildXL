@@ -113,7 +113,7 @@ namespace MsBuildGraphBuilderTool
                 reporter,
                 locatedAssemblyPaths,
                 locatedMsBuildPath,
-                arguments.ProjectToParse,
+                arguments.ProjectsToParse,
                 arguments.EnlistmentRoot,
                 arguments.GlobalProperties,
                 arguments.EntryPointTargets,

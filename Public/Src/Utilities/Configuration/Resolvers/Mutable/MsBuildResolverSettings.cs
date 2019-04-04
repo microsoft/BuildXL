@@ -43,6 +43,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnableEngineTracing = resolverSettings.EnableEngineTracing;
             KeepProjectGraphFile = resolverSettings.KeepProjectGraphFile;
             EnableTransitiveProjectReferences = resolverSettings.EnableTransitiveProjectReferences;
+            UseLegacyProjectIsolation = resolverSettings.UseLegacyProjectIsolation;
         }
 
         /// <inheritdoc/>
@@ -98,5 +99,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool? EnableTransitiveProjectReferences { get; set; }
+
+        /// <inheritdoc/>
+        public bool? UseLegacyProjectIsolation { get; set; }
     }
 }

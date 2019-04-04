@@ -33,7 +33,7 @@ namespace BuildXL.FrontEnd.MsBuild
     internal sealed class PipConstructor
     {
         private readonly FrontEndContext m_context;
-        private readonly ConcurrentDictionary<ProjectWithPredictions, ProcessOutputs> m_processOutputsPerProject = new ConcurrentDictionary<ProjectWithPredictions, ProcessOutputs>();
+        private readonly ConcurrentDictionary<ProjectWithPredictions, MSBuildProjectOutputs> m_processOutputsPerProject = new ConcurrentDictionary<ProjectWithPredictions, MSBuildProjectOutputs>();
         
         // Only used if resolverSettings.EnableTransitiveProjectReferences = true
         private readonly ConcurrentBigMap<ProjectWithPredictions, IReadOnlySet<ProjectWithPredictions>> m_transitiveDependenciesPerProject = new ConcurrentBigMap<ProjectWithPredictions, IReadOnlySet<ProjectWithPredictions>>();
@@ -46,7 +46,6 @@ namespace BuildXL.FrontEnd.MsBuild
         private static readonly string[] s_commonArgumentsToMsBuildExe =
         {
             "/NoLogo",
-            "/p:buildprojectreferences=false", // TODO: We wouldn't need this when MSBuild starts supporting a 'build just this project' mode
             "/p:TrackFileAccess=false", // Turns off MSBuild's Detours based tracking. Required always to prevent Detouring a Detour which is not supported
             "/p:UseSharedCompilation=false", //  Turn off new MSBuild flag to reuse VBCSCompiler.exe (a feature of Roslyn csc compiler) to compile C# files from different projects
             "/m:1", // Tells MsBuild not to create child processes for building, but instead to simply execute the specified project file within a single process
@@ -61,6 +60,14 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private PathTable PathTable => m_context.PathTable;
         private FrontEndEngineAbstraction Engine => m_frontEndHost.Engine;
+
+        /// <summary>
+        /// The name of the output cache file of the given pip, if the corresponding process is built in isolation
+        /// </summary>
+        /// <remarks>
+        /// This file is created in an object directory unique to this pip, so there is no need to make this name unique
+        /// </remarks>
+        internal const string OutputCacheFileName = "output.cache";
 
         /// <nodoc/>
         public PipConstructor(
@@ -209,7 +216,7 @@ namespace BuildXL.FrontEnd.MsBuild
             using (var processBuilder = ProcessBuilder.Create(PathTable, m_context.GetPipDataBuilder()))
             {
                 // Configure the process to add an assortment of settings: arguments, response file, etc.
-                if (!TryConfigureProcessBuilder(processBuilder, pipConstructionHelper, project, qualifierId, out failureDetail))
+                if (!TryConfigureProcessBuilder(processBuilder, pipConstructionHelper, project, qualifierId, out AbsolutePath outputResultCacheFile, out failureDetail))
                 {
                     scheduledProcess = null;
                     return false;
@@ -227,7 +234,26 @@ namespace BuildXL.FrontEnd.MsBuild
                 }
 
                 // Add the computed outputs for this project, so dependencies can consume it
-                m_processOutputsPerProject[project] = outputs;
+                var outputDirectories = outputs.GetOutputDirectories();
+
+                // A valid output cache path indicates that the project is building in isolation
+                MSBuildProjectOutputs projectOutputs;
+                if (outputResultCacheFile == AbsolutePath.Invalid)
+                {
+                    projectOutputs = MSBuildProjectOutputs.CreateLegacy(outputDirectories);
+                }
+                else
+                {
+                    var success = outputs.TryGetOutputFile(outputResultCacheFile, out FileArtifact cacheFileArtifact);
+                    if (!success)
+                    {
+                        Contract.Assert(false, I($"The output cache file {outputResultCacheFile.ToString(PathTable)} should be part of the project {project.FullPath.ToString(PathTable)} outputs."));
+                    }
+
+                    projectOutputs = MSBuildProjectOutputs.CreateIsolated(outputDirectories, cacheFileArtifact);
+                }
+                
+                m_processOutputsPerProject[project] = projectOutputs;
 
                 failureDetail = string.Empty;
                 return true;
@@ -271,15 +297,33 @@ namespace BuildXL.FrontEnd.MsBuild
                 references = project.ProjectReferences.Where(projectReference => !projectReference.PredictedTargetsToExecute.TargetsAreKnownToBeEmpty);
             }
 
+            var argumentsBuilder = processBuilder.ArgumentsBuilder;
             foreach (ProjectWithPredictions projectReference in references)
             {
-                bool outputsPresent = m_processOutputsPerProject.TryGetValue(projectReference, out ProcessOutputs processOutputs);
-                Contract.Assert(outputsPresent, $"Pips must have been presented in dependency order: {projectReference.FullPath.ToString(PathTable)} missing, dependency of {project.FullPath.ToString(PathTable)}");
+                bool outputsPresent = m_processOutputsPerProject.TryGetValue(projectReference, out MSBuildProjectOutputs projectOutputs);
+                if (!outputsPresent)
+                {
+                    Contract.Assert(false, $"Pips must have been presented in dependency order: {projectReference.FullPath.ToString(PathTable)} missing, dependency of {project.FullPath.ToString(PathTable)}");
+                }
 
-                // Add all known opaque directories
-                foreach (StaticDirectory output in processOutputs.GetOutputDirectories())
+                // Add all known output directories
+                foreach (StaticDirectory output in projectOutputs.OutputDirectories)
                 {
                     processBuilder.AddInputDirectory(output.Root);
+                }
+
+                // If the dependency was built in isolation, this project needs to access the generated cache files
+                if (projectOutputs.BuildsInIsolation)
+                {
+                    var outputCache = projectOutputs.OutputCacheFile;
+                    processBuilder.AddInputFile(outputCache);
+                    // Instruct MSBuild to use the cache file from the associated dependency as an input.
+                    // Flag /irc is the short form of /inputResultsCaches, and part of MSBuild 'build in isolation' mode.
+                    using (argumentsBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, string.Empty))
+                    {
+                        argumentsBuilder.Add(PipDataAtom.FromString("/irc:"));
+                        argumentsBuilder.Add(PipDataAtom.FromAbsolutePath(outputCache));
+                    }
                 }
             }
         }
@@ -374,8 +418,10 @@ namespace BuildXL.FrontEnd.MsBuild
             PipConstructionHelper pipConstructionHelper, 
             ProjectWithPredictions project,
             QualifierId qualifierId,
+            out AbsolutePath outputResultCacheFile,
             out string failureDetail)
         {
+            outputResultCacheFile = AbsolutePath.Invalid;
             if (!TrySetBuildToolExecutor(pipConstructionHelper, processBuilder, project))
             {
                 failureDetail = "Failed to construct tooldefinition";
@@ -409,6 +455,15 @@ namespace BuildXL.FrontEnd.MsBuild
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.err"), FileExistence.Optional);
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.prf"), FileExistence.Optional);
 
+            // Unless the legacy non-isolated mode is explicitly specified, the project builds in isolation, and therefore
+            // it produces an output cache file. This file is placed on the (unique) object directory for this project
+            if (m_resolverSettings.UseLegacyProjectIsolation != true)
+            {
+                var objectDirectory = pipConstructionHelper.GetUniqueObjectDirectory(project.FullPath.GetName(PathTable));
+                outputResultCacheFile = objectDirectory.Path.Combine(PathTable, PathAtom.Create(PathTable.StringTable, OutputCacheFileName));
+                processBuilder.AddOutputFile(outputResultCacheFile, FileExistence.Required);
+            }
+
             // Path to the project
             processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromAbsolutePath(project.FullPath));
             // Response file with the rest of the arguments
@@ -420,7 +475,7 @@ namespace BuildXL.FrontEnd.MsBuild
                                                     
             processBuilder.SetResponseFileSpecification(rspFileSpec);
 
-            if (!TryAddMsBuildArguments(project, qualifier, processBuilder.ArgumentsBuilder, logDirectory, out failureDetail))
+            if (!TryAddMsBuildArguments(project, qualifier, processBuilder.ArgumentsBuilder, logDirectory, outputResultCacheFile, out failureDetail))
             {
                 return false;
             }
@@ -456,7 +511,7 @@ namespace BuildXL.FrontEnd.MsBuild
             return true;
         }
 
-        private bool TryAddMsBuildArguments(ProjectWithPredictions<AbsolutePath> project, Qualifier qualifier, PipDataBuilder pipDataBuilder, AbsolutePath logDirectory, out string failureDetail)
+        private bool TryAddMsBuildArguments(ProjectWithPredictions<AbsolutePath> project, Qualifier qualifier, PipDataBuilder pipDataBuilder, AbsolutePath logDirectory, AbsolutePath outputResultCacheFile, out string failureDetail)
         {
             // Common arguments to all MsBuildExe invocations
             pipDataBuilder.AddRange(s_commonArgumentsToMsBuildExe.Select(argument => PipDataAtom.FromString(argument)));
@@ -525,6 +580,23 @@ namespace BuildXL.FrontEnd.MsBuild
                     m_context.LoggingContext,
                     Location.FromFile(project.FullPath.ToString(PathTable)),
                     project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
+            }
+
+            // Pass the output result cache file if present
+            if (outputResultCacheFile != AbsolutePath.Invalid)
+            {
+                using (pipDataBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, string.Empty))
+                {
+                    // Flag /orc is the short form of /outputResultsCache, and part of MSBuild 'build in isolation' mode.
+                    // By specifying this flag, MSBuild will write the build result at the end of this invocation into the cache file
+                    pipDataBuilder.Add(PipDataAtom.FromString("/orc:"));
+                    pipDataBuilder.Add(PipDataAtom.FromAbsolutePath(outputResultCacheFile));
+                }
+            }
+            else
+            {
+                // In legacy (non-isolated) mode, we still have to rely on SDKs honoring this flag
+                pipDataBuilder.Add(PipDataAtom.FromString("/p:buildprojectreferences=false")); 
             }
 
             failureDetail = string.Empty;
@@ -747,6 +819,59 @@ namespace BuildXL.FrontEnd.MsBuild
 
                 return PipConstructionUtilities.ComputeSha256(builder.ToString());
             }
+        }
+
+        /// <summary>
+        /// Represents the written outputs (that matter for scheduling inputs) of an MSBuild project
+        /// </summary>
+        /// <remarks>
+        /// This is just a handy struct to store across scheduled pips, and therefore private to the pip constructor
+        /// </remarks>
+        private readonly struct MSBuildProjectOutputs
+        {
+            /// <summary>
+            /// Creates a project that is built in isolation, and therefore it produces an output cache file 
+            /// </summary>
+            public static MSBuildProjectOutputs CreateIsolated(IEnumerable<StaticDirectory> outputDirectories, FileArtifact outputCacheFile)
+            {
+                Contract.Requires(outputDirectories != null);
+                Contract.Requires(outputCacheFile != FileArtifact.Invalid);
+
+                return new MSBuildProjectOutputs(outputDirectories, outputCacheFile);
+            }
+
+            /// <summary>
+            /// Creates a project that is built using the legacy mode (non-isolated)
+            /// </summary>
+            public static MSBuildProjectOutputs CreateLegacy(IEnumerable<StaticDirectory> outputDirectories)
+            {
+                Contract.Requires(outputDirectories != null);
+                return new MSBuildProjectOutputs(outputDirectories, FileArtifact.Invalid);
+            }
+
+            private MSBuildProjectOutputs(IEnumerable<StaticDirectory> outputDirectories, FileArtifact outputCacheFile)
+            {
+                OutputDirectories = outputDirectories;
+                OutputCacheFile = outputCacheFile;
+            }
+
+            /// <summary>
+            /// Whether this project should be built in isolation
+            /// </summary>
+            public bool BuildsInIsolation => OutputCacheFile != FileArtifact.Invalid;
+
+            /// <summary>
+            /// All output directories this project writes into
+            /// </summary>
+            public IEnumerable<StaticDirectory> OutputDirectories { get; }
+
+            /// <summary>
+            /// The output cache file that gets generated when this project builds in isolation
+            /// </summary>
+            /// <remarks>
+            /// Invalid when the legacy (non-isolated) mode is used
+            /// </remarks>
+            public FileArtifact OutputCacheFile { get; } 
         }
     }
 }

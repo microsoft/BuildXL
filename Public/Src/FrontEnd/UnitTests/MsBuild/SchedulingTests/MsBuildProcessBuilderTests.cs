@@ -225,5 +225,68 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             Assert.True((testProj.ProcessOptions & Process.Options.NeedsToRunInContainer) != Process.Options.None);
             Assert.True(testProj.ContainerIsolationLevel.IsolateAllOutputs());
         }
+
+        [Fact]
+        public void ProjectIsBuiltInIsolationByDefault()
+        {
+            var project = CreateProjectWithPredictions("A.proj");
+
+            var testProj = Start()
+                .Add(project)
+                .ScheduleAll()
+                .AssertSuccess().
+                RetrieveSuccessfulProcess(project);
+
+            var arguments = RetrieveProcessArguments(testProj);
+
+            // A project that is built in isolation always specifies an output cache file, which implies /isolate for MSBuild
+            Assert.Contains("/orc", arguments);
+            // A project that is built in isolation does not need to specify /p:buildprojectreferences=false
+            Assert.DoesNotContain("/p:buildprojectreferences=false", arguments);
+        }
+
+        [Fact]
+        public void BuildingInIsolationPropagatesCacheFiles()
+        {
+            var dep1 = CreateProjectWithPredictions("1.proj");
+            var dep2 = CreateProjectWithPredictions("2.proj");
+            var main = CreateProjectWithPredictions("3.proj", references: new[] { dep1, dep2 });
+
+            var result = Start()
+                .Add(dep1)
+                .Add(dep2)
+                .Add(main)
+                .ScheduleAll()
+                .AssertSuccess();
+
+            var outputCacheFile1 = result.RetrieveSuccessfulProcess(dep1).FileOutputs.First(fa => fa.Path.GetName(PathTable).ToString(StringTable) == PipConstructor.OutputCacheFileName);
+            var outputCacheFile2 = result.RetrieveSuccessfulProcess(dep2).FileOutputs.First(fa => fa.Path.GetName(PathTable).ToString(StringTable) == PipConstructor.OutputCacheFileName);
+
+            string mainArgs = RetrieveProcessArguments(result.RetrieveSuccessfulProcess(main));
+
+            // The arguments of the main project should contain the references to the dependencies' cache files
+            Assert.Contains($"/irc:{outputCacheFile1.Path.ToString(PathTable)}", mainArgs);
+            Assert.Contains($"/irc:{outputCacheFile2.Path.ToString(PathTable)}", mainArgs);
+        }
+
+        [Fact]
+        public void ProjectIsBuiltWithLegacyIsolationWhenSpecified()
+        {
+            var project = CreateProjectWithPredictions("A.proj");
+
+            var testProj = Start(new MsBuildResolverSettings { UseLegacyProjectIsolation = true })
+                .Add(project)
+                .ScheduleAll()
+                .AssertSuccess().
+                RetrieveSuccessfulProcess(project);
+
+            var arguments = RetrieveProcessArguments(testProj);
+
+            // A project that is not built in isolation shouldn't specify cache files, nor /isolate
+            Assert.DoesNotContain("/orc", arguments);
+            Assert.DoesNotContain("/isolate", arguments);
+            // A project that is not built in isolation has to rely on /p:buildprojectreferences=false
+            Assert.Contains("/p:buildprojectreferences=false", arguments);
+        }
     }
 }

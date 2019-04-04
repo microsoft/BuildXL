@@ -200,6 +200,15 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
      * Defaults to false.
      */
     enableTransitiveProjectReferences?: boolean;
+
+    /**
+     * When true, MSBuild projects are not treated as first class citizens and MSBuild is instructed to build each project using the legacy mode, 
+     * which relies on SDK conventions to respect the boundaries of a project and not build dependencies. The legacy mode is less restrictive than the
+     * default mode, where explicit project references to represent project dependencies are strictly enforced, but a decrease in build performance and 
+     * other build failures may occur (e.g. double writes due to overbuilds).
+     * Defaults to false.
+     */
+    useLegacyProjectIsolation?: boolean;
 }
 
 

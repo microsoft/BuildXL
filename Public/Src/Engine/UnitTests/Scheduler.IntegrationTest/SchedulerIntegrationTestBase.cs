@@ -290,6 +290,17 @@ namespace Test.BuildXL.Scheduler
             }
 
         }
+
+        /// <summary>
+        /// Convenience function that creates and schedules a <see cref="PipBuilder"/> constructed process with an arbitrary output file.
+        /// This is the smallest pip that can be scheduled.
+        /// </summary>
+        public ProcessWithOutputs CreateAndSchedulePipBuilderWithArbitraryOutput(IEnumerable<string> tags = null, string description = null)
+        {
+            var pipBuilder = CreatePipBuilder(new Operation[] { Operation.WriteFile(CreateOutputFileArtifact()) }, tags, description);
+            return SchedulePipBuilder(pipBuilder);
+        }
+
         /// <summary>
         /// Creates and scheduled a <see cref="PipBuilder"/> constructed process
         /// </summary>

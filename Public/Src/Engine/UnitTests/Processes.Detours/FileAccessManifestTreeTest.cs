@@ -606,7 +606,10 @@ namespace Test.BuildXL.Processes.Detours
 
         private static void TestManifestRetrieval(IEnumerable<ValidationData> validationData, FileAccessManifest fam)
         {
-            string famDescription = Environment.NewLine + string.Join(Environment.NewLine, fam.Describe());
+            foreach (var line in fam.Describe())
+            {
+                Console.WriteLine(line);
+            }
 
             byte[] manifestTreeBytes = fam.GetManifestTreeBytes();
 
@@ -627,24 +630,18 @@ namespace Test.BuildXL.Processes.Detours
                         out pathId,
                         out expectedUsn);
 
-                XAssert.IsTrue(success, string.Format("Unable to find path in manifest.{0}", famDescription));
+                XAssert.IsTrue(success, "Unable to find path in manifest");
                 XAssert.AreEqual(
                     unchecked((uint)dataItem.PathId),
                     pathId,
-                    string.Format(
-                        "PathId for '{0}' did not match.{1}",
-                        dataItem.Path,
-                        famDescription));
+                    string.Format("PathId for '{0}' did not match", dataItem.Path));
 
                 if (dataItem.NodePolicy.HasValue)
                 {
                     XAssert.AreEqual(
                         unchecked((uint)dataItem.NodePolicy.Value),
                         nodePolicy,
-                        string.Format(
-                            "Policy for '{0}' did not match.{1}",
-                            dataItem.Path,
-                            famDescription));
+                        string.Format("Policy for '{0}' did not match", dataItem.Path));
                 }
 
                 if (dataItem.ConePolicy.HasValue)
@@ -652,19 +649,13 @@ namespace Test.BuildXL.Processes.Detours
                     XAssert.AreEqual(
                         unchecked((uint)dataItem.ConePolicy.Value),
                         conePolicy,
-                        string.Format(
-                            "Policy for '{0}' did not match.{1}",
-                            dataItem.Path,
-                            famDescription));
+                        string.Format("Policy for '{0}' did not match", dataItem.Path));
                 }
 
                 XAssert.AreEqual(
                     dataItem.ExpectedUsn,
                     expectedUsn,
-                    string.Format(
-                        "Usn for '{0}' did not match.{1}",
-                        dataItem.Path,
-                        famDescription));
+                    string.Format("Usn for '{0}' did not match", dataItem.Path));
             }
         }
 

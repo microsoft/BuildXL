@@ -618,12 +618,24 @@ namespace BuildXL.Scheduler
             else
             {
                 // log error if execution failed
-                Logger.Log.PipIpcFailed(
-                    operationContext,
-                    operation.Payload,
-                    connectionString,
-                    ipcResult.ExitCode.ToString(),
-                    ipcResult.Payload);
+                if (ipcResult.ExitCode == IpcResultStatus.InvalidInput)
+                {
+                    // we separate the 'invalid input' errors here, so they can be classified as 'user errors'
+                    Logger.Log.PipIpcFailedDueToInvalidInput(
+                        operationContext,
+                        operation.Payload,
+                        connectionString,
+                        ipcResult.Payload);
+                }
+                else
+                {
+                    Logger.Log.PipIpcFailed(
+                        operationContext,
+                        operation.Payload,
+                        connectionString,
+                        ipcResult.ExitCode.ToString(),
+                        ipcResult.Payload);
+                }
 
                 executionResult.SetResult(operationContext, PipResultStatus.Failed);
             }

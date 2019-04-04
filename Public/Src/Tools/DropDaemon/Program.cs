@@ -16,6 +16,7 @@ using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
@@ -518,77 +519,103 @@ namespace Tool.DropDaemon
             serverAction: async (conf, daemon) =>
             {
                 daemon.Logger.Verbose("[ADDARTIFACTS] Started");
-                var files = File.GetValues(conf.Config).ToArray();
-                var fileIds = FileId.GetValues(conf.Config).ToArray();
-                var hashes = HashOptional.GetValues(conf.Config).ToArray();
-                var dropPaths = RelativeDropPath.GetValues(conf.Config).ToArray();
-
-                if (files.Length != fileIds.Length || files.Length != hashes.Length || files.Length != dropPaths.Length)
-                {
-                    return new IpcResult(
-                        IpcResultStatus.GenericError,
-                        Inv(
-                            "File counts don't match: #files = {0}, #fileIds = {1}, #hashes = {2}, #dropPaths = {3}",
-                            files.Length, fileIds.Length, hashes.Length, dropPaths.Length));
-                }
-
-                var directoryPaths = Directory.GetValues(conf.Config).ToArray();
-                var directoryIds = DirectoryId.GetValues(conf.Config).ToArray();
-                var directoryDropPaths = RelativeDirectoryDropPath.GetValues(conf.Config).ToArray();
-                var directoryFilters = DirectoryContentFilter.GetValues(conf.Config).ToArray();
-
-                if (directoryPaths.Length != directoryIds.Length || directoryPaths.Length != directoryDropPaths.Length || directoryPaths.Length != directoryFilters.Length)
-                {
-                    return new IpcResult(
-                        IpcResultStatus.GenericError,
-                        Inv(
-                            "Directory counts don't match: #directories = {0}, #directoryIds = {1}, #dropPaths = {2}, #directoryFilters = {3}",
-                            directoryPaths.Length, directoryIds.Length, directoryDropPaths.Length, directoryFilters.Length));
-                }
-
-                (Regex[] initializedFilters, string filterInitError) = InitializeDirectoryFilters(directoryFilters);
-                if (filterInitError != null)
-                {
-                    return new IpcResult(IpcResultStatus.ExecutionError, filterInitError);
-                }
-
-                var dropFileItems = Enumerable
-                    .Range(0, files.Length)
-                    .Select(i => new DropItemForBuildXLFile(
-                        daemon.ApiClient,
-                        chunkDedup: conf.Get(EnableChunkDedup),
-                        filePath: files[i],
-                        fileId: fileIds[i],
-                        fileContentInfo: FileContentInfo.Parse(hashes[i]),
-                        relativeDropPath: dropPaths[i]));
-
-                (IEnumerable<DropItemForBuildXLFile> dropDirectoryMemberItems, string error) = await CreateDropItemsForDirectoriesAsync(
-                    conf, 
-                    daemon, 
-                    directoryPaths, 
-                    directoryIds, 
-                    directoryDropPaths,
-                    initializedFilters);
-
-                IIpcResult result;
-                if (error != null)
-                {
-                    result = new IpcResult(IpcResultStatus.ExecutionError, error);
-                }
-                else
-                {
-                    var finalListOfFilesToUpload = dropFileItems.Concat(dropDirectoryMemberItems).ToList();
-                    if (finalListOfFilesToUpload.Count == 0)
-                    {
-                        return new IpcResult(IpcResultStatus.Success, string.Empty);
-                    }
-
-                    result = await AddDropItemsAsync(daemon, finalListOfFilesToUpload);
-                }
+                
+                var result = await AddArtifactsToDropInternalAsync(conf, daemon);
 
                 daemon.Logger.Verbose("[ADDARTIFACTS] " + result);
                 return result;
             });
+
+        private static async Task<IIpcResult> AddArtifactsToDropInternalAsync(ConfiguredCommand conf, Daemon daemon)
+        {
+            var files = File.GetValues(conf.Config).ToArray();
+            var fileIds = FileId.GetValues(conf.Config).ToArray();
+            var hashes = HashOptional.GetValues(conf.Config).ToArray();
+            var dropPaths = RelativeDropPath.GetValues(conf.Config).ToArray();
+
+            if (files.Length != fileIds.Length || files.Length != hashes.Length || files.Length != dropPaths.Length)
+            {
+                return new IpcResult(
+                    IpcResultStatus.GenericError,
+                    Inv(
+                        "File counts don't match: #files = {0}, #fileIds = {1}, #hashes = {2}, #dropPaths = {3}",
+                        files.Length, fileIds.Length, hashes.Length, dropPaths.Length));
+            }
+
+            var directoryPaths = Directory.GetValues(conf.Config).ToArray();
+            var directoryIds = DirectoryId.GetValues(conf.Config).ToArray();
+            var directoryDropPaths = RelativeDirectoryDropPath.GetValues(conf.Config).ToArray();
+            var directoryFilters = DirectoryContentFilter.GetValues(conf.Config).ToArray();
+
+            if (directoryPaths.Length != directoryIds.Length || directoryPaths.Length != directoryDropPaths.Length || directoryPaths.Length != directoryFilters.Length)
+            {
+                return new IpcResult(
+                    IpcResultStatus.GenericError,
+                    Inv(
+                        "Directory counts don't match: #directories = {0}, #directoryIds = {1}, #dropPaths = {2}, #directoryFilters = {3}",
+                        directoryPaths.Length, directoryIds.Length, directoryDropPaths.Length, directoryFilters.Length));
+            }
+
+            (Regex[] initializedFilters, string filterInitError) = InitializeDirectoryFilters(directoryFilters);
+            if (filterInitError != null)
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, filterInitError);
+            }
+
+            var dropFileItemsKeyedByIsAbsent = Enumerable
+                .Range(0, files.Length)
+                .Select(i => new DropItemForBuildXLFile(
+                    daemon.ApiClient,
+                    chunkDedup: conf.Get(EnableChunkDedup),
+                    filePath: files[i],
+                    fileId: fileIds[i],
+                    fileContentInfo: FileContentInfo.Parse(hashes[i]),
+                    relativeDropPath: dropPaths[i])).ToLookup(f => WellKnownContentHashUtilities.IsAbsentFileHash(f.Hash));
+
+            // If a user specified a particular file to be added to drop, this file must be a part of drop.
+            // The missing files will not get into the drop, so we emit an error.
+            if (dropFileItemsKeyedByIsAbsent[true].Any())
+            {
+                return new IpcResult(
+                    IpcResultStatus.InvalidInput, 
+                    Inv("The following files are missing, but they are a part of the drop command:{0}{1}", 
+                        Environment.NewLine,
+                        string.Join(Environment.NewLine, dropFileItemsKeyedByIsAbsent[true])));
+            }
+
+            (IEnumerable<DropItemForBuildXLFile> dropDirectoryMemberItems, string error) = await CreateDropItemsForDirectoriesAsync(
+                conf,
+                daemon,
+                directoryPaths,
+                directoryIds,
+                directoryDropPaths,
+                initializedFilters);
+
+            if (error != null)
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, error);
+            }
+
+            var groupedDirectoriesContent = dropDirectoryMemberItems.ToLookup(f => WellKnownContentHashUtilities.IsAbsentFileHash(f.Hash));
+
+            // we allow missing files inside of directories only if those files are output files (e.g., optional or temporary files) 
+            if (groupedDirectoriesContent[true].Any(f => !f.IsOutputFile))
+            {
+                return new IpcResult(
+                    IpcResultStatus.InvalidInput, 
+                    Inv("Uploading missing source file(s) is not supported:{0}{1}", 
+                        Environment.NewLine,
+                        string.Join(Environment.NewLine, groupedDirectoriesContent[true].Where(f => !f.IsOutputFile))));
+            }
+            
+            // return early if there is nothing to upload
+            if (!dropFileItemsKeyedByIsAbsent[false].Any() && !groupedDirectoriesContent[false].Any())
+            {
+                return new IpcResult(IpcResultStatus.Success, string.Empty);
+            }
+            
+            return await AddDropItemsAsync(daemon, dropFileItemsKeyedByIsAbsent[false].Concat(groupedDirectoriesContent[false]));
+        }
 
         private static (Regex[], string error) InitializeDirectoryFilters(string[] filters)
         {
@@ -800,8 +827,10 @@ namespace Tool.DropDaemon
             Contract.Requires(directoryPaths != null);
             Contract.Requires(directoryIds != null);
             Contract.Requires(dropPaths != null);
+            Contract.Requires(contentFilters != null);
             Contract.Requires(directoryPaths.Length == directoryIds.Length);
             Contract.Requires(directoryPaths.Length == dropPaths.Length);
+            Contract.Requires(directoryPaths.Length == contentFilters.Length);
 
             var createDropItemsTasks = Enumerable
                 .Range(0, directoryPaths.Length)

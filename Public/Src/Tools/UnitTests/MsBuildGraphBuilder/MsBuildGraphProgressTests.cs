@@ -71,7 +71,7 @@ namespace Test.ProjectGraphBuilder
             string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
             var arguments = new MSBuildGraphBuilderArguments(
                 TestOutputDirectory,
-                m_entryPoint,
+                new[] { m_entryPoint },
                 outputFile,
                 globalProperties: null,
                 mSBuildSearchLocations: new[] {TestDeploymentDir},

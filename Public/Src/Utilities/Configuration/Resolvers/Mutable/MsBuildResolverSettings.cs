@@ -34,7 +34,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UntrackedDirectories = resolverSettings.UntrackedDirectories;
             RunInContainer = resolverSettings.RunInContainer;
             MsBuildSearchLocations = resolverSettings.MsBuildSearchLocations;
-            FileNameEntryPoint = resolverSettings.FileNameEntryPoint;
+            FileNameEntryPoints = resolverSettings.FileNameEntryPoints;
             InitialTargets = resolverSettings.InitialTargets;
             Environment = resolverSettings.Environment;
             GlobalProperties = resolverSettings.GlobalProperties;
@@ -73,7 +73,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public IReadOnlyList<DirectoryArtifact> MsBuildSearchLocations { get; set; }
 
         /// <inheritdoc/>
-        public PathAtom? FileNameEntryPoint { get; set; }
+        public IReadOnlyList<RelativePath> FileNameEntryPoints { get; set; }
 
         /// <inheritdoc/>
         public IReadOnlyList<string> InitialTargets { get; set; }

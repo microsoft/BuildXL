@@ -118,6 +118,25 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         }
 
         [Fact]
+        public void ResolverMultipleEntryFilesAreHonored()
+        {
+            var config = Build(@"fileNameEntryPoints: [r`ProjectA.proj`, r`ProjectB.proj`]")
+                .AddSpec(R("ProjectA.proj"), CreateProjectWithTarget("foo"))
+                .AddSpec(R("ProjectB.proj"), CreateProjectWithTarget("bar"))
+                .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunEngineWithConfig(config);
+            Assert.True(engineResult.IsSuccess);
+
+            var pipGraph = engineResult.EngineState.PipGraph;
+            var arguments = pipGraph.RetrievePipsOfType(PipType.Process).Select(process => RetrieveProcessArguments((Process)process)).ToList();
+
+            Assert.Equal(arguments.Count, 2);
+            Assert.True(arguments.Any(argument => argument.Contains("/t:foo")));
+            Assert.True(arguments.Any(argument => argument.Contains("/t:bar")));
+        }
+
+        [Fact]
         public void ProjectWithKnownEmptyTargetsIsNotScheduled()
         {
             // main project references another project, but explicitly doesn't call 'Build'
@@ -143,7 +162,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
     </Target>
 </Project>";
 
-            var config = Build("fileNameEntryPoint: a`MainProject.proj`")
+            var config = Build("fileNameEntryPoints: [ r`MainProject.proj` ]")
                 .AddSpec(R("MainProject.proj"), mainProject)
                 .AddSpec(R("ReferencedProject.proj"), referencedProject)
                 .PersistSpecsAndGetConfiguration();

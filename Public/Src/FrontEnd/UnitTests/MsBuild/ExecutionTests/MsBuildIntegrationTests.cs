@@ -85,7 +85,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             var pathToTestProj2 = R("public", "dir2", TestProj2);
 
             const string Dirs = "dirs.proj";
-            var config = (CommandLineConfiguration)Build($"fileNameEntryPoint: a`{Dirs}`")
+            var config = (CommandLineConfiguration)Build($"fileNameEntryPoints: [ r`{Dirs}` ]")
                     .AddSpec(Dirs, CreateDirsProject(pathToTestProj1, pathToTestProj2))
                     .AddSpec(pathToTestProj1, CreateWriteFileTestProject("MyFile1.txt"))
                     .AddSpec(pathToTestProj2, CreateWriteFileTestProject("MyFile2.txt", projectReference: pathToTestProj1))

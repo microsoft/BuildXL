@@ -20,7 +20,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         public string EnlistmentRoot { get; }
 
         /// <summary>
-        /// Path to the entry point project to parse
+        /// Paths to the entry point projects to parse
         /// </summary>
         public IReadOnlyCollection<string> ProjectsToParse { get; }
 

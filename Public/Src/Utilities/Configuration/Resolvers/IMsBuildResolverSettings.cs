@@ -55,10 +55,12 @@ namespace BuildXL.Utilities.Configuration
         IReadOnlyList<DirectoryArtifact> MsBuildSearchLocations { get; }
 
         /// <summary>
-        /// Optional file name for the project or solution that should be used to start parsing (under the root traversal)
+        /// Optional file paths for the projects or solutions that should be used to start parsing. These are relative 
+        /// paths with respect to the root traversal.
         /// </summary>
         /// <remarks>
-        /// If not provided, BuildXL will try to find a candidate under the root traversal
+        /// If not provided, BuildXL will attempt to find a candidate under the root traversal. If more than one 
+        /// candidate is available, the process will fail.
         /// </remarks>
         IReadOnlyList<RelativePath> FileNameEntryPoints { get; }
 

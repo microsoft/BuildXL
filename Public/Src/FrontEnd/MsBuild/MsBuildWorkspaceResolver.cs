@@ -279,7 +279,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private bool TryRetrieveParsingEntryPoint(out IEnumerable<AbsolutePath> parsingEntryPoints)
         {
-            if (m_resolverSettings.FileNameEntryPoints != null && m_resolverSettings.FileNameEntryPoints.Count > 0)
+            if (m_resolverSettings.FileNameEntryPoints?.Count > 0)
             {
                 parsingEntryPoints = m_resolverSettings.FileNameEntryPoints.Select(entryPoint => m_resolverSettings.RootTraversal.Combine(Context.PathTable, entryPoint));
                 return true;

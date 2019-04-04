@@ -20,7 +20,8 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         public string EnlistmentRoot { get; }
 
         /// <summary>
-        /// Paths to the entry point projects to parse
+        /// Optional file paths for the projects or solutions that should be used to start parsing. These are relative
+        /// paths with respect to the enlistment root.
         /// </summary>
         public IReadOnlyCollection<string> ProjectsToParse { get; }
 
@@ -62,7 +63,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
             IReadOnlyCollection<string> entryPointTargets)
         {
             Contract.Requires(!string.IsNullOrEmpty(enlistmentRoot));
-            Contract.Requires(projectsToParse != null && projectsToParse.Count > 0);
+            Contract.Requires(projectsToParse?.Count > 0);
             Contract.Requires(!string.IsNullOrEmpty(outputPath));
             Contract.Requires(mSBuildSearchLocations != null);
             Contract.Requires(entryPointTargets != null);
@@ -80,7 +81,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         {
             return 
 $@"Enlistment root: {EnlistmentRoot}
-Project entry point: {string.Join(" ", ProjectsToParse)}
+Project entry points: [{string.Join(", ", ProjectsToParse)}]
 Serialized graph path: {OutputPath}
 Global properties: {(GlobalProperties == null ? "null" : string.Join(" ", GlobalProperties.Select(kvp => $"[{kvp.Key}]={kvp.Value}")))}
 Search locations: {string.Join(" ", MSBuildSearchLocations)}";

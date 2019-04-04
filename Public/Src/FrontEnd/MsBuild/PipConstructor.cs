@@ -317,6 +317,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 {
                     var outputCache = projectOutputs.OutputCacheFile;
                     processBuilder.AddInputFile(outputCache);
+                    // Instruct MSBuild to use the cache file from the associated dependency as an input.
+                    // Flag /irc is the short form of /inputResultsCaches, and part of MSBuild 'build in isolation' mode.
                     using (argumentsBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, string.Empty))
                     {
                         argumentsBuilder.Add(PipDataAtom.FromString("/irc:"));
@@ -585,6 +587,8 @@ namespace BuildXL.FrontEnd.MsBuild
             {
                 using (pipDataBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, string.Empty))
                 {
+                    // Flag /orc is the short form of /outputResultsCache, and part of MSBuild 'build in isolation' mode.
+                    // By specifying this flag, MSBuild will write the build result at the end of this invocation into the cache file
                     pipDataBuilder.Add(PipDataAtom.FromString("/orc:"));
                     pipDataBuilder.Add(PipDataAtom.FromAbsolutePath(outputResultCacheFile));
                 }

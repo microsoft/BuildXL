@@ -1,0 +1,24 @@
+Transformer.writeFile(
+    f`./Out/file`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            {
+                escaping: "NoEscaping",
+                separator: "\t",
+                items: [
+                    "string",
+                    "99",
+                    p`./file`,
+                    p`./dir`,
+                    {
+                        escaping: "NoEscaping",
+                        separator: "-",
+                        items: ["atom", "rel1\\rel2"],
+                    },
+                ],
+            },
+        ],
+    }
+);

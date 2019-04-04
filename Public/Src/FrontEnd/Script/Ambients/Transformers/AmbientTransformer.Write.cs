@@ -24,6 +24,23 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         internal const string WriteAllLinesFunctionName = "writeAllLines";
         internal const string WriteAllTextFunctionName = "writeAllText";
 
+        private SymbolAtom m_writeOutputPath;
+        private SymbolAtom m_writeTags;
+        private SymbolAtom m_writeDescription;
+        private SymbolAtom m_writeContents;
+        private SymbolAtom m_writeLines;
+        private SymbolAtom m_writeText;
+
+        private void InitializeWriteNames()
+        {
+            m_writeOutputPath = Symbol("outputPath");
+            m_writeTags = Symbol("tags");
+            m_writeDescription = Symbol("description");
+            m_writeContents = Symbol("contents");
+            m_writeLines = Symbol("lines");
+            m_writeText = Symbol("text");
+        }
+
         private UnionType FileContentElementType => UnionType(AmbientTypes.PathType, AmbientTypes.RelativePathType, AmbientTypes.PathAtomType, PrimitiveType.StringType);
 
         private CallSignature WriteFileSignature => CreateSignature(
@@ -48,72 +65,113 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             optional: OptionalParameters(new ArrayType(PrimitiveType.StringType), PrimitiveType.StringType, PrimitiveType.StringType),
             returnType: AmbientTypes.FileType);
 
-        private static EvaluationResult WriteFile(Context context, ModuleLiteral env, EvaluationStackFrame args)
+        private EvaluationResult WriteFile(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             return WriteFileHelper(context, env, args, WriteFileMode.WriteFile);
         }
 
-        private static EvaluationResult WriteData(Context context, ModuleLiteral env, EvaluationStackFrame args)
+        private EvaluationResult WriteData(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             return WriteFileHelper(context, env, args, WriteFileMode.WriteData);
 
         }
 
-        private static EvaluationResult WriteAllLines(Context context, ModuleLiteral env, EvaluationStackFrame args)
+        private EvaluationResult WriteAllLines(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             return WriteFileHelper(context, env, args, WriteFileMode.WriteAllLines);
         }
 
-        private static EvaluationResult WriteAllText(Context context, ModuleLiteral env, EvaluationStackFrame args)
+        private EvaluationResult WriteAllText(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             return WriteFileHelper(context, env, args, WriteFileMode.WriteAllText);
 
         }
 
-        private static EvaluationResult WriteFileHelper(Context context, ModuleLiteral env, EvaluationStackFrame args, WriteFileMode mode)
+        private EvaluationResult WriteFileHelper(Context context, ModuleLiteral env, EvaluationStackFrame args, WriteFileMode mode)
         {
-            var path = Args.AsPath(args, 0, false);
-            var tags = Args.AsStringArrayOptional(args, 2);
-            var description = Args.AsStringOptional(args, 3);
-
+            AbsolutePath path;
+            string[] tags;
+            string description;
             PipData pipData;
-            switch (mode)
+
+            if (args.Length > 0 && args[0].Value is ObjectLiteral)
             {
-                case WriteFileMode.WriteFile:
-                    var fileContent = Args.AsIs(args, 1);
-                    // WriteFile has a separator argument with default newline
-                    var separator = Args.AsStringOptional(args, 3) ?? Environment.NewLine;
-                    description = Args.AsStringOptional(args, 4);
+                var obj = Args.AsObjectLiteral(args, 0);
+                path = Converter.ExtractPath(obj, m_writeOutputPath, allowUndefined: false);
+                tags = Converter.ExtractStringArray(obj, m_writeTags, allowUndefined: true);
+                description = Converter.ExtractString(obj, m_writeDescription, allowUndefined: true);
+                switch (mode)
+                {
+                    case WriteFileMode.WriteData:
+                        var data = obj[m_writeContents];
+                        pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, data, new ConversionContext(pos: 1));
+                        break;
+                    case WriteFileMode.WriteAllLines:
+                        var lines = Converter.ExtractArrayLiteral(obj, m_writeLines);
+                        var entry = context.TopStack;
+                        var newData = ObjectLiteral.Create(
+                            new List<Binding>
+                            {
+                                new Binding(context.Names.DataSeparator, Environment.NewLine, entry.InvocationLocation),
+                                new Binding(context.Names.DataContents, lines, entry.InvocationLocation),
+                            },
+                            lines.Location,
+                            entry.Path);
 
-                    pipData = CreatePipDataForWriteFile(context, fileContent, separator);
-                    break;
+                        pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(newData), new ConversionContext(pos: 1));
+                        break;
+                    case WriteFileMode.WriteAllText:
+                        var text = Converter.ExtractString(obj, m_writeText);
+                        pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(text), new ConversionContext(pos: 1));
+                        break;
+                    default:
+                        throw Contract.AssertFailure("Unknown WriteFileMode.");
+                }
+            }
+            else
+            { 
+                path = Args.AsPath(args, 0, false);
+                tags = Args.AsStringArrayOptional(args, 2);
+                description = Args.AsStringOptional(args, 3);
 
-                case WriteFileMode.WriteData:
-                    var data = Args.AsIs(args, 1);
-                    pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(data), new ConversionContext(pos: 1));
-                    break;
+                switch (mode)
+                {
+                    case WriteFileMode.WriteFile:
+                        var fileContent = Args.AsIs(args, 1);
+                        // WriteFile has a separator argument with default newline
+                        var separator = Args.AsStringOptional(args, 3) ?? Environment.NewLine;
+                        description = Args.AsStringOptional(args, 4);
 
-                case WriteFileMode.WriteAllLines:
-                    var lines = Args.AsArrayLiteral(args, 1);
-                    var entry = context.TopStack;
-                    var newData = ObjectLiteral.Create(
-                        new List<Binding>
-                        {
-                                        new Binding(context.Names.DataSeparator, Environment.NewLine, entry.InvocationLocation),
-                                        new Binding(context.Names.DataContents, lines, entry.InvocationLocation),
-                        },
-                        lines.Location,
-                        entry.Path);
+                        pipData = CreatePipDataForWriteFile(context, fileContent, separator);
+                        break;
 
-                    pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(newData), new ConversionContext(pos: 1));
-                    break;
+                    case WriteFileMode.WriteData:
+                        var data = Args.AsIs(args, 1);
+                        pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(data), new ConversionContext(pos: 1));
+                        break;
 
-                case WriteFileMode.WriteAllText:
-                    var text = Args.AsString(args, 1);
-                    pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(text), new ConversionContext(pos: 1));
-                    break;
-                default:
-                    throw Contract.AssertFailure("Unknown WriteFileMode.");
+                    case WriteFileMode.WriteAllLines:
+                        var lines = Args.AsArrayLiteral(args, 1);
+                        var entry = context.TopStack;
+                        var newData = ObjectLiteral.Create(
+                            new List<Binding>
+                            {
+                                            new Binding(context.Names.DataSeparator, Environment.NewLine, entry.InvocationLocation),
+                                            new Binding(context.Names.DataContents, lines, entry.InvocationLocation),
+                            },
+                            lines.Location,
+                            entry.Path);
+
+                        pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(newData), new ConversionContext(pos: 1));
+                        break;
+
+                    case WriteFileMode.WriteAllText:
+                        var text = Args.AsString(args, 1);
+                        pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(text), new ConversionContext(pos: 1));
+                        break;
+                    default:
+                        throw Contract.AssertFailure("Unknown WriteFileMode.");
+                }
             }
 
             FileArtifact result;

@@ -13,7 +13,7 @@ $vscodeClient = Join-Path $scriptRoot "client"
 
 echo "Building latest language service"
 
-cmd /c "$bxl -deployConfig $configuration /f:spec='Public\Src\IDE\LanguageServer\BuildXL.Ide.Script.LanguageServer.dsc' /scrub" 
+cmd /c "$bxl /f:spec='Public\Src\IDE\LanguageServer\BuildXL.Ide.LanguageServer.dsc' /scrub /q:$configuration" 
 
 if ($LastExitCode -ne 0) {
         throw "Failed to build the latest plugin";

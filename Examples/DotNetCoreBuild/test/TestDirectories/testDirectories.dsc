@@ -58,7 +58,10 @@ export const writeHardLinkInSharedOpaqueDirectoryIsAllowed = !Context.isWindowsO
     linkFileIntoDirectory(f`testDirectories.dsc`, sod);
 
     // hardlink an output file
-    const outFile = Transformer.writeFile(p`${Context.getNewOutputDirectory("write-file")}/writefile.txt`, "hi");
+    const outFile = Transformer.writeAllText({
+        outputPath: p`${Context.getNewOutputDirectory("write-file")}/writefile.txt`, 
+        text: "hi"
+    });
     linkFileIntoDirectory(outFile, sod);
 
     // symlink a source file

@@ -39,15 +39,20 @@ export function install(args: Arguments) : Result {
         let yarnContents = File
             .readAllText(lockFile, TextEncoding.utf8)
             .replace("registry.yarnpkg.com", args.authenticatedPackageFeed);
-        let yarnLockFile = Transformer.writeAllText(p`${yarnLockDirectory}/yarn.lock`, yarnContents);
-        let npmRcFile = Transformer.writeAllLines(
-            p`${yarnLockDirectory}/.npmrc`,  [
-            `registry=https://${args.authenticatedPackageFeed}/`,
-            `//${args.authenticatedPackageFeed}/:useCredentialProvider=true`,
-            `always-auth=true`,
-            `_auth=TOKEN`,
-            "",
-        ]);
+        let yarnLockFile = Transformer.writeAllText({
+            outputPath: p`${yarnLockDirectory}/yarn.lock`, 
+            text: yarnContents
+        });
+        let npmRcFile = Transformer.writeAllLines({
+            outputPath: p`${yarnLockDirectory}/.npmrc`,
+            lines: [
+                `registry=https://${args.authenticatedPackageFeed}/`,
+                `//${args.authenticatedPackageFeed}/:useCredentialProvider=true`,
+                `always-auth=true`,
+                `_auth=TOKEN`,
+                "",
+            ]
+        });
 
         // if we use an authenticated feed we should add a .npmrc file.
         // as well as a yarn.lock file that has the feed replaced.

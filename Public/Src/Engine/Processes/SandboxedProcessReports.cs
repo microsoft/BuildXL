@@ -538,6 +538,12 @@ namespace BuildXL.Processes
                 return false;
             }
 
+            // Special case seen with vstest.console.exe
+            if (string.IsNullOrEmpty(path))
+            {
+                return true;
+            }
+
             // If there is a listener registered and notifications allowed, notify over the interface.
             if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.FileAccessNotify) != 0)
             {
@@ -554,18 +560,12 @@ namespace BuildXL.Processes
                     shareMode,
                     creationDisposition,
                     flagsAndAttributes,
-                    path == null ? manifestPath.ToString(m_pathTable) : path,
+                    path,
                     processArgs);
             }
 
             // If there is a listener registered that disables the collection of data in the collections, just exit.
             if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.FileAccessCollect) == 0)
-            {
-                return true;
-            }
-
-            // Special case seen with vstest.console.exe
-            if (path.Length == 0)
             {
                 return true;
             }

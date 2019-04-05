@@ -844,12 +844,7 @@ namespace BuildXL.Processes
             {
                 Contract.Assert(m_fileAccessManifest != null);
 
-                // Always dispose the semaphore.
-                if (m_fileAccessManifest.MessageCountSemaphore != null)
-                {
-                    m_fileAccessManifest.MessageCountSemaphore.Dispose();
-                    m_fileAccessManifest.MessageCountSemaphore = null;
-                }
+                m_fileAccessManifest.UnsetMessageCountSemaphore();
             }
         }
 
@@ -1460,7 +1455,7 @@ namespace BuildXL.Processes
             m_fileAccessManifest.ReportProcessArgs = m_sandboxConfig.LogProcesses;
             m_fileAccessManifest.EnforceAccessPoliciesOnDirectoryCreation = m_sandboxConfig.EnforceAccessPoliciesOnDirectoryCreation;
 
-            bool allowInternalErrorsLogging = m_fileAccessManifest.AllowInternalDetoursErrorNotificationFile = m_sandboxConfig.AllowInternalDetoursErrorNotificationFile;
+            bool allowInternalErrorsLogging = m_sandboxConfig.AllowInternalDetoursErrorNotificationFile;
             bool checkMessageCount = m_fileAccessManifest.CheckDetoursMessageCount = m_sandboxConfig.CheckDetoursMessageCount;
 
             if (allowInternalErrorsLogging || checkMessageCount)
@@ -1482,8 +1477,7 @@ namespace BuildXL.Processes
                     if (checkMessageCount && !OperatingSystemHelper.IsUnixOS)
                     {
                         // Semaphore names don't allow '\\' chars.
-                        m_fileAccessManifest.MessageCountSemaphore = new Semaphore(0, int.MaxValue, m_detoursFailuresFile.Replace('\\', '_'), out bool newCreated);
-                        if (!newCreated)
+                        if (!m_fileAccessManifest.SetMessageCountSemaphore(m_detoursFailuresFile.Replace('\\', '_')))
                         {
                             Tracing.Logger.Log.LogMessageCountSemaphoreExists(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
                             return false;

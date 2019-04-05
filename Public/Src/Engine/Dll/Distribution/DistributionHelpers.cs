@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -18,6 +19,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Google.Protobuf;
 using Grpc.Core;
+using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -58,7 +60,7 @@ namespace BuildXL.Engine.Distribution
                 (int)LogEventId.DistributionHostLog,
                 (int)LogEventId.DistributionDebugMessage,
                 (int)LogEventId.DistributionServiceInitializationError,
-                (int)LogEventId.DistributionTrace);
+                (int)LogEventId.GrpcTrace);
 
         /// <summary>
         /// Set of event ids for distribution messages of all levels
@@ -146,6 +148,35 @@ namespace BuildXL.Engine.Distribution
         internal static string GetServiceName(string ipAddress, int port)
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}::{1}", ipAddress, port);
+        }
+
+        internal static string GetExecuteDescription(IList<long> semiStableHashes)
+        {
+            string description = "Execute: ";
+
+            if (semiStableHashes != null)
+            {
+                description += string.Join(", ", semiStableHashes.Select(s => s.ToString("X16", CultureInfo.InvariantCulture)));
+            }
+
+            return description;
+        }
+
+        internal static string GetNotifyDescription(OpenBond.WorkerNotificationArgs notificationArgs, IList<long> semiStableHashes)
+        {
+            string description = "Notify: ";
+
+            if (semiStableHashes != null)
+            {
+                description += string.Join(", ", semiStableHashes.Select(s => s.ToString("X16", CultureInfo.InvariantCulture)));
+            }
+
+            if (notificationArgs.ExecutionLogData != null && notificationArgs.ExecutionLogData.Count > 0)
+            {
+                description += I($"[ExecutionLogData: Size={notificationArgs.ExecutionLogData.Count}, SequenceNumber={notificationArgs.ExecutionLogBlobSequenceNumber}]");
+            }
+
+            return description;
         }
 
 #if !DISABLE_FEATURE_BOND_RPC

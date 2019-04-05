@@ -1156,24 +1156,24 @@ namespace IntegrationTest.BuildXL.Scheduler
             });
             sodPipBuilder.AddOutputDirectory(sodPath, SealDirectoryKind.SharedOpaque);
             sodPipBuilder.AddOutputDirectory(odPath, SealDirectoryKind.Opaque);
-            var sodPip = SchedulePipBuilder(sodPipBuilder);
+            SchedulePipBuilder(sodPipBuilder);
 
-            // regular process that writes into the same shared opaque directory
+            // regular process: writes one file into the same shared opaque directory, and one file elsewhere
             var processSodOutFile = CreateOutputFileArtifact(root: sodPath, prefix: "proc-sod-out");
             var processNonSodOutFile = CreateOutputFileArtifact(prefix: "proc-out");
-            var process = CreateAndSchedulePipBuilder(new[]
+            CreateAndSchedulePipBuilder(new[]
             {
                 Operation.WriteFile(processSodOutFile),
                 Operation.WriteFile(processNonSodOutFile)
             });
 
-            // write file pip that writes into the same shared opaque directory
+            // write file pips: one writes into the same shared opaque directory, one writes elsewhere
             var writePipSodOutFile = CreateOutputFileArtifact(root: sodPath, prefix: "write-sod-out");
             var writePipNonSodOutFile = CreateOutputFileArtifact(prefix: "write-out");
             CreateAndScheduleWriteFile(writePipSodOutFile, " ", new[] { "write pip sod" });
             CreateAndScheduleWriteFile(writePipNonSodOutFile, " ", new[] { "write pip" });
 
-            // copy pip that copies into the same shared opaque directory
+            // copy file pips: one copies into the same shared opaque directory, one copies elsewhere
             var copySourceFile = CreateSourceFileWithPrefix(prefix: "copy-source");
             var copyPipSodDestFile = CreateOutputFileArtifact(root: sodPath, prefix: "copy-sod-out");
             var copyPipNonSodDestFile = CreateOutputFileArtifact(prefix: "copy-out");

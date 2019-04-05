@@ -199,6 +199,7 @@ namespace BuildXL.Cache.ContentStore.Service
             }
             else
             {
+                context.TraceDebug($"{Name} creating temporary directory for session {sessionId}.");
                 var disposableDirectory = _tempDirectoryForStreamsBySessionId.GetOrAdd(
                     sessionId,
                     (_) => new DisposableDirectory(FileSystem, tempDirectoryRoot / sessionId.ToString()));
@@ -372,15 +373,23 @@ namespace BuildXL.Cache.ContentStore.Service
                                     ? (DateTime.UtcNow + Config.UnusedSessionTimeout).Ticks
                                     : Math.Max(s.ExpirationUtcTicks, (DateTime.UtcNow + Config.UnusedSessionHeartbeatTimeout).Ticks);
 
-                                var sessionResult = await CreateSessionAsync(context, s.Session, s.Cache, s.Pin, s.Id, newExpirationTicks, s.Capabilities);
+                                var sessionResult = await CreateTempDirectoryAndSessionAsync(
+                                    context,
+                                    s.Id,
+                                    s.Session,
+                                    s.Cache,
+                                    s.Pin,
+                                    s.Capabilities,
+                                    newExpirationTicks);
 
                                 if (sessionResult.Succeeded)
                                 {
+                                    var session = sessionResult.Value.session;
                                     if (s.Pins != null && s.Pins.Any())
                                     {
                                         // Restore pins
                                         var contentHashes = s.Pins.Select(x => new ContentHash(x)).ToList();
-                                        if (sessionResult.Value is IHibernateContentSession hibernateSession)
+                                        if (session is IHibernateContentSession hibernateSession)
                                         {
                                             await hibernateSession.PinBulkAsync(context, contentHashes);
                                         }
@@ -389,7 +398,7 @@ namespace BuildXL.Cache.ContentStore.Service
                                             foreach (var contentHash in contentHashes)
                                             {
                                                 // Failure should be logged. We can ignore the error in this case.
-                                                await sessionResult.Value.PinAsync(context, contentHash, CancellationToken.None).IgnoreFailure();
+                                                await session.PinAsync(context, contentHash, CancellationToken.None).IgnoreFailure();
                                             }
                                         }
                                     }
@@ -428,6 +437,7 @@ namespace BuildXL.Cache.ContentStore.Service
             _serviceReadinessChecker.Reset();
 
             _portDisposer?.Dispose();
+
             await _grpcServer.KillAsync();
 
             _logIncrementalStatsTimer?.Dispose();
@@ -438,6 +448,9 @@ namespace BuildXL.Cache.ContentStore.Service
 
             // Hibernate dangling sessions in case we are shutdown unexpectedly to live clients.
             await HandleShutdownDanglingSessionsAsync(context);
+
+            // Cleaning up all the temp directories associated with sessions (they'll be recreated during the next startup when hibernated sessions are recreated).
+            CleanSessionTempDirectories(context);
 
             // Now the stores, without active users, can be shut down.
             return await ShutdownStoresAsync(context);
@@ -546,6 +559,21 @@ namespace BuildXL.Cache.ContentStore.Service
             Logger.Debug($"{Name} disposed");
         }
 
+        private void CleanSessionTempDirectories(OperationContext context)
+        {
+            int count = 0;
+            context.TraceDebug($"{Name} cleaning up session's temp directories.");
+            foreach (var tempDirectory in _tempDirectoryForStreamsBySessionId.Values)
+            {
+                count++;
+                tempDirectory.Dispose();
+            }
+
+            _tempDirectoryForStreamsBySessionId.Clear();
+
+            context.TraceDebug($"{Name} cleaned {count} session's temp directories.");
+        }
+
         private Task<Result<TSession>> CreateSessionAsync(
             OperationContext context,
             string name,
@@ -605,20 +633,23 @@ namespace BuildXL.Cache.ContentStore.Service
             return default;
         }
 
-        /// <inheritdoc />
-        public async Task<Result<(int sessionId, AbsolutePath tempDirectory)>> CreateSessionAsync(
+        private async Task<Result<(TSession session, int sessionId, AbsolutePath tempDirectory)>> CreateTempDirectoryAndSessionAsync(
             OperationContext context,
+            int? sessionIdHint,
             string sessionName,
             string cacheName,
             ImplicitPin implicitPin,
-            Capabilities capabilities)
+            Capabilities capabilities,
+            long sessionExpirationUtcTicks)
         {
-            int sessionId = Interlocked.Increment(ref _lastSessionId);
+            // The hint is provided when the session is recovered from hibernation.
+            var sessionId = sessionIdHint ?? Interlocked.Increment(ref _lastSessionId);
+
             var tempDirectoryCreationResult = await CreateSessionTempDirectoryAsync(context, cacheName, sessionId);
 
             if (!tempDirectoryCreationResult)
             {
-                return new Result<(int, AbsolutePath)>(tempDirectoryCreationResult);
+                return new Result<(TSession session, int sessionId, AbsolutePath tempDirectory)>(tempDirectoryCreationResult);
             }
 
             var sessionResult = await CreateSessionAsync(
@@ -627,16 +658,41 @@ namespace BuildXL.Cache.ContentStore.Service
                 cacheName,
                 implicitPin,
                 sessionId,
-                (DateTime.UtcNow + GetTimeoutForCapabilities(capabilities)).Ticks,
+                sessionExpirationUtcTicks,
                 capabilities);
 
             if (!sessionResult)
             {
                 RemoveSessionTempDirectory(sessionId);
-                return Result.FromError<(int sessionId, AbsolutePath tempDirectory)>(sessionResult);
+                return Result.FromError<(TSession session, int sessionId, AbsolutePath tempDirectory)>(sessionResult);
             }
 
-            return Result.Success((sessionId, tempDirectoryCreationResult.Value));
+            return Result.Success((sessionResult.Value, sessionId, tempDirectoryCreationResult.Value));
+        }
+
+        /// <inheritdoc />
+        public async Task<Result<(int sessionId, AbsolutePath tempDirectory)>> CreateSessionAsync(
+            OperationContext context,
+            string sessionName,
+            string cacheName,
+            ImplicitPin implicitPin,
+            Capabilities capabilities)
+        {
+            var result = await CreateTempDirectoryAndSessionAsync(
+                context,
+                sessionIdHint: null, // SessionId must be recreated for new sessions.
+                sessionName,
+                cacheName,
+                implicitPin,
+                capabilities,
+                (DateTime.UtcNow + GetTimeoutForCapabilities(capabilities)).Ticks);
+
+            if (!result)
+            {
+                return new Result<(int sessionId, AbsolutePath tempDirectory)>(result);
+            }
+
+            return Result.Success((result.Value.sessionId, result.Value.tempDirectory));
         }
 
         private TimeSpan GetTimeoutForCapabilities(Capabilities capabilities)

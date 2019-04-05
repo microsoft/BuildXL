@@ -602,6 +602,36 @@ namespace Test.Tool.Analyzers
                 "No fingerprint computation data found from old build");
         }
 
+        [Fact]
+        public void NoFingerprintFoundFromBuild()
+        {
+            var outFile = CreateOutputFileArtifact();
+            var pip = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outFile)
+            }).Process;
+
+            var build1 = RunScheduler().AssertSuccess();
+
+            ResetPipGraphBuilder();
+
+            pip = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outFile)
+            }).Process;
+
+            var newPip = CreateAndSchedulePipBuilderWithArbitraryOutput().Process;
+
+            var build2 = RunScheduler().AssertCacheMiss(newPip.PipId);
+            var result = RunAnalyzer(build1, build2);
+
+            result.AssertPipMiss(
+                newPip,
+                PipCacheMissType.MissForDescriptorsDueToWeakFingerprints,
+                "No fingerprint computation data found from old build"
+                );
+        }
+
 
         [FactIfSupported(requiresJournalScan: true)]
         public void IncrementalSchedulingSkippedPipNoFingerprint()
@@ -762,7 +792,7 @@ namespace Test.Tool.Analyzers
 
         public void AssertCacheMissEventLogged(params string[] requiredMessages)
         {
-            if (Configuration.Logging.CacheMissAnalysisOption == CacheMissAnalysisOption.LocalMode())
+            if (Configuration.Logging.CacheMissAnalysisOption.Mode == CacheMissAnalysisOption.LocalMode().Mode)
             {
                 var messages = requiredMessages.Select((s) => ObservedInputConstants.ToExpandedString(s));
                 AssertLogContains(caseSensitive: false, requiredLogMessages: messages.ToArray());

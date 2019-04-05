@@ -409,16 +409,16 @@ namespace BuildXL.Scheduler.Tracing
             else if (CacheLookupStoreEnabled || CacheMissAnalysisEnabled)
             {
                 // Try and find the strong fingerprint from the cache that matches the path set stored in the fingerprint store
-                var foundMatchingPathset = false;
+                var shouldAnalyzeMiss = false;
                 var storeToUse = RuntimeCacheMissAnalyzer == null ? ExecutionFingerprintStore : RuntimeCacheMissAnalyzer.PreviousFingerprintStore;
                 if (storeToUse.TryGetPipFingerprintKeys(pip.FormattedSemiStableHash, out var pfk))
                 {
                     foreach (var sf in data.StrongFingerprintComputations)
                     {
-                        if (pfk.FormattedPathSetHash == ContentHashToString(sf.PathSetHash))
+                        if (sf.Succeeded && pfk.FormattedPathSetHash == ContentHashToString(sf.PathSetHash))
                         {
                             strongFingerprintData = sf;
-                            foundMatchingPathset = true;
+                            shouldAnalyzeMiss = data.WeakFingerprint.ToString() == pfk.WeakFingerprint;
                             break;
                         }
                     }
@@ -448,7 +448,7 @@ namespace BuildXL.Scheduler.Tracing
                     newEntry = CreateAndStoreFingerprintStoreEntry(CacheLookupFingerprintStore, pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
                 }
 
-                if (foundMatchingPathset)
+                if (shouldAnalyzeMiss)
                 {
                     newEntry = newEntry ?? CreateFingerprintStoreEntry(pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
                     // Strong fingerprint misses need to be analyzed during cache-lookup to get a precise reason.

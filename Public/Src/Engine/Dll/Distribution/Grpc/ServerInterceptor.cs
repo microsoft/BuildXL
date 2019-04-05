@@ -44,10 +44,12 @@ namespace BuildXL.Engine.Distribution
 
             if (!string.IsNullOrEmpty(senderBuildId) && senderBuildId != m_buildId)
             {
+                string failureMessage = $"The receiver and sender build ids do not match. Receiver build id: {m_buildId}. Sender build id: {senderBuildId}.";
+                Logger.Log.GrpcTrace(m_loggingContext, failureMessage);
                 throw new RpcException(
                     new Status(
-                        StatusCode.InvalidArgument, 
-                        $"The receiver and sender build ids do not match. Receiver build id: {m_buildId}. Sender build id: {senderBuildId}."));
+                        StatusCode.InvalidArgument,
+                        failureMessage));
             }
 
             // example: [MW1AAP45DD9145A::89 -> SELF] 740adbf7-ae68-4a94-b6c1-578b4a2ecb67 Received: /BuildXL.Distribution.Grpc.Master/Notify.

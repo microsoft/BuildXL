@@ -24,18 +24,6 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// </summary>
         public static ChannelOption[] DefaultChannelOptions = new ChannelOption[] { new ChannelOption(ChannelOptions.MaxSendMessageLength, -1), new ChannelOption(ChannelOptions.MaxReceiveMessageLength, -1) };
 
-        /// <summary>
-        /// Maximum time for a Grpc call (both master->worker and worker->master)
-        /// </summary>
-        /// <remarks>
-        /// Default: 3 minutes
-        /// </remarks>
-        private static TimeSpan CallTimeout => EngineEnvironmentSettings.DistributionConnectTimeout;
-
-        private static TimeSpan InactiveTimeout => EngineEnvironmentSettings.DistributionInactiveTimeout;
-
-        private static int MaxRetry => GrpcConstants.MaxRetryForGrpcMessages; 
-
         internal readonly Channel Channel;
         private LoggingContext m_loggingContext;
         private string m_buildId;
@@ -80,7 +68,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 try
                 {
                     Logger.Log.GrpcTrace(m_loggingContext, $"Attempt to connect to {Channel.Target}. ChannelState {Channel.State}. Operation {operation}");
-                    await Channel.ConnectAsync(DateTime.UtcNow.Add(InactiveTimeout));
+                    await Channel.ConnectAsync(DateTime.UtcNow.Add(GrpcConstants.InactiveTimeout));
                     Logger.Log.GrpcTrace(m_loggingContext, $"Connected to {Channel.Target}. Duration {watch.ElapsedMilliseconds}ms");
                 }
                 catch (OperationCanceledException e)
@@ -101,7 +89,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             Failure failure = null;
 
             uint numTry = 0;
-            while (numTry < MaxRetry)
+            while (numTry < GrpcConstants.MaxRetry)
             {
                 numTry++;
                 watch.Restart();
@@ -109,7 +97,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 try
                 {
                     var callOptions = new CallOptions(
-                        deadline: DateTime.UtcNow.Add(CallTimeout),
+                        deadline: DateTime.UtcNow.Add(GrpcConstants.CallTimeout),
                         cancellationToken: cancellationToken,
                         headers: headers);
 

@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
@@ -152,31 +153,48 @@ namespace BuildXL.Engine.Distribution
 
         internal static string GetExecuteDescription(IList<long> semiStableHashes)
         {
-            string description = "Execute: ";
-
-            if (semiStableHashes != null)
+            using (var sbPool = Pools.GetStringBuilder())
             {
-                description += string.Join(", ", semiStableHashes.Select(s => s.ToString("X16", CultureInfo.InvariantCulture)));
-            }
+                var sb = sbPool.Instance;
 
-            return description;
+                sb.Append("ExecutePips: ");
+                AppendSemiStableHashes(sb, semiStableHashes);
+
+                return sb.ToString();
+            }
         }
 
         internal static string GetNotifyDescription(OpenBond.WorkerNotificationArgs notificationArgs, IList<long> semiStableHashes)
         {
-            string description = "Notify: ";
-
-            if (semiStableHashes != null)
+            using (var sbPool = Pools.GetStringBuilder())
             {
-                description += string.Join(", ", semiStableHashes.Select(s => s.ToString("X16", CultureInfo.InvariantCulture)));
-            }
+                var sb = sbPool.Instance;
 
-            if (notificationArgs.ExecutionLogData != null && notificationArgs.ExecutionLogData.Count > 0)
+                if (semiStableHashes?.Count > 0)
+                {
+                    sb.Append("NotifyPipResults: ");
+                    AppendSemiStableHashes(sb, semiStableHashes);
+                }
+
+                if (notificationArgs.ExecutionLogData != null && notificationArgs.ExecutionLogData.Count > 0)
+                {
+                    sb.AppendFormat("ExecutionLogData: Size={0}, SequenceNumber={1}", notificationArgs.ExecutionLogData.Count, notificationArgs.ExecutionLogBlobSequenceNumber);
+                }
+
+                return sb.ToString();
+            }
+        }
+
+        internal static void AppendSemiStableHashes(StringBuilder builder, IList<long> semiStableHashes)
+        {
+            if (semiStableHashes.Count > 0)
             {
-                description += I($"[ExecutionLogData: Size={notificationArgs.ExecutionLogData.Count}, SequenceNumber={notificationArgs.ExecutionLogBlobSequenceNumber}]");
+                builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X16}", semiStableHashes[0]);
+                for (int i = 1; i < semiStableHashes.Count; i++)
+                {
+                    builder.Append(',').AppendFormat(CultureInfo.InvariantCulture, " {0:X16}", semiStableHashes[i]);
+                }
             }
-
-            return description;
         }
 
 #if !DISABLE_FEATURE_BOND_RPC

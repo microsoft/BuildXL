@@ -2180,6 +2180,11 @@ namespace BuildXL.Scheduler
                         PipExecutionCounters.AddToCounter(PipExecutorCounter.ProcessDuration, processDuration);
                         m_groupedPipCounters.IncrementCounter(processRunnablePip.Process, PipCountersByGroup.Count);
                         m_groupedPipCounters.AddToCounter(processRunnablePip.Process, PipCountersByGroup.ProcessDuration, processDuration);
+
+                        if(!succeeded && result.Status == PipResultStatus.Failed)
+                        {
+                            m_groupedPipCounters.IncrementCounter(processRunnablePip.Process, PipCountersByGroup.Failed);
+                        }
                     }
                 }
                 else if (pipType == PipType.Ipc)

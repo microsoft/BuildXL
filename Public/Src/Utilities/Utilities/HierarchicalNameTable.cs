@@ -1878,16 +1878,22 @@ namespace BuildXL.Utilities
             m_isSerializationInProgress = true;
             // Actual serialization done in a static method with a snapshot of internal state to ensure nothing is
             // written that isn't accessible during deserialization
-            Serialize(
-                writer,
-                new SerializedState()
-                {
-                    DebugTag = DebugTag,
-                    IgnoreCase = m_ignoreCase,
-                    NodeCount = Count,
-                    NodeMap = m_nodeMap,
-                });
-            m_isSerializationInProgress = false;
+            try
+            {
+                Serialize(
+                    writer,
+                    new SerializedState()
+                    {
+                        DebugTag = DebugTag,
+                        IgnoreCase = m_ignoreCase,
+                        NodeCount = Count,
+                        NodeMap = m_nodeMap,
+                    });
+            }
+            finally
+            {
+                m_isSerializationInProgress = false;
+            }
         }
 
         /// <summary>

@@ -1097,7 +1097,9 @@ namespace BuildXL.Utilities
 
             m_isSerializationInProgress = true;
             // Call a static method to do the actual serialization to ensure not state outside of SerializedState is used
-            Serialize(
+            try
+            {
+                Serialize(
                 writer,
                 new SerializedState()
                 {
@@ -1106,7 +1108,11 @@ namespace BuildXL.Utilities
                     StringSet = m_stringSet,
                     ByteBuffers = m_byteBuffers,
                 });
-            m_isSerializationInProgress = false;
+            }
+            finally
+            {
+                m_isSerializationInProgress = false;
+            }         
         }
 
         private static void Serialize(BuildXLWriter writer, SerializedState state)

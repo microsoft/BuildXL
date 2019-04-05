@@ -33,10 +33,10 @@ set BUILDXL_WORKER_ARGS=/maxProc:6 %BUILDXL_WORKER_ARGS%
     @REM disabled warnings:
     @REM   - DX2841: Virus scanning software is enabled for.
     @REM   - DX2200: Failed to clean temp directory. Reason: unable to enumerate the directory or a descendant directory to verify that it has been emptied.
-set BUILDXL_COMMON_ARGS=/enableGrpc+ /server- /exp:NewCache /exp:TwoPhaseFingerprinting /exp:DontBringOutputsToMaster /nowarn:2841 /nowarn:2200 /p:OfficeDropTestEnableDrop=True /f:~(tag='exclude-drop-file'ortag='dropd-finalize') "/storageRoot:{objectRoot}:\ " "/config:{sourceRoot}:\config.dsc" "/cacheConfigFilePath:%SMDB.CACHE_CONFIG_OUTPUT_PATH%" "/rootMap:{sourceRoot}=%TEST_SOLUTION_ROOT%" "/rootMap:{objectRoot}=%TEST_SOLUTION_ROOT%\Out\M{machineNumber}" "/cacheDirectory:{objectRoot}:\Cache"  /logObservedFileAccesses /substTarget:{objectRoot}:\ /substSource:%TEST_SOLUTION_ROOT%\Out\M{machineNumber}\ /logsDirectory:{objectRoot}:\Logs /disableProcessRetryOnResourceExhaustion+
+set BUILDXL_COMMON_ARGS=/server- /exp:NewCache /exp:TwoPhaseFingerprinting /exp:DontBringOutputsToMaster /nowarn:2841 /nowarn:2200 /p:OfficeDropTestEnableDrop=True /f:~(tag='exclude-drop-file'ortag='dropd-finalize') "/storageRoot:{objectRoot}:\ " "/config:{sourceRoot}:\config.dsc" "/cacheConfigFilePath:%SMDB.CACHE_CONFIG_OUTPUT_PATH%" "/rootMap:{sourceRoot}=%TEST_SOLUTION_ROOT%" "/rootMap:{objectRoot}=%TEST_SOLUTION_ROOT%\Out\M{machineNumber}" "/cacheDirectory:{objectRoot}:\Cache"  /logObservedFileAccesses /substTarget:{objectRoot}:\ /substSource:%TEST_SOLUTION_ROOT%\Out\M{machineNumber}\ /logsDirectory:{objectRoot}:\Logs /disableProcessRetryOnResourceExhaustion+
 
 if NOT DEFINED DISABLE_DBD_TESTRUN (
-    %BUILDXL_TEST_BIN_DIRECTORY%\DistributedBuildRunner.exe 1 %*
+    %BUILDXL_TEST_BIN_DIRECTORY%\DistributedBuildRunner.exe 2 %*
 )
 
 if %ERRORLEVEL% NEQ 0 (

@@ -107,8 +107,10 @@ namespace Test.BuildXL.Processes.Detours
         /// This test exercises the ability of the manifest to tolerate trailing
         /// backslashes for directory leaves.
         /// </summary>
-        [Fact]
-        public void TestTrailingSeparatorsManifestTest()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestTrailingSeparatorsManifestTest(bool serializeManifest)
         {
             var pt = new PathTable();
             var fam =
@@ -131,7 +133,7 @@ namespace Test.BuildXL.Processes.Detours
             vac.AddScopeCheck(@"C:\Windows\System32", sys32, FileAccessPolicy.AllowReadAlways);
             vac.AddScopeCheck(@"C:\Windows\System32\", sys32, FileAccessPolicy.AllowReadAlways);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
         /// <summary>
@@ -139,8 +141,10 @@ namespace Test.BuildXL.Processes.Detours
         /// completely disjoint paths and scopes. Also tests case-insensitive matching
         /// by using lower and upper case in paths to find. No paths added have trailing '\\'.
         /// </summary>
-        [Fact]
-        public void SimpleRecordManifestTest()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void SimpleRecordManifestTest(bool serializeManifest)
         {
             var pt = new PathTable();
             var fam =
@@ -177,11 +181,13 @@ namespace Test.BuildXL.Processes.Detours
                 windows,
                 FileAccessPolicy.Deny);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
-        [Fact]
-        public void TestLinkExeManifestExample()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestLinkExeManifestExample(bool serializeManifest)
         {
             var pt = new PathTable();
             var fam =
@@ -214,11 +220,13 @@ namespace Test.BuildXL.Processes.Detours
             vac.AddPath(@"E:\dev\BuildXL\Out\Objects\Debug-X64\Detours-lib\cl_3\modules.obj", FileAccessPolicy.AllowReadAlways);
             vac.AddPath(@"E:\dev\BuildXL\Out\Objects\Debug-X64\Detours-lib\Link\Detours.lib", FileAccessPolicy.AllowReadAlways);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
-        [Fact]
-        public void TestStyleCopCmdExeManifestExample()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestStyleCopCmdExeManifestExample(bool serializeManifest)
         {
             var pt = new PathTable();
             var fam =
@@ -283,11 +291,13 @@ namespace Test.BuildXL.Processes.Detours
             vac.AddPath(@"E:\dev\BuildXL\src\BuildXL.Processes\SandboxedProcessResult.cs", FileAccessPolicy.AllowReadAlways);
             vac.AddPath(@"E:\dev\BuildXL\src\BuildXL.Processes\SandboxedProcessTimes.cs", FileAccessPolicy.AllowReadAlways);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
-        [Fact]
-        public void TestCscExeTestRunnerGenManifestExample()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestCscExeTestRunnerGenManifestExample(bool serializeManifest)
         {
             var pt = new PathTable();
             var fam =
@@ -332,11 +342,13 @@ namespace Test.BuildXL.Processes.Detours
             vac.AddPath(@"E:\dev\BuildXL\src\Test.BuildXLRunnerGen\Properties\AssemblyInfo.cs", FileAccessPolicy.AllowReadAlways);
             vac.AddPath(@"E:\dev\BuildXL\src\Test.BuildXLRunnerGen\SymbolTableBuilderTests.cs", FileAccessPolicy.AllowReadAlways);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
-        [Fact]
-        public void TestGenManifestExample()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestGenManifestExample(bool serializeManifest)
         {
             var pt = new PathTable();
             var fam =
@@ -530,7 +542,7 @@ namespace Test.BuildXL.Processes.Detours
             vac.AddPath(@"E:\dev\BuildXL\src\BuildXL.Transformers\Values\IVersion.cs", FileAccessPolicy.AllowReadAlways);
             vac.AddPath(@"E:\dev\BuildXL\src\BuildXL.Transformers\Values\StaticDirectory.cs", FileAccessPolicy.AllowReadAlways);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
         /// <summary>
@@ -538,7 +550,7 @@ namespace Test.BuildXL.Processes.Detours
         /// which has 1 project and 100 C# files. (Access pattern made by csc.exe.)
         /// This is intended to be a stress test.
         /// </summary>
-        private void TestSolutionMockupManifestTest(int numFiles)
+        private void TestSolutionMockupManifestTest(int numFiles, bool serializeManifest = false)
         {
             var pt = new PathTable();
             var fam =
@@ -577,13 +589,15 @@ namespace Test.BuildXL.Processes.Detours
 
             vac.AddScope(@"E:\dev\BuildXL\TestSolution\Project0\Properties\AssemblyInfo.cs", FileAccessPolicy.AllowReadAlways);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
-        [Fact]
-        public void TestSolution100()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestSolution100(bool serializeManifest)
         {
-            TestSolutionMockupManifestTest(100);
+            TestSolutionMockupManifestTest(100, serializeManifest);
         }
 
         [Fact]
@@ -604,11 +618,25 @@ namespace Test.BuildXL.Processes.Detours
             TestSolutionMockupManifestTest(10000);
         }
 
-        private static void TestManifestRetrieval(IEnumerable<ValidationData> validationData, FileAccessManifest fam)
+        private static void TestManifestRetrieval(IEnumerable<ValidationData> validationData, FileAccessManifest fam, bool serializeManifest)
         {
             foreach (var line in fam.Describe())
             {
                 Console.WriteLine(line);
+            }
+
+            if (serializeManifest)
+            {
+                string file = Path.GetTempFileName();
+                using (FileStream fileStream = File.OpenWrite(file))
+                {
+                    fam.Serialize(fileStream);
+                }
+
+                using (FileStream fileStream = File.OpenRead(file))
+                {
+                    XAssert.IsTrue(FileAccessManifest.TryDeserialize(fileStream, out fam));
+                }
             }
 
             byte[] manifestTreeBytes = fam.GetManifestTreeBytes();

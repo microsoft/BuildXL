@@ -819,6 +819,12 @@ namespace BuildXL.Processes
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
         public byte[] GetManifestTreeBytes()
         {
+            if (IsManifestTreeBlockSealed)
+            {
+                Contract.Assert(m_sealedManifestTreeBlock != null);
+                return m_sealedManifestTreeBlock;
+            }
+
             // start with 4 KB of memory (one page), which will expand as necessary
             // stream will be disposed by the BinaryWriter when it goes out of scope
             using (var stream = new MemoryStream(4096))

@@ -1204,6 +1204,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
             AssertTimestamps();
 
+            AssertWarningEventLogged(EventId.ConvertToRunnableFromCacheFailed, count: 0, allowMore: true);
+
             // helper inner functions
 
             void AssertTimestamps()

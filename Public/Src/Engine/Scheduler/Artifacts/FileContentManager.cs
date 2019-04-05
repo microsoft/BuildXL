@@ -1974,22 +1974,6 @@ namespace BuildXL.Scheduler.Artifacts
                 // we still are mandated to finish materializing if possible and eventually complete the materialization task.
                 using (operationContext.StartOperation(PipExecutorCounter.FileContentManagerPlaceFilesDuration))
                 {
-                    using (var sharedOpaqueOutputsWrapper = Pools.FileArtifactSetPool.GetInstance())
-                    {
-                        // Collect all shared opaque outputs, so we can make sure they are flagged appropriately as such
-                        // after materialization succeeds for each of them
-                        var allSharedOpaqueOutputs = sharedOpaqueOutputsWrapper.Instance;
-                        if (pipInfo.UnderlyingPip is Process process)
-                        {
-                            foreach (var sharedOpaqueDirectory in process.DirectoryOutputs.Where(directory => directory.IsSharedOpaque))
-                            {
-                                foreach (var fileArtifact in ListSealedDirectoryContents(sharedOpaqueDirectory))
-                                {
-                                    allSharedOpaqueOutputs.Add(fileArtifact);
-                                }
-                            }
-                        }
-
                         for (int i = 0; i < state.MaterializationFiles.Count; i++)
                         {
                             MaterializationFile materializationFile = state.MaterializationFiles[i];
@@ -2083,11 +2067,7 @@ namespace BuildXL.Scheduler.Artifacts
                                             origin: possiblyPlaced.Result.Origin,
                                             operationContext: operationContext);
 
-                                        // If the materialized file is part of a shared opaque, make sure it is flagged appropriately
-                                        if (allSharedOpaqueOutputs.Contains(file))
-                                        {
-                                            SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(file.Path.ToString(pathTable));
-                                        }
+                                        m_host.ReportFileArtifactPlaced(file);
                                     }
                                     else
                                     {
@@ -2106,7 +2086,6 @@ namespace BuildXL.Scheduler.Artifacts
                                 }));
                         }
                         await Task.WhenAll(state.PlacementTasks);
-                    }
                 }
             }
 

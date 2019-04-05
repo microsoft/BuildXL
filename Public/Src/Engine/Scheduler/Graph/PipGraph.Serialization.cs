@@ -26,7 +26,7 @@ namespace BuildXL.Scheduler.Graph
             public readonly ConcurrentBigMap<ModuleId, NodeId> Modules;
             public readonly ConcurrentBigMap<FileArtifact, NodeId> PipProducers;
             public readonly ConcurrentBigMap<DirectoryArtifact, NodeId> OpaqueDirectoryProducers;
-            public readonly ConcurrentBigSet<AbsolutePath> OutputDirectoryRoots;
+            public readonly ConcurrentBigMap<AbsolutePath, bool> OutputDirectoryRoots;
             public readonly ConcurrentBigMap<DirectoryArtifact, NodeId> CompositeOutputDirectoryProducers;
             public readonly ConcurrentBigMap<AbsolutePath, DirectoryArtifact> SourceSealedDirectoryRoots;
             public readonly ConcurrentBigMap<AbsolutePath, PipId> TemporaryPaths;
@@ -49,7 +49,7 @@ namespace BuildXL.Scheduler.Graph
                 ConcurrentBigMap<ModuleId, NodeId> modules,
                 ConcurrentBigMap<FileArtifact, NodeId> pipProducers,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> opaqueDirectoryProducers,
-                ConcurrentBigSet<AbsolutePath> outputDirectoryRoots,
+                ConcurrentBigMap<AbsolutePath, bool> outputDirectoryRoots,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> compositeSharedOpaqueProducers,
                 ConcurrentBigMap<AbsolutePath, DirectoryArtifact> sourceSealedDirectoryRoots,
                 ConcurrentBigMap<AbsolutePath, PipId> temporaryPaths,
@@ -95,7 +95,7 @@ namespace BuildXL.Scheduler.Graph
                 ConcurrentBigMap<ModuleId, NodeId> modules,
                 ConcurrentBigMap<FileArtifact, NodeId> pipProducers,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> opaqueDirectoryProducers,
-                ConcurrentBigSet<AbsolutePath> outputDirectoryRoots,
+                ConcurrentBigMap<AbsolutePath, bool> outputDirectoryRoots,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> compositeOutputDirectoryProducers,
                 ConcurrentBigMap<AbsolutePath, DirectoryArtifact> sourceSealedDirectoryRoots,
                 ConcurrentBigMap<AbsolutePath, PipId> temporaryPaths,
@@ -177,9 +177,11 @@ namespace BuildXL.Scheduler.Graph
                         reader.ReadDirectoryArtifact(),
                         new NodeId(reader.ReadUInt32())));
 
-                var outputDirectoryRoots = ConcurrentBigSet<AbsolutePath>.Deserialize(
+                var outputDirectoryRoots = ConcurrentBigMap<AbsolutePath, bool>.Deserialize(
                     reader,
-                    () => reader.ReadAbsolutePath());
+                    () => new KeyValuePair<AbsolutePath, bool>(
+                        reader.ReadAbsolutePath(),
+                        reader.ReadBoolean()));
 
                 var compositeOutputDirectoryProducers = ConcurrentBigMap<DirectoryArtifact, NodeId>.Deserialize(
                     reader,
@@ -330,9 +332,10 @@ namespace BuildXL.Scheduler.Graph
 
                 OutputDirectoryRoots.Serialize(
                     writer,
-                    path =>
+                    kvp =>
                     {
-                        writer.Write(path);
+                        writer.Write(kvp.Key);
+                        writer.Write(kvp.Value);
                     });
 
                 CompositeOutputDirectoryProducers.Serialize(

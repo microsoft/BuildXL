@@ -33,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
             {
                 attributes = fileSystem.GetFileAttributes(path);
             }
-            catch(FileNotFoundException)
+            catch (FileNotFoundException)
             {
                 // We checked file existence at the top of the method, but due to a race condition, the file can be gone
                 // at the point when we tried getting attributes.

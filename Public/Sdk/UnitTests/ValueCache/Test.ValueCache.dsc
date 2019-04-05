@@ -49,11 +49,17 @@ namespace Sdk.Tests {
         // Allowing a loophool for cache inspection.
         // We need to add a test-option to diable this validation when we close that loophole.
 
-        let full1 = Transformer.sealDirectory(d`Out/Dir1`, [f1a]);
+        let full1 = Transformer.sealDirectory({
+            root: d`Out/Dir1`, 
+            files: [f1a]
+        });
         getValueFromCache(full1, "full1");
 
         // Each sealed directory is unique
-        let full2 = Transformer.sealDirectory(d`Out/Dir1`, [f1a]);
+        let full2 = Transformer.sealDirectory({
+            root: d`Out/Dir1`, 
+            files: [f1a]
+        });
         getValueFromCache(full2, "full2");
 
         // Partial is different from full seal

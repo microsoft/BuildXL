@@ -10,7 +10,10 @@ namespace Contents {
     };
 
     @@public
-    export const all: StaticDirectory = Transformer.sealDirectory(d`.`, []);
+    export const all: StaticDirectory = Transformer.sealDirectory({
+        root: d`.`, 
+        files: []
+    });
 }
 
 @@public

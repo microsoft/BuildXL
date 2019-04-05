@@ -128,7 +128,10 @@ function runTest(args : TestRunArguments) : File[] {
         testAssembly: args.testDeployment.primaryFile.path,
         qTestType: Qtest.QTestType.msTest_latest,
         qTestDirToDeploy: args.testDeployment.contents,
-        qTestAdapterPath: Transformer.sealDirectory(testAdapterPath, globR(testAdapterPath, "*")),
+        qTestAdapterPath: Transformer.sealDirectory({
+            root: testAdapterPath, 
+            files: globR(testAdapterPath, "*")
+        }),
         qTestDotNetFramework: Qtest.QTestDotNetFramework.framework45,
         qTestPlatform: Qtest.QTestPlatform.x64,
         qTestRetryOnFailure: true,

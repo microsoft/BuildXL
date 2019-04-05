@@ -59,8 +59,14 @@ namespace Sandbox {
     const bundleInfoTestFile = f`BundleInfoTest.xcconfig`;
 
     const isMacOs = Context.getCurrentHost().os === "macOS";
-    const interopXcodeproj = Transformer.sealDirectory(d`Interop/Interop.xcodeproj`, globR(d`Interop/Interop.xcodeproj`, "*"));
-    const sandboxXcodeproj = Transformer.sealDirectory(d`Sandbox/Sandbox.xcodeproj`, globR(d`Sandbox/Sandbox.xcodeproj`, "*"));
+    const interopXcodeproj = Transformer.sealDirectory({
+        root: d`Interop/Interop.xcodeproj`, 
+        files: globR(d`Interop/Interop.xcodeproj`, "*")
+    });
+    const sandboxXcodeproj = Transformer.sealDirectory({
+        root: d`Sandbox/Sandbox.xcodeproj`, 
+        files: globR(d`Sandbox/Sandbox.xcodeproj`, "*")
+    });
 
     const ariaPkg = importFrom("Aria.Cpp.SDK.osx-x64");
     const ariaXcconfig = Transformer.writeData(

@@ -95,12 +95,14 @@ namespace _PreludeAmbientHack_Transformer {
     export declare function getIpcServerMoniker(): IpcMoniker;
     export declare function getDominoIpcServerMoniker(): IpcMoniker;
     export declare function copyFile(sourceFile: File, destinationFile: Path, tags?: string[], description?: string, keepOutputsWritable?: boolean): DerivedFile;
+    
     export declare function writeFile(destinationFile: Path, content: any, tags?: string[], separator?: string, description?: string): DerivedFile;
-    export declare function writeData(destinationFile: Path, content: any, tags?: string[], description?: string): DerivedFile;
-    export declare function writeAllLines(destinationFile: Path, contents: any[], tags?: string[], description?: string): DerivedFile;
-    export declare function writeAllText(destinationFile: Path, content: string, tags?: string[], description?: string): DerivedFile;
-    export declare function sealDirectory(root: Directory, files: File[], tags?: string[], description?: string, scrub?: boolean): FullStaticContentDirectory;
-    export declare function sealSourceDirectory(root: Directory, option?: number, tags?: string[], description?: string, patterns?: string[]): SourceDirectory;
-    export declare function sealPartialDirectory(root: Directory, files: File[], tags?: string[], description?: string): PartialStaticContentDirectory;
-    export declare function composeSharedOpaqueDirectories(root: Directory, directories: SharedOpaqueDirectory[]): SharedOpaqueDirectory;
+    export declare function writeData(destinationPathOrArgs: (Path | Object), content: any, tags?: string[], description?: string): DerivedFile;
+    export declare function writeAllLines(destinationPathOrArgs: (Path | Object), contents: any[], tags?: string[], description?: string): DerivedFile;
+    export declare function writeAllText(destinationPathOrArgs: (Path | Object), content: string, tags?: string[], description?: string): DerivedFile;
+    
+    export declare function sealDirectory(rootOrArgs: (Directory | Object), files: File[], tags?: string[], description?: string, scrub?: boolean): FullStaticContentDirectory;
+    export declare function sealSourceDirectory(rootOrArgs: (Directory | Object), option?: number, tags?: string[], description?: string, patterns?: string[]): SourceDirectory;
+    export declare function sealPartialDirectory(rootOrArgs: (Directory | Object), files: File[], tags?: string[], description?: string): PartialStaticContentDirectory;
+    export declare function composeSharedOpaqueDirectories(rootOrArgs: (Directory | Object), directories: SharedOpaqueDirectory[]): SharedOpaqueDirectory;
 }

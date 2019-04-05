@@ -1,5 +1,5 @@
-Transformer.sealPartialDirectory(d`./src/artifactDirSNone`, []);
-Transformer.sealPartialDirectory(d`./src/artifactDirSIn`, []);
+Transformer.sealPartialDirectory({root: d`./src/artifactDirSNone`, files: []});
+Transformer.sealPartialDirectory({root: d`./src/artifactDirSIn`, files: []});
 Transformer.execute({
     tool: {exe: f`./src/stringInput.exe`},
     arguments: {
@@ -146,4 +146,4 @@ Transformer.execute({
     ],
     implicitOutputs: [f`./Out/artifactPathOut`, f`./Out/file1.out`, d`./Out/artifactDirOut`],
 });
-Transformer.sealDynamicDirectory(d`./Out/artifactDirOut`);
+Transformer.sealDynamicDirectory({root: d`./Out/artifactDirOut`});

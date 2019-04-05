@@ -171,21 +171,20 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
                     throw Contract.AssertFailure($"Unexpected SealDirectoryKind from pip.Kind: {pip.Kind}");
             }
 
-            var args = new List<IExpression>(4);
-            args.Add(Generate(pip.Directory));
+            var args = new List<IObjectLiteralElement>(6);
+            args.Add(new PropertyAssignment("root", Generate(pip.Directory)));
 
             switch (pip.Kind)
             {
                 case SealDirectoryKind.Full:
                 case SealDirectoryKind.Partial:
-                    functionName = "sealPartialDirectory";
-                    args.Add(Generate(pip.Contents));
+                    args.Add(new PropertyAssignment("files", Generate(pip.Contents)));
                     break;
                 case SealDirectoryKind.SourceAllDirectories:
-                    args.Add(new PropertyAccessExpression("Transformer", "SealSourceDirectoryOption", "allDirectories"));
+                    args.Add(new PropertyAssignment("include", new LiteralExpression("allDirectories")));
                     break;
                 case SealDirectoryKind.SourceTopDirectoryOnly:
-                    args.Add(new PropertyAccessExpression("Transformer", "SealSourceDirectoryOption", "topDirectoryOnly"));
+                    args.Add(new PropertyAssignment("include", new LiteralExpression("topDirectoryOnly")));
                     break;
                 case SealDirectoryKind.Opaque:
                 case SealDirectoryKind.SharedOpaque:
@@ -196,13 +195,27 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
 
             if (pip.Tags.Length > 0)
             {
-                args.Add(Generate(pip.Tags));
+                args.Add(new PropertyAssignment("tags", Generate(pip.Tags)));
+            }
+
+            if (pip.Provenance.Usage.IsValid)
+            {
+                var description = pip.Provenance.Usage.ToString(m_pathTable);
+                if (!description.EndsWith(" files]"))
+                {
+                    args.Add(new PropertyAssignment("description", new LiteralExpression(pip.Provenance.Usage.ToString(m_pathTable))));
+                }
+            }
+
+            if (pip.Scrub)
+            {
+                args.Add(new PropertyAssignment("scrub", new PrimaryExpression(true)));
             }
 
             // Skip Description
             return new CallExpression(
                 new PropertyAccessExpression("Transformer", functionName),
-                args.ToArray());
+                new ObjectLiteralExpression(args));
         }
 
         private IExpression Generate(Process pip)

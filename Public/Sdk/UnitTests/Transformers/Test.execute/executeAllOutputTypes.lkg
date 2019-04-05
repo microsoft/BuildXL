@@ -1,5 +1,5 @@
 
-Transformer.sealPartialDirectory(d`./src/seal2`, [f`./src/seal2/file2`]);
+Transformer.sealDirectory({root: d`./src/seal2`, files: [f`./src/seal2/file2`]});
 Transformer.execute({
     tool: {exe: f`./src/tool/tool.exe`},
     arguments: {
@@ -44,6 +44,6 @@ Transformer.execute({
         ],
     },
 });
-Transformer.sealDynamicDirectory(d`./Out/Directory1`);
-Transformer.sealDynamicDirectory(d`./Out/Directory2`);
-Transformer.sealSharedDynamicDirectory(d`./Out/Directory3`);
+Transformer.sealDynamicDirectory({root: d`./Out/Directory1`, description: "testDescription"});
+Transformer.sealDynamicDirectory({root: d`./Out/Directory2`, description: "testDescription"});
+Transformer.sealSharedDynamicDirectory({root: d`./Out/Directory3`, description: "testDescription"});

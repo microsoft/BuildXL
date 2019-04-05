@@ -1,5 +1,6 @@
 Transformer.sealSourceDirectory({
     root: d`./src`,
-    include: "allDirectories",
+    include: "topDirectoryOnly",
     tags: ["aTag", "zTag"],
+    description: "Custom description",
 });

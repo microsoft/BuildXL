@@ -247,18 +247,17 @@ message SelectorData {
 }
 
 message CopyFileRequest {
-    string TraceId = 1;
-    int32 HashType = 2;
-    bytes ContentHash = 3;
-    string Drive = 4;
-    int64 Offset = 5;
+    string traceId = 1;
+    int32 hashType = 2;
+    bytes contentHash = 3;
+    string drive = 4;
+    int64 offset = 5;
     CopyCompression compression = 6;
 }
 
 message CopyFileResponse {
-    ResponseHeader Header = 1;
-    bytes Content = 2;
-    int64 Index = 3;
+    bytes content = 1;
+    int64 index = 2;
 }
 
 enum CopyCompression {

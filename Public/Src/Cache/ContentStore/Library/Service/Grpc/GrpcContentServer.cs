@@ -3,6 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -153,96 +156,173 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             };
         }
 
+        private async Task<OpenStreamResult> GetFileStreamAsync (Context context, ContentHash hash)
+        {
+            // For now, take the first store. Change this to interate through all stores
+            // until content is found.
+            IStreamStore store = _contentStoreByCacheName.First().Value as IStreamStore;
+
+            if (store == null)
+            {
+                return new OpenStreamResult("No content store available.");
+            }
+
+            OpenStreamResult result = await store.StreamContentAsync(context, hash);
+
+            return result;
+        }
+
         /// <summary>
         /// Implements a copy file request.
         /// </summary>
         public async Task CopyFileAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context)
         {
-            DateTime startTime = DateTime.UtcNow;
-
             try
             {
                 LogRequestHandling();
 
-                var cacheContext = new Context(new Guid(request.TraceId), _logger);
+                // Get the content stream.
+                Context cacheContext = new Context(new Guid(request.TraceId), _logger);
+                HashType type = (HashType) request.HashType;
+                ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
+                OpenStreamResult result = await GetFileStreamAsync(cacheContext, hash);
 
-                if (!_nameByDrive.TryGetValue(request.Drive, out string name))
+                using (result.Stream)
                 {
-                    await responseStream.WriteAsync(
-                        new CopyFileResponse
-                        {
-                            Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{request.Drive}' is an invalid cache."),
-                        });
-                }
-
-                if (!_contentStoreByCacheName.TryGetValue(name, out var cache))
-                {
-                    await responseStream.WriteAsync(
-                        new CopyFileResponse
-                        {
-                            Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{name}' is an invalid cache name."),
-                        });
-                }
-
-
-                if (!(cache is IStreamStore copyStore))
-                {
-                    await responseStream.WriteAsync(
-                        new CopyFileResponse
-                        {
-                            Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.SourcePathError, $"'{request.Drive}' does not support copying."),
-                        });
-                    return;
-                }
-
-                var openStreamResult = await copyStore.StreamContentAsync(cacheContext, request.ContentHash.ToContentHash((HashType)request.HashType));
-                if (openStreamResult.Succeeded)
-                {
-                    await StreamContentAsync(openStreamResult, responseStream, startTime);
-                }
-                else
-                {
-                    await responseStream.WriteAsync(
-                        new CopyFileResponse
-                        {
-                            Header = new ResponseHeader(startTime, false, (int)openStreamResult.Code, openStreamResult.ErrorMessage, openStreamResult.Diagnostics),
-                        });
-                }
-            }
-            catch (Exception e)
-            {
-                await responseStream.WriteAsync(
-                    new CopyFileResponse
+                    // Figure out response headers.
+                    CopyCompression compression = CopyCompression.None;
+                    Metadata headers = new Metadata();
+                    headers.Add("ContentHash", hash.ToString());
+                    switch (result.Code)
                     {
-                        Header = new ResponseHeader(startTime, false, (int)CopyFileResult.ResultCode.Unknown, e.ToString()),
-                    });
+                        case OpenStreamResult.ResultCode.ContentNotFound:
+                            headers.Add("Exception", "ContentNotFound");
+                            headers.Add("Message", $"Requested content {hash} not found.");
+                            break;
+                        case OpenStreamResult.ResultCode.Error:
+                            Debug.Assert(result.Exception != null);
+                            headers.Add("Exception", result.Exception.GetType().Name);
+                            headers.Add("Message", result.Exception.Message);
+                            break;
+                        case OpenStreamResult.ResultCode.Success:
+                            Debug.Assert(result.Stream != null);
+                            long size = result.Stream.Length;
+                            headers.Add("FileSize", size.ToString());
+                            if ((request.Compression == CopyCompression.Gzip) && (size > ContentStore.Grpc.CopyConstants.DefaultBufferSize)) {
+                                compression = CopyCompression.Gzip;
+                            }
+                            headers.Add("Compression", compression.ToString());
+                            headers.Add("ChunkSize", ContentStore.Grpc.CopyConstants.DefaultBufferSize.ToString());
+                            break;
+                    }
+
+                    // Send the response headers.
+                    await context.WriteResponseHeadersAsync(headers);
+
+                    // Send the content.
+                    if (result.Succeeded)
+                    {
+                        byte[] buffer = new byte[ContentStore.Grpc.CopyConstants.DefaultBufferSize];
+                        switch (compression)
+                        {
+                            case CopyCompression.None:
+                                await StreamContentAsync(result.Stream, buffer, responseStream, context.CancellationToken);
+                                break;
+                            case CopyCompression.Gzip:
+                                await StreamContentWithCompressionAsync(result.Stream, buffer, responseStream, context.CancellationToken);
+                                break;
+                        }               
+                    }
+                }
+            
+            }
+            catch (Exception)
+            {
+                throw;
             }
         }
 
-        private async Task StreamContentAsync(OpenStreamResult openStreamResult, IServerStreamWriter<CopyFileResponse> responseStream, DateTime startTime)
+        private async Task<(long, long)> StreamContentAsync(Stream reader, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken cts = default(CancellationToken))
+        {
+            Debug.Assert(!(reader is null));
+            Debug.Assert(!(responseStream is null));
+
+            long chunks = 0L;
+            long bytes = 0L;
+            while (true)
+            {
+                int chunkSize = await reader.ReadAsync(buffer, 0, buffer.Length, cts).ConfigureAwait(false);
+                if (chunkSize == 0) { break; }
+
+                ByteString content = ByteString.CopyFrom(buffer, 0, chunkSize);
+                CopyFileResponse response = new CopyFileResponse() { Content = content, Index = chunks };
+                await responseStream.WriteAsync(response).ConfigureAwait(false);
+
+                bytes += chunkSize;
+                chunks++;
+
+                Console.WriteLine(chunks);
+            }
+
+            return (chunks, bytes);
+        }
+
+        /*
+        private async Task<(long, long)> StreamContentAsync(OpenStreamResult openStreamResult, IServerStreamWriter<CopyFileResponse> responseStream)
         {
             using (var stream = openStreamResult.Stream)
             {
-                byte[] buffer = new byte[ContentStore.Grpc.Utils.DefaultBufferSize];
+                byte[] buffer = new byte[ContentStore.Grpc.Constants.DefaultBufferSize];
                 long chunks = 0;
 
                 while (true)
                 {
                     int chunkSize = await stream.ReadAsync(buffer, 0, buffer.Length);
-                    if (chunkSize == 0) break;
+                    if (chunkSize == 0) { break; }
 
                     ByteString content = ByteString.CopyFrom(buffer, 0, chunkSize);
-                    CopyFileResponse reply = new CopyFileResponse()
+                    CopyFileResponse response = new CopyFileResponse()
                     {
-                        // TODO: Check on this code
-                        Header = new ResponseHeader(startTime, openStreamResult.Succeeded, (int)openStreamResult.Code, openStreamResult.ErrorMessage, openStreamResult.Diagnostics),
                         Content = content,
                         Index = chunks
                     };
-                    await responseStream.WriteAsync(reply);
+                    await responseStream.WriteAsync(response);
                     chunks++;
                 }
             }
+        }
+        */
+
+        private async Task<(long, long)> StreamContentWithCompressionAsync(Stream reader, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken cts = default(CancellationToken))
+        {
+            Debug.Assert(!(reader is null));
+            Debug.Assert(!(responseStream is null));
+
+            long bytes = 0L;
+            long chunks = 0L;
+            using (Stream grpcStream = new BufferedWriteStream(
+                buffer,
+                async (byte[] bf, int offset, int count) =>
+                {
+                    ByteString content = ByteString.CopyFrom(bf, offset, count);
+                    CopyFileResponse response = new CopyFileResponse() { Content = content, Index = chunks };
+                    await responseStream.WriteAsync(response);
+                    bytes += count;
+                    chunks++;
+                }
+            ))
+
+            {
+                using (Stream compressionStream = new GZipStream(grpcStream, System.IO.Compression.CompressionLevel.Fastest, true))
+                {
+                    await reader.CopyToAsync(compressionStream, buffer.Length, cts).ConfigureAwait(false);
+                    await compressionStream.FlushAsync().ConfigureAwait(false);
+                }
+                await grpcStream.FlushAsync().ConfigureAwait(false);
+            }
+
+            return (chunks, bytes);
+
         }
 
 

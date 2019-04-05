@@ -172,7 +172,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public ContentHash? ComputeSearchPathToolsHash()
         {
-            if (m_searchPathEnumerationToolFragments.Count == 0)
+            if (m_searchPathEnumerationToolFragments == null || m_searchPathEnumerationToolFragments.Count == 0)
             {
                 return null;
             }

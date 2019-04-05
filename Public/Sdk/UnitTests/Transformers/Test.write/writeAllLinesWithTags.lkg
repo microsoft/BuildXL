@@ -1,0 +1,15 @@
+Transformer.writeFile(
+    f`./Out/file`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            {
+                escaping: "NoEscaping",
+                separator: "\r\n",
+                items: ["line 1", "line 2"],
+            },
+        ],
+    },
+    ["tagA", "tagZ"]
+);

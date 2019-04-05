@@ -848,7 +848,12 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
                 if (status.StatusCodeUint == (uint)NativeMethods.NtStatusCode.StatusAccessDenied)
                 {
-                    if ((GetFileAttributes(destinationFileName) & FileAttributes.ReadOnly) != 0)
+                    // Access denied status can be returned by two reasons:
+                    // 1. Something went wrong with the source path
+                    // 2. Something went wrong with the destination path.
+                    // The second case is potentially recoverable: so, we'll check the destination's file attribute
+                    // and if the file has readonly attributes, then we'll remove them and will try to create hardlink one more time.
+                    if (this.TryGetFileAttributes(destinationFileName, out var attributes) && (attributes & FileAttributes.ReadOnly) != 0)
                     {
                         SetFileAttributes(destinationFileName, FileAttributes.Normal);
                         status = setLink(sourceFileHandle, linkInfo);

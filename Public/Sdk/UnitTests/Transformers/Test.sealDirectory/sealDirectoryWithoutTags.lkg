@@ -1,2 +1,0 @@
-
-Transformer.sealPartialDirectory(d`./src`, [f`./src/file1`, f`./src/file2`]);

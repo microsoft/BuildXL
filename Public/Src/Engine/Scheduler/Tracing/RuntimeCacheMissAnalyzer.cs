@@ -169,11 +169,7 @@ namespace BuildXL.Scheduler.Tracing
                     return;
                 }
 
-                if (!TryGetFingerprintStoreEntry(pip, out FingerprintStoreEntry oldEntry))
-                {
-                    return;
-                }
-
+                TryGetFingerprintStoreEntry(pip, out FingerprintStoreEntry oldEntry);
                 PerformCacheMissAnalysis(pip, oldEntry, newEntry, fromCacheLookup);
             }
         }

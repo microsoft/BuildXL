@@ -50,6 +50,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             InitializeProcessNames();
             InitializeProcessOutputNames();
             IntializeIpcNames();
+            InitializeSealDirectoryNames();
+            InitializeWriteNames();
 
             InitializeSignaturesAndStatsForProcessOutputs(StringTable);
         }

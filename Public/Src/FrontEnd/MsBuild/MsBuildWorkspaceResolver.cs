@@ -240,7 +240,7 @@ namespace BuildXL.FrontEnd.MsBuild
                     return new MsBuildGraphConstructionFailure(m_resolverSettings, Context.PathTable);
                 }
 
-                if (!TryRetrieveParsingEntryPoint(out AbsolutePath parsingEntryPoint))
+                if (!TryRetrieveParsingEntryPoint(out IEnumerable<AbsolutePath> parsingEntryPoints))
                 {
                     // Errors should have been logged
                     return new MsBuildGraphConstructionFailure(m_resolverSettings, Context.PathTable);
@@ -248,7 +248,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
                 BuildParameters.IBuildParameters buildParameters = RetrieveBuildParameters();
 
-                m_projectGraph = await TryComputeBuildGraphAsync(searchLocations, parsingEntryPoint, buildParameters);
+                m_projectGraph = await TryComputeBuildGraphAsync(searchLocations, parsingEntryPoints, buildParameters);
             }
 
             return m_projectGraph.Value;
@@ -277,11 +277,11 @@ namespace BuildXL.FrontEnd.MsBuild
             return buildParameters;
         }
 
-        private bool TryRetrieveParsingEntryPoint(out AbsolutePath parsingEntryPoint)
+        private bool TryRetrieveParsingEntryPoint(out IEnumerable<AbsolutePath> parsingEntryPoints)
         {
-            if (m_resolverSettings.FileNameEntryPoint.HasValue)
+            if (m_resolverSettings.FileNameEntryPoints?.Count > 0)
             {
-                parsingEntryPoint = m_resolverSettings.RootTraversal.Combine(Context.PathTable, m_resolverSettings.FileNameEntryPoint.Value);
+                parsingEntryPoints = m_resolverSettings.FileNameEntryPoints.Select(entryPoint => m_resolverSettings.RootTraversal.Combine(Context.PathTable, entryPoint));
                 return true;
             }
 
@@ -298,7 +298,7 @@ namespace BuildXL.FrontEnd.MsBuild
             // If there is a single element, that's the one
             if (filesInRootTraversal.Count == 1)
             {
-                parsingEntryPoint = filesInRootTraversal.First();
+                parsingEntryPoints = filesInRootTraversal;
                 return true;
             }
 
@@ -314,7 +314,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 Tracing.Logger.Log.TooManyParsingEntryPointCandidates(Context.LoggingContext, m_resolverSettings.Location(Context.PathTable), m_resolverSettings.RootTraversal.ToString(Context.PathTable), candidates);
             }
             
-            parsingEntryPoint = AbsolutePath.Invalid;
+            parsingEntryPoints = null;
             return false;
 
         }
@@ -322,7 +322,7 @@ namespace BuildXL.FrontEnd.MsBuild
         /// <summary>
         /// TODO: this needs to be qualifier-specific
         /// </summary>
-        private async Task<Possible<ProjectGraphResult>> TryComputeBuildGraphAsync(IEnumerable<AbsolutePath> searchLocations, AbsolutePath parsingEntryPoint, BuildParameters.IBuildParameters buildParameters)
+        private async Task<Possible<ProjectGraphResult>> TryComputeBuildGraphAsync(IEnumerable<AbsolutePath> searchLocations, IEnumerable<AbsolutePath> parsingEntryPoints, BuildParameters.IBuildParameters buildParameters)
         {
             // We create a unique output file on the obj folder associated with the current front end, and using a GUID as the file name
             AbsolutePath outputDirectory = FrontEndHost.GetFolderForFrontEnd(m_frontEnd.Name);
@@ -333,7 +333,7 @@ namespace BuildXL.FrontEnd.MsBuild
             // Make sure the directories are there
             FileUtilities.CreateDirectory(outputDirectory.ToString(Context.PathTable));
 
-            Possible<ProjectGraphWithPredictionsResult<AbsolutePath>> maybeProjectGraphResult = await ComputeBuildGraphAsync(responseFile, parsingEntryPoint, outputFile, searchLocations, buildParameters);
+            Possible<ProjectGraphWithPredictionsResult<AbsolutePath>> maybeProjectGraphResult = await ComputeBuildGraphAsync(responseFile, parsingEntryPoints, outputFile, searchLocations, buildParameters);
 
             if (!maybeProjectGraphResult.Succeeded)
             {
@@ -428,12 +428,12 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private async Task<Possible<ProjectGraphWithPredictionsResult<AbsolutePath>>> ComputeBuildGraphAsync(
             AbsolutePath responseFile,
-            AbsolutePath projectEntryPoint, 
+            IEnumerable<AbsolutePath> projectEntryPoints, 
             AbsolutePath outputFile, 
             IEnumerable<AbsolutePath> searchLocations, 
             BuildParameters.IBuildParameters buildParameters)
         {
-            SandboxedProcessResult result = await RunMsBuildGraphBuilderAsync(responseFile, projectEntryPoint, outputFile, searchLocations, buildParameters);
+            SandboxedProcessResult result = await RunMsBuildGraphBuilderAsync(responseFile, projectEntryPoints, outputFile, searchLocations, buildParameters);
 
             string standardError = result.StandardError.CreateReader().ReadToEndAsync().GetAwaiter().GetResult();
 
@@ -505,7 +505,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private Task<SandboxedProcessResult> RunMsBuildGraphBuilderAsync(
             AbsolutePath responseFile,
-            AbsolutePath projectEntryPoint, 
+            IEnumerable<AbsolutePath> projectEntryPoints, 
             AbsolutePath outputFile, 
             IEnumerable<AbsolutePath> searchLocations, 
             BuildParameters.IBuildParameters buildParameters)
@@ -519,7 +519,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 
             var arguments = new MSBuildGraphBuilderArguments(
                 enlistmentRoot,
-                projectEntryPoint.ToString(Context.PathTable),
+                projectEntryPoints.Select(entryPoint => entryPoint.ToString(Context.PathTable)).ToList(),
                 outputFileString,
                 m_resolverSettings.GlobalProperties,
                 searchLocations.Select(location => location.ToString(Context.PathTable)).ToList(),

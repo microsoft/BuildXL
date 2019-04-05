@@ -139,10 +139,13 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
     msBuildSearchLocations?: Directory[];
 
     /**
-     * Optional file name for the project or solution that should be used to start parsing (under the root traversal)
-     * If not provided, BuildXL will try to find a candidate under the root traversal
+     * Optional file paths for the projects or solutions that should be used to start parsing. These are relative 
+     * paths with respect to the root traversal.
+     *
+     * If not provided, BuildXL will attempt to find a candidate under the root traversal. If more than one candidate
+     * is available, the process will fail.
      */
-    fileNameEntryPoint?: PathAtom;
+    fileNameEntryPoints?: RelativePath[];
     
     /**
      * Targets to execute on the entry point project. If not provided, the default targets are used.
@@ -200,6 +203,15 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
      * Defaults to false.
      */
     enableTransitiveProjectReferences?: boolean;
+
+    /**
+     * When true, MSBuild projects are not treated as first class citizens and MSBuild is instructed to build each project using the legacy mode, 
+     * which relies on SDK conventions to respect the boundaries of a project and not build dependencies. The legacy mode is less restrictive than the
+     * default mode, where explicit project references to represent project dependencies are strictly enforced, but a decrease in build performance and 
+     * other build failures may occur (e.g. double writes due to overbuilds).
+     * Defaults to false.
+     */
+    useLegacyProjectIsolation?: boolean;
 }
 
 

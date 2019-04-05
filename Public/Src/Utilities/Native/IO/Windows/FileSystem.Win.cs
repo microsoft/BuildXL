@@ -1167,7 +1167,8 @@ namespace BuildXL.Native.IO.Windows
                     error == NativeIOConstants.ErrorJournalNotActive ||
                     error == NativeIOConstants.ErrorInvalidFunction ||
                     error == NativeIOConstants.ErrorOnlyIfConnected ||
-                    error == NativeIOConstants.ErrorAccessDenied)
+                    error == NativeIOConstants.ErrorAccessDenied ||
+                    error == NativeIOConstants.ErrorNotSupported)
                 {
                     return null;
                 }

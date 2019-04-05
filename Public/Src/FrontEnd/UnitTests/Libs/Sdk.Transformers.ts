@@ -309,28 +309,28 @@ namespace Transformer {
 
     /** Seals specified root folder with a set of files; the created pip is tagged with 'tags'. */
     @@public
-    export function sealDirectory(root: Directory, files: File[], tags?: string[], description?: string, scrub?: boolean): StaticDirectory {
-        return _PreludeAmbientHack_Transformer.sealDirectory(root, files, tags, description, scrub);
+    export function sealDirectory(rootOrArgs: any, files: File[], tags?: string[], description?: string, scrub?: boolean): StaticDirectory {
+        return _PreludeAmbientHack_Transformer.sealDirectory(rootOrArgs, files, tags, description, scrub);
     }
 
     /** Seals specified root folder without the need to specify all files provided root is under a readonly mount; the created pip is tagged with 'tags'. */
     @@public
-    export function sealSourceDirectory(root: Directory, option?: SealSourceDirectoryOption, tags?: string[], description?: string, patterns?: string[]): StaticDirectory {
-        return _PreludeAmbientHack_Transformer.sealSourceDirectory(root, option, tags, description, patterns);
+    export function sealSourceDirectory(rootOrArgs: any, option?: SealSourceDirectoryOption, tags?: string[], description?: string, patterns?: string[]): StaticDirectory {
+        return _PreludeAmbientHack_Transformer.sealSourceDirectory(rootOrArgs, option, tags, description, patterns);
     }
 
     /** Seals a partial view of specified root folder with a set of files; the created pip is tagged with 'tags'. */
     @@public
-    export function sealPartialDirectory(root: Directory, files: File[], tags?: string[], description?: string): StaticDirectory {
-        return _PreludeAmbientHack_Transformer.sealPartialDirectory(root, files, tags, description);
+    export function sealPartialDirectory(rootOrArgs: any, files: File[], tags?: string[], description?: string): StaticDirectory {
+        return _PreludeAmbientHack_Transformer.sealPartialDirectory(rootOrArgs, files, tags, description);
     }
 
 	/** Creates a shared opaque directory whose content is the aggregation of a collection of shared opaque directories.
      * The provided root can be any arbitrary directory that is a common ancestor to all the provided directories
     */
     @@public
-    export function composeSharedOpaqueDirectories(root: Directory, directories: SharedOpaqueDirectory[]): SharedOpaqueDirectory {
-        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(root, directories);
+    export function composeSharedOpaqueDirectories(rootOrArgs: any, directories: SharedOpaqueDirectory[]): SharedOpaqueDirectory {
+        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(rootOrArgs, directories);
     }
 
 
@@ -546,19 +546,19 @@ namespace Transformer {
 
     /** Writes data to file. */
     @@public
-    export function writeData(destinationFile: Path, content: Data, tags?: string[], description?: string): DerivedFile {
+    export function writeData(destinationFile: any, content: Data, tags?: string[], description?: string): DerivedFile {
         return _PreludeAmbientHack_Transformer.writeData(destinationFile, content, tags, description);
     }
 
     /** Write all lines. */
     @@public
-    export function writeAllLines(destinationFile: Path, contents: Data[], tags?: string[], description?: string): DerivedFile {
+    export function writeAllLines(destinationFile: any, contents: Data[], tags?: string[], description?: string): DerivedFile {
         return _PreludeAmbientHack_Transformer.writeAllLines(destinationFile, contents, tags, description);
     }
 
     /** Write all text. */
     @@public
-    export function writeAllText(destinationFile: Path, content: string, tags?: string[], description?: string): DerivedFile {
+    export function writeAllText(destinationFile: any, content: string, tags?: string[], description?: string): DerivedFile {
         return _PreludeAmbientHack_Transformer.writeAllText(destinationFile, content, tags, description);
     }
 

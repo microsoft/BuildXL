@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using MsBuildGraphBuilderTool;
@@ -50,7 +51,7 @@ namespace Test.ProjectGraphBuilder
             var entryPointPath = m_builder.WriteProjectsWithReferences(projectChains);
 
             // Parse the projects, build the graph, serialize it to disk and deserialize it back
-            var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(entryPointPath);
+            var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(new[] { entryPointPath });
 
             Assert.True(projectGraphWithPredictionsResult.Succeeded);
 
@@ -58,14 +59,14 @@ namespace Test.ProjectGraphBuilder
             m_builder.ValidateGraphIsSubgraphOfChains(projectGraphWithPredictionsResult.Result, exactMatch, projectChains);
         }
 
-        private ProjectGraphWithPredictionsResult<string> BuildGraphAndDeserialize(string projectEntryPoint)
+        private ProjectGraphWithPredictionsResult<string> BuildGraphAndDeserialize(IReadOnlyCollection<string> projectEntryPoints)
         {
             string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
 
             MsBuildGraphBuilder.BuildGraphAndSerialize(
                 new MSBuildGraphBuilderArguments(
                     TestOutputDirectory,
-                    projectEntryPoint,
+                    projectEntryPoints,
                     outputFile,
                     globalProperties: null,
                     mSBuildSearchLocations: new[] {TestDeploymentDir},

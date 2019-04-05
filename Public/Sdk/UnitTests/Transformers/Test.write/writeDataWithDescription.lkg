@@ -1,0 +1,8 @@
+Transformer.writeFile(
+    f`./Out/file`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: ["FileContent"],
+    }
+);

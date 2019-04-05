@@ -34,7 +34,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UntrackedDirectories = resolverSettings.UntrackedDirectories;
             RunInContainer = resolverSettings.RunInContainer;
             MsBuildSearchLocations = resolverSettings.MsBuildSearchLocations;
-            FileNameEntryPoint = resolverSettings.FileNameEntryPoint;
+            FileNameEntryPoints = resolverSettings.FileNameEntryPoints;
             InitialTargets = resolverSettings.InitialTargets;
             Environment = resolverSettings.Environment;
             GlobalProperties = resolverSettings.GlobalProperties;
@@ -43,6 +43,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnableEngineTracing = resolverSettings.EnableEngineTracing;
             KeepProjectGraphFile = resolverSettings.KeepProjectGraphFile;
             EnableTransitiveProjectReferences = resolverSettings.EnableTransitiveProjectReferences;
+            UseLegacyProjectIsolation = resolverSettings.UseLegacyProjectIsolation;
         }
 
         /// <inheritdoc/>
@@ -73,7 +74,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public IReadOnlyList<DirectoryArtifact> MsBuildSearchLocations { get; set; }
 
         /// <inheritdoc/>
-        public PathAtom? FileNameEntryPoint { get; set; }
+        public IReadOnlyList<RelativePath> FileNameEntryPoints { get; set; }
 
         /// <inheritdoc/>
         public IReadOnlyList<string> InitialTargets { get; set; }
@@ -98,5 +99,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool? EnableTransitiveProjectReferences { get; set; }
+
+        /// <inheritdoc/>
+        public bool? UseLegacyProjectIsolation { get; set; }
     }
 }

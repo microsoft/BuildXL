@@ -634,14 +634,14 @@ namespace Test.BuildXL.Processes.Detours
                 XAssert.AreEqual(
                     unchecked((uint)dataItem.PathId),
                     pathId,
-                    string.Format("PathId for '{0}' did not match", dataItem.Path));
+                    "PathId for '{0}' did not match", dataItem.Path);
 
                 if (dataItem.NodePolicy.HasValue)
                 {
                     XAssert.AreEqual(
                         unchecked((uint)dataItem.NodePolicy.Value),
                         nodePolicy,
-                        string.Format("Policy for '{0}' did not match", dataItem.Path));
+                        "Policy for '{0}' did not match", dataItem.Path);
                 }
 
                 if (dataItem.ConePolicy.HasValue)
@@ -649,13 +649,13 @@ namespace Test.BuildXL.Processes.Detours
                     XAssert.AreEqual(
                         unchecked((uint)dataItem.ConePolicy.Value),
                         conePolicy,
-                        string.Format("Policy for '{0}' did not match", dataItem.Path));
+                        "Policy for '{0}' did not match", dataItem.Path);
                 }
 
                 XAssert.AreEqual(
                     dataItem.ExpectedUsn,
                     expectedUsn,
-                    string.Format("Usn for '{0}' did not match", dataItem.Path));
+                    "Usn for '{0}' did not match", dataItem.Path);
             }
         }
 

@@ -5109,7 +5109,8 @@ namespace BuildXL.Scheduler
                         aggregatedContent.AddRange(memberContents);
                     }
 
-                    m_fileContentManager.ReportDynamicDirectoryContents(pip.Directory, aggregatedContent, PipOutputOrigin.UpToDate);
+                    // the directory artifacts that this composite shared opaque consists of might or might not be materialized
+                    m_fileContentManager.ReportDynamicDirectoryContents(pip.Directory, aggregatedContent, PipOutputOrigin.NotMaterialized);
                 }
             }
         }

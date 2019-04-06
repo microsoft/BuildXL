@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
 // This must be the first statement otherwise modules might got loaded with
@@ -16,7 +15,7 @@ const path = require("path");
 const AddSourceFileToProjectRequest = new vscode_languageclient_1.RequestType("dscript/addSourceFileToProject");
 function configureAddSourceFile(languageClient, extensionContext) {
     // Register the add source file command.
-    extensionContext.subscriptions.push(vscode_1.commands.registerCommand('dscript.addSourceFileToProject', (specItem) => {
+    extensionContext.subscriptions.push(vscode_1.commands.registerCommand('DScript.addSourceFileToProject', (specItem) => {
         if (specItem instanceof vscode_1.Uri) {
             addSourceFile(languageClient, specItem);
             return;

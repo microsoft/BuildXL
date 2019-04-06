@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
 // This must be the first statement otherwise modules might got loaded with
@@ -363,9 +362,9 @@ function createDominoProjectBrowser(langClient, context) {
             });
         }
     });
-    // Set up the DScript project module browser.
+    // Set up the BuildXL DScript project module browser.
     vscode_1.window.registerTreeDataProvider("dscriptBuildScope", createModuleTreeDataProvider());
-    // Set up the DScript project directory browser.
+    // Set up the BuildXL DScript project directory browser.
     vscode_1.window.registerTreeDataProvider("buildxlProjectDirectoryBrowser", createDirectoryTreeDataProvider());
     // Register for open document notifications so we can select the write module in the
     // tree view.

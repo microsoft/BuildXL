@@ -131,26 +131,9 @@ namespace BuildXL.Engine.Distribution.InternalBond
             var result = await m_proxyManager.Call<WorkerNotificationArgs, Void>(
                 internalBondMessage,
                 functionName: "Notify",
-                description: GetNotificationDescription(internalBondMessage, semiStableHashes));
+                description: DistributionHelpers.GetNotifyDescription(message, semiStableHashes));
 
             return result.ToUnit();
-        }
-
-        private static string GetNotificationDescription(WorkerNotificationArgs notificationArgs, IList<long> semiStableHashes)
-        {
-            string description = string.Empty;
-
-            if (semiStableHashes != null)
-            {
-                description += string.Join(", ", semiStableHashes.Select(s => s.ToString("X16", CultureInfo.InvariantCulture)));
-            }
-
-            if (notificationArgs.ExecutionLogData != null && notificationArgs.ExecutionLogData.Count > 0)
-            {
-                description += I($"[ExecutionLogData: Size={notificationArgs.ExecutionLogData.Count}, SequenceNumber={notificationArgs.ExecutionLogBlobSequenceNumber}]");
-            }
-
-            return description;
         }
 
         #region IBondProxyLogger Members

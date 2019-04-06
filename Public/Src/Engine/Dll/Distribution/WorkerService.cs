@@ -154,7 +154,7 @@ namespace BuildXL.Engine.Distribution
             m_services = new DistributionServices(buildId);
             if (m_isGrpcEnabled)
             {
-                m_workerServer = new Grpc.GrpcWorkerServer(this);
+                m_workerServer = new Grpc.GrpcWorkerServer(this, appLoggingContext, buildId);
             }
             else
             {

@@ -138,13 +138,8 @@ namespace BuildXL.Engine.Distribution.InternalBond
             var result = await m_proxyManager.Call<PipBuildRequest, Void>(
                 internalBondMessage,
                 functionName: "ExecutePips",
-                description: GetPipBuildRequestDescription(semiStableHashes));
+                description: DistributionHelpers.GetExecuteDescription(semiStableHashes));
             return result.ToUnit();
-        }
-
-        private static string GetPipBuildRequestDescription(IList<long> semiStableHashes)
-        {
-            return string.Join(", ", semiStableHashes.Select(a => a.ToString("X16", CultureInfo.InvariantCulture)));
         }
 
         public async Task<RpcCallResult<Unit>> ExitAsync(OpenBond.BuildEndData message, CancellationToken cancellationToken = default(CancellationToken))

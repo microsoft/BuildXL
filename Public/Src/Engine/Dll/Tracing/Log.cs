@@ -798,14 +798,14 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionPipFailedOnWorker(LoggingContext context, long pipSemiStableHash, string pipDescription, string step, string workerName);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DistributionTrace,
+            (ushort)LogEventId.GrpcTrace,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "Distribution: {message}.",
+            Message = "Grpc: {message}.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Events.Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)Events.Keywords.UserMessage)]
-        public abstract void DistributionTrace(LoggingContext context, string message);
+        public abstract void GrpcTrace(LoggingContext context, string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerFinishedPipRequest,

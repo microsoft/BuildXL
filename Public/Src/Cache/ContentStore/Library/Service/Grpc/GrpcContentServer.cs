@@ -156,20 +156,29 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             };
         }
 
-        private async Task<OpenStreamResult> GetFileStreamAsync (Context context, ContentHash hash)
+        private async Task<OpenStreamResult> GetFileStreamAsync(Context context, ContentHash hash)
         {
-            // For now, take the first store. Change this to interate through all stores
-            // until content is found.
-            IStreamStore store = _contentStoreByCacheName.First().Value as IStreamStore;
+            Debug.Assert(_contentStoreByCacheName != null);
 
-            if (store == null)
+            // Iterate through all known stores, looking for contant in each.
+            // In most of our configurations there is just one store anyway,
+            // and doing this means both we can callers don't have
+            // to deal with cache roots and drive letters.
+
+            foreach (KeyValuePair<string, IContentStore> entry in _contentStoreByCacheName)
             {
-                return new OpenStreamResult("No content store available.");
+                IStreamStore store = entry.Value as IStreamStore;
+                if (store != null)
+                {
+                    OpenStreamResult result = await store.StreamContentAsync(context, hash);
+                    if (result.Code != OpenStreamResult.ResultCode.ContentNotFound)
+                    {
+                        return result;
+                    }
+                }
             }
 
-            OpenStreamResult result = await store.StreamContentAsync(context, hash);
-
-            return result;
+            return new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, $"{hash} to found");
         }
 
         /// <summary>
@@ -208,12 +217,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             Debug.Assert(result.Stream != null);
                             long size = result.Stream.Length;
                             headers.Add("FileSize", size.ToString());
-                            if ((request.Compression == CopyCompression.Gzip) && (size > ContentStore.Grpc.CopyConstants.DefaultBufferSize)) {
+                            if ((request.Compression == CopyCompression.Gzip) && (size > ContentStore.Grpc.CopyConstants.DefaultBufferSize))
+                            {
                                 compression = CopyCompression.Gzip;
                             }
                             headers.Add("Compression", compression.ToString());
                             headers.Add("ChunkSize", ContentStore.Grpc.CopyConstants.DefaultBufferSize.ToString());
                             break;
+                        default:
+                            throw new NotImplementedException();
                     }
 
                     // Send the response headers.
@@ -242,7 +254,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
         }
 
-        private async Task<(long, long)> StreamContentAsync(Stream reader, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken cts = default(CancellationToken))
+        private async Task<(long Chunks, long Bytes)> StreamContentAsync(Stream reader, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct = default(CancellationToken))
         {
             Debug.Assert(!(reader is null));
             Debug.Assert(!(responseStream is null));
@@ -251,7 +263,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             long bytes = 0L;
             while (true)
             {
-                int chunkSize = await reader.ReadAsync(buffer, 0, buffer.Length, cts).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+
+                int chunkSize = await reader.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
                 if (chunkSize == 0) { break; }
 
                 ByteString content = ByteString.CopyFrom(buffer, 0, chunkSize);
@@ -267,33 +281,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return (chunks, bytes);
         }
 
-        /*
-        private async Task<(long, long)> StreamContentAsync(OpenStreamResult openStreamResult, IServerStreamWriter<CopyFileResponse> responseStream)
-        {
-            using (var stream = openStreamResult.Stream)
-            {
-                byte[] buffer = new byte[ContentStore.Grpc.Constants.DefaultBufferSize];
-                long chunks = 0;
-
-                while (true)
-                {
-                    int chunkSize = await stream.ReadAsync(buffer, 0, buffer.Length);
-                    if (chunkSize == 0) { break; }
-
-                    ByteString content = ByteString.CopyFrom(buffer, 0, chunkSize);
-                    CopyFileResponse response = new CopyFileResponse()
-                    {
-                        Content = content,
-                        Index = chunks
-                    };
-                    await responseStream.WriteAsync(response);
-                    chunks++;
-                }
-            }
-        }
-        */
-
-        private async Task<(long, long)> StreamContentWithCompressionAsync(Stream reader, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken cts = default(CancellationToken))
+        private async Task<(long Chunks, long Bytes)> StreamContentWithCompressionAsync(Stream reader, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct = default(CancellationToken))
         {
             Debug.Assert(!(reader is null));
             Debug.Assert(!(responseStream is null));
@@ -315,7 +303,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 using (Stream compressionStream = new GZipStream(grpcStream, System.IO.Compression.CompressionLevel.Fastest, true))
                 {
-                    await reader.CopyToAsync(compressionStream, buffer.Length, cts).ConfigureAwait(false);
+                    await reader.CopyToAsync(compressionStream, buffer.Length, ct).ConfigureAwait(false);
                     await compressionStream.FlushAsync().ConfigureAwait(false);
                 }
                 await grpcStream.FlushAsync().ConfigureAwait(false);

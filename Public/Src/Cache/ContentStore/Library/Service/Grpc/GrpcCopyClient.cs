@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Gets or sets a value indicating whether compression may be used during transmission.
         /// </summary>
-        public bool SupportsCompression => true;
+        public bool SupportsCompression { get; set; } = true;
 
         /// <inheritdoc />
         public bool ShutdownCompleted { get; private set; }
@@ -115,7 +115,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     TraceId = context.Id.ToString(),
                     HashType = (int) hash.HashType,
                     ContentHash = hash.ToByteString(),
-                    Drive = "X",
                     Offset = 0,
                     Compression = SupportsCompression ? CopyCompression.Gzip : CopyCompression.None
                 };
@@ -133,25 +132,27 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Failed to connect to copy server {_host} at port {_grpcPort}.");
                 }
 
-                // Check header collection for server-side errors.
+                // Parse header collection.
                 string exception = null;
                 string message = null;
                 CopyCompression compression = CopyCompression.None;
                 foreach(Metadata.Entry header in headers)
                 {
-                    if (header.Key == "exception")
+                    switch (header.Key)
                     {
-                        exception = header.Value;
-                    }
-                    if (header.Key == "message")
-                    {
-                        message = header.Value;
-                    }
-                    if (header.Key == "compression")
-                    {
-                        Enum.TryParse<CopyCompression>(header.Value, out compression);
+                        case "exception":
+                            exception = header.Value;
+                            break;
+                        case "message":
+                            message = header.Value;
+                            break;
+                        case "compression":
+                            Enum.TryParse<CopyCompression>(header.Value, out compression);
+                            break;
                     }
                 }
+
+                // Process reported server-side errors.
                 if (exception != null)
                 {
                     Debug.Assert(message != null);
@@ -205,7 +206,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         }
 
-        private async Task<(long, long)> StreamContentAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CancellationToken ct = default(CancellationToken))
+        private async Task<(long Chunks, long Bytes)> StreamContentAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CancellationToken ct = default(CancellationToken))
         {
             long chunks = 0L;
             long bytes = 0L;
@@ -219,7 +220,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return (chunks, bytes);
         }
 
-        private async Task<(long, long)> StreamContentWithCompressionAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CancellationToken ct = default(CancellationToken))
+        private async Task<(long Chunks, long Bytes)> StreamContentWithCompressionAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CancellationToken ct = default(CancellationToken))
         {
             Debug.Assert(targetStream != null);
             Debug.Assert(replyStream != null);

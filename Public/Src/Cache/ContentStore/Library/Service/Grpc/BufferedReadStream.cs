@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -13,15 +15,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
     internal class BufferedReadStream : Stream
     {
-        public BufferedReadStream(Func<Task<byte[]>> reader)
-        {
-            if (reader is null)
-            {
-                throw new ArgumentNullException(nameof(reader));
-            }
-            _reader = reader;
-        }
-
         private readonly Func<Task<byte[]>> _reader;
 
         private byte[] _storage; // buffer containing the next bytes to be read
@@ -29,6 +22,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private int _position; // total bytes that have been read
         private int _length; // total bytes that have been ingested
+
+        public BufferedReadStream(Func<Task<byte[]>> reader)
+        {
+            Contract.Requires(reader != null);
+            _reader = reader;
+        }
 
         public override bool CanRead => true;
 
@@ -38,6 +37,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Debug.Assert(offset >= 0);
             Debug.Assert(count >= 0);
             Debug.Assert(count <= buffer.Length - offset);
+
+            // Caller can ask for any count of bytes and all we can do is ask
+            // reader for chunks of unknown length, which may be longer or
+            // shorter than count. So we give caller bytes from our last
+            // stored read until we have given them all, in which case we
+            // ask reader for more. Keep track of how many bytes were
+            // already returned from storage so we start at the right place.
 
             int writePointer = offset;
             int totalCount = 0;
@@ -49,19 +55,24 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 Debug.Assert(writePointer >= 0);
                 Debug.Assert(writePointer < buffer.Length);
 
+                // If we don't have any more bytes, ask reader for some.
                 if (_storage is null)
                 {
                     _storage = await _reader().ConfigureAwait(false);
+
+                    // If the reader doesn't give us any, we are done.
                     if (_storage is null)
                     {
                         return totalCount;
                     }
+
                     _readPointer = 0;
                     _length += _storage.Length;
                 }
 
                 Debug.Assert(!(_storage is null));
 
+                // Copy as many bytes as we can to the caller's buffer
                 int copyCount = Math.Min(count - totalCount, _storage.Length - _readPointer);
                 Array.Copy(_storage, _readPointer, buffer, writePointer, copyCount);
                 _readPointer += copyCount;
@@ -71,6 +82,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 Debug.Assert(_readPointer <= _storage.Length);
 
+                // If we returned all the bytes we had, null out our storage
+                // as a signal to get more next time.
                 if (_readPointer == _storage.Length)
                 {
                     _storage = null;
@@ -85,26 +98,27 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            return ReadAsync(buffer, offset, count).Result;
+            return ReadAsync(buffer, offset, count).GetAwaiter().GetResult();
         }
 
         public override bool CanWrite => false;
 
-        public override void Write(byte[] buffer, int offset, int count) => throw new InvalidOperationException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
         public override bool CanSeek => false;
 
-        public override long Seek(long offset, SeekOrigin origin) => throw new InvalidOperationException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
-        public override void SetLength(long value) => throw new NotImplementedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
 
-        public override Task FlushAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        // I want to use Task.CompletedTask here, but we still compile against 4.5.2 and it didn't appear until 4.6
+        public override Task FlushAsync(CancellationToken cancellationToken) => Task.FromResult<int>(0);
 
         public override void Flush() { }
 
         public override long Length => _length;
 
-        public override long Position { get => _position; set => throw new InvalidOperationException(); }
+        public override long Position { get => _position; set => throw new NotSupportedException(); }
     }
 
 }

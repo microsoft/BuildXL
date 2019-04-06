@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,24 +22,24 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     // not fill the buffer.
     internal class BufferedWriteStream : Stream
     {
+        private readonly byte[] _storage; // buffer to store content before written
+        private readonly Func<byte[], int, int, Task> _writer; // method to write
+        private int _writePointer; // pointer to next index in buffer to be written to
+        private int _position; // total bytes written
+
         public BufferedWriteStream(byte[] storage, Func<byte[], int, int, Task> writer)
         {
-            if (storage is null) { throw new ArgumentNullException(nameof(storage)); }
-            if (writer is null) { throw new ArgumentNullException(nameof(writer)); }
+            Contract.Requires(storage != null);
+            Contract.Requires(writer != null);
             _storage = storage;
             _writer = writer;
             _writePointer = 0;
             _position = 0;
         }
 
-        private readonly byte[] _storage; // buffer to store content before written
-        private readonly Func<byte[], int, int, Task> _writer; // method to write
-        private int _writePointer; // pointer to next index in buffer to be written to
-        private int _position; // total bytes written
-
         public override bool CanWrite => true;
 
-        public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cts)
+        public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
             Debug.Assert(!(buffer is null));
             Debug.Assert(offset >= 0);
@@ -49,11 +50,17 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             int totalCount = 0;
             while (totalCount < count)
             {
+                // Caller can give us any number of bytes to write, but our writer
+                // only accepts fixed-length packets. So we copy to internal storage
+                // and write out stored bytes only when we reach the fixed length.
+
                 Debug.Assert(readPointer >= 0);
                 Debug.Assert(readPointer < buffer.Length);
 
                 Debug.Assert(_writePointer >= 0);
                 Debug.Assert(_writePointer < _storage.Length);
+
+                cancellationToken.ThrowIfCancellationRequested();
 
                 int copyCount = Math.Min(count - totalCount, _storage.Length - _writePointer);
                 Array.Copy(buffer, readPointer, _storage, _writePointer, copyCount);
@@ -93,19 +100,19 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         public override bool CanRead => false;
 
-        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) => throw new InvalidOperationException();
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public override int Read(byte[] buffer, int offset, int count) => throw new InvalidOperationException();
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
         public override bool CanSeek => false;
 
-        public override long Seek(long offset, SeekOrigin origin) => throw new InvalidOperationException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
-        public override long Position { get => _position; set => throw new InvalidOperationException(); }
+        public override long Position { get => _position; set => throw new NotSupportedException(); }
 
         public override long Length { get => _position; }
 
-        public override void SetLength(long value) => throw new InvalidOperationException();
+        public override void SetLength(long value) => throw new NotSupportedException();
 
     }
 

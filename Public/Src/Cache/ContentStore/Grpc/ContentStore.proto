@@ -250,9 +250,8 @@ message CopyFileRequest {
     string traceId = 1;
     int32 hashType = 2;
     bytes contentHash = 3;
-    string drive = 4;
-    int64 offset = 5;
-    CopyCompression compression = 6;
+    int64 offset = 4;
+    CopyCompression compression = 5;
 }
 
 message CopyFileResponse {

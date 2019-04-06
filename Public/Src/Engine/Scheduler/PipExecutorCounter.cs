@@ -1119,6 +1119,11 @@ namespace BuildXL.Scheduler
         CacheHit,
 
         /// <summary>
+        /// The number of pips that were failed.
+        /// </summary>
+        Failed,
+
+        /// <summary>
         /// The number of pips that were skipped due to failed dependencies.
         /// </summary>
         Skipped,

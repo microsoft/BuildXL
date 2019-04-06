@@ -25,7 +25,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         public GrpcWorkerClient(LoggingContext loggingContext, string buildId, string ipAddress, int port)
         {
             m_loggingContext = loggingContext;
-            m_connectionManager = new ClientConnectionManager(loggingContext, ipAddress, port);
+            m_connectionManager = new ClientConnectionManager(loggingContext, ipAddress, port, buildId);
             m_client = new Worker.WorkerClient(m_connectionManager.Channel);
             m_senderInfo = new SenderInfo()
             {
@@ -59,7 +59,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             return m_connectionManager.CallAsync(
                (callOptions) => m_client.ExecutePipsAsync(grpcMessage, options: callOptions),
-               "ExecutePips");
+               GetExecuteDescription(semiStableHashes));
         }
 
         public Task<RpcCallResult<Unit>> ExitAsync(OpenBond.BuildEndData message, CancellationToken cancellationToken)

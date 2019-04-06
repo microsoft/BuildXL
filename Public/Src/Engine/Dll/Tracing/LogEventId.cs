@@ -160,7 +160,7 @@ namespace BuildXL.Engine.Tracing
         DistributionFailedToRetrieveValidationContentFromWorkerCacheWithException = 7023,
         DistributionWorkerPipOutputContent = 7027,
         DistributionPipFailedOnWorker = 7028,
-        DistributionTrace = 7029,
+        GrpcTrace = 7029,
         DistributionFailedToStoreValidationContentToWorkerCacheWithException = 7030,
         DistributionDisableServiceProxyInactive = 7031,
         DistributionWaitingForMasterAttached = 7032,

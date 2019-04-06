@@ -22,7 +22,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         public GrpcMasterClient(LoggingContext loggingContext, string buildId, string ipAddress, int port)
         {
             m_loggingContext = loggingContext;
-            m_connectionManager = new ClientConnectionManager(m_loggingContext, ipAddress, port);
+            m_connectionManager = new ClientConnectionManager(m_loggingContext, ipAddress, port, buildId);
             m_client = new Master.MasterClient(m_connectionManager.Channel);
             m_senderInfo = new SenderInfo()
             {
@@ -51,7 +51,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             var grpcMessage = message.ToGrpc(m_senderInfo);
             return m_connectionManager.CallAsync(
                (callOptions) => m_client.NotifyAsync(grpcMessage, options: callOptions),
-               "Notify");
+               DistributionHelpers.GetNotifyDescription(message, semiStableHashes));
         }
     }
 }

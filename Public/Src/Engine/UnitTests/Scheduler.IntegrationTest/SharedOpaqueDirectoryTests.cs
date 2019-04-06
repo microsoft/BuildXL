@@ -1181,8 +1181,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             CreateAndScheduleCopyFile(copySourceFile, copyPipNonSodDestFile);
 
             // collect files in and not in shared opaque directories
-            FileArtifact[] sodOutFiles                   = new[] { sodFile, processSodOutFile, writePipSodOutFile, copyPipSodDestFile };
-            FileArtifact[] nonSodOutFiles                = new[] { odFile, processNonSodOutFile, writePipNonSodOutFile, copyPipNonSodDestFile };
+            FileArtifact[] sodOutFiles                   = new[] { sodFile, processSodOutFile, copyPipSodDestFile, writePipSodOutFile };
+            FileArtifact[] nonSodOutFiles                = new[] { odFile, processNonSodOutFile, copyPipNonSodDestFile, writePipNonSodOutFile };
             (AbsolutePath path, bool isInSod)[] outPaths = sodOutFiles
                 .Select(f => (f.Path, true))
                 .Concat(nonSodOutFiles.Select(f => (f.Path, false)))
@@ -1213,7 +1213,10 @@ namespace IntegrationTest.BuildXL.Scheduler
                 foreach (var tuple in outPaths)
                 {
                     var expandedPath = ToString(tuple.path);
-                    XAssert.AreEqual(tuple.isInSod, SharedOpaqueOutputHelper.IsSharedOpaqueOutput(expandedPath));
+                    XAssert.AreEqual(
+                        tuple.isInSod,
+                        SharedOpaqueOutputHelper.IsSharedOpaqueOutput(expandedPath),
+                        "File: " + expandedPath);
                 }
             }
         }

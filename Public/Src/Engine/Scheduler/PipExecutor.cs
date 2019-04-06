@@ -754,8 +754,6 @@ namespace BuildXL.Scheduler
                             fileWritten,
                             "WriteAllBytes only returns false when the predicate parameter (not supplied) fails. Otherwise it should throw a BuildXLException and be handled below.");
 
-                        MakeSharedOpaqueOutputIfNeeded(environment, destinationFile.Path);
-
                         var possiblyStored = environment.Configuration.Schedule.StoreOutputsToCache
                             ? await environment.LocalDiskContentStore.TryStoreAsync(
                                 environment.Cache.ArtifactContentCache,
@@ -802,6 +800,8 @@ namespace BuildXL.Scheduler
                             outputOrigin);
                     }
                 }
+
+                MakeSharedOpaqueOutputIfNeeded(environment, destinationFile.Path);
 
                 return outputOrigin.ToPipResult();
             }

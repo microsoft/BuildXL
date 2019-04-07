@@ -53,7 +53,7 @@ namespace ContentStoreTest.Distributed.Stores
                 putResult.ShouldBeSuccess();
 
                 // Copy the file out via GRPC
-                (await client.CopyFileAsync(_context, putResult.ContentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None, FileSize)).ShouldBeSuccess();
+                (await client.CopyFileAsync(_context, putResult.ContentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None)).ShouldBeSuccess();
             });
         }
 
@@ -67,11 +67,10 @@ namespace ContentStoreTest.Distributed.Stores
                 var contentHash = HashingExtensions.CalculateHash(content, HashType.Vso0);
 
                 // Copy the file out via GRPC
-                var copyFileResult = await client.CopyFileAsync(_context, contentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None, FileSize);
+                var copyFileResult = await client.CopyFileAsync(_context, contentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
 
                 Assert.False(copyFileResult.Succeeded);
-                Assert.Equal(CopyFileResult.ResultCode.SourcePathError, copyFileResult.Code);
-                Assert.StartsWith("Received 0 bytes for ", copyFileResult.ErrorMessage);
+                Assert.Equal(CopyFileResult.ResultCode.FileNotFoundError, copyFileResult.Code);
             });
         }
 
@@ -89,9 +88,8 @@ namespace ContentStoreTest.Distributed.Stores
                 var bogusPort = PortExtensions.GetNextAvailablePort();
                 using (client = GrpcCopyClient.Create(host, bogusPort))
                 {
-                    var copyFileResult = await client.CopyFileAsync(_context, contentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None, FileSize);
+                    var copyFileResult = await client.CopyFileAsync(_context, contentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
                     Assert.Equal(CopyFileResult.ResultCode.SourcePathError, copyFileResult.Code);
-                    Assert.Contains($"Failed to connect to server {host} at port {bogusPort}", copyFileResult.ErrorMessage);
                 }
             });
         }

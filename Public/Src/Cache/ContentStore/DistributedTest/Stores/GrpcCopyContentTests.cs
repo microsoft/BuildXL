@@ -70,8 +70,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var copyFileResult = await client.CopyFileAsync(_context, contentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
 
                 Assert.False(copyFileResult.Succeeded);
-                Assert.Equal(CopyFileResult.ResultCode.SourcePathError, copyFileResult.Code);
-                Assert.StartsWith("Received 0 bytes for ", copyFileResult.ErrorMessage);
+                Assert.Equal(CopyFileResult.ResultCode.FileNotFoundError, copyFileResult.Code);
             });
         }
 
@@ -91,7 +90,6 @@ namespace ContentStoreTest.Distributed.Stores
                 {
                     var copyFileResult = await client.CopyFileAsync(_context, contentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
                     Assert.Equal(CopyFileResult.ResultCode.SourcePathError, copyFileResult.Code);
-                    Assert.Contains($"Failed to connect to server {host} at port {bogusPort}", copyFileResult.ErrorMessage);
                 }
             });
         }

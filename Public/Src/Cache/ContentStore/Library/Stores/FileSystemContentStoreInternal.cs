@@ -669,15 +669,18 @@ namespace BuildXL.Cache.ContentStore.Stores
                 GetPinnedSize,
                 _nagleQueue);
 
+            var quotaKeeperConfiguration = QuotaKeeperConfiguration.Create(
+                Configuration,
+                _distributedEvictionSettings,
+                size,
+                _settings.StartPurgingAtStartup,
+                _settings.UseLegacyQuotaKeeperImplementation);
             _quotaKeeper = QuotaKeeper.Create(
                 FileSystem,
                 _tracer,
-                Configuration,
-                size,
                 ShutdownStartedCancellationToken,
                 this,
-                _distributedEvictionSettings,
-                useLegacyQuotaKeeper: _settings.UseLegacyQuotaKeeperImplementation);
+                quotaKeeperConfiguration);
 
             var result = await _quotaKeeper.StartupAsync(context);
 

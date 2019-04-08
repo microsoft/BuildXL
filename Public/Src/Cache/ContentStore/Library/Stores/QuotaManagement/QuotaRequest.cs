@@ -26,6 +26,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         public static ReserveSpaceRequest Purge() => Reserve(0);
 
         /// <nodoc />
+        public static SynchronizationRequest Synchronize() => SynchronizationRequest.Instance;
+
+        /// <nodoc />
         public Task<BoolResult> CompletionAsync() => _taskSource.Task;
 
         /// <nodoc />
@@ -55,6 +58,18 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         /// <inheritdoc />
         public override string ToString() => $"Reservation request for {ReserveSize} bytes";
+    }
+
+    /// <summary>
+    /// Request to <see cref="QuotaKeeperV2"/> for processing all pending requests.
+    /// </summary>
+    internal sealed class SynchronizationRequest : QuotaRequest
+    {
+        /// <nodoc />
+        public static SynchronizationRequest Instance { get; } = new SynchronizationRequest();
+
+        /// <inheritdoc />
+        public override string ToString() => $"Synchronization";
     }
 
     /// <summary>

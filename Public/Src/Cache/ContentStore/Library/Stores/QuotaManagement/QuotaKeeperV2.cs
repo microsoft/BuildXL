@@ -79,21 +79,20 @@ namespace BuildXL.Cache.ContentStore.Stores
         public QuotaKeeperV2(
             IAbsFileSystem fileSystem,
             ContentStoreInternalTracer tracer,
-            ContentStoreConfiguration configuration,
-            long startSize,
+            QuotaKeeperConfiguration configuration,
             CancellationToken token,
-            IContentStoreInternal store,
-            DistributedEvictionSettings distributedEvictionSettings = null)
+            IContentStoreInternal store)
+        : base(configuration)
         {
             _contentStoreTracer = tracer;
             _tracer = new Tracer(name: Component);
-            _allContentSize = startSize;
+            _allContentSize = configuration.ContentDirectorySize;
             _token = token;
             _store = store;
             _reserveQueue = new BlockingCollection<QuotaRequest>();
             _evictionQueue =  new ConcurrentQueue<ReserveSpaceRequest>();
-            _distributedEvictionSettings = distributedEvictionSettings;
-            _rules = CreateRules(fileSystem, configuration, store, distributedEvictionSettings);
+            _distributedEvictionSettings = configuration.DistributedEvictionSettings;
+            _rules = CreateRules(fileSystem, configuration, store);
             _counters = new CounterCollection<QuotaKeeperCounters>();
         }
 
@@ -108,10 +107,13 @@ namespace BuildXL.Cache.ContentStore.Stores
                 () => ProcessReserveRequestsAsync(context.CreateNested()),
                 TaskCreationOptions.LongRunning).Unwrap();
 
-            // Start purging immediately on startup to clear out residual content in the cache
-            // over the cache quota
-            const string Operation = "PurgeRequest";
-            SendPurgeRequest(context, "Startup").FireAndForget(context, Operation);
+            if (PurgeAtStartup)
+            {
+                // Start purging immediately on startup to clear out residual content in the cache
+                // over the cache quota if configured.
+                const string Operation = "PurgeRequest";
+                SendPurgeRequest(context, "Startup").FireAndForget(context, Operation);
+            }
 
             return BoolResult.Success;
         }
@@ -171,7 +173,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
 
                 // Ensure there are no pending requests.
-                await SendPurgeRequest(operationContext, "SyncAsync").ThrowIfFailure();
+                await SendSyncRequest(operationContext).ThrowIfFailure();
 
                 purgeTask = _purgeTask;
                 if (purgeTask != null)
@@ -195,6 +197,19 @@ namespace BuildXL.Cache.ContentStore.Stores
                     return emptyRequest.CompletionAsync();
                 },
                 extraStartMessage: $"Requesting purge due to '{reason}'.");
+        }
+
+        private Task<BoolResult> SendSyncRequest(OperationContext context)
+        {
+            return context.PerformOperationAsync(
+                _tracer,
+                () =>
+                {
+                    var emptyRequest = QuotaRequest.Synchronize();
+                    _reserveQueue.Add(emptyRequest);
+
+                    return emptyRequest.CompletionAsync();
+                });
         }
 
         /// <inheritdoc />
@@ -292,6 +307,12 @@ namespace BuildXL.Cache.ContentStore.Stores
             if (request is CalibrateQuotaRequest)
             {
                 return await CalibrateAllAsync(context);
+            }
+
+            if (request is SynchronizationRequest)
+            {
+                // Do nothing for synchronization.
+                return BoolResult.Success;
             }
 
             var reserveQuota = request as ReserveSpaceRequest;

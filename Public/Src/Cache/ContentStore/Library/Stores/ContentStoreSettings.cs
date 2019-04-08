@@ -36,6 +36,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </remarks>
         public bool UseLegacyQuotaKeeperImplementation { get; set; } = true;
 
+        /// <summary>
+        /// If true, then quota keeper will check the current content directory size and start content eviction at startup if the threshold is reached.
+        /// </summary>
+        public bool StartPurgingAtStartup { get; set; } = true;
+
         /// <nodoc />
         public static ContentStoreSettings DefaultSettings { get; } = new ContentStoreSettings();
     }

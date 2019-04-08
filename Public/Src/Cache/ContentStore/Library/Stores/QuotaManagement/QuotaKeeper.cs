@@ -10,7 +10,6 @@ using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tracing;
@@ -34,37 +33,38 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// </summary>
     public abstract class QuotaKeeper : StartupShutdownBase
     {
+        /// <nodoc />
+        protected readonly bool PurgeAtStartup;
+
         /// <summary>
         ///     Public name for monitoring use.
         /// </summary>
         public const string Component = "QuotaKeeper";
 
         /// <nodoc />
-        protected QuotaKeeper()
+        protected QuotaKeeper(QuotaKeeperConfiguration configuration)
         {
+            PurgeAtStartup = configuration.StartPurgingAtStartup;
         }
 
         /// <nodoc />
         public static QuotaKeeper Create(
             IAbsFileSystem fileSystem,
             ContentStoreInternalTracer tracer,
-            ContentStoreConfiguration configuration,
-            long startSize,
             CancellationToken token,
             IContentStoreInternal store,
-            DistributedEvictionSettings distributedEvictionSettings = null,
-            bool useLegacyQuotaKeeper = false)
+            QuotaKeeperConfiguration configuration)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(tracer != null);
             Contract.Requires(configuration != null);
 
-            if (useLegacyQuotaKeeper)
+            if (configuration.UseLegacyQuotaKeeper)
             {
-                return new LegacyQuotaKeeper(fileSystem, tracer, configuration, startSize, token, store, distributedEvictionSettings);
+                return new LegacyQuotaKeeper(fileSystem, tracer, configuration, token, store);
             }
 
-            return new QuotaKeeperV2(fileSystem, tracer, configuration, startSize, token, store, distributedEvictionSettings);
+            return new QuotaKeeperV2(fileSystem, tracer, configuration, token, store);
         }
 
         /// <summary>
@@ -102,11 +102,12 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <nodoc />
         protected List<IQuotaRule> CreateRules(
             IAbsFileSystem fileSystem,
-            ContentStoreConfiguration configuration,
-            IContentStoreInternal store,
-            DistributedEvictionSettings distributedEvictionSettings)
+            QuotaKeeperConfiguration configuration,
+            IContentStoreInternal store)
         {
             var rules = new List<IQuotaRule>();
+            var distributedEvictionSettings = configuration.DistributedEvictionSettings;
+
             if (configuration.EnableElasticity)
             {
                 var elasticSizeRule = new ElasticSizeRule(

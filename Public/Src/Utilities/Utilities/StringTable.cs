@@ -1100,14 +1100,14 @@ namespace BuildXL.Utilities
             try
             {
                 Serialize(
-                writer,
-                new SerializedState()
-                {
-                    Count = Count,
-                    NextId = m_nextId,
-                    StringSet = m_stringSet,
-                    ByteBuffers = m_byteBuffers,
-                });
+                    writer,
+                    new SerializedState()
+                    {
+                        Count = Count,
+                        NextId = m_nextId,
+                        StringSet = m_stringSet,
+                        ByteBuffers = m_byteBuffers,
+                    });
             }
             finally
             {

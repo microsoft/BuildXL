@@ -311,7 +311,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     Stream stream = await _fileSystem.OpenReadOnlyAsync(tempPath, FileShare.Delete | FileShare.Read);
                     if (stream == null)
                     {
-                        throw new ClientCanRetryException(context, $"Failed to open temp file {tempPath}. The service may have restarted");
+                        throw CreateServiceMayHaveRestarted(context, $"Failed to open temp file {tempPath}.");
                     }
 
                     return new OpenStreamResult(stream);
@@ -661,7 +661,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 {
                     if (fileStream == null)
                     {
-                        throw new ClientCanRetryException(context, $"Could not create temp file {tempFile}. The service may have restarted.");
+                        throw CreateServiceMayHaveRestarted(context, $"Could not create temp file {tempFile}.");
                     }
 
                     await stream.CopyToAsync(fileStream);
@@ -675,7 +675,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
                 else if (!_fileSystem.FileExists(tempFile))
                 {
-                    throw new ClientCanRetryException(context, $"Temp file {tempFile} not found. The service may have restarted.");
+                    throw CreateServiceMayHaveRestarted(context, $"Temp file {tempFile} not found.");
                 }
                 else
                 {
@@ -691,6 +691,17 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 // The caller's retry policy needs to see ClientCanRetryExceptions in order to properly retry
                 return new PutResult(ex, contentHash);
             }
+        }
+
+        private static ClientCanRetryException CreateServiceMayHaveRestarted(Context context, string baseMessage)
+        {
+            // This is a very important logic today:
+            // The service creates a temp directory for every session and it deletes all of them during shutdown
+            // and recreates when when it loads the hibernated sessions.
+            // This case is usually manifested via 'null' returned from FileSystem.OpenAsync because the file or part of the path is gone.
+            // This is recoverable error and the client of this code should try again later, because when the service is back
+            // it recreates all the temp directories for all the pending sessions back.
+            return new ClientCanRetryException(context, $"{baseMessage} The service may have restarted.");
         }
 
         private async Task<T> RunClientActionAndThrowIfFailedAsync<T>(Context context, Func<Task<T>> func)

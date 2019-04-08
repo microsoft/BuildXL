@@ -131,7 +131,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
                 Command = new Command
                 {
                     Title = FormattableStringEx.I($"Qualifier type: {formattedQualifier}"),
-                    CommandIdentifier = "dscript.openDocument",
+                    CommandIdentifier = "DScript.openDocument",
                     Arguments = new object[]
                     {
                         fileUri,

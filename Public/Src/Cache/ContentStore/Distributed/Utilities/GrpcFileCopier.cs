@@ -51,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             // Contact hard-coded port on source
             using (var client = GrpcCopyClient.Create(System.Net.IPAddress.Any.ToString(), DefaultGrpcPort))
             {
-                copyFileResult = await client.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken, contentSize);
+                copyFileResult = await client.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken);
             }
 
             return copyFileResult;
@@ -94,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             // Contact hard-coded port on source
             using (var client = GrpcCopyClient.Create(System.Net.IPAddress.Any.ToString(), DefaultGrpcPort))
             {
-                copyFileResult = await client.CopyToAsync(_context, contentHash, destinationStream, cancellationToken, expectedContentSize);
+                copyFileResult = await client.CopyToAsync(_context, contentHash, destinationStream, cancellationToken);
             }
 
             return copyFileResult;

@@ -26,6 +26,9 @@ namespace BuildXL.Scheduler.Graph
             public readonly ConcurrentBigMap<ModuleId, NodeId> Modules;
             public readonly ConcurrentBigMap<FileArtifact, NodeId> PipProducers;
             public readonly ConcurrentBigMap<DirectoryArtifact, NodeId> OpaqueDirectoryProducers;
+            /// <summary>
+            /// The value indicates if any of the corresponding output directories is shared opaque.
+            /// </summary>
             public readonly ConcurrentBigMap<AbsolutePath, bool> OutputDirectoryRoots;
             public readonly ConcurrentBigMap<DirectoryArtifact, NodeId> CompositeOutputDirectoryProducers;
             public readonly ConcurrentBigMap<AbsolutePath, DirectoryArtifact> SourceSealedDirectoryRoots;

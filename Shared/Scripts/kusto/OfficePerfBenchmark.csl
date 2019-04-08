@@ -1,0 +1,14 @@
+let start = ago(14d);
+dominoinvocation
+| where EventInfo_Time  > start
+| where CommandLine has "/traceInfo:OfficePerfBenchmarking=word-Noop_IncSchedulingOff" and CommandLine has "/traceInfo:folder=5.inc"
+| join kind=innerunique (
+   dominocompletion 
+) on SessionId
+| extend OfficeBuildType = case(
+            Environment contains "EnlistmentBuild", "enlist",
+            Environment contains "MetaBuild", "meta",
+            Environment contains "ProductBuild", "product", 
+            ""), EndToEndTimeMs=toint(ProcessRunningTime)
+| project EventInfo_Time, BuildInfo_Build, OfficeBuildType, EndToEndTimeMs
+| order by BuildInfo_Build asc

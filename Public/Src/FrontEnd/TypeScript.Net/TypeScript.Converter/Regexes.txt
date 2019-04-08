@@ -1,0 +1,72 @@
+﻿Add regular expressions for reference here:
+
+1. Exportable function header converter
+Good sample for this regex is: export function forEach<T, U>(array: T[], callback: (element: T, index: number) => U): U {
+
+\(<(\w+)>(\w+)\)==>(($1)$2)
+<(\w+)>(\w+)==>($1)$2
+(?<arg>\w+): \((?<t1>\w+): (?<v1>\w+), (?<t2>\w+): (?<v2>\w+), (?<t3>\w+): (?<v3>\w+)\) => (?<r>\w+)==>Func<$3 /*$2*/, $5 /*$4*/, $7 /*$6*/, $8> $1
+let (\w+): (\w+(\[\])?);==>$2 $1 = null;
+(\w+)\[\] (\w+) = null;==>var $2 = new List<$1>();
+(\s{4})/\*\*==> $1///<summary>
+(?<space>\s{4})\*\/==>$1///</summary>
+@param (\w+)
+(\s{4})\*==>$1///
+export function==>public static
+function (\w)==>$removestatic $1
+(\w+): (\w+(\[\])?(<.+?>)?)==>$2 $1
+(\w+)\?: (\w+(\[\])?(<.+?>)?)==>Optional<$2> $1
+(?<arg>\w+): \((?<t1>\w+): (?<v1>\w+), (?<t2>\w+): (?<v2>\w+)\) => (?<r>\w+)==>Func<$2 /*$3*/, $4 /*$5*/, $6> $1
+(?<arg>\w+): \((?<t1>\w+) (?<v1>\w+)\) => (?<r>\w+)==>Func<$2 /*$3*/, $4> $1
+static (.+?\))(?:\:) (\w+(<.+?>)?(\[\])?)==>static $2 $1
+let ==>var 
+const==>var
+undefined==>null
+number==>int
+boolean==>bool
+ === ==> == 
+ !== ==> != 
+(if) \((\w+)\)==>if ($2 != null)
+(if) \((\w+) && (\w+)\)==> if ($2 != null && $3 != null)
+for \(var (\w+) of (\w+)\)==>foreach (var $1 in $2)
+(\s+)(.+?) {==>$1$2$1{
+\$removestatic ==> 
+\.substring==>.Substring
+\.length==>.Length
+\.\$==>.dollar
+Debug\.assert==>Debug.Assert
+String\.fromCharCode==>StringEx.fromCharCode
+<<<<<<< aae151a9958b064a85447afbcc30ca6fa2c56704
+(\W)(char)(\W)==>$1character$3
+\n(\s+)return(.*\+), (.*);==>$1$2;\n$1return $3;
+base==>base0
+(\w+) extends (\w+)([^\)]+\))==>$1$3 where $1 : $2
+\.kind ==>.Kind
+\.flags==>.Flags
+\.parent==>.Parent
+\.kind==>.Kind
+
+
+2. Map converter
+Map\<SyntaxKind\> = {==>Dictionary<string, SyntaxKind> = new Dictionary<string, SyntaxKind>() {
+const textToToken:==> public static readonly
+(".*"): (SyntaxKind\..*),==>{ $1, $2 },
+
+
+return pos += 2, token = SyntaxKind.SlashEqualsToken;
+
+Interface declaration convertion
+number==>int
+boolean==>bool
+.*Brand.*==> 
+(\w+?\(.*?\)): (\w+(\[\])?);==> $2 $1;
+(\w+\??\(.*?\)): (\w+(\[\])?);==>$2 $1 {}
+export interface==>public interface
+extends==>:
+(\w+\(.*?\))\?: (\w+);==>public virtual $2 $1 {}
+(\w+\?\(\)): (\w+);==>$2 $1 {}
+(\w+): (\w+(\[\])?);==>$2 $1 { get; set; }
+(\w+): (\w+(\[\])?(<.+?>)?)==>$2 $1
+(\w+)\?: (\w+(\[\])?(<.+?>)?);==>Optional<$2> $1 { get; set; }
+(?<arg>\w+): \((?<t1>\w+): (?<v1>\w+), (?<t2>\w+): (?<v2>\w+)\) => (?<r>\w+)==>Func<$2 /*$3*/, $4 /*$5*/, $6> $1
+(?<arg>\w+): \((?<t1>\w+) (?<v1>\w+)\) => (?<r>\w+)==>Func<$2 /*$3*/, $4> $1

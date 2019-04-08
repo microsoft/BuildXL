@@ -1,0 +1,18 @@
+Transformer.writeFile(
+    f`./Out/out.xml`,
+    {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<root>\r\n  <s>str</s>\r\n  <a>atom</a>\r\n  <r>f\\rel</r>\r\n  <b>true</b>\r\n  <n>1</n>\r\n  <p",
+            p`./path`,
+            " />\r\n  <d",
+            p`./dir`,
+            " />\r\n  <f",
+            p`./file`,
+            " />\r\n  <mixed>str1",
+            p`./path`,
+            "</mixed>\r\n</root>",
+        ],
+    }
+);

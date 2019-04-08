@@ -1,0 +1,211 @@
+// Copyright (C) Microsoft Corporation. All Rights Reserved.
+
+import "PipCacheDescriptor.bond"
+
+namespace BuildXL.Engine.Distribution.OpenBond
+
+/// Defines location at which a service can be connected to.
+struct ServiceLocation
+{
+    1: string IpAddress;
+    2: int32 Port;
+}
+
+struct RpcMessageBase
+{
+	/// The name of the sender of the message
+    1: string SenderName;
+
+	/// The id of the sender of the message
+    2: string SenderId;
+
+	//. The id of the build
+	3: string BuildId;
+}
+
+/// Defines initialization information needed by workers to participate in a build
+struct BuildStartData : RpcMessageBase
+{
+    /// Scheduler State and associated data structures
+    1: BuildXL.Engine.Cache.Fingerprints.PipGraphCacheDescriptor CachedGraphDescriptor;
+
+    /// Identifies the worker in the build
+    2: uint32 WorkerId;
+
+    /// Salt added to fingerprints to make them unique
+    3: string FingerprintSalt;
+
+    /// The session identifier
+    5: string SessionId;
+
+    /// Service locations of master
+    10: ServiceLocation MasterLocation;
+
+	/// Environment variables
+	11: map<string, string> EnvironmentVariables;
+	
+    /// Content hash of optional symlink file.
+    12: BuildXL.Engine.Cache.Fingerprints.BondContentHash SymlinkFileContentHash;
+}
+
+/// Defines finalization information passed to workers at the end of the build
+struct BuildEndData : RpcMessageBase
+{
+    /// Indicates if worker should report build fail the build and that the worker due to the given failure
+    1: nullable<string> Failure;
+}
+
+struct BondDirectoryArtifact
+{
+    /// The integral absolute path id for the directory of the file; the id is only valid for file in dynamic directory.
+    1: int32 DirectoryPathValue;
+
+    /// The seal id of the directory of the file when applicable.
+    2: uint32 DirectorySealId;
+
+    /// Whether the directory of the file is a shared opaque directory (when applicable)
+    3: bool IsDirectorySharedOpaque;
+}
+
+
+struct FileArtifactKeyedHash
+{
+    /// The integral absolute path id for the file
+    1: int32 PathValue;
+
+    /// The integral rewrite count for the file
+    2: int32 RewriteCount;
+
+    /// The content hash of the file
+    3: BuildXL.Engine.Cache.Fingerprints.BondContentHash ContentHash;
+
+    /// String representation of path, that is only available for dynamic file.
+    4: string PathString;
+
+	/// Optional. Specified file name with appropriate casing
+	5: nullable<string> FileName;
+
+    /// The length of the file
+    6: int64 Length;
+
+    /// The reparse point type
+    7: BuildXL.Engine.Cache.Fingerprints.BondReparsePointType ReparsePointType = None;
+    
+    /// The reparse point target if the type is actionable
+    8: nullable<string> ReparsePointTarget;
+
+    /// The directory artifacts which contain the file
+    9: nullable<vector<BondDirectoryArtifact>> AssociatedDirectories;
+}
+
+/// Defines information about a completed pip and its outputs
+struct PipCompletionData
+{
+    /// The pip id value
+    1: uint32 PipIdValue;
+
+    // Blob of data representing result for IPC or process pip
+    2: blob ResultBlob;
+
+	// The elapsed time in ticks of ExecuteProcess or ExecuteIpc step
+	3: nullable<int64> ExecuteStepTicks;
+
+    // The elapsed time in ticks of queued duration
+	4: nullable<int64> QueueTicks;
+
+	/// The execution step requested
+	5: int32 Step;
+}
+
+/// Events that have been logged on workers and are transited to the master. Any changes here may require changes
+/// to TrackingEventListener.cs
+struct EventMessage
+{
+    /// Unique identifier for the event to ensure the same event is not logged more than once. Note that this does not
+	/// correlate to the DX code of the event. That is the EventId field
+    1: int32 Id;
+
+    /// The event level
+    2: int32 Level;
+
+	/// The EventId of the originally logged event
+	3: int32 EventId;
+
+	/// The EventName of the originally logged event
+	4: string EventName;
+
+	/// The keywords of the original event
+	5: int64 EventKeywords;
+
+    /// The message for the event
+    6: string Text;
+}
+
+/// Information about completed pips and events logged on worker
+struct WorkerNotificationArgs : RpcMessageBase
+{
+    /// Identifies the worker which executed the pips
+    1: uint32 WorkerId;
+
+    /// The completed pips
+    2: vector<PipCompletionData> CompletedPips;
+
+    // The events forwarded to the master
+    3: vector<EventMessage> ForwardedEvents;
+
+	/// Data logged to the execution log on the worker
+	4: blob ExecutionLogData;
+
+    /// Sequence number of the execution log blob on the worker
+    5: int32 ExecutionLogBlobSequenceNumber;
+}
+
+struct SinglePipBuildRequest
+{
+    /// The pip id value
+    1: uint32 PipIdValue;
+
+    /// The fingerprint for the cache descriptor
+    2: BuildXL.Engine.Cache.Fingerprints.BondFingerprint Fingerprint;
+
+    /// The pip priority
+    3: int32 Priority;
+
+    /// The activity id assigned to the pip execution
+    4: string ActivityId;
+
+	/// The execution step requested
+	5: int32 Step;
+
+	/// The expected RAM usage of the pip
+	6: nullable<int32> ExpectedRamUsageMb;
+
+	/// Sequence number for deduplicating worker calls
+	7: int32 SequenceNumber;
+}
+
+/// A request to build pips on a worker
+struct PipBuildRequest : RpcMessageBase
+{
+    /// The pips to execute
+    1: vector<SinglePipBuildRequest> Pips;
+
+    /// The input files and hashes for the pip
+    2: vector<FileArtifactKeyedHash> Hashes;
+}
+
+/// The response from an Attach event
+struct AttachCompletionInfo : RpcMessageBase
+{
+    /// Identifies the worker which makes the callback
+    1: uint32 WorkerId;
+
+	/// The maximum number of simultaneous pip executions for the worker
+    2: int32 MaxConcurrency;
+
+	/// The content hash of the workers unique content
+    3: BuildXL.Engine.Cache.Fingerprints.BondContentHash WorkerCacheValidationContentHash;
+
+	/// The availale RAM on the worker
+	4: nullable<int32> AvailableRamMb;
+}

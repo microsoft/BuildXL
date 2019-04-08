@@ -1,0 +1,26 @@
+{
+    "Content": {
+        "Order": ["FilesystemL1"],
+        "FileSystem": {
+            "FilesystemL1": {
+                "ShareName": "BuildXLCache"
+            }
+        }
+    },
+    "FingerprintLookup": {
+        "Order": ["MemoryL1"],
+        "Memory": {
+            "MemoryL1": {
+
+            }
+        }
+    },
+    "ContentLocation": {
+        "Order": ["FilesystemL1"],
+        "FileSystem": {
+            "FilesystemL1": {
+                "ShareName": "BuildXLCache"
+            }
+        }
+    }
+}

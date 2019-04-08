@@ -1,0 +1,8 @@
+// *****
+// Checking for crashes in a specific build of Domino.
+// Update "BuildInfo_Build" with the appropriate build ID
+// *******
+AnnotatedSessions(ago(7d), now())
+| where InternalError > 0
+| where BucketGroup == "Crash"
+| where BuildInfo_Build == "0.20180928.5.0"

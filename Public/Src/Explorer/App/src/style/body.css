@@ -1,0 +1,34 @@
+html, body, .app, .full-size {
+    margin: 0px;
+
+    padding: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+.app {
+    display: grid;
+    grid-gap: 0px;
+    grid-template-columns: var(--nav-width-expand) auto;
+    grid-template-rows: var(--header-height) auto var(--status-height);
+    grid-template-areas:
+        'header  header'
+        'nav     main'
+        'status  status'
+    ;
+
+    color: var(--text-primary-color);
+    background-color: var(--background-color);
+    font-size: 11px;
+    font-family: "Segoe UI VSS (Regular)","Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
+
+li {
+    list-style: none;
+}

@@ -1,0 +1,95 @@
+
+header {
+    grid-area: header;
+    background: var(--nav-header-background);
+    box-shadow: rgba( var(--palette-neutral-100,0, 0, 0) ,  0.08 ) 0px 1px 0px;
+
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+
+    color: var(--nav-header-text-primary-color,rgba(0, 0, 0, .9));
+    font-size: 14px;
+}
+
+.commandbar-item {
+    flex-shrink: 0;
+    align-items: center;
+    align-self: center;
+    position: relative;
+    outline: none;
+}
+
+header .brand {
+    width: var(--nav-width-expand);
+    padding: 0 12px;
+    align-self: center;
+}
+
+.brand a {
+    text-decoration: none;
+    color: var(--nav-header-text-primary-color,rgba(0, 0, 0, .9));
+}
+
+.brand-icon {
+    padding:0;
+    font-size: 2em;
+    align-self: center;
+}
+.brand-name {
+    padding:0;
+    align-self: center;
+}
+
+
+header .spacer {
+    flex-grow: 1;
+}
+
+.breadcrumbs {
+    align-items: center;
+    align-self: center;
+    margin: 0;
+    padding: 0;
+}
+
+.breadcrumb-list {
+    display: flex;
+    white-space: nowrap;
+    margin: 0;
+    padding: 0;
+    align-items:stretch;
+    text-align: center;
+}
+
+.breadcrumb-item {
+    display: flex;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    text-align: center;
+}
+
+.breadcrumb-item a {
+    padding: 4px 8px;
+    text-align: center;
+    text-decoration: none;
+    color: var(--nav-header-text-primary-color,rgba(0, 0, 0, .9));
+}
+
+.breadcrumb-separator {
+    text-align: center;
+    width: 16px;
+    height: 24px;
+    padding: 0 8px;
+    font-size: 16px;
+}
+
+.command {
+    margin-right: 5px;
+    align-self: center;
+    width: var(--header-height);
+    font-size: 2em;
+}

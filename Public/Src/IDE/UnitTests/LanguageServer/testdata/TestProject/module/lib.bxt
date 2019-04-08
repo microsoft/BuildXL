@@ -1,0 +1,145 @@
+@@public
+export type DeployableItem = File | StaticDirectory | Definition | Deployable;
+
+@@public
+export interface SampleInterface {
+    
+    // doc string for a
+    a? : string;
+
+    /* doc string for b */
+    b? : DeployableItem;
+
+    // doc string for c
+    c? : number;
+}
+
+@@public
+export function TakeSampleInterface(si : SampleInterface, b: number) : void {    
+}
+
+// this is the comment for the definition interface
+@@public
+export interface Definition {
+    // this is the comment for the contents field
+    contents: DeployableItem[];    
+}
+
+/** 
+ * Helper type alias for handeling duplicate file errors 
+  */
+@@public
+export type ReportDuplicateDeploymentError =  (targetFile: RelativePath, sourceA: File, sourceB: File, message?: string) => void;
+
+/**
+ * Helper type alias for the result of flattening 
+ */
+@@public
+export type FlattenedResult = Map<RelativePath, {file: File, disambiguationData?: Object}>; 
+
+/** 
+ * Interface  for objects that are deployable 
+ */
+@@public
+export interface Deployable {
+
+    /** 
+     * Callback for when deployments will be FlattenedResult
+     * @param item - The item that is deployable. Think of this as the 'this' pointer which is not accessable from interface implementations.
+     * @param targetFolder - The folder to place this deployable item into
+     * @param onDuplicate - The error handler for duplicate files
+     * @param currentResult - The current flattened result to add the extra flattened files to 
+     * @return - The updated flattened result.
+     */
+    deploy?:(
+        item: Object, 
+        targetFolder: RelativePath,
+        reportDuplicate: ReportDuplicateDeploymentError, 
+        currentResult: FlattenedResult,
+        deploymentOptions?: Object) => FlattenedResult;
+
+    name : string;
+}
+
+// this is documentation for the deploy function
+@@public
+export function deploy(definition : Definition) : Deployable {
+    return undefined;
+}
+
+// this is the documentation for the deploy alias
+@@public
+export const deployAlias = deploy;
+
+/* documentation for functionWithMultipleParameters */
+@@public
+export function functionWithMultipleParameters(a : string, b : Definition, c : string[]) : Deployable {
+    return { name:"Test" };
+}
+
+export interface InterfaceA {
+    interfaceAProperty?: boolean;
+};
+
+export interface InterfaceB {
+    interfaceAProperties?: InterfaceA;
+    interfaceBProperty?: boolean;
+};
+
+export interface InterfaceC {
+    interfaceBProperties?: InterfaceB;
+    interfaceCProperty?: boolean;
+};
+
+const interfaceAVariable : InterfaceA = {
+};
+
+const interfaceCVariable : InterfaceC = {
+    interfaceBProperties: {
+        interfaceAProperties: {
+        }
+    }
+};
+
+const interfaceAVariableWithTypeAssertion = <InterfaceA>{
+};
+
+const interfaceCVariableWithTypeAssertion = <InterfaceC>{
+    interfaceBProperties: {
+        interfaceAProperties:{
+        }
+    }
+};
+
+export function nestedObjectLiteralAutoCompleteTestFunction(arg1: InterfaceC) : void {
+    return;
+}
+
+export function functionThatReturnsANestedObjectLiteral() : InterfaceC {
+    return {
+        interfaceBProperties: {
+            interfaceAProperties: {
+            }
+        }
+    };
+}
+
+const nestedObjectLiterals = nestedObjectLiteralAutoCompleteTestFunction({    
+    interfaceCProperty: true,
+    interfaceBProperties : {
+        interfaceAProperties : {
+        }
+    }
+});
+
+/**
+ * TODO: Make auto complete work.
+ */
+function functionThatAcceptsUnionType(args: InterfaceA | InterfaceB)
+{
+
+}
+
+const variableFromFunctionThatAcceptsUnionType = functionThatAcceptsUnionType({
+    }
+);

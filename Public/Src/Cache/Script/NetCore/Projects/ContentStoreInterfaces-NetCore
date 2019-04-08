@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Build\Common.props" />
+  <PropertyGroup>
+    <ProjectGuid>{87DB81EC-C7DE-41B9-A675-2185B4CE0FFF}</ProjectGuid>
+    <RootNamespace>ContentStoreInterfaces</RootNamespace>
+    <AssemblyName>Microsoft.ContentStoreInterfaces</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <DefineConstants>NET_CORE_BUILD</DefineConstants>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <None Include="project.json" />
+    <AdditionalFiles Include="stylecop.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Interactive.Async" Version="3.1.1" />
+    <PackageReference Include="DotNet.Contracts" Version="1.10.10126.4" />
+  </ItemGroup>
+</Project>

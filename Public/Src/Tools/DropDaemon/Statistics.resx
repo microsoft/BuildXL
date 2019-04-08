@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="NumberOfBatches" xml:space="preserve">
+    <value>NumberOfBatches</value>
+    <comment>Number of 'addfile' processing batches</comment>
+  </data>
+  <data name="NumberOfAddFileRequests" xml:space="preserve">
+    <value>NumberOfAddFileRequests</value>
+    <comment>Total number of 'addfile' requests</comment>
+  </data>
+  <data name="NumberOfFilesAssociated" xml:space="preserve">
+    <value>NumberOfFilesAssociated</value>
+    <comment>Number of files 'associated' (found in the drop remote store, so didn't need to be uploaded to drop)</comment>
+  </data>
+  <data name="NumberOfFilesUploaded" xml:space="preserve">
+    <value>NumberOfFilesUploaded</value>
+    <comment>Number of files 'uploaded' (were not already found in the drop remote store)</comment>
+  </data>
+  <data name="AuthTimeMs" xml:space="preserve">
+    <value>AuthTimeMs</value>
+    <comment>Time taken to authenticate</comment>
+  </data>
+  <data name="CreateTimeMs" xml:space="preserve">
+    <value>CreateTimeMs</value>
+    <comment>Time taken to complete 'drop create'</comment>
+  </data>
+  <data name="TotalAssociateTimeMs" xml:space="preserve">
+    <value>TotalAssociateTimeMs</value>
+    <comment>Total time taken to complete all 'Associate' calls to ArtifactServices drop</comment>
+  </data>
+  <data name="TotalUploadTimeMs" xml:space="preserve">
+    <value>TotalUploadTimeMs</value>
+    <comment>Total time taken to complete all 'UploadAndAssociate' calls to ArtifactServices drop</comment>
+  </data>
+  <data name="FinalizeTimeMs" xml:space="preserve">
+    <value>FinalizeTimeMs</value>
+    <comment>Time taken to complete 'drop finalize'</comment>
+  </data>
+  <data name="TotalUploadSizeMb" xml:space="preserve">
+    <value>TotalUploadSizeMb</value>
+    <comment>Total size of all uploaded files in megabytes (note that this is not the same as the size of the drop, since it doesn't include files that were only associated).</comment>
+  </data>
+  <data name="TotalComputeFileBlobDescriptorForAssociateMs" xml:space="preserve">
+    <value>TotalComputeFileBlobDescriptorForAssociateMs</value>
+    <comment>Total time taken to compute FileBlobDescriptors for 'Associate' calls</comment>
+  </data>
+  <data name="TotalComputeFileBlobDescriptorForUploadMs" xml:space="preserve">
+    <value>TotalComputeFileBlobDescriptorForUploadMs</value>
+    <comment>Total time taken to compute FileBlobDescriptors for 'UploadAndAssociate' calls</comment>
+  </data>
+</root>

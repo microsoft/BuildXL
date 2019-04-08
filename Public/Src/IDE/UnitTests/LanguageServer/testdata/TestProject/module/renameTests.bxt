@@ -1,0 +1,24 @@
+// Simple rename
+const renameMe = true;
+
+// Enum rename
+export const enum RenameThisEnum {
+    One,
+    Two,
+    Three
+};
+
+const valueFromEnum = RenameThisEnum.One;
+
+// Namespace Rename
+namespace RenameThisNamespace {
+
+}
+
+namespace RenameThisNamespace {
+    
+}
+
+namespace CrossFileNamespace {
+}
+    

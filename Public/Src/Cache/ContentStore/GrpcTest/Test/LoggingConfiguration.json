@@ -1,0 +1,5 @@
+{
+  "Types": [ "File", "Console" ],
+  "FileAutoFlush": false,
+  "FileBaseName": "ContentStoreGrpcTest"
+}

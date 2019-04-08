@@ -1,0 +1,61 @@
+/**
+ * There are two build configuration projects used in this test.
+ * This one is deployed and used in the actual test code itself.
+ * 
+ * This file should be kept in sync with the config.bc inside the
+ * parent folder. (Except for the prelude source resolver).
+ */
+
+config({
+    // No orphan projects are owned by this configuration.
+    projects: [],
+
+    // Packages that define the build extent.
+    modules: [
+        f`module/module.config.bm`,
+        f`project/module.config.bm`
+    ],
+
+    frontEnd: {
+        constructAndSaveBindingFingerprint: true,
+    },
+
+    resolvers: [
+        {
+            kind: "SourceResolver",
+            root: d`.`
+        },        
+        {
+            kind: "SourceResolver",
+            root: d`prelude`
+        }
+    ],
+
+    qualifiers: {
+        defaultQualifier: {
+            platform: "x86",
+            configuration: "debug",
+            targetFramework: "net451"
+        },
+        namedQualifiers: {
+            Debug: {
+                platform: "x86",
+                configuration: "debug",
+                targetFramework: "net451"
+            },
+            Release: {
+                platform: "x86",
+                configuration: "release",
+                targetFramework: "net451"
+            },
+            ReleaseX86: {
+                platform: "x86",
+                configuration: "release",
+                targetFramework: "net451"
+            },
+        }
+    },
+
+    mounts: [],
+    searchPathEnumerationTools: [],
+});

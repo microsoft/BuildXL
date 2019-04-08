@@ -1,0 +1,1412 @@
+{
+    "fileTypes": [
+        "dsc",
+        "bc",
+        "bm",
+        "bp",
+        "bl",
+        "bxt"
+    ],
+    "name": "DScript",
+    "patterns": [
+        {
+            "include": "#expression"
+        }
+    ],
+    "repository": {
+        "access-modifier": {
+            "match": "\\b(public|protected|private)\\b",
+            "name": "storage.modifier.dsc"
+        },
+        "arithmetic-operator": {
+            "match": "\\*|/|\\-\\-|\\-|\\+\\+|\\+|%",
+            "name": "keyword.operator.arithmetic.dsc"
+        },
+        "array-literal": {
+            "begin": "\\[",
+            "beginCaptures": {
+                "0": {
+                    "name": "meta.brace.square.dsc"
+                }
+            },
+            "end": "\\]",
+            "endCaptures": {
+                "0": {
+                    "name": "meta.brace.square.dsc"
+                }
+            },
+            "name": "meta.array.literal.dsc",
+            "patterns": [
+                {
+                    "include": "#expression"
+                }
+            ]
+        },
+        "assignment-operator": {
+            "match": "<<=|>>=|>>>=|\\*=|(?<!\\()/=|%=|\\+=|\\-=|&=|\\^=",
+            "name": "keyword.operator.assignment.dsc"
+        },
+        "await-modifier": {
+            "match": "\\bawait\\b",
+            "name": "storage.modifier.dsc"
+        },
+        "block": {
+            "begin": "\\{",
+            "beginCaptures": {
+                "0": {
+                    "name": "meta.brace.curly.dsc"
+                }
+            },
+            "end": "\\}",
+            "endCaptures": {
+                "0": {
+                    "name": "meta.brace.curly.dsc"
+                }
+            },
+            "name": "meta.block.dsc",
+            "patterns": [
+                {
+                    "include": "#object-member"
+                },
+                {
+                    "include": "#expression"
+                }
+            ]
+        },
+        "boolean-literal": {
+            "match": "\\b(false|true)\\b",
+            "name": "constant.language.boolean.dsc"
+        },
+        "case-clause": {
+            "begin": "(?<!\\.)\\b(case|default)\\b",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.control.dsc"
+                }
+            },
+            "end": ":",
+            "name": "case-clause.expr.dsc",
+            "patterns": [
+                {
+                    "include": "#expression"
+                }
+            ]
+        },
+        "cast": {
+            "begin": "(?:(?<=return|throw|yield|await|[=(,:>]))\\s*(<)(?!<?\\=)",
+            "beginCaptures": {
+                "1": {
+                    "name": "meta.brace.angle.dsc"
+                }
+            },
+            "end": ">",
+            "endCaptures": {
+                "0": {
+                    "name": "meta.brace.angle.dsc"
+                }
+            },
+            "name": "cast.expr.dsc",
+            "patterns": [
+                {
+                    "include": "#type"
+                }
+            ]
+        },
+        "comment": {
+            "name": "comment.dsc",
+            "patterns": [
+                {
+                    "include": "#comment-block-doc"
+                },
+                {
+                    "include": "#comment-block"
+                },
+                {
+                    "include": "#comment-line"
+                }
+            ]
+        },
+        "comment-block": {
+            "begin": "/\\*",
+            "end": "\\*/",
+            "name": "comment.block.dsc"
+        },
+        "comment-block-doc": {
+            "begin": "/\\*\\*(?!/)",
+            "end": "\\*/",
+            "name": "comment.block.documentation.dsc"
+        },
+        "comment-line": {
+            "match": "(//).*$\\n?",
+            "name": "comment.line.dsc"
+        },
+        "control-statement": {
+            "match": "(?<!\\.)\\b(break|catch|continue|debugger|declare|do|else|finally|for|if|return|switch|throw|try|while|with|super|case|default)\\b",
+            "name": "keyword.control.dsc"
+        },
+        "decl-block": {
+            "begin": "\\{",
+            "beginCaptures": {
+                "0": {
+                    "name": "meta.brace.curly.dsc"
+                }
+            },
+            "end": "\\}",
+            "endCaptures": {
+                "0": {
+                    "name": "meta.brace.curly.dsc"
+                }
+            },
+            "name": "meta.decl.block.dsc",
+            "patterns": [
+                {
+                    "include": "#expression"
+                }
+            ]
+        },
+        "declaration": {
+            "name": "meta.declaration.dsc",
+            "patterns": [
+                {
+                    "include": "#function-declaration"
+                },
+                {
+                    "include": "#object-declaration"
+                },
+                {
+                    "include": "#type-declaration"
+                },
+                {
+                    "include": "#enum-declaration"
+                }
+            ]
+        },
+        "enum-declaration": {
+            "captures": {
+                "1": {
+                    "name": "storage.modifier.dsc"
+                },
+                "2": {
+                    "name": "storage.type.dsc"
+                },
+                "3": {
+                    "name": "entity.name.class.dsc"
+                }
+            },
+            "match": "(?:\\b(const)\\s+)?\\b(enum)\\s+([a-zA-Z_$][\\w$]*)",
+            "name": "meta.enum.declaration.dsc"
+        },
+        "expression": {
+            "name": "meta.expression.dsc",
+            "patterns": [
+                {
+                    "include": "#for-in-simple"
+                },
+                {
+                    "include": "#string"
+                },
+                {
+                    "include": "#regex"
+                },
+                {
+                    "include": "#path-literal"
+                },
+                {
+                    "include": "#template"
+                },
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#literal"
+                },
+                {
+                    "include": "#paren-expression"
+                },
+                {
+                    "include": "#var-expr"
+                },
+                {
+                    "include": "#declaration"
+                },
+                {
+                    "include": "#cast"
+                },
+                {
+                    "include": "#new-expr"
+                },
+                {
+                    "include": "#switch-statement"
+                },
+                {
+                    "include": "#block"
+                },
+                {
+                    "include": "#import-from"
+                },
+                {
+                    "include": "#import-from-expression"
+                },
+                {
+                    "include": "#import-operator"
+                },
+                {
+                    "include": "#expression-operator"
+                },
+                {
+                    "include": "#imply-operator"
+                },
+                {
+                    "include": "#relational-operator"
+                },
+                {
+                    "include": "#arithmetic-operator"
+                },
+                {
+                    "include": "#logic-operator"
+                },
+                {
+                    "include": "#assignment-operator"
+                },
+                {
+                    "include": "#storage-keyword"
+                },
+                {
+                    "include": "#type-primitive"
+                },
+                {
+                    "include": "#function-call"
+                },
+                {
+                    "include": "#case-clause"
+                },
+                {
+                    "include": "#control-statement"
+                }
+            ]
+        },
+        "expression-operator": {
+            "match": "\\b(delete|in|instanceof|new|typeof|as|is|of)\\b",
+            "name": "keyword.others.dsc"
+        },
+        "field-declaration": {
+            "begin": "(?<!\\()\\s*((?:\\b[a-zA-Z_$][\\w$]*)|(?:\\'[^']*\\')|(?:\\\"[^\"]*\\\"))\\s*(\\?\\s*)?(?=(=|:))",
+            "beginCaptures": {
+                "1": {
+                    "name": "variable.dsc"
+                },
+                "2": {
+                    "name": "keyword.others.dsc"
+                }
+            },
+            "end": "(?=\\}|;|,|$)|(?<=\\})",
+            "name": "meta.field.declaration.dsc",
+            "patterns": [
+                {
+                    "include": "#expression"
+                }
+            ]
+        },
+        "for-in-simple": {
+            "captures": {
+                "1": {
+                    "name": "storage.type.dsc"
+                },
+                "3": {
+                    "name": "keyword.others.dsc"
+                }
+            },
+            "match": "(?<=\\()\\s*\\b(var|let|const)\\s+([a-zA-Z_$][\\w$]*)\\s+(in|of)\\b",
+            "name": "forin.expr.dsc"
+        },
+        "import-from": {
+            "begin": "(from)\\s+",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.control.import.include.dsc"
+                }
+            },
+            "end": ";",
+            "patterns": [
+                {
+                    "include": "#import-literal"
+                }
+            ]
+        },
+        "import-from-expression": {
+            "begin": "(importFrom)\\s*\\(",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.control.import.include.dsc"
+                }
+            },
+            "end": "\\)",
+            "patterns": [
+                {
+                    "include": "#import-literal"
+                }
+            ]
+        },
+
+        "import-literal": {
+            "name": "importliteral.dsc",
+            "patterns": [
+                {
+                    "include": "#import-literal-path-double"
+                },
+                {
+                    "include": "#import-literal-path-single"
+                },
+                {
+                    "include": "#import-literal-package-double"
+                },
+                {
+                    "include": "#import-literal-package-single"
+                }
+            ]
+        },
+        "import-literal-path-double": {
+            "begin": "(\")(\\./|/|\\.\\./)",
+            "beginCaptures": {
+                "1": {
+                    "name": "string.interpolated.path.content.dsc"
+                },
+                "2": {
+                    "name": "string.interpolated.path.separator.dsc"
+                }
+            },
+            "end": "\"",
+            "endCaptures": {
+                "0": {
+                    "name": "string.interpolated.path.content.dsc"
+                }
+            },
+            "patterns": [
+                {
+                    "include": "#path-literal-separator"
+                },
+                {
+                    "include": "#import-literal-contents-double"
+                }
+            ]
+        },
+        "import-literal-contents-double": {
+            "begin": ".*?",
+            "end": "(?=(\"|/))",
+            "name": "string.interpolated.path.content.dsc",
+            "patterns": [
+                {
+                    "include": "#string-character-escape"
+                }
+            ]
+        },
+        "import-literal-path-single": {
+            "begin": "(')(\\./|/|\\.\\./)",
+            "beginCaptures": {
+                "1": {
+                    "name": "string.interpolated.path.content.dsc"
+                },
+                "2": {
+                    "name": "string.interpolated.path.separator.dsc"
+                }
+            },
+            "end": "'",
+            "endCaptures": {
+                "0": {
+                    "name": "string.interpolated.path.content.dsc"
+                }
+            },
+            "patterns": [
+                {
+                    "include": "#path-literal-separator"
+                },
+                {
+                    "include": "#import-literal-contents-single"
+                }
+            ]
+        },
+        "import-literal-contents-single": {
+            "begin": ".*?",
+            "end": "(?=('|/))",
+            "name": "string.interpolated.path.content.dsc",
+            "patterns": [
+                {
+                    "include": "#string-character-escape"
+                }
+            ]
+        },
+
+        "import-literal-package-double": {
+            "begin": "\"",
+            "end": "\"|(?:[^\\\\\\n]$)",
+            "name": "string.double.importPackage.dsc",
+            "patterns": [
+                {
+                    "include": "#string-character-escape"
+                }
+            ]
+        },
+        "import-literal-package-single": {
+            "begin": "'",
+            "end": "\\'|(?:[^\\\\\\n]$)",
+            "name": "string.single.importPackage.dsc",
+            "patterns": [
+                {
+                    "include": "#string-character-escape"
+                }
+            ]
+        },
+
+        "function-call": {
+            "name": "functioncall.expr.dsc",
+            "patterns": [
+                {
+                    "include": "#await-modifier"
+                },
+                {
+                    "include": "#type-parameters"
+                },
+                {
+                    "include": "#paren-expression"
+                }
+            ]
+        },
+        "function-declaration": {
+            "begin": "\\b(?:(export)\\s+)?(?:(async)\\s+)?(function\\b)(?:\\s+([a-zA-Z_$][\\w$]*))?\\s*",
+            "beginCaptures": {
+                "1": {
+                    "name": "storage.type.dsc"
+                },
+                "2": {
+                    "name": "storage.modifier.dsc"
+                },
+                "3": {
+                    "name": "storage.type.function.dsc"
+                },
+                "4": {
+                    "name": "entity.name.function.dsc"
+                }
+            },
+            "end": "(?=;|\\})|(?<=\\})",
+            "name": "meta.function.dsc",
+            "patterns": [
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#type-parameters"
+                },
+                {
+                    "include": "#function-type-parameters"
+                },
+                {
+                    "include": "#return-type"
+                },
+                {
+                    "include": "#function-overload-declaration"
+                },
+                {
+                    "include": "#decl-block"
+                }
+            ]
+        },
+        "function-overload-declaration": {
+            "captures": {
+                "1": {
+                    "name": "storage.type.dsc"
+                },
+                "2": {
+                    "name": "storage.type.function.dsc"
+                },
+                "3": {
+                    "name": "entity.name.function.dsc"
+                }
+            },
+            "match": "\\b(?:(export)\\s+)?(function\\b)(?:\\s+([a-zA-Z_$][\\w$]*))?\\s*",
+            "name": "meta.function.overload.dsc"
+        },
+        "function-type-parameters": {
+            "begin": "\\(",
+            "beginCaptures": {
+                "0": {
+                    "name": "meta.brace.round.dsc"
+                }
+            },
+            "end": "\\)",
+            "endCaptures": {
+                "0": {
+                    "name": "meta.brace.round.dsc"
+                }
+            },
+            "name": "meta.function.type.parameter.dsc",
+            "patterns": [
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#parameter-name"
+                },
+                {
+                    "include": "#type-annotation"
+                },
+                {
+                    "include": "#variable-initializer"
+                }
+            ]
+        },
+        "imply-operator": {
+            "match": "=>",
+            "name": "keyword.operator.dsc"
+        },
+        "import-operator": {
+            "match": "\\b(import|from)\\b",
+            "name": "keyword.control.import.include.dsc"
+        },
+        "indexer-declaration": {
+            "begin": "\\[",
+            "beginCaptures": {
+                "0": {
+                    "name": "meta.brace.square.dsc"
+                }
+            },
+            "end": "(\\])\\s*(\\?\\s*)?|$",
+            "endCaptures": {
+                "1": {
+                    "name": "meta.brace.square.dsc"
+                },
+                "2": {
+                    "name": "keyword.others.dsc"
+                }
+            },
+            "name": "meta.indexer.declaration.dsc",
+            "patterns": [
+                {
+                    "include": "#type-annotation"
+                },
+                {
+                    "include": "#indexer-parameter"
+                },
+                {
+                    "include": "#expression"
+                }
+            ]
+        },
+        "indexer-parameter": {
+            "captures": {
+                "1": {
+                    "name": "variable.parameter.dsc"
+                }
+            },
+            "match": "([a-zA-Z_$][\\w$]*)(?=\\:)",
+            "name": "meta.indexer.parameter.dsc"
+        },
+        "literal": {
+            "name": "literal.dsc",
+            "patterns": [
+                {
+                    "include": "#numeric-literal"
+                },
+                {
+                    "include": "#boolean-literal"
+                },
+                {
+                    "include": "#null-literal"
+                },
+                {
+                    "include": "#undefined-literal"
+                },
+                {
+                    "include": "#array-literal"
+                },
+                {
+                    "include": "#this-literal"
+                }
+            ]
+        },
+        "logic-operator": {
+            "match": "\\!|&|~|\\^|\\||&&|\\|\\|",
+            "name": "keyword.operator.arithmetic.dsc"
+        },
+        "method-declaration": {
+            "begin": "\\b(?:(abstract)\\s+)?\\b(?:(public|private|protected)\\s+)?\\b(?:(async)\\s+)?(?:(get|set)\\s+)?(?:(new)|(?:\\b(constructor)\\b)|(?:([a-zA-Z_$][\\.\\w$]*)\\s*(\\??)))?\\s*(?=\\(|\\<)",
+            "beginCaptures": {
+                "1": {
+                    "name": "storage.modifier.dsc"
+                },
+                "2": {
+                    "name": "storage.modifier.dsc"
+                },
+                "3": {
+                    "name": "storage.modifier.dsc"
+                },
+                "4": {
+                    "name": "storage.type.property.dsc"
+                },
+                "5": {
+                    "name": "keyword.operator.dsc"
+                },
+                "6": {
+                    "name": "storage.type.dsc"
+                },
+                "7": {
+                    "name": "entity.name.function.dsc"
+                },
+                "8": {
+                    "name": "keyword.operator.dsc"
+                }
+            },
+            "end": "(?=\\}|;|,)|(?<=\\})",
+            "name": "meta.method.declaration.dsc",
+            "patterns": [
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#type-parameters"
+                },
+                {
+                    "include": "#function-type-parameters"
+                },
+                {
+                    "include": "#type-annotation"
+                },
+                {
+                    "include": "#method-overload-declaration"
+                },
+                {
+                    "include": "#decl-block"
+                }
+            ]
+        },
+        "method-overload-declaration": {
+            "captures": {
+                "1": {
+                    "name": "storage.modifier.dsc"
+                },
+                "2": {
+                    "name": "storage.modifier.dsc"
+                },
+                "3": {
+                    "name": "storage.modifier.dsc"
+                },
+                "4": {
+                    "name": "storage.type.property.dsc"
+                },
+                "5": {
+                    "name": "keyword.operator.dsc"
+                },
+                "6": {
+                    "name": "storage.type.dsc"
+                },
+                "7": {
+                    "name": "entity.name.function.dsc"
+                },
+                "8": {
+                    "name": "keyword.operator.dsc"
+                }
+            },
+            "match": "\\b(?:(abstract)\\s+)?\\b(?:(public|private|protected)\\s+)?\\b(?:(async)\\s+)?(?:(get|set)\\s+)?(?:(new)|(?:\\b(constructor)\\b)|(?:([a-zA-Z_$][\\.\\w$]*)\\s*(\\??)))?\\s*(?=\\(|\\<)",
+            "name": "meta.method.overload.declaration.dsc"
+        },
+        "new-expr": {
+            "begin": "\\b(new)\\b",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.others.dsc"
+                }
+            },
+            "end": "(?=[(;]|$)",
+            "name": "new.expr.dsc",
+            "patterns": [
+                {
+                    "include": "#type"
+                },
+                {
+                    "include": "#comment"
+                }
+            ]
+        },
+        "null-literal": {
+            "match": "\\b(null)\\b",
+            "name": "constant.language.null.dsc"
+        },
+        "numeric-literal": {
+            "match": "\\b(?<=[^$])((0(x|X)[0-9a-fA-F]+)|(([0-9]+(\\.[0-9]+)?))([eE]([+-]?)[0-9]+(\\.[0-9]+)?)?)\\b",
+            "name": "constant.numeric.dsc"
+        },
+        "object-body": {
+            "begin": "\\{",
+            "beginCaptures": {
+                "0": {
+                    "name": "meta.brace.curly.dsc"
+                }
+            },
+            "end": "\\}",
+            "endCaptures": {
+                "0": {
+                    "name": "meta.brace.curly.dsc"
+                }
+            },
+            "name": "meta.object.body.dsc",
+            "patterns": [
+                {
+                    "include": "#string"
+                },
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#field-declaration"
+                },
+                {
+                    "include": "#method-declaration"
+                },
+                {
+                    "include": "#indexer-declaration"
+                },
+                {
+                    "include": "#type-annotation"
+                },
+                {
+                    "include": "#variable-initializer"
+                },
+                {
+                    "include": "#access-modifier"
+                },
+                {
+                    "include": "#static-modifier"
+                },
+                {
+                    "include": "#property-accessor"
+                }
+            ]
+        },
+        "object-declaration": {
+            "begin": "\\b(?:(export)\\s+)?\\b(?:(abstract)\\s+)?\\b(?<!\\.)(class|interface)\\b",
+            "beginCaptures": {
+                "1": {
+                    "name": "storage.type.dsc"
+                },
+                "2": {
+                    "name": "storage.modifier.dsc"
+                },
+                "3": {
+                    "name": "storage.type.dsc"
+                }
+            },
+            "end": "(?<=\\})",
+            "endCaptures": {
+                "1": {
+                    "name": "brace.curly.dsc"
+                }
+            },
+            "name": "meta.declaration.object.dsc",
+            "patterns": [
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#object-heritage"
+                },
+                {
+                    "include": "#object-name"
+                },
+                {
+                    "include": "#type-parameters"
+                },
+                {
+                    "include": "#object-body"
+                }
+            ]
+        },
+        "object-heritage": {
+            "begin": "(?:\\b(extends|implements)\\b)",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.other.dsc"
+                }
+            },
+            "end": "(?=\\{)",
+            "endCaptures": {
+                "1": {
+                    "name": "brace.curly.dsc"
+                }
+            },
+            "name": "meta.object.heritage.dsc",
+            "patterns": [
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#object-heritage"
+                },
+                {
+                    "include": "#type-parameters"
+                },
+                {
+                    "include": "#object-heritage-type"
+                }
+            ]
+        },
+        "object-heritage-type": {
+            "captures": {
+                "1": {
+                    "name": "support.type.dsc"
+                }
+            },
+            "match": "(?:\\b([a-zA-Z_$][\\w$]*)\\b)",
+            "name": "meta.object.heritage.parent.dsc"
+        },
+        "object-member": {
+            "begin": "[a-zA-Z_$][\\w$]*\\s*:",
+            "end": "(?=,|\\})",
+            "name": "meta.object.member.dsc",
+            "patterns": [
+                {
+                    "include": "#expression"
+                }
+            ]
+        },
+        "object-name": {
+            "captures": {
+                "0": {
+                    "name": "entity.name.class.dsc"
+                }
+            },
+            "match": "[a-zA-Z_$][\\w$]*",
+            "name": "meta.object.name.dsc"
+        },
+        "parameter-name": {
+            "captures": {
+                "1": {
+                    "name": "storage.modifier.dsc"
+                },
+                "2": {
+                    "name": "keyword.others.dsc"
+                },
+                "3": {
+                    "name": "variable.parameter.dsc"
+                },
+                "4": {
+                    "name": "keyword.others.dsc"
+                }
+            },
+            "match": "(?:\\s*\\b(public|private|protected)\\b\\s+)?(\\.\\.\\.)?\\s*([a-zA-Z_$][\\w$]*)\\s*(\\??)",
+            "name": "parameter.name.dsc"
+        },
+        "paren-expression": {
+            "begin": "\\(",
+            "beginCaptures": {
+                "0": {
+                    "name": "meta.brace.paren.dsc"
+                }
+            },
+            "end": "\\)",
+            "endCaptures": {
+                "0": {
+                    "name": "meta.brace.paren.dsc"
+                }
+            },
+            "patterns": [
+                {
+                    "include": "#expression"
+                }
+            ]
+        },
+        "property-accessor": {
+            "match": "\\b(get|set)\\b",
+            "name": "storage.type.property.dsc"
+        },
+        "qstring-double": {
+            "begin": "\"",
+            "end": "\"|(?:[^\\\\\\n]$)",
+            "name": "string.double.dsc",
+            "patterns": [
+                {
+                    "include": "#string-character-escape"
+                }
+            ]
+        },
+        "qstring-single": {
+            "begin": "'",
+            "end": "\\'|(?:[^\\\\\\n]$)",
+            "name": "string.single.dsc",
+            "patterns": [
+                {
+                    "include": "#string-character-escape"
+                }
+            ]
+        },
+        "regex": {
+            "begin": "(?<=[=(:,\\[]|^|return|&&|\\|\\||!)\\s*(/)(?![/*+{}?])",
+            "end": "$|(/)[igm]*",
+            "name": "string.regex.dsc",
+            "patterns": [
+                {
+                    "match": "\\\\.",
+                    "name": "constant.character.escape.dsc"
+                },
+                {
+                    "match": "\\[(\\\\\\]|[^\\]])*\\]",
+                    "name": "constant.character.class.dsc"
+                }
+            ]
+        },
+        "relational-operator": {
+            "match": "===|==|=|!=|!==|<=|>=|<>|<|>",
+            "name": "keyword.operator.comparison.dsc"
+        },
+        "return-type": {
+            "begin": "(?<=\\))\\s*:",
+            "end": "(?=$)|(?=\\{|;|//)",
+            "name": "meta.return.type.dsc",
+            "patterns": [
+                {
+                    "include": "#type"
+                }
+            ]
+        },
+        "static-modifier": {
+            "match": "\\b(static)\\b",
+            "name": "keyword.other.dsc"
+        },
+        "storage-keyword": {
+            "match": "\\b(var|let|function|const|module|namespace|void|export)\\b",
+            "name": "storage.type.dsc"
+        },
+        "string": {
+            "name": "string.dsc",
+            "patterns": [
+                {
+                    "include": "#qstring-single"
+                },
+                {
+                    "include": "#qstring-double"
+                }
+            ]
+        },
+        "string-character-escape": {
+            "match": "\\\\(x\\h{2}|[0-2][0-7]{,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.|$)",
+            "name": "constant.character.escape"
+        },
+        "switch-block": {
+            "begin": "{",
+            "end": "(?=\\})",
+            "name": "switch-block.expr.dsc",
+            "patterns": [
+                {
+                    "include": "#expression"
+                }
+            ]
+        },
+        "switch-expression": {
+            "begin": "\\b(switch)\\b\\s*\\(",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.control.dsc"
+                }
+            },
+            "end": "\\)",
+            "name": "switch-expression.expr.dsc",
+            "patterns": [
+                {
+                    "include": "#expression"
+                }
+            ]
+        },
+        "switch-statement": {
+            "begin": "(?=\\bswitch\\b\\s*\\()",
+            "end": "}",
+            "name": "switch-statement.expr.dsc",
+            "patterns": [
+                {
+                    "include": "#switch-expression"
+                },
+                {
+                    "include": "#switch-block"
+                }
+            ]
+        },
+        "path-literal": {
+            "begin": "(f|p|d|a|r)(`)",
+            "beginCaptures": {
+                "1": {
+                    "name": "string.interpolated.path.operator.dsc"
+                },
+                "2": {
+                    "name": "string.interpolated.path.quote.dsc"
+                }
+            },
+            "end": "(?<!`)(`)(?!`)",
+            "endCaptures": {
+                "0": {
+                    "name": "string.interpolated.path.quote.dsc"
+                }
+            },
+            "name": "meta.template.dsc",
+            "patterns": [
+                {
+                    "include": "#template-substitution-element"
+                },
+                {
+                    "include": "#path-literal-separator"
+                },
+                {
+                    "include": "#path-literal-contents"
+                }
+            ]
+        },
+        "path-literal-contents": {
+            "begin": ".*?",
+            "end": "(?=(\\$\\{|((?<!`)(`)(?!`))|/|\\\\))",
+            "name": "string.interpolated.path.content.dsc",
+            "patterns": [
+                {
+                    "include": "#string-character-escape"
+                }
+            ]
+        },
+        "path-literal-separator": {
+            "match": "(\\\\|/)",
+            "name": "string.interpolated.path.separator.dsc"
+        },
+
+
+
+        "template": {
+            "begin": "`",
+            "beginCaptures": {
+                "0": {
+                    "name": "string.interpolated.dsc"
+                }
+            },
+            "end": "`",
+            "endCaptures": {
+                "0": {
+                    "name": "string.interpolated.dsc"
+                }
+            },
+            "name": "meta.template.dsc",
+            "patterns": [
+                {
+                    "include": "#template-substitution-element"
+                },
+                {
+                    "include": "#template-string-contents"
+                }
+            ]
+        },
+        "template-string-contents": {
+            "begin": ".*?",
+            "end": "(?=(\\$\\{|`))",
+            "name": "string.template.dsc",
+            "patterns": [
+                {
+                    "include": "#string-character-escape"
+                }
+            ]
+        },
+        "template-substitution-element": {
+            "begin": "\\$\\{",
+            "beginCaptures": {
+                "0": {
+                    "name": "keyword.others.dsc"
+                }
+            },
+            "end": "\\}",
+            "endCaptures": {
+                "0": {
+                    "name": "keyword.others.dsc"
+                }
+            },
+            "name": "template.element.dsc",
+            "patterns": [
+                {
+                    "include": "#expression"
+                }
+            ]
+        },
+        "this-literal": {
+            "match": "\\b(this)\\b",
+            "name": "constant.language.this.dsc"
+        },
+        "type": {
+            "name": "meta.type.dsc",
+            "patterns": [
+                {
+                    "include": "#type-primitive"
+                },
+                {
+                    "include": "#type-parameters"
+                },
+                {
+                    "include": "#type-tuple"
+                },
+                {
+                    "include": "#type-object"
+                },
+                {
+                    "include": "#type-operator"
+                },
+                {
+                    "include": "#type-paren-or-function-type-parameters"
+                },
+                {
+                    "include": "#type-function-return-type"
+                },
+                {
+                    "include": "#type-name"
+                }
+            ]
+        },
+        "type-annotation": {
+            "begin": ":",
+            "end": "(?=$|[,);\\}\\]]|//)|(?==[^>])|(?<=[\\}>\\]\\)]|[a-zA-Z_$])\\s*(?=\\{)",
+            "name": "meta.type.annotation.dsc",
+            "patterns": [
+                {
+                    "include": "#expression-operator"
+                },
+                {
+                    "include": "#type"
+                },
+                {
+                    "include": "#string"
+                },
+                {
+                    "include": "#comment"
+                }
+            ]
+        },
+        "type-declaration": {
+            "begin": "\\b(type)\\b\\s+([a-zA-Z_$][\\w$]*)\\s*",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.other.dsc"
+                },
+                "2": {
+                    "name": "support.type.dsc"
+                }
+            },
+            "end": "(?=$|[,);>]|var|type|function|class|interface)",
+            "name": "meta.type.declaration.dsc",
+            "patterns": [
+                {
+                    "include": "#type-parameters"
+                },
+                {
+                    "include": "#type"
+                },
+                {
+                    "match": "=\\s*",
+                    "name": "keyword.operator.comparison.dsc"
+                }
+            ]
+        },
+        "type-function-return-type": {
+            "begin": "=>",
+            "beginCaptures": {
+                "0": {
+                    "name": "keyword.operator.dsc"
+                }
+            },
+            "end": "(?=\\s*[,\\)\\{=;>]|//|$)",
+            "name": "meta.type.function.return.dsc",
+            "patterns": [
+                {
+                    "include": "#type"
+                }
+            ]
+        },
+        "type-name": {
+            "captures": {
+                "1": {
+                    "name": "entity.name.type.dsc"
+                }
+            },
+            "match": "[a-zA-Z_$][.\\w$]*",
+            "name": "meta.type.name.dsc"
+        },
+        "type-object": {
+            "begin": "\\{",
+            "beginCaptures": {
+                "0": {
+                    "name": "meta.brace.curly.dsc"
+                }
+            },
+            "end": "\\}",
+            "endCaptures": {
+                "0": {
+                    "name": "meta.brace.curly.dsc"
+                }
+            },
+            "name": "meta.object.type.dsc",
+            "patterns": [
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#field-declaration"
+                },
+                {
+                    "include": "#method-declaration"
+                },
+                {
+                    "include": "#indexer-declaration"
+                },
+                {
+                    "include": "#type-annotation"
+                }
+            ]
+        },
+        "type-operator": {
+            "match": "[.|]",
+            "name": "keyword.operator.type.dsc"
+        },
+        "type-parameters": {
+            "begin": "([a-zA-Z_$][\\w$]*)?(<)",
+            "beginCaptures": {
+                "1": {
+                    "name": "entity.name.type.dsc"
+                },
+                "2": {
+                    "name": "meta.brace.angle.dsc"
+                }
+            },
+            "end": "(?=$)|(>)",
+            "endCaptures": {
+                "2": {
+                    "name": "meta.brace.angle.dsc"
+                }
+            },
+            "name": "meta.type.parameters.dsc",
+            "patterns": [
+                {
+                    "match": "\\b(extends)\\b",
+                    "name": "keyword.other.dsc"
+                },
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#type"
+                }
+            ]
+        },
+        "type-paren-or-function-type-parameters": {
+            "begin": "(?:\\b(new)\\b)?\\s*\\(",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.control.dsc"
+                }
+            },
+            "end": "\\)",
+            "name": "meta.type.paren.cover.dsc",
+            "patterns": [
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#type"
+                },
+                {
+                    "include": "#function-type-parameters"
+                }
+            ]
+        },
+        "type-primitive": {
+            "captures": {
+                "1": {
+                    "name": "support.type.dsc"
+                }
+            },
+            "match": "\\b(string|number|boolean|symbol|any|void)\\b",
+            "name": "meta.type.primitive.dsc"
+        },
+        "type-tuple": {
+            "begin": "\\[",
+            "beginCaptures": {
+                "0": {
+                    "name": "meta.brace.square.dsc"
+                }
+            },
+            "end": "\\]",
+            "endCaptures": {
+                "0": {
+                    "name": "meta.brace.square.dsc"
+                }
+            },
+            "name": "meta.type.tuple.dsc",
+            "patterns": [
+                {
+                    "include": "#type"
+                },
+                {
+                    "include": "#comment"
+                }
+            ]
+        },
+        "undefined-literal": {
+            "match": "\\b(undefined)\\b",
+            "name": "constant.language.dsc"
+        },
+        "var-expr": {
+            "begin": "(?<!\\()\\s*\\b(var|let|const(?!\\s+enum))\\b",
+            "beginCaptures": {
+                "1": {
+                    "name": "storage.type.dsc"
+                }
+            },
+            "end": "(?=$|;)",
+            "name": "meta.var.expr.dsc",
+            "patterns": [
+                {
+                    "include": "#var-single-variable"
+                },
+                {
+                    "include": "#comment"
+                }
+            ]
+        },
+        "var-single-variable": {
+            "begin": "\\b([a-zA-Z_$][\\w$]*)\\s*(=?)",
+            "beginCaptures": {
+                "1": {
+                    "name": "variable.dsc"
+                }
+            },
+            "end": "(?=$|[;,])",
+            "name": "meta.var-single-variable.expr.dsc",
+            "patterns": [
+                {
+                    "include": "#type-annotation"
+                },
+                {
+                    "include": "#string"
+                },
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#expression"
+                }
+            ]
+        },
+        "variable-initializer": {
+            "begin": "(=)",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.operator.comparison.dsc"
+                }
+            },
+            "end": "(?=$|[,);=])",
+            "patterns": [
+                {
+                    "include": "#expression"
+                }
+            ]
+        }
+    },
+    "scopeName": "source.dsc",
+    "uuid": "ef98eb90-bf9b-11e4-bb52-0800200c9a66"
+}

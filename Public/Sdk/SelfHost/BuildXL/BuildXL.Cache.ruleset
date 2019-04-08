@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RuleSet Name="Custom Rules" Description="The set of rules we use in this codebase." ToolsVersion="12.0">
+  <IncludeAll Action="Warning" />
+  <Rules AnalyzerId="Microsoft.Analyzers.ManagedCodeAnalysis" RuleNamespace="Microsoft.Rules.Managed">
+
+    <Rule Id="CA1000" Action="None" />
+    <Rule Id="CA1006" Action="None" />
+    <Rule Id="CA1014" Action="None" />
+    <Rule Id="CA1020" Action="None" />
+    <Rule Id="CA1021" Action="None" />
+    <Rule Id="CA1026" Action="None" />
+    <Rule Id="CA1028" Action="None" />
+    <Rule Id="CA1034" Action="None" />
+    <Rule Id="CA1045" Action="None" />
+    <Rule Id="CA1051" Action="None" />
+    <Rule Id="CA1062" Action="None" />
+    <Rule Id="CA1065" Action="None" />
+    <Rule Id="CA1502" Action="None" />
+    <Rule Id="CA2104" Action="None" />
+
+    <!-- Need to define whether we need localization.  Most likely answer is 'no'. -->
+    <Rule Id="CA1303" Action="None" />
+
+    <!-- This is about enforcing namespaces start with "Microsoft." or "System.". -->
+    <Rule Id="CA904" Action="None" />
+
+    <!-- We can exclude this as we are not ngen'ing-->
+    <Rule Id="CA908" Action="None" />
+
+    <!-- Allow GetXYZ methods without complaining they should be properties. -->
+    <Rule Id="CA1024" Action="None" />
+
+    <!-- Do not force class names to have fixed suffix based on interfaces it implements (i.e. IEnumerable forces "Collection"). -->
+    <Rule Id="CA1710" Action="None" />
+
+    <!-- Mark members as static. XUnit methods are qualifying for this. Global disable for now. -->
+    <Rule Id="CA1822" Action="None" />
+
+    <!-- IDisposable.Dispose() is defined as being able to handle repeated calls. -->
+    <Rule Id="CA2202" Action="None" />
+	
+	<!-- This tool is too stupid with string literal spellings. -->
+	<Rule Id="CA2204" Action="None" />
+
+    <!-- This requires all binaries be signed. -->
+    <Rule Id="CA2210" Action="None" />
+
+    <!-- This requires CultureInfo to be specified for all string.Format calls.  Disabling because it doesn't handle C# 6.0 string interpolation consistently. -->
+    <Rule Id="CA1305" Action="None" />
+    
+    <!-- Opening parenthesis must not be preceded by a space. -->
+    <Rule Id="SA1008" Action="None" />
+    
+    <!-- Closing parenthesis must not be preceded by a space. -->
+    <Rule Id="SA1009" Action="None" />
+    
+    <!-- Opening parenthesis or bracket must be on declaration line. -->
+    <Rule Id="SA1110" Action="None" />
+    
+    <!-- Closing parenthesis must be on line of last parameter. -->
+    <Rule Id="SA1111" Action="None" />
+    
+    <!-- Closing square bracket must be followed by a space. -->
+    <Rule Id="SA1011" Action="None" />
+    
+    <!-- Opening brace must be followed by a space. -->
+    <Rule Id="SA1012" Action="None" />
+    
+    <!-- Closing brace must be preceded by a space. -->
+    <Rule Id="SA1013" Action="None" />
+    
+    <!-- Prefix local calls with this -->
+    <Rule Id="SA1101" Action="None" />
+    
+    <!-- A field should not follow a property -->
+    <!-- A property should not follow a method -->
+    <Rule Id="SA1201" Action="None" />
+    
+    <!-- Public members must come before private members. -->
+    <Rule Id="SA1202" Action="None" />
+    
+    <!-- Field must not begin with an underscore. -->
+    <Rule Id="SA1309" Action="None" />
+    
+    <!-- Field must be private. -->
+    <Rule Id="SA1401" Action="None" />
+    
+    <!-- Code analysis suppression must have justification. -->
+    <Rule Id="SA1404" Action="None" />
+    
+    <!-- All accessors must be single-line or multi-line. -->
+    <Rule Id="SA1504" Action="None" />
+    
+    <!-- Partial elements must be documented. -->
+    <Rule Id="SA1601" Action="None" />
+
+    <!-- The documentation for parameter is missing. -->
+    <Rule Id="SA1611" Action="None" />
+    
+    <!-- The documentation for type parameter T is missing. -->
+    <Rule Id="SA1618" Action="None" />
+    <Rule Id="SA1619" Action="None" />
+    
+    <!-- Element return value must be documented. -->
+    <Rule Id="SA1615" Action="None" />
+
+    <!-- Enable XML documentation output. -->
+    <Rule Id="SA1652" Action="None" />
+    
+    <!-- Using directive must appear within a namespace declaration -->
+    <Rule Id="SA1200" Action="None" />
+  </Rules>
+</RuleSet>

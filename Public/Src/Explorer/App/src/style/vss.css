@@ -1,0 +1,769 @@
+.tree-column-wrapper {
+    display: flex;
+    flex-grow: 1;
+    align-items: center;
+    overflow: hidden;
+    text-overflow: ellipsis
+}
+
+.tree-list-spinner {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding-right: 5px
+}
+
+.tree-chevron {
+    padding-left: 2px;
+    padding-right: 7px;
+    font-size: 8px
+}
+
+.tree-chevron.invisible {
+    visibility: hidden
+}
+
+.tree-list .ms-DetailsRow {
+    animation-name: none
+}
+
+.vss-DetailsList.ms-DetailsList {
+    font-size: 14px
+}
+
+.vss-DetailsList.ms-DetailsList.noGroupExpand .ms-GroupSpacer {
+    display: none
+}
+
+.vss-DetailsList.ms-DetailsList.noGroupExpand .ms-DetailsHeader-cell:first-child {
+    display: none
+}
+
+.vss-DetailsList.ms-DetailsList .ms-GroupedList {
+    font-size: 14px
+}
+
+.vss-DetailsList.ms-DetailsList button:disabled.ms-DetailsHeader-cell {
+    cursor: default;
+    border: unset
+}
+
+.vss-DetailsList.ms-DetailsList .ms-DetailsHeader {
+    min-height: 34px
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell {
+    min-height: 36px
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow {
+    min-height: 36px;
+    border: none;
+    margin: 0
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow::before {
+    border: none
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:focus::after {
+    border-color: rgba(0,120,212,1);
+    border-color: var(--component-grid-focus-border-color,rgba(0, 120, 212, 1))
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a {
+    color: rgba(0,0,0,.9);
+    color: var(--text-primary-color,rgba(0, 0, 0, .9));
+    border: 1px solid transparent;
+    outline: 0
+}
+
+.ms-Fabric--isFocusVisible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus, .vss-focus-visible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus {
+    border: 1px solid rgba(0,0,0,.9);
+    border: 1px solid var(--text-primary-color,rgba(0, 0, 0, .9))
+}
+
+@media screen and (-ms-high-contrast:active) {
+    .ms-Fabric--isFocusVisible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus, .vss-focus-visible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus {
+        border: 1px dashed windowtext !important
+    }
+}
+
+@media screen and (-ms-high-contrast:active) and (-ms-high-contrast:white-on-black) {
+    .ms-Fabric--isFocusVisible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus, .vss-focus-visible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus {
+        border: 1px dashed rgba(0,69,120,1) !important;
+        border: 1px dashed rgba(var(--palette-primary-shade-30,0, 69, 120),1) !important
+    }
+}
+
+@media screen and (-ms-high-contrast:active) and (-ms-high-contrast:black-on-white) {
+    .ms-Fabric--isFocusVisible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus, .vss-focus-visible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus {
+        border: 1px dashed rgba(255,255,255,1) !important;
+        border: 1px dashed rgba(var(--palette-neutral-0,255, 255, 255),1) !important
+    }
+}
+
+@media screen and (-ms-high-contrast:active) {
+    .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a {
+        border: 1px solid transparent;
+        outline: 0
+    }
+
+    .ms-Fabric--isFocusVisible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus, .vss-focus-visible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus {
+        border: 1px solid rgba(0,0,0,.9);
+        border: 1px solid var(--text-primary-color,rgba(0, 0, 0, .9))
+    }
+}
+
+@media screen and (-ms-high-contrast:active) {
+    .ms-Fabric--isFocusVisible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus, .vss-focus-visible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus {
+        border: 1px dashed windowtext !important
+    }
+}
+
+@media screen and (-ms-high-contrast:active) and (-ms-high-contrast:white-on-black) {
+    .ms-Fabric--isFocusVisible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus, .vss-focus-visible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus {
+        border: 1px dashed rgba(0,69,120,1) !important;
+        border: 1px dashed rgba(var(--palette-primary-shade-30,0, 69, 120),1) !important
+    }
+}
+
+@media screen and (-ms-high-contrast:active) and (-ms-high-contrast:black-on-white) {
+    .ms-Fabric--isFocusVisible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus, .vss-focus-visible .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a:focus {
+        border: 1px dashed rgba(255,255,255,1) !important;
+        border: 1px dashed rgba(var(--palette-neutral-0,255, 255, 255),1) !important
+    }
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow a.ms-Link:focus {
+    outline: none
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow .ms-DetailsRow-cell {
+    margin: 0;
+    padding: 0 8px;
+    align-items: center;
+    line-height: 34px;
+    min-height: 34px;
+    color: rgba(0,0,0,.9);
+    color: var(--text-primary-color,rgba(0, 0, 0, .9))
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow .vss-DetailsList--cellCheck {
+    padding: 0
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow .actions-column-wrapper {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow .actions-column-wrapper .original-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow .vss-ContextualMenu--container {
+    padding-top: 1px
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow .vss-ContextualMenuButton {
+    background-color: rgba(244,244,244,1);
+    background-color: var(--component-grid-row-hover-color,rgba(244, 244, 244, 1));
+    height: 32px;
+    width: 36px;
+    max-width: 36px;
+    margin-top: 1px
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow .vss-ContextualMenuButton:hover, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow .vss-ContextualMenuButton:active {
+    color: rgba(0,0,0,.9);
+    color: var(--text-primary-color,rgba(0, 0, 0, .9));
+    background-color: rgba(234,234,234,1);
+    background-color: var(--component-grid-action-hover-color,rgba(234, 234, 234, 1))
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow .vss-DetailsList--contextual-menu-button.space-unallocated {
+    display: none
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow .vss-DetailsList--contextual-menu-button.space-unallocated.open {
+    display: block
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow .vss-DetailsList--contextual-menu-button.space-allocated {
+    display: block;
+    visibility: hidden
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow .vss-DetailsList--contextual-menu-button.space-allocated.open {
+    visibility: visible
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected {
+    background-color: rgba(239,246,252,1);
+    background-color: rgba(var(--palette-primary-tint-40,239, 246, 252),1)
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected .vss-ContextualMenuButton {
+    background-color: rgba(239,246,252,1);
+    background-color: rgba(var(--palette-primary-tint-40,239, 246, 252),1)
+}
+
+@media screen and (-ms-high-contrast:active) {
+    .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected .vss-ContextualMenuButton {
+        background-color: transparent
+    }
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected .vss-ContextualMenuButton:focus, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected .vss-ContextualMenuButton:hover, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected .vss-ContextualMenuButton:active {
+    color: rgba(0,0,0,.9);
+    color: var(--text-primary-color,rgba(0, 0, 0, .9));
+    background-color: rgba(222,236,249,1);
+    background-color: var(--component-grid-action-selected-cell-hover-color,rgba(222, 236, 249, 1))
+}
+
+@media screen and (-ms-high-contrast:active) {
+    .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected .vss-ContextualMenuButton:focus, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected .vss-ContextualMenuButton:hover, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected .vss-ContextualMenuButton:active {
+        color: rgba(0,69,120,1);
+        color: rgba(var(--palette-primary-shade-30,0, 69, 120),1)
+    }
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected .vss-DetailsList--contextual-menu-button.space-unallocated {
+    display: block
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected .vss-DetailsList--contextual-menu-button.space-allocated {
+    visibility: visible
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected a {
+    color: rgba(16,110,190,1);
+    color: var(--component-grid-link-selected-row-color,rgba(16, 110, 190, 1))
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected a:hover {
+    color: rgba(0,90,158,1);
+    color: var(--component-grid-link-hover-color,rgba(0, 90, 158, 1));
+    text-decoration: underline
+}
+
+@media screen and (-ms-high-contrast:white-on-black) {
+    .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected a, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected a :hover, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected span, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected label, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected i {
+        color: rgba(0,69,120,1);
+        color: rgba(var(--palette-primary-shade-30,0, 69, 120),1)
+    }
+}
+
+@media screen and (-ms-high-contrast:black-on-white) {
+    .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected a, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected a :hover, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected span, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected label, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected i {
+        color: rgba(255,255,255,1);
+        color: rgba(var(--palette-neutral-0,255, 255, 255),1)
+    }
+}
+
+@media screen and (-ms-high-contrast:white-on-black) {
+    .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected button i, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected .ms-Button-label {
+        color: HighlightText
+    }
+}
+
+@media screen and (-ms-high-contrast:black-on-white) {
+    .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected button i, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected .ms-Button-label {
+        color: HighlightText
+    }
+}
+
+@media screen and (-ms-high-contrast:active) {
+    .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow.is-selected button:hover i {
+        color: rgba(0,69,120,1);
+        color: rgba(var(--palette-primary-shade-30,0, 69, 120),1)
+    }
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover {
+    background-color: rgba(244,244,244,1);
+    background-color: var(--component-grid-row-hover-color,rgba(244, 244, 244, 1))
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover.is-selected {
+    background-color: rgba(239,246,252,1);
+    background-color: rgba(var(--palette-primary-tint-40,239, 246, 252),1)
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover.is-selected .vss-ContextualMenuButton:focus, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover.is-selected .vss-ContextualMenuButton:hover, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover.is-selected .vss-ContextualMenuButton:active {
+    color: rgba(0,0,0,.9);
+    color: var(--text-primary-color,rgba(0, 0, 0, .9));
+    background-color: rgba(222,236,249,1);
+    background-color: var(--component-grid-action-selected-cell-hover-color,rgba(222, 236, 249, 1))
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover .vss-DetailsList--contextual-menu-button.space-unallocated {
+    display: block
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover .vss-DetailsList--contextual-menu-button.space-allocated {
+    visibility: visible
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover a {
+    color: rgba(16,110,190,1);
+    color: var(--component-grid-link-selected-row-color,rgba(16, 110, 190, 1))
+}
+
+.vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover a:hover {
+    color: rgba(0,90,158,1);
+    color: var(--component-grid-link-hover-color,rgba(0, 90, 158, 1));
+    text-decoration: underline
+}
+
+@media screen and (-ms-high-contrast:white-on-black) {
+    .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover.is-selected a, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover.is-selected a :hover, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover.is-selected span, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover.is-selected i {
+        color: rgba(0,69,120,1);
+        color: rgba(var(--palette-primary-shade-30,0, 69, 120),1)
+    }
+}
+
+@media screen and (-ms-high-contrast:black-on-white) {
+    .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover.is-selected a, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover.is-selected a :hover, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover.is-selected span, .vss-DetailsList.ms-DetailsList .ms-List-cell .ms-DetailsRow:hover.is-selected i {
+        color: rgba(255,255,255,1);
+        color: rgba(var(--palette-neutral-0,255, 255, 255),1)
+    }
+}
+
+.vss-DetailsList--titleCellText {
+    overflow: hidden;
+    text-overflow: ellipsis
+}
+
+.vss-DetailsList--titleCellText.disabled {
+    color: rgba(200,200,200,1);
+    color: rgba(var(--palette-neutral-20,200, 200, 200),1)
+}
+
+.vss-DetailsList--titleCellText.disabled a:link, .vss-DetailsList--titleCellText.disabled a:hover, .vss-DetailsList--titleCellText.disabled a:visited {
+    color: rgba(200,200,200,1);
+    color: rgba(var(--palette-neutral-20,200, 200, 200),1)
+}
+
+.vss-DetailsList--titleCellIcon {
+    display: flex;
+    flex: 0 0 auto;
+    margin-right: 6px
+}
+
+.vss-DetailsList--titleCellOneLine {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    flex: 1;
+    align-items: center
+}
+
+.vss-DetailsList--titleCellPrimary {
+    display: flex;
+    flex-direction: row;
+    flex-grow: 1;
+    overflow: hidden;
+    align-items: center
+}
+
+.vss-DetailsList--twoLine .vss-DetailsList--titleCellTwoLine {
+    padding: 6px 0;
+    line-height: 20px;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    flex: 1;
+    margin-left: 10px;
+    align-items: center
+}
+
+.vss-DetailsList--twoLine .vss-DetailsList--titleCellTwoLine.noIcon {
+    margin-left: 0
+}
+
+.vss-DetailsList--twoLine .vss-DetailsList--titleCellTwoLine .vss-DetailsList--titleCellIcon {
+    line-height: 40px;
+    font-size: 28px;
+    margin-right: 13px;
+    vertical-align: middle
+}
+
+.vss-DetailsList--twoLine .vss-DetailsList--titleCellTwoLine .vss-DetailsList--titleCellIcon.disabled img {
+    opacity: .5
+}
+
+.vss-DetailsList--twoLine .vss-DetailsList--titleCellTwoLine .vss-DetailsList--titleCellIcon.vss-DetailsList--titleCellIcon--image {
+    margin-right: 13px
+}
+
+.vss-DetailsList--twoLine .vss-DetailsList--titleCellTwoLine .vss-DetailsList--titleCellIcon.vss-DetailsList--titleCellIcon--image .ms-Image {
+    width: 40px;
+    height: 40px
+}
+
+.vss-DetailsList--twoLine .vss-DetailsList--titleCellTwoLine .vss-IndicatorSet {
+    font-size: 16px
+}
+
+.vss-DetailsList--twoLine .vss-DetailsList--titleCellTwoLine .vss-DetailsList--titleCellTwoLineText {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: 15px;
+    flex-grow: 1
+}
+
+.vss-DetailsList--twoLine .vss-DetailsList--titleCellTwoLine .vss-DetailsList--titleCellTwoLineText .vss-DetailsList--titleCellSecondary {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+    color: rgba(0,0,0,.55);
+    color: var(--text-secondary-color,rgba(0, 0, 0, .55))
+}
+
+.vss-DetailsList.ms-DetailsList.vss-DetailsList--twoLine .ms-GroupedList {
+    padding-top: 10px
+}
+
+.vss-DetailsList.ms-DetailsList.vss-DetailsList--twoLine .ms-GroupedList-group {
+    padding-bottom: 20px
+}
+
+.vss-DetailsList.ms-DetailsList.vss-DetailsList--twoLine .ms-List-page:last-child .ms-List-cell:last-child {
+    border-bottom: none
+}
+
+.vss-DetailsList.ms-DetailsList.vss-DetailsList--twoLine .ms-GroupedList .ms-List-cell {
+    border-bottom: none
+}
+
+.vss-DetailsList.ms-DetailsList.vss-DetailsList--twoLine .ms-GroupedList-group .ms-List-cell {
+    border-bottom: 1px solid rgba(234,234,234,1);
+    border-bottom: 1px solid var(--component-grid-cell-bottom-border-color,rgba(234, 234, 234, 1))
+}
+
+.vss-DetailsList.ms-DetailsList.vss-DetailsList--twoLine .ms-List-cell {
+    border-bottom: 1px solid rgba(234,234,234,1);
+    border-bottom: 1px solid var(--component-grid-cell-bottom-border-color,rgba(234, 234, 234, 1));
+    min-height: 54px
+}
+
+.vss-DetailsList.ms-DetailsList.vss-DetailsList--twoLine .ms-List-cell .ms-DetailsRow {
+    min-height: 54px
+}
+
+.vss-DetailsList.ms-DetailsList.vss-DetailsList--twoLine .ms-List-cell .ms-DetailsRow .ms-DetailsRow-cell {
+    line-height: 52px;
+    min-height: 52px
+}
+
+.vss-DetailsList.ms-DetailsList.vss-DetailsList--twoLine .ms-List-cell .ms-DetailsRow .ms-DetailsRow-cell .vss-ContextualMenu--container {
+    margin-top: 9px
+}
+
+.vss-DetailsList--layout.ms-DetailsList {
+    color: initial;
+    cursor: default
+}
+
+.vss-DetailsList--layout.ms-DetailsList a {
+    color: initial
+}
+
+.vss-DetailsList--layout.ms-DetailsList .ms-DetailsHeader {
+    border-color: initial;
+    font-size: initial;
+    line-height: initial
+}
+
+.vss-DetailsList--layout.ms-DetailsList .ms-DetailsHeader-cell {
+    display: inline-flex;
+    height: auto;
+    min-height: initial;
+    padding: 0
+}
+
+.vss-DetailsList--layout.ms-DetailsList .ms-DetailsHeader-cell > span {
+    position: relative;
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden
+}
+
+.vss-DetailsList--layout.ms-DetailsList .ms-DetailsHeader-cellTitle {
+    align-items: center;
+    display: flex;
+    flex-grow: 1;
+    padding: 0;
+    position: relative
+}
+
+.vss-DetailsList--layout.ms-DetailsList .ms-DetailsHeader-cellTitle > .ms-DetailsHeader-cellName {
+    overflow: hidden;
+    text-overflow: ellipsis
+}
+
+.vss-DetailsList--layout.ms-DetailsList .ms-List-cell, .vss-DetailsList--layout.ms-DetailsList .ms-DetailsRow, .vss-DetailsList--layout.ms-DetailsList .ms-DetailsRow-cell {
+    margin: 0;
+    border: none;
+    min-height: inherit
+}
+
+.vss-DetailsList--layout.ms-DetailsList .ms-DetailsRow::before {
+    border: none
+}
+
+.vss-DetailsList--layout.ms-DetailsList .ms-DetailsRow:hover {
+    background-color: initial
+}
+
+.vss-DetailsList--layout.ms-DetailsList .ms-DetailsRow.is-selected {
+    background-color: initial
+}
+
+.vss-DetailsList--layout.ms-DetailsList .ms-DetailsRow-cell {
+    align-items: center;
+    align-self: stretch;
+    flex-direction: row;
+    padding: 0;
+    color: initial
+}
+
+.vss-DetailsList--layout.ms-DetailsList .actions-column-wrapper {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    flex-grow: 1
+}
+
+.vss-DetailsList--layout.ms-DetailsList .original-content {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis
+}
+
+.vss-DetailsList--layout.ms-DetailsList .vss-ContextualMenu--container {
+    display: flex;
+    align-items: center
+}
+
+.vss-DetailsList--layout.ms-DetailsList .vss-DetailsList--contextual-menu-button {
+    height: auto
+}
+
+.vss-DetailsList--layout.hideActionsButton .vss-DetailsList--contextual-menu-button.space-unallocated {
+    display: none
+}
+
+.vss-DetailsList--layout.hideActionsButton .vss-DetailsList--contextual-menu-button.space-unallocated.open {
+    display: block
+}
+
+.vss-DetailsList--layout.hideActionsButton .vss-DetailsList--contextual-menu-button.space-allocated {
+    visibility: hidden
+}
+
+.vss-DetailsList--layout.hideActionsButton .vss-DetailsList--contextual-menu-button.space-allocated.open {
+    visibility: visible
+}
+
+.vss-DetailsList--layout.hideActionsButton .ms-DetailsRow.is-selected .vss-DetailsList--contextual-menu-button.space-unallocated, .vss-DetailsList--layout.hideActionsButton .ms-DetailsRow:hover .vss-DetailsList--contextual-menu-button.space-unallocated {
+    display: block
+}
+
+.vss-DetailsList--layout.hideActionsButton .ms-DetailsRow.is-selected .vss-DetailsList--contextual-menu-button.space-allocated, .vss-DetailsList--layout.hideActionsButton .ms-DetailsRow:hover .vss-DetailsList--contextual-menu-button.space-allocated {
+    visibility: visible
+}
+
+.vss-DetailsList--layout.singleLine {
+    font-size: 14px
+}
+
+.vss-DetailsList--layout.singleLine .ms-DetailsRow-cell {
+    min-height: 36px
+}
+
+.vss-DetailsList--layout.singleLine .vss-DetailsList--contextual-menu-button {
+    height: 32px
+}
+
+.vss-DetailsList--layout.flexCellLayout .original-content {
+    display: flex;
+    align-items: center
+}
+
+.vss-DetailsList--layout.flexCellLayout .ms-DetailsRow-cell {
+    display: flex;
+    align-items: center
+}
+
+.vss-DetailsList--layout.paddingInCells .ms-DetailsHeader-cell, .vss-DetailsList--layout.paddingInCells .ms-DetailsRow-cell {
+    padding: 0 8px
+}
+
+.vss-DetailsList--layout.paddingInCells .ms-DetailsHeader-cellIsCheck, .vss-DetailsList--layout.paddingInCells .vss-DetailsList--cellCheck {
+    padding: 0
+}
+
+.vss-DetailsList--layout.paddingInCells .original-content {
+    padding-right: 4px
+}
+
+.vss-DetailsList--layout.ms-DetailsList.colors {
+    color: rgba(0,0,0,1);
+    color: rgba(var(--palette-neutral-100,0, 0, 0),1)
+}
+
+.vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsHeader-cell {
+    color: rgba(0,0,0,1);
+    color: rgba(var(--palette-neutral-100,0, 0, 0),1)
+}
+
+.vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow-cell {
+    color: rgba(0,0,0,1);
+    color: rgba(var(--palette-neutral-100,0, 0, 0),1)
+}
+
+.vss-DetailsList--layout.ms-DetailsList.colors .vss-ContextualMenuButton {
+    background-color: rgba(244,244,244,1);
+    background-color: var(--component-grid-row-hover-color,rgba(244, 244, 244, 1))
+}
+
+.vss-DetailsList--layout.ms-DetailsList.colors .vss-ContextualMenuButton:hover, .vss-DetailsList--layout.ms-DetailsList.colors .vss-ContextualMenuButton:active {
+    color: rgba(0,0,0,1);
+    color: rgba(var(--palette-neutral-100,0, 0, 0),1);
+    background-color: rgba(234,234,234,1);
+    background-color: var(--component-grid-action-hover-color,rgba(234, 234, 234, 1))
+}
+
+.vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow:hover {
+    background-color: rgba(244,244,244,1);
+    background-color: var(--component-grid-row-hover-color,rgba(244, 244, 244, 1))
+}
+
+.vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected {
+    background-color: rgba(239,246,252,1);
+    background-color: var(--component-grid-selected-row-color,rgba(239, 246, 252, 1))
+}
+
+.vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected .vss-ContextualMenuButton {
+    background-color: rgba(239,246,252,1);
+    background-color: rgba(var(--palette-primary-tint-40,239, 246, 252),1)
+}
+
+@media screen and (-ms-high-contrast:active) {
+    .vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected .vss-ContextualMenuButton {
+        background-color: transparent
+    }
+}
+
+.vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected .vss-ContextualMenuButton:focus, .vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected .vss-ContextualMenuButton:hover, .vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected .vss-ContextualMenuButton:active {
+    color: rgba(0,0,0,1);
+    color: rgba(var(--palette-neutral-100,0, 0, 0),1);
+    background-color: rgba(222,236,249,1);
+    background-color: var(--component-grid-action-selected-cell-hover-color,rgba(222, 236, 249, 1))
+}
+
+@media screen and (-ms-high-contrast:active) {
+    .vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected .vss-ContextualMenuButton:focus, .vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected .vss-ContextualMenuButton:hover, .vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected .vss-ContextualMenuButton:active {
+        color: rgba(0,69,120,1);
+        color: rgba(var(--palette-primary-shade-30,0, 69, 120),1)
+    }
+}
+
+@media screen and (-ms-high-contrast:active) {
+    .vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected .ms-Check::before {
+        background-color: transparent
+    }
+}
+
+@media screen and (-ms-high-contrast:active) {
+    .vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected .ms-DetailsRow-cell, .vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected span, .vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected i {
+        color: HighlightText
+    }
+}
+
+@media screen and (-ms-high-contrast:active) {
+    .vss-DetailsList--layout.ms-DetailsList.colors .ms-DetailsRow.is-selected button:hover i {
+        color: rgba(0,69,120,1);
+        color: rgba(var(--palette-primary-shade-30,0, 69, 120),1)
+    }
+}
+
+.vss-DetailsList--layout.linkStyles .ms-DetailsRow.is-selected a, .vss-DetailsList--layout.linkStyles .ms-DetailsRow.is-selected a:visited, .vss-DetailsList--layout.linkStyles .ms-DetailsRow:hover a {
+    color: rgba(16,110,190,1);
+    color: var(--component-grid-link-selected-row-color,rgba(16, 110, 190, 1))
+}
+
+.vss-DetailsList--layout.linkStyles a, .vss-DetailsList--layout.linkStyles a:visited {
+    padding: 0 2px;
+    text-decoration: none;
+    color: inherit
+}
+
+    .vss-DetailsList--layout.linkStyles a:hover, .vss-DetailsList--layout.linkStyles .ms-DetailsRow.is-selected a:hover {
+        color: rgba(0,90,158,1);
+        color: var(--component-grid-link-hover-color,rgba(0, 90, 158, 1));
+        text-decoration: underline
+    }
+
+@media screen and (-ms-high-contrast:active) {
+    .vss-DetailsList--layout.linkStyles .ms-DetailsRow.is-selected a, .vss-DetailsList--layout.linkStyles .ms-DetailsRow.is-selected a:hover, .vss-DetailsList--layout.linkStyles .ms-DetailsRow.is-selected a:visited {
+        color: HighlightText
+    }
+}
+
+.vss-DetailsList--layout.headerRowStyles .ms-DetailsHeader {
+    border-color: rgba(234,234,234,1);
+    border-color: rgba(var(--palette-neutral-8,234, 234, 234),1);
+    min-height: 34px
+}
+
+.vss-DetailsList--layout.headerRowStyles .ms-DetailsHeader-cell {
+    color: rgba(0,0,0,1);
+    color: rgba(var(--palette-neutral-100,0, 0, 0),1);
+    min-height: 32px
+}
+
+.vss-DetailsList--groupHeader {
+    border-bottom: 1px solid rgba(234,234,234,1);
+    border-bottom: 1px solid var(--component-grid-cell-bottom-border-color,rgba(234, 234, 234, 1));
+    outline: 0
+}
+
+.ms-Fabric--isFocusVisible .vss-DetailsList--groupHeader:focus, .vss-focus-visible .vss-DetailsList--groupHeader:focus {
+    border: 1px solid rgba(0,0,0,.9);
+    border: 1px solid var(--text-primary-color,rgba(0, 0, 0, .9))
+}
+
+@media screen and (-ms-high-contrast:active) {
+    .ms-Fabric--isFocusVisible .vss-DetailsList--groupHeader:focus, .vss-focus-visible .vss-DetailsList--groupHeader:focus {
+        border: 1px dashed windowtext !important
+    }
+}
+
+@media screen and (-ms-high-contrast:active) and (-ms-high-contrast:white-on-black) {
+    .ms-Fabric--isFocusVisible .vss-DetailsList--groupHeader:focus, .vss-focus-visible .vss-DetailsList--groupHeader:focus {
+        border: 1px dashed rgba(0,69,120,1) !important;
+        border: 1px dashed rgba(var(--palette-primary-shade-30,0, 69, 120),1) !important
+    }
+}
+
+@media screen and (-ms-high-contrast:active) and (-ms-high-contrast:black-on-white) {
+    .ms-Fabric--isFocusVisible .vss-DetailsList--groupHeader:focus, .vss-focus-visible .vss-DetailsList--groupHeader:focus {
+        border: 1px dashed rgba(255,255,255,1) !important;
+        border: 1px dashed rgba(var(--palette-neutral-0,255, 255, 255),1) !important
+    }
+}
+
+.vss-DetailsList--groupHeaderText {
+    padding: 10px 8px;
+    color: rgba(0,0,0,.55);
+    color: var(--text-secondary-color,rgba(0, 0, 0, .55))
+}

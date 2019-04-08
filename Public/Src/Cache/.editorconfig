@@ -1,0 +1,52 @@
+# top-most EditorConfig file
+root = false
+
+# Don't use tabs for indentation.
+[*]
+indent_style = space
+# (Please don't specify an indent_size here; that has too many unintended consequences.)
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+#######################################################################################
+#                               Naming Conventions                                    #
+#######################################################################################
+
+# Static fields are PascalCase with no prefix
+dotnet_naming_rule.static_fields_should_be_camel_case.severity                  = warning
+dotnet_naming_rule.static_fields_should_be_camel_case.symbols                   = static_fields
+dotnet_naming_rule.static_fields_should_be_camel_case.style                     = static_field_style2
+
+dotnet_naming_symbols.static_fields.applicable_kinds                            = field
+dotnet_naming_symbols.static_fields.required_modifiers                          = static
+
+dotnet_naming_style.static_field_style2.capitalization                           = pascal_case
+
+# Instance fields are camelCase and start with m_
+dotnet_naming_rule.instance_fields_should_be_camel_case.severity                = warning
+dotnet_naming_rule.instance_fields_should_be_camel_case.symbols                 = instance_fields
+dotnet_naming_rule.instance_fields_should_be_camel_case.style                   = instance_field_style
+
+dotnet_naming_symbols.instance_fields.applicable_kinds                          = field
+# The rule should be enforced only for private fields
+dotnet_naming_symbols.instance_fields.applicable_accessibilities                = private
+
+dotnet_naming_style.instance_field_style.capitalization                         = camel_case
+dotnet_naming_style.instance_field_style.required_prefix                        = _
+
+
+# Code files
+[*.cs,*.csx,*.vb,*.vbx]
+indent_size = 4
+
+# Xml project files
+[*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
+indent_size = 2
+
+# Xml config files
+[*.{props,targets,ruleset,config,nuspec,resx,vsixmanifest,vsct}]
+indent_size = 2
+
+# JSON files
+[*.json]
+indent_size = 2

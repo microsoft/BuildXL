@@ -1,0 +1,56 @@
+let joinedSession = dominoinvocation
+| project
+    SessionId,
+    UserName,
+    BuildStart=EventInfo_Time,
+    CommandLine,
+    IsWorker = case(CommandLine contains "distributedBuildRole:worker", true, false)
+| join kind= leftouter (
+   dominocompletion
+    | project 
+        SessionId,
+        Environment,
+        ExitCode,
+        TotalTime= toint(ProcessRunningTime)/1000,
+        BuildQueue = extract("(\\;cloudbuildqueue=)(.*?)\\;", 2, tolower(Environment)),
+        BuildType = case(
+            Environment contains "EnlistmentBuild", "enlist",
+            Environment contains "MetaBuild", "meta",
+            Environment contains "ProductBuild", "product", 
+            "Other")
+) on SessionId 
+| join kind= leftouter (
+   finalstatistics
+   | project 
+        SessionId, 
+        EventInfo_Time, 
+        CacheInit= toint(CacheInitialization_TimeWaitedMs)/1000,
+        GraphConstruct = toint(GraphConstruction_DurationMs)/1000,
+        GraphSave= toint(GraphCacheSave_DurationMs)/1000,
+        FilterPips = toint(ApplyingFilterToPips_DurationMs)/1000,
+        ScheduleFiltered = (toint(ApplyFilterAndScheduleReadyNodes_DurationMs) - toint(ApplyingFilterToPips_DurationMs))/1000,
+        TTFP= toint(TimeToFirstPipMs)/1000,
+        CPExe = toint(CriticalPath_ExeDurationMs)/1000,
+        CPPip = toint(CriticalPath_PipDurationMs)/1000,
+        Execute = toint(Execute_DurationMs)/1000,
+        CacheDispose = toint(Engine_EngineCacheDisposeDurationMs)/1000
+) on SessionId;
+// Query above should be general purpose. Don't add any filtering above this line
+joinedSession
+| where UserName in ("_qcloud1", "_qcloud2")
+| where EventInfo_Time > ago(3d)
+| where BuildType == "product"
+| where BuildQueue == "officeclientpreprod_1708_retail_x64"
+| where IsWorker == false
+| where ExitCode == 0
+| project SessionId, BuildStart,
+    BuildQueue,
+    CacheInit,
+    GraphConstruct,
+    GraphSave,
+    FilterPips,
+    ScheduleFiltered,
+    Missing=TTFP - CacheInit - GraphConstruct - GraphSave - FilterPips - ScheduleFiltered,
+    s1="=", TTFP,
+    s2="|", CPExe, CPPip, Execute,
+    s3="|", TTFP2=TTFP, Execute2=Execute, CacheDispose, missing2=(TotalTime - Execute - TTFP - CacheDispose), s4="=", TotalTime

@@ -1,0 +1,11 @@
+// Counts the Domino crashes for the past week by RootCause 
+dominocatastrophicfailure
+| join kind = leftouter ( dominoinvocation
+    | where EventInfo_Time  > now(-100d)
+        and BuildInfo_IsDeveloperBuild == "False"
+    | summarize min(EventInfo_Time) by BuildInfo_CommitId
+) on BuildInfo_CommitId
+| where EventInfo_Time  > now(-7d)
+    and BuildInfo_IsDeveloperBuild == "False"
+| summarize Count=count() by RootCause 
+| top 20 by Count desc

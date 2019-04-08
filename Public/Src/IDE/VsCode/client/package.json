@@ -1,0 +1,275 @@
+{
+  "name": "buildxldscript",
+  "enableProposedApi": true,
+  "displayName": "BuildXL.DScript",
+  "description": "Visual Studio Code Extension for BuildXL DScript",
+  "icon": "BuildXL.png",
+  "version": "0.0.0",
+  "publisher": "Microsoft",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Microsoft/BuildXL"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.17.2"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/src/extension",
+  "activationEvents": [
+    "onLanguage:DScript",
+    "onCommand:DScript.reloadWorkspace"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "category": "DScript",
+        "command": "DScript.reloadWorkspace",
+        "title": "%DScript.reloadWorkspace.title%"
+      },
+      {
+        "category": "DScript",
+        "command": "DScript.openDocument",
+        "title": "%DScript.openDocument.title%"
+      },
+      {
+        "category": "DScript",
+        "command": "DScript.openLogFile",
+        "title": "%DScript.openLogFile.title%"
+      },
+      {
+        "category": "DScript",
+        "command": "DScript.addSourceFileToProject",
+        "title": "%DScript.addSourceFile.title%"
+      },
+      {
+        "category": "DScript",
+        "command": "DScript.addProject",
+        "title": "%DScript.addProject.title%"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "DScript.addSourceFileToProject",
+          "when": "DScript.workspaceLoaded && viewItem == DScript.spec"
+        },
+        {
+          "command": "DScript.addProject",
+          "when": "DScript.workspaceLoaded && viewItem == DScript.module"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "DScript.addSourceFileToProject",
+          "when": "DScript.workspaceLoaded && viewItem == DScript.spec"
+        },
+        {
+          "command": "DScript.addProject",
+          "when": "DScript.workspaceLoaded && viewItem == DScript.module"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "DScriptBuildScope",
+          "name": "%DScript.projectModuleBrowser.title%",
+          "when": "DScript.workspaceLoaded && DScript.moduleBrowserEnabled"
+        },
+        {
+          "id": "buildxlProjectDirectoryBrowser",
+          "name": "%DScript.projectDirectoryBrowser.title%",
+          "when": "DScript.workspaceLoaded && DScript.solutionExplorerEnabled"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "DScript",
+        "aliases": [
+          "BuildXL DScript",
+          "DScript",
+          "dsc",
+          "dscript"
+        ],
+        "extensions": [
+          ".dsc",
+          ".bc",
+          ".bm",
+          ".bp",
+          ".bl",
+          ".bxt"
+        ]
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "DScript",
+        "label": "BuildXL DScript Debugger (Unsupported)",
+        "enableBreakpointsFor": {
+          "languageIds": [
+            "DScript"
+          ]
+        },
+        "program": "./out/src/debugger.js",
+        "configurationAttributes": {
+          "attach": {
+            "properties": {
+              "port": {
+                "type": "number",
+                "description": "%DScript.debugger.launch.port.description%",
+                "default": 41177
+              },
+              "address": {
+                "type": "string",
+                "description": "%DScript.debugger.launch.address.description%",
+                "default": "127.0.0.1"
+              }
+            }
+          }
+        },
+        "configurationSnippets": [
+          {
+            "label": "DScript: Attach (NotSupported)",
+            "description": "Attach to a running BuildXL DScript instance. You can enable the debugger by passing '/DebugScript+' to bxl.exe. This feature is NOT supported by the BuildXL team. Use at your own risk, may break at any point in time.",
+            "body": {
+              "name": "Attach to running BuildXL (NotSupported)",
+              "type": "DScript",
+              "request": "attach",
+              "debugServer": 41177
+            }
+          }
+        ],
+        "initialConfigurations": [
+          {
+            "name": "%DScript.debugger.attach.name%",
+            "type": "DScript",
+            "request": "attach",
+            "address": "localhost"
+          }
+        ]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "DScript",
+        "scopeName": "source.dsc",
+        "path": "./syntaxes/DScript.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "BuildXL DScript Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/dark_dscript.json"
+      },
+      {
+        "label": "BuildXL DScript Light",
+        "uiTheme": "vs",
+        "path": "./themes/light_dscript.json"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "%configuration.DScript%",
+      "properties": {
+        "DScript.serverFolder": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "%DScript.serverFolder.desc%"
+        },
+        "DScript.preludeFile": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "%DScript.preludeFile.desc%"
+        },
+        "DScript.enableLegacyResolverSemantics": {
+          "type": "boolean",
+          "default": true,
+          "description": "%DScript.enableLegacyResolverSemantics.desc%"
+        },
+        "DScript.maxNumberOfProblems": {
+          "type": "number",
+          "default": 100,
+          "description": "%DScript.maxNumberOfProblems.desc%"
+        },
+        "DScript.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "%DScript.trace.server.desc%"
+        },
+        "DScript.skipNuget": {
+          "type": "boolean",
+          "default": false,
+          "description": "%DScript.skipNuget.desc%"
+        },
+        "DScript.fastFailOnError": {
+          "type": "boolean",
+          "default": true,
+          "description": "%DScript.fastFailOnError.desc%"
+        },
+        "DScript.debugOnStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "%DScript.debugOnStart.desc%"
+        },
+        "DScript.logJsonRpcMessages": {
+          "type": "boolean",
+          "default": false,
+          "description": "%DScript.logJsonRpcMessages.desc%"
+        },
+        "DScript.turnOnModuleBrowser": {
+          "type": "boolean",
+          "default": false,
+          "description": "%DScript.turnOnModuleBrowser.desc%"
+        },
+        "DScript.turnOnSolutionExplorer": {
+          "type": "boolean",
+          "default": false,
+          "description": "%DScript.turnOnSolutionExplorer.desc%"
+        }
+      }
+    },
+    "snippets": [
+      {
+        "language": "DScript",
+        "path": "./snippets/DScript.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "tsc -p ./",
+    "compile": "tsc -watch -p ./",
+    "update-vscode": "node ./node_modules/vscode/bin/install",
+    "postinstall": "node ./node_modules/vscode/bin/install"
+  },
+  "devDependencies": {
+    "@types/mocha": "^2.2.33",
+    "@types/node": "^6.0.52",
+    "typescript": "^2.6.1",
+    "vscode": "^1.1.33"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^3.5.0",
+    "vscode-nls": "^2.0.2",
+    "vscode-debugprotocol": "^1.24.0",
+    "vscode-debugadapter": "^1.24.0"
+  },
+  "directories": {
+    "bin": "./bin"
+  }
+}

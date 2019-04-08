@@ -1,0 +1,32 @@
+dominoinvocation
+| where EventInfo_Time  > now(-7d)
+| where BuildInfo_CommitId != "[Developer Build]"
+// Modify this line to look for a specific build
+//and BuildInfo_CommitId contains "b4c763e4"
+| extend EnvShort = tostring(split(Environment, ";")[0])
+| extend Env = 
+    case(
+        EnvShort contains "Office", "Office",
+        EnvShort contains "OSGTools", "OsgTools",
+        EnvShort contains "OSG", "WDG",
+        "Unknown")
+| extend Office = iff(EnvShort contains "Office", 1, 0)
+| extend WDG = iff(EnvShort contains "OSG", 1, 0)
+| extend SelfHost = iff(EnvShort contains "Self", 1, 0)
+| extend Other = iff(EnvShort !contains "Office" and EnvShort !contains "OSG" and EnvShort !contains "Self", 1, 0)
+| summarize OfficeCount = sum(Office), WDGCount =sum(WDG), SelfHostCount = sum(SelfHost), OtherCount = sum(Other), Count = count() by BuildInfo_CommitId
+| join kind = leftouter ( dominoinvocation
+    | where EventInfo_Time  > now(-365d)
+        and BuildInfo_IsDeveloperBuild == "False"
+    | extend TimeWithFloor = case(EventInfo_Time > datetime(2017-10-24 15:19:29.6600000), EventInfo_Time, datetime(2017-01-01 00:00:00.6600000)) 
+    | summarize min(TimeWithFloor) by BuildInfo_CommitId
+) on BuildInfo_CommitId == BuildInfo_CommitId
+| where Count > 100
+| order by Count desc
+| project 
+CommitId=BuildInfo_CommitId,
+FirstSeen=min_TimeWithFloor,
+OfficeCount,
+WDGCount,
+SelfHostCount,
+OtherCount

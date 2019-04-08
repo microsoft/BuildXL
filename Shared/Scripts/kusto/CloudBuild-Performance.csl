@@ -1,0 +1,168 @@
+let timeframe = ago(10d);
+let domino_in_cb = dominocompletion 
+| where EventInfo_Time > timeframe
+| where UserName in ("_qcloud1", "_qcloud2", "cbwdg1", "cbwdg2")
+//| where Environment contains "BuildLabScript" or 
+//| where Environment contains @"\dbs\cx\"
+| where ExitCode == 0
+| project SessionId, Environment
+| join (
+    dominoinvocation  
+    | where EventInfo_Time > timeframe
+    | project 
+        SessionId, RelatedSessionIdentifier, CommandLine, BuildInfo_CommitId,
+        BuildType = case(
+            Environment contains "EnlistmentBuild", "enlist",
+            Environment contains "MetaBuild", "meta",
+            Environment contains "ProductBuild", "product", 
+            "Other"),
+        Role = case(
+            CommandLine contains "distributedBuildRole:worker", "worker",
+            CommandLine contains "distributedBuildRole:master", "master",
+            "master"
+            )
+    | join kind=leftouter (  // TODO: don't know why I needed ot use leftouter....
+        database("CloudBuildProd").BuildInfo
+        | where TIMESTAMP > timeframe
+        | where ReturnCode == "Success"
+        | project 
+            BuildQueue, BuildId, OwnerStampId, BuildControllerMachineName, 
+            BuildStartTime = StartTime, 
+            QBits = extract(@"/([^/]*)\?root", 1, CloudBuildTools)
+      ) on $left.RelatedSessionIdentifier == $right.BuildId
+  ) on SessionId
+;
+let cachedata = icachestatistics
+//| where CacheId contains "LocalService" and CacheId !endswith "Vsts"
+| summarize    
+    cache_SQLit_getchl_count = sum(tolong(SQLiteMemoizationStore_GetContentHashListCallCount)),
+    cache_SQLit_getchl_sec = sum(tolong(SQLiteMemoizationStore_GetContentHashListCallMs)) / 1000.0,
+    cache_vsts_getchl_count = sum(tolong(BuildCacheCache_GetContentHashListCallCount)),
+    cache_vsts_getchl_sec = sum(tolong(BuildCacheCache_GetContentHashListCallMs)) / 1000.0,
+    cache_vsts_incorp_sec = sum(tolong(BuildCacheCache_IncorporateStringFingerprintsCallMs )) / 1000.0,    
+    cache_vsts_incorp_count = sum(tolong(BuildCacheCache_IncorporateStringFingerprintsCallCount)),
+    cache_redis_getchl_count = sum(tolong(DistributedCache_GetContentHashListCallCount)),
+    cache_redis_getchl_sec = sum(tolong(DistributedCache_GetContentHashListCallMs) - tolong(BuildCacheCache_GetContentHashListCallMs)) / 1000.0,
+    cache_redis_incorp_count = sum(tolong(DistributedCache_IncorporateStringFingerprintsCallCount)),
+    cache_redis_incorp_sec = sum(tolong(DistributedCache_IncorporateStringFingerprintsCallMs) - tolong(BuildCacheCache_IncorporateStringFingerprintsCallMs)) / 1000.0    
+    by SessionId
+;
+let dominoinvocation_with_stats = domino_in_cb
+| join (finalstatistics | where EventInfo_Time > timeframe) on SessionId
+| join (cachedata) on SessionId
+| extend 
+    master_TimeToFirstPipMs = case(Role != "worker", tolong(TimeToFirstPipMs), -1)
+;
+//
+//
+let result = dominoinvocation_with_stats
+| summarize 
+    // header
+    LocalTime = min(BuildStartTime) - 7h,
+    num_builders = count(),
+    builders_with_work = countif(tolong(PipExecution_ExecuteProcessDurationMs) > 0),
+    process_pips = sum(tolong(TotalProcessPips)),
+    process_pips_hits = sum(tolong(ProcessPipCacheHits)),
+    process_hit_pct = sum(tolong(ProcessPipCacheHits)) / (0.01 * sum(tolong(TotalProcessPips))), 
+    domino_bits = max(BuildInfo_CommitId),
+    qbits = max(QBits),
+    s1 = "  |",
+    // preamble times
+    TTFP_sec = max(tolong(master_TimeToFirstPipMs)) / 1000.0,
+    ds_initialize_sec = max(tolong(InitializeResolvers_DurationMs)) / 1000.0,
+    ds_initialize_mbytes = max(tolong(InitializeResolvers_ProcessMaximumPrivateMB)),
+    spec_cache_mbytes = max(tolong(FileCombiner_FinalSizeInMB)),
+    spec_cache_entries = max(tolong(FileCombiner_BeginCount )),
+    spec_cache_unreferenced_pct = max(tolong(FileCombiner_UnreferencedPercent)),
+    ds_parse_sec = max(tolong(Parse_DurationMs)) / 1000.0,
+    ds_evaluate_sec = max(tolong(Evaluate_DurationMs)) / 1000.0,
+    graph_construction_sec = max(tolong(GraphConstruction_DurationMs)) / 1000.0,
+    master_graph_reload_sec = sumif(tolong(GraphCacheReload_DurationMs), Role == "master") / (1000.0 * countif(Role == "master")),
+    s2 = "  |",
+    worker_graph_fetch_and_load_sec = sumif(tolong(TimeToFirstPipSyntheticMs), Role == "worker") / (1000.0 * countif(Role == "worker" and tolong(TimeToFirstPipSyntheticMs) > 0)), 
+    worker_graph_load_only_sec = sumif(tolong(GraphCacheReload_DurationMs), Role == "worker") / (1000.0 * countif(Role == "worker" and tolong(GraphCacheReload_DurationMs) > 0)), 
+    s3 = "  |",
+    // File content table efficiencyEvaluate_DurationMs 
+    overall_FCT_checks = sum(tolong(SourceFilesChanged)) + sum(tolong(SourceFilesUnchanged)),
+    overall_FCT_hits = sum(tolong(SourceFilesUnchanged)),
+    master_FCT_checks = sumif(tolong(SourceFilesChanged) + tolong(SourceFilesUnchanged), Role != "worker"),
+    master_FCT_hits = sumif(tolong(SourceFilesUnchanged), Role != "worker"),
+    worker_FCT_checks = sumif(tolong(SourceFilesChanged) + tolong(SourceFilesUnchanged), Role == "worker"),   
+    overall_hash_file_sec = sum(tolong(LocalDiskContentStore_HashFileContentTimeMs )) / 1000.0,
+    s4 = "  |",
+    perf_loaded = case(
+       max(toint(Engine_PerformanceDataRetrievedFromDisk)) == 1, "FromDisk",
+       max(toint(Engine_PerformanceDataRetrievedFromCache)) == 1, "FromCache",
+       "None"),      
+    s5 = "  |",
+    // Cache lookup   
+    overall_compute_WFP_sec = sum(tolong(PipExecution_ComputeWeakFingerprintDurationMs)) / 1000.0,
+    overall_query_WFP_sec = sum(tolong(PipExecution_CacheQueryingWeakFingerprintDurationMs)) / 1000.0,
+    overall_compute_SFP_sec = sum(tolong(PipExecution_CheckProcessRunnableFromCacheChapter1DetermineStrongFingerprintDurationMs )) / 1000.0,
+    overall_query_cache_entry_sec = sum(tolong(PipExecution_CheckProcessRunnableFromCacheChapter2RetrieveCacheEntryDurationMs)) / 1000.0,  
+    overall_query_cache_metadata_sec = sum(tolong(PipExecution_CheckProcessRunnableFromCacheChapter3RetrieveAndParseMetadataDurationMs)) / 1000.0,
+    overall_check_content_sec = sum(tolong(PipExecution_CheckProcessRunnableFromCacheChapter4CheckContentAvailabilityDurationMs)) / 1000.0,
+    s6 = "  |",
+    cache_SQLit_getchl_count = sum(cache_SQLit_getchl_count),
+    cache_SQLit_getchl_sec = sum(cache_SQLit_getchl_sec),
+    cache_SQLit_getchl_avg_sec = sum(cache_SQLit_getchl_sec) / sum(cache_SQLit_getchl_count),
+    cache_vsts_getchl_count = sum(cache_vsts_getchl_count),
+    cache_vsts_getchl_sec = sum(cache_vsts_getchl_sec),
+    cache_vsts_getchl_avg_sec = sum(cache_vsts_getchl_sec) / sum(cache_vsts_getchl_count),    
+    cache_redis_getchl_count = sum(cache_redis_getchl_count),
+    cache_redis_getchl_sec = sum(cache_redis_getchl_sec),   
+    cache_redis_getchl_avg_sec = sum(cache_redis_getchl_sec) / sum(cache_redis_getchl_count),
+    s7 = "  |",
+    mem_fe_cfg =       max(tolong(ParseConfigFiles_ProcessMaximumPrivateMB)),
+    mem_fe_resolvers = max(tolong(InitializeResolvers_ProcessMaximumPrivateMB)),
+    mem_fe_parse =     max(tolong(Parse_ProcessMaximumPrivateMB)),    
+    // mem_fe_bld_ws =    max(tolong(BuildWorkspace_ProcessMaximumPrivateMB)),
+    // mem_fe_ana_ws =    max(tolong(AnalyzeWorkspace_ProcessMaximumPrivateMB)),
+    mem_fe_eval =      max(tolong(Evaluate_ProcessMaximumPrivateMB)),
+    mem_be_exec =      max(tolong(Execute_ProcessMaximumPrivateMB)),
+    s8 = "  |",
+    cache_shutdown_sec = max(tolong(Engine_EngineCacheDisposeDurationMs))/1000.0,
+    cache_vsts_incorp_count = sum(cache_vsts_incorp_count),
+    cache_vsts_incorp_sec = sum(cache_vsts_incorp_sec),
+    cache_vsts_incorp_avg_sec = sum(cache_vsts_incorp_sec) / sum(cache_vsts_incorp_count),    
+    s100 = "|",   
+    master_machine = max(BuildControllerMachineName),
+    machines = makelist(MachineName)
+  by OwnerStampId, BuildQueue, RelatedSessionIdentifier, BuildType
+| extend
+    overall_FCT_hit_pct = overall_FCT_hits / (0.01 * overall_FCT_checks),
+    master_FCT_hit_pct = master_FCT_hits / (0.01 * master_FCT_checks)
+| order by OwnerStampId, BuildQueue, RelatedSessionIdentifier, BuildType
+;
+//
+//
+let summary = result 
+//| where BuildQueue == "OfficeClientTest_1709_retail_X64"
+| summarize 
+    total_workers = count(),
+    efficiency = sum(overall_FCT_hits) / (0.01 * sum(overall_FCT_checks)),    
+    hashcosts = avg(overall_hash_file_sec),
+    graph_work = avg(graph_construction_sec),
+    graph_download = avg(worker_graph_fetch_and_load_sec)
+    by OwnerStampId, bin(LocalTime, 1d);
+result
+//dominoinvocation_with_stats
+| where BuildType == "product"
+| where BuildQueue == "OfficeClientPreProd_1708_retail_X64"
+//| where RelatedSessionIdentifier == "e89d8893-b658-4d13-a94b-f6540e77dffe"
+//| where BuildQueue contains "Analog"
+//| project toint(overall_FCT_hit_pct), toint(overall_hash_file_sec), overall_FCT_hit_pct, builders_with_work
+//| where builders_with_work == 6
+//| where machines contains "MW1SCH101331717"
+//| project LocalTime, BuildQueue, master_machine, isMaster = (master_machine == "MW1SCH101331717"), machines 
+// summary
+//| summarize percentiles(mem_fe_eval,10,30,50,95,99,99.9),
+            //percentiles(mem_be_exec,10,30,50,95,99,99.9)  by BuildQueue
+//| project LocalTime, ds_initialize_sec, spec_cache_mbytes, spec_cache_entries, spec_cache_unreferenced_pct, mem_fe_resolvers, ds_evaluate_sec, SpecCacheUsed, BuildQueue, RelatedSessionIdentifier 
+//| summarize 
+//percentiles(cache_redis_getchl_count,10,30,50,95,99,99.9), 
+//    percentiles(cache_vsts_getchl_count,10,30,50,95,99,99.9),
+//    redis_hits = percentiles(cache_redis_getchl_count - cache_vsts_getchl_count,10,30,50,95,99,99.9),
+//    redis_hits_pct = percentiles((cache_redis_getchl_count - cache_vsts_getchl_count) / (0.01 * cache_redis_getchl_count),10,30,50,95,99,99.9)
+// by bin(LocalTime, 1d)
+        

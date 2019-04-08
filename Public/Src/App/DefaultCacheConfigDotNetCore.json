@@ -1,0 +1,6 @@
+{
+    "Assembly": "BuildXL.Cache.InMemory",
+    "Type": "BuildXL.Cache.InMemory.MemCacheFactory",
+    "CacheId": "TestInMemoryCache",
+    "StrictMetadataCasCoupling": false
+}

@@ -1,0 +1,10 @@
+{
+    "Content": {
+        "Order": ["FilesystemL1"],
+        "FileSystem": {
+            "FilesystemL1": {
+                "SizeInMegabytes": 10240,
+            }
+        }
+    }
+}

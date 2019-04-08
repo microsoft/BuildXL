@@ -1,0 +1,72 @@
+{
+    "configurations" : [ {
+        "quickPickLabel" : "Dyanmic link library",
+        "description": "Inserts a dynamic link library project",
+        "snippet": [
+            "/** ------------------------------------------------------------------------------------",
+            " *  Copyright(c) Microsoft Corporation.  All rights reserved.",
+            " */ ------------------------------------------------------------------------------------",
+            "",
+            "import * as Dll from \"Build.Wdg.Native.Tools.Dll\";",
+            "",
+            "export const ${1:dllProjectName} = Dll.build({",
+            "    name: a`${2:dllBinaryName}`,",
+            "    moduleDefinitionFile: f`${3:exportDefinitionFileName}.def`,",
+            "",
+            "    sources: [",
+            "    ],",
+            "",
+            "    references: [",
+            "    ],",
+            "",
+            "    publicIncludes: [",
+            "    ]",
+            "});"]
+    }, {
+        "quickPickLabel" : "Static link library",
+        "description": "Inserts a dynamic link library project",
+        "snippet": [
+            "/** ------------------------------------------------------------------------------------",
+            " *  Copyright(c) Microsoft Corporation.  All rights reserved.",
+            " */ ------------------------------------------------------------------------------------",
+            "",
+            "import * as StaticLibrary from \"Build.Wdg.Native.Tools.StaticLibrary\";",
+            "",
+            "export const ${1:libraryProjectName} = StaticLibrary.build({",
+            "    name: a`${2:libraryName}`,",
+            "",
+            "    sources: [",
+            "    ],",
+            "",
+            "    references: [",
+            "    ],",
+            "",
+            "    publicIncludes: [",
+            "    ]",
+            "});"
+        ]
+    }, {
+        "quickPickLabel" : "Executable",
+        "description": "Inserts a executable project",
+        "snippet": [
+            "/** ------------------------------------------------------------------------------------",
+            " *  Copyright(c) Microsoft Corporation.  All rights reserved.",
+            " */ ------------------------------------------------------------------------------------",
+            "",
+            "import * as Exe from \"Build.Wdg.Native.Tools.Exe\";",
+            "",
+            "export const ${1:exeProjectName} = Exe.build({",
+            "    name: a`${2:exeName}`,",
+            "",
+            "    sources: [",
+            "    ],",
+            "",
+            "    references: [",
+            "    ],",
+            "",
+            "    publicIncludes: [",
+            "    ]",
+            "});"
+        ]
+    }]
+}

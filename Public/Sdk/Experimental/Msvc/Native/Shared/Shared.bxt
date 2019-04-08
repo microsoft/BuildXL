@@ -1,0 +1,308 @@
+import {Tool, Transformer} from "Sdk.Transformers";
+
+namespace Shared {
+    /**
+     * The Core platforms
+     */
+    @@public
+    export const enum Platform {
+        /**
+         * x64 platform.
+         * @remarks
+         * Some teams/divisions call this amd64. We are standardizing on x64 from now on.
+         * This is the first in the list to indicate it is the default value.
+         */
+        @@Tool.option("/MACHINE:X64")
+        @@Tool.option("/MACHINE:AMD64")
+        x64,
+
+        /**
+         * x86 platform.
+         * @remarks
+         * Some teams/divisions call this i386, win32. We are standardizing on x86 from now on.
+         */
+        @@Tool.option("/MACHINE:X86")
+        x86,
+
+        /**
+         * AnyCpu platform
+         */
+        anyCpu,
+
+        /**
+         * Arm32 platform.
+         * @remarks
+         * Some teams call this arm. We are standardizing on arm32 from now on as there is now also arm64
+         */
+        @@Tool.option("/MACHINE:ARM")
+        arm32,
+
+        /**
+         * Arm64 platform.
+         */
+        @@Tool.option("/MACHINE:ARM64")
+        arm64,
+
+        /**
+         * CHPE platform.
+         */
+        @@Tool.option("/MACHINE:CHPE")
+        chpe
+    }
+
+    /** Subsystem specification. */
+    @@public
+    export interface Subsystem {
+        /** Specifies the minimum required version of the subsystem */
+        major: number;
+
+        /** Specifies the minimum required version of the subsystem */
+        minor: number;
+
+        /** Specifies the subsystem type */
+        subsystemType: SubsystemType;
+    }
+
+    /** Values for Subsystem flag. */
+    @@public
+    export const enum SubsystemType {
+        /** An application that runs in the Windows boot environment. */
+        bootApplication,
+        /** Win32 character-mode application. The operating system provides a console for console applications. */
+        console,
+        /** The EFI_* subsystems. See the EFI specification for more information. For example, see the Intel Web site. The minimum version and default version is 1.0. */
+        efiApplication,
+        /** The EFI_* subsystems. See the EFI specification for more information. For example, see the Intel Web site. The minimum version and default version is 1.0. */
+        efiBootServiceDriver,
+        /** The EFI_* subsystems. See the EFI specification for more information. For example, see the Intel Web site. The minimum version and default version is 1.0. */
+        efiRom,
+        /** The EFI_* subsystems. See the EFI specification for more information. For example, see the Intel Web site. The minimum version and default version is 1.0. */
+        efiRuntimeDriver,
+        /** Kernel mode drivers for Windows NT. This option is usually reserved for Windows system components. If /DRIVER:WDM is specified, NATIVE is the default. */
+        native,
+        /** Application that runs with the POSIX subsystem in Windows NT. */
+        posix,
+        /**
+         * Application does not require a console, probably because it creates its own windows for interaction with the user. 
+         * If WinMain or wWinMain is defined for native code, or WinMain(HISTANCE *, HINSTANCE *, char *, int) or 
+         * wWinMain(HINSTANCE *, HINSTANCE *, wchar_t *, int) is defined for managed code, WINDOWS is the default.
+         */
+        windows,
+        windowsCe
+    }
+
+    /**
+     * Interface to represent a completed (Compiled / linked) binary and it's debug information.
+     */
+    @@public
+    export interface BuiltImage extends PlatformBinary {
+        /** PDB information for BinaryFile */
+        debugFile: File;
+    }
+
+    /**
+     * Reports internal linker errors to Microsoft.
+     */
+    @@public
+    export const enum ErrorReport {
+        /** Reports about internal compiler errors will not be collected or sent to Microsoft. */
+        @@Tool.option("/errorReport:none")
+        none,
+        /**
+         * Prompts you to send a report when you receive an internal compiler error. prompt is the default when an application is
+         * compiled in the development environment.
+         */
+        @@Tool.option("/errorReport:prompt")
+        prompt,
+        /**
+         * Queues the error report. When you log in with administrator privileges, a window is displayed so that you can report
+         * any failures since the last time you were logged in (you will not be prompted to send reports for failures more than
+         * once every three days). queue is the default when an application is compiled at a command prompt.
+         */
+        @@Tool.option("/errorReport:queue")
+        queue,
+        /**
+         * Automatically sends reports of internal compiler errors to Microsoft. To enable this option, you must first agree to
+         * the Microsoft data collection policy. The first time you specify /errorReport:send on a computer, a compiler message
+         * will refer you to a Web site that contains the Microsoft data collection policy.
+         */
+        @@Tool.option("/errorReport:send")
+        send
+    }
+
+    /**
+     * Interface to represent a completed (Compiled / linked) binary.
+     */
+    @@public
+    export interface PlatformBinary {
+        /** The platform specific binary file. */
+        binaryFile: File;
+    }
+
+    /**
+     * A single name/value pair of strings
+     */
+    @@public
+    export interface StringPair {
+        /** Name field in the name/value pair */
+        name: string;
+
+        /** Value field in the name/value pair */
+        value?: string;
+    }
+
+    /**
+     * An alternate name.
+     */
+    @@public
+    export type AlternateName = StringPair;
+
+    /**
+     * Represents a binary object (.obj) file and its accompanying PDB file.
+     */
+    @@public
+    export interface BinaryObject {
+        /** The obj file. */
+        object: File;
+
+        /** The PDB file providing debugging information for the obj file. */
+        pdb: File;
+    }
+
+    /**
+     * Representation of an SDK like ATL, STL or WRL
+     */
+    @@public
+    export interface NativeFramework {
+        /** Include paths to search for header includes and imports. */
+        includeSearchPaths?: StaticDirectory[];
+
+        /** Additional libraries to link to */
+        libraries?: File[];
+
+        /** Preprocessor definitions to pass to the compiler */
+        preprocessorSymbols?: PreprocessorSymbol[];
+
+        /** This framework requires a throwing new. */
+        requireThrowingNew?: boolean;
+    }
+
+    @@public
+    export const defaultProcessSemaphore: Transformer.SemaphoreInfo = {
+        name: undefined,
+        incrementBy: 1,
+        limit: 1
+    };
+
+    // ============================== SourceFile stuff ===============================
+
+    @@public
+    export interface SourceFileContainer {
+        /** A basic input file. */
+        source: File;
+    }
+
+    @@public
+    export type SourceFileArtifact = SourceFileContainer | File;
+
+    @@public
+    export function getFile(sourceFile: SourceFileArtifact): File {  
+    return (typeof sourceFile === "File") ? sourceFile as File : (sourceFile as SourceFileContainer).source;
+    }
+
+    @@public
+    export function cFile(f: File): Cl.ClFile {
+        return Cl.clFile(f, Cl.CompilationType.compileAsC);
+    }
+
+    @@public
+    export function cppFile(f: File): Cl.ClFile {
+        return Cl.clFile(f, Cl.CompilationType.compileAsCpp);
+    }
+
+    // =========================== various utility functions =====================================
+
+    @@public
+    export type PreprocessorSymbol = StringPair;
+
+    @@public
+    export function preprocessorSymbolToString(symOrStr: string | PreprocessorSymbol): string {
+        if (symOrStr === undefined)       return undefined;
+        if (typeof symOrStr === "string") return symOrStr;
+        let sym = <PreprocessorSymbol>symOrStr;
+        if (sym.value === undefined) return sym.name;
+        if (sym.value === "")        return sym.name + "=";
+        if (sym.value.contains("=")) return sym.name + "#" + sym.value;
+        return sym.name + "=" + sym.value;
+    }
+
+    /**
+     * Repeatedly prepends given "prefix" to "str" until the length of the result
+     * is greater or equal to "len".
+     */
+    @@public
+    export function prepend(prefix: string, len: number, str: string): string {
+        return (str.length >= len) ? str : prepend(prefix, len, prefix + str);
+    }
+
+    @@public
+    export function applyToolDefaults(tool: Transformer.ToolDefinition): Transformer.ToolDefinition {
+        return <Transformer.ToolDefinition> {
+            prepareTempDirectory: true,
+            dependsOnWindowsDirectories: true
+        }.override<Transformer.ToolDefinition>(tool);
+    }
+
+    @@public
+    export function enumConstantToString(e: Object, ...except: Object[]): string {
+        if (e === undefined) return undefined;
+        if (except.some(v => v === e)) return undefined;
+        return e.toString();
+    }
+
+    @@public
+    export function enumConstToUpperCase(e: Object, ...except: Object[]): string {
+        if (e === undefined) return undefined;
+        if (except.some(v => v === e)) return undefined;
+        return e.toString().toUpperCase();
+    }
+
+    @@public
+    export function optBoolToFlags(flag: boolean, trueFlag: string, falseFlag: string): ArgumentValue {
+        if (flag === undefined) return undefined;
+        let result = flag ? trueFlag : falseFlag;
+        if (result === "") {
+            return { value: undefined, kind: ArgumentKind.flag };
+        }
+        else {
+            return result;
+        }
+    }
+
+    @@public
+    export function mapEnumConst(e: any, ...mapping: [any, string][]): string {
+        if (e === undefined) return undefined;
+        let matches = mapping.filter(kvp => kvp[0] === e);
+        if (matches.length === 0) return undefined;
+        Contract.assert(matches.length === 1, "Multiple mappings given for enum key: " + e.toString());
+        return matches[0][1];
+    }
+
+    @@public
+    export function mapEnumConstToArgument(e: any, ...mapping: [any, Argument][]): Argument {
+        if (e === undefined) return undefined;
+        let matches = mapping.filter(kvp => kvp[0] === e);
+        if (matches.length === 0) return undefined;
+        Contract.assert(matches.length === 1, "Multiple mappings given for enum key: " + e.toString());
+        return matches[0][1];
+    }
+
+    @@public
+    export function mapEnumFlags(e: any, ...mapping: [any, string][]): string[] {
+        if (e === undefined) return undefined;
+        let matches = mapping.filter(kvp => (e & kvp[0]) === kvp[0]);
+        return matches
+                .map(kvp => kvp[1])
+                .filter(v => v !== undefined);
+    }
+}

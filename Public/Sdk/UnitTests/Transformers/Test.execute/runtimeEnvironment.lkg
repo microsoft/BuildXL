@@ -1,0 +1,20 @@
+
+Transformer.execute({
+    tool: {exe: f`./src/stringInput.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [],
+    },
+    workingDirectory: d`./Out/working`,
+    dependencies: [f`./src/stringInput.exe`],
+    implicitOutputs: [f`./Out/file1.out`],
+    environmentVariables: [
+        {name: "COMPLUS_DbgJitDebugLaunchSetting", value: "1"},
+        {name: "COMPLUS_DefaultVersion", value: "51.52.53.54"},
+        {name: "COMPLUS_InstallRoot", value: p`./COMPLUS_InstallRootLocaiton`},
+        {name: "COMPLUS_NoGuiFromShim", value: "1"},
+        {name: "COMPLUS_OnlyUseLatestClr", value: "1"},
+        {name: "COMPLUS_Version", value: "41.42.43.44"},
+    ],
+});

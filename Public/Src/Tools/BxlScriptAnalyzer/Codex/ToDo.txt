@@ -1,0 +1,55 @@
+﻿# Bugs
+
+1. Comment at the end of the file crashes the uploader
+
+# Features?
+1. importFrom should be a keyword (how it should be colorized?)
+2. What about methods from the prelude? Are they're special or not?
+
+'key' in '{key: U}' is not resolved
+override<T>(other: Object): T -- T is not resolved
+groupBy<U>(keySelectorFn: (value: T, array: T[]) => U): {key: U, values: T[]}[];
+
+3. 'Path + full name' is not unique in DScript because one file can declare 'interface Path' and 'namespace Path'.
+It means that there is one set of 'usages' for 'interface Path' and 'namespace Path'.
+
+
+@@obsolete is not supported (mark as a keyword? and support navigate to!)
+
+Union types are not marked as regular types (in both declaration and usages)
+
+[DONE] Maybe make display name be the ModuleName::FullyQualifiedName and unique id be FilePath::FullyQualifiedName, file path should be tokenized by roots
+
+1.	Managed.Arguments in: http://index/?leftProject=DScript(Repo)&leftSymbol=fapf9ly1uawi&file=Public%5CDScript%5CSdk%5CDominoSdk%5CDominoSdk.dsc&line=27 
+2.	Import * as XYZ from “ASDF”… 
+a.	XYZ is not a local 
+b.	Expect to be able to click on the module name (potentially to the module definition (or project view of the module)
+3.	Potential to do something with qualifiers.
+a.	i.e. a way from the qualifier to the qualifier definition.
+4.	We have string literals that could be considered symbols tool.
+5.	Files and directories can provide links to actual files in index.
+a.	I.e. f`…` would go to a view like: http://index/?leftProject=DScript(Repo)&file=Out%5Cfrontend%5CNuget%5Cspecs%5CBlobStore.Client%5C16.124.27310-rc4883924%5Cpackage.dsc&rightSymbol=icoaylaf1nx5 
+6.	Qualifiers seem to unify. Clikc on targetframework at: 
+7.	If you are in a file-view (http://index/?leftProject=DScript(Repo)&leftSymbol=jaaq4czkoizl ), clicking on a line does not update the URL to contain the lnie number
+8.	Exported ambients do not link to the method but to the export keyword (Contract.fail)
+9.	Method arguments are not unique to the method. Click on message in: http://index/?leftProject=DScript(Repo)&leftSymbol=irkjebh2zou3&file=Public%5CDScript%5CSdk%5CStandardSdk%5CPrelude%5CPrelude.Contract.dsc&line=27 
+10.	`string` could go the the definition of String in the prelude: http://index/?leftProject=DScript(Repo)&leftSymbol=irkjebh2zou3&file=Public%5CDScript%5CSdk%5CStandardSdk%5CPrelude%5CPrelude.Contract.dsc&rightSymbol=cwla72qmxpky 
+11.	If I search for Array.map it shows full name as SDk.Prelude::Array.map but I can’t search for that.
+12.	Generic type arguments are not locals.
+13.	Click on the sources field of: http://index/?query=domino.utilities.dsc&rightProject=DScript(Repo)&file=Public%5CSrc%5CUtilities%5CDomino.Utilities%5CDomino.Utilities.dsc&rightSymbol=zx23ncburszb 
+14.	importFrom should be a keyword
+15.	clickong on the argument of importFrom should go to module like top.
+16.	Qualifier and template should be ‘green’ keywords
+17.	A feature to list all symbols with 0 references
+18.	Clicking on createDefaultAssemblies in http://index/?leftProject=DScript(Repo)&leftSymbol=ztsg0vg4yk6g&file=Public%5CSdk%5CPublic%5CManaged%5CFrameworks%5Cnetstandard2.0%5Cnetstandard2.0.dsc&line=59 shows function colored yellow in the ‘definiton’ on the left side
+19.	Searching for files show checksums in the list: http://index/?query=domino.utilities.dsc&rightProject=DScript(Repo)&file=Public%5CSrc%5CUtilities%5CDomino.Utilities%5CDomino.Utilities.dsc&rightSymbol=ysjtaobx0z0e 
+20.	Searchfing for dsc files shows Symbol Sdk.Manged: http://index/?query=domino.utilities.dsc&rightProject=DScript(Repo)&file=Public%5CSrc%5CUtilities%5CDomino.Utilities%5CDomino.Utilities.dsc&rightSymbol=pzemuarhuuby 
+21.	Lambda argumetns are not marked as locals: http://index/?leftProject=DScript(Repo)&leftSymbol=bqkfkljyter2&file=Public%5CSdk%5CPublic%5CManaged%5Ctesting.dsc&line=68 Kick on ‘key’
+22.	Local argument in toplevel function is not scoped either: click on testRunArgs of: http://index/?leftProject=DScript(Repo)&leftSymbol=agq8x257qrii&file=Public%5CSdk%5CPublic%5CManaged%5Ctesting.dsc&line=58 
+
+
+Out\bin\Debug\net461\bxlScriptAnalyzer.exe /c:F:\Sources\SampleDominoRepo\config.dsc /a:Codex /o:out/sample
+
+index --es http://ddindex:9125 --ed F:\Sources\Domino\Out\sample -p F:\Sources\SampleDominoRepo\ -n DScript --noScan
+
+index --es http://ddindex:9125 --ed F:\Sources\Domino\Out\cdx -p F:\Sources\Domino\ -n DScript --noScan

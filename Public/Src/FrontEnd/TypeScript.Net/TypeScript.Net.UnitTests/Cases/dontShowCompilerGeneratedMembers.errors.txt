@@ -1,0 +1,18 @@
+Cases/dontShowCompilerGeneratedMembers.ts(1,5): error TS2322: Type 'number' is not assignable to type '{ (): any; x: number; }'.
+  Property 'x' is missing in type 'Number'.
+Cases/dontShowCompilerGeneratedMembers.ts(3,6): error TS1139: Type parameter declaration expected.
+Cases/dontShowCompilerGeneratedMembers.ts(4,1): error TS1109: Expression expected.
+
+
+==== Cases/dontShowCompilerGeneratedMembers.ts (3 errors) ====
+    var f: {
+        ~
+!!! error TS2322: Type 'number' is not assignable to type '{ (): any; x: number; }'.
+!!! error TS2322:   Property 'x' is missing in type 'Number'.
+        x: number;
+        <-
+         ~
+!!! error TS1139: Type parameter declaration expected.
+    };
+    ~
+!!! error TS1109: Expression expected.

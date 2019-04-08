@@ -1,0 +1,47 @@
+namespace Assert {
+    /**
+    * Fails the unit test
+    */
+    @@public
+    export function fail(message: string) : void
+    {
+        _PreludeAmbientHack_Assert.fail(message);
+    }
+
+    /**
+    * Verifies the condition is true
+    */
+    @@public
+    export function isTrue(condition: boolean, message?: string) : void
+    {
+        _PreludeAmbientHack_Assert.isTrue(condition, message);
+    }
+
+    /**
+    * Verifies the condition is false
+    */
+    @@public
+    export function isFalse(condition: boolean, message?: string) : void
+    {
+        _PreludeAmbientHack_Assert.isFalse(condition, message);
+    }
+
+    /**
+    * Verifies the arguments are equal
+    */
+    @@public
+    export function areEqual<T>(left:T, right: T, message?: string) : void
+    {
+        _PreludeAmbientHack_Assert.areEqual(left, right, message);
+    }
+
+    /**
+    * Verifies the arguments are not equal
+    */
+    @@public
+    export function notEqual<T>(left:T, right: T, message?: string) : void
+    {
+        _PreludeAmbientHack_Assert.notEqual(left, right, message);
+    }
+}
+

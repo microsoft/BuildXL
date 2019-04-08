@@ -1,0 +1,38 @@
+interface TestInterface {
+    /**
+     * Test bool property.
+     */
+    boolProperty: boolean;
+}
+
+const testBool : TestInterface = {
+    boolProperty: true
+};
+
+/**
+ * My string literal type.
+ */
+type StringLiteralType = "A" | "B" | "C";
+
+const testStringLiteralType : StringLiteralType = "A";
+
+const testUnionHover : (StringLiteralType | TestInterface) = "A";
+
+/**
+ * My test function.
+ */
+function testFunctionHover( argOne : StringLiteralType, argTwo: TestInterface) : boolean  {
+}
+
+const testFunctionUseHover = testFunctionHover(undefined, undefined);
+
+const testMapResult = [1,2,3,4].map(n => n.toString());
+
+const enum TestOne {
+    One, Two, Three
+}
+
+const testEnumUsage = TestOne.One;
+
+export const foo9 = 42;
+export const fff = r`{foo9}/foo1.dsc`; 

@@ -1,0 +1,9 @@
+﻿<Window x:Class="PipExecutionVisualizer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:self="clr-namespace:PipExecutionVisualizer"
+        Title="MainWindow" Height="350" Width="525">
+    <Grid>
+        <self:SimulationView Margin="20" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" />
+    </Grid>
+</Window>

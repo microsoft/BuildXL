@@ -1,0 +1,302 @@
+// Copyright (C) Microsoft Corporation. All Rights Reserved.
+
+namespace BuildXL.Engine.Cache.Fingerprints
+
+/// <summary>
+/// Content hash with variable length.
+/// </summary>
+struct BondContentHash 
+{
+    7: required blob Data;
+}
+
+/// <summary>
+/// Content hash with variable length.
+/// </summary>
+struct BondFingerprint 
+{
+    7: required blob Data;
+}
+
+enum BondReparsePointType {
+    None,
+    SymLink,
+    MountPoint,
+    NonActionable
+}
+
+struct BondFileMaterializationInfo
+{
+    1: BondContentHash Hash;
+    2: int64 Length;
+    3: nullable<string> FileName;
+    4: BondReparsePointType ReparsePointType = None;
+    5: nullable<string> ReparsePointTarget;
+}
+
+struct RelativePathFileMaterializationInfo
+{
+    1: string RelativePath;
+    2: BondFileMaterializationInfo Info;
+}
+
+/// <summary>
+/// TODO: Remove along with PipCacheDescriptor (V1)
+/// </summary>
+struct StringKeyedHash
+{
+    1: string Key;
+    2: BondContentHash ContentHash;
+}
+
+/// <summary>
+/// TODO: Remove along with PipCacheDescriptor (V1)
+/// </summary>
+struct EncodedStringKeyedHash
+{
+    1: StringKeyedHash StringKeyedHash;
+    2: string EncodingName;
+}
+
+enum ObservedInputKind {
+    Unknown,
+    ObservedInput,
+    DirectoryMembership
+}
+
+/// <summary>
+/// TODO: Remove along with PipCacheDescriptor (V1)
+/// </summary>
+struct StringKeyedHashObservedInput
+{
+    1: StringKeyedHash StringKeyedHash;
+    2: ObservedInputKind ObservedInputKind = Unknown;
+}
+
+enum PipFingerprintEntryKind {
+    Unknown,
+    DescriptorV1,
+    DescriptorV2,
+    GraphDescriptor,
+    FileDownload,
+    PackageDownload,
+    GraphInputDescriptor
+}
+
+struct PipFingerprintEntryData {
+    // Globally unique ID (possibly randomly generated)
+    1: required uint64 Id;
+}
+
+/// <summary>
+/// Descriptor for a cached graph.
+/// </summary>
+struct PipGraphCacheDescriptor : PipFingerprintEntryData {
+    /// <summary>
+    /// TraceInfo specified for the BuildXL session.
+    /// This is being added on the BuildXL specific PipCacheDescriptor as to not impact other users of BuildCache.
+    /// As usage is observed it may be promoted to ContentBagCommon.Provenance where it more logically belongs. A lookup
+    /// to a secondary record is not being added so as to avoid the cost to change eviction policy of the cache. The size
+    /// consumed by this additional info is relatively small in comparison to the overall size of the PipCacheDescriptor.
+    /// </summary>
+    1: string TraceInfo;
+
+    4: nullable<BondContentHash> PathTable;
+    5: nullable<BondContentHash> StringTable;
+    6: nullable<BondContentHash> SymbolTable;
+    7: nullable<BondContentHash> QualifierTable;
+    8: nullable<BondContentHash> PipTable;
+    9: nullable<BondContentHash> PreviousInputs;
+    10: nullable<BondContentHash> MountPathExpander;
+    11: nullable<BondContentHash> ConfigState;
+    12: nullable<BondContentHash> DirectedGraph;
+    13: nullable<BondContentHash> PipGraph;
+    14: nullable<BondContentHash> EngineState;
+    15: nullable<BondContentHash> HistoricTableSizes;
+    16: nullable<BondContentHash> PipGraphId;
+}
+
+/// <summary>
+/// Descriptor for downloading a file.
+/// </summary>
+struct FileDownloadDescriptor : PipFingerprintEntryData {
+    /// <summary>
+    /// TraceInfo specified for the BuildXL session.
+    /// This is being added on the BuildXL specific PipCacheDescriptor as to not impact other users of BuildCache.
+    /// As usage is observed it may be promoted to ContentBagCommon.Provenance where it more logically belongs. A lookup
+    /// to a secondary record is not being added so as to avoid the cost to change eviction policy of the cache. The size
+    /// consumed by this additional info is relatively small in comparison to the overall size of the PipCacheDescriptor.
+    /// </summary>
+    1: string TraceInfo;
+
+    2: BondContentHash Content;
+    3: string Url;
+}
+
+/// <summary>
+/// Descriptor for a package.
+/// </summary>
+struct PackageDownloadDescriptor : PipFingerprintEntryData {
+    /// <summary>
+    /// TraceInfo specified for the BuildXL session.
+    /// This is being added on the BuildXL specific PipCacheDescriptor as to not impact other users of BuildCache.
+    /// As usage is observed it may be promoted to ContentBagCommon.Provenance where it more logically belongs. A lookup
+    /// to a secondary record is not being added so as to avoid the cost to change eviction policy of the cache. The size
+    /// consumed by this additional info is relatively small in comparison to the overall size of the PipCacheDescriptor.
+    /// </summary>
+    1: string TraceInfo;
+
+    /// <summary>
+    /// Provenance which servers were used and what the id is.
+    /// </summary>
+    2: string FriendlyName;
+
+    /// <summary>
+    /// Map of relative path to package content
+    /// </summary>
+    3: vector<StringKeyedHash> Contents;
+}
+
+/// <summary>
+/// Descriptor for a particular pip execution. This is the 'V1' format which is being phased out.
+/// </summary>
+struct PipCacheDescriptor : PipFingerprintEntryData
+{
+    /// <summary>
+    /// A sequence of (path, content hash) tuples, as strings.
+    /// </summary>
+    1: vector<StringKeyedHash> OutputHashesByPath;
+
+    /// <summary>
+    /// A sorted sequence of inputs as observed via detours.
+    /// Observed inputs may be file accesses, containing the path and content hash of the file at the time of the observation,
+    /// Or a directory enumeration, containing the path and fingerprint of the directory.
+    /// Note that such a tuple need not be recorded if the pip indicates the particular directory and its membership as a static dependency 
+    /// (i.e., captured in the pip fingerprint).
+    /// </summary>
+    2: vector<StringKeyedHashObservedInput> ObservedInputsSortedByPath;
+
+    /// <summary>
+    /// An optional standard output reference.
+    /// </summary>
+    3: nullable<EncodedStringKeyedHash> StandardOutput;
+
+    /// <summary>
+    /// An optional standard error reference.
+    /// </summary>
+    4: nullable<EncodedStringKeyedHash> StandardError;
+
+    /// <summary>
+    /// Number of warnings found in standard output and standard error.
+    /// </summary>
+    5: int32 NumberOfWarnings;
+
+    /// <summary>
+    /// TraceInfo specified for the BuildXL session.
+    /// This is being added on the BuildXL specific PipCacheDescriptor as to not impact other users of BuildCache.
+    /// As usage is observed it may be promoted to ContentBagCommon.Provenance where it more logically belongs. A lookup
+    /// to a secondary record is not being added so as to avoid the cost to change eviction policy of the cache. The size
+    /// consumed by this additional info is relatively small in comparison to the overall size of the PipCacheDescriptor.
+    /// </summary>
+    7: string TraceInfo;
+};
+
+/// <summary>
+/// Bond-serialized part of a descriptor for a particular pip execution. This is the 'V2' format in which we have
+/// a two-phase lookup (weak and strong fingerprints), hence ObservedInputHashesByPath and ObservedDirectoryMembershipFingerprintsByPath
+/// have been removed. 
+/// Furthermore, all output hashes (including standard error and standard output) are stored externally, since cache entries
+/// natively store hash-lists. PipCacheDescriptorV2Metadata is serialized and referenced by hash in the 'metadata' slot of the cache entry;
+/// together with the hash list, this forms a PipCacheDescriptorV2 (which is not a Bond type).
+/// </summary>
+struct PipCacheDescriptorV2Metadata : PipFingerprintEntryData
+{    
+    // TODO: We are inheriting a random ID field. That's not ideal for storing into the CAS.
+
+    /// <summary>
+    /// Number of warnings found in standard output and standard error.
+    /// </summary>
+    5: int32 NumberOfWarnings;
+
+    /// <summary>
+    /// TraceInfo specified for the BuildXL session.
+    /// This is being added on the BuildXL specific PipCacheDescriptor as to not impact other users of BuildCache.
+    /// As usage is observed it may be promoted to ContentBagCommon.Provenance where it more logically belongs. A lookup
+    /// to a secondary record is not being added so as to avoid the cost to change eviction policy of the cache. The size
+    /// consumed by this additional info is relatively small in comparison to the overall size of the PipCacheDescriptor.
+    /// </summary>
+    7: string TraceInfo;
+
+    // TODO: The following fields contain encodings, paths, and hashes that should ideally go away. 
+    //        It would be far easier to (a) just decide console encoding statically for the pip, and have it in the fingerprint (and maybe universally choose UTF8),
+    //        and (b) treat console output like normal outputs (possibly marked 'Temporary' if not redirected).
+
+    /// <summary>
+    /// Standard output (or null, if standard output was not saved).
+    /// </summary>
+    8: nullable<EncodedStringKeyedHash> StandardOutput;
+
+    /// <summary>
+    /// Standard error (or null, if standard error was not saved).
+    /// </summary>
+    9: nullable<EncodedStringKeyedHash> StandardError;
+
+    /// <summary>
+    /// Size of all referenced outputs.
+    /// <summary>
+    10: int64 TotalOutputSize;
+
+    /// <summary>
+    /// Hashes of the outputs
+    /// The ordering must match with outputs defined in the pip
+    /// </summary>
+    11: vector<BondFileMaterializationInfo> StaticOutputHashes;
+
+    /// <summary>
+    /// Dynamic outputs (<relative path, hash>) per opaque directory.
+    /// The ordering must match with OpaqueDirectory outputs defined in the pip
+    /// </summary>
+    12: vector<vector<RelativePathFileMaterializationInfo>> DynamicOutputs;
+
+    13: string WeakFingerprint;
+    14: string StrongFingerprint;
+    15: int64 SemiStableHash;
+};
+
+/// <summary>
+/// Result of a fingerprint lookup. This type is a workaround for the fact that ICache
+/// is parameterized on only one result type for fingerprint lookup, whereas that varies
+/// by lookup type (is this a weak or strong fingerprint lookup?). The Data field is
+/// polymorphic, with the concrete type indicate by Kind.
+/// </summary>
+struct PipFingerprintEntry {
+    1: required PipFingerprintEntryKind Kind = Unknown;
+    2: required blob DataBlob;
+};
+
+struct StringKeyValue
+{
+    1: string Key;
+    2: nullable<string> Value;
+}
+
+/// <summary>
+/// Pip graph input metadata.
+/// </summary>
+struct PipGraphInputDescriptor : PipFingerprintEntryData
+{
+    /// <summary>
+    /// Observed inputs.
+    /// </summary>
+    2: vector<StringKeyedHashObservedInput> ObservedInputsSortedByPath;
+
+    /// <summary>
+    /// Environment variables.
+    /// </summary>
+    3: vector<StringKeyValue> EnvironmentVariablesSortedByName;
+
+    /// <summary>
+    /// Mounts (name and path).
+    /// </summary>
+    4: vector<StringKeyValue> MountsSortedByName;
+}

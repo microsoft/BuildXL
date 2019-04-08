@@ -1,0 +1,50 @@
+
+Transformer.execute({
+    tool: {exe: f`./src/stringInput.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [],
+    },
+    workingDirectory: d`./Out/working`,
+    dependencies: [f`./src/stringInput.exe`],
+    implicitOutputs: [f`./Out/file1.out`],
+    consoleInput: {
+        escaping: "NoEscaping",
+        separator: "",
+        items: ["StringInputForConsole"],
+    },
+});
+Transformer.execute({
+    tool: {exe: f`./src/dataInput.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [],
+    },
+    workingDirectory: d`./Out/working`,
+    dependencies: [f`./src/dataInput.exe`],
+    implicitOutputs: [f`./Out/file2.out`],
+    consoleInput: {
+        escaping: "NoEscaping",
+        separator: "",
+        items: [
+            {
+                escaping: "NoEscaping",
+                separator: "--",
+                items: [
+                    "str",
+                    "1",
+                    "atom",
+                    p`./path`,
+                    "relative\\path",
+                    {
+                        escaping: "NoEscaping",
+                        separator: "\r\n",
+                        items: ["nested"],
+                    },
+                ],
+            },
+        ],
+    },
+});

@@ -1,0 +1,72 @@
+namespace Testing {
+    /** 
+     * Decorator to indicate this is a unittest 
+     */
+    @@public
+    export function unitTest() : (a: any) => any {
+        return x => x;
+    }
+
+    @@public
+    export type ExpectedMessage = _PreludeAmbientHack_Testing.ExpectedMessage;
+
+    /**
+     * Sets the given build parameter in the engine
+     */
+    @@public
+    export function setBuildParameter(key: string, value: string) : void
+    {
+        _PreludeAmbientHack_Testing.setBuildParameter(key, value);
+    }
+
+    /**
+     * Removes the given build parameter from the engine
+     */
+    @@public
+    export function removeBuildParameter(key: string) : void
+    {
+        _PreludeAmbientHack_Testing.removeBuildParameter(key);
+    }
+
+    /**
+     * Adds a mountpoint to the engine.
+     * 
+     * Note: This currently does not yet affect the policies used for graph construction.
+     */
+    @@public
+    export function setMountPoint(mount: Mount) : void
+    {
+        _PreludeAmbientHack_Testing.setMountPoint(mount);
+    }
+
+    /**
+     * Remove the mountpoint from the engine
+     * 
+     * Note: This currently does not yet affect the policies used for graph construction.
+     */
+    @@public
+    export function removeMountPoint(name: string) : void
+    {
+        _PreludeAmbientHack_Testing.removeMountPoint(name);
+    }
+
+    /**
+     * Executes the given function and ensures a failure is encountered
+     * When passing expected messages, each message is validated agains the list of errors and is expected to be encountered at least once. It fails the test if not.
+     */
+    @@public
+    export function expectFailure(func: () => void, ...expectedMessages: (string | ExpectedMessage)[]) : void
+    {
+        _PreludeAmbientHack_Testing.expectFailure(func, ...expectedMessages);
+    }
+
+    /**
+     * By default if a test produces pips, those pips will be validated against the lkg file. 
+     * If you want to turn off that behavior you can use this marker to skip LKG validation.
+     */
+    @@public
+    export function dontValidatePips() : void
+    {
+        _PreludeAmbientHack_Testing.dontValidatePips();
+    }
+}

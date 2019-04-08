@@ -1,0 +1,280 @@
+﻿syntax = "proto3";
+
+package BuildXL.Distribution.Grpc;
+
+// Defines the service for talking to the builder master process
+service Master {
+    // Signals the completion of the Attach call
+    rpc AttachCompleted(AttachCompletionInfo) returns (RpcResponse) {}
+
+    // Signals the completion of the given pips
+    rpc Notify(WorkerNotificationArgs) returns (RpcResponse) {}
+}
+
+// Defines the service for talking to builder worker processes
+service Worker
+{
+    // Initiates a build on the worker
+    rpc Attach(BuildStartData) returns (RpcResponse) {}
+
+    // Triggers a build of the given pips on the worker
+    rpc ExecutePips(PipBuildRequest) returns (RpcResponse) {}
+
+    // Signals that build is finished and that worker should exit
+    rpc Exit(BuildEndData) returns (RpcResponse) {}
+}
+
+message RpcResponse {
+}
+
+message SenderInfo
+{
+    // The name of the sender of the message
+    string SenderName = 1;
+
+    // The id of the sender of the message
+    string SenderId = 2;
+
+    // The id of the build
+    string BuildId = 3;
+}
+
+// The response from an Attach event
+message AttachCompletionInfo
+{
+    SenderInfo Sender = 1;
+
+    // Identifies the worker which makes the callback
+    uint32 WorkerId = 2;
+
+    // The maximum number of simultaneous pip executions for the worker
+    int32 MaxConcurrency = 3;
+
+    // The content hash of the workers unique content
+    bytes WorkerCacheValidationContentHash = 4;
+
+    // The available RAM on the worker
+    int32 AvailableRamMb = 5;
+}
+
+// Defines information about a completed pip and its outputs
+message PipCompletionData
+{
+    // The pip id value
+    uint32 PipIdValue = 1;
+
+    // Blob of data representing result for IPC or process pip
+    bytes ResultBlob = 2;
+
+    // The elapsed time in ticks of ExecuteProcess or ExecuteIpc step
+    int64 ExecuteStepTicks = 3;
+
+    // The elapsed time in ticks of queued duration
+    int64 QueueTicks = 4;
+
+    // The execution step requested
+    int32 Step = 5;
+}
+
+// Events that have been logged on workers and are transited to the master. Any changes here may require changes
+// to TrackingEventListener.cs
+message EventMessage
+{
+    /// Unique identifier for the event to ensure the same event is not logged more than once. Note that this does not
+    /// correlate to the DX code of the event. That is the EventId field
+    int32 Id = 1;
+
+    // The event level
+    int32 Level = 2;
+
+    // The EventId of the originally logged event
+    int32 EventId = 3;
+
+    // The EventName of the originally logged event
+    string EventName = 4;
+
+    // The keywords of the original event
+    int64 EventKeywords = 5;
+
+    // The message for the event
+    string Text = 6;
+}
+
+// Information about completed pips and events logged on worker
+message WorkerNotificationArgs
+{
+    SenderInfo Sender = 1;
+
+    // Identifies the worker which executed the pips
+    uint32 WorkerId = 2;
+
+    // The completed pips
+    repeated PipCompletionData CompletedPips = 3;
+
+    // The events forwarded to the master
+    repeated EventMessage ForwardedEvents = 4;
+
+    // Data logged to the execution log on the worker
+    bytes ExecutionLogData = 5;
+
+    // Sequence number of the execution log blob on the worker
+    int32 ExecutionLogBlobSequenceNumber = 6;
+}
+
+// Defines initialization information needed by workers to participate in a build
+message BuildStartData 
+{
+    SenderInfo Sender = 1;
+
+    // Scheduler State and associated data structures
+    PipGraphCacheDescriptor CachedGraphDescriptor = 2;
+
+    // Identifies the worker in the build
+    uint32 WorkerId = 3;
+
+    // Salt added to fingerprints to make them unique
+    string FingerprintSalt = 4;
+
+    // The session identifier
+    string SessionId = 5;
+
+    // Service locations of master
+    ServiceLocation MasterLocation = 6;
+
+    // Environment variables
+    map<string, string> EnvironmentVariables = 7;
+    
+    // Content hash of optional symlink file.
+    bytes SymlinkFileContentHash = 8;
+}
+
+// Defines location at which a service can be connected to.
+message ServiceLocation
+{
+    string IpAddress = 1;
+    int32 Port = 2;
+}
+
+// A request to build pips on a worker
+message PipBuildRequest
+{
+    SenderInfo Sender = 1;
+
+    // The pips to execute
+    repeated SinglePipBuildRequest Pips = 2;
+
+    // The input files and hashes for the pip
+    repeated FileArtifactKeyedHash Hashes = 3;
+}
+
+message SinglePipBuildRequest
+{
+    // The pip id value
+    uint32 PipIdValue = 1;
+
+    // The fingerprint for the cache descriptor
+    bytes Fingerprint = 2;
+
+    // The pip priority
+    int32 Priority = 3;
+
+    // The activity id assigned to the pip execution
+    string ActivityId = 4;
+
+    // The execution step requested
+    int32 Step = 5;
+
+    /// The expected RAM usage of the pip
+    int32 ExpectedRamUsageMb = 6;
+
+    // Sequence number for deduplicating worker calls
+    int32 SequenceNumber = 7;
+}
+
+message FileArtifactKeyedHash
+{
+    /// The integral absolute path id for the file
+    int32 PathValue = 1;
+
+    // The integral rewrite count for the file
+    int32 RewriteCount = 2;
+
+    // The content hash of the file
+    bytes ContentHash = 3;
+
+    // String representation of path, that is only available for dynamic file.
+    string PathString = 4;
+
+    // Specified file name with appropriate casing
+    string FileName = 5;
+
+    // The length of the file
+    int64 Length = 6;
+
+    enum GrpcReparsePointType {
+        None = 0;
+        SymLink = 1;
+        MountPoint = 2;
+        NonActionable = 3;
+    }
+
+    // The reparse point type
+    GrpcReparsePointType ReparsePointType = 7;
+    
+    // The reparse point target if the type is actionable
+    string ReparsePointTarget = 8;
+
+    // The directory artifacts which contain the file
+    repeated GrpcDirectoryArtifact AssociatedDirectories = 9;
+}
+
+message GrpcDirectoryArtifact
+{
+    // The integral absolute path id for the directory of the file; the id is only valid for file in dynamic directory.
+    int32 DirectoryPathValue = 1;
+
+    // The seal id of the directory of the file when applicable.
+    uint32 DirectorySealId = 2;
+
+    // Whether the directory of the file is a shared opaque directory (when applicable)
+    bool IsDirectorySharedOpaque = 3;
+}
+
+// Defines finalization information passed to workers at the end of the build
+message BuildEndData
+{
+    SenderInfo Sender = 1;
+
+    // Indicates if worker should report build fail the build and that the worker due to the given failure
+    string Failure = 2;
+}
+
+/// <summary>
+/// Descriptor for a cached graph.
+/// </summary>
+message PipGraphCacheDescriptor {
+    uint64 Id = 1;
+
+    /// <summary>
+    /// TraceInfo specified for the BuildXL session.
+    /// This is being added on the BuildXL specific PipCacheDescriptor as to not impact other users of BuildCache.
+    /// As usage is observed it may be promoted to ContentBagCommon.Provenance where it more logically belongs. A lookup
+    /// to a secondary record is not being added so as to avoid the cost to change eviction policy of the cache. The size
+    /// consumed by this additional info is relatively small in comparison to the overall size of the PipCacheDescriptor.
+    /// </summary>
+    string TraceInfo = 2;
+
+    bytes PathTable = 3;
+    bytes StringTable = 4;
+    bytes SymbolTable = 5;
+    bytes QualifierTable = 6;
+    bytes PipTable = 7;
+    bytes PreviousInputs = 8;
+    bytes MountPathExpander = 9;
+    bytes ConfigState = 10;
+    bytes DirectedGraph = 11;
+    bytes PipGraph = 12;
+    bytes EngineState = 13;
+    bytes HistoricTableSizes = 14;
+    bytes PipGraphId = 15;
+}

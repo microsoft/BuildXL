@@ -1,0 +1,60 @@
+
+@font-face{
+    font-family: "FabricMDL2Icons";
+    src: 
+        url("FullMDL2.woff2") format("woff2"),
+        url("FullMDL2.woff") format("woff"),
+        url("FullMDL2.ttf") format("truetype");
+    font-weight:normal;
+    font-style:normal;
+}
+
+
+.ms-Icon{
+    display:inline-block;
+    font-family:"FabricMDL2Icons";
+    font-style:normal;
+    font-weight:normal;
+    speak:none
+}
+
+.ms-Icon--BarChart4:before{content:"\EAE7"}
+.ms-Icon--BubbleChart:before{content:"\F47A"}
+.ms-Icon--Copy:before{content:"\E8C8"}
+.ms-Icon--DeveloperTools:before{content:"\EC7A"}
+.ms-Icon--Error:before{content:"\E783"}
+.ms-Icon--FolderHorizontal:before{content:"\F12B"}
+.ms-Icon--GitGraph:before{content:"\F2CA"}
+.ms-Icon--HardDrive:before{content:"\EDA2"}
+.ms-Icon--Search:before{content:"\E721"}
+.ms-Icon--Settings:before{content:"\E713"}
+.ms-Icon--SetTopStack:before{content:"\E92B"}
+.ms-Icon--Tag:before{content:"\E8EC"}
+.ms-Icon--TextDocument:before{content:"\F029"}
+
+.ms-Icon--OpenFolderHorizontal:before{content:"\ED25"}
+.ms-Icon--FolderSearch:before{content:"\EF65"}
+.ms-Icon--PublicFolder:before{content:"\EF70"}
+.ms-Icon--FolderQuery:before{content:"\F2CD"}
+.ms-Icon--FolderList:before{content:"\F2CE"}
+.ms-Icon--FolderListMirrored:before{content:"\F2CF"}
+.ms-Icon--VisualsFolder:before{content:"\F520"}
+.ms-Icon--Copper:before{content:"\EAF1"}
+
+.ms-Icon--DocumentApproval:before{content:"\F28B"}
+.ms-Icon--DownloadDocument:before{content:"\F549"}
+.ms-Icon--OpenFile:before{content:"\E8E5"}
+.ms-Icon--OpenDocument:before{content:"\F5E9"}
+.ms-Icon--DocumentReply:before{content:"\EF57"}
+.ms-Icon--DocumentSearch:before{content:"\EF6C"}
+.ms-Icon--FileCode:before{content:"\F30E"}
+.ms-Icon--Cloud:before{content:"\E753"}
+.ms-Icon--CloudNotSynced:before{content:"\EC9C"}
+.ms-Icon--Sync:before{content:"\E895"}
+.ms-Icon--SummaryChart:before{content:"\E9FE"}
+
+.ms-Icon--GoToMessage:before{content:"\F716"}
+.ms-Icon--Warning:before{content:"\E7BA"}
+.ms-Icon--Error:before{content:"\EA39"}
+.ms-Icon--Info:before{content:"\E946"}
+

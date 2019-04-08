@@ -1,0 +1,9 @@
+interface MyFunctionArguments {
+    myFunctionProperty?: boolean;
+}
+
+function myFunction(args: MyFunctionArguments) : void {
+}
+
+@@public
+export const myExportedFunction = myFunction;

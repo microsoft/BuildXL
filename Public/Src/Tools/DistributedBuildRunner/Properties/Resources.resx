@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Error_ParsingCrashWorker" xml:space="preserve">
+    <value>ERROR: Unable to parse worker id of worker to crash. Value is '{0}'. Ensure the value is a number between 0 and {1}.</value>
+  </data>
+  <data name="Error_ParsingNumberOfWorkers" xml:space="preserve">
+    <value>ERROR: Unable to parse number of workers: '{0}'. Ensure the value is a number between 0 and 100.</value>
+  </data>
+  <data name="Error_ParsingStartPort" xml:space="preserve">
+    <value>ERROR: Unable to parse start port '{0}'. Ensure the value is a number between 1 and 65535.</value>
+  </data>
+  <data name="Error_TimedOutWaitingForExit" xml:space="preserve">
+    <value>ERROR: Timed out waiting for process to exit.</value>
+  </data>
+  <data name="Error_UnexpectedArgumentCount" xml:space="preserve">
+    <value>ERROR: Invalid number of arguments. See the help text.</value>
+  </data>
+  <data name="HelpText" xml:space="preserve">
+    <value>Tests a simulated distributed {ShortProductName} build.
+
+Command line: 
+DistributedBuildRunner.exe [number of workers] [crash a worker]
+
+Command line arguments:
+number of workers: the number of workers (in addition to master) to use for the build.
+crash a worker: (true or false). If true, kill one of the workers during the run.
+
+Environment variables:
+BUILDXL_EXE_PATH: Path to {ShortProductName} process
+
+All environment variables below have the token {machineNumber} replaced with appropriate value.
+BUILDXL_COMMON_ARGS: Arguments passed to master and workers
+BUILDXL_MASTER_ARGS: Arguments passed to master process
+BUILDXL_WORKER_ARGS: Arguments passed to worker process</value>
+  </data>
+  <data name="Message_KillingProcess" xml:space="preserve">
+    <value>Killing the poor worker</value>
+  </data>
+  <data name="ProcessExitCode" xml:space="preserve">
+    <value>Process exited with code '{0}'.</value>
+  </data>
+  <data name="WorkerRunStartMessage" xml:space="preserve">
+    <value>Running process with command line:
+{0} {1}</value>
+  </data>
+</root>

@@ -1,0 +1,75 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AwaitCommand" xml:space="preserve">
+    <value>Sending command '/await:{0}' over the pipe of configuration file: '{1}'</value>
+  </data>
+  <data name="DominoMasterStarted" xml:space="preserve">
+    <value>{ShortProductName} master started in listen mode</value>
+  </data>
+  <data name="NoDominoConfigFile" xml:space="preserve">
+    <value>Property DominoConfigFile should be specified when DominoTaskEnabled is true</value>
+  </data>
+  <data name="NoDominoExecutable" xml:space="preserve">
+    <value>Property DominoExePath should be specified when DominoTaskEnabled is true</value>
+  </data>
+  <data name="DominoExecutableNotDefined" xml:space="preserve">
+    <value>Error: MsBuild PropertyGroup &lt;{0}&gt; is not defined.</value>
+  </data>
+  <data name="DominoExecutableNotFound" xml:space="preserve">
+    <value>Error: Could not find {MainExecutableName} at: '{0}'</value>
+  </data>
+  <data name="BeforeBuildScriptStarting" xml:space="preserve">
+    <value>Starting BeforeBuild script</value>
+  </data>
+  <data name="BeforeBuildFailed" xml:space="preserve">
+    <value>Error: BeforeBuild script failed. See output window for details</value>
+  </data>
+  <data name="BeforeBuildScriptCompletedSuccessfully" xml:space="preserve">
+    <value>BeforeBuild script succeeded successfully</value>
+  </data>
+  <data name="BeforeBuildScriptNotFound" xml:space="preserve">
+    <value>Error: Could not find before build script: '{0}'</value>
+  </data>
+  <data name="OnBuildError" xml:space="preserve">
+    <value>Error: {0}{1}Stack trace: {2}</value>
+  </data>
+  <data name="IncorrectManifestFile" xml:space="preserve">
+    <value>Unable to find version information from vsixmanifest file</value>
+  </data>
+  <data name="DebugMessageCouldNotFindDomino" xml:space="preserve">
+    <value>Could not located the {ShortProductName} binaries based on config file: {0}</value>
+  </data>
+  <data name="DebugMessageDominoPackgeLoading" xml:space="preserve">
+    <value>{ShortProductName} Vs Package loading...</value>
+  </data>
+  <data name="DebugMessageDominoToMsBuildDone" xml:space="preserve">
+    <value>Done generating solution.</value>
+  </data>
+  <data name="DebugMessageDominoToMsBuildFailed" xml:space="preserve">
+    <value>Conversion failed with exit code: {0}</value>
+  </data>
+  <data name="DebugMessageDominoPackageLoadedSuccessful" xml:space="preserve">
+    <value>Successfully loaded {ShortProductName} Vs Package...</value>
+  </data>
+  <data name="DebugMessageDominoPackageLoadFailure" xml:space="preserve">
+    <value>ERROR: Failed to load {ShortProductName} Vs Package: {0}</value>
+  </data>
+  <data name="DebugMessageSeparator" xml:space="preserve">
+    <value>=====================</value>
+  </data>
+  <data name="DebugMessageStartingDominoToMsBuild" xml:space="preserve">
+    <value>Converting {0} into a solution.</value>
+  </data>
+</root>

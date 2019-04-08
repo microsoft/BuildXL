@@ -1,0 +1,57 @@
+type optionA = "OptionA";
+type optionB = "OptionB";
+type optionC = "OptionC";
+
+type myType = optionA | optionB | optionC | "";
+
+interface myInterface {
+    myProperty: myType;
+};
+
+const myObject : myInterface = {
+    myProperty: ""
+};
+
+function myFunc(argOne: "A" | "B" | "", argTwo: myInterface)
+{
+    switch(argOne)
+    {
+        case "":
+        break;
+    }
+
+    if (argOne === "")
+    {
+
+    }
+    else if ("" === argTwo.myProperty)
+    {
+        
+    }
+}
+
+const myTestFuncCall = myFunc("", { myProperty: ""});
+
+function anotherFunction(argeOne: "A" | "B" | "") {
+    let x = argeOne;
+
+    switch (x)
+    {
+        case "A":
+        break;
+
+        case "":
+        break;
+    }
+
+    if (x === "")
+    {
+
+    }
+    else if ("" === x)
+    {
+
+    }
+}
+
+const x = 'OptionA';

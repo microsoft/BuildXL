@@ -1,0 +1,16 @@
+Cases/taggedTemplatesWithIncompleteTemplateExpressions3.ts(7,18): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+Cases/taggedTemplatesWithIncompleteTemplateExpressions3.ts(7,23): error TS1109: Expression expected.
+
+
+==== Cases/taggedTemplatesWithIncompleteTemplateExpressions3.ts (2 errors) ====
+    // @target: es6
+    
+    function f(x: TemplateStringsArray, y: string, z: string) {
+    }
+    
+    // Incomplete call, not enough parameters.
+    f `123qdawdrqw${ 1 }${
+                     ~
+!!! error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+                          
+!!! error TS1109: Expression expected.

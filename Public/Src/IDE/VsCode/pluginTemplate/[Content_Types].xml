@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension=".dll" ContentType="application/x-msdownload"/><Default Extension=".xml" ContentType="text/xml"/><Default Extension=".pdb" ContentType="application/x-pilot"/><Default Extension=".exe" ContentType="application/x-msdownload"/><Default Extension=".config" ContentType="application/octet-stream"/><Default Extension=".txt" ContentType="text/plain"/><Default Extension=".js" ContentType="application/javascript"/><Default Extension=".json" ContentType="application/json"/><Default Extension=".md" ContentType="text/x-markdown"/><Default Extension=".ico" ContentType="image/x-icon"/><Default Extension=".ts" ContentType="video/mp2t"/><Default Extension=".vsixmanifest" ContentType="text/xml"/>
+</Types>

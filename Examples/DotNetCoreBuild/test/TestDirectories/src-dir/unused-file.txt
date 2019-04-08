@@ -1,0 +1,6 @@
+This file should be included in one or more sealed directories but should not
+be explicitly consumed by any test pips (the pips should only declare a
+dependency on those sealed directories).  
+
+A validation script modifies this file before running the build for a
+second time and checks that the second build still gets 100% cache hit rate.

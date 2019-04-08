@@ -1,0 +1,12 @@
+Cases/argumentsBindsToFunctionScopeArgumentList.ts(3,5): error TS2322: Type 'number' is not assignable to type 'IArguments'.
+  Property 'length' is missing in type 'Number'.
+
+
+==== Cases/argumentsBindsToFunctionScopeArgumentList.ts (1 errors) ====
+    var arguments = 10;
+    function foo(a) {
+        arguments = 10;  /// This shouldnt be of type number and result in error.
+        ~~~~~~~~~
+!!! error TS2322: Type 'number' is not assignable to type 'IArguments'.
+!!! error TS2322:   Property 'length' is missing in type 'Number'.
+    }

@@ -1,0 +1,8 @@
+{
+    "Assembly":"BuildXL.Cache.MemoizationStoreAdapter",
+    "Type":"BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory",
+    "MaxCacheSizeInMB":512000,
+    "CacheId":"LocalCache",
+    "CacheRootPath":"[BuildXLSelectedRootPath]",
+    "CacheLogPath":"[BuildXLSelectedLogPath]"
+}

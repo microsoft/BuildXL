@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  
+  <title>Build Explorer</title>
+
+  <link rel="stylesheet" href="fonts/FullMDL2.css">
+
+  <link rel="stylesheet" href="style/constants.css">
+  <link rel="stylesheet" href="style/body.css">
+  <link rel="stylesheet" href="style/header.css">
+  <link rel="stylesheet" href="style/nav.css">
+  <link rel="stylesheet" href="style/main.css">
+  <link rel="stylesheet" href="style/statusbar.css">
+
+</head>
+
+<body>
+  <div class="full-size" id="App"></div>
+
+  <script>window.exports = module.exports</script>
+
+  <script>
+    const React = require("react");
+    const ReactDOM = require("react-dom");
+    const Icons = require("@uifabric/icons");
+
+    let render = () => {
+        const App = require('./App');
+        ReactDOM.render(
+          React.createElement(App.App),
+          document.getElementById('App'));
+    }
+
+    render();
+    
+    if (module.hot) { 
+        module.hot.accept(render); 
+    }
+
+    Icons.initializeIcons();
+  </script>
+
+</body>
+
+</html>

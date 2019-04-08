@@ -1,0 +1,21 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System.Diagnostics.CodeAnalysis;
+
+#pragma warning disable SA1404 // Code analysis suppression should have justification
+
+[assembly: SuppressMessage("Microsoft.Design", "CA1017:MarkAssembliesWithComVisible")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "DominoValue", Scope = "member", Target = "Microsoft.BuildXLVsPackage.SpecUtilities.#TryGetSpecFileFromProject(System.String,System.String&,System.String&)")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "MSBuild", Scope = "member", Target = "Microsoft.BuildXLVsPackage.SpecUtilities.#TryGetSpecFileFromProject(System.String,System.String&,System.String&)")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "DominoValue", Scope = "member", Target = "Microsoft.BuildXLVsPackage.SpecUtilities.#TryLoadSpecFile(System.String,System.String,System.Xml.Linq.XContainer&)")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "DominoValue", Scope = "member", Target = "Microsoft.BuildXLVsPackage.SpecUtilities.#TryLoadSpecFile(System.String,System.String,System.Xml.Linq.XContainer&,System.Xml.Linq.XNamespace&)")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1806:DoNotIgnoreMethodResults", MessageId = "Microsoft.VisualStudio.Shell.Interop.IVsOutputWindow.GetPane(System.Guid@,Microsoft.VisualStudio.Shell.Interop.IVsOutputWindowPane@)", Scope = "member", Target = "Microsoft.BuildXLVsPackage.BuildXLVsPackage.#Initialize()")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1806:DoNotIgnoreMethodResults", MessageId = "Microsoft.VisualStudio.Shell.Interop.IVsOutputWindowPane.OutputString(System.String)", Scope = "member", Target = "Microsoft.BuildXLVsPackage.BuildXLVsPackage.#OnBuildBegin(EnvDTE.vsBuildScope,EnvDTE.vsBuildAction)")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1806:DoNotIgnoreMethodResults", MessageId = "Microsoft.VisualStudio.Shell.Interop.IVsOutputWindowPane.OutputString(System.String)", Scope = "member", Target = "Microsoft.BuildXLVsPackage.BuildXLVsPackage.#OutputMessage(System.String)")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1806:DoNotIgnoreMethodResults", MessageId = "Microsoft.VisualStudio.Shell.Interop.IVsWindowFrame.GetProperty(System.Int32,System.Object@)", Scope = "member", Target = "Microsoft.BuildXLVsPackage.BuildXLVsPackage.#NavigateTo(System.Object,System.EventArgs)")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1806:DoNotIgnoreMethodResults", MessageId = "Microsoft.VisualStudio.TextManager.Interop.IVsTextManager.NavigateToLineAndColumn(Microsoft.VisualStudio.TextManager.Interop.IVsTextBuffer,System.Guid@,System.Int32,System.Int32,System.Int32,System.Int32)", Scope = "member", Target = "Microsoft.BuildXLVsPackage.BuildXLVsPackage.#NavigateTo(System.Object,System.EventArgs)")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling", Scope = "type", Target = "Microsoft.BuildXLVsPackage.BuildXLVsPackage")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling", Scope = "member", Target = "Microsoft.BuildXLVsPackage.BuildXLVsPackage.#Initialize()")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Scope = "member", Target = "Microsoft.BuildXLVsPackage.BuildXLVsPackage.#Initialize()")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Scope = "member", Target = "Microsoft.BuildXLVsPackage.BuildXLVsPackage.#OnBuildBegin(EnvDTE.vsBuildScope,EnvDTE.vsBuildAction)")]

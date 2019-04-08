@@ -1,0 +1,109 @@
+let START_TIME = ago(7d);
+let ENVIRONMENT_PATTERN = @"OsgPerfRun=";
+//let ENVIRONMENT_PATTERN = @"SelfHost";
+//
+dominocompletion 
+| where EventInfo_Time > START_TIME
+| where 
+    Environment matches regex ENVIRONMENT_PATTERN 
+| where ExitCode == 0
+| project SessionId 
+    , EventInfo_Time
+    , OsgPerfRun = case(
+        Environment contains "OsgPerfRun=", replace(@".*OsgPerfRun=([^;]*).*", @"\1", Environment),
+        "Unknown"
+    )
+    , ProcessRunningTimeSec = toint(ProcessRunningTime)/1000.0
+    , Environment 
+| extend OsgPerfScenario = replace(@"_Run\d", @"", OsgPerfRun)
+| join (
+    dominoinvocation 
+        | project SessionId
+        , FilteredComponent = case(
+            CommandLine contains "filter:spec=", replace(@".*filter:spec=[^ ]*\\([^ ]+)\\\*.*", @"\1", CommandLine),
+            "Unknown"
+        )
+        , FilteredPath = case(
+            CommandLine contains "filter:spec=", replace(@".*filter:spec=([^ ]*\\[^ ]+)\\\*.*", @"\1", CommandLine),
+            "Unknown"
+        )        
+        , Version = BuildInfo_CommitId
+    ) on SessionId
+| join (
+    checkingforpipgraphreusecomplete 
+        | project SessionId
+        , GraphCacheHit = case(GraphCacheCheckStatistics_WasHit == "True", 1.0, 0.0)
+        , GraphCacheMissReason = GraphCacheCheckStatistics_MissReason
+    ) on SessionId 
+| join (
+    bulkstatistic 
+        | where TotalPips != ""
+        | project  SessionId
+            , ProcessPips=toint(TotalProcessPips)
+            , CacheHits=toint(ProcessPipCacheHits)
+            , CacheMisses=toint(ProcessPipCacheMisses)
+    ) on SessionId 
+| join (
+    bulkstatistic 
+        | where Evaluate_ProcessMaximumPrivateMB != ""
+        | project  SessionId
+            , FrontEndMB=toint(Evaluate_ProcessMaximumPrivateMB)
+    ) on SessionId 
+| join (
+    bulkstatistic 
+        | where Execute_ProcessMaximumPrivateMB != ""
+        | project  SessionId
+            , BackEndMB=toint(Execute_ProcessMaximumPrivateMB)
+    ) on SessionId
+| join (
+    bulkstatistic 
+        | where DominoScript_TypeCheckingDurationMs != ""
+        | project SessionId
+            , Specs = toint(DominoScript_TotalNumberOfSpecs)            
+            , ParseT = toint(DominoScript_ParseDurationMs)/1000.0
+            , TypChkT = toint(DominoScript_TypeCheckingDurationMs)/1000.0
+            , BindT = toint(DominoScript_BindDurationMs)/1000.0, 0.0
+            , AstCnvT = toint(DominoScript_AstConversionDurationMs)/1000.0, 0.0
+    ) on SessionId
+| join ( 
+    frontendbuildworkspacephasecomplete 
+        | project SessionId
+            , UsedModules = toint(Statistics_ModuleCount)
+            , UsedSpecs = toint(Statistics_ProjectCount)
+    ) on SessionId
+| join kind=leftouter (
+    statistic 
+        | where Statistic_Name == "TimeToFirstPipMs" 
+        | project SessionId , TimeToFirstPipSec = toint(Statistic_Value)/1000.0
+    ) on SessionId
+| join kind=leftouter (
+    statistic 
+        | where Statistic_Name == "Evaluate.DurationMs" 
+        | project SessionId , EvalT = toint(Statistic_Value)/1000.0
+    ) on SessionId  
+| where OsgPerfRun !endswith "_Run1"
+| summarize
+    count()
+    , avg(ProcessPips)
+    , avg(GraphCacheHit)      
+    , avg(CacheHits)
+    , avg(CacheMisses)
+    , avg(Specs)
+    , avg(UsedSpecs)
+    , avg(UsedModules)
+    , avg(ParseT)
+    , avg(TypChkT)
+    , avg(BindT)
+    , avg(AstCnvT)
+    , avg(EvalT)
+    , ttfp = avg(TimeToFirstPipSec)
+    , tt = avg(ProcessRunningTimeSec)
+    , ttfp_sd = stdev(TimeToFirstPipSec)
+    , tt_sd = stdev(ProcessRunningTimeSec)
+    , avg(FrontEndMB)
+    , avg(BackEndMB)
+    by Version, FilteredComponent,  OsgPerfScenario
+| order by Version asc, FilteredProject asc, OsgPerfScenario asc
+     
+
+

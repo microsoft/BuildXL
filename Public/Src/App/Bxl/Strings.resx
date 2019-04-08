@@ -1,0 +1,895 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="HelpText_DisplayHelp_BuildBanner" xml:space="preserve">
+    <value>BUILD</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ConfigFile" xml:space="preserve">
+    <value>Configuration file that determines {ShortProductName}'s behavior (short form: /c)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Qualifiers" xml:space="preserve">
+    <value>Qualifiers controlling what flavor to build (short form: /q)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Paths" xml:space="preserve">
+    <value>Paths to output files or spec files which determine what gets built. This is a shorthand for a full filter expression.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CachingBanner" xml:space="preserve">
+    <value>CACHING</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FilteringBanner" xml:space="preserve">
+    <value>FILTERING</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FilteringInfo" xml:space="preserve">
+    <value>You can choose to build only a subset of available pips by using filtering.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_Tag" xml:space="preserve">
+    <value>Filters by a tag. Case sensitive.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LoggingBanner" xml:space="preserve">
+    <value>LOGGING</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxProc" xml:space="preserve">
+    <value>Specifies the maximum number of processes that {ShortProductName} will launch at one time. Defaults to 25% more than the total number of processors in the current machine.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxLightProc" xml:space="preserve">
+    <value>Specifies the maximum number of "light" processes that {ShortProductName} will launch at one time. Build specs can mark certain processes as "light" to indicate that they won't use much CPU time. Defaults to 0.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxIO" xml:space="preserve">
+    <value>Specifies the maximum number of I/O operations that {ShortProductName} will launch at one time. The default value is 1/4 of the number of processors in the current machine, but at least 1.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_NoLogo" xml:space="preserve">
+    <value>Suppress copyright message</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Help" xml:space="preserve">
+    <value>Display this usage message (Short form: /?). See verbose help with /help:verbose. See DX code specific help with /help:1234.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ResponseFile" xml:space="preserve">
+    <value>Read response file for more options</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MiscBanner" xml:space="preserve">
+    <value>MISCELLANEOUS</value>
+  </data>
+  <data name="HelpText_DisplayHelp_NoWarn" xml:space="preserve">
+    <value>Disable specific warning messages. These messages will still be logged in the main log file.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_WarnAsErrorWithList" xml:space="preserve">
+    <value>Report specific warnings as errors.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_WarnAsError" xml:space="preserve">
+    <value>Treat all warnings as errors.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ErrorsAndWarningsBanner" xml:space="preserve">
+    <value>ERRORS AND WARNINGS</value>
+  </data>
+  <data name="HelpText_DisplayHelp_BreakOnUnexpectedFileAccess" xml:space="preserve">
+    <value>Break into the debugger when {ShortProductName} detects that a tool accesses a file that was not declared in the specification dependencies. This option is useful when developing a new tool or SDKs using these tools. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogsDirectory" xml:space="preserve">
+    <value>Specifies the path to the logs directory.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Color" xml:space="preserve">
+    <value>Use colors for warnings and errors. Defaults to using colors.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogCatalog" xml:space="preserve">
+    <value>Records the set of spec files added to the catalog. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FileVerbosity" xml:space="preserve">
+    <value>Sets the file logging verbosity. Allowed values are 'Off', 'Error', 'Warning', 'Informational' and 'Verbose', and the single-character prefixes of those values. Defaults to Verbose. (short form: /fv)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ConsoleVerbosity" xml:space="preserve">
+    <value>Sets the console logging verbosity. Allowed values are 'Off', 'Error', 'Warning', 'Informational' and 'Verbose', and the single-character prefixes of those values. Defaults to Informational. (short form: /cv)</value>
+  </data>
+  <data name="HelpText_DisplayLogo_Copyright" xml:space="preserve">
+    <value>Copyright (C) Microsoft Corporation. All rights reserved.</value>
+  </data>
+  <data name="HelpText_DisplayLogo_VersionInfo" xml:space="preserve">
+    <value>{LongProductName} version 0.0.0.0</value>
+  </data>
+  <data name="HelpText_DisplayLogo_Template" xml:space="preserve">
+    <value>{0}. Build: {1}, Version: [{2}]</value>
+  </data>
+  <data name="App_ConfigureFileLogging_CantCreateDirectory" xml:space="preserve">
+    <value>The directory '{0}' could not be created, {1}.</value>
+  </data>
+  <data name="App_ConfigureFileLogging_CantOpenLogFile" xml:space="preserve">
+    <value>The log file '{0}' could not be opened, {1}.</value>
+  </data>
+  <data name="Args_Args_NotRecognized" xml:space="preserve">
+    <value>Command line argument '{0}' is not recognized.</value>
+  </data>
+  <data name="Args_ParseVerbosity_UnsupportedValue" xml:space="preserve">
+    <value>Unsupported logger verbosity value {0}, should be one of Off, Error, Warning, Informational, or Verbose</value>
+  </data>
+  <data name="Args_ParseWarningList_ExpectingValidWarningNumbers" xml:space="preserve">
+    <value>Expecting valid warning numbers for the /{0} argument but was given '{1}'.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Obj" xml:space="preserve">
+    <value>Specifies the root directory for primary build outputs (short form: /o)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Property" xml:space="preserve">
+    <value>Specifies a property that overrides an allowed environment variable (short form: /p)</value>
+  </data>
+  <data name="Args_Args_NoConfigGiven" xml:space="preserve">
+    <value>No configuration file specified with the /config: argument (short form: /c).</value>
+  </data>
+  <data name="Args_FileAccessAsErrors_FailPipFlags" xml:space="preserve">
+    <value>Flags /unsafe_UnexpectedFileAccessesAreErrors- and /failPipOnFileAccessError- are incompatible. Please specify only one.</value>
+  </data>
+  <data name="App_Main_BuildFailed" xml:space="preserve">
+    <value>Build FAILED</value>
+  </data>
+  <data name="App_Main_BuildSucceeded" xml:space="preserve">
+    <value>Build Succeeded</value>
+  </data>
+  <data name="App_Main_Logs" xml:space="preserve">
+    <value>Logs</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CacheDirectory" xml:space="preserve">
+    <value>Specifies the root directory for the incremental artifact cache (short form: /cd)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Incremental" xml:space="preserve">
+    <value>When enabled, artifacts are built incrementally based on which source files have changed. Defaults to on.</value>
+  </data>
+  <data name="Args_ScriptFile_Deprecated" xml:space="preserve">
+    <value>Error: /scriptfile: and /s: have been deprecated so instead of using /s:{0} you can use /filter:spec=’{0}’ or just {0} without the /s: prefix.</value>
+  </data>
+  <data name="App_Main_Log" xml:space="preserve">
+    <value>    Log: {0}</value>
+  </data>
+  <data name="App_Main_ValuesLog" xml:space="preserve">
+    <value>    Values Log: {0}</value>
+  </data>
+  <data name="App_Main_Snapshot" xml:space="preserve">
+    <value>    Snapshot: {0}</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogObservedAccesses" xml:space="preserve">
+    <value>Records the files observed to be accessed by individual pips to the log. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogFileEnforcementTables" xml:space="preserve">
+    <value>Records the file enforcement access tables for individual pips to the log. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_UnexpectedFileAccessesAreErrors" xml:space="preserve">
+    <value>When enabled, if {ShortProductName} detects that a tool accesses a file that was not declared in the specification dependencies, it is treated as an error instead of a warning. Turning this option off results in an unsafe configuration (for diagnostic purposes only). Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_IgnoreZwRenameFileInformation" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not detour the ZwRenameFileInformation API. This might lead to incorrect builds because some file accesses will not be enforced.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_IgnoreZwOtherFileInformation" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not detour the ZwLinkFileInformation, ZwFileNameFileInformation, ZwDispositionFileInformation, ZwModeFileInformation APIs. This might lead to incorrect builds because some file accesses will not be enforced. Defaults to off - the functions are detoured.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_IgnoreNonCreateFileReparsePoints" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not follow symlinks for access validation and reporting for API's outisde of CreateFile, NtCreate, and OpenFile. This might lead to incorrect builds because some file accesses will not be enforced. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_IgnoreSetFileInformationByHandle" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not detour the SetFileInformationByHandle API. This might lead to incorrect builds because some file accesses will not be enforced.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_IgnoreReparsePoints" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not track reparse points. This might lead to incorrect builds because some file accesses will not be enforced. Any reparse points (symlinks and mount points) will not be followed.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_IgnorePreloadedDlls" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not report Dlls loaded before Detours was started. This might lead to incorrect builds because some file accesses will not be enforced.</value>
+  </data>
+  <data name="Args_SandboxKind_WrongPlatform" xml:space="preserve">
+    <value>Sandbox kind '{0}' cannot be used on '{1}' operating system</value>
+  </data>
+  <data name="HelpText_DisplayHelp_SandboxKind" xml:space="preserve">
+    <value>Specifies the sandbox kind. Allowed values are 'None' (no sandboxing), 'Default' (default sandboxing), 'WinDetours', 'MacOsKext'. Default is 'Default'.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DisableDetours" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not detour any processes. This might lead to incorrect builds because any file accesses will not be enforced.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_IgnoreNonExistentProbes" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not report non existent probes, that are not in sealed directories. This might lead to incorrect builds because some file accesses will not be enforced and validated. Certain calls to GetFileAttribute method for non existing files will not be reported to {ShortProductName}.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ExistingDirectoryProbesAsEnumerations" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will report existing directory probes as enumerations. This might lead to cases where pips will be executed even when there is no need for it.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_IgnoreNtCreateFile" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not intercept NtCreateFile calls. This might lead to incorrect builds because some file accesses will not be enforced.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_IgnoreZwCreateOpenQueryFamily" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not intercept ZwCreateFile, ZwOpenFile, and ZwQueryDirectoryFile calls. This might lead to incorrect builds because some file accesses will not be enforced. This flag is off by default.</value>
+  </data>
+  <data name="App_Main_Cache" xml:space="preserve">
+    <value>Cache</value>
+  </data>
+  <data name="App_Main_Objects" xml:space="preserve">
+    <value>Objects</value>
+  </data>
+  <data name="App_Main_Out" xml:space="preserve">
+    <value>Out</value>
+  </data>
+  <data name="Args_Phase_UnsupportedValue" xml:space="preserve">
+    <value>Unsupported value for phase {0}, should be either None, Parse, Evaluate, ScheduleExecute</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Phase" xml:space="preserve">
+    <value>Specifies the phase until which {ShortProductName} runs. Allowed values are None (no phase is run), Parse (run until parsing is done), Evaluate (run until value evaluation is done), Schedule (run until scheduling is done), Execute (run until execution is done). Default is Execute.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Channel" xml:space="preserve">
+    <value>Identifies a communication channel. If not specified, the default channel name is derived from the main configuration file. Use together with /listen.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Server" xml:space="preserve">
+    <value>Launches or connects to a {ShortProductName} app-server (builds may occur in a re-usable background process, with reduced startup time). Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ExecutionControlBanner" xml:space="preserve">
+    <value>ENGINE CONTROL</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LowPriority" xml:space="preserve">
+    <value>Runs the build engine and all tools at a lower priority in order to provide better responsiveness to interactive processes on the current machine.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_StopOnFirstError" xml:space="preserve">
+    <value>Stops the build engine the first time an error is generated by either {ShortProductName} or one of the tool it runs. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PipTimeout" xml:space="preserve">
+    <value>How long to wait before terminating individual processes, in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PipWarningTimeout" xml:space="preserve">
+    <value>After how much time to issue a warning that an individual process runs too long, in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DiagBanner" xml:space="preserve">
+    <value>DIAGNOSTICS</value>
+  </data>
+  <data name="App_HandleUnhandledFailure_UnknownException" xml:space="preserve">
+    <value>Unknown exception</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ViewerOptions" xml:space="preserve">
+    <value>Controls viewer behavior. Allowed values are Show, Hide, and Disable. Defaults to Hide.</value>
+  </data>
+  <data name="Args_Error_ViewModeUnrecognized" xml:space="preserve">
+    <value>Unsupported viewer mode value {0}, should be one of Show, Hide, or Disable.</value>
+  </data>
+  <data name="Program_ConfigureFileLogging_Can_t_get_directory_name" xml:space="preserve">
+    <value>Can't get directory name</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DebugIgnoreChangeJournal" xml:space="preserve">
+    <value>If disabled, {ShortProductName} will not use the NTFS / ReFS change journal for caching or incremental builds. This is an unsafe configuration (for diagnostic purposes only). Defaults to on.</value>
+  </data>
+  <data name="Args_Diagnostic_UnsupportedValue" xml:space="preserve">
+    <value>Unsupported value for /diagnostic. Specify a functional area: Scheduler, Parser, Storage, Transformers, Engine, Viewer, PipExecutor, PipInputAssertions, ChangeJournalService, HostApplication, CommonInfrastructure, CacheInteraction, or HybridInterop.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Diagnostic" xml:space="preserve">
+    <value>Enables diagnostic logging for a functional area. This option may be specified multiple times. Areas: Scheduler, Parser, Storage, Transformers, Engine, Viewer, PipExecutor, PipInputAssertions, ChangeJournalService, HostApplication, CommonInfrastructure, CacheInteraction, HybridInterop. (short form: /diag)</value>
+  </data>
+  <data name="App_ViewMode_Hold" xml:space="preserve">
+    <value>Viewer connected. Holding process until the viewer exits.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PipTimeoutMultiplier" xml:space="preserve">
+    <value>Multiplier applied to the final timeout for individual processes. Setting a multiplier greater than one will increase the timeout accordingly for all pips, even those with an explicit non-default timeout set.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PipWarningTimeoutMultiplier" xml:space="preserve">
+    <value>Multiplier applied to the warning timeout for individual processes. Setting a multiplier greater than one will increase the warning timeout accordingly for all pips, even those with an explicit non-default warning timeout set.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxRelativeOutputDirectoryLength" xml:space="preserve">
+    <value>Directories under the object directory root will get shortened to avoid too long path names. Defaults to 64 characters for relative output directories.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_BuildLockPolling" xml:space="preserve">
+    <value>Number of seconds to wait for an executing build to finish before polling again for completion. Defaults to 15 sec.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_BuildWaitTimeout" xml:space="preserve">
+    <value>Number minutes to wait for an executing build to finish before failing the current one. Defaults to 0 minute.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_EnableLazyOutputs" xml:space="preserve">
+    <value>Enables lazy materialization (deployment) of pips' outputs from local cache. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ScriptShowSlowest" xml:space="preserve">
+    <value>Indicates whether {ShortProductName} should log information about the slowest {ShortScriptName} elements by phase. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ScriptShowLargest" xml:space="preserve">
+    <value>Indicates whether {ShortProductName} should log information about the largest {ShortScriptName} files. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DependencySelection" xml:space="preserve">
+    <value>Specifies additional pips to run based on dependency information of pips matched in filter. May be: empty (all dependencies) or "+" (dependencies and dependents).</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter" xml:space="preserve">
+    <value>Specifies a filter expression (short form: /f). See verbose help (/help:verbose) for details about constructing filter expressions.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FilterExampleDirectory" xml:space="preserve">
+    <value>Selects all pips originating from spec files within \src\utilities and all subdirectories, including, their dependencies and dependents.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FilterExampleNoTest" xml:space="preserve">
+    <value>Selects all pips not marked with the 'test' tag, including their dependencies</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_Examples" xml:space="preserve">
+    <value>Filtering examples:</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_ExamplesBinaryFilter" xml:space="preserve">
+    <value>Selects all pips marked with tag 'csc.exe' and not marked with tag 'test'. Runs them and their dependencies</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_Expression" xml:space="preserve">
+    <value>Expression form &lt;negation&gt;&lt;filterType&gt;='&lt;filterArgument&gt;'or &lt;negation&gt;(&lt;filter&gt;&lt;binaryOperator&gt;&lt;filter&gt;) or &lt;function&gt;(&lt;filter&gt;) where &lt;negation&gt; is the "~" character to negate the expression, &lt;binaryOperator&gt; is either "and" or "or", and &lt;function&gt; is "dpt" or "dpc"</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FilterTypeExplanation" xml:space="preserve">
+    <value>Types of filters:</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_Spec" xml:space="preserve">
+    <value>Filters by the spec that caused a pip to be included in the graph. Similar to filtering on the union of all values defined in that spec. </value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_Spec_ValueTransitive" xml:space="preserve">
+    <value>Similar to the basic spec filter, but transitively follows all value (and sealed directory) dependencies.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_Id" xml:space="preserve">
+    <value>Filters by a pip's id as shown in the viewer.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_Transformer" xml:space="preserve">
+    <value>Filters by a transformer name. Case sensitive.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ExportGraph" xml:space="preserve">
+    <value>Specifies the optional file path to export a JSON-formatted graph of pips.</value>
+  </data>
+  <data name="App_Visualizer_DevModeMessage1" xml:space="preserve">
+    <value>Visualizer is in devmode for location: '{0}'.</value>
+  </data>
+  <data name="App_Visualizer_DevModeMessage2" xml:space="preserve">
+    <value>Press Ctrl+C to terminate {ShortProductName}</value>
+  </data>
+  <data name="App_AppDomain_UnhandledException" xml:space="preserve">
+    <value>Unhandled exception happened during execution</value>
+  </data>
+  <data name="Args_Experimental_UnsupportedValue" xml:space="preserve">
+    <value>Unsupported experimental flag  {0}. See /? for supported values.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Experimental__0" xml:space="preserve">
+    <value>Enables an experimental feature (short form: /exp). Available experimental features: {0}</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CacheGraph" xml:space="preserve">
+    <value>Caches the build graph between runs, avoiding the parse and evaluation phases when no graph inputs have changed. Defaults to on.</value>
+  </data>
+  <data name="Args_Environment_UnsupportedValue" xml:space="preserve">
+    <value>Unsupported value for environment '{0}'. Supported values are '{1}'.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Environment" xml:space="preserve">
+    <value>Environment build is running in. Allowed values '{0}'.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_RemoteTelemetry" xml:space="preserve">
+    <value>When enabled, sends telemetry information for remote collection. Defaults to off.</value>
+  </data>
+  <data name="Args_ArtificialCacheMiss_AlreadyProvided" xml:space="preserve">
+    <value>The '/injectCacheMisses' option may only be provided once.</value>
+  </data>
+  <data name="Args_ArtificialCacheMiss_Invalid" xml:space="preserve">
+    <value>Invalid miss-rate options: '{0}'. See the description for /injectCacheMisses. Example: ~0.1#123 (inverted rate of 10%; seed 123)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_InjectCacheMisses" xml:space="preserve">
+    <value>Sets a rate for artificial cache misses (pips may be re-run with this likelihood, when otherwise not necessary). Miss rate and options are specified as "[~]Rate[#Seed]". The '~' symbol negates the rate (it becomes an allowed hit rate). The 'Rate' must be a numeric value in the range [0.0, 1.0]. The optional 'Seed' is an integer value fully determining the random aspect of the miss rate (the same seed and miss rate will always pick the same set of pips).</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CustomLog" xml:space="preserve">
+    <value>Sets a custom log file for a specific set of event IDs. Event list should be comma separated integers excluding the DX prefix.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_NoLog" xml:space="preserve">
+    <value>Removes a set of event IDs from the standard log. Does not apply to warning, error, critical, and always level events.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_NoExecutionLog" xml:space="preserve">
+    <value>Removes a set of event IDs from the execution log (.xlg).</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CleanTempDirectories" xml:space="preserve">
+    <value>Cleans per pip temp directories after the pip successfully exits to save disk space. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DistributedBuildBanner" xml:space="preserve">
+    <value>DISTRIBUTED BUILD</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DistributedBuildWorker" xml:space="preserve">
+    <value>Specifies the IP address or host name and TCP port of remote worker build services which this process can dispatch work to during a distributed build (can specify multiple).  (short form: /dbw)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DistributedBuildServicePort" xml:space="preserve">
+    <value>Specifies the TCP port of a locally running distributed build service (master or worker) which peers can connect to during a distributed build. This argument is required for executing a distributed build.  (short form: /dbsp)</value>
+  </data>
+  <data name="Args_DistributedBuildRole_UnsupportedValue" xml:space="preserve">
+    <value>Unsupported value for distributed build role {0}, should be [N]one, [M]aster, or [W]orker.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DistributedBuildRole" xml:space="preserve">
+    <value>Specifies the role the node plays in the distributed build: [N]one, [M]aster, or [W]orker. This argument is required for executing a distributed build. (short form: /dbr)</value>
+  </data>
+  <data name="Args_DistributedBuildWorker_InvalidServiceLocation" xml:space="preserve">
+    <value>Invalid distributed build worker location '{0}'. Ensure location is of the form &lt;IP address or host name&gt;:&lt;port&gt;. &lt;IP address or host name&gt;should be a non-empty string and &lt;port&gt;must be a valid port number.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_TempDirectory" xml:space="preserve">
+    <value>Specifies the root directory for per-pip temp directories. When unspecified, temp directories will be created under the per-pip object directories.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_Output" xml:space="preserve">
+    <value>Filters pips by the output files they create.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_PathArgument" xml:space="preserve">
+    <value>The value may be: 'path' to match a file, 'path\'. to match files within a directory, 'path\*' to match files in a directory and recursive directories, 'Mount[MountName]' to match files under a mount, or '*\fileName' to match files with a specific name no matter where they are. 'path' may be an absolute or relative path. 'fileName' must be a fileName and may not contain any directory separator characters.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CacheConfigFilePath" xml:space="preserve">
+    <value>Path to cache config file.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_EnableDedupChunk" xml:space="preserve">
+    <value>When enabled, DedupChunk hashing algorithm is used instead of VSO0. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogStats" xml:space="preserve">
+    <value>Logs key/value statistics to default stats file in the same folder as the main log file. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogStatus" xml:space="preserve">
+    <value>Logs build status information to a CSV file in the same folder as the main log file. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogOutput" xml:space="preserve">
+    <value>Specifies how process standard error and standard output should be reported. Allowed values are 'TruncatedOutputOnError', 'FullOutputAlways', 'FullOutputOnError', 'FullOutputOnWarningOrError'. Default is 'TruncatedOutputOnError'.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_TraceInfo" xml:space="preserve">
+    <value>Attaches tracing information to the build. May be specified multiple times. Ex: /TraceInfo:Branch=MyBranch</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogCounters" xml:space="preserve">
+    <value>Collects various performance counters and logs phase specific aggregations. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_RootMap" xml:space="preserve">
+    <value>Specifies a drive mapping applied during this build. Paths under specified letters will be mapped to the corresponding paths at the system level for the build process and the tools launched as a part of the build. (short form: /rm)</value>
+  </data>
+  <data name="App_RootMapping_CantCreateDirectory" xml:space="preserve">
+    <value>Directory ({0}) for root mapping drive '{1}' does not exist and unable to create directory for mapping, {2}.</value>
+  </data>
+  <data name="App_RootMapping_CantApplyRootMappings" xml:space="preserve">
+    <value>Unable to apply root mappings.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_AllowMissingOutputs" xml:space="preserve">
+    <value>When specified, suppresses errors for specified-but-not-produced outputs with the given name. May be specified more than once. Using this option results in an unsafe configuration (for diagnostic purposes only). Defaults to false.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_TranslateDirectory" xml:space="preserve">
+    <value>Specify translation of directories before access policy is applied - the fromPath is replaced with toPath in the names of paths accessed. Make sure to add the trailing path separators. Valid from/to path separators are '&lt;' and ' and '::'. Recommended separator is '::'. Defaults to no directory translation is done.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_Value" xml:space="preserve">
+    <value>Filters by value name. Case sensitive.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_ValueTransitive" xml:space="preserve">
+    <value>Similar to the basic value filter, but transitively follows all value (and sealed directory) dependencies. Case sensitive.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CacheSpecs" xml:space="preserve">
+    <value>Caches build specification files to a single large file to improve read performance on spinning disks. When unset the behavior is dynamic based on whether root configuration file is on a drive that is detected to have a seek penalty. May be forced on or off using the flag.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CacheMemoryUsage" xml:space="preserve">
+    <value>How to balance memory usage vs. fetching values on demand from disk, which carries a seek penalty on spinning disks. Allowed values are 'Auto', 'Minimize', 'Liberal'. The default automatic mode checks if the relevant drive has a seek penalty. A particular behavior may be forced using the flag.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DeterminismProbeUsage" xml:space="preserve">
+    <value>When enabled, cache hits are ignored, but all pips are built and attempted to be added to the cache, with cache collisions reported to identify non-deterministic tools. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogProcesses" xml:space="preserve">
+    <value>Records all launched processes, including nested processes, of each pip to the log. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogProcessData" xml:space="preserve">
+    <value>When enabled, records process execution times and IO counts and transfers. Requires /LogProcesses to be enabled. Defaults to off.</value>
+  </data>
+  <data name="EventSummaryHeader" xml:space="preserve">
+    <value>EventId,Count</value>
+  </data>
+  <data name="AppServer_TerminatingServer_PipeDisconnect" xml:space="preserve">
+    <value>Terminating Dom{ShortProductName}ino server process because communication with the client has been lost.</value>
+  </data>
+  <data name="AppServer_TerminatingClient_PipeDisconnect" xml:space="preserve">
+    <value>Terminating {ShortProductName} client process because communication with the server has been lost: {0}</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Snapshot" xml:space="preserve">
+    <value>When enabled, captures build inputs needed for evaluation or the full build depending on the specified snapshot mode (see /snapshotMode)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_SnapshotMode" xml:space="preserve">
+    <value>Specifies the mode used to snapshot the build: None, Full (capture all build inputs in VHD file), Evaluation (captures build specifications in zip file). Defaults to Evaluation.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Scrub" xml:space="preserve">
+    <value>Before executing, scrubs (deletes) files not marked as inputs or outputs of the current build. Only applies to mounts marked as Scrubbable. This includes the object directory but none others by default. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CleanOnly" xml:space="preserve">
+    <value>Deletes output files that would have been produced by the build. Pips will not be executed.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_UseHardlinks" xml:space="preserve">
+    <value>When enabled, hardlinks will be used (when possible) to de-duplicate content in output directories with content in the build cache. This reduces space usage and improves performance, since copies are avoided. Creating hardlinks requires that the output directories and cache are on the same volume, and that volume must use NTFS. Defaults to on. </value>
+  </data>
+  <data name="HelpText_DisplayHelp_AnalyzeDependencyViolations" xml:space="preserve">
+    <value>When enabled, file monitoring violations will be analyzed to emit additional warnings about high-level dependency problems (examples include double-writes and read-write races). Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxIOMultiplier" xml:space="preserve">
+    <value>Specifies maxIO in terms of a multiplier of the machine's processor count. Defaults to 0.25.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxProcMultiplier" xml:space="preserve">
+    <value>Specifies maxProc in terms of a multiplier of the machine's processor count. Defaults to 1.25.</value>
+  </data>
+  <data name="Args_Error_InvalidGraphId" xml:space="preserve">
+    <value>Invalid graph identifier '{0}' specified. Graph identifier must be a 40 digit hex string (no delimiters).
+Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LoadGraph" xml:space="preserve">
+    <value>Loads a cached build graph stored under the given fingerprint (40 digit hex string, no delimiters), path to cached graph directory, or canonical name.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_EngineCacheDirectory" xml:space="preserve">
+    <value>Allows overriding where engine state will be cached. If unset, it will be stored in a subdirectory of the artifact cache.</value>
+  </data>
+  <data name="HelpText_DiplayHelp_RelatedActivityId" xml:space="preserve">
+    <value>An external related ETW activity identifier. The top level {ShortProductName} activity will be logged as a child of this one.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_Input" xml:space="preserve">
+    <value>Filters by an input to a pip.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogExecution" xml:space="preserve">
+    <value>Logs an execution trace to the default trace file in the same folder as the main log file. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ServerDeploymentDir" xml:space="preserve">
+    <value>Sets the directory where the server process deployment will be created. It not specified, the deployment will be created in the directory {MainExecutableName} is running from.</value>
+  </data>
+  <data name="DurationMs" xml:space="preserve">
+    <value>DurationMs</value>
+  </data>
+  <data name="TelemetryInitialization" xml:space="preserve">
+    <value>TelemetryInitialization</value>
+  </data>
+  <data name="App_BugInConfiguration" xml:space="preserve">
+    <value>An automated validation failed when constructing the internal configuration object. Validations should not be enabled on this object. Please report this bug. Failed validation site was: {0}</value>
+  </data>
+  <data name="Server_FailedToStart" xml:space="preserve">
+    <value>Server failed to start</value>
+  </data>
+  <data name="Server_StartupTimeoutReached" xml:space="preserve">
+    <value>Server process did not start within allowed timeout</value>
+  </data>
+  <data name="Args_NoExecutionLogOnWorker" xml:space="preserve">
+    <value>Execution log is not allowed on workers</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogPrefix" xml:space="preserve">
+    <value>The prefix to add to all log file names (default: {ShortProductName})</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogsToRetain" xml:space="preserve">
+    <value>The number of previous logs to retain.</value>
+  </data>
+  <data name="Args_LogPrefix_Invalid" xml:space="preserve">
+    <value>'{0}' is an invalid value for 'logPrefix'</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ScriptBanner" xml:space="preserve">
+    <value>{ShortScriptName}</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ScriptDebugScript" xml:space="preserve">
+    <value>Whether to launch {ShortScriptName} debugger on start.  Intended to be used by IDEs only (if you pass this option when running form command line, {ShortScriptName} evaluator will just wait forever).  Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ScriptDebugScriptBreakOnExit" xml:space="preserve">
+    <value>Whether to break at the end of the evaluation phase. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ScriptDebugScriptPort" xml:space="preserve">
+    <value>TCP/IP port for the {ShortScriptName} debugger to listen on. Defaults to 41177.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ScriptTypeCheck" xml:space="preserve">
+    <value>Type checks specifications. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxFrontEndConcurrency" xml:space="preserve">
+    <value>Specifies the maximum concurrency level for constructing the pip graph in the FrontEnd. The default value is 25% more than the total number of processors in the current machine. (short form: /mf)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_EmitSpotlightIndexingWarning" xml:space="preserve">
+    <value>Controls if the engine should emit a warning that indicates that artifact folders are indexed by Spotlight. This flag is on by default.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DisableConHostSharing" xml:space="preserve">
+    <value>Disables sharing of the ConHost process between PIPs. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ScanChangeJournal" xml:space="preserve">
+    <value>Scans volume change journals to determine spec file changes for graph reuse check. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CacheSessionName" xml:space="preserve">
+    <value>If specified, this is the new unique cache session name for this build.  If not given, the build cache session will not be tracked.</value>
+  </data>
+  <data name="ConsoleListener_EvalStatusLine" xml:space="preserve">
+    <value>Values: {{0,{0}}} done, {{1,{0}}} waiting</value>
+  </data>
+  <data name="HelpText_DisplayHelp_UsePartialEvaluation" xml:space="preserve">
+    <value>When enabled, a partial graph may be constructed to decrease evaluation time. Defaults to off for XML specs.</value>
+  </data>
+  <data name="ConsoleListener_AdditionalPips" xml:space="preserve">
+    <value>       + {0} more...</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ShowingStandardHelp" xml:space="preserve">
+    <value>Standard help shown. For complete help options, use /help:verbose</value>
+  </data>
+  <data name="App_Vs_SolutionFile" xml:space="preserve">
+    <value>    VS Solution File: {0}</value>
+  </data>
+  <data name="App_LogsDirectory" xml:space="preserve">
+    <value>    Log Directory: {0}</value>
+  </data>
+  <data name="HelpText_DisplayHelp_SubstSource" xml:space="preserve">
+    <value>Path of the original root that has been substituted to another. Log messages will be converted back to this path root. Must be specified with /substTarget.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_SubstTarget" xml:space="preserve">
+    <value>Path of the subst target. Messages rooted at this path will be converted to the root configured in SubstSource. Must be specified with /substSource</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FileSystemMode" xml:space="preserve">
+    <value>Specifies the type of filesystem rules to use when the sandbox computes input assertions. Allowed values are: 'RealAndMinimalPipGraph' ({ShortScriptName} default) - uses the real filesystem for read only mounts and a minimal pip graph based view for writeable mounts, 'RealAndPipGraph' (XML default) - same as RealAndMinimalPipGraph except a full pip graph is used, 'AlwaysMinimalGraph' - always uses the pip graph.</value>
+  </data>
+  <data name="App_Vs_InstallPlugin" xml:space="preserve">
+    <value>{0} does not have the latest {ShortProductName} plugin installed. Before opening VS, please install the latest version ({1}) per the {ShortProductName} wiki</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ForceSkipDependencies" xml:space="preserve">
+    <value>Specifies that dependencies of processes requested in the filter should be skipped as long as all the inputs are present.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PreserveOutputs" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will preserve the existing state of Process pip output files instead of deleting them before starting the process. This may lead to incorrect builds depending on how the process behaves when prior outputs are present. Specify "/unsafe_preserveOutputs:Reset" to reset the salt added to cached processes run with preserved outputs.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_NormalizeReadTimestamps" xml:space="preserve">
+    <value>When enabled, all file reads seen by processes will have normalized timestamps across builds. When disabled, the actual timestamps will be allowed to flow through to processes, so long as they are newer than the static timestamp used to enforce rewrite ordering (2002). Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_UseLargeNtClosePreallocatedList" xml:space="preserve">
+    <value>When enabled, it uses a larger initial preallocated list for draining NtClose events. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_UseExtraThreadToDrainNtClose" xml:space="preserve">
+    <value>When enabled, the draining of the {ShortProductName} handle cache happens on a different thread than the one that called the NtClose. Handles to be cleaned are collected in a thread safe, non-locking list and removed from the cache usinga different thread. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ReuseEngineState" xml:space="preserve">
+    <value>Reuse engine state between client sessions if /server and /cacheGraph are enabled. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FlushPageCacheToFileSystemOnStoringOutputsToCache" xml:space="preserve">
+    <value>Flush page cache to file system on storing outputs to cache. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_TreatDirectoryAsAbsentFileOnHashingInputContent" xml:space="preserve">
+    <value>Treats directory as absent file on hashing the content of input</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DisableCycleDetection" xml:space="preserve">
+    <value>Disables cycle detection during evaluation. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_EnforceFileAccesses" xml:space="preserve">
+    <value>Whether {ShortProductName} is to monitor file accesses of individual tools at all. Disabling monitoring results in an unsafe configuration (for diagnostic purposes only). Defaults to on.</value>
+  </data>
+  <data name="HelpText_DiplayHelp_VS" xml:space="preserve">
+    <value>Generates a VS solution file and MSBuild files for C# and C++ projects. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_SolutionName" xml:space="preserve">
+    <value>Specifies the name of the solution which will be generated via /vs.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_VsOutputSrc" xml:space="preserve">
+    <value>MSBuild project files are written under the source tree. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_SpecDependencies" xml:space="preserve">
+    <value>Similar to the basic spec filter, but transitively includes specs of pips referenced by pips in target spec(s) of the filter.</value>
+  </data>
+  <data name="ConsoleListener_PipsResourceWaitingStatusLine" xml:space="preserve">
+    <value>{0} running pips waiting on resources</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxRamUtilizationPercentage" xml:space="preserve">
+    <value>Specifies the maximum machine wide RAM utilization allowed before the scheduler will stop scheduling more work to allow resources to be freed. Defaults to 85%.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MinAvailableRam" xml:space="preserve">
+    <value>Specifies the minimum available machine wide RAM (in megabytes) allowed before the scheduler will stop scheduling more work to allow resources to be freed. Default is 500 mb.</value>
+  </data>
+  <data name="App_ServerKilled" xml:space="preserve">
+    <value>Killing associated server mode process. No build will be performed.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FilterFunctionExplanation" xml:space="preserve">
+    <value>Filter Functions:</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_DependenciesFunction" xml:space="preserve">
+    <value>Include outputs of transitive closure of inner filter dependencies in the filter (e.g. 'dpc(tag='check')' to include all dependencies of pips tagged with the check tag)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_DependentsFunction" xml:space="preserve">
+    <value>Include outputs of transitive closure of inner filter dependents in the filter (e.g. 'dpt(tag='test')' to include all dependents of pips tagged with the test tag)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxCacheLookup" xml:space="preserve">
+    <value>Specifies the maximum number of cache lookups that {ShortProductName} will launch at one time. The default value is three times the number of processors in the current machine.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxChooseWorker" xml:space="preserve">
+    <value>Specifies the maximum number of choose worker operations that {ShortProductName} will launch at one time for distributed builds. The default value is 1/4 of the number of processors in the current machine, but at least 1.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxMaterialize" xml:space="preserve">
+    <value>Specifies the maximum number of materialize operations that {ShortProductName} will launch at one time. Defaults to twice the number of processors in the current machine.</value>
+  </data>
+  <data name="DX_Help_Link" xml:space="preserve">
+    <value>http://aka.ms/dhelp</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaskUntrackedAccesses" xml:space="preserve">
+    <value>When enabled, {ShortProductName} does not consider any access under untracked paths or scopes for sake of cache lookup. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FancyConsole" xml:space="preserve">
+    <value>When enabled, the console will give frequent updates of the status of processes that are running. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FancyConsoleMaxStatusPips" xml:space="preserve">
+    <value>Maximum number of concurrently executing pips to render in Fancy Console view. Defaults to 5.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_AllowCopySymlink" xml:space="preserve">
+    <value>When enabled, allow copying symlink. Defaults to true.</value>
+  </data>
+  <data name="Args_Malformed_RelatedActivityGuid" xml:space="preserve">
+    <value>The specified related activity guid is not a well-formed GUID</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ProfileReportDestination" xml:space="preserve">
+    <value>Destination file of the profiling report. Default is '{0}' and it is generated in the current directory. Only considered if /profileScript is specified.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_TrackBuildsInUserFolder" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will log every build invocation in the users folder so the viewer and analyzers can use that to figure out what to use. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_TrackMethodInvocations" xml:space="preserve">
+    <value>When enabled, {ShortProductName} captures most frequently invoked {ShortScriptName} methods. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ProfileScript" xml:space="preserve">
+    <value>Runs a profiler for {ShortScriptName} evaluation, generating a TSV file with profiling information.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DistributedBuildWorkerSourceMaterialization" xml:space="preserve">
+    <value>Enables materialization of source files on distributed workers. NOTE: Source files are required to be present in the worker's remote or local cache.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ValidateDistribution" xml:space="preserve">
+    <value>Performs validations to ensure the build can be distributed. Defaults to on for distributed builds, disabled in single machine builds.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ReuseOutputsOnDisk" xml:space="preserve">
+    <value>Reuse outputs on disk for checking up-to-dateness during cache look-up and for file materialization</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxTypeCheckingConcurrency" xml:space="preserve">
+    <value>Specifies the maximum concurrency level type checking phase. Defaults to /maxFrontEndConcurrency - 25% more than the total number of processors in the current machine.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_IgnoreGetFinalPathNameByHandle" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not intercept GetFinalPathNameByHandle calls. This may lead to failures when using subst because non-subst paths will be used. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogProcessDetouringStatus" xml:space="preserve">
+    <value>When enabled, store the Detouring Status messages in the Execution log. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_HardExitOnErrorInDetours" xml:space="preserve">
+    <value>When enabled, detours will exit the process on Detours error with a special exit code. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CheckDetoursMessageCount" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will check the count of messages sent to {ShortProductName} from the pip process tree and will fail the pip (build) if there is mismatch. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_AllowInternalDetoursErrorNotificationFile" xml:space="preserve">
+    <value>When enabled, the detoured processes will store internal errors in a special file. If this file contains data at the end of pip execution, the pip (build) will fail. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_KextNumberOfKextConnections" xml:space="preserve">
+    <value>[macOS] Specifies the number of connections that drain the sandbox kernel extension file access reports on macOS systems - the sandbox kernel extension allocates one report queue per connection to balance the system load when reporting file accesses.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_KextReportQueueSizeMb" xml:space="preserve">
+    <value>[macOS] Specifies the size in MB of a sandbox kernel extension report queue. Use this cautiously, because it allocates the specified size in wired system memory multiplied by the number of kernel extension connections.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_KextThrottleCpuUsageBlockThresholdPercent" xml:space="preserve">
+    <value>[macOS] Causes throttling to be triggered whenever CPU usage is above this value.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_KextThrottleCpuUsageWakeupThresholdPercent" xml:space="preserve">
+    <value>[macOS] A blocked process can be awakened only when CPU usage drops below this value (defaults to /KextThrottleCpuUsageBlockThresholdPercent).</value>
+  </data>
+  <data name="HelpText_DisplayHelp_KextThrottleMinAvailableRamMB" xml:space="preserve">
+    <value>[macOS] Causes throttling to be triggered whenever available RAM drops below this value. (takes precedence over CPU usage thresholds)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogMemory" xml:space="preserve">
+    <value>Collects actual memory usage when collection performance counters. This has a negaitve performance impact and should only be used when analyzing memory consumption. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_StoreFingerprints" xml:space="preserve">
+    <value>Stores fingerprint computation information for each pip seen in the build in a peristent key-value store that can be accessed from the logs.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ScanChangeJournalTimeLimitInSec" xml:space="preserve">
+    <value>Time limit in second for scanning volume change journal. Set to -1 for no limit. Defaults to 30 seconds.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_IncrementalScheduling" xml:space="preserve">
+    <value>When enabled, scheduling is performed incrementally. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ScrubDirectory" xml:space="preserve">
+    <value>Before executing, scrubs (deletes) files and directories not marked as inputs or outputs of the current build in the specified directory. Only applies to directories under mounts marked as Scrubbable.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_VerifyCacheLookupPin" xml:space="preserve">
+    <value>Verifies pins for cache lookup output content by attempting to materialize the content. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DistributeCacheLookups" xml:space="preserve">
+    <value>Perform cache look-ups on workers in the distributed build. Default to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CanonicalizeFilterOutputs" xml:space="preserve">
+    <value>Canonicalize filter for output filtering. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ServerMaxIdleTimeInMinutes" xml:space="preserve">
+    <value>Maximum idle time in minutes for server mode. Defaults to 60 minutes.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_AllowFetchingCachedGraphFromContentCache" xml:space="preserve">
+    <value>Allow fetching cached graph from content cache. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_SymlinkDefinitionFile" xml:space="preserve">
+    <value>Specifies the file containing mappings from symlinks to their targets, and those symlinks will be created, if necessary, before pip executions</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LazySymlinkCreation" xml:space="preserve">
+    <value>Creates symlink from the symlink definition file lazily. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CompressGraphFiles" xml:space="preserve">
+    <value>When enabled, graph files are compressed.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ProcessRetries" xml:space="preserve">
+    <value>Number of retries for process execution if the process exits with exit codes that allow for retries. Defaults to 0.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ReplayWarnings" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will replay warning messages from pips that were cache hits. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_EnableIncrementalFrontEnd" xml:space="preserve">
+    <value>Enables incremental spec analysis based on number of changed specs. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_UseFileContentTablePathMappings" xml:space="preserve">
+    <value>Use file content table path mappings to avoid opening handles for hashing files already in the table. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PopulateSymlinkDirectory" xml:space="preserve">
+    <value>Specifies a directory to eagerly populate with symlinks when symlink definition file and lazy symlink creation are enabled.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_UnexpectedSymlinkAccessReportingMode" xml:space="preserve">
+    <value>Specifies the when unexpected symlink file/directory accesses are reported as warnings: None, ExecutionOnly (only for executed processes), All (executed and cached process observations report unexpected accesses). Default: All. NOTE: This is only enabled when a symlink definition file is provided.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DisableGraphPostValidation" xml:space="preserve">
+    <value>Disables post validation of graph construction. Defaults to on.</value>
+  </data>
+  <data name="DX_Help_Link_Prefix" xml:space="preserve">
+    <value>For help with {ShortProductName} warnings or errors, see: </value>
+  </data>
+  <data name="HelpText_DisplayHelp_StoreOutputsToCache" xml:space="preserve">
+    <value>When enabled, {ShortProductName} stores pip outputs to the cache. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PinCachedOutputs" xml:space="preserve">
+    <value>Indicates whether outputs should be pinned in CAS for cached pips. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FileChangeTrackingExclusionRoot" xml:space="preserve">
+    <value>Specifies one or more roots to be excluded from file change tracking. NOTE: This flag is not compatible with /incrementalScheduling which requires all paths to be tracked.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FileChangeTrackingInclusionRoot" xml:space="preserve">
+    <value>Specifies one or more roots to be included in file change tracking. NOTE: When specified all paths not under inclusion roots are excluded from file change tracking. This flag is not compatible with /incrementalScheduling which requires all paths to be tracked.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_FileChangeTrackerInitializationMode" xml:space="preserve">
+    <value>Modes for initializing file change tracker. Allowed values are ResumeExisting, ForceRestart. Defaults to ResumeExisting.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_InferNonExistenceBasedOnParentPathInRealFileSystem" xml:space="preserve">
+    <value>Infers the non-existence of a path based on the parent path when checking the real file system in file system view. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_OutputMaterializationExclusionRoot" xml:space="preserve">
+    <value>Specifies one or more roots to be excluded from output materialization. NOTE: Files needed for execution are always materialized even if under this root.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_UseCustomPipDescriptionOnConsole" xml:space="preserve">
+    <value>Indicates whether pip descriptions should be shortened to (semi-stable hash, customer-supplied pip description) when reporting errors and warnings on the console. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_EnforceAccessPoliciesOnDirectoryCreation" xml:space="preserve">
+    <value>Indicates whether {ShortProductName} should enforce access policies on CreateDirectory for paths under writable mounts as well as the cases when the directory already exists. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_CopyDependentsFunction" xml:space="preserve">
+    <value>Include outputs of filter along with all downstream copies of the outputs via copy pips.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Filter_RequiredInputsFunction" xml:space="preserve">
+    <value>Include the immediate inputs (outputs of direct dependencies) for the pips specified filter.</value>
+  </data>
+  <data name="App_Errors_LogsDirectory" xml:space="preserve">
+    <value>    {0} ERROR(S). Log Directory: {1}</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CacheMiss" xml:space="preserve">
+    <value>When enabled, {ShortProductName} performs the on-the-fly cache miss analysis during the execute phase. If no value is given (/cacheMiss+),  the local FingerprintStore is used for comparison. The user can pass the list of changesets if they want to compare the build to a remote FingerprintStore: /cacheMiss:[&lt;sha&gt;:&lt;sha&gt;:...]. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogPipStaticFingerprintTexts" xml:space="preserve">
+    <value>Log pip static fingerprint texts. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_TelemetryTagPrefix" xml:space="preserve">
+    <value>Prefix of tag considered for sending aggregate statistics to telemetry</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MsBuildBanner" xml:space="preserve">
+    <value>MSBuild</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MsBuild_LogVerbosity" xml:space="preserve">
+    <value>Activates MSBuild file logging for each MSBuild project file to 'msbuild.log' in the log directory, using the specified MSBuild log verbosity. WARNING: This option adds I/O overhead to your build, since MSBuild console logging is already enabled and captured, and use of Detailed or Diagnostic levels should only be used temporarily to avoid significantly increased build times.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MsBuild_EnableBinLogTracing" xml:space="preserve">
+    <value>Controls whether MSBuild binlog tracing should be enabled for the build. The binlog is placed in the logs directory for each MSBuild project as 'msbuild.binlog'. WARNING: This option increases build I/O and should only be used temporarily to avoid increased build times.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MsBuild_EnableEngineTracing" xml:space="preserve">
+    <value>Controls whether MSBuild engine/scheduler tracing should be enabled for the build. WARNING: Use this option only temporarily as it will significantly increase build times.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MasterCpuMultiplier" xml:space="preserve">
+    <value>Specifies the cpu queue limit in terms of a multiplier of the normal limit when at least one remote worker gets connected. Defaults to 0.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LaunchDebugger" xml:space="preserve">
+    <value>Launches the debugger during boot (in the server process if applicable).</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MasterCacheLookupMultiplier" xml:space="preserve">
+    <value>Specifies the cachelookup queue limit in terms of a multiplier of the normal limit when at least one remote worker gets connected. Defaults to 0.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_IgnoreDynamicWritesOnAbsentProbes" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not flag as violations absent path probes that coexist with writes under output directories for those same paths.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_StoreFingerprintsWithMode" xml:space="preserve">
+    <value>Stores fingerprint computation information for each pip seen in the build in a peristent key-value store that can be accessed from the logs. "Default" mode will check for pre-existing entries before overwriting entries. "ExecutionFingerprintsOnly" mode will only store fingerprints computed when a pip executes. On strong fingerprint cache misses, setting this will SKIP storing fingerprints computed at cache lookup time, which are useful for analyzing strong fingerprint misses. "IgnoreExistingEntries" mode will overwrite entries without doing any (random) reads, this is only recommended on spin drives experiencing slowdowns. </value>
+  </data>
+  <data name="HelpText_DisplayHelp_UseFileContentTable" xml:space="preserve">
+    <value>When enabled, use file content table. Defaults to on on Windows, but off on Unix</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PosixDeleteMode" xml:space="preserve">
+    <value>Controls the applicability of file/directory deletion using POSIX delete. Allowed values are NoRun, RunFirst, and RunLast. Defaults for Windows is RunLast, and for Unix is RunFirst</value>
+  </data>
+  <data name="Args_ProfileRedirectEnabled_NoPathProvided" xml:space="preserve">
+    <value>User profile redirect was enabled (/enableProfileRedirect+) but the path to the redirected user profile was not set. Please use /RedirectedUserProfileJunctionRoot:&lt;path&gt; to set the path under which a junction to the real user profile will be created.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_RunInContainerAndAllowDoubleWrites" xml:space="preserve">
+    <value>Configures the default for all scheduled pips to run in a container with output isolation, allowing double writes to occur. Individual pips can override this setting. This is an unsafe option.</value>
+  </data>
+</root>

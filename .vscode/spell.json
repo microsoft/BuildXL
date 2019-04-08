@@ -1,0 +1,53 @@
+{
+  "language": "en",
+  "ignoreWordsList": [
+    "parametrized",
+    "QualifierSpace",
+    "BXL",
+    "BuildXL",
+    "DScript",
+    "qualifierSpace",
+    "x64",
+    "QualifierInstance",
+    "QualifierInstances",
+    "QualifierType",
+    "config",
+    "validateAndMatchQualifier",
+    "targetQualifierType",
+    "exe",
+    "withQualifier",
+    "importFrom",
+    "camelCase",
+    "literals",
+    "PascalCase",
+    "analyzers",
+    "namespaces",
+    "Namespaces",
+    "permutate",
+    "Templating",
+    "templating",
+    "Sdk"
+  ],
+  "mistakeTypeToStatus": {
+    "Passive voice": "Hint",
+    "Spelling": "Error",
+    "Complex Expression": "Disable",
+    "Hidden Verbs": "Information",
+    "Hyphen Required": "Disable",
+    "Redundant Expression": "Disable",
+    "Did you mean...": "Disable",
+    "Repeated Word": "Warning",
+    "Missing apostrophe": "Warning",
+    "Cliches": "Disable",
+    "Missing Word": "Disable",
+    "Make I uppercase": "Warning"
+  },
+  "languageIDs": [
+    "markdown",
+    "text"
+  ],
+  "ignoreRegExp": [
+    "/\\(.*\\.(jpg|jpeg|png|md|gif|JPG|JPEG|PNG|MD|GIF)\\)/g",
+    "/((http|https|ftp|git)\\S*)/g"
+  ]
+}

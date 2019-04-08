@@ -1,0 +1,45 @@
+unexpectedcondition
+| join kind= leftouter (
+   dominoinvocation 
+   | project EventInfo_Time, BuildInfo_CommitId, BuildInfo_IsDeveloperBuild, SessionId, RelatedSessionIdentifier
+) on SessionId 
+| where BuildInfo_IsDeveloperBuild == "False" 
+| project EventInfo_Time, BuildInfo_CommitId, BuildInfo_IsDeveloperBuild, UserName , MachineName, Description, SessionId, RelatedSessionIdentifier, Environment
+| where EventInfo_Time  > now(-7d)
+| join kind = leftouter ( dominoinvocation
+    | where EventInfo_Time  > now(-100d)
+        and BuildInfo_IsDeveloperBuild == "False"
+    | summarize min(EventInfo_Time) by BuildInfo_CommitId
+) on BuildInfo_CommitId == BuildInfo_CommitId
+| join ( dominoinvocation ) on SessionId
+ | project 
+    KnownBug=
+    case(
+    	Description contains "Engine.cs:line 1229", "1016778",
+        "Unknown"),
+    EventInfo_Time, 
+    SessionId,
+    Description,
+    BatmonId = RelatedSessionIdentifier,
+    EnvironmentShort=split(Environment, ";")[0],
+    UserName,
+    BuildInfo_CommitId,
+    BuildFirstSeen = min_EventInfo_Time,
+    Correlation1=split(Environment, ";")[1],
+    Correlation2=split(Environment, ";")[2],
+    MachineName
+ | order by KnownBug desc, Description desc, EventInfo_Time desc
+ | serialize n = row_number()
+ | project n,
+ KnownBug,
+    EventInfo_Time, 
+    BatmonId,
+    EnvironmentShort,
+    UserName,
+    BuildInfo_CommitId,
+    BuildFirstSeen,
+    Description,
+    SessionId,
+    Correlation1,
+    Correlation2,
+    MachineName

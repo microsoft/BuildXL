@@ -1,0 +1,7 @@
+module({
+    name: "BuildXL.DScript.LanguageServer.UnitTests.Data.Module",
+    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+    projects: [
+        ...glob(d`.`, '*.bxt')
+    ]
+});

@@ -1,0 +1,16 @@
+Cases/taggedTemplatesWithIncompleteTemplateExpressions2.ts(7,18): error TS1109: Expression expected.
+Cases/taggedTemplatesWithIncompleteTemplateExpressions2.ts(7,21): error TS1109: Expression expected.
+
+
+==== Cases/taggedTemplatesWithIncompleteTemplateExpressions2.ts (2 errors) ====
+    // @target: es6
+    
+    function f(x: TemplateStringsArray, y: string, z: string) {
+    }
+    
+    // Incomplete call, enough parameters.
+    f `123qdawdrqw${ }${
+                     ~
+!!! error TS1109: Expression expected.
+                        
+!!! error TS1109: Expression expected.

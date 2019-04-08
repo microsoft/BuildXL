@@ -1,0 +1,6 @@
+
+Transformer.sealPartialDirectory({
+    root: d`./src`,
+    files: [f`./src/file1`, f`./src/file2`],
+    tags: ["aTag", "zTag"],
+});

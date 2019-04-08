@@ -1,0 +1,22 @@
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <Identity Id="76439c3a-9faf-4f38-9f54-f127e9be9171" Version="2.9" Language="en-US" Publisher="Microsoft" />
+      <DisplayName>BuildXL Integration</DisplayName>
+    <Description xml:space="preserve">Enables using BuildXL as the build engine for Visual Studio.</Description>
+    <MoreInfo>https://github.com/Microsoft/BuildXL</MoreInfo>
+    <Icon>Resources\BuildXL.ico</Icon>
+    <PreviewImage>Resources\BuildXL.png</PreviewImage>
+    <Tags>BuildXL</Tags>
+  </Metadata>
+  <Installation InstalledByMsi="false">
+    <InstallationTarget Id="Microsoft.VisualStudio.Pro" Version="[12.0,]" />
+  </Installation>
+  <Dependencies>
+    <Dependency Id="Microsoft.Framework.NDP" DisplayName="Microsoft .NET Framework" Version="[4.5,]" />
+    <Dependency Id="Microsoft.VisualStudio.MPF.12.0" DisplayName="Visual Studio MPF 12.0" Version="[12.0,]" />
+  </Dependencies>
+  <Assets>
+    <Asset Type="Microsoft.VisualStudio.VsPackage" Path="BuildXLVsPackage.pkgdef" />
+    <Asset Type="Microsoft.VisualStudio.MefComponent" Path="BuildXLVsPackage.dll" />
+  </Assets>
+</PackageManifest>

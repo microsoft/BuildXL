@@ -1,0 +1,29 @@
+{
+    "Content": {
+        "Order": ["FilesystemL1"],
+        "FileSystem": {
+            "FilesystemL1": {
+                "SizeInMegabytes": 5120,
+                "AddressType": "LocalAbsolutePath",
+                "ShareName": "BuildXLCache"
+            }
+        }
+    },
+    "FingerprintLookup": {
+        "Order": ["SQLiteL1"],
+        "SQLite": {
+            "SQLiteL1": {
+                "ItemLimit": 10000
+            }
+        }
+    },
+    "ContentLocation": {
+        "Order": ["MemoryL1"],
+        "Memory": {
+            "MemoryL1": {
+                "ItemLimit": 10000,
+                "FlushPeriodSeconds": 10
+            }
+        }
+    }
+}

@@ -1,0 +1,173 @@
+import {Transformer} from "Sdk.Transformers";
+import * as Managed from "Sdk.Managed";
+
+const buildXlBinRoot = d`.`;
+
+namespace TypeScript.Net {
+    const typeScriptNet = getAssembly("TypeScript.Net");
+    const buildXLFrontEndSdk = getAssembly("BuildXL.FrontEnd.Sdk");
+
+    @@public
+    export const pkg: Managed.Core.ManagedNugetPackage = {
+        compile: [
+            typeScriptNet,
+            buildXLFrontEndSdk,
+        ],
+        runtime: [
+            typeScriptNet,
+            buildXLFrontEndSdk,
+            getAssembly("BuildXL.FrontEnd.Script.Constants"),
+            getAssembly("BuildXL.Interop"),
+        ],
+        contents: Transformer.sealPartialDirectory(buildXlBinRoot, [
+            ...getFiles("TypeScript.Net"),
+            ...getFiles("BuildXL.FrontEnd.Sdk"),
+            ...getFiles("BuildXL.FrontEnd.Script.Constants"),
+        ]),
+        dependencies: [
+        ],
+    };
+}
+
+namespace BxlScriptAnalyzer {
+    const bxlScriptAnalyzer = getAssembly("bxlScriptAnalyzer", false, ".exe");
+
+    @@public
+    export const pkg: Managed.Core.ManagedNugetPackage = {
+        compile: [
+            bxlScriptAnalyzer
+        ],
+        runtime: [
+            bxlScriptAnalyzer,
+            getAssembly("BuildXL.ToolSupport"),
+            getAssembly("System.Threading.Tasks.Dataflow"),
+            getAssembly("System.Threading.Tasks.Extensions"),
+            getAssembly("BuildXL.Engine.Cache"),
+            getAssembly("BuildXL.Native"),
+            getAssembly("BuildXL.Interop"),
+            getAssembly("BuildXL.Pips"),
+            getAssembly("BuildXL.Storage"),
+            getAssembly("BuildXL.Utilities"),
+            getAssembly("BuildXL.Utilities.Instrumentation.Common"),
+            getAssembly("BxlScriptAnalyzer", true, ".exe"),
+            getAssembly("BuildXL.Cache.ContentStore.Interfaces"),
+            getAssembly("BuildXL.Utilities.Collections"),
+            getAssembly("BuildXL.Utilities.Configuration"),
+        ],
+        contents: Transformer.sealPartialDirectory(buildXlBinRoot, [
+            ...getFiles("BxlScriptAnalyzer", false, ".exe"),
+            ...getFiles("BuildXL.ToolSupport"),
+        ]),
+        dependencies: [
+        ],
+    };
+}
+
+namespace Unsupported {
+    namespace Utilities {
+        const utilities = getAssembly("BuildXL.Utilities");
+
+        @@public
+        export const pkg: Managed.Core.ManagedNugetPackage = {
+            compile: [
+                utilities,
+            ],
+            runtime: [
+                utilities,
+                getAssembly("BuildXL.Interop"),
+                getAssembly("BuildXL.Utilities.Instrumentation.Common"),
+                getAssembly("BuildXL.Utilities.Collections"),
+            ],
+            contents: Transformer.sealPartialDirectory(buildXlBinRoot, [
+                ...getFiles("BuildXL.Utilities"),
+                ...getFiles("BuildXL.Utilities.Collections"),
+                ...getFiles("BuildXL.Utilities.Instrumentation.Common"),
+            ]),
+            dependencies: [
+            ],
+        };
+    }
+
+    namespace XlgHelpers {
+    
+        const executionLogSdk = getAssembly("Tool.ExecutionLogSdk", true);
+        const pips = getAssembly("BuildXL.Pips");
+        const scheduler = getAssembly("BuildXL.Scheduler");
+        const engine = getAssembly("BuildXL.Engine");
+        const utilitiesInstrumentationCommon = getAssembly("BuildXL.Utilities.Instrumentation.Common");
+    
+        @@public
+        export const pkg: Managed.Core.ManagedNugetPackage = {
+            compile: [
+                executionLogSdk,
+                pips,
+                scheduler,
+                engine,
+                utilitiesInstrumentationCommon,
+            ],
+            runtime: [
+                executionLogSdk,
+                pips,
+                scheduler,
+                engine,
+                utilitiesInstrumentationCommon,
+                getAssembly("BuildXL.Processes"),
+                getAssembly("BuildXL.Cache.ContentStore.Interfaces"),
+                getAssembly("BuildXL.Cache.MemoizationStore.Interfaces"),
+                getAssembly("BuildXL.Storage"),
+                getAssembly("BuildXL.Engine.Cache"),
+                getAssembly("BuildXL.Native"),
+                getAssembly("BuildXL.Interop"),
+                getAssembly("BuildXL.Ipc"),
+                getAssembly("BuildXL.KeyValueStore"),
+                getAssembly("BuildXL.Tracing"),
+                getAssembly("BuildXL.Utilities"),
+                getAssembly("Microsoft.Applications.Telemetry"),
+                getAssembly("Microsoft.Applications.Telemetry.Desktop"),
+                getAssembly("BuildXL.Utilities.Collections"),
+                getAssembly("BuildXL.Utilities.Configuration"),
+                getAssembly("BuildXL.FrontEnd.Sdk"),
+                getAssembly("System.Threading.Tasks.Dataflow"),
+                getAssembly("Bond"),
+                getAssembly("BuildXLNatives", true, ".dll", r`x64`),
+    
+            ],
+            contents: Transformer.sealPartialDirectory(buildXlBinRoot, [
+                ...getFiles("Tool.ExecutionLogSdk", true),
+                ...getFiles("BuildXL.Pips"),
+                ...getFiles("BuildXL.Scheduler"),
+                ...getFiles("BuildXL.Engine"),
+                ...getFiles("BuildXL.Processes"),
+                ...getFiles("BuildXL.Cache.ContentStore.Interfaces"),
+                ...getFiles("BuildXL.Cache.MemoizationStore.Interfaces"),
+                ...getFiles("BuildXL.Storage"),
+                ...getFiles("BuildXL.Engine.Cache"),
+                ...getFiles("BuildXL.Native"),
+                ...getFiles("BuildXL.Tracing"),
+                ...getFiles("Microsoft.Applications.Telemetry"),
+                ...getFiles("Microsoft.Applications.Telemetry.Desktop"),
+                ...getFiles("BuildXL.Utilities.Configuration"),
+                ...getFiles("System.Threading.Tasks.Dataflow"),
+                ...getFiles("BuildXL.Utilities.Instrumentation.Common"),
+            ]),
+            dependencies: [
+            ],
+        };
+    }
+}
+
+function getAssembly(name: string, skipDocumentation?: boolean, ext?: string, folder?: RelativePath) : Managed.Core.Assembly {
+    return {
+        dll: f`${buildXlBinRoot}/${folder || r`.`}/${name + (ext || ".dll")}`,
+        pdb: f`${buildXlBinRoot}/${name + ".pdb"}`,
+        xmlDocumentation: skipDocumentation ? undefined : f`${buildXlBinRoot}/${name + ".xml"}`,
+        deploy: Managed.Deployment.deployAssembly,
+    };
+}
+export function getFiles(name: string, skipDocumentation?: boolean, ext?: string) : File[] {
+    return [
+        f`${buildXlBinRoot}/${name + (ext || ".dll")}`,
+        f`${buildXlBinRoot}/${name + ".pdb"}`,
+        ...(skipDocumentation ? [] : [f`${buildXlBinRoot}/${name + ".xml"}`]),
+    ];
+}

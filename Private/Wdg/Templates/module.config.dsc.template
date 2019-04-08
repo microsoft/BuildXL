@@ -1,0 +1,7 @@
+module({
+    name: "BuildXL",
+    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+    projects: [
+        f`BuildXL.dsc`,
+    ],
+});

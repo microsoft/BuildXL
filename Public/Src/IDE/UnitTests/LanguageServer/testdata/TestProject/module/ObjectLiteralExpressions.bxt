@@ -1,0 +1,79 @@
+/* Interface test */
+interface ObjectLiteralType {
+    objectLiteralTypePropertyOne?: boolean;
+    objectLiteralTypePropertyTwo?: boolean;
+};
+
+interface SecondObjectLiteralType {
+    secondObjectLiteralTypePropertyOne?: boolean;
+    secondObjectLiteralTypePropertyTwo?: boolean;
+};
+
+interface DerivedObjectLiteralType extends ObjectLiteralType {
+    derivedObjectLiteralTypePropertyOne?: boolean;
+    derivedObjectLiteralTypePropertyTwo?: boolean;
+};
+
+const testCase : ObjectLiteralType = {
+    objectLiteralTypePropertyOne: true,
+};
+
+const testCaseTwo : DerivedObjectLiteralType = {
+    objectLiteralTypePropertyOne: true,
+};
+
+const testCaseThree : SecondObjectLiteralType | ObjectLiteralType = {
+    objectLiteralTypePropertyOne: true,
+};
+
+const testCaseFour  = <ObjectLiteralType>{
+    objectLiteralTypePropertyOne: true,
+};
+
+const testCaseFive = <DerivedObjectLiteralType>{
+    objectLiteralTypePropertyOne: true,
+};
+
+const testCaseSix = <SecondObjectLiteralType | ObjectLiteralType>{
+    objectLiteralTypePropertyOne: true,
+};
+
+function objectLiteralTypeFuncion(arg?:ObjectLiteralType) {
+};
+
+// TODO: This case doesn't work. It should not auto-complete anything...
+const testCaseSeven = objectLiteralTypeFuncion();
+
+function derivedObjectLiteralTypeFunction(arg?:DerivedObjectLiteralType) {
+};
+
+const testCaseEight = derivedObjectLiteralTypeFunction();
+
+function unionLiteralTypeFuncion(arg?:(SecondObjectLiteralType | ObjectLiteralType)) {
+};
+
+const testCaseNine = unionLiteralTypeFuncion({});
+
+function multipleArgumentsFunction(argOne?:ObjectLiteralType, argTwo?:DerivedObjectLiteralType, argThree?:(SecondObjectLiteralType | ObjectLiteralType)) {
+}
+
+const testCaseTen = multipleArgumentsFunction();
+
+const testCaseEleven = multipleArgumentsFunction();
+
+const testCaseTweleve = multipleArgumentsFunction();
+
+function functionThatMerges(arg:ObjectLiteralType) : ObjectLiteralType {
+    return arg.merge<ObjectLiteralType>({
+    });
+}
+
+function functionThatOverrides(arg:ObjectLiteralType) : ObjectLiteralType {
+    return arg.override<ObjectLiteralType>({
+    });
+}
+
+function functionThatOverridesKey(arg:ObjectLiteralType) : ObjectLiteralType {
+    return arg.overrideKey<ObjectLiteralType>("objectLiteralTypePropertyOne", {
+    });
+}

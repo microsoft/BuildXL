@@ -1,0 +1,34 @@
+
+.statusbar {
+    grid-area: status;
+    background-color: var(--status-background-color);
+    text: white;
+
+    display: flex;
+    align-items: center;
+}
+
+.status-count {
+    width: 36px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.status-msg {
+    flex-grow: 1;
+    font-weight: bold;
+}
+
+.status-show {
+    width: 36px;
+    text-align: center;
+    cursor: pointer;
+    font-size: large;
+    font-weight: bolder;
+}
+
+.status-line {
+    font-size: small;
+    margin-left: 12px;
+    font-family: "Consolas", 'Courier New', Courier, monospace
+}

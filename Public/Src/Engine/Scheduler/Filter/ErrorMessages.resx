@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ExpectedBinaryOperator" xml:space="preserve">
+    <value>Expected to find '{0}' or '{1}' for operator of binary filter.</value>
+  </data>
+  <data name="ExpectedEndOfFilter" xml:space="preserve">
+    <value>Expected filter expression to end. Remove extraneous characters from the end of the filter.</value>
+  </data>
+  <data name="ExpectedStartOfFilterType" xml:space="preserve">
+    <value>Expected to find the start of a filter.</value>
+  </data>
+  <data name="ExpectedToEncounter" xml:space="preserve">
+    <value>Expected to encounter: '{0}'</value>
+  </data>
+  <data name="ExpectingMountSuffix" xml:space="preserve">
+    <value>Expected to find '{0}' to denote the end of a named mount.</value>
+  </data>
+  <data name="ExpectingPathSeparatorAfterMountSuffix" xml:space="preserve">
+    <value>Expected to find '{0}' separating relative path and end of named mount.</value>
+  </data>
+  <data name="FailedToCreaetPathAtom" xml:space="preserve">
+    <value>Failed to create a path atom from '{0}'. Verify it does not contain invalid characters.</value>
+  </data>
+  <data name="FailedToCreateAbsolutePath" xml:space="preserve">
+    <value>Failed to create absolute path from expanded path '{0}'.</value>
+  </data>
+  <data name="FailedToParsePipId" xml:space="preserve">
+    <value>Failed to parse pip id '{0}'. Make sure it is a valid hexidecimal identifier.</value>
+  </data>
+  <data name="FailedToParseValueIdentifier" xml:space="preserve">
+    <value>Failed to parse value identifier '{0}'. Make sure it is a valid value.</value>
+  </data>
+  <data name="GetFullPathFailed" xml:space="preserve">
+    <value>Failed to get full path for string '{0}'. {1}</value>
+  </data>
+  <data name="MissingEndArgumentDelimiter" xml:space="preserve">
+    <value>Expected to find {0} to delimit the end of the filter argument.</value>
+  </data>
+  <data name="MissingFilterArgumentSeparator" xml:space="preserve">
+    <value>Did not find '{0}' delimiter for filter expression. Filters are to be specified in the format: filterType{0}filterArgument</value>
+  </data>
+  <data name="MissingStartArgumentDelimiter" xml:space="preserve">
+    <value>Expected to find {0}  to delimit the start of the filter argument.</value>
+  </data>
+  <data name="NetagionMustBeOustideOfGroupDelimiters" xml:space="preserve">
+    <value>Negation may only be used on an expression surrounded by {0} {1}.</value>
+  </data>
+  <data name="DependentsOperatorMayOnlyBeUsedInOuterScope" xml:space="preserve">
+    <value>The {0} operator may only be used as the outer operator and not nested inside expression.</value>
+  </data>
+  <data name="NullEmptyFilter" xml:space="preserve">
+    <value>Cannot parse a null or empty filter.</value>
+  </data>
+  <data name="UnknownFilterType" xml:space="preserve">
+    <value>Unknown filter type '{0}'</value>
+  </data>
+  <data name="UnknownMount" xml:space="preserve">
+    <value>Could not find mount named '{0}'.</value>
+  </data>
+  <data name="FilterFunctionMustBeOustideOfGroupDelimiters" xml:space="preserve">
+    <value>Filter function ({2}) may only be used on an expression surrounded by {0} {1}.</value>
+  </data>
+  <data name="WildcardWithinPath" xml:space="preserve">
+    <value>Filter argument may only contain wildcards at the beginning or end of the string '{0}'.</value>
+  </data>
+</root>

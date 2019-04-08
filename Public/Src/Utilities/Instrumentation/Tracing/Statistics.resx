@@ -1,0 +1,180 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ApplyFilterAndScheduleReadyNodes" xml:space="preserve">
+    <value>ApplyFilterAndScheduleReadyNodes</value>
+  </data>
+  <data name="ApplyingFilterToPips" xml:space="preserve">
+    <value>ApplyingFilterToPips</value>
+  </data>
+  <data name="CachedPipsWithWarnings" xml:space="preserve">
+    <value>CachedPipsWithWarnings</value>
+  </data>
+  <data name="Counter_MachineAverageCPUTime" xml:space="preserve">
+    <value>MachineAverageCPUTime</value>
+  </data>
+  <data name="Counter_MachineMinimumAvailableMemoryMB" xml:space="preserve">
+    <value>MachineMinimumAvailableMemoryMB</value>
+  </data>
+  <data name="Counter_ProcessAverageCPUTime" xml:space="preserve">
+    <value>ProcessAverageCPUTime</value>
+  </data>
+  <data name="Counter_ProcessAverageThreadCount" xml:space="preserve">
+    <value>ProcessAverageThreadCount</value>
+  </data>
+  <data name="Counter_ProcessMaximumHeldMB" xml:space="preserve">
+    <value>ProcessMaximumHeldMB</value>
+  </data>
+  <data name="Counter_ProcessMaximumPrivateMB" xml:space="preserve">
+    <value>ProcessMaximumPrivateMB</value>
+  </data>
+  <data name="DiskAvailableMBExecutionEnd" xml:space="preserve">
+    <value>DiskAvailableMBExecutionEnd</value>
+  </data>
+  <data name="DiskAvailableMBExecutionStart" xml:space="preserve">
+    <value>DiskAvailableMBExecutionStart</value>
+  </data>
+  <data name="ApiTotalMaterializeFileCalls" xml:space="preserve">
+    <value>DominoApiTotalMaterializeFileCalls</value>
+  </data>
+  <data name="ApiTotalReportStatisticsCalls" xml:space="preserve">
+    <value>DominoApiTotalReportStatisticsCalls</value>
+  </data>
+  <data name="ApiTotalGetSealedDirectoryContentCalls" xml:space="preserve">
+    <value>DominoApiTotalGetSealedDirectoryContentCalls</value>
+  </data>
+  <data name="DropTrackerOverhangMs" xml:space="preserve">
+    <value>DropTrackerOverhangMs</value>
+  </data>
+  <data name="DurationMs" xml:space="preserve">
+    <value>DurationMs</value>
+  </data>
+  <data name="ExecutedPipsWithWarnings" xml:space="preserve">
+    <value>ExecutedPipsWithWarnings</value>
+  </data>
+  <data name="GraphCacheReload" xml:space="preserve">
+    <value>GraphCacheReload</value>
+  </data>
+  <data name="GraphCacheReuseCheck" xml:space="preserve">
+    <value>GraphCacheReuseCheck</value>
+  </data>
+  <data name="GraphCacheSave" xml:space="preserve">
+    <value>GraphCacheSave</value>
+  </data>
+  <data name="MachineAverageDiskActiveTime" xml:space="preserve">
+    <value>MachineAverageDiskActiveTime</value>
+  </data>
+  <data name="ObserverFilesParsed" xml:space="preserve">
+    <value>ObserverFilesParsed</value>
+  </data>
+  <data name="OutputFilesChanged" xml:space="preserve">
+    <value>OutputFilesChanged</value>
+  </data>
+  <data name="OutputFilesCopiedFromCache" xml:space="preserve">
+    <value>OutputFilesCopiedFromCache</value>
+  </data>
+  <data name="OutputFilesProduced" xml:space="preserve">
+    <value>OutputFilesProduced</value>
+  </data>
+  <data name="OutputFilesUnchanged" xml:space="preserve">
+    <value>OutputFilesUnchanged</value>
+  </data>
+  <data name="OutputFilesUpToDate" xml:space="preserve">
+    <value>OutputFilesUpToDate</value>
+  </data>
+  <data name="PipsFailed" xml:space="preserve">
+    <value>PipsFailed</value>
+  </data>
+  <data name="PipsIgnored" xml:space="preserve">
+    <value>PipsIgnored</value>
+  </data>
+  <data name="PipsSucceeded" xml:space="preserve">
+    <value>PipsSucceeded</value>
+  </data>
+  <data name="ProcessDelayedBySemaphore" xml:space="preserve">
+    <value>ProcessDelayedBySemaphore</value>
+  </data>
+  <data name="ProcessPipCacheHits" xml:space="preserve">
+    <value>ProcessPipCacheHits</value>
+  </data>
+  <data name="ProcessPipCacheMisses" xml:space="preserve">
+    <value>ProcessPipCacheMisses</value>
+  </data>
+  <data name="ProcessPipsIncrementalSchedulingPruned" xml:space="preserve">
+    <value>ProcessPipsIncrementalSchedulingPruned</value>
+  </data>
+  <data name="ProcessPipsSkippedDueToFailedDependencies" xml:space="preserve">
+    <value>ProcessPipsSkippedDueToFailedDependencies</value>
+  </data>
+  <data name="ProcessPipStartOrShutdownService" xml:space="preserve">
+    <value>ProcessPipStartOrShutdownService</value>
+  </data>
+  <data name="SourceFilesAbsent" xml:space="preserve">
+    <value>SourceFilesAbsent</value>
+  </data>
+  <data name="SourceFilesChanged" xml:space="preserve">
+    <value>SourceFilesChanged</value>
+  </data>
+  <data name="SourceFilesUnchanged" xml:space="preserve">
+    <value>SourceFilesUnchanged</value>
+  </data>
+  <data name="SourceFilesUntracked" xml:space="preserve">
+    <value>SourceFilesUntracked</value>
+  </data>
+  <data name="SpecFilesParsed" xml:space="preserve">
+    <value>SpecFilesParsed</value>
+  </data>
+  <data name="WarningWasLogged" xml:space="preserve">
+    <value>WarningWasLogged</value>
+  </data>
+  <data name="ErrorWasLogged" xml:space="preserve">
+    <value>ErrorWasLogged</value>
+  </data>
+  <data name="TimeToEngineRunCompleteMs" xml:space="preserve">
+    <value>TimeToEngineRunCompleteMs</value>
+  </data>
+  <data name="TimeToFirstPipExecuted" xml:space="preserve">
+    <value>TimeToFirstPipExecutedMs</value>
+  </data>
+  <data name="TimeToFirstPipMs" xml:space="preserve">
+    <value>TimeToFirstPipMs</value>
+  </data>
+  <data name="TimeToFirstPipSyntheticMs" xml:space="preserve">
+    <value>TimeToFirstPipSyntheticMs</value>
+  </data>
+  <data name="TotalCacheSizeNeeded" xml:space="preserve">
+    <value>TotalCacheSizeNeeded</value>
+  </data>
+  <data name="TotalPips" xml:space="preserve">
+    <value>TotalPips</value>
+  </data>
+  <data name="TotalProcessPips" xml:space="preserve">
+    <value>TotalProcessPips</value>
+  </data>
+  <data name="WarningsFromCachedPips" xml:space="preserve">
+    <value>WarningsFromCachedPips</value>
+  </data>
+  <data name="WarningsFromExecutedPips" xml:space="preserve">
+    <value>WarningsFromExecutedPips</value>
+  </data>
+  <data name="Counter_ProcessMaximumWorkingSetPrivateMB" xml:space="preserve">
+    <value>ProcessMaximumWorkingSetMB</value>
+  </data>
+  <data name="MachineAverageDiskQueueDepth" xml:space="preserve">
+    <value>MachineAverageDiskQueueDepth</value>
+  </data>
+  <data name="AppHostInitializationDurationMs" xml:space="preserve">
+    <value>AppHostInitializationDurationMs</value>
+  </data>
+</root>

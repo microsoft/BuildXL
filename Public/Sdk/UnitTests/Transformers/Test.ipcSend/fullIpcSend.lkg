@@ -1,0 +1,67 @@
+
+Transformer.execute({
+    tool: {exe: f`./src/tool/tool.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [],
+    },
+    workingDirectory: d`./Out/working-shutdown`,
+    dependencies: [f`./src/tool/tool.exe`],
+    implicitOutputs: [f`./Out/shutdown-stdout.txt`],
+    consoleOutput: p`./Out/shutdown-stdout.txt`,
+});
+Transformer.ipcSend({
+    connectRetryDelayMillis: 1000,
+    maxConnectRetries: 2,
+    fileDependencies: [],
+    lazilyMaterializedDependencies: [],
+    messageBody: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [],
+    },
+    outputFile: f`./Out/stdout-finalization.txt`,
+    isServiceFinalization: true,
+    mustRunOnMaster: true,
+});
+Transformer.createService({
+    tool: {exe: f`./src/tool/tool.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [],
+    },
+    workingDirectory: d`./Out/working-service`,
+    dependencies: [f`./src/tool/tool.exe`],
+    implicitOutputs: [f`./Out/service-stdout.txt`],
+    consoleOutput: p`./Out/service-stdout.txt`,
+});
+Transformer.ipcSend({
+    connectRetryDelayMillis: 1000,
+    maxConnectRetries: 2,
+    fileDependencies: [f`./src/ipc-src.txt`],
+    lazilyMaterializedDependencies: [f`./src/ipc-src.txt`],
+    messageBody: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [],
+    },
+    outputFile: f`./Out/stdout1.txt`,
+    isServiceFinalization: false,
+    mustRunOnMaster: true,
+});
+Transformer.ipcSend({
+    connectRetryDelayMillis: 1000,
+    maxConnectRetries: 2,
+    fileDependencies: [],
+    lazilyMaterializedDependencies: [],
+    messageBody: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [],
+    },
+    outputFile: f`./Out/stdout2.txt`,
+    isServiceFinalization: false,
+    mustRunOnMaster: false,
+});

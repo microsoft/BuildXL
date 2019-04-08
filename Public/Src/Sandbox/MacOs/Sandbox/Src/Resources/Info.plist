@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(BUILDXL_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>KEXT</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1.88.99</string>
+	<key>IOKitPersonalities</key>
+	<dict>
+		<key>BuildXLSandbox</key>
+		<dict>
+			<key>CFBundleIdentifier</key>
+			<string>$(BUILDXL_BUNDLE_IDENTIFIER)</string>
+			<key>IOClass</key>
+			<string>$(BUILDXL_CLASS_PREFIX)Sandbox</string>
+			<key>IOMatchCategory</key>
+			<string>$(BUILDXL_CLASS_PREFIX)Sandbox</string>
+			<key>IOProbeScore</key>
+			<integer>1000</integer>
+			<key>IOProviderClass</key>
+			<string>IOResources</string>
+			<key>IOResourceMatch</key>
+			<string>IOKit</string>
+			<key>IOUserClientClass</key>
+			<string>$(BUILDXL_CLASS_PREFIX)SandboxClient</string>
+		</dict>
+	</dict>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2018 Microsoft. All rights reserved.</string>
+	<key>OSBundleLibraries</key>
+	<dict>
+		<key>com.apple.kpi.bsd</key>
+		<string>17.0.0</string>
+		<key>com.apple.kpi.dsep</key>
+		<string>17.0.0</string>
+		<key>com.apple.kpi.iokit</key>
+		<string>17.0.0</string>
+		<key>com.apple.kpi.libkern</key>
+		<string>17.0.0</string>
+		<key>com.apple.kpi.mach</key>
+		<string>17.0.0</string>
+		<key>com.apple.kpi.unsupported</key>
+		<string>17.0.0</string>
+	</dict>
+</dict>
+</plist>

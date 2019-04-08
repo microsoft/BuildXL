@@ -1,0 +1,242 @@
+// **********************
+//
+// This query builds a timeline of a build.
+//
+//     Conventions:
+//          _s suffix means seconds
+//          _es suffix means exclusive seconds. These represent wall clock times that are not overlapped
+//              with any other other timepoint with the same suffix.
+//
+// **********************
+let start = ago(14d);
+let end = ago(0d);
+// **********************
+// 1. Classification of builds
+// **********************
+let dominoInvocationProcessed2 = dominoinvocation
+| where EventInfo_Time  > start
+    and EventInfo_Time  < end    
+| extend OfficeBuildType = case(
+            Environment contains "EnlistmentBuild", "enlist",
+            Environment contains "MetaBuild", "meta",
+            Environment contains "ProductBuild", "product", 
+            ""),
+    Codebase = extract("(Tenant=|Branch=)([^;]*)", 2, Environment),
+    EnvironmentShort = extract("([^;]*)", 1 , Environment),
+    CBQueue = extract("(cloudBuildQueue=)([^;]*)", 2 , Environment),
+    Role = extract("(distributedBuildRole:)([^ ]*)", 2 , CommandLine),
+    Infra = case(
+        UserName == "_qcloud1" or UserName == "_qcloud2" , "CB",
+        (Environment contains "Dev" or Environment contains "WrapItUp") and UserName != "tpctext" and UserName != "y-arnold", "Dev",
+        (Environment contains "OSGTools") and UserName != "tsebuild", "Dev",
+        Environment contains "Self" and UserName != "tsebuild", "Dev",
+        "Lab")
+    | extend Customer = 
+        case(
+            EnvironmentShort contains "Office", "Office",
+            EnvironmentShort contains "OSGTools", "OsgTools",
+            EnvironmentShort contains "OSG", "WDG",
+            EnvironmentShort contains "Self", "TSE",
+            "Unknown")
+    | extend UniqueSession = case(
+    isempty(RelatedSessionIdentifier), SessionId,
+    RelatedSessionIdentifier)
+| where BuildInfo_IsDeveloperBuild == "False"
+// For CB, only look at non-probation queue
+| join kind = leftouter (
+    database("CloudBuildProd").BuildInfo
+) on $left.UniqueSession == $right.BuildId
+    | project SessionId, UniqueSession, OfficeBuildType, Codebase, Customer, CBQueue, Role, Infra, InProbation, EventInfo_Time
+    ;
+// **********************
+// 2. Filtering the set of builds to look at
+// **********************
+let invocationsSmall = dominoInvocationProcessed2
+| where EventInfo_Time  > start
+| where Customer == "Office"
+| where Infra == "Dev"
+| where UniqueSession != "00000000-0000-0000-0000-000000000000"
+// Only look at the master in distributed builds
+| where Role != "worker"
+// **********************
+// 3. Selecting the various statistics for a single domino invocation
+// **********************
+| join kind= leftouter (
+   finalstatistics
+   | extend IncSkipProcs = extractjson("$.PipExecution_IncrementalSkipProcessDueToCleanMaterialized", tostring(Payload), typeof(long))
+   | extend PipExecution_InitSchedulerRuntimeStateDurationMs = extractjson("$.PipExecution_InitSchedulerRuntimeStateDurationMs", tostring(Payload), typeof(long))
+   | extend PipExecution_CreateFileSystemViewDurationMs = extractjson("$.PipExecution_CreateFileSystemViewDurationMs", tostring(Payload), typeof(long))
+   | extend InitPipStates_DurationMs = extractjson("$.InitPipStates_DurationMs", tostring(Payload), typeof(long))
+   | extend AssigningPriorities_DurationMs = extractjson("$.AssigningPriorities_DurationMs", tostring(Payload), typeof(long))
+   | extend AppHostInitializationDurationMs = extractjson("$.AppHostInitializationDurationMs", tostring(Payload), typeof(long))
+   | project SessionId,
+   AppHostInitialization_es = toint(iff(isempty(toint(AppHostInitializationDurationMs)), 0, toint(AppHostInitializationDurationMs))) / 1000.0, 
+   CacheInitWaited_s = toint(CacheInitialization_TimeWaitedMs) / 1000.0,
+   TTFP_s = toint(iff(isempty(toint(TimeToFirstPipMs)), 0, toint(TimeToFirstPipMs))) / 1000.0,
+   TTFPE_s = toint(iff(isempty(toint(TimeToFirstPipExecutedMs)), 0, toint(TimeToFirstPipExecutedMs))) / 1000.0,
+   Scrubbing_es = toint(iff(isempty(toint(Scrubbing_DurationMs)), 0, toint(Scrubbing_DurationMs))) / 1000.0,
+   // GraphConstruction, ReuseCheck, and Reload can all overlap with Cache Waited. So some time is technically double counted
+   GraphConstruction_es = toint(iff(isempty(toint(GraphConstruction_DurationMs)), 0, toint(GraphConstruction_DurationMs))) / 1000.0,
+   GraphCacheReuseCheck_es = toint(iff(isempty(toint(GraphCacheReuseCheck_DurationMs)), 0, toint(GraphCacheReuseCheck_DurationMs))) / 1000.0,
+   GraphCacheReload_es = toint(iff(isempty(toint(GraphCacheReload_DurationMs)), 0, toint(GraphCacheReload_DurationMs))) / 1000.0,
+   ParseConfigFiles_es = toint(iff(isempty(toint(ParseConfigFiles_DurationMs)), 0, toint(ParseConfigFiles_DurationMs))) / 1000.0,
+   //
+   GraphCacheSave_s = toint(iff(isempty(toint(GraphCacheSave_DurationMs)), 0, toint(GraphCacheSave_DurationMs))) / 1000.0,
+   ApplyFilterAndScheduleReadyNodes_s = toint(iff(isempty(toint(ApplyFilterAndScheduleReadyNodes_DurationMs)), 0, toint(ApplyFilterAndScheduleReadyNodes_DurationMs))) / 1000.0,
+        ApplyingFilterToPips_es = toint(iff(isempty(toint(ApplyingFilterToPips_DurationMs)), 0, toint(ApplyingFilterToPips_DurationMs))) / 1000.0,
+        InitSchedulerRuntimeState_s = toint(iff(isempty(toint(PipExecution_InitSchedulerRuntimeStateDurationMs)), 0, toint(PipExecution_InitSchedulerRuntimeStateDurationMs))) / 1000.0,
+        CreateFileSystemView_es = toint(iff(isempty(toint(PipExecution_CreateFileSystemViewDurationMs)), 0, toint(PipExecution_CreateFileSystemViewDurationMs))) / 1000.0,
+        AssigningPriorities_es = toint(iff(isempty(toint(AssigningPriorities_DurationMs)), 0, toint(AssigningPriorities_DurationMs))) / 1000.0,
+        InitialSchedulePipWallTime_es = toint(iff(isempty(toint(PipExecution_InitialSchedulePipWallTimeMs)), 0, toint(PipExecution_InitialSchedulePipWallTimeMs))) / 1000.0, 
+   Engine_SchedulerDisposeDuration_es = toint(iff(isempty(toint(Engine_SchedulerDisposeDurationMs)), 0, toint(Engine_SchedulerDisposeDurationMs))) / 1000.0,
+   Engine_EngineCacheDisposeDuration_es = toint(iff(isempty(toint(Engine_EngineCacheDisposeDurationMs)), 0, toint(Engine_EngineCacheDisposeDurationMs))) / 1000.0,
+   PipExecution_AfterDrainingWhenDone_es = toint(iff(isempty(toint(PipExecution_AfterDrainingWhenDoneDurationMs)), 0, toint(PipExecution_AfterDrainingWhenDoneDurationMs))) / 1000.0,
+   Engine_ProcessPostExecutionTasks_es  = toint(iff(isempty(toint(Engine_ProcessPostExecutionTasksDurationMs)), 0, toint(Engine_ProcessPostExecutionTasksDurationMs))) / 1000.0,
+   Execute_s = toint(iff(isempty(toint(Execute_DurationMs)), 0, toint(Execute_DurationMs))) / 1000.0,    
+   //
+   CritPathExe_s =  toint(CriticalPath_ExeDurationMs)/ 1000.0,
+   CritPathPip_s =  toint(CriticalPath_PipDurationMs)/ 1000.0,
+   IncSkipProcs,
+   ProcessPipCacheHits,
+   ProcessPipCacheMisses,
+   Invocation_s = toint(TimeToEngineRunCompleteMs) / 1000.0
+   // The customer work of the build is the execute phase, minus all cache checks up to the first miss, minus the cleanup at the end of the execute phase
+   | extend CustWork_es = Execute_s - (TTFPE_s - TTFP_s) - PipExecution_AfterDrainingWhenDone_es 
+) on SessionId
+| join kind= leftouter (
+   buildsetcalculatorprocessstats
+   | project SessionId, ProcessesInGraph, ProcessesInBuildCone, ProcessesSkippedByIncrementalScheduling, BuildSetCalculatorDurationMs
+) on SessionId
+// **********************
+// Various computations based on the raw data
+// **********************
+| extend CacheCheck_es = TTFPE_s - TTFP_s 
+| extend ProcessesIgnored =(toint(ProcessesInGraph) - toint(ProcessesInBuildCone)), IncScheduleNoop = toint(ProcessesSkippedByIncrementalScheduling) - toint(IncSkipProcs),  Hits = (toint(ProcessPipCacheHits) - IncSkipProcs), ProcessPipCacheMisses
+| extend BuildSetCalculator_es = toint(iff(isempty(toint(BuildSetCalculatorDurationMs)), 0, toint(BuildSetCalculatorDurationMs))) / 1000.0
+| extend InitSchedulerRuntimeStateOther_es = InitSchedulerRuntimeState_s - CreateFileSystemView_es
+| extend ScheduleReadyNodesMisc_es = ApplyFilterAndScheduleReadyNodes_s - ApplyingFilterToPips_es - BuildSetCalculator_es - InitialSchedulePipWallTime_es        - InitSchedulerRuntimeStateOther_es - CreateFileSystemView_es - AssigningPriorities_es
+| extend Other_es = Invocation_s - AppHostInitialization_es - ParseConfigFiles_es - GraphCacheReuseCheck_es - GraphCacheReload_es - GraphConstruction_es -  Scrubbing_es - CacheCheck_es - ApplyingFilterToPips_es - ScheduleReadyNodesMisc_es -InitSchedulerRuntimeStateOther_es - InitSchedulerRuntimeStateOther_es - CreateFileSystemView_es - AssigningPriorities_es - InitialSchedulePipWallTime_es - BuildSetCalculator_es - CustWork_es - PipExecution_AfterDrainingWhenDone_es - Engine_ProcessPostExecutionTasks_es - Engine_EngineCacheDisposeDuration_es - Engine_SchedulerDisposeDuration_es
+// Join back to the dominoInvocation table to get the RelatedSessionIdentifier for future correlations
+| join kind= leftouter (
+   dominoinvocation 
+   | project  SessionId, RelatedSessionIdentifier 
+) on SessionId 
+;
+// **********************
+// 4. Join together the 3 office builds
+// **********************
+let overallSession = invocationsSmall
+| where OfficeBuildType == "enlist"
+| project Enlist_session = SessionId,
+Enlist_Start = EventInfo_Time,
+Enlist_s = Invocation_s,
+EnlistTTFP_s = TTFP_s,
+EnlistTTFPE_s = TTFPE_s,
+EnlistCustWork_es = CustWork_es,
+Enlist_CacheInitWaited_s = CacheInitWaited_s,
+RelatedSessionIdentifier,
+UniqueSession,
+OfficeBuildType
+| join kind= leftouter (
+   invocationsSmall
+   | where OfficeBuildType == "meta" 
+   | project Meta_session = SessionId,
+    Meta_Start = EventInfo_Time,
+    Meta_s = Invocation_s,
+    MetaTTFP_s = TTFP_s,
+    MetaTTFPE_s = TTFPE_s,
+    MetaCustWork_es = CustWork_es,
+    Meta_CacheInitWaited_s = CacheInitWaited_s,
+    RelatedSessionIdentifier,
+    UniqueSession
+) on $left.UniqueSession == $right.UniqueSession
+| join kind= leftouter (
+   invocationsSmall
+   | where OfficeBuildType == "product" 
+   | project Prod_session = SessionId,
+    Prod_Start = EventInfo_Time,
+    Prod_s = Invocation_s,
+    Prod_AppHostInitialization_es = AppHostInitialization_es,
+    Prod_TTFP_s = TTFP_s,
+    Prod_TTFPE_s = TTFPE_s,
+    Prod_Execute_s = Execute_s,
+    Prod_CustWork_es = CustWork_es,
+    Prod_CacheCheck_es = CacheCheck_es,
+    Prod_CacheInitWaited_s = CacheInitWaited_s,
+    Prod_Scrubbing_es = Scrubbing_es,
+    Prod_ParseConfigFiles_es = ParseConfigFiles_es,
+    Prod_GraphConstruction_es = GraphConstruction_es,
+    Prod_GraphCacheReuseCheck_es = GraphCacheReuseCheck_es,
+    Prod_GraphCacheReload_es = GraphCacheReload_es,
+    Prod_GraphCacheSave_s = GraphCacheSave_s,
+    Prod_ApplyingFilterToPips_es = ApplyingFilterToPips_es,
+    Prod_InitialSchedulePipWallTime_es = InitialSchedulePipWallTime_es,
+    Prod_ScheduleReadyNodesMisc_es = ScheduleReadyNodesMisc_es,
+    Prod_Engine_SchedulerDisposeDuration_es = Engine_SchedulerDisposeDuration_es,
+    Prod_BuildSetCalculator_es = BuildSetCalculator_es, 
+    Prod_InitSchedulerRuntimeStateOther_es = InitSchedulerRuntimeStateOther_es,
+    Prod_CreateFileSystemView_es = CreateFileSystemView_es, 
+    Prod_AssigningPriorities_es = AssigningPriorities_es,
+    Prod_PipExecution_AfterDrainingWhenDone_es = PipExecution_AfterDrainingWhenDone_es,
+    Prod_Engine_ProcessPostExecutionTasks_es = Engine_ProcessPostExecutionTasks_es,
+    Prod_Engine_EngineCacheDisposeDuration_es = Engine_EngineCacheDisposeDuration_es,
+    Prod_Other_es = Other_es,
+    RelatedSessionIdentifier,
+    UniqueSession
+) on $left.UniqueSession == $right.UniqueSession
+;
+// **********************
+// 5. Aggregation and final filtering
+// **********************
+overallSession
+// Ignore builds that didn't get to running the product build 
+| where Prod_s > 0
+| extend Total_s = iff(isempty(Enlist_s), 0.0, Enlist_s) + iff(isempty(Meta_s), 0.0, Meta_s) + iff(isempty(Prod_s), 0.0, Prod_s)
+| extend TotalCustWork_es = iff(isempty(EnlistCustWork_es), 0.0, EnlistCustWork_es) + iff(isempty(MetaCustWork_es), 0.0, MetaCustWork_es) + iff(isempty(Prod_CustWork_es), 0.0, Prod_CustWork_es)
+| extend TotalCacheInitWaited_s = iff(isempty(Prod_CacheInitWaited_s), 0.0, Prod_CacheInitWaited_s) + iff(isempty(Prod_CacheInitWaited_s), 0.0, Prod_CacheInitWaited_s) + iff(isempty(Prod_CacheInitWaited_s), 0.0, Prod_CacheInitWaited_s)
+// TODO: pull these stats below into the invocation details since they aren't specific to product build 
+| extend DominoOverhead_s = Total_s - TotalCustWork_es
+| extend UnusefulTime_s = Total_s - Prod_CustWork_es
+| extend DominoOverheadPercent = DominoOverhead_s / Total_s
+// Bucket builds based on their time
+| extend UnusefulTimePercent = UnusefulTime_s / Total_s
+    | extend DurationBucket = 
+        case(
+            Total_s < 10, "[0,10]",
+            Total_s < 60, "[10,60]",
+            Total_s < 120, "[60,120]",
+            Total_s < 600, "[120,600]",
+            Total_s < 1200, "[600,1200]",
+            "[1200,*]")
+// Uncomment to look at top N sessions based on various parameters
+//| order by ProductOther_es desc 
+//| take 100
+// Summarize to an overall view. Start with high level stats
+| summarize 
+sum(Total_s), 
+sum(Enlist_s), sum(Meta_s), sum(Prod_s),
+// Look in depth at the product build. All times listed are in order as they happen and are
+// are exclusive (not overlapping with each other)
+sum(Prod_AppHostInitialization_es),
+sum(Prod_ParseConfigFiles_es), 
+sum(Prod_GraphCacheReuseCheck_es),
+sum(Prod_GraphCacheReload_es),
+sum(Prod_GraphConstruction_es),
+sum(Prod_Scrubbing_es),
+sum(Prod_CacheCheck_es),
+sum(Prod_ScheduleReadyNodesMisc_es),
+sum(Prod_ApplyingFilterToPips_es),
+sum(Prod_BuildSetCalculator_es),
+sum(Prod_InitialSchedulePipWallTime_es),
+sum(Prod_InitSchedulerRuntimeStateOther_es),
+sum(Prod_CreateFileSystemView_es),
+sum(Prod_AssigningPriorities_es),   
+sum(Prod_CustWork_es),
+sum(Prod_PipExecution_AfterDrainingWhenDone_es),
+sum(Prod_Engine_SchedulerDisposeDuration_es),
+sum(Prod_Engine_ProcessPostExecutionTasks_es),
+sum(Prod_Engine_EngineCacheDisposeDuration_es),
+sum(Prod_Other_es),
+//  CacheInitWaited is overlapping with some of the stats above, specifically the GraphCache & Graph Construction phases
+sum(Prod_CacheInitWaited_s),
+count() by bin(Enlist_Start, 7d), DurationBucket 

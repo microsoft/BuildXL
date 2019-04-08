@@ -1,0 +1,9 @@
+import {Transformer} from "Sdk.Transformers";
+
+export namespace DropTool {
+    @@public
+    export const tool = toolTemplate.override<Transformer.ToolDefinition>({
+        exe: f`bin/DropDaemon.exe`, 
+        runtimeDependencies: globR(d`bin`, "*.*")
+    });
+}

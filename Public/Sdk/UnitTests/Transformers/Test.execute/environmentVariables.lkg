@@ -1,0 +1,32 @@
+
+Transformer.sealDirectory({root: d`./src/seal1`, files: [f`./src/seal1/file1`]});
+Transformer.sealDirectory({root: d`./src/seal2`, files: [f`./src/seal2/file2`]});
+Transformer.execute({
+    tool: {exe: f`./src/environmentVariables.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [],
+    },
+    workingDirectory: d`./Out/working`,
+    dependencies: [f`./src/environmentVariables.exe`],
+    implicitOutputs: [f`./Out/file.out`],
+    environmentVariables: [
+        {name: "bool", value: "True"},
+        {name: "dir", value: p`./dir`},
+        {name: "dirs", value: [p`./dir1`, p`./dir1`]},
+        {name: "file", value: p`./file`},
+        {name: "files", value: [p`./file1`, p`./file2`]},
+        {name: "number", value: "1"},
+        {name: "path", value: p`./path`},
+        {name: "paths", value: [p`./path1`, p`./path2`]},
+        {
+            name: "pathsWithSepartor",
+            value: [p`./path1`, p`./path2`],
+            separator: "----",
+        },
+        {name: "staticDir", value: p`./src/seal1`},
+        {name: "staticDirs", value: [p`./src/seal1`, p`./src/seal2`]},
+        {name: "string", value: "stringValue"},
+    ],
+});

@@ -1,0 +1,30 @@
+dominoinvocation
+| where EventInfo_Time  >= ago(90d)
+| where BuildInfo_CommitId != "[Developer Build]"
+| extend EnvironmentShort = tostring(split(Environment, ";")[0])
+| extend Month = startofmonth(EventInfo_Time)
+| extend Infra = case(
+        UserName == "_qcloud1" or UserName == "_qcloud2" , "CB",
+        (Environment contains "Dev" or Environment contains "WrapItUp") and UserName != "tpctext" and UserName != "y-arnold", "Dev",
+        Environment contains "Self" and UserName != "tsebuild", "Dev",
+        "Lab")
+    | extend Customer = 
+        case(
+            EnvironmentShort contains "Office", "Office",
+            EnvironmentShort contains "OSGTools", "OsgTools",
+            EnvironmentShort contains "OSG", "WDG",
+            EnvironmentShort contains "Self", "TSE",
+            "Unknown") 
+| join kind = leftouter
+(
+    dominoinvocation
+    | where EventInfo_Time  > now(-365d) and BuildInfo_IsDeveloperBuild == "False"
+    | summarize min(EventInfo_Time) by BuildInfo_CommitId
+)
+on BuildInfo_CommitId
+| extend IsCB = case(Infra == "CB", 1, 0)
+| extend DaysOld = EventInfo_Time - min_EventInfo_Time
+//| where DaysOld > 30d
+| summarize TotalDominoInvocations = count(BuildInfo_CommitId), DominoInvocationsWithOlderVersion = countif(DaysOld > 30d), DominoInvocationsWithOlderVersion_Percentage = round(todouble(countif(DaysOld > 30d)*100.0/count(BuildInfo_CommitId)),2) by Month, Customer
+| order by Month asc, Customer asc
+| extend DominoInvocationsWith30DayOrNewerVersion_Percentage = 100 - DominoInvocationsWithOlderVersion_Percentage  

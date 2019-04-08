@@ -18,7 +18,7 @@ let numsReplacement = "[#]";
 //
 let annotatedSessions =
 dominoinvocation
-| where EventInfo_Time >= ago(1d) and EventInfo_Time <= now()
+| where EventInfo_Time >= startDate and EventInfo_Time <= endDate
 | where BuildInfo_IsDeveloperBuild != "True"
 | extend OfficeBuildType = case(
             Environment contains "EnlistmentBuild", "enlist",

@@ -10,7 +10,10 @@ namespace Contents {
     };
 
     @@public
-    export const all: StaticDirectory = Transformer.sealDirectory(d`.`, [
-        f`AriaTenantToken.cs`,
-    ]);
+    export const all: StaticDirectory = Transformer.sealDirectory({
+        root: d`.`, 
+        files: [
+            f`AriaTenantToken.cs`,
+        ]
+    });
 }

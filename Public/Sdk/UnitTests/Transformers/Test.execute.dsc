@@ -5,8 +5,14 @@ import {Assert, Testing} from "Sdk.Testing";
 import {Transformer} from "Sdk.Transformers";
 
 namespace Sdk.Tests {
-    const sealedDirectory1 = Transformer.sealDirectory(d`src/seal1`, [f`src/seal1/file1`]);
-    const sealedDirectory2 = Transformer.sealDirectory(d`src/seal2`, [f`src/seal2/file2`]);
+    const sealedDirectory1 = Transformer.sealDirectory({
+        root: d`src/seal1`, 
+        files: [f`src/seal1/file1`]
+    });
+    const sealedDirectory2 = Transformer.sealDirectory({
+        root: d`src/seal2`, 
+        files: [f`src/seal2/file2`]
+    });
     
     const mostFields: Transformer.ToolDefinition = {
         exe: f`src/tool/tool.exe`,

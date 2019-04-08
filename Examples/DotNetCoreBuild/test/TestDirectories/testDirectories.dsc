@@ -78,7 +78,10 @@ export const testSealedSourceDir = readFileFromDirectory(
 @@public
 export const testSealedDir = readFileFromDirectory(
     "read-seal-dir",
-    Transformer.sealDirectory(d`src-dir`, globR(d`src-dir`, "*")),
+    Transformer.sealDirectory({
+        root: d`src-dir`, 
+        files: globR(d`src-dir`, "*")
+    }),
     "src-file1.txt");
 
 @@public

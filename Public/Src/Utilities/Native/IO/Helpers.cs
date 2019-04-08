@@ -167,9 +167,12 @@ namespace BuildXL.Native.IO
                 },
                 logExceptions, rethrowExceptions, numberOfAttempts, initialTimeoutMs, postTimeoutMultiplier);
 
+            // Since work returns Possible<TResult, Failure>, we expect it to gracefully handle any exception
+            // (i.e., return a failure instead of throwing an exception). However, there is no guarantee that
+            // it would behave this way. 
             if (!possiblyResult.HasValue)
-            {
-                return new Failure<string>($"Exhausted all of the '{numberOfAttempts}' retry attempts.{(logExceptions ? " Look at the log for more details." : string.Empty)}");
+            {                
+                Contract.Assert(false, $"An operation resulted in an unhandled exception in all of the '{numberOfAttempts}' retry attempts");
             }
 
             return possiblyResult.Value;
@@ -196,9 +199,12 @@ namespace BuildXL.Native.IO
                 },
                 logExceptions, rethrowExceptions, numberOfAttempts, initialTimeoutMs, postTimeoutMultiplier);
 
+            // Since work returns Possible<TResult, Failure>, we expect it to gracefully handle any exception
+            // (i.e., return a failure instead of throwing an exception). However, there is no guarantee that
+            // it would behave this way. 
             if (!possiblyResult.HasValue)
             {
-                return new Failure<string>($"Exhausted all of the '{numberOfAttempts}' retry attempts.{(logExceptions ? " Look at the log for more details." : string.Empty)}");
+                Contract.Assert(false, $"An operation resulted in an unhandled exception in all of the '{numberOfAttempts}' retry attempts");
             }
 
             return possiblyResult.Value;

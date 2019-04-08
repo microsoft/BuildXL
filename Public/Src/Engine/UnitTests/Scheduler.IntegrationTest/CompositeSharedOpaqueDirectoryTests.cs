@@ -4,6 +4,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using BuildXL.Pips.Builders;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
@@ -85,7 +87,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var root = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "root"));
 
-            // We construct a composite shared opaque that only constains soa (and *not* sob)
+            // We construct a composite shared opaque that only contains soa (and *not* sob)
             var result = PipConstructionHelper.TryComposeSharedOpaqueDirectory(root, new[] { soA }, description: null, tags: new string[] { }, out var composedOpaque);
             XAssert.IsTrue(result);
 
@@ -133,6 +135,66 @@ namespace IntegrationTest.BuildXL.Scheduler
             IgnoreWarnings();
             
             RunScheduler().AssertSuccess();
+        }
+
+        [Fact]
+        public void CompositeContentIsProperlyMaterialized()
+        {
+            // This test verifies that BXL properly materializes composite shared opaques
+            // (i.e., the files are materialized because we need to materialize the composite opaque
+            // and not because we somehow materialized the original shared opaque directory).
+
+            var root = Path.Combine(ObjectRoot, "root");
+            var rootPath = AbsolutePath.Create(Context.PathTable, root);
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "root", "CreateOutputFileArtifact");
+            var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            var inputB = CreateSourceFile();
+            var outputA = CreateOutputFileArtifact(sharedOpaqueDir);
+
+            // PipA - produces a dynamic file under /root/CreateOutputFileArtifact
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputA, doNotInfer: true)
+            });
+            
+            builderA.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath), SealDirectoryKind.SharedOpaque);
+            builderA.AddTags(Context.StringTable, "pipA");
+            
+            var pipA = SchedulePipBuilder(builderA);
+
+            // composite shared opaque - consists of a single shared opaque produced by PipA
+            var success = PipConstructionHelper.TryComposeSharedOpaqueDirectory(rootPath, new[] { pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath) }, description: null, tags: new string[] { }, out var composedOpaque);
+            XAssert.IsTrue(success);
+
+            // PipB - consumes composite shared opaque directory
+            // note: there is no direct dependency on PipA
+            var builderB = CreatePipBuilder(new Operation[]
+            {                
+                Operation.ReadRequiredFile(outputA, doNotInfer: true),  // dynamic output of PipA
+                Operation.ReadFile(inputB),                             // dummy input, so we can force pipB to re-run
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            builderB.AddInputDirectory(composedOpaque);
+            builderB.AddTags(Context.StringTable, "pipB");
+            
+            var pipB = SchedulePipBuilder(builderB);
+
+            // bring content into the cache
+            RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
+
+            // Lazy materialization and tags are used here to prevent materialization of opaque directory produced by pipA,
+            // so the only place where 'outputA' might come from is materialization of 'composedOpaque'.
+            Configuration.Schedule.EnableLazyOutputMaterialization = true;
+            Configuration.Filter = "tag='pipB'";
+
+            // make sure that we start with no files materialized
+            Directory.Delete(root, recursive: true);
+
+            // force pipB to re-run
+            File.AppendAllText(ArtifactToString(inputB), "foo");
+            
+            RunScheduler().AssertSuccess().AssertCacheHit(pipA.Process.PipId).AssertCacheMiss(pipB.Process.PipId);
         }
 
         /// <summary>

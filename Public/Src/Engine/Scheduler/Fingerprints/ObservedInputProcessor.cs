@@ -1640,7 +1640,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <inheritdoc />
         public bool IsPathUnderOutputDirectory(AbsolutePath path)
         {
-            return m_env.PipGraphView.IsPathUnderOutputDirectory(path);
+            return m_env.PipGraphView.IsPathUnderOutputDirectory(path, out _);
         }
 
         /// <summary>
@@ -1687,7 +1687,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 case FileSystemMode.RealAndPipGraph:
                     // If the directoryPath is under an opaque directory, then we always use the minimal graph, so
                     // all artifacts from direct dependencies (both static and dynamic content) will be used
-                    graphEnumerationMode = m_env.PipGraphView.IsPathUnderOutputDirectory(directoryPath) ?
+                    graphEnumerationMode = m_env.PipGraphView.IsPathUnderOutputDirectory(directoryPath, out _) ?
                         DirectoryEnumerationMode.MinimalGraph :
                         DirectoryEnumerationMode.FullGraph;
                     break;

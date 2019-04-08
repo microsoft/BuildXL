@@ -32,11 +32,13 @@ export const explicitOutputsByDifferentPipsAreAllowedInSharedOpaqueDirectory = !
 
 @@public
 export const twoPipsWritingArbitraryFilesIntoSharedOpaqueDirectoryIsAllowed = !Context.isWindowsOS() && (() => {
-    const sodPath = Context.getNewOutputDirectory("sod");
+    const sodPath = Context.getNewOutputDirectory("sod-mix");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
     writeFileToDir("arbitrary1", sod);
     writeFileToDir("arbitrary2", sod);
     writeFileToDir(p`${sodPath}/explicit3`, sod);
+    const wrFile = Transformer.writeFile(p`${sodPath}/write-file.txt`, "Hi");
+    Transformer.copyFile(wrFile, p`${sodPath}/copy-file.txt`);
 })();
 
 @@public

@@ -755,10 +755,14 @@ namespace BuildXL.Engine.Cache.Artifacts
             {
                 // Applies only to CopyFile & rewritten files where we have already hashed the inputs to see if we should rerun the pip,
                 // We may revisit this code if we ever want to completely get rid of all double hashing by having the cache not hash on ingress.
-                Possible<Unit, Failure> possiblyStored = await cache.TryStoreAsync(
-                    fileRealizationModes,
-                    expandedPath,
-                    knownContentHash.Value);
+                Possible<Unit, Failure> possiblyStored = await Helpers.RetryOnFailureAsync(
+                    async _ => 
+                    {
+                        return await cache.TryStoreAsync(
+                            fileRealizationModes,
+                            expandedPath,
+                            knownContentHash.Value);
+                    });
 
                 // TryStoreAsync possibly replaced the file (such as hardlinking out of the cache, if we already had identical content).
                 // So, we only track the file after TryStoreAsync is done (not earlier when we hashed it).
@@ -767,9 +771,13 @@ namespace BuildXL.Engine.Cache.Artifacts
             }
             else
             {
-                Possible<ContentHash, Failure> possiblyStored = await cache.TryStoreAsync(
-                    fileRealizationModes,
-                    expandedPath);
+                Possible<ContentHash, Failure> possiblyStored = await Helpers.RetryOnFailureAsync(
+                    async _ =>
+                    {
+                        return await cache.TryStoreAsync(
+                            fileRealizationModes,
+                            expandedPath);
+                    });
 
                 return await possiblyStored.ThenAsync(
                     contentHash => TryOpenAndTrackPathAsync(expandedPath, contentHash, fileName, trackPath: trackPath));

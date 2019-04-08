@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Native.IO
@@ -63,6 +64,7 @@ namespace BuildXL.Native.IO
             int postTimeoutMultiplier = DefaultPostTimeoutMultiplier)
         {
             Contract.Requires(work != null);
+            Contract.Requires(logExceptions || rethrowExceptions, "A caught exception must be either rethrown or logged.");
 
             int timeoutMs = initialTimeoutMs;
             bool done = false;
@@ -89,7 +91,7 @@ namespace BuildXL.Native.IO
                     // Only log exceptions if they are not being re-thrown already
                     if (logExceptions)
                     {
-                        Tracing.Logger.Log.RetryOnFailureException(Events.StaticContext, e.Message ?? e.ToString());
+                        Tracing.Logger.Log.RetryOnFailureException(Events.StaticContext, e.ToString());
                     }
                 }
             }
@@ -109,6 +111,7 @@ namespace BuildXL.Native.IO
             int postTimeoutMultiplier = DefaultPostTimeoutMultiplier)
         {
             Contract.Requires(work != null);
+            Contract.Requires(logExceptions || rethrowExceptions, "A caught exception must be either rethrown or logged.");
 
             int timeoutMs = initialTimeoutMs;
             bool done = false;
@@ -135,12 +138,70 @@ namespace BuildXL.Native.IO
                     // Only log exceptions if they are not being re-thrown already
                     if (logExceptions)
                     {
-                        Tracing.Logger.Log.RetryOnFailureException(Events.StaticContext, e.Message ?? e.ToString());
+                        Tracing.Logger.Log.RetryOnFailureException(Events.StaticContext, e.ToString());
                     }
                 }
             }
 
             return done;
+        }
+
+        /// <summary>
+        /// A generic version of <see cref="RetryOnFailure"/>.
+        /// </summary>
+        public static Possible<TResult, Failure> RetryOnFailure<TResult>(
+          Func<bool, Possible<TResult, Failure>> work,
+          bool logExceptions = true,
+          bool rethrowExceptions = false,
+          int numberOfAttempts = DefaultNumberOfAttempts,
+          int initialTimeoutMs = DefaultInitialTimeoutMs,
+          int postTimeoutMultiplier = DefaultPostTimeoutMultiplier)
+        {
+            Possible<TResult, Failure>? possiblyResult = null;
+
+            bool success = RetryOnFailure(
+                isLastRetry =>
+                {
+                    possiblyResult = work(isLastRetry);
+                    return possiblyResult.Value.Succeeded;
+                },
+                logExceptions, rethrowExceptions, numberOfAttempts, initialTimeoutMs, postTimeoutMultiplier);
+
+            if (!possiblyResult.HasValue)
+            {
+                return new Failure<string>($"Exhausted all of the '{numberOfAttempts}' retry attempts.{(logExceptions ? " Look at the log for more details." : string.Empty)}");
+            }
+
+            return possiblyResult.Value;
+        }
+
+        /// <summary>
+        /// Async version of <see cref="RetryOnFailure"/>.
+        /// </summary>
+        public static async Task<Possible<TResult, Failure>> RetryOnFailureAsync<TResult>(
+            Func<bool, Task<Possible<TResult, Failure>>> work,
+            bool logExceptions = true,
+            bool rethrowExceptions = false,
+            int numberOfAttempts = DefaultNumberOfAttempts,
+            int initialTimeoutMs = DefaultInitialTimeoutMs,
+            int postTimeoutMultiplier = DefaultPostTimeoutMultiplier)
+        {
+            Possible<TResult>? possiblyResult = null;
+
+            bool success = await RetryOnFailureAsync(
+                async isLastRetry =>
+                {
+                    possiblyResult = await work(isLastRetry);
+                    return possiblyResult.Value.Succeeded;
+                },
+                logExceptions, rethrowExceptions, numberOfAttempts, initialTimeoutMs, postTimeoutMultiplier);
+
+            if (!possiblyResult.HasValue)
+            {
+                return new Failure<string>($"Exhausted all of the '{numberOfAttempts}' retry attempts.{(logExceptions ? " Look at the log for more details." : string.Empty)}");
+            }
+
+            return possiblyResult.Value;
         }
     }
 }

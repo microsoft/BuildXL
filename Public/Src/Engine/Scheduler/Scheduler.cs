@@ -3532,9 +3532,10 @@ namespace BuildXL.Scheduler
         private void FlagSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)
         {
             // Select all declared output files
-            IEnumerable<(AbsolutePath path, bool isKnownToBeUnderSharedOpaque)> paths = process.Process
-                .FileOutputs
-                .Select(f => (path: f.Path, isKnownToBeUnderSharedOpaque: false));
+            foreach (var fileArtifact in process.Process.FileOutputs)
+            {
+                MakeSharedOpaqueOutputIfNeeded(fileArtifact.Path);
+            }
 
             // The shared dynamic accesses can be null when the pip failed on preparation, in which case it didn't run at all, so there is
             // nothing to flag
@@ -3542,16 +3543,13 @@ namespace BuildXL.Scheduler
             {
                 // Directory outputs are reported only when the pip is successful. So we need to rely on the raw shared dynamic write accesses,
                 // since flagging also happens on failed pips
-                var sharedOpaqueDirOutputs = process.ExecutionResult
-                    .SharedDynamicDirectoryWriteAccesses
-                    .SelectMany(kvp => kvp.Value);
-
-                paths = paths.Concat(sharedOpaqueDirOutputs.Select(path => (path, isKnownToBeUnderSharedOpaque: true)));
-            }
-
-            foreach (var tuple in paths)
-            {
-                MakeSharedOpaqueOutputIfNeeded(tuple.path, force: tuple.isKnownToBeUnderSharedOpaque);
+                foreach (IReadOnlyCollection<AbsolutePath> writesPerSharedOpaque in process.ExecutionResult.SharedDynamicDirectoryWriteAccesses.Values)
+                {
+                    foreach (AbsolutePath writeInPath in writesPerSharedOpaque)
+                    {
+                        SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(writeInPath.ToString(environment.Context.PathTable));
+                    }
+                }
             }
         }
 
@@ -5374,9 +5372,9 @@ namespace BuildXL.Scheduler
             MakeSharedOpaqueOutputIfNeeded(artifact.Path);
         }
 
-        private void MakeSharedOpaqueOutputIfNeeded(AbsolutePath path, bool force = false)
+        private void MakeSharedOpaqueOutputIfNeeded(AbsolutePath path)
         {
-            if (force || IsPathUnderSharedOpaqueDirectory(path))
+            if (IsPathUnderSharedOpaqueDirectory(path))
             {
                 SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path.ToString(Context.PathTable));
             }

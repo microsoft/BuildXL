@@ -228,6 +228,17 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <summary>
+        /// Invokes <paramref name="action"/> on every element in <paramref name="collection"/>.
+        /// </summary>
+        public static void ForEach<T>(this IEnumerable<T> collection, Action<T> action)
+        {
+            foreach (T elem in collection)
+            {
+                action(elem);
+            }
+        }
+
+        /// <summary>
         /// Creates an array from the collection with the specified number of elements from the source collection.
         /// </summary>
         /// <typeparam name="T">The type of array elements.</typeparam>

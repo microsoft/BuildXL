@@ -13,6 +13,7 @@ using ContentStoreTest.Test;
 using BuildXL.Native.IO;
 using Xunit;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using FluentAssertions;
 
 namespace ContentStoreTest.FileSystem
 {
@@ -134,7 +135,8 @@ namespace ContentStoreTest.FileSystem
                                        }
                                    };
 
-                    await Assert.ThrowsAsync<UnauthorizedAccessException>(a);
+                    var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(a);
+                    exception.Message.Should().Contain("Handle was used by");
                 }
             }
         }

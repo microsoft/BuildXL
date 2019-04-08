@@ -1974,118 +1974,118 @@ namespace BuildXL.Scheduler.Artifacts
                 // we still are mandated to finish materializing if possible and eventually complete the materialization task.
                 using (operationContext.StartOperation(PipExecutorCounter.FileContentManagerPlaceFilesDuration))
                 {
-                        for (int i = 0; i < state.MaterializationFiles.Count; i++)
-                        {
-                            MaterializationFile materializationFile = state.MaterializationFiles[i];
-                            FileArtifact file = materializationFile.Artifact;
-                            FileMaterializationInfo materializationInfo = materializationFile.MaterializationInfo;
-                            ContentHash hash = materializationInfo.Hash;
-                            PathAtom fileName = materializationInfo.FileName;
-                            AbsolutePath symlinkTarget = materializationFile.SymlinkTarget;
-                            bool allowReadOnly = materializationFile.AllowReadOnly;
-                            int materializationFileIndex = i;
+                    for (int i = 0; i < state.MaterializationFiles.Count; i++)
+                    {
+                        MaterializationFile materializationFile = state.MaterializationFiles[i];
+                        FileArtifact file = materializationFile.Artifact;
+                        FileMaterializationInfo materializationInfo = materializationFile.MaterializationInfo;
+                        ContentHash hash = materializationInfo.Hash;
+                        PathAtom fileName = materializationInfo.FileName;
+                        AbsolutePath symlinkTarget = materializationFile.SymlinkTarget;
+                        bool allowReadOnly = materializationFile.AllowReadOnly;
+                        int materializationFileIndex = i;
 
-                            state.PlacementTasks.Add(Task.Run(
-                                async () =>
+                        state.PlacementTasks.Add(Task.Run(
+                            async () =>
+                            {
+                                // Wait for the prior version of the file artifact to finish materialization
+                                await materializationFile.PriorArtifactVersionCompletion;
+
+                                if (Context.CancellationToken.IsCancellationRequested)
                                 {
-                                    // Wait for the prior version of the file artifact to finish materialization
-                                    await materializationFile.PriorArtifactVersionCompletion;
+                                    state.SetMaterializationFailure(fileIndex: materializationFileIndex);
+                                    success = false;
+                                    return;
+                                }
 
-                                    if (Context.CancellationToken.IsCancellationRequested)
+                                Possible<ContentMaterializationResult> possiblyPlaced;
+
+                                using (var outerContext = operationContext.StartAsyncOperation(PipExecutorCounter.FileContentManagerTryMaterializeOuterDuration, file))
+                                using (await m_materializationSemaphore.AcquireAsync())
+                                {
+                                    if (m_host.CanMaterializeFile(file))
                                     {
-                                        state.SetMaterializationFailure(fileIndex: materializationFileIndex);
-                                        success = false;
-                                        return;
-                                    }
-
-                                    Possible<ContentMaterializationResult> possiblyPlaced;
-
-                                    using (var outerContext = operationContext.StartAsyncOperation(PipExecutorCounter.FileContentManagerTryMaterializeOuterDuration, file))
-                                    using (await m_materializationSemaphore.AcquireAsync())
-                                    {
-                                        if (m_host.CanMaterializeFile(file))
+                                        using (outerContext.StartOperation(PipExecutorCounter.FileContentManagerHostTryMaterializeDuration, file))
                                         {
-                                            using (outerContext.StartOperation(PipExecutorCounter.FileContentManagerHostTryMaterializeDuration, file))
-                                            {
-                                                var possiblyMaterialized = await m_host.TryMaterializeFileAsync(file, outerContext);
-                                                possiblyPlaced = possiblyMaterialized.Then(origin =>
-                                                    new ContentMaterializationResult(
-                                                        origin,
-                                                        TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo)));
-                                            }
+                                            var possiblyMaterialized = await m_host.TryMaterializeFileAsync(file, outerContext);
+                                            possiblyPlaced = possiblyMaterialized.Then(origin =>
+                                                new ContentMaterializationResult(
+                                                    origin,
+                                                    TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo)));
                                         }
-                                        else
-                                        {
-                                            using (outerContext.StartOperation(
-                                                (symlinkTarget.IsValid || materializationInfo.ReparsePointInfo.ReparsePointType == ReparsePointType.SymLink)
-                                                    ? PipExecutorCounter.TryMaterializeSymlinkDuration
-                                                    : PipExecutorCounter.FileContentManagerTryMaterializeDuration,
-                                                file))
-                                            {
-                                                if (state.VerifyMaterializationOnly)
-                                                {
-                                                    // Ensure local existence by opening content stream.
-                                                    var possiblyStream = await ArtifactContentCache.TryOpenContentStreamAsync(hash);
-
-                                                    if (possiblyStream.Succeeded)
-                                                    {
-                                                        possiblyStream.Result.Dispose();
-                                                        possiblyPlaced =
-                                                            new Possible<ContentMaterializationResult>(
-                                                                new ContentMaterializationResult(
-                                                                    ContentMaterializationOrigin.DeployedFromCache,
-                                                                    TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo, fileName)));
-                                                        possiblyPlaced = WithLineInfo(possiblyPlaced);
-                                                    }
-                                                    else
-                                                    {
-                                                        possiblyPlaced = new Possible<ContentMaterializationResult>(possiblyStream.Failure);
-                                                        possiblyPlaced = WithLineInfo(possiblyPlaced);
-                                                    }
-                                                }
-                                                else
-                                                {
-                                                    // Try materialize content.
-                                                    possiblyPlaced = await LocalDiskContentStore.TryMaterializeAsync(
-                                                        ArtifactContentCache,
-                                                        fileRealizationModes: GetFileRealizationMode(allowReadOnly: allowReadOnly),
-                                                        path: file.Path,
-                                                        contentHash: hash,
-                                                        fileName: fileName,
-                                                        symlinkTarget: symlinkTarget,
-                                                        reparsePointInfo: materializationInfo.ReparsePointInfo);
-                                                    possiblyPlaced = WithLineInfo(possiblyPlaced);
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    if (possiblyPlaced.Succeeded)
-                                    {
-                                        state.SetMaterializationSuccess(
-                                            fileIndex: materializationFileIndex,
-                                            origin: possiblyPlaced.Result.Origin,
-                                            operationContext: operationContext);
-
-                                        m_host.ReportFileArtifactPlaced(file);
                                     }
                                     else
                                     {
-                                        Logger.Log.StorageCacheGetContentWarning(
-                                            operationContext,
-                                            pipDescription: pipInfo.Description,
-                                            contentHash: hash.ToHex(),
-                                            destinationPath: file.Path.ToString(pathTable),
-                                            errorMessage: possiblyPlaced.Failure.DescribeIncludingInnerFailures());
+                                        using (outerContext.StartOperation(
+                                            (symlinkTarget.IsValid || materializationInfo.ReparsePointInfo.ReparsePointType == ReparsePointType.SymLink)
+                                                ? PipExecutorCounter.TryMaterializeSymlinkDuration
+                                                : PipExecutorCounter.FileContentManagerTryMaterializeDuration,
+                                            file))
+                                        {
+                                            if (state.VerifyMaterializationOnly)
+                                            {
+                                                // Ensure local existence by opening content stream.
+                                                var possiblyStream = await ArtifactContentCache.TryOpenContentStreamAsync(hash);
 
-                                        state.SetMaterializationFailure(fileIndex: materializationFileIndex);
-
-                                        // Latch overall success (across all placements) to false.
-                                        success = false;
+                                                if (possiblyStream.Succeeded)
+                                                {
+                                                    possiblyStream.Result.Dispose();
+                                                    possiblyPlaced =
+                                                        new Possible<ContentMaterializationResult>(
+                                                            new ContentMaterializationResult(
+                                                                ContentMaterializationOrigin.DeployedFromCache,
+                                                                TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo, fileName)));
+                                                    possiblyPlaced = WithLineInfo(possiblyPlaced);
+                                                }
+                                                else
+                                                {
+                                                    possiblyPlaced = new Possible<ContentMaterializationResult>(possiblyStream.Failure);
+                                                    possiblyPlaced = WithLineInfo(possiblyPlaced);
+                                                }
+                                            }
+                                            else
+                                            {
+                                                // Try materialize content.
+                                                possiblyPlaced = await LocalDiskContentStore.TryMaterializeAsync(
+                                                    ArtifactContentCache,
+                                                    fileRealizationModes: GetFileRealizationMode(allowReadOnly: allowReadOnly),
+                                                    path: file.Path,
+                                                    contentHash: hash,
+                                                    fileName: fileName,
+                                                    symlinkTarget: symlinkTarget,
+                                                    reparsePointInfo: materializationInfo.ReparsePointInfo);
+                                                possiblyPlaced = WithLineInfo(possiblyPlaced);
+                                            }
+                                        }
                                     }
-                                }));
-                        }
-                        await Task.WhenAll(state.PlacementTasks);
+                                }
+
+                                if (possiblyPlaced.Succeeded)
+                                {
+                                    state.SetMaterializationSuccess(
+                                        fileIndex: materializationFileIndex,
+                                        origin: possiblyPlaced.Result.Origin,
+                                        operationContext: operationContext);
+
+                                    m_host.ReportFileArtifactPlaced(file);
+                                }
+                                else
+                                {
+                                    Logger.Log.StorageCacheGetContentWarning(
+                                        operationContext,
+                                        pipDescription: pipInfo.Description,
+                                        contentHash: hash.ToHex(),
+                                        destinationPath: file.Path.ToString(pathTable),
+                                        errorMessage: possiblyPlaced.Failure.DescribeIncludingInnerFailures());
+
+                                    state.SetMaterializationFailure(fileIndex: materializationFileIndex);
+
+                                    // Latch overall success (across all placements) to false.
+                                    success = false;
+                                }
+                            }));
+                    }
+                    await Task.WhenAll(state.PlacementTasks);
                 }
             }
 

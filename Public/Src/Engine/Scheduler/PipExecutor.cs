@@ -390,7 +390,7 @@ namespace BuildXL.Scheduler
 
                     // If the file is not known to the graph, check whether the file is in an opaque or shared opaque directory.
                     // If it's inside such a directory, we treat it as an output file -> chain is not valid.
-                    if (!targetArtifact.IsValid && environment.PipGraphView.IsPathUnderOutputDirectory(targetPath))
+                    if (!targetArtifact.IsValid && environment.PipGraphView.IsPathUnderOutputDirectory(targetPath, out _))
                     {
                         return CreateInvalidChainFailure(I($"An element of the chain ('{chainElement}') is inside of an opaque directory."));
                     } 
@@ -420,6 +420,13 @@ namespace BuildXL.Scheduler
             if (!copy)
             {
                 (new Failure<string>(I($"Unable to copy from '{source}' to '{destination}'"))).Throw();
+            }
+
+            // if /storeOutputsToCache- was used, mark the destination here;
+            // otherwise it will get marked in ReportFileArtifactPlaced.
+            if (!environment.Configuration.Schedule.StoreOutputsToCache)
+            {
+                MakeSharedOpaqueOutputIfNeeded(environment, copyFile.Destination);
             }
 
             var mayBeTracked = await TrackPipOutputAsync(operationContext, environment, copyFile.Destination, isSymlink: false);
@@ -657,6 +664,15 @@ namespace BuildXL.Scheduler
             }
         }
 
+        private static void MakeSharedOpaqueOutputIfNeeded(IPipExecutionEnvironment environment, AbsolutePath path)
+        {
+            if (environment.PipGraphView.IsPathUnderOutputDirectory(path, out bool isItSharedOpaque) && isItSharedOpaque)
+            {
+                string expandedPath = path.ToString(environment.Context.PathTable);
+                SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(expandedPath);
+            }
+        }
+
         /// <summary>
         /// Writes <paramref name="contents"/> to disk at location <paramref name="destinationFile"/> using
         /// <paramref name="encoding"/>.
@@ -784,6 +800,8 @@ namespace BuildXL.Scheduler
                             outputOrigin);
                     }
                 }
+
+                MakeSharedOpaqueOutputIfNeeded(environment, destinationFile.Path);
 
                 return outputOrigin.ToPipResult();
             }

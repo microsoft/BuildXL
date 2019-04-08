@@ -114,6 +114,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                 const string Operation = "PurgeRequest";
                 SendPurgeRequest(context, "Startup").FireAndForget(context, Operation);
             }
+            else
+            {
+                _tracer.Debug(context, $"{_tracer.Name}: do not purge at startup based on configuration settings.");
+            }
 
             return BoolResult.Success;
         }

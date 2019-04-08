@@ -672,9 +672,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             var quotaKeeperConfiguration = QuotaKeeperConfiguration.Create(
                 Configuration,
                 _distributedEvictionSettings,
-                size,
-                _settings.StartPurgingAtStartup,
-                _settings.UseLegacyQuotaKeeperImplementation);
+                _settings,
+                size);
             _quotaKeeper = QuotaKeeper.Create(
                 FileSystem,
                 _tracer,

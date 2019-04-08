@@ -85,6 +85,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // over the cache quota if configured.
                 StartPurging();
             }
+            else
+            {
+                _tracer.Debug(context, $"{_tracer.Name}: do not purge at startup based on configuration settings.");
+            }
 
             return BoolResult.Success;
         }

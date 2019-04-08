@@ -35,7 +35,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         public int? HistoryWindowSize { get; private set; }
 
-        /// <nodoc />
+        /// <summary>
+        /// <see cref="DistributedEvictionSettings"/>.
+        /// </summary>
         public DistributedEvictionSettings DistributedEvictionSettings { get; private set; }
 
         /// <summary>
@@ -62,9 +64,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         public static QuotaKeeperConfiguration Create(
             ContentStoreConfiguration configuration,
             DistributedEvictionSettings evictionSettings,
-            long contentDirectorySize,
-            bool startPurgingAtStartup = true,
-            bool useLegacyQuotaKeeper = false)
+            ContentStoreSettings contentStoreSettings,
+            long contentDirectorySize)
         {
             Contract.Requires(configuration != null);
 
@@ -77,8 +78,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                        HistoryWindowSize = configuration.HistoryWindowSize,
                        DistributedEvictionSettings = evictionSettings,
                        ContentDirectorySize = contentDirectorySize,
-                       StartPurgingAtStartup = startPurgingAtStartup,
-                       UseLegacyQuotaKeeper = useLegacyQuotaKeeper,
+                       StartPurgingAtStartup = contentStoreSettings.StartPurgingAtStartup,
+                       UseLegacyQuotaKeeper = contentStoreSettings.UseLegacyQuotaKeeperImplementation,
                    };
         }
     }

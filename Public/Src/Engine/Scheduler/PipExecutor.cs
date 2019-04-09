@@ -1865,9 +1865,9 @@ namespace BuildXL.Scheduler
                                 }
 
                                 var pathSet = maybePathSet.Value;
-                                (ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint? strongContentFingerPrint, ObservedPathSet pathSetUsed, ContentHash pathSetHashUsed)
+                                (bool succeeded, ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint? strongContentFingerprint, ObservedPathSet pathSetUsed, ContentHash pathSetHashUsed)
                                     strongFingerprintComputationResult =
-                                        await ComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
+                                        await TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
                                             operationContext,
                                             environment,
                                             state,
@@ -1876,10 +1876,16 @@ namespace BuildXL.Scheduler
                                             pathSet,
                                             entryRef.PathSetHash);
 
-                                BoxRef<ProcessStrongFingerprintComputationData> strongFingerprintComputationData = new ProcessStrongFingerprintComputationData(
-                                    pathSet: strongFingerprintComputationResult.pathSetUsed,
-                                    pathSetHash: strongFingerprintComputationResult.pathSetHashUsed,
-                                    priorStrongFingerprints: new List<StrongContentFingerprint>(1) { entryRef.StrongFingerprint });
+                                // Record the most relevant strong fingerprint information, defaulting to information retrieved from cache
+                                BoxRef<ProcessStrongFingerprintComputationData> strongFingerprintComputationData = strongFingerprintComputationResult.succeeded 
+                                    ? new ProcessStrongFingerprintComputationData(
+                                        pathSet: strongFingerprintComputationResult.pathSetUsed,
+                                        pathSetHash: strongFingerprintComputationResult.pathSetHashUsed,
+                                        priorStrongFingerprints: new List<StrongContentFingerprint>(1) { strongFingerprintComputationResult.strongContentFingerprint.Value })
+                                    : new ProcessStrongFingerprintComputationData(
+                                        pathSet: pathSet,
+                                        pathSetHash: entryRef.PathSetHash,
+                                        priorStrongFingerprints: new List<StrongContentFingerprint>(1) { entryRef.StrongFingerprint });
 
                                 strongFingerprintComputationList.Add(strongFingerprintComputationData);
 
@@ -1889,7 +1895,7 @@ namespace BuildXL.Scheduler
                                 switch (processingStatus)
                                 {
                                     case ObservedInputProcessingStatus.Success:
-                                        strongFingerprint = strongFingerprintComputationResult.Item2;
+                                        strongFingerprint = strongFingerprintComputationResult.strongContentFingerprint;
                                         Contract.Assume(strongFingerprint.HasValue);
 
                                         strongFingerprintComputationData.Value = strongFingerprintComputationData.Value.ToSuccessfulResult(
@@ -3103,7 +3109,7 @@ namespace BuildXL.Scheduler
         /// Note that if the returned processing status is <see cref="ObservedInputProcessingStatus.Aborted"/>, then a failure has been logged and pip
         /// execution must fail.
         /// </summary>
-        private static async Task<(ObservedInputProcessingResult, StrongContentFingerprint?, ObservedPathSet, ContentHash)> ComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
+        private static async Task<(bool, ObservedInputProcessingResult, StrongContentFingerprint?, ObservedPathSet, ContentHash)> TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state,
@@ -3132,7 +3138,7 @@ namespace BuildXL.Scheduler
                 // force cache miss if observed input processing result is not 'Success'
                 if (validationResult.Status != ObservedInputProcessingStatus.Success)
                 {
-                    return (validationResult, default(StrongContentFingerprint?), default(ObservedPathSet), default(ContentHash));
+                    return (false, validationResult, default(StrongContentFingerprint?), default(ObservedPathSet), default(ContentHash));
                 }
 
                 // check if now running with safer options than before (i.e., prior are not strictly safer than current)
@@ -3165,7 +3171,7 @@ namespace BuildXL.Scheduler
                         finalPathSetHash);
                 }
 
-                return (validationResult, strongFingerprint, finalPathSet, finalPathSetHash);
+                return (true, validationResult, strongFingerprint, finalPathSet, finalPathSetHash);
             }
         }
 

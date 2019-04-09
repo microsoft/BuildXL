@@ -2,12 +2,14 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using FluentAssertions;
 using Xunit;
@@ -128,10 +130,71 @@ namespace ContentStoreTest.Stores
                     await pinContext.DisposeAsync();
                 }
 
-                PutResult putAfterReleaseResult = await store.PutRandomAsync(Context, contentSize);
-                ResultTestExtensions.ShouldBeSuccess((BoolResult) putAfterReleaseResult);
+                await store.PutRandomAsync(Context, contentSize).ShouldBeSuccess();
                 triggeredEviction.Should().BeTrue();
             });
+        }
+
+        [Theory]
+        [InlineData(true, true, true)] // useLegacyQuotaKeeper: true, purgeAtStartup: true, expectedTriggeredEviction: true
+        [InlineData(true, false, false)] // useLegacyQuotaKeeper: true, purgeAtStartup: false, expectedTriggeredEviction: false
+        [InlineData(false, true, true)] // useLegacyQuotaKeeper: false, purgeAtStartup: true, expectedTriggeredEviction: true
+        [InlineData(false, false, false)] // useLegacyQuotaKeeper: false, purgeAtStartup: false, expectedTriggeredEviction: false
+        public async Task StartupShouldTriggerPurgeIfConfigured(bool useLegacyQuotaKeeper, bool purgeAtStartup, bool expectedTriggeredEviction)
+        {
+            // This test makes sure that if configured QuotaKeeper starts purging at startup if
+            // the constructed store is full (above soft limit).
+
+            // Using the same test directory for two invocations to reuse the content.
+            using (var directory = new DisposableDirectory(FileSystem))
+            {
+                ContentStoreSettings = new ContentStoreSettings()
+                                       {
+                                           StartPurgingAtStartup = purgeAtStartup,
+                                           UseLegacyQuotaKeeperImplementation = useLegacyQuotaKeeper,
+                                       };
+
+                bool triggeredEviction = false;
+                var contentSize = ContentSizeToStartSoftPurging(3);
+                await TestStore(Context, Clock, directory, async store =>
+                                                {
+                                                    store.OnLruEnumerationWithTime = hashes =>
+                                                                                     {
+                                                                                         // Intentionally returning an empty list to avoid purging the content.
+                                                                                         return Task.FromResult((IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>)new ContentHashWithLastAccessTimeAndReplicaCount[0]);
+                                                                                     };
+
+                                                    using (var pinContext = store.CreatePinContext())
+                                                    {
+                                                        // Putting the content 3 times to reach the soft limit.
+                                                        // The last put will trigger an eviction, but 'OnLruEnumerationWithTime'
+                                                        // returns an empty result to avoid purging.
+                                                        await PutRandomAndPinAsync(store, contentSize, pinContext);
+                                                        await PutRandomAndPinAsync(store, contentSize, pinContext);
+                                                        await PutRandomAndPinAsync(store, contentSize, pinContext);
+                                                    }
+                                                });
+
+                // Running the store for the second time to force purging process to happen during startup.
+                await TestStore(
+                    Context,
+                    Clock,
+                    directory,
+                    async store =>
+                    {
+                        // Syncing the store to wait for purging process to finish.
+                        await store.SyncAsync(Context, purge: false);
+
+                        triggeredEviction.Should().Be(expectedTriggeredEviction, "Eviction should be triggered at startup if configured.");
+                    },
+                    store =>
+                        store.OnLruEnumerationWithTime = hashes =>
+                                                         {
+                                                             triggeredEviction = true;
+                                                             return Task.FromResult(hashes);
+                                                         }
+                );
+            }
         }
     }
 }

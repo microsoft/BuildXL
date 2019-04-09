@@ -401,7 +401,7 @@ namespace ContentStoreTest.Stores
                 throw new NotImplementedException();
             }
 
-            public Task SyncAsync(Context context)
+            public Task SyncAsync(Context context, bool purge = true)
             {
                 throw new NotImplementedException();
             }

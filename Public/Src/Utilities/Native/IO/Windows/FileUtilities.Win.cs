@@ -412,8 +412,7 @@ namespace BuildXL.Native.IO.Windows
                         string fullPath = directoryName + Path.DirectorySeparatorChar + filePath;
                         builder.AppendLine(fullPath);
 
-                        string diagnosticInfo;
-                        if (TryFindOpenHandlesToFile(fullPath, out diagnosticInfo))
+                        if (TryFindOpenHandlesToFile(fullPath, out var diagnosticInfo))
                         {
                             builder.AppendLine(diagnosticInfo);
                         }
@@ -1195,14 +1194,13 @@ namespace BuildXL.Native.IO.Windows
             FileFlagsAndAttributes flagsAndAttributes,
             Func<SafeFileHandle, long, TResult> handleStream)
         {
-            SafeFileHandle handle;
             var openResult = s_fileSystem.TryCreateOrOpenFile(
                        path,
                        desiredAccess,
                        shareMode,
                        creationDisposition,
                        flagsAndAttributes,
-                       out handle);
+                       out var handle);
 
             if (!openResult.Succeeded)
             {
@@ -1414,16 +1412,18 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo)
+        public bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo, bool printCurrentFilePath = true)
         {
             using (var pool = Pools.GetStringBuilder())
             {
                 StringBuilder builder = pool.Instance;
-                builder.Append(FileUtilitiesMessages.ActiveHandleUsage + filePath);
-                builder.AppendLine();
+                if (printCurrentFilePath)
+                {
+                    builder.Append(FileUtilitiesMessages.ActiveHandleUsage + filePath);
+                    builder.AppendLine();
+                }
 
-                List<int> processIds;
-                if (HandleSearcher.GetProcessIdsUsingHandle(filePath, out processIds))
+                if (HandleSearcher.GetProcessIdsUsingHandle(filePath, out var processIds))
                 {
                     foreach (var pid in processIds)
                     {

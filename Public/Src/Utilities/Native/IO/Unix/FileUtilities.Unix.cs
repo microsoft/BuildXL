@@ -551,7 +551,7 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc />
-        public bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo) => throw new NotImplementedException();
+        public bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo, bool printCurrentFilePath) => throw new NotImplementedException();
 
         /// <inheritdoc />
         public uint GetHardLinkCount(string path)

@@ -146,7 +146,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
                 if (!createOrOpenResult.Succeeded)
                 {
-                    throw ThrowLastWin32Error($"Failed to create or open file {path.ToString()} to get its ID. Status: {createOrOpenResult.Status}");
+                    throw ThrowLastWin32Error(path.ToString(), $"Failed to create or open file {path} to get its ID. Status: {createOrOpenResult.Status}");
                 }
 
                 return (ulong)handle.DangerousGetHandle().ToInt64();
@@ -171,7 +171,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
                     if (!NativeMethods.GetFileInformationByHandle(sourceFileHandle, out var handleInfo))
                     {
-                        throw ThrowLastWin32Error(errorMessage);
+                        throw ThrowLastWin32Error(path.Path, errorMessage);
                     }
 
                     return (((ulong)handleInfo.FileIndexHigh) << 32) | handleInfo.FileIndexLow;
@@ -208,7 +208,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
                     if (!NativeMethods.GetFileInformationByHandle(sourceFileHandle, out var handleInfo))
                     {
-                        throw ThrowLastWin32Error(errorMessage);
+                        throw ThrowLastWin32Error(path.Path, errorMessage);
                     }
 
                     return checked((int)handleInfo.NumberOfLinks);
@@ -279,7 +279,11 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 // 0x20 is shared violation.
                 if (e.InnerException is NativeWin32Exception win32 && win32.ErrorCode == 0x20)
                 {
-                    throw new UnauthorizedAccessException(e.Message, e);
+                    var extraMessage = FileUtilities.TryFindOpenHandlesToFile(path.ToString(), out var info, printCurrentFilePath: false)
+                        ? info
+                        : "Attempt to find processes with open handles to the file failed.";
+
+                    throw new UnauthorizedAccessException($"{e.Message} {extraMessage}", e);
                 }
             }
         }
@@ -315,6 +319,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                     replaceExisting ? NativeMethods.MoveFileOption.MOVEFILE_REPLACE_EXISTING : 0))
                 {
                     throw ThrowLastWin32Error(
+                        destinationFilePath.Path,
                         string.Format(
                             CultureInfo.InvariantCulture,
                             "Unable to move file from '{0}' to '{1}'.",
@@ -498,12 +503,14 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                         case NativeMethods.ERROR_PATH_NOT_FOUND:
                             return (Stream)null;
                         default:
-                            throw ThrowLastWin32Error(string.Format(
-                                CultureInfo.InvariantCulture,
-                                "Unable to open a handle to '{0}' as {1} with {2}.",
+                            throw ThrowLastWin32Error(
                                 path.Path,
-                                mode,
-                                accessMode));
+                                string.Format(
+                                    CultureInfo.InvariantCulture,
+                                    "Unable to open a handle to '{0}' as {1} with {2}.",
+                                    path.Path,
+                                    mode,
+                                    accessMode));
                     }
                 }
 
@@ -679,20 +686,24 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 {
                     if (handle.IsInvalid)
                     {
-                        throw ThrowLastWin32Error(string.Format(
-                            CultureInfo.InvariantCulture,
-                            "Unable to open a handle for SetFileTime at '{0}' to '{1}'.",
+                        throw ThrowLastWin32Error(
                             path,
-                            lastAccessTimeUtc));
+                            string.Format(
+                                CultureInfo.InvariantCulture,
+                                "Unable to open a handle for SetFileTime at '{0}' to '{1}'.",
+                                path,
+                                lastAccessTimeUtc));
                     }
 
                     if (!NativeMethods.SetFileTime(handle, null, &time, null))
                     {
-                        throw ThrowLastWin32Error(string.Format(
-                            CultureInfo.InvariantCulture,
-                            "Unable to SetFileTime at '{0}' to '{1}'.",
+                        throw ThrowLastWin32Error(
                             path,
-                            lastAccessTimeUtc));
+                            string.Format(
+                                CultureInfo.InvariantCulture,
+                                "Unable to SetFileTime at '{0}' to '{1}'.",
+                                path,
+                                lastAccessTimeUtc));
                     }
                 }
             }
@@ -765,7 +776,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                         case OpenFileStatus.AccessDenied:
                         case OpenFileStatus.UnknownError:
                         default:
-                            throw ThrowLastWin32Error($"Failed to create or open file {sourceFileName.Path} to create hard link. Status: {createOrOpenResult.Status}");
+                            throw ThrowLastWin32Error(destinationFileName.Path, $"Failed to create or open file {sourceFileName.Path} to create hard link. Status: {createOrOpenResult.Status}");
                     }
                 }
             }
@@ -802,7 +813,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             }
             else
             {
-                throw ThrowLastWin32Error($"Failed to create hard link for file {sourceFileName.Path} with unknown error: {createHardLinkResult.ToString()}");
+                throw ThrowLastWin32Error(sourceFileName.Path, $"Failed to create hard link for file {sourceFileName.Path} with unknown error: {createHardLinkResult.ToString()}");
             }
         }
 
@@ -1006,15 +1017,17 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 {
                     if (volumeHandle.IsInvalid)
                     {
-                        throw ThrowLastWin32Error(string.Format(
-                            CultureInfo.InvariantCulture,
-                            "Could not open volume handle to '{0}'.  Elevated administrator access is required.",
-                            volumePath));
+                        throw ThrowLastWin32Error(
+                            path: null,
+                            string.Format(
+                                CultureInfo.InvariantCulture,
+                                "Could not open volume handle to '{0}'.  Elevated administrator access is required.",
+                                volumePath));
                     }
 
                     if (!NativeMethods.FlushFileBuffers(volumeHandle))
                     {
-                        throw ThrowLastWin32Error("Could not flush volume " + volumePath + ".");
+                        throw ThrowLastWin32Error(path: null, "Could not flush volume " + volumePath + ".");
                     }
                 }
             }
@@ -1044,7 +1057,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             FileUtilities.SetFileAccessControl(path.Path, fileSystemRights, accessControlType == AccessControlType.Allow);
         }
 
-        private static Exception ThrowLastWin32Error(string message)
+        private static Exception ThrowLastWin32Error(string path, string message)
         {
             if (BuildXL.Utilities.OperatingSystemHelper.IsUnixOS)
             {
@@ -1064,7 +1077,17 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                         throw new DirectoryNotFoundException(message);
                     case NativeMethods.ERROR_ACCESS_DENIED:
                     case NativeMethods.ERROR_SHARING_VIOLATION:
-                        throw new UnauthorizedAccessException(message);
+
+                        string extraMessage = string.Empty;
+
+                        if (path != null)
+                        {
+                            extraMessage = " " + (FileUtilities.TryFindOpenHandlesToFile(path, out var info, printCurrentFilePath: false)
+                                ? info
+                                : "Attempt to find processes with open handles to the file failed.");
+                        }
+
+                        throw new UnauthorizedAccessException($"{message}.{extraMessage}");
                     default:
                         throw new IOException(message, Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
                 }

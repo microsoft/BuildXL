@@ -1105,9 +1105,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Complete all pending/background operations.
         /// </summary>
-        public async Task SyncAsync(Context context)
+        public async Task SyncAsync(Context context, bool purge = true)
         {
-            await _quotaKeeper.SyncAsync(context);
+            await _quotaKeeper.SyncAsync(context, purge);
 
             // Ensure there are no pending LRU updates.
             await ContentDirectory.SyncAsync();

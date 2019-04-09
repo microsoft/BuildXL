@@ -158,12 +158,12 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public override async Task SyncAsync(Context context)
+        public override async Task SyncAsync(Context context, bool purge)
         {
             // Ensure there are no pending requests.
-            var emptyRequest = new Request<QuotaKeeperRequest, string>(QuotaKeeperRequest.Synchronize());
-            _reserveQueue.Add(emptyRequest);
-            await emptyRequest.WaitForCompleteAsync();
+            var request = new Request<QuotaKeeperRequest, string>(purge ? QuotaKeeperRequest.Reserve(0) :QuotaKeeperRequest.Synchronize());
+            _reserveQueue.Add(request);
+            await request.WaitForCompleteAsync();
 
             var purgeTask = _purgeTask;
             if (purgeTask != null)
@@ -515,7 +515,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 Calibrate,
 
                 /// <summary>
-                ///     Request used by <see cref="QuotaKeeper.SyncAsync(Context)"/>.
+                ///     Request used by <see cref="QuotaKeeper.SyncAsync"/>.
                 /// </summary>
                 Sync
             }

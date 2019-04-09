@@ -183,7 +183,7 @@ namespace ContentStoreTest.Stores
                     async store =>
                     {
                         // Syncing the store to wait for purging process to finish.
-                        await store.SyncAsync(Context);
+                        await store.SyncAsync(Context, purge: false);
 
                         triggeredEviction.Should().Be(expectedTriggeredEviction, "Eviction should be triggered at startup if configured.");
                     },

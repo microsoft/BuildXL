@@ -80,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Completes all the pending operations (like reservation and/or calibration requests).
         /// </summary>
-        public abstract Task SyncAsync(Context context);
+        public abstract Task SyncAsync(Context context, bool purge);
 
         /// <summary>
         /// Reserve room for specified content size.

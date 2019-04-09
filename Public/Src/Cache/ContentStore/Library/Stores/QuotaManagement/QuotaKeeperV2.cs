@@ -159,7 +159,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public override Task SyncAsync(Context context)
+        public override Task SyncAsync(Context context, bool purge)
         {
             var operationContext = new OperationContext(context);
 
@@ -176,7 +176,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
 
                 // Ensure there are no pending requests.
-                await SendSyncRequest(operationContext).ThrowIfFailure();
+                await SendSyncRequest(operationContext, purge).ThrowIfFailure();
 
                 purgeTask = _purgeTask;
                 if (purgeTask != null)
@@ -202,8 +202,13 @@ namespace BuildXL.Cache.ContentStore.Stores
                 extraStartMessage: $"Requesting purge due to '{reason}'.");
         }
 
-        private Task<BoolResult> SendSyncRequest(OperationContext context)
+        private Task<BoolResult> SendSyncRequest(OperationContext context, bool purge)
         {
+            if (purge)
+            {
+                return SendPurgeRequest(context, "Sync");
+            }
+
             return context.PerformOperationAsync(
                 _tracer,
                 () =>

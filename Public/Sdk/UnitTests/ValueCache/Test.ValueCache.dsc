@@ -10,19 +10,28 @@ namespace Sdk.Tests {
     export function TwoPipsShouldGetCreated(){
         let value1 = ValueCache.getOrAdd('myKey', () => {
             return {
-                result: Transformer.writeFile(p`Out/out1.txt`, "FileContent"),
+                result: Transformer.writeAllText({
+                    outputPath: p`Out/out1.txt`, 
+                    text: "FileContent"
+                }),
             };
         });
 
         let value2 = ValueCache.getOrAdd('myKey', () => {
             return {
-                result: Transformer.writeFile(p`Out/out1.txt`, "FileContent"),
+                result: Transformer.writeAllText({
+                    outputPath: p`Out/out1.txt`, 
+                    text: "FileContent"
+                }),
             };
         });
 
         let value3 = ValueCache.getOrAdd('myKey2', () => {
             return {
-                result: Transformer.writeFile(p`Out/out2.txt`, "FileContent"),
+                result: Transformer.writeAllText({
+                    outputPath: p`Out/out2.txt`, 
+                    text: "FileContent"
+                }),
             };
         });
 
@@ -41,9 +50,18 @@ namespace Sdk.Tests {
     @@Testing.unitTest()
     export function sealDirectory(){
         // Write some files to test
-        let f1a = Transformer.writeFile(p`Out/Dir1/a.txt`, "1A");
-        let f2a = Transformer.writeFile(p`Out/Dir2/a.txt`, "2A");
-        let f2b = Transformer.writeFile(p`Out/Dir2/b.txt`, "2B");
+        let f1a = Transformer.writeAllText({
+            outputPath: p`Out/Dir1/a.txt`,
+            text: "1A"
+        });
+        let f2a = Transformer.writeAllText({
+            outputPath: p`Out/Dir2/a.txt`,
+            text: "2A"
+        });
+        let f2b = Transformer.writeAllText({
+            outputPath: p`Out/Dir2/b.txt`,
+            text: "2B"
+        });
 
         // This test relies on a small hole where we don't validate that the function is idental on each cache lookup
         // Allowing a loophool for cache inspection.
@@ -83,7 +101,10 @@ namespace Sdk.Tests {
     function getValueFromCacheSingle(directory: StaticDirectory, testName: string) {
         const _ = ValueCache.getOrAdd(directory, () => {
             return {
-                result: Transformer.writeFile(p`Out/temp/${testName + ".txt"}`, testName),
+                result: Transformer.writeAllText({
+                    outputPath: p`Out/temp/${testName + ".txt"}`, 
+                    text: testName
+                }),
             };
         });
     }

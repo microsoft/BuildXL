@@ -10,10 +10,10 @@ export function addDeploymentManifestFile(deployment: Deployment.Definition, man
     let lines: RelativePath[] = Deployment.extractRelativePaths(deployment).map(
         item => item[0]
     );
-    const manifest = Transformer.writeFile(
-        Context.getNewOutputDirectory("deploymentManifest").combine(manifestName),
-        lines
-    );
+    const manifest = Transformer.writeAllLines({
+        outputPath: Context.getNewOutputDirectory("deploymentManifest").combine(manifestName),
+        lines: lines
+    });
 
     return {contents: [deployment, manifest]};
 }

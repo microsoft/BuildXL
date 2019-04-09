@@ -232,7 +232,10 @@ function pathToStr(p: Path | RelativePath | Directory): string {
         : pathToStr(parent) + "\\" + p.name.toString();
 }
 
-const emptyFile = Transformer.writeAllText(p`${Context.getNewOutputDirectory("nugetTmp")}/_._`, "");
+const emptyFile = Transformer.writeAllText({
+    outputPath: p`${Context.getNewOutputDirectory("nugetTmp")}/_._`, 
+    text: ""
+});
 
 @@public
 export function createAssemblyLayout(assembly: Managed.Assembly) : Deployment.Definition {

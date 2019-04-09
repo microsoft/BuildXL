@@ -136,7 +136,7 @@ namespace ContentStoreTest.FileSystem
                                    };
 
                     var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(a);
-                    exception.Message.Should().Contain("Handle was used by");
+                    exception.Message.Should().ContainAny("Handle was used by", "Did not find any actively running processes using the handle");
                 }
             }
         }

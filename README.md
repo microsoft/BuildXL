@@ -3,6 +3,9 @@
 
 # Microsoft Build Accelerator
 
+
+
+
 <img alt="BuildXL Icon" src="Public/Src/Branding/BuildXL.png" width=15%>
 
 ## Introduction

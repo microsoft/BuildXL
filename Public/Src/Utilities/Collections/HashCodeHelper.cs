@@ -4,7 +4,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Utilities.Collections
 {
     /// <summary>
     /// This class provides some utility function to compute stable strong hash codes.

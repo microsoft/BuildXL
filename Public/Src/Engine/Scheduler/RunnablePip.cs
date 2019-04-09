@@ -13,6 +13,7 @@ using BuildXL.Storage;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Native.IO;
 
 namespace BuildXL.Scheduler
 {

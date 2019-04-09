@@ -16,6 +16,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Native.IO;
 
 namespace Test.BuildXL.Scheduler
 {

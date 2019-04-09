@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Scheduler;
 using BuildXL.Storage;

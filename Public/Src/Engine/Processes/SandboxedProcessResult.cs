@@ -119,7 +119,7 @@ namespace BuildXL.Processes
         /// This could happen if the child process is killed while writing a message in the pipe.
         /// If null there is no error, otherwise the Faiulure object contains string, describing the error.
         /// </summary>
-        public BuildXL.Utilities.Failure<string> MessageProcessingFailure { get; internal set; }
+        public Utilities.Failure<string> MessageProcessingFailure { get; internal set; }
 
         /// <summary>
         /// Time (in ms.) spent for startiing the process.

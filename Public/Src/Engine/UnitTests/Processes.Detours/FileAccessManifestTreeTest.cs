@@ -635,7 +635,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 using (FileStream fileStream = File.OpenRead(file))
                 {
-                    XAssert.IsTrue(FileAccessManifest.TryDeserialize(fileStream, out fam));
+                    fam = FileAccessManifest.Deserialize(fileStream);
                 }
             }
 

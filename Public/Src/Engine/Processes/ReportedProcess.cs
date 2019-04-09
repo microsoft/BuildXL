@@ -3,7 +3,8 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Pips;
+using BuildXL.Native.IO;
+using BuildXL.Utilities;
 
 namespace BuildXL.Processes
 {
@@ -88,6 +89,36 @@ namespace BuildXL.Processes
         public ReportedProcess(uint processId, string path)
             : this(processId, path, string.Empty)
         {
+        }
+
+        /// <nodoc />
+        public void Serialize(BuildXLWriter writer)
+        {
+            writer.Write(ProcessId);
+            writer.Write(Path);
+            writer.Write(ProcessArgs);
+            writer.Write(CreationTime);
+            writer.Write(ExitTime);
+            writer.Write(KernelTime);
+            writer.Write(UserTime);
+            IOCounters.Serialize(writer);
+            writer.Write(ExitCode);
+            writer.Write(ParentProcessId);
+        }
+
+        /// <nodoc />
+        public static ReportedProcess Deserialize(BuildXLReader reader)
+        {
+            var reportedProcess = new ReportedProcess(reader.ReadUInt32(), reader.ReadString(), reader.ReadString());
+            reportedProcess.CreationTime = reader.ReadDateTime();
+            reportedProcess.ExitTime = reader.ReadDateTime();
+            reportedProcess.KernelTime = reader.ReadTimeSpan();
+            reportedProcess.UserTime = reader.ReadTimeSpan();
+            reportedProcess.IOCounters = IOCounters.Deserialize(reader);
+            reportedProcess.ExitCode = reader.ReadUInt32();
+            reportedProcess.ParentProcessId = reader.ReadUInt32();
+
+            return reportedProcess;
         }
     }
 }

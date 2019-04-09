@@ -756,6 +756,8 @@ namespace BuildXL.Processes
                 WriteFlagsBlock(writer, m_fileAccessManifestFlag);
                 WritePipId(writer, PipId);
                 WriteChars(writer, m_messageCountSemaphoreName);
+
+                // The manifest tree block has to be serialized the last.
                 if (!IsManifestTreeBlockSealed)
                 {
                     WriteManifestTreeBlock(writer);
@@ -771,7 +773,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Deserialize an instance of <see cref="FileAccessManifest"/> from stream.
         /// </summary>
-        public static bool TryDeserialize(Stream stream, out FileAccessManifest fam)
+        public static FileAccessManifest Deserialize(Stream stream)
         {
             Contract.Requires(stream != null);
 
@@ -790,23 +792,14 @@ namespace BuildXL.Processes
                     sealedManifestTreeBlock = ms.ToArray();
                 }
 
-                fam = new FileAccessManifest(new PathTable(), directoryTranslator)
+                return new FileAccessManifest(new PathTable(), directoryTranslator)
                 {
                     InternalDetoursErrorNotificationFile = internalDetoursErrorNotificationFile,
                     PipId = pipId,
                     m_fileAccessManifestFlag = fileAccessManifestFlag,
-                    m_sealedManifestTreeBlock = sealedManifestTreeBlock
+                    m_sealedManifestTreeBlock = sealedManifestTreeBlock,
+                    m_messageCountSemaphoreName = messageCountSemaphoreName
                 };
-                
-                if (!string.IsNullOrEmpty(messageCountSemaphoreName))
-                {
-                    if (!fam.SetMessageCountSemaphore(messageCountSemaphoreName))
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
             }
         }
 

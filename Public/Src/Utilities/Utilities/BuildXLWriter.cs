@@ -393,7 +393,7 @@ namespace BuildXL.Utilities
         public void Write(DateTime value)
         {
             Start<DateTime>();
-            this.Write(value.ToBinary());
+            Write(value.ToBinary());
             End();
         }
 

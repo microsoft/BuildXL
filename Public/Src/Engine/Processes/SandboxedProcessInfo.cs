@@ -12,6 +12,8 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.BuildParameters;
+using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace BuildXL.Processes
 {
@@ -79,9 +81,9 @@ namespace BuildXL.Processes
             bool disableConHostSharing,
             bool testRetries = false,
             LoggingContext loggingContext = null,
-            IDetoursEventListener detourseEventListener = null,
+            IDetoursEventListener detoursEventListener = null,
             IKextConnection sandboxedKextConnection = null)
-            : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detourseEventListener, sandboxedKextConnection)
+            : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxedKextConnection)
         {
         }
 
@@ -364,5 +366,360 @@ namespace BuildXL.Processes
         /// Notify this delegate once process id becomes available.
         /// </summary>
         public Action<int> ProcessIdListener { get; set; }
+
+        /// <summary>
+        /// Pip standard directory.
+        /// </summary>
+        public string StandardDirectory { get; set; }
+
+        /// <summary>
+        /// Standard output and error for sandboxed process.
+        /// </summary>
+        /// <remarks>
+        /// This instance of <see cref="SandboxedProcessFiles"/> is used as an alternative to <see cref="FileStorage"/>.
+        /// </remarks>
+        public SandboxedProcessFiles SandboxedProcessStandardFiles { get; set; }
+
+        /// <summary>
+        /// Info about the source of standard input.
+        /// </summary>
+        /// <remarks>
+        /// This instance of <see cref="StandardInputInfo"/> is used as a serialized version of <see cref="StandardInputReader"/>.
+        /// </remarks>
+        public StandardInputInfo StandardInputSourceInfo { get; set; }
+
+        /// <summary>
+        /// Regex for standard output observer.
+        /// </summary>
+        /// <remarks>
+        /// This instance of <see cref="RegexDescriptor"/> is used as a serialized version of <see cref="StandardOutputObserver"/>.
+        /// </remarks>
+        public RegexDescriptor StandardOutputObserverRegex { get; set; }
+
+        /// <summary>
+        /// Regex for standard error observer.
+        /// </summary>
+        /// <remarks>
+        /// This instance of <see cref="RegexDescriptor"/> is used as a serialized version of <see cref="StandardErrorObserver"/>.
+        /// </remarks>
+        public RegexDescriptor StandardErrorObserverRegex { get; set; }
+
+        #region Serialization
+
+        /// <nodoc />
+        public void Serialize(Stream stream)
+        {
+            using (var writer = new BuildXLWriter(false, stream, true, true))
+            {
+                writer.WriteNullableString(m_arguments);
+                writer.WriteNullableString(m_commandLine);
+                writer.Write(DisableConHostSharing);
+                writer.WriteNullableString(FileName);
+                writer.Write(StandardInputEncoding, (w, v) => w.Write(v.CodePage));
+                writer.Write(StandardOutputEncoding, (w, v) => w.Write(v.CodePage));
+                writer.Write(StandardErrorEncoding, (w, v) => w.Write(v.CodePage));
+                writer.WriteNullableString(WorkingDirectory);
+                writer.Write(
+                    EnvironmentVariables,
+                    (w, v) => w.WriteReadOnlyList(
+                        v.ToDictionary().ToList(),
+                        (w2, kvp) =>
+                        {
+                            w2.Write(kvp.Key);
+                            w2.Write(kvp.Value);
+                        }));
+                writer.Write(
+                    AllowedSurvivingChildProcessNames,
+                    (w, v) => w.WriteReadOnlyList(v, (w2, v2) => w2.Write(v2)));
+                writer.Write(MaxLengthInMemory);
+                writer.Write(Timeout, (w, v) => w.Write(v));
+                writer.Write(NestedProcessTerminationTimeout);
+                writer.Write(PipSemiStableHash);
+                writer.WriteNullableString(TimeoutDumpDirectory);
+                writer.Write((byte)SandboxKind);
+                writer.WriteNullableString(PipDescription);
+                writer.WriteNullableString(StandardDirectory);
+                writer.Write(SandboxedProcessStandardFiles, (w, v) => v.Serialize(w));
+                writer.Write(StandardInputSourceInfo, (w, v) => v.Serialize(w));
+                writer.Write(StandardOutputObserverRegex, (w, v) => v.Serialize(w));
+                writer.Write(StandardErrorObserverRegex, (w, v) => v.Serialize(w));
+
+                // File access manifest should be serialize the last.
+                writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
+            }
+        }
+
+        /// <nodoc />
+        public static SandboxedProcessInfo Deserialize(Stream stream, LoggingContext loggingContext, IDetoursEventListener detoursEventListener)
+        {
+            using (var reader = new BuildXLReader(false, stream, true))
+            {
+                string arguments = reader.ReadNullableString();
+                string commandLine = reader.ReadNullableString();
+                bool disableConHostSharing = reader.ReadBoolean();
+                string fileName = reader.ReadNullableString();
+                Encoding standardInputEncoding = reader.ReadNullable(r => Encoding.GetEncoding(r.ReadInt32()));
+                Encoding standardOutputEncoding = reader.ReadNullable(r => Encoding.GetEncoding(r.ReadInt32()));
+                Encoding standardErrorEncoding = reader.ReadNullable(r => Encoding.GetEncoding(r.ReadInt32()));
+                string workingDirectory = reader.ReadNullableString();
+                IBuildParameters buildParameters = null;
+                var envVars = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => new KeyValuePair<string, string>(r2.ReadString(), r2.ReadString())));
+                if (envVars != null) {
+                    
+                    buildParameters = BuildParameters.GetFactory().PopulateFromDictionary(envVars.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+                }
+
+                string[] allowedSurvivingChildNames = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => r2.ReadString()))?.ToArray();
+                int maxLengthInMemory = reader.ReadInt32();
+                TimeSpan? timeout = reader.ReadNullableStruct(r => r.ReadTimeSpan());
+                TimeSpan nestedProcessTerminationTimeout = reader.ReadTimeSpan();
+                long pipSemiStableHash = reader.ReadInt64();
+                string timeoutDumpDirectory = reader.ReadNullableString();
+                SandboxKind sandboxKind = (SandboxKind)reader.ReadByte();
+                string pipDescription = reader.ReadNullableString();
+                string standardDirectory = reader.ReadNullableString();
+                SandboxedProcessFiles sandboxedProcessStandardFiles = reader.ReadNullable(r => SandboxedProcessFiles.Deserialize(r));
+                StandardInputInfo standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
+                RegexDescriptor standardOutputObeserverRegex = reader.ReadNullable(r => RegexDescriptor.Deserialize(r));
+                RegexDescriptor standardErrorObeserverRegex = reader.ReadNullable(r => RegexDescriptor.Deserialize(r));
+
+                FileAccessManifest fam = FileAccessManifest.Deserialize(stream);
+
+                return new SandboxedProcessInfo(
+                    new PathTable(),
+                    new StandardFileStorage(sandboxedProcessStandardFiles),
+                    fileName,
+                    fam,
+                    disableConHostSharing,
+                    containerConfiguration: null,
+                    loggingContext: loggingContext,
+                    detoursEventListener: detoursEventListener)
+                {
+                    m_arguments = arguments,
+                    m_commandLine = commandLine,
+                    StandardInputEncoding = standardInputEncoding,
+                    StandardOutputEncoding = standardOutputEncoding,
+                    StandardErrorEncoding = standardErrorEncoding,
+                    WorkingDirectory = workingDirectory,
+                    EnvironmentVariables = buildParameters,
+                    AllowedSurvivingChildProcessNames = allowedSurvivingChildNames,
+                    MaxLengthInMemory = maxLengthInMemory,
+                    Timeout = timeout,
+                    NestedProcessTerminationTimeout = nestedProcessTerminationTimeout,
+                    PipSemiStableHash = pipSemiStableHash,
+                    TimeoutDumpDirectory = timeoutDumpDirectory,
+                    SandboxKind = sandboxKind,
+                    PipDescription = pipDescription,
+                    StandardDirectory = standardDirectory,
+                    SandboxedProcessStandardFiles = sandboxedProcessStandardFiles,
+                    StandardInputSourceInfo = standardInputSourceInfo,
+                    StandardOutputObserverRegex = standardOutputObeserverRegex,
+                    StandardErrorObserverRegex = standardErrorObeserverRegex,
+                };
+            }
+        }
+
+        #endregion
+
+        #region Extra data structure for serialization
+
+        /// <summary>
+        /// Files potentially created by the sandboxed process.
+        /// </summary>
+        public class SandboxedProcessFiles
+        {
+            /// <summary>
+            /// Standard output.
+            /// </summary>
+            public string StandardOutput { get; }
+
+            /// <summary>
+            /// Standard error.
+            /// </summary>
+            public string StandardError { get; }
+
+            /// <summary>
+            /// Creates an instance of <see cref="SandboxedProcessFile"/>.
+            /// </summary>
+            public SandboxedProcessFiles(string standardOutput, string standardError)
+            {
+                Contract.Requires(!string.IsNullOrWhiteSpace(standardOutput));
+                Contract.Requires(!string.IsNullOrWhiteSpace(standardError));
+
+                StandardOutput = standardOutput;
+                StandardError = standardError;
+            }
+
+            /// <summary>
+            /// Serializes this instance into the given <paramref name="writer"/>.
+            /// </summary>
+            public void Serialize(BuildXLWriter writer)
+            {
+                Contract.Requires(writer != null);
+
+                writer.Write(StandardOutput);
+                writer.Write(StandardError);
+            }
+
+            /// <summary>
+            /// Deserializes an instance of <see cref="SandboxedProcessFiles"/>.
+            /// </summary>
+            public static SandboxedProcessFiles Deserialize(BuildXLReader reader)
+            {
+                Contract.Requires(reader != null);
+
+                string output = reader.ReadString();
+                string error = reader.ReadString();
+
+                return new SandboxedProcessFiles(output, error);
+            }
+        }
+
+        /// <summary>
+        /// Info about the source of standard input.
+        /// </summary>
+        public class StandardInputInfo
+        {
+            /// <summary>
+            /// File path.
+            /// </summary>
+            public string File { get; }
+
+            /// <summary>
+            /// Raw data.
+            /// </summary>
+            public string Data { get; }
+
+            private StandardInputInfo(string file, string data)
+            {
+                Contract.Requires((file != null && data == null) || (file == null && data != null));
+
+                File = file;
+                Data = data;
+            }
+
+            /// <summary>
+            /// Creates a standard input info where the source comes from a file.
+            /// </summary>
+            public StandardInputInfo CreateForFile(string file)
+            {
+                Contract.Requires(!string.IsNullOrEmpty(file));
+
+                return new StandardInputInfo(file, null);
+            }
+
+            /// <summary>
+            /// Creates a standard input info where the source comes from raw data.
+            /// </summary>
+            public StandardInputInfo CreateForData(string data)
+            {
+                Contract.Requires(data != null);
+
+                return new StandardInputInfo(null, data);
+            }
+
+            /// <summary>
+            /// Serializes this instance to a given <paramref name="writer"/>.
+            /// </summary>
+            public void Serialize(BuildXLWriter writer)
+            {
+                Contract.Requires(writer != null);
+
+                writer.WriteNullableString(File);
+                writer.WriteNullableString(Data);
+            }
+
+            /// <summary>
+            /// Deserializes an instance of <see cref="StandardInputInfo"/>
+            /// </summary>
+            public static StandardInputInfo Deserialize(BuildXLReader reader)
+            {
+                Contract.Requires(reader != null);
+
+                return new StandardInputInfo(reader.ReadNullableString(), reader.ReadNullableString());
+            }
+        }
+
+        /// <summary>
+        /// Regex descriptor.
+        /// </summary>
+        public class RegexDescriptor
+        {
+            /// <summary>
+            /// Pattern.
+            /// </summary>
+            public string Pattern { get; }
+
+            /// <summary>
+            /// Regex option.
+            /// </summary>
+            public RegexOptions Options { get; }
+
+            /// <summary>
+            /// Creates an instance of <see cref="RegexDescriptor"/>.
+            /// </summary>
+            public RegexDescriptor(string pattern, RegexOptions options)
+            {
+                Contract.Requires(pattern != null);
+
+                Pattern = pattern;
+                Options = options;
+            }
+
+            /// <summary>
+            /// Serializes this instance to a given <paramref name="writer"/>.
+            /// </summary>
+            public void Serialize(BuildXLWriter writer)
+            {
+                Contract.Requires(writer != null);
+
+                writer.Write(Pattern);
+                writer.Write((uint)Options);
+            }
+
+            /// <summary>
+            /// Deserializes an instance of <see cref="RegexDescriptor"/>.
+            /// </summary>
+            public static RegexDescriptor Deserialize(BuildXLReader reader)
+            {
+                Contract.Requires(reader != null);
+
+                return new RegexDescriptor(reader.ReadString(), (RegexOptions)reader.ReadUInt32());
+            }
+        }
+
+        /// <summary>
+        /// Implementation of <see cref="ISandboxedProcessFileStorage"/> based off <see cref="SandboxedProcessFiles"/>.
+        /// </summary>
+        public class StandardFileStorage : ISandboxedProcessFileStorage
+        {
+            private readonly SandboxedProcessFiles m_sandboxedProcessFiles;
+
+            /// <summary>
+            /// Create an instance of <see cref="StandardFileStorage"/>.
+            /// </summary>
+            public StandardFileStorage(SandboxedProcessFiles sandboxedProcessStandardFiles)
+            {
+                Contract.Requires(sandboxedProcessStandardFiles != null);
+                m_sandboxedProcessFiles = sandboxedProcessStandardFiles;
+            }
+
+            /// <inheritdoc />
+            public string GetFileName(SandboxedProcessFile file)
+            {
+                switch (file)
+                {
+                    case SandboxedProcessFile.StandardError:
+                        return m_sandboxedProcessFiles.StandardError;
+                    case SandboxedProcessFile.StandardOutput:
+                        return m_sandboxedProcessFiles.StandardOutput;
+                    default:
+                        Contract.Assert(false);
+                        return null;
+                }
+            }
+        }
+
+        #endregion
     }
 }

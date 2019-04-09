@@ -104,6 +104,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                     Logger.Log.GrpcTrace(m_loggingContext, GenerateLog(traceId.ToString(), "Call", numTry, operation));
                     await func(callOptions);
                     Logger.Log.GrpcTrace(m_loggingContext, GenerateLog(traceId.ToString(), "Sent", numTry, $"Duration: {watch.ElapsedMilliseconds}ms"));
+
+                    state = RpcCallResultState.Succeeded;
                     break;
                 }
                 catch (RpcException e)

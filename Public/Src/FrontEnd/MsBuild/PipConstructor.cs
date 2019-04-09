@@ -455,6 +455,11 @@ namespace BuildXL.FrontEnd.MsBuild
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.err"), FileExistence.Optional);
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.prf"), FileExistence.Optional);
 
+            if (m_resolverSettings?.EnableBinLogTracing == true)
+            {
+                processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.binlog"), FileExistence.Optional);
+            }
+
             // Unless the legacy non-isolated mode is explicitly specified, the project builds in isolation, and therefore
             // it produces an output cache file. This file is placed on the (unique) object directory for this project
             if (m_resolverSettings.UseLegacyProjectIsolation != true)

@@ -48,6 +48,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         public PredictedTargetsToExecute PredictedTargetsToExecute { get; }
 
         /// <nodoc/>
+        [JsonIgnore()]
         public IReadOnlyCollection<ProjectWithPredictions<TPathType>> ProjectReferences
         {
             get

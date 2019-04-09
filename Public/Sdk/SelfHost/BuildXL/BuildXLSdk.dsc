@@ -155,15 +155,18 @@ export function library(args: Arguments): Managed.Assembly {
     if (args.cacheOldNames)
     {
         csFiles = args.cacheOldNames.map(cacheOldName =>
-            Transformer.writeAllLines(p`${Context.getNewOutputDirectory("oldcache")}/cache.g.cs`, [
-                `namespace Cache.${cacheOldName.namespace}`,
-                `{`,
-                `    /// <nodoc />`,
-                `    public class ${cacheOldName.factoryClass} : BuildXL.Cache.${cacheOldName.namespace}.${cacheOldName.factoryClass}`,
-                `    {`,
-                `    }`,
-                `}`,
-            ])
+            Transformer.writeAllLines({
+                outputPath: p`${Context.getNewOutputDirectory("oldcache")}/cache.g.cs`, 
+                lines: [
+                    `namespace Cache.${cacheOldName.namespace}`,
+                    `{`,
+                    `    /// <nodoc />`,
+                    `    public class ${cacheOldName.factoryClass} : BuildXL.Cache.${cacheOldName.namespace}.${cacheOldName.factoryClass}`,
+                    `    {`,
+                    `    }`,
+                    `}`,
+                ]
+            })
         );
 
         args = args.merge<Arguments>({
@@ -465,15 +468,15 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 
     // Handle internalsVisibleTo
     if (args.internalsVisibleTo) {
-        const internalsVisibleToFile = Transformer.writeAllLines(
-            p`${Context.getNewOutputDirectory("internalsvisibleto")}/AssemblyInfo.InternalsVisibleTo.g.cs`,
-            [
+        const internalsVisibleToFile = Transformer.writeAllLines({
+            outputPath: p`${Context.getNewOutputDirectory("internalsvisibleto")}/AssemblyInfo.InternalsVisibleTo.g.cs`,
+            lines: [
                 "using System.Runtime.CompilerServices;",
                 "",
                 ...args.internalsVisibleTo.map(assemblyName =>
                     `[assembly: InternalsVisibleTo("${assemblyName}, PublicKey=${publicKey}")]`)
             ]
-        );
+        });
 
         args = args.merge({
             sources: [
@@ -486,11 +489,12 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
 }
 
 /** Generates a csharp file with an attribute that turns on BuildXL-specific Xunit extension. */
-const testFrameworkOverrideAttribute = Transformer.writeFile(
-    Context.getNewOutputDirectory("TestFrameworkOverride").combine("TestFrameworkOverride.g.cs"),
-    [
+const testFrameworkOverrideAttribute = Transformer.writeAllLines({
+    outputPath: Context.getNewOutputDirectory("TestFrameworkOverride").combine("TestFrameworkOverride.g.cs"),
+    lines: [
         '[assembly: Test.BuildXL.TestUtilities.XUnit.Extensions.TestFrameworkOverride]'
-    ]);
+    ]
+});
 
 
 function processTestArguments(args: Managed.TestArguments) : Managed.TestArguments {

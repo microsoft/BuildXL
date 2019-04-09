@@ -46,7 +46,10 @@ function main(dropName : string) {
 
         const producedOpaqueDir = executeResult.getOutputDirectory(opaqueDir);
         const directoryToDrop = d`./DirectoryToDrop`;
-        const sealedDirectoryToDrop = Transformer.sealDirectory(directoryToDrop, glob(directoryToDrop, "*"));
+        const sealedDirectoryToDrop = Transformer.sealDirectory({
+            root: directoryToDrop, 
+            files: glob(directoryToDrop, "*")
+        });
         const dropOperationArgs = <Drop.DropOperationArguments>
             {
                 name : dropConfig.name,

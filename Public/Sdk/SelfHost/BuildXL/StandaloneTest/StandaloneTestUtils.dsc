@@ -45,8 +45,9 @@ namespace StandaloneTestUtils {
     }
 
     export function writeFile(fileName: PathAtom, content: string): DerivedFile {
-        const data: Transformer.Data = {contents: [content]};
-        const destination = p`${Context.getNewOutputDirectory("BuildXLStandaloneTest")}/${fileName}`;
-        return Transformer.writeData(destination, data);
+        return Transformer.writeAllText({
+            outputPath: p`${Context.getNewOutputDirectory("BuildXLStandaloneTest")}/${fileName}`,
+            text: content
+        });
     }
 }

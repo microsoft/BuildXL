@@ -308,6 +308,9 @@ export function evaluate(args: Arguments): Result {
     });
 
     return <Result>{
-        traceOutput: Transformer.sealDirectory(outputDirectory, transformerExecution.getOutputFiles())
+        traceOutput: Transformer.sealDirectory({
+            root: outputDirectory, 
+            files: transformerExecution.getOutputFiles()
+        })
     };
 }

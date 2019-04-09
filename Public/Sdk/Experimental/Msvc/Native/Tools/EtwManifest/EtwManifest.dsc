@@ -220,10 +220,16 @@ export function compile(args: Arguments): Map<PathAtom, Result> {
             ]),
         });
 
-        let binFiles = Transformer.sealDirectory(d`${rcOutFile.parent}`, binOutFiles.map(f => outputs.getOutputFile(f)));
+        let binFiles = Transformer.sealDirectory({
+            root: d`${rcOutFile.parent}`, 
+            files: binOutFiles.map(f => outputs.getOutputFile(f))
+        });
         let result = <Result>{
             code:                   codeOutFile && outputs.getOutputFile(codeOutFile),
-            header:                 Transformer.sealDirectory(d`${headerOutFile.parent}`, [outputs.getOutputFile(headerOutFile)]),
+            header:                 Transformer.sealDirectory({
+                root: d`${headerOutFile.parent}`, 
+                files: [outputs.getOutputFile(headerOutFile)]
+            }),
             binaryResources:        binFiles,
             resourceCompilerScript: outputs.getOutputFile(rcOutFile),
             mof:                    outputs.getOutputFile(mofOutFile),

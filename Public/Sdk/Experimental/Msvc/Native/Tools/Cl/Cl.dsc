@@ -180,7 +180,10 @@ function createPrecompiledHeader(args: Arguments): [CompilationOutput, DerivedFi
     let srcFile = args.precompiledHeaderSourceFile;
     if (srcFile === undefined) { 
         let srcFilePath = outDir.combine(args.precompiledHeaderName).changeExtension(".src");
-        srcFile = Transformer.writeFile(srcFilePath, ["#include <" + args.precompiledHeaderName + ">"]);
+        srcFile = Transformer.writeAllText({
+            outputPath: srcFilePath, 
+            text: "#include <" + args.precompiledHeaderName + ">"
+        });
     }
     let pchOutFile = outDir.combine(args.precompiledHeaderName).changeExtension(".pch");
 

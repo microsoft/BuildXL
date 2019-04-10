@@ -31,6 +31,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
 using ProcessOutputs = BuildXL.Pips.Builders.ProcessOutputs;
+using System.Threading;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -413,6 +414,11 @@ namespace Test.BuildXL.Scheduler
                 directoryTranslator: DirectoryTranslator,
                 testHooks: testHooks))
             {
+                MountPathExpander mountPathExpander = null;
+                var frontEndNonScrubbablePaths = CollectionUtilities.EmptyArray<string>();
+                var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
+                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, LoggingContext, config, nonScrubbablePaths, tempCleaner);
+
                 if (filter == null)
                 {
                     EngineSchedule.TryGetPipFilter(LoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);

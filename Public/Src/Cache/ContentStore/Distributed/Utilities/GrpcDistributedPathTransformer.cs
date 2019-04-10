@@ -18,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// </summary>
     public class GrpcDistributedPathTransformer : IAbsolutePathTransformer
     {
-        private static readonly string _localIpAddress = Dns.GetHostEntry(Dns.GetHostName()).AddressList.FirstOrDefault(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork).ToString();
+        private static readonly string _localMachineName = Environment.MachineName;
         internal const string BlobFileExtension = ".blob";
 
         /// <inheritdoc />
@@ -46,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             return
                 Encoding.UTF8.GetBytes(
-                    Path.Combine(@"\\" + _localIpAddress, networkPathRoot).ToUpperInvariant());
+                    Path.Combine(@"\\" + _localMachineName, networkPathRoot).ToUpperInvariant());
         }
 
         /// <inheritdoc />

@@ -30,8 +30,8 @@ namespace BuildXL.Cache.ContentStore.App
         [Verb(Description = "Send 'Hello' to another CASaaS")]
         internal void Hello(
             string hash,
-            [Required, Description("Machine to copy from")] string host,
-            [Description("The GRPC port"), DefaultValue(0)] int grpcPort)
+            [Required, Description("Machine to send Hello request to")] string host,
+            [Description("GRPC port on the target machine"), DefaultValue(0)] int grpcPort)
         {
             Initialize();
 

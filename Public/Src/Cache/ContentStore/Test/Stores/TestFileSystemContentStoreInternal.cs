@@ -45,8 +45,9 @@ namespace ContentStoreTest.Stores
             ContentStoreConfiguration configuration,
             Action<ContentHashWithSize> onContentAdded = null,
             Action<ContentHashWithSize> onContentEvicted = null,
-            NagleQueue<ContentHash> nagleQueue = null)
-            : base(fileSystem, clock, rootPath, new ConfigurationModel(configuration), nagleQueue: nagleQueue)
+            NagleQueue<ContentHash> nagleQueue = null,
+            ContentStoreSettings settings = null)
+            : base(fileSystem, clock, rootPath, new ConfigurationModel(configuration), nagleQueue: nagleQueue, settings: settings)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);

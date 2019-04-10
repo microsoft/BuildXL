@@ -612,7 +612,7 @@ namespace BuildXL.Execution.Analyzer
                 outputLines[criticalPath.Key] = pip.FormattedSemiStableHash + "," + critPathTime + "," + cpuTime + "," + GetElapsed(criticalPath.Key).TotalMinutes + "," + pip.GetDescription(CachedGraph.Context);
             });
 
-            var sortedOutputLines = outputLines.OrderByDescending(x => pipToCriticalPath[x.Key]).ThenBy(x => x.Value).ToList();
+            var sortedOutputLines = outputLines.OrderByDescending(x => pipToCriticalPath[x.Key].Item1).ThenBy(x => x.Value).ToList();
             Console.WriteLine("Writing pip impact");
             string headerLine = "Pip,Longest Critical Path Affected (mins),Total CPU Time Affected (mins),Exe Time (mins),Description";
             writer.WriteLine(headerLine);

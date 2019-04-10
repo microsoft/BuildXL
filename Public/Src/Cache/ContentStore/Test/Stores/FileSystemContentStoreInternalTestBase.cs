@@ -31,6 +31,8 @@ namespace ContentStoreTest.Stores
         private static readonly MaxSizeQuota MaxSizeQuota = new MaxSizeQuota(MaxSizeHard, MaxSizeSoft);
         private static readonly ContentStoreConfiguration Config = new ContentStoreConfiguration(MaxSizeQuota);
 
+        protected virtual ContentStoreSettings ContentStoreSettings { get; set; } = null;
+
         protected static readonly char[] Drives = { 'C', 'D' };
 
         protected static int BlobSizeToStartSoftPurging(int numberOfBlobs)
@@ -130,7 +132,7 @@ namespace ContentStoreTest.Stores
 
         protected virtual TestFileSystemContentStoreInternal Create(AbsolutePath rootPath, ITestClock clock, NagleQueue<ContentHash> nagleBlock = null)
         {
-            return new TestFileSystemContentStoreInternal(FileSystem, clock, rootPath, Config, nagleQueue: nagleBlock);
+            return new TestFileSystemContentStoreInternal(FileSystem, clock, rootPath, Config, nagleQueue: nagleBlock, settings: ContentStoreSettings);
         }
 
         protected virtual TestFileSystemContentStoreInternal CreateElastic(
@@ -145,7 +147,7 @@ namespace ContentStoreTest.Stores
             // Some tests rely on maxSizeQuota being set in the configuration although it is ignored if elasticity is enabled.
             var config = new ContentStoreConfiguration(maxSizeQuota: maxSizeQuota, enableElasticity: true, initialElasticSize: maxSizeQuota, historyWindowSize: windowSize);
 
-            return new TestFileSystemContentStoreInternal(FileSystem, clock, rootPath, config, nagleQueue: nagleBlock);
+            return new TestFileSystemContentStoreInternal(FileSystem, clock, rootPath, config, nagleQueue: nagleBlock, settings: ContentStoreSettings);
         }
 
         protected async Task<ElasticSizeRule.LoadQuotaResult> LoadElasticQuotaAsync(AbsolutePath rootPath)

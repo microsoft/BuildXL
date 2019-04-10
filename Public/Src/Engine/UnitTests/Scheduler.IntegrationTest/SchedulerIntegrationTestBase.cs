@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL;
 using BuildXL.Engine.Cache;
@@ -31,7 +32,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
 using ProcessOutputs = BuildXL.Pips.Builders.ProcessOutputs;
-using System.Threading;
 
 namespace Test.BuildXL.Scheduler
 {

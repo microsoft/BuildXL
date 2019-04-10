@@ -90,7 +90,7 @@ REM *********************************
 
 	REM use nuget to pull the current LKG down
 	echo BUILDXL-Init: Using nuget to Pull package '%BUILDXL_LKG_NAME%' version '%BUILDXL_LKG_VERSION%'
-	%TOOLROOT%\nuget.exe install -OutputDirectory %_BUILDXL_BOOTSTRAP_OUT% -Source %BUILDXL_LKG_FEED_1% %BUILDXL_LKG_NAME% -Version %BUILDXL_LKG_VERSION%
+	%TOOLROOT%\nuget.exe install -OutputDirectory %_BUILDXL_BOOTSTRAP_OUT% -Source %BUILDXL_LKG_FEED_1% %BUILDXL_LKG_NAME% -Version %BUILDXL_LKG_VERSION% %BUILDXL_NUGET_WORKAROUNDS%
 	if ERRORLEVEL 1 (
 		echo ERROR: Failed to pull nuget package
 		exit /b 1

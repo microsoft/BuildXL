@@ -3,6 +3,8 @@
 
 using System;
 using System.IO;
+using System.Linq;
+using System.Net;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
@@ -16,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// </summary>
     public class GrpcDistributedPathTransformer : IAbsolutePathTransformer
     {
-        private static readonly string _localMachineName = Environment.MachineName;
+        private static readonly string _localIpAddress = Dns.GetHostEntry(Dns.GetHostName()).AddressList.FirstOrDefault(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork).ToString();
         internal const string BlobFileExtension = ".blob";
 
         /// <inheritdoc />
@@ -44,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             return
                 Encoding.UTF8.GetBytes(
-                    Path.Combine(@"\\" + _localMachineName, networkPathRoot).ToUpperInvariant());
+                    Path.Combine(@"\\" + _localIpAddress, networkPathRoot).ToUpperInvariant());
         }
 
         /// <inheritdoc />

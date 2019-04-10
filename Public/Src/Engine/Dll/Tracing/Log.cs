@@ -143,6 +143,16 @@ namespace BuildXL.Engine.Tracing
         public abstract void InputTrackerDetectedEnvironmentVariableChanged(LoggingContext context, string variableName, string recordedValue, string currentValue);
 
         [GeneratedEvent(
+           (ushort)LogEventId.InputTrackerDetectedMountChanged,
+           EventGenerators = EventGenerators.LocalOnly,
+           EventLevel = Level.Verbose,
+           EventTask = (ushort)Events.Tasks.Engine,
+           EventOpcode = (byte)EventOpcode.Start,
+           Keywords = (int)(Events.Keywords.UserMessage),
+           Message = "Input tracker detected first changed mount: Mount name: {mountName} | Recorded path: {recordedPath} | Current path: {currentPath}")]
+        public abstract void InputTrackerDetectedMountChanged(LoggingContext context, string mountName, string recordedPath, string currentPath);
+
+        [GeneratedEvent(
             (ushort)LogEventId.InputTrackerUnableToDetectChangedInputFileByCheckingContentHash,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -2871,6 +2881,11 @@ If you can't update and need this feature after July 2018 please reach out to th
         /// One or more environment variables changed
         /// </summary>
         EnvironmentVariableChanged,
+
+        /// <summary>
+        /// One or more mounts or mount paths changed
+        /// </summary>
+        MountChanged,
 
         /// <summary>
         /// One or more spec files changed

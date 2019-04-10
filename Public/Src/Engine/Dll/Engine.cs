@@ -3125,7 +3125,9 @@ namespace BuildXL.Engine
                         GraphCacheFile.PreviousInputs,
                         writer => inputTracker.WriteToFile(
                             writer,
+                            Context.PathTable,
                             envVarsImpactingBuild,
+                            mountsImpactingBuild,
                             serializer.PreviousInputsJournalCheckpoint),
                         overrideName: EngineSerializer.PreviousInputsIntermediateFile);
 
@@ -3239,6 +3241,7 @@ namespace BuildXL.Engine
             EngineSerializer serializer,
             GraphFingerprint graphFingerprint,
             IBuildParameters availableEnvironmentVariables,
+            MountsTable availableMounts,
             JournalState journalState,
             int maxDegreeOfParallelism)
         {
@@ -3249,6 +3252,7 @@ namespace BuildXL.Engine
                 fileContentTable: FileContentTable,
                 graphFingerprint: graphFingerprint,
                 availableEnvironmentVariables: availableEnvironmentVariables,
+                availableMounts: availableMounts,
                 journalState: journalState,
                 timeLimitForJournalScanning:
                     Configuration.Engine.ScanChangeJournalTimeLimitInSec < 0

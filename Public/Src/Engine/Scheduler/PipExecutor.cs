@@ -1865,9 +1865,9 @@ namespace BuildXL.Scheduler
                                 }
 
                                 var pathSet = maybePathSet.Value;
-                                (ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint? strongContentFingerPrint, ObservedPathSet pathSetUsed, ContentHash pathSetHashUsed)
+                                (bool succeeded, ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint? strongContentFingerprint, ObservedPathSet pathSetUsed, ContentHash pathSetHashUsed)
                                     strongFingerprintComputationResult =
-                                        await ComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
+                                        await TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
                                             operationContext,
                                             environment,
                                             state,
@@ -1876,10 +1876,16 @@ namespace BuildXL.Scheduler
                                             pathSet,
                                             entryRef.PathSetHash);
 
-                                BoxRef<ProcessStrongFingerprintComputationData> strongFingerprintComputationData = new ProcessStrongFingerprintComputationData(
-                                    pathSet: strongFingerprintComputationResult.pathSetUsed,
-                                    pathSetHash: strongFingerprintComputationResult.pathSetHashUsed,
-                                    priorStrongFingerprints: new List<StrongContentFingerprint>(1) { entryRef.StrongFingerprint });
+                                // Record the most relevant strong fingerprint information, defaulting to information retrieved from cache
+                                BoxRef<ProcessStrongFingerprintComputationData> strongFingerprintComputationData = strongFingerprintComputationResult.succeeded 
+                                    ? new ProcessStrongFingerprintComputationData(
+                                        pathSet: strongFingerprintComputationResult.pathSetUsed,
+                                        pathSetHash: strongFingerprintComputationResult.pathSetHashUsed,
+                                        priorStrongFingerprints: new List<StrongContentFingerprint>(1) { strongFingerprintComputationResult.strongContentFingerprint.Value })
+                                    : new ProcessStrongFingerprintComputationData(
+                                        pathSet: pathSet,
+                                        pathSetHash: entryRef.PathSetHash,
+                                        priorStrongFingerprints: new List<StrongContentFingerprint>(1) { entryRef.StrongFingerprint });
 
                                 strongFingerprintComputationList.Add(strongFingerprintComputationData);
 
@@ -1889,7 +1895,7 @@ namespace BuildXL.Scheduler
                                 switch (processingStatus)
                                 {
                                     case ObservedInputProcessingStatus.Success:
-                                        strongFingerprint = strongFingerprintComputationResult.Item2;
+                                        strongFingerprint = strongFingerprintComputationResult.strongContentFingerprint;
                                         Contract.Assume(strongFingerprint.HasValue);
 
                                         strongFingerprintComputationData.Value = strongFingerprintComputationData.Value.ToSuccessfulResult(
@@ -2471,6 +2477,7 @@ namespace BuildXL.Scheduler
         private static void AssertNoFileNamesMismatch(
             IPipExecutionEnvironment environment,
             Process process,
+            RunnableFromCacheResult runnableFromCacheCheckResult,
             FileArtifact file,
             in FileMaterializationInfo info)
         {
@@ -2488,12 +2495,14 @@ namespace BuildXL.Scheduler
             {
                 var pathTable = environment.Context.PathTable;
                 var stringTable = environment.Context.StringTable;
+                var cacheHitData = runnableFromCacheCheckResult.GetCacheHitData();
 
                 string fileArtifactPathString = file.Path.ToString(pathTable);
                 string fileMaterializationFileNameString = info.FileName.ToString(stringTable);
                 var stringBuilder = new StringBuilder();
                 stringBuilder.AppendLine(
-                    I($"File name should only differ by casing. File artifact's full path: '{fileArtifactPathString}'; file artifact's file name: '{fileArtifactFileName.ToString(stringTable)}'; materialization info file name: '{fileMaterializationFileNameString}'"));
+                    I($"File name should only differ by casing. File artifact's full path: '{fileArtifactPathString}'; file artifact's file name: '{fileArtifactFileName.ToString(stringTable)}'; materialization info file name: '{fileMaterializationFileNameString}'."));                
+                stringBuilder.AppendLine(I($"[{process.FormattedSemiStableHash}] Weak FP: '{runnableFromCacheCheckResult.WeakFingerprint.ToString()}', Strong FP: '{cacheHitData.StrongFingerprint.ToString()}', Metadata Hash: '{cacheHitData.MetadataHash.ToString()}'"));
 
                 Contract.Assert(false, stringBuilder.ToString());
             }
@@ -2531,7 +2540,7 @@ namespace BuildXL.Scheduler
                 var info = cacheHitData.CachedArtifactContentHashes[i].fileMaterializationInfo;
                 var file = cacheHitData.CachedArtifactContentHashes[i].fileArtifact;
 
-                AssertNoFileNamesMismatch(environment, pip, file, info);
+                AssertNoFileNamesMismatch(environment, pip, runnableFromCacheCheckResult, file, info);
                 executionResult.ReportOutputContent(file, info, PipOutputOrigin.NotMaterialized);
             }
 
@@ -3103,7 +3112,7 @@ namespace BuildXL.Scheduler
         /// Note that if the returned processing status is <see cref="ObservedInputProcessingStatus.Aborted"/>, then a failure has been logged and pip
         /// execution must fail.
         /// </summary>
-        private static async Task<(ObservedInputProcessingResult, StrongContentFingerprint?, ObservedPathSet, ContentHash)> ComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
+        private static async Task<(bool, ObservedInputProcessingResult, StrongContentFingerprint?, ObservedPathSet, ContentHash)> TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state,
@@ -3132,7 +3141,7 @@ namespace BuildXL.Scheduler
                 // force cache miss if observed input processing result is not 'Success'
                 if (validationResult.Status != ObservedInputProcessingStatus.Success)
                 {
-                    return (validationResult, default(StrongContentFingerprint?), default(ObservedPathSet), default(ContentHash));
+                    return (false, validationResult, default(StrongContentFingerprint?), default(ObservedPathSet), default(ContentHash));
                 }
 
                 // check if now running with safer options than before (i.e., prior are not strictly safer than current)
@@ -3165,7 +3174,7 @@ namespace BuildXL.Scheduler
                         finalPathSetHash);
                 }
 
-                return (validationResult, strongFingerprint, finalPathSet, finalPathSetHash);
+                return (true, validationResult, strongFingerprint, finalPathSet, finalPathSetHash);
             }
         }
 

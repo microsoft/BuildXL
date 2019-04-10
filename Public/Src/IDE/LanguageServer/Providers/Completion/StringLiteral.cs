@@ -180,6 +180,19 @@ namespace BuildXL.Ide.LanguageServer.Completion
         }
 
         /// <summary>
+        /// Handles the case of (x === y) ? "" : "" where the completion is a string literal.
+        /// </summary>
+        internal static IEnumerable<CompletionItem> CreateCompletionItemsFromSwitchExpression(CompletionState completionState, INode completionNode)
+        {
+            var switchExpression = completionNode.Cast<ISwitchExpression>();
+            var type = completionState.TypeChecker.GetContextualType(switchExpression);
+
+            // $TODO:
+
+            return null;
+        }
+
+        /// <summary>
         /// Handles the case of return "" where the completion is a string literal.
         /// </summary>
         internal static IEnumerable<CompletionItem> CreateCompletionItemsFromReturnStatement(CompletionState completionState, INode completionNode)

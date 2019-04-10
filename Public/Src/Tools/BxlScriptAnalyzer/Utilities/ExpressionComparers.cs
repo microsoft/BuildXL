@@ -111,6 +111,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Utilities
             sortOrder++;
             CompareHelper.Register<IConditionalExpression>(helpers, sortOrder, TypeScript.Net.Types.SyntaxKind.ConditionalExpression, (l, r) => CompareConditionalExpression(l, r));
             sortOrder++;
+            CompareHelper.Register<ISwitchExpression>(helpers, sortOrder, TypeScript.Net.Types.SyntaxKind.SwitchExpression, (l, r) => CompareSwitchExpression(l, r));
+            sortOrder++;
             CompareHelper.Register<ISpreadElementExpression>(helpers, sortOrder, TypeScript.Net.Types.SyntaxKind.SpreadElementExpression, (l, r) => CompareSpreadElementExpression(l, r));
             sortOrder++;
             CompareHelper.Register<IArrayLiteralExpression>(helpers, sortOrder, TypeScript.Net.Types.SyntaxKind.ArrayLiteralExpression, (l, r) => CompareArrayLiteralExpression(l, r));
@@ -626,6 +628,38 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Utilities
             }
 
             return CompareExpression(left.WhenFalse, right.WhenFalse);
+        }
+
+        private static int CompareSwitchExpression(ISwitchExpression left, ISwitchExpression right)
+        {
+            // Standard left,right and null checks
+            if (left == null && right == null) { return 0; }
+            if (left == null) { return 1; }
+            if (right == null) { return -1; }
+
+            var result = CompareExpression(left.Expression, right.Expression);
+            if (result != 0)
+            {
+                return result;
+            }
+
+            return CompareNodeArrays(left.Clauses, right.Clauses, (l, r) => CompareSwitchExpressionClause(l, r));
+        }
+
+        private static int CompareSwitchExpressionClause(ISwitchExpressionClause left, ISwitchExpressionClause right)
+        {
+            // Standard left,right and null checks
+            if (left == null && right == null) { return 0; }
+            if (left == null) { return 1; }
+            if (right == null) { return -1; }
+
+            var result = CompareExpression(left.Match, right.Match);
+            if (result != 0)
+            {
+                return result;
+            }
+
+            return CompareExpression(left.Expression, right.Expression);
         }
 
         private static int CompareSpreadElementExpression(ISpreadElementExpression left, ISpreadElementExpression right)

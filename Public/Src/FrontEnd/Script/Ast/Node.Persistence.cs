@@ -96,6 +96,10 @@ namespace BuildXL.FrontEnd.Script
                     return new IndexExpression(context, location);
                 case SyntaxKind.IteExpression:
                     return new ConditionalExpression(context, location);
+                case SyntaxKind.SwitchExpression:
+                    return new SwitchExpression(context, location);
+                case SyntaxKind.SwitchExpressionClause:
+                    return new SwitchExpressionClause(context, location);
                 case SyntaxKind.LambdaExpression:
                     return new FunctionLikeExpression(context, location);
                 case SyntaxKind.SelectorExpression:

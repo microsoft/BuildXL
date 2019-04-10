@@ -222,6 +222,8 @@ namespace TypeScript.Net.Types.Nodes
                 case SyntaxKind.MultiLineCommentTrivia:
                 case SyntaxKind.SingleLineCommentTrivia:
                 case SyntaxKind.ConditionalExpression:
+                case SyntaxKind.SwitchExpression:
+                case SyntaxKind.SwitchExpressionClause:
                 case SyntaxKind.DeleteExpression:
                 case SyntaxKind.ElementAccessExpression:
                 case SyntaxKind.FunctionExpression:
@@ -292,6 +294,12 @@ namespace TypeScript.Net.Types.Nodes
                     break;
                 case SyntaxKind.ConditionalExpression:
                     VisitConditionalExpression(node.Cast<IConditionalExpression>());
+                    break;
+                case SyntaxKind.SwitchExpression:
+                    VisitSwitchExpression(node.Cast<ISwitchExpression>());
+                    break;
+                case SyntaxKind.SwitchExpressionClause:
+                    VisitSwitchExpressionClause(node.Cast<ISwitchExpressionClause>());
                     break;
                 case SyntaxKind.DeleteExpression:
                     VisitDeleteExpression(node.Cast<IDeleteExpression>());
@@ -787,6 +795,33 @@ namespace TypeScript.Net.Types.Nodes
             VisitExpressionDispatch(node.Condition);
             VisitExpressionDispatch(node.WhenTrue);
             VisitExpressionDispatch(node.WhenFalse);
+        }
+
+        /// <nodoc />
+        public virtual void VisitSwitchExpression(ISwitchExpression node)
+        {
+            if (node == null)
+            {
+                return;
+            }
+
+            VisitExpressionDispatch(node.Expression);
+            foreach (var clause in node.Clauses)
+            {
+                VisitExpressionDispatch(clause);
+            }
+        }
+        
+        /// <nodoc />
+        public virtual void VisitSwitchExpressionClause(ISwitchExpressionClause node)
+        {
+            if (node == null)
+            {
+                return;
+            }
+
+            VisitExpressionDispatch(node.Match);
+            VisitExpressionDispatch(node.Expression);
         }
 
         /// <nodoc />

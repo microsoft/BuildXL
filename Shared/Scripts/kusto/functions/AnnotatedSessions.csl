@@ -1,3 +1,5 @@
+// Example call for sessions over the past week:
+// AnnotatedSessions(ago(7d), now())
 .create-or-alter function with (folder = "common", docstring = "AnnotatedSessions", skipvalidation = "true") AnnotatedSessions(startDate:datetime, endDate:datetime)
 {
 let exceptionRegex = @"(?:.*\s?)\.(\S*Exception:[^\n\r]*)";
@@ -82,72 +84,6 @@ dominocatastrophicfailure
 | extend BuildXlFunctionName = extract(buildXlFuncNameRegex, 1, Exception)
 | extend FunctionName = iff(isnull(BuildXlFunctionName) or isempty(BuildXlFunctionName), extract(anyFuncNameRegex, 1, Exception), BuildXlFunctionName)
 | extend SuggestedBugName = substring(strcat(FunctionName, ": ", ExceptionDescription), 0, 255)
-    // Update the case below to add in new crash bug patterns
-| extend KnownBug =
-    case(
-        Exception contains "FileContentManager.SetFileArtifactContentHash" and Exception contains "File name should only differ by casing", "1261677",
-        Exception contains "Thunk.QualifiedEvaluate" and Exception contains "Assumption failed", "1261674",
-        Exception contains "FileContentTable.LoadInternal" and Exception contains "BigBuffer", "F 6/29/18 1267216",
-        Exception contains "PathBasedFilter.cs" and Exception contains "Precondition failed", "F 5/29/18 1267223",
-        Exception contains "PathAtom.cs" and Exception contains "DirectoryMembershipTrackingFingerprinter.ComputeFingerprint", "1271206",
-        Exception contains "Engine.EngineSerializer" and Exception contains "DeflateStream.ValidateParameters", "F 6/1/18 1271216",
-        Exception contains "DominoAppServer.ListenClient" and Exception contains "Pipe is broken", "F 12/7/18 1271219",
-        Exception contains "ConfigurationConversionHelper.ConvertAndRegisterSourceFile" and Exception contains "CharArraySegment.cs", "1271212",
-        Exception contains "FingerprintStore.GarbageCollect" and Exception contains "TimeSpan overflowed", "F 6/7/18 1279389",
-        Exception contains "VsDomino.WriteDominoCmd" and Exception contains "NullReferenceException", "1281738",
-        Exception contains "FileChangeTrackingSet.CheckAndMaybeInvalidateAntiDependencies" and Exception contains "Path has been determined to be present", "1281750",
-        Exception contains "StringTable.AddString" and Exception contains "NullReferenceException", "1281755",
-        Exception contains "DominoScheduler.cs:line 3167" and Exception contains "NullReferenceException", "1286588",
-        Exception contains "Distribution.FileArtifactKeyedHash" and Exception contains "LockRecursionException", "1286601",
-        Exception contains "FileAccessReportLine.TryParse" and Exception contains "Assumption failed", "1286603",
-        Exception contains "FrontEndHostController.DownloadFile" and Exception contains "Precondition failed", "F 6/28/18 1291189",
-        Exception contains "ObservedInputProcessingResult.GetPathSet" and Exception contains "Precondition failed", "F 7/20/18 1290374",
-        Exception contains "WorkerService.Exit" and Exception contains "NullReferenceException", "F 7/5/18 1296984",
-        Exception contains "SandboxedProcessPipExecutor.TryLogOutputAsync" and Exception contains "Precondition failed", "1297041",
-        Exception contains "IsValidRecordExtensionKey", "F 7/9/18 1299882",
-        Exception contains "QuickBuild.QuickBuildResolver" and Exception contains "Precondition failed", "1301017",
-        Exception contains "RocksDbStore.Put" and Exception contains "SEHException", "F 7/12/18 1301030",
-        Exception contains "Windows.FileSystemWin.ReadFileUsnByHandle" and Exception contains "0x5", "1301032",
-        Exception contains "FileContentManager.ReportContent" and Exception contains "set multiple times", "1301034",
-        Exception contains "OperationTracker.Assert" and Exception contains "started for completed parent", "1305596",
-        Exception contains "DominoScriptInterpreterBase.ParseSourceFileContent" and Exception contains "not in a correct format", "1305597",
-        Exception contains "ReleaseSpecCacheMemory" and Exception contains "Incorrect function", "1305598",
-        Exception contains "ThreadPoolWorkQueue.Dispatch" and Exception contains "I/O device error", "1305599",
-        Exception contains "CacheCoreCacheInitializer.GetLoggedStatistics" and Exception contains "key", "F 8/24/18 1314546",
-        Exception contains "LocalDiskContentStore.ComputePathHash" and Exception contains "Index was outside the bounds of the array", "1314547",
-        Exception contains "The build has failed but the logging infrastructure has not encountered an error", "F 11/9/18 1314548",
-        Exception contains "FileChangeTrackingSet.TryProbeAndTrackPath" and Exception contains "NullReferenceException", "1318914",
-        Exception contains "FingerprintStore.TryGetLruEntriesMap" and Exception contains "Unexpected character", "F 8/8/18 1318934",
-        Exception contains "error should have been logged during waiting for attaching to the master", "F 8/9/18 1318919",
-        Exception contains "Worker.GetExpectedRamUsageMb" and Exception contains "DivideByZeroException", "F 8/23/18 1332020",
-        Exception contains "DominoEngine.ReloadEngineSchedule" and Exception contains "PipExecutionContext", "F 8/30/18 1330827",
-        Exception contains "DominoScript.ConfigurationConversionHelper.ValidateConfigFile" and Exception contains "Precondition failed", "1339722",
-        Exception contains "If the access is a file content read, then the FileContentInfo", "1343435",
-        Exception contains "ValidateSuccessMatches" and Exception contains "11224", "1352675",
-        Exception contains "IsSharedOpaqueOutput" and Exception contains "Failed to check status of a given path", "1352677",
-        Exception contains "IndexOutOfRangeException" and Exception contains "PipDataBuilder.Add", "1344281",
-        Exception contains "StringTable.cs:line 569", "1348980",
-        Exception contains "Microsoft.WindowsAzure.Storage.Core.Util.StorageAsyncResult", "1348981",
-        Exception contains "FingerprintStore.Open" and Exception contains "Delete directory", "F 10/15/18 1358309",
-        Exception contains "FlagSharedOpaqueOutputs" and Exception contains "Object reference not set", "F 10/4/18 1353799",
-        Exception contains "ReportSurvivingChildProcesses", "F 10/5/18 1354736",
-        Exception contains "DirectoryMembershipFilter.Include" and Exception contains "Precondition failed", "F 10/18/18 1364598",
-        SuggestedBugName contains "Domino.DominoApp.RunInternal: TaskCanceledException: A task was canceled.", "1364595", 
-        Exception contains "CoreHashingHelperBase.AddInnerHash" and Exception contains "Assertion failed", "1369716",
-        Exception contains "Sandbox failure: E00002DB", "1375985",
-        Exception contains "GetSealDirectoryKind" and Exception contains "KeyNotFoundException", "1382040",
-        Exception contains "FileContentManager.CollectPipFilesToMaterialize" and Exception contains "same key", "1382043",
-        Exception contains "EngineState.get_PipGraph()" and Exception contains "Precondition failed", "F 11/8/18 1384794",
-        SuggestedBugName contains "Domino.Engine.MountsTable.CreateAndRegister: NativeWin[#]Exception: Native: [#]x[#]: The system cannot find the file specified", "1400136",
-        Exception contains "Collections.ConcurrentBigSet" and Exception contains "Index was outside the bounds of the array", "F 12/15/18 1400173",
-        Exception contains "FingerprintStoreCacheUtilities.TryRetrieveFingerprintStoreAsync" and Exception contains "StringTable is being serialized", "F 12/12/18 1406938",
-        SuggestedBugName contains "Domino.Scheduler.Performance.PerformanceDataUtilities.TryRetrieveRunningTimeTableAsync: ContractException: Assertion failed: StringTable is being serialized. No new entry can be added..", "F 1/1/19 1418018",
-        SuggestedBugName contains "Domino.Scheduler.Performance.PerformanceDataUtilities.TryRetrieveRunningTimeTableAsync: ContractException: Assertion failed: HierarchicalNameTable is being serialized. No new entry can be added..", "F 1/1/19 1418018",
-        SuggestedBugName contains "Domino.Engine.EngineSchedule.ScrubExtraneousFilesAndDirectories: ContractException: Assertion failed: StringTable is being serialized. No new entry can be added..", "1419013",
-        SuggestedBugName contains "Domino.Engine.EngineSchedule.ScrubExtraneousFilesAndDirectories: ContractException: Assertion failed: HierarchicalNameTable is being serialized. No new entry can be added..", "1419013",
-        SuggestedBugName contains "Domino.Engine.DominoEngine.ValidateSuccessMatches: DominoException: No error should be logged if status is success. Errors logged: [#], [#]", "1419015",
-        SuggestedBugName contains "Domino.Processes.SandboxedProcessOutputBuilder.AppendLine: ContractException: Assertion failed.", "1419016",
-        "")
 //
 // 4. Join against the CB data
 //
@@ -160,9 +96,8 @@ dominocatastrophicfailure
 //
 | summarize SessionId = any(SessionId), 
     EventInfo_Time = min(EventInfo_Time), 
-    BuildInfo_Build = any(BuildInfo_Build), 
-    KnownBug = max(KnownBug), 
-    BucketGroup = max(Bucket), 
+    BuildInfo_Build = any(BuildInfo_Build),
+    BucketGroup = min(Bucket), 
     RootCause = max(RootCause), 
     Exception = max(Exception), 
     InternalError = iff(sum(InternalError) > 0, 1, 0),
@@ -186,10 +121,8 @@ dominocatastrophicfailure
 // 
 // 7. Collapse together non-internal error sessions to limit the number of records returned by the query
 | extend TimeBucket = iff(InternalError == 1, EventInfo_Time, startofday(EventInfo_Time))
-| summarize SessionCount = count(), UniqueSession = max(UniqueSession), SessionId = max(SessionId) by TimeBucket, BuildInfo_Build, KnownBug, BucketGroup, RootCause, Exception, InternalError, BuildQueue, CBCanRetry, CBReturnType, BuildInfo_CommitId, Customer, Codebase, Infra, InProbation, UserName, MSRReportable, SuggestedBugName
+| summarize SessionCount = count(), UniqueSession = max(UniqueSession), SessionId = max(SessionId) by TimeBucket, BuildInfo_Build, BucketGroup, RootCause, Exception, InternalError, BuildQueue, CBCanRetry, CBReturnType, BuildInfo_CommitId, Customer, Codebase, Infra, InProbation, UserName, MSRReportable, SuggestedBugName
 | extend week = startofweek(TimeBucket)
 | extend BuildUrl = strcat("http://b/build/", UniqueSession);
 annotatedSessions;
 }
-// Example call for sessions over the past week:
-// AnnotatedSessions(ago(7d), now())

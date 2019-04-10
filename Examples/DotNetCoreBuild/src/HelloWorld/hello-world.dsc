@@ -3,7 +3,7 @@
 
 import * as Echo from "Echo";
 import * as Bash from "Bash";
-import {Cmd, Artifact} from "Sdk.Transformers";
+import {Cmd, Artifact, Transformer} from "Sdk.Transformers";
 
 @@public
 export const foo = printFromBuildXL("HelloWorld");
@@ -13,7 +13,10 @@ const helloWorldMsgVarName = "HELLO_WORLD_MSG";
 @@public
 export const writeFilePipOutput = (() => {
     const outDir = Context.getNewOutputDirectory("write-pip");
-    const outFile = Transformer.writeFile(p`${outDir}/write-pip-out-file.txt`, "Produced by a WriteFile pip");
+    const outFile = Transformer.writeAllText({
+        outputPath: p`${outDir}/write-pip-out-file.txt`,
+        text: "Produced by a WriteFile pip"
+    });
     Debug.writeLine(` *** Using WriteFile pip to write to ${outFile}`);
     return outFile;
 })();

@@ -387,8 +387,9 @@ namespace BuildXL.Native.IO
             Func<SafeFileHandle, bool> predicate = null,
             Action<SafeFileHandle> onCompletion = null) => s_fileUtilities.WriteAllBytesAsync(filePath, bytes, predicate, onCompletion);
 
-        /// <see cref="IFileUtilities.TryFindOpenHandlesToFile(string, out string)"/>
-        public static bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo) => s_fileUtilities.TryFindOpenHandlesToFile(filePath, out diagnosticInfo);
+        /// <see cref="IFileUtilities.TryFindOpenHandlesToFile"/>
+        public static bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo, bool printCurrentFilePath = true) 
+            => s_fileUtilities.TryFindOpenHandlesToFile(filePath, out diagnosticInfo, printCurrentFilePath);
 
         /// <see cref="IFileUtilities.GetHardLinkCount(string)"/>
         public static uint GetHardLinkCount(string path) => s_fileUtilities.GetHardLinkCount(path);

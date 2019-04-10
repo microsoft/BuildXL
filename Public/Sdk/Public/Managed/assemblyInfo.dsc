@@ -169,7 +169,10 @@ export function generateAssemblyInfoFile(framework: Shared.Framework, assemblyNa
 
     let assemblyInfoFile = Context.getNewOutputDirectory("AssemblyInfoGen").combine("AssemblyInfo.g.cs");
 
-    return Transformer.writeFile(assemblyInfoFile, lines);
+    return Transformer.writeAllLines({
+        outputPath: assemblyInfoFile, 
+        lines: lines
+    });
 }
 
 type ResourceDictionaryLocation = "None" | "ExternalAssembly" | "SourceAssembly";

@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly IContentStoreInternal _store;
         private readonly BlockingCollection<Request<QuotaKeeperRequest, string>> _reserveQueue;
         private readonly SemaphoreSlim _contentItemEvicted = new SemaphoreSlim(0, int.MaxValue);
-        private readonly List<IQuotaRule> _rules = new List<IQuotaRule>();
+        private readonly List<IQuotaRule> _rules;
         private long _size;
         private Task<PurgeResult> _purgeTask;
         private Task _reserveTask;
@@ -51,19 +51,18 @@ namespace BuildXL.Cache.ContentStore.Stores
         public LegacyQuotaKeeper(
             IAbsFileSystem fileSystem,
             ContentStoreInternalTracer tracer,
-            ContentStoreConfiguration configuration,
-            long startSize,
+            QuotaKeeperConfiguration configuration,
             CancellationToken token,
-            IContentStoreInternal store,
-            DistributedEvictionSettings distributedEvictionSettings = null)
+            IContentStoreInternal store)
+        : base(configuration)
         {
             _tracer = tracer;
-            _size = startSize;
+            _size = configuration.ContentDirectorySize;
             _token = token;
             _store = store;
             _reserveQueue = new BlockingCollection<Request<QuotaKeeperRequest, string>>();
 
-            _rules = CreateRules(fileSystem, configuration, store, distributedEvictionSettings);
+            _rules = CreateRules(fileSystem, configuration, store);
         }
 
         /// <inheritdoc />
@@ -80,9 +79,16 @@ namespace BuildXL.Cache.ContentStore.Stores
             _reserveTask = Task.Run(() => Reserve(new Context(context)));
             _taskTracker = new BackgroundTaskTracker(Component, new Context(context));
 
-            // Start purging immediately on startup to clear out residual content in the cache
-            // over the cache quota
-            StartPurging();
+            if (PurgeAtStartup)
+            {
+                // Start purging immediately on startup to clear out residual content in the cache
+                // over the cache quota if configured.
+                StartPurging();
+            }
+            else
+            {
+                _tracer.Debug(context, $"{_tracer.Name}: do not purge at startup based on configuration settings.");
+            }
 
             return BoolResult.Success;
         }
@@ -152,12 +158,12 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public override async Task SyncAsync(Context context)
+        public override async Task SyncAsync(Context context, bool purge)
         {
             // Ensure there are no pending requests.
-            var emptyRequest = new Request<QuotaKeeperRequest, string>(QuotaKeeperRequest.Reserve(0));
-            _reserveQueue.Add(emptyRequest);
-            await emptyRequest.WaitForCompleteAsync();
+            var request = new Request<QuotaKeeperRequest, string>(purge ? QuotaKeeperRequest.Reserve(0) :QuotaKeeperRequest.Synchronize());
+            _reserveQueue.Add(request);
+            await request.WaitForCompleteAsync();
 
             var purgeTask = _purgeTask;
             if (purgeTask != null)
@@ -486,6 +492,14 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
 
             /// <summary>
+            ///     Creates a synchronization request.
+            /// </summary>
+            public static QuotaKeeperRequest Synchronize()
+            {
+                return new QuotaKeeperRequest(0, RequestKind.Sync);
+            }
+
+            /// <summary>
             ///     Kinds of request to quota keeper.
             /// </summary>
             private enum RequestKind : byte
@@ -498,7 +512,12 @@ namespace BuildXL.Cache.ContentStore.Stores
                 /// <summary>
                 ///     Calibrate request.
                 /// </summary>
-                Calibrate
+                Calibrate,
+
+                /// <summary>
+                ///     Request used by <see cref="QuotaKeeper.SyncAsync"/>.
+                /// </summary>
+                Sync
             }
         }
     }

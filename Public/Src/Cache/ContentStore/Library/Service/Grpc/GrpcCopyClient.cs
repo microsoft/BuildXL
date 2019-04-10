@@ -54,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private GrpcCopyClient(string host, int grpcPort)
         {
             GrpcEnvironment.InitializeIfNeeded();
-            _channel = new Channel(host, (int)grpcPort, ChannelCredentials.Insecure);
+            _channel = new Channel(host, grpcPort, ChannelCredentials.Insecure);
             _client = new ContentServer.ContentServerClient(_channel);
             _host = host;
             _grpcPort = grpcPort;
@@ -121,7 +121,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request);
 
-                Metadata headers = await response.ResponseHeadersAsync.ConfigureAwait(false);
+                Metadata headers = await response.ResponseHeadersAsync;
 
                 // If the remote machine couldn't be contacted, GRPC returns an empty
                 // header collection. GRPC would throw an RpcException when we tried

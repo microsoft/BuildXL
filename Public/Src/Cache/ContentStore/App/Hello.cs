@@ -21,8 +21,6 @@ namespace BuildXL.Cache.ContentStore.App
 {
     internal sealed partial class Application
     {
-        public static ChannelOption[] DefaultChannelOptions = new ChannelOption[] { new ChannelOption(ChannelOptions.MaxSendMessageLength, -1), new ChannelOption(ChannelOptions.MaxReceiveMessageLength, -1) };
-
         /// <summary>
         /// Attempt to connect to a grpc port and send 'Hello'
         /// </summary>
@@ -31,20 +29,21 @@ namespace BuildXL.Cache.ContentStore.App
         internal void Hello(
             string hash,
             [Required, Description("Machine to send Hello request to")] string host,
-            [Description("GRPC port on the target machine"), DefaultValue(0)] int grpcPort)
+            [Description("GRPC port on the target machine"), DefaultValue(ServiceConfiguration.GrpcDisabledPort)] int grpcPort,
+            [Description("Name of the memory mapped file used to share GRPC port. 'CASaaS GRPC port' if not specified.")] string grpcPortFileName)
         {
             Initialize();
 
-            if (grpcPort <= 0)
+            if (grpcPort == 0)
             {
-                throw new Exception("Must define grpc port greater than 0");
+                grpcPort = Helpers.GetGrpcPortFromFile(_logger, grpcPortFileName);
             }
 
-            var _channel = new Channel(host, grpcPort, ChannelCredentials.Insecure, DefaultChannelOptions);
+            var _channel = new Channel(host, grpcPort, ChannelCredentials.Insecure);
             var _client = new ContentServer.ContentServerClient(_channel);
             var helloResponse = _client.Hello(new HelloRequest(), new CallOptions(deadline: DateTime.UtcNow + TimeSpan.FromSeconds(2)));
 
-            Console.WriteLine(helloResponse.ToString());
+            _logger.Always($"Hello response {(helloResponse.Success ? "succeeded" : "failed")}: {helloResponse.ToString()}");
         }
     }
 }

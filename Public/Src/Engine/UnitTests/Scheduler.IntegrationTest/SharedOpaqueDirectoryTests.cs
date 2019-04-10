@@ -544,15 +544,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             var nestedSourceSeal = Path.Combine(sharedOpaqueDir, "nestedSourceSeal");
             AbsolutePath nestedSourceSealPath = AbsolutePath.Create(Context.PathTable, nestedSourceSeal);
             FileUtilities.CreateDirectory(nestedSourceSeal);
+            CreateSourceFile(root: nestedSourceSealPath, prefix: "source-seal-file"); // add at least one source file to prevent the scrubber from deleting it
+            PipConstructionHelper.SealDirectorySource(nestedSourceSealPath, SealDirectoryKind.SourceTopDirectoryOnly);
 
             FileArtifact outputUnderSharedOpaqueAndSourceSealed = CreateOutputFileArtifact(nestedSourceSeal);
-            PipConstructionHelper.SealDirectorySource(nestedSourceSealPath);
 
             // PipA writes under the shared opaque, but also under the source sealed underneath. This shouldn't be allowed
             var builderA = CreatePipBuilder(new []
-                                                   {
-                                                       Operation.WriteFile(outputUnderSharedOpaqueAndSourceSealed, doNotInfer: true),
-                                                   });
+                                            {
+                                                Operation.WriteFile(outputUnderSharedOpaqueAndSourceSealed, doNotInfer: true),
+                                            });
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             SchedulePipBuilder(builderA);
 
@@ -561,7 +562,6 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // We are expecting a file monitor violation
             AssertErrorEventLogged(EventId.FileMonitoringError);
-            AssertErrorEventLogged(EventId.PipProcessError);
         }
 
         [Fact]

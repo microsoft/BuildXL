@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using MsBuildGraphBuilderTool;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -57,6 +58,41 @@ namespace Test.ProjectGraphBuilder
 
             // Validate the graph matches (or is a subset) of the original project chains
             m_builder.ValidateGraphIsSubgraphOfChains(projectGraphWithPredictionsResult.Result, exactMatch, projectChains);
+        }
+
+        [Fact]
+        public void ReferencesAreTreatedAsASet()
+        {
+            // We create a project that references the same inner project twice
+            const string DoubleReferenceProject =
+@"
+<Project>
+    <PropertyGroup>
+       <InnerBuildProperty>InnerBuild</InnerBuildProperty>
+       <InnerBuildPropertyValues>InnerBuildProperties</InnerBuildPropertyValues>
+       <InnerBuildProperties>A;A</InnerBuildProperties>
+    </PropertyGroup>
+</Project>";
+
+            var entryPointPath = m_builder.WriteProjectsWithReferences(("A", DoubleReferenceProject));
+
+            // Parse the projects, build the graph, serialize it to disk and deserialize it back
+            var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(new[] { entryPointPath }); 
+
+            Assert.True(projectGraphWithPredictionsResult.Succeeded);
+
+            // There should be two projects: the outer and the inner ones
+            var projectNodes = projectGraphWithPredictionsResult.Result.ProjectNodes;
+            Assert.Equal(2, projectNodes.Length);
+
+            // The outer project has just one global property (IsGraphBuild: true)
+            var outerProject = projectNodes.First(project => project.GlobalProperties.Count == 1);
+            var innerProject = projectNodes.First(project => project.GlobalProperties.Count == 2);
+
+            // There should be only a single reference from the outer project to the inner one
+            Assert.Equal(1, outerProject.ProjectReferences.Count);
+            // And the inner one should have no references
+            Assert.Equal(0, innerProject.ProjectReferences.Count);
         }
 
         private ProjectGraphWithPredictionsResult<string> BuildGraphAndDeserialize(IReadOnlyCollection<string> projectEntryPoints)

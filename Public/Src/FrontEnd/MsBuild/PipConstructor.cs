@@ -195,7 +195,7 @@ namespace BuildXL.FrontEnd.MsBuild
             env[BuildEnvironmentConstants.MsPdbSrvEndpointEnvVar] = mspdbsrvGuid;
 
             // Enable MSBuild debugging if requested
-            if (m_resolverSettings?.EnableEngineTracing == true)
+            if (m_resolverSettings.EnableEngineTracing == true)
             {
                 env[BuildEnvironmentConstants.MsBuildDebug] = "1";
                 env[BuildEnvironmentConstants.MsBuildDebugPath] = logDirectory.ToString(PathTable);
@@ -455,7 +455,7 @@ namespace BuildXL.FrontEnd.MsBuild
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.err"), FileExistence.Optional);
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.prf"), FileExistence.Optional);
 
-            if (m_resolverSettings?.EnableBinLogTracing == true)
+            if (m_resolverSettings.EnableBinLogTracing == true)
             {
                 processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.binlog"), FileExistence.Optional);
             }
@@ -555,7 +555,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
 
             // Configure binary logger if specified
-            if (m_resolverSettings?.EnableBinLogTracing == true)
+            if (m_resolverSettings.EnableBinLogTracing == true)
             {
                 using (pipDataBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, string.Empty))
                 {

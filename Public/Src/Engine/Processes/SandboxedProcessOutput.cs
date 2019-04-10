@@ -64,6 +64,52 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// Serializes this instance to a given <paramref name="writer"/>.
+        /// </summary>
+        public void Serialize(BuildXLWriter writer)
+        {
+            writer.Write(m_length);
+            writer.WriteNullableString(m_value);
+            writer.WriteNullableString(m_fileName);
+            writer.Write(m_encoding.CodePage);
+            writer.Write(m_fileStorage, (w, v) => SandboxedProcessStandardFiles.From(v).Serialize(w));
+            writer.WriteCompact((uint)m_file);
+            writer.Write(m_exception, (w, v) =>
+            {
+                w.WriteNullableString(v.Message);
+                w.WriteCompact((uint)v.RootCause);
+            });
+        }
+
+        /// <summary>
+        /// Deserializes an instance of <see cref="SandboxedProcessOutput"/>.
+        /// </summary>
+        public static SandboxedProcessOutput Deserialize(BuildXLReader reader)
+        {
+            long length = reader.ReadInt64();
+            string value = reader.ReadNullableString();
+            string fileName = reader.ReadNullableString();
+            Encoding encoding = Encoding.GetEncoding(reader.ReadInt32());
+            SandboxedProcessStandardFiles standardFiles = reader.ReadNullable(r => SandboxedProcessStandardFiles.Deserialize(r));
+            ISandboxedProcessFileStorage fileStorage = null;
+            if (standardFiles != null)
+            {
+                fileStorage = new StandardFileStorage(standardFiles);
+            }
+            SandboxedProcessFile file = (SandboxedProcessFile)reader.ReadUInt32Compact();
+            BuildXLException exception = reader.ReadNullable(r => new BuildXLException(r.ReadNullableString(), (ExceptionRootCause)r.ReadUInt32Compact()));
+
+            return new SandboxedProcessOutput(
+                length,
+                value,
+                fileName,
+                encoding,
+                fileStorage,
+                file,
+                exception);
+        }
+
+        /// <summary>
         /// The encoding used when saving the file
         /// </summary>
         public Encoding Encoding

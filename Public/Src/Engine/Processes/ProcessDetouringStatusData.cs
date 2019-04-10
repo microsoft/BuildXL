@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System.Collections.Generic;
 using BuildXL.Utilities;
 
 namespace BuildXL.Processes
@@ -114,41 +113,8 @@ namespace BuildXL.Processes
             CreateProcessStatusReturn = createProcessStatusReturn;
         }
 
-        /// <summary>
-        /// Deserialize result from reader
-        /// </summary>
-        public static IReadOnlyCollection<ProcessDetouringStatusData> Deserialize(BuildXLReader reader)
-        {
-            int processDetouringStatusStatusesCount = reader.ReadInt32Compact();
-            var processDetouringStatuses = new ProcessDetouringStatusData[processDetouringStatusStatusesCount];
-            for (int i = 0; i < processDetouringStatusStatusesCount; i++)
-            {
-                processDetouringStatuses[i] = ReadReportedProcessDetouringStatusData(reader);
-            }
-
-            return processDetouringStatuses;
-        }
-
-        /// <summary>
-        /// Serialize result to writer
-        /// </summary>
-        public static void Serialize(BuildXLWriter writer, IReadOnlyCollection<ProcessDetouringStatusData> processDetouringStatuses)
-        {
-            if (processDetouringStatuses == null)
-            {
-                writer.WriteCompact(0);
-            }
-            else
-            {
-                writer.WriteCompact(processDetouringStatuses.Count);
-                foreach (var processDetouringData in processDetouringStatuses)
-                {
-                    WriteReportedProcessDetouringStatus(writer, processDetouringData);
-                }
-            }
-        }
-
-        private static ProcessDetouringStatusData ReadReportedProcessDetouringStatusData(BuildXLReader reader)
+        /// <nodoc />
+        public static ProcessDetouringStatusData Deserialize(BuildXLReader reader)
         {
             return new ProcessDetouringStatusData(
                 processId: reader.ReadUInt64(),
@@ -165,20 +131,21 @@ namespace BuildXL.Processes
                 createProcessStatusReturn: reader.ReadUInt32());
         }
 
-        private static void WriteReportedProcessDetouringStatus(BuildXLWriter writer, ProcessDetouringStatusData detouringData)
+        /// <nodoc />
+        public void Serialize(BuildXLWriter writer)
         {
-            writer.Write(detouringData.ProcessId);
-            writer.Write(detouringData.ReportStatus);
-            writer.Write(detouringData.ProcessName);
-            writer.Write(detouringData.StartApplicationName);
-            writer.Write(detouringData.StartCommandLine);
-            writer.Write(detouringData.NeedsInjection);
-            writer.Write(detouringData.Job);
-            writer.Write(detouringData.DisableDetours);
-            writer.Write(detouringData.CreationFlags);
-            writer.Write(detouringData.Detoured);
-            writer.Write(detouringData.Error);
-            writer.Write(detouringData.CreateProcessStatusReturn);
+            writer.Write(ProcessId);
+            writer.Write(ReportStatus);
+            writer.Write(ProcessName);
+            writer.Write(StartApplicationName);
+            writer.Write(StartCommandLine);
+            writer.Write(NeedsInjection);
+            writer.Write(Job);
+            writer.Write(DisableDetours);
+            writer.Write(CreationFlags);
+            writer.Write(Detoured);
+            writer.Write(Error);
+            writer.Write(CreateProcessStatusReturn);
         }
     }
 }

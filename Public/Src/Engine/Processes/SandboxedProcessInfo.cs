@@ -376,9 +376,9 @@ namespace BuildXL.Processes
         /// Standard output and error for sandboxed process.
         /// </summary>
         /// <remarks>
-        /// This instance of <see cref="SandboxedProcessFiles"/> is used as an alternative to <see cref="FileStorage"/>.
+        /// This instance of <see cref="SandboxedProcessStandardFiles"/> is used as an alternative to <see cref="FileStorage"/>.
         /// </remarks>
-        public SandboxedProcessFiles SandboxedProcessStandardFiles { get; set; }
+        public SandboxedProcessStandardFiles SandboxedProcessStandardFiles { get; set; }
 
         /// <summary>
         /// Info about the source of standard input.
@@ -478,7 +478,7 @@ namespace BuildXL.Processes
                 SandboxKind sandboxKind = (SandboxKind)reader.ReadByte();
                 string pipDescription = reader.ReadNullableString();
                 string standardDirectory = reader.ReadNullableString();
-                SandboxedProcessFiles sandboxedProcessStandardFiles = reader.ReadNullable(r => SandboxedProcessFiles.Deserialize(r));
+                SandboxedProcessStandardFiles sandboxedProcessStandardFiles = reader.ReadNullable(r => SandboxedProcessStandardFiles.Deserialize(r));
                 StandardInputInfo standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
                 RegexDescriptor standardOutputObeserverRegex = reader.ReadNullable(r => RegexDescriptor.Deserialize(r));
                 RegexDescriptor standardErrorObeserverRegex = reader.ReadNullable(r => RegexDescriptor.Deserialize(r));
@@ -522,58 +522,6 @@ namespace BuildXL.Processes
         #endregion
 
         #region Extra data structure for serialization
-
-        /// <summary>
-        /// Files potentially created by the sandboxed process.
-        /// </summary>
-        public class SandboxedProcessFiles
-        {
-            /// <summary>
-            /// Standard output.
-            /// </summary>
-            public string StandardOutput { get; }
-
-            /// <summary>
-            /// Standard error.
-            /// </summary>
-            public string StandardError { get; }
-
-            /// <summary>
-            /// Creates an instance of <see cref="SandboxedProcessFile"/>.
-            /// </summary>
-            public SandboxedProcessFiles(string standardOutput, string standardError)
-            {
-                Contract.Requires(!string.IsNullOrWhiteSpace(standardOutput));
-                Contract.Requires(!string.IsNullOrWhiteSpace(standardError));
-
-                StandardOutput = standardOutput;
-                StandardError = standardError;
-            }
-
-            /// <summary>
-            /// Serializes this instance into the given <paramref name="writer"/>.
-            /// </summary>
-            public void Serialize(BuildXLWriter writer)
-            {
-                Contract.Requires(writer != null);
-
-                writer.Write(StandardOutput);
-                writer.Write(StandardError);
-            }
-
-            /// <summary>
-            /// Deserializes an instance of <see cref="SandboxedProcessFiles"/>.
-            /// </summary>
-            public static SandboxedProcessFiles Deserialize(BuildXLReader reader)
-            {
-                Contract.Requires(reader != null);
-
-                string output = reader.ReadString();
-                string error = reader.ReadString();
-
-                return new SandboxedProcessFiles(output, error);
-            }
-        }
 
         /// <summary>
         /// Info about the source of standard input.
@@ -685,38 +633,6 @@ namespace BuildXL.Processes
                 Contract.Requires(reader != null);
 
                 return new RegexDescriptor(reader.ReadString(), (RegexOptions)reader.ReadUInt32());
-            }
-        }
-
-        /// <summary>
-        /// Implementation of <see cref="ISandboxedProcessFileStorage"/> based off <see cref="SandboxedProcessFiles"/>.
-        /// </summary>
-        public class StandardFileStorage : ISandboxedProcessFileStorage
-        {
-            private readonly SandboxedProcessFiles m_sandboxedProcessFiles;
-
-            /// <summary>
-            /// Create an instance of <see cref="StandardFileStorage"/>.
-            /// </summary>
-            public StandardFileStorage(SandboxedProcessFiles sandboxedProcessStandardFiles)
-            {
-                Contract.Requires(sandboxedProcessStandardFiles != null);
-                m_sandboxedProcessFiles = sandboxedProcessStandardFiles;
-            }
-
-            /// <inheritdoc />
-            public string GetFileName(SandboxedProcessFile file)
-            {
-                switch (file)
-                {
-                    case SandboxedProcessFile.StandardError:
-                        return m_sandboxedProcessFiles.StandardError;
-                    case SandboxedProcessFile.StandardOutput:
-                        return m_sandboxedProcessFiles.StandardOutput;
-                    default:
-                        Contract.Assert(false);
-                        return null;
-                }
             }
         }
 

@@ -3,6 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using BuildXL.Utilities;
 
 namespace BuildXL.Processes
 {
@@ -119,11 +121,142 @@ namespace BuildXL.Processes
         /// This could happen if the child process is killed while writing a message in the pipe.
         /// If null there is no error, otherwise the Faiulure object contains string, describing the error.
         /// </summary>
-        public Utilities.Failure<string> MessageProcessingFailure { get; internal set; }
+        public Failure<string> MessageProcessingFailure { get; internal set; }
 
         /// <summary>
         /// Time (in ms.) spent for startiing the process.
         /// </summary>
         public long ProcessStartTime { get; internal set; }
+
+        /// <summary>
+        /// Number of warnings.
+        /// </summary>
+        public int WarningCount { get; internal set; }
+
+        /// <summary>
+        /// Serializes this instance to a given <paramref name="writer"/>.
+        /// </summary>
+        public void Serialize(BuildXLWriter writer)
+        {
+            writer.Write(ExitCode);
+            writer.Write(Killed);
+            writer.Write(TimedOut);
+            writer.Write(HasDetoursInjectionFailures);
+
+            var processMap = CreateAndSerializeProcessMap(writer);
+
+            writer.Write(SurvivingChildProcesses, (w, v) => w.WriteReadOnlyList(v.ToList(), (w2, v2) => w2.Write(processMap[v2])));
+            writer.Write(PrimaryProcessTimes, (w, v) => v.Serialize(w));
+            writer.Write(JobAccountingInformation, (w, v) => v.Serialize(w));
+            writer.Write(StandardOutput, (w, v) => v.Serialize(w));
+            writer.Write(StandardError, (w, v) => v.Serialize(w));
+            writer.Write(FileAccesses, (w, v) => w.WriteReadOnlyList(v.ToList(), (w2, v2) => v2.Serialize(writer, processMap, writePath: null)));
+            writer.Write(ExplicitlyReportedFileAccesses, (w, v) => w.WriteReadOnlyList(v.ToList(), (w2, v2) => v2.Serialize(writer, processMap, writePath: null)));
+            writer.Write(AllUnexpectedFileAccesses, (w, v) => w.WriteReadOnlyList(v.ToList(), (w2, v2) => v2.Serialize(writer, processMap, writePath: null)));
+            writer.Write(Processes, (w, v) => w.WriteReadOnlyList(v, (w2, v2) => w2.Write(processMap[v2])));
+            writer.Write(DetouringStatuses, (w, v) => w.WriteReadOnlyList(v, (w2, v2) => v2.Serialize(w2)));
+            writer.WriteNullableString(DumpFileDirectory);
+            writer.WriteNullableString(DumpCreationException?.Message);
+            writer.WriteNullableString(StandardInputException?.Message);
+            writer.Write(NumberOfProcessLaunchRetries);
+            writer.Write(HasReadWriteToReadFileAccessRequest);
+            writer.WriteNullableString(MessageProcessingFailure?.Describe());
+            writer.Write(ProcessStartTime);
+            writer.Write(WarningCount);
+        }
+
+        /// <summary>
+        /// Deserializes an instance of <see cref="SandboxedProcessResult"/>.
+        /// </summary>
+        /// <param name="reader"></param>
+        /// <returns></returns>
+        public static SandboxedProcessResult Deserialize(BuildXLReader reader)
+        {
+            int exitCode = reader.ReadInt32();
+            bool killed = reader.ReadBoolean();
+            bool timedOut = reader.ReadBoolean();
+            bool hasDetoursInjectionFailures = reader.ReadBoolean();
+
+            IReadOnlyList<ReportedProcess> allReportedProcesses = reader.ReadReadOnlyList(r => ReportedProcess.Deserialize(r));
+            IReadOnlyList<ReportedProcess> survivingChildProcesses = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => allReportedProcesses[r2.ReadInt32()]));
+            ProcessTimes primaryProcessTimes = reader.ReadNullable(r => ProcessTimes.Deserialize(r));
+            JobObject.AccountingInformation? jobAccountingInformation = reader.ReadNullableStruct(r => JobObject.AccountingInformation.Deserialize(r));
+            SandboxedProcessOutput standardOutput = reader.ReadNullable(r => SandboxedProcessOutput.Deserialize(r));
+            SandboxedProcessOutput standardError = reader.ReadNullable(r => SandboxedProcessOutput.Deserialize(r));
+            IReadOnlyList<ReportedFileAccess> fileAccesses = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => ReportedFileAccess.Deserialize(r2, allReportedProcesses, readPath: null)));
+            IReadOnlyList<ReportedFileAccess> explicitlyReportedFileAccesses = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => ReportedFileAccess.Deserialize(r2, allReportedProcesses, readPath: null)));
+            IReadOnlyList<ReportedFileAccess> allUnexpectedFileAccesses = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => ReportedFileAccess.Deserialize(r2, allReportedProcesses, readPath: null)));
+            IReadOnlyList<ReportedProcess> processes = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => allReportedProcesses[r2.ReadInt32()]));
+            IReadOnlyList<ProcessDetouringStatusData> detouringStatuses = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => ProcessDetouringStatusData.Deserialize(r2)));
+            string dumpFileDirectory = reader.ReadNullableString();
+            string dumpCreationExceptionMessage = reader.ReadNullableString();
+            string standardInputExceptionMessage = reader.ReadNullableString();
+            int numberOfPRocessLaunchRetries = reader.ReadInt32();
+            bool hasReadWriteToReadFileAccessRequest = reader.ReadBoolean();
+            string messageProcessingFailureMessage = reader.ReadNullableString();
+            long processStartTime = reader.ReadInt64();
+            int warningCount = reader.ReadInt32();
+
+            return new SandboxedProcessResult()
+            {
+                ExitCode = exitCode,
+                Killed = killed,
+                TimedOut = timedOut,
+                HasDetoursInjectionFailures = hasDetoursInjectionFailures,
+                SurvivingChildProcesses = survivingChildProcesses,
+                PrimaryProcessTimes = primaryProcessTimes,
+                JobAccountingInformation = jobAccountingInformation,
+                StandardOutput = standardOutput,
+                StandardError = standardError,
+                FileAccesses = fileAccesses != null ? new HashSet<ReportedFileAccess>(fileAccesses) : null,
+                ExplicitlyReportedFileAccesses = explicitlyReportedFileAccesses != null ? new HashSet<ReportedFileAccess>(explicitlyReportedFileAccesses) : null,
+                AllUnexpectedFileAccesses = allUnexpectedFileAccesses != null ? new HashSet<ReportedFileAccess>(allUnexpectedFileAccesses) : null,
+                Processes = processes,
+                DetouringStatuses = detouringStatuses,
+                DumpFileDirectory = dumpFileDirectory,
+                DumpCreationException = dumpCreationExceptionMessage != null ? new Exception(dumpCreationExceptionMessage) : null,
+                StandardInputException = standardInputExceptionMessage != null ? new Exception(standardInputExceptionMessage) : null,
+                NumberOfProcessLaunchRetries = numberOfPRocessLaunchRetries,
+                HasReadWriteToReadFileAccessRequest = hasReadWriteToReadFileAccessRequest,
+                MessageProcessingFailure = messageProcessingFailureMessage != null ? new Failure<string>(messageProcessingFailureMessage) : null,
+                ProcessStartTime = processStartTime,
+                WarningCount = warningCount
+            };
+        }
+
+        private Dictionary<ReportedProcess, int> CreateAndSerializeProcessMap(BuildXLWriter writer)
+        {
+            var processMap = new Dictionary<ReportedProcess, int>();
+
+            PopulateProcesses(Processes);
+            PopulateProcesses(SurvivingChildProcesses);
+            PopulateProcesses(FileAccesses?.Select(f => f.Process));
+            PopulateProcesses(ExplicitlyReportedFileAccesses?.Select(f => f.Process));
+            PopulateProcesses(AllUnexpectedFileAccesses?.Select(f => f.Process));
+
+            ReportedProcess[] processes = new ReportedProcess[processMap.Count];
+            foreach (var process in processMap)
+            {
+                processes[process.Value] = process.Key;
+            }
+
+            writer.WriteReadOnlyList(processes, (w, v) => v.Serialize(w));
+
+            return processMap;
+
+            void PopulateProcesses(IEnumerable<ReportedProcess> processesToPopulate)
+            {
+                if (processesToPopulate != null)
+                {
+                    foreach (var process in processesToPopulate)
+                    {
+                        if (!processMap.ContainsKey(process))
+                        {
+                            processMap.Add(process, processMap.Count);
+                        }
+                    }
+                }
+            }
+        }
     }
 }

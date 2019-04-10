@@ -399,21 +399,7 @@ namespace BuildXL.Scheduler.Distribution
             ReportedProcess[] processes = new ReportedProcess[count];
             for (int i = 0; i < count; i++)
             {
-                processes[i] = new ReportedProcess(
-                    reader.ReadUInt32(),
-                    reader.ReadString(),
-                    reader.ReadString());
-
-                processes[i].CreationTime = reader.ReadDateTime();
-                processes[i].ExitTime = reader.ReadDateTime();
-                processes[i].KernelTime = reader.ReadTimeSpan();
-                processes[i].UserTime = reader.ReadTimeSpan();
-                IOTypeCounters readCounters = new IOTypeCounters(reader.ReadUInt64(), reader.ReadUInt64());
-                IOTypeCounters writeCounters = new IOTypeCounters(reader.ReadUInt64(), reader.ReadUInt64());
-                IOTypeCounters otherCounters = new IOTypeCounters(reader.ReadUInt64(), reader.ReadUInt64());
-                processes[i].IOCounters = new IOCounters(readCounters, writeCounters, otherCounters);
-                processes[i].ExitCode = reader.ReadUInt32();
-                processes[i].ParentProcessId = reader.ReadUInt32();
+                processes[i] = ReportedProcess.Deserialize(reader);
             }
 
             return processes;
@@ -430,41 +416,13 @@ namespace BuildXL.Scheduler.Distribution
 
             for (int i = 0; i < processes.Length; i++)
             {
-                writer.Write(processes[i].ProcessId);
-                writer.Write(processes[i].Path);
-                writer.Write(processes[i].ProcessArgs);
-                writer.Write(processes[i].CreationTime);
-                writer.Write(processes[i].ExitTime);
-                writer.Write(processes[i].KernelTime);
-                writer.Write(processes[i].UserTime);
-                writer.Write(processes[i].IOCounters.ReadCounters.OperationCount);
-                writer.Write(processes[i].IOCounters.ReadCounters.TransferCount);
-                writer.Write(processes[i].IOCounters.WriteCounters.OperationCount);
-                writer.Write(processes[i].IOCounters.WriteCounters.TransferCount);
-                writer.Write(processes[i].IOCounters.OtherCounters.OperationCount);
-                writer.Write(processes[i].IOCounters.OtherCounters.TransferCount);
-                writer.Write(processes[i].ExitCode);
-                writer.Write(processes[i].ParentProcessId);
+                processes[i].Serialize(writer);
             }
         }
 
         private static ReportedFileAccess ReadReportedFileAccess(BuildXLReader reader, ReportedProcess[] processes, Func<BuildXLReader, AbsolutePath> readPath)
         {
-            return new ReportedFileAccess(
-                operation: (ReportedFileOperation)reader.ReadByte(),
-                process: processes[reader.ReadInt32Compact()],
-                requestedAccess: (RequestedAccess)reader.ReadInt32Compact(),
-                status: (FileAccessStatus)reader.ReadInt32Compact(),
-                explicitlyReported: reader.ReadBoolean(),
-                error: reader.ReadUInt32(),
-                usn: new Usn(reader.ReadUInt64()),
-                desiredAccess: (DesiredAccess)reader.ReadUInt32(),
-                shareMode: (ShareMode)reader.ReadUInt32(),
-                creationDisposition: (CreationDisposition)reader.ReadUInt32(),
-                flagsAndAttributes: (FlagsAndAttributes)reader.ReadUInt32(),
-                manifestPath: readPath(reader),
-                path: ReadNullableString(reader),
-                enumeratePatttern: ReadNullableString(reader));
+            return ReportedFileAccess.Deserialize(reader, processes, readPath);
         }
 
         private static void WriteReportedFileAccess(
@@ -473,20 +431,7 @@ namespace BuildXL.Scheduler.Distribution
             Dictionary<ReportedProcess, int> processMap,
             Action<BuildXLWriter, AbsolutePath> writePath)
         {
-            writer.Write((byte) reportedFileAccess.Operation);
-            writer.WriteCompact(processMap[reportedFileAccess.Process]);
-            writer.WriteCompact((int) reportedFileAccess.RequestedAccess);
-            writer.WriteCompact((int) reportedFileAccess.Status);
-            writer.Write(reportedFileAccess.ExplicitlyReported);
-            writer.Write(reportedFileAccess.Error);
-            writer.Write(reportedFileAccess.Usn.Value);
-            writer.Write((uint) reportedFileAccess.DesiredAccess);
-            writer.Write((uint) reportedFileAccess.ShareMode);
-            writer.Write((uint) reportedFileAccess.CreationDisposition);
-            writer.Write((uint) reportedFileAccess.FlagsAndAttributes);
-            writePath(writer, reportedFileAccess.ManifestPath);
-            WriteNullableString(writer, reportedFileAccess.Path);
-            WriteNullableString(writer, reportedFileAccess.EnumeratePattern);
+            reportedFileAccess.Serialize(writer, processMap, writePath);
         }
 
         private static string ReadNullableString(BuildXLReader reader)

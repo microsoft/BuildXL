@@ -563,6 +563,24 @@ namespace TypeScript.Net.Incrementality
                     break;
                 }
 
+                case SyntaxKind.SwitchExpression:
+                {
+                    var node = expression.Cast<ISwitchExpression>();
+                    AnalyzeExpression(node.Expression, idx);
+                    foreach (var clause in node.Clauses) {
+                        AnalyzeExpression(clause, idx);
+                    }
+                    break;
+                }
+
+                case SyntaxKind.SwitchExpressionClause:
+                {
+                    var node = expression.Cast<ISwitchExpressionClause>();
+                    AnalyzeExpression(node.Match, idx);
+                    AnalyzeExpression(node.Expression, idx);
+                    break;
+                }
+
                 case SyntaxKind.TypeAssertionExpression:
                 {
                     var node = expression.Cast<ITypeAssertion>();

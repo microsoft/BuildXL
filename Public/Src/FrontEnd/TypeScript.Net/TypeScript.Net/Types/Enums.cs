@@ -234,6 +234,8 @@ namespace TypeScript.Net.Types
         PostfixUnaryExpression,
         BinaryExpression,
         ConditionalExpression,
+        SwitchExpression,
+        SwitchExpressionClause,
         TemplateExpression,
         YieldExpression,
         SpreadElementExpression,

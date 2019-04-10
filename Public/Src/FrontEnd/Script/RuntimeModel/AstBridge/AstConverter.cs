@@ -32,6 +32,8 @@ using static BuildXL.Utilities.FormattableStringEx;
 using BinaryExpression = BuildXL.FrontEnd.Script.Expressions.BinaryExpression;
 using CaseClause = BuildXL.FrontEnd.Script.Statements.CaseClause;
 using ConditionalExpression = BuildXL.FrontEnd.Script.Expressions.ConditionalExpression;
+using SwitchExpression = BuildXL.FrontEnd.Script.Expressions.SwitchExpression;
+using SwitchExpressionClause = BuildXL.FrontEnd.Script.Expressions.SwitchExpressionClause;
 using DefaultClause = BuildXL.FrontEnd.Script.Statements.DefaultClause;
 using EnumDeclaration = BuildXL.FrontEnd.Script.Declarations.EnumDeclaration;
 using ExportDeclaration = BuildXL.FrontEnd.Script.Declarations.ExportDeclaration;
@@ -2145,6 +2147,11 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                 case TypeScript.Net.Types.SyntaxKind.ConditionalExpression:
                     return ConvertConditionalExpression(expression.Cast<IConditionalExpression>(), context);
 
+                case TypeScript.Net.Types.SyntaxKind.SwitchExpression:
+                    return ConvertSwitchExpression(expression.Cast<ISwitchExpression>(), context);
+                case TypeScript.Net.Types.SyntaxKind.SwitchExpressionClause:
+                    return ConvertSwitchExpressionClause(expression.Cast<ISwitchExpressionClause>(), context);
+
                 case TypeScript.Net.Types.SyntaxKind.TypeAssertionExpression:
                     return ConvertTypeAssertionExpression(expression.Cast<ITypeAssertion>(), context);
                 case TypeScript.Net.Types.SyntaxKind.AsExpression:
@@ -2277,6 +2284,29 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
             return (conditionalExpression != null && thenExpression != null && elseExpression != null)
                 ? new ConditionalExpression(conditionalExpression, thenExpression, elseExpression, Location(source))
+                : null;
+        }
+
+        private Expression ConvertSwitchExpression(ISwitchExpression source, ConversionContext context)
+        {
+            Expression expression = ConvertExpression(source.Expression, context);
+            SwitchExpressionClause[] clauses = source.Clauses
+                .Select(a => ConvertSwitchExpressionClause(a, context))
+                .Where(a => a != null)
+                .ToArray();
+
+            return (expression != null)
+                ? new SwitchExpression(expression, clauses, Location(source))
+                : null;
+        }
+
+        private SwitchExpressionClause ConvertSwitchExpressionClause(ISwitchExpressionClause source, ConversionContext context)
+        {
+            Expression match = ConvertExpression(source.Match, context);
+            Expression expression = ConvertExpression(source.Expression, context);
+
+            return (match != null && expression != null)
+                ? new SwitchExpressionClause(match, expression, Location(source))
                 : null;
         }
 

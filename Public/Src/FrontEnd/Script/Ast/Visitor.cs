@@ -43,6 +43,16 @@ namespace BuildXL.FrontEnd.Script
         public virtual void Visit(ConditionalExpression conditionalExpression)
         {
         }
+    
+        /// <nodoc />
+        public virtual void Visit(SwitchExpression switchExpression)
+        {
+        }
+
+        /// <nodoc />
+        public virtual void Visit(SwitchExpressionClause switchExpressionClause)
+        {
+        }
 
         /// <nodoc />
         public virtual void Visit(SelectorExpressionBase selectorExpression)

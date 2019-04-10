@@ -717,12 +717,38 @@ namespace BuildXL.FrontEnd.Script
         }
 
         /// <inheritdoc />
+        public override void Visit(SwitchExpression switchExpression)
+        {
+            switchExpression.Expression.Accept(this);
+            Print(" switch ");
+            PrintThenNewLine("{");
+            m_currentIndent++;
+
+            foreach (var clause in switchExpression.Clauses) {
+                clause.Accept(this);
+                PrintThenNewLine(",");
+            }
+
+            m_currentIndent--;
+            PrintThenNewLine("}");
+        }
+
+        /// <inheritdoc />
+        public override void Visit(SwitchExpressionClause switchExpressionClause)
+        {
+            switchExpressionClause.Match.Accept(this);
+            Print(" : ");
+            switchExpressionClause.Expression.Accept(this);
+        }
+
+        /// <inheritdoc />
         public override void Visit(SelectorExpressionBase selectorExpression)
         {
             var thisExpression = selectorExpression.ThisExpression;
 
             bool printParen = thisExpression.Kind == SyntaxKind.BinaryExpression
                               || thisExpression.Kind == SyntaxKind.IteExpression
+                              || thisExpression.Kind == SyntaxKind.SwitchExpression
                               || thisExpression.Kind == SyntaxKind.UnaryExpression
                               || thisExpression.Kind == SyntaxKind.LambdaExpression
                               || thisExpression.Kind == SyntaxKind.AssignmentExpression
@@ -751,6 +777,7 @@ namespace BuildXL.FrontEnd.Script
 
             bool printParen = thisExpression.Kind == SyntaxKind.BinaryExpression
                               || thisExpression.Kind == SyntaxKind.IteExpression
+                              || thisExpression.Kind == SyntaxKind.SwitchExpression
                               || thisExpression.Kind == SyntaxKind.UnaryExpression
                               || thisExpression.Kind == SyntaxKind.LambdaExpression
                               || thisExpression.Kind == SyntaxKind.AssignmentExpression

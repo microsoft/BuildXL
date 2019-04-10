@@ -16,5 +16,5 @@ declare function project(project: ProjectDescription): void;
 // Temporary function for declaring qualifier space
 declare function declareQualifierSpace(qualifierSpace: QualifierSpace);
 
-/** Function to swtich between qualifiers on imports. */
+/** Function to switch between qualifiers on imports. */
 declare function withQualifier(qualifier: Object);

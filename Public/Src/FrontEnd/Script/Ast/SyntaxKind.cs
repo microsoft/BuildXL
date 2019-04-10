@@ -43,6 +43,8 @@ namespace BuildXL.FrontEnd.Script
 
         IndexExpression,
         IteExpression,
+        SwitchExpression,
+        SwitchExpressionClause,
         LambdaExpression,
         ObjectExpression, // Obsolete and never used any more.
         SelectorExpression,

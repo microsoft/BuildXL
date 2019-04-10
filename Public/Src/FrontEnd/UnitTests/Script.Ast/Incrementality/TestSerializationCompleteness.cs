@@ -526,6 +526,20 @@ namespace Test.DScript.Ast.Interpretation
             ConditionalExpression node = new ConditionalExpression(GetExpression1(), GetExpression2(), GetExpression1(), DefaultLineInfo);
             CheckSerializationRoundTrip(node);
         }
+        
+        [Fact]
+        public void TestSwitchExpression()
+        {
+            SwitchExpression node = new SwitchExpression(
+                GetExpression1(),
+                new[]
+                {
+                    new SwitchExpressionClause(GetExpression2(), GetExpression1(), DefaultLineInfo),
+                    new SwitchExpressionClause(GetExpression1(), GetExpression2(), DefaultLineInfo),
+                },
+                DefaultLineInfo);
+            CheckSerializationRoundTrip(node);
+        }
 
         [Fact]
         public void TestImportAliasExpression()

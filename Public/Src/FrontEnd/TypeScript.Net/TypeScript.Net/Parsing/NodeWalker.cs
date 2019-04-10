@@ -524,6 +524,25 @@ namespace TypeScript.Net.Parsing
                         break;
                     }
 
+                case SyntaxKind.SwitchExpression:
+                    {
+                        var concreteNode = node.Cast<ISwitchExpression>();
+                        nodes.Add(Node(concreteNode.Expression));
+                        foreach (var clause in concreteNode.Clauses)
+                        {
+                            nodes.Add(Node(clause));
+                        }
+                        break;
+                    }
+
+                case SyntaxKind.SwitchExpressionClause:
+                    {
+                        var concreteNode = node.Cast<ISwitchExpressionClause>();
+                        nodes.Add(Node(concreteNode.Match));
+                        nodes.Add(Node(concreteNode.Expression));
+                        break;
+                    }
+
                 case SyntaxKind.SpreadElementExpression:
                     nodes.Add(Node(node.Cast<ISpreadElementExpression>().Expression));
                     break;

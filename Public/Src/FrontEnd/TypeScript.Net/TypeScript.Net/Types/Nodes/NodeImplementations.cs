@@ -2502,6 +2502,32 @@ namespace TypeScript.Net.Types
     }
 
     /// <nodoc/>
+    public sealed partial class SwitchExpression : NodeBase<NodeExtraState>, ISwitchExpression
+    {
+        /// <inheritdoc />
+        public IExpression Expression { get; set; }
+
+        /// <inheritdoc />
+        public NodeArray<ISwitchExpressionClause> Clauses { get; set; }
+
+        /// <inheritdoc/>
+        protected override SyntaxKind SyntaxKind => SyntaxKind.SwitchExpression;
+    }
+
+    /// <nodoc/>
+    public sealed partial class SwitchExpressionClause : NodeBase<NodeExtraState>, ISwitchExpressionClause
+    {
+        /// <inheritdoc />
+        public IExpression Match { get; set; }
+
+        /// <inheritdoc />
+        public IExpression Expression { get; set; }
+
+        /// <inheritdoc/>
+        protected override SyntaxKind SyntaxKind => SyntaxKind.SwitchExpressionClause;
+    }
+
+    /// <nodoc/>
     public sealed partial class BinaryExpression : NodeBase<NodeExtraState>, IBinaryExpression
     {
         /// <inheritdoc/>

@@ -865,6 +865,28 @@ namespace TypeScript.Net.Types
     }
 
     /// <nodoc/>
+    [NodeInfo(SyntaxKinds = new[] { SyntaxKind.SwitchExpression }, NodeType = NodeType.Leaf)]
+    public interface ISwitchExpression : IExpression
+    {
+        /// <nodoc/>
+        IExpression Expression { get; set; }
+
+        /// <nodoc/>
+        NodeArray<ISwitchExpressionClause> Clauses { get; set; }
+    }
+
+    /// <nodoc/>
+    [NodeInfo(SyntaxKinds = new[] { SyntaxKind.SwitchExpressionClause }, NodeType = NodeType.Leaf)]
+    public interface ISwitchExpressionClause : IExpression
+    {
+        /// <nodoc/>
+        IExpression Match { get; set; }
+
+        /// <nodoc/>
+        IExpression Expression { get; set; }
+    }
+
+    /// <nodoc/>
     [NodeInfo(SyntaxKinds = new[] { SyntaxKind.FunctionExpression }, NodeType = NodeType.Leaf)]
     public interface IFunctionExpression : IPrimaryExpression, IFunctionLikeDeclaration
     {

@@ -64,7 +64,8 @@ namespace BuildXL.Native.IO
             int postTimeoutMultiplier = DefaultPostTimeoutMultiplier)
         {
             Contract.Requires(work != null);
-            Contract.Requires(logExceptions || rethrowExceptions, "A caught exception must be either rethrown or logged.");
+            Contract.Requires(logExceptions || rethrowExceptions);
+            Contract.Requires(numberOfAttempts > 0);
 
             int timeoutMs = initialTimeoutMs;
             bool done = false;
@@ -111,7 +112,8 @@ namespace BuildXL.Native.IO
             int postTimeoutMultiplier = DefaultPostTimeoutMultiplier)
         {
             Contract.Requires(work != null);
-            Contract.Requires(logExceptions || rethrowExceptions, "A caught exception must be either rethrown or logged.");
+            Contract.Requires(logExceptions || rethrowExceptions);
+            Contract.Requires(numberOfAttempts > 0);
 
             int timeoutMs = initialTimeoutMs;
             bool done = false;
@@ -157,6 +159,10 @@ namespace BuildXL.Native.IO
           int initialTimeoutMs = DefaultInitialTimeoutMs,
           int postTimeoutMultiplier = DefaultPostTimeoutMultiplier)
         {
+            Contract.Requires(work != null);
+            Contract.Requires(logExceptions || rethrowExceptions);
+            Contract.Requires(numberOfAttempts > 0);
+
             Possible<TResult, Failure>? possiblyResult = null;
 
             bool success = RetryOnFailure(
@@ -171,7 +177,7 @@ namespace BuildXL.Native.IO
             // (i.e., return a failure instead of throwing an exception). However, there is no guarantee that
             // it would behave this way. 
             if (!possiblyResult.HasValue)
-            {                
+            {
                 Contract.Assert(false, $"An operation resulted in an unhandled exception in all of the '{numberOfAttempts}' retry attempts");
             }
 
@@ -189,6 +195,10 @@ namespace BuildXL.Native.IO
             int initialTimeoutMs = DefaultInitialTimeoutMs,
             int postTimeoutMultiplier = DefaultPostTimeoutMultiplier)
         {
+            Contract.Requires(work != null);
+            Contract.Requires(logExceptions || rethrowExceptions);
+            Contract.Requires(numberOfAttempts > 0);
+
             Possible<TResult>? possiblyResult = null;
 
             bool success = await RetryOnFailureAsync(

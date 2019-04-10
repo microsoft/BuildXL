@@ -2447,6 +2447,7 @@ namespace BuildXL.Scheduler
         private static void AssertNoFileNamesMismatch(
             IPipExecutionEnvironment environment,
             Process process,
+            RunnableFromCacheResult runnableFromCacheCheckResult,
             FileArtifact file,
             in FileMaterializationInfo info)
         {
@@ -2464,12 +2465,14 @@ namespace BuildXL.Scheduler
             {
                 var pathTable = environment.Context.PathTable;
                 var stringTable = environment.Context.StringTable;
+                var cacheHitData = runnableFromCacheCheckResult.GetCacheHitData();
 
                 string fileArtifactPathString = file.Path.ToString(pathTable);
                 string fileMaterializationFileNameString = info.FileName.ToString(stringTable);
                 var stringBuilder = new StringBuilder();
                 stringBuilder.AppendLine(
-                    I($"File name should only differ by casing. File artifact's full path: '{fileArtifactPathString}'; file artifact's file name: '{fileArtifactFileName.ToString(stringTable)}'; materialization info file name: '{fileMaterializationFileNameString}'"));
+                    I($"File name should only differ by casing. File artifact's full path: '{fileArtifactPathString}'; file artifact's file name: '{fileArtifactFileName.ToString(stringTable)}'; materialization info file name: '{fileMaterializationFileNameString}'."));                
+                stringBuilder.AppendLine(I($"[{process.FormattedSemiStableHash}] Weak FP: '{runnableFromCacheCheckResult.WeakFingerprint.ToString()}', Strong FP: '{cacheHitData.StrongFingerprint.ToString()}', Metadata Hash: '{cacheHitData.MetadataHash.ToString()}'"));
 
                 Contract.Assert(false, stringBuilder.ToString());
             }
@@ -2507,7 +2510,7 @@ namespace BuildXL.Scheduler
                 var info = cacheHitData.CachedArtifactContentHashes[i].fileMaterializationInfo;
                 var file = cacheHitData.CachedArtifactContentHashes[i].fileArtifact;
 
-                AssertNoFileNamesMismatch(environment, pip, file, info);
+                AssertNoFileNamesMismatch(environment, pip, runnableFromCacheCheckResult, file, info);
                 executionResult.ReportOutputContent(file, info, PipOutputOrigin.NotMaterialized);
             }
 

@@ -621,8 +621,8 @@ namespace BuildXL.Execution.Analyzer
             var result = new List<string>();
             var directories = new Stack<(DirectoryArtifact artifact, string path, int tabCount)>(
                 dependencies
-                .Select(d => (artifact: d, path: d.Path.ToString(PathTable), 0))
-                .OrderByDescending(_ => _.path));
+                    .Select(d => (artifact: d, path: d.Path.ToString(PathTable), 0))
+                    .OrderByDescending(tupple => tupple.path));
 
             while (directories.Count > 0)
             {
@@ -636,7 +636,7 @@ namespace BuildXL.Execution.Analyzer
                 if (PipTable.IsSealDirectoryComposite(sealPipId))
                 {
                     var sealPip = (SealDirectory)CachedGraph.PipGraph.GetSealedDirectoryPip(directory.artifact, PipQueryContext.SchedulerExecuteSealDirectoryPip);
-                    foreach (var nestedDirectory in sealPip.ComposedDirectories.Select(d => (artifact: d, path: d.Path.ToString(PathTable))).OrderByDescending(_ => _.path))
+                    foreach (var nestedDirectory in sealPip.ComposedDirectories.Select(d => (artifact: d, path: d.Path.ToString(PathTable))).OrderByDescending(tupple => tupple.path))
                     {
                         directories.Push((nestedDirectory.artifact, nestedDirectory.path, directory.tabCount + 1));
                     }

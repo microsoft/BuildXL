@@ -19,6 +19,8 @@ call :SetFQN ENLISTMENTROOT=%~dp0..\..
 set TOOLROOT=%ENLISTMENTROOT%\Shared\Tools
 set SCRIPTROOT=%ENLISTMENTROOT%\Shared\Scripts
 
+echo ##vso[build.updatebuildnumber]0.1.0-20190329.14.2
+
 REM *********************************
 REM CheckForShortCut
 REM *********************************

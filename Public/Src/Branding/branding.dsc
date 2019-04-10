@@ -40,11 +40,7 @@ export const semanticVersion = Environment.hasVariable("[BuildXL.Branding]Semant
     : explicitSemanticVersion;
 
 @@public
-export const prereleaseTag = Environment.hasVariable("[BuildXL.Branding]PrereleaseTag")
-    ? Environment.getStringValue("[BuildXL.Branding]PrereleaseTag")
-    : Environment.hasVariable("[BuildXL.Branding]SourceIdentification")
-        ? undefined
-        : "devBuild";
+export const prereleaseTag = "20190329.14.2";
 
 @@public
 export const version = prereleaseTag

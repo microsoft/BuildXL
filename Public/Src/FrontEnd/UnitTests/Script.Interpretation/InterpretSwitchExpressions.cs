@@ -62,6 +62,7 @@ namespace Test.DScript.Ast.Interpretation
             var result = EvaluateExpressionWithNoErrors(spec, "r");
             Assert.Equal(42, result);
         }
+        
         [Fact]
         public void EvaluateCaseWithNumberFromVariable()
         {
@@ -73,5 +74,15 @@ export const r = left switch { 0: 32, 1: 42, 2: 52} ;";
             Assert.Equal(42, result);
         }
 
+        [Fact]
+        public void EvaluateCaseWithDefault()
+        {
+            string spec =
+                @"const left = 5;
+export const r = left switch { 0: 32, 1: 42, default: 52} ;";
+
+            var result = EvaluateExpressionWithNoErrors(spec, "r");
+            Assert.Equal(52, result);
+        }
     }
 }

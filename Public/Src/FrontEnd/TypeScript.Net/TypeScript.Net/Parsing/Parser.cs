@@ -5535,11 +5535,22 @@ namespace TypeScript.Net.Parsing
 
         private ISwitchExpressionClause ParseSwitchExpressionClause()
         {
-            var match= ParseLiteralNode();
+            IExpression match;
+            if (ParseOptional(SyntaxKind.DefaultKeyword))
+            {
+                match = null;
+            }
+            else
+            {
+                match = ParseLiteralNode();
+            }
+
             ParseExpected(SyntaxKind.ColonToken);
             var expression = ParseAssignmentExpressionOrHigher();
 
-            var node = CreateNode<SwitchExpressionClause>(SyntaxKind.SwitchExpressionClause, match.Pos, match.GetLeadingTriviaLength(m_sourceFile));
+            var posDataToUse = match ?? expression;
+            var node = CreateNode<SwitchExpressionClause>(SyntaxKind.SwitchExpressionClause, posDataToUse.Pos, posDataToUse.GetLeadingTriviaLength(m_sourceFile));
+            node.IsDefaultFallthrough = match == null;
             node.Match = match;
             node.Expression = expression;
 

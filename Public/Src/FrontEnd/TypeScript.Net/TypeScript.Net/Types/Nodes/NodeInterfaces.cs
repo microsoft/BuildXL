@@ -879,6 +879,12 @@ namespace TypeScript.Net.Types
     [NodeInfo(SyntaxKinds = new[] { SyntaxKind.SwitchExpressionClause }, NodeType = NodeType.Leaf)]
     public interface ISwitchExpressionClause : IExpression
     {
+        /// <summary>
+        /// This indicates the clause is the default case. as in: `default: 10`.
+        /// This means the Match expression will be null.
+        /// </summary>
+        bool IsDefaultFallthrough { get; set; }
+
         /// <nodoc/>
         IExpression Match { get; set; }
 

@@ -344,7 +344,7 @@ namespace TypeScript.Net.Printing
                 case SyntaxKind.SwitchExpressionClause:
                     {
                         var concreteNode = node.Cast<ISwitchExpressionClause>();
-                        return VisitNode(cbNode, concreteNode.Match) ??
+                        return (concreteNode.IsDefaultFallthrough ? null : VisitNode(cbNode, concreteNode.Match)) ??
                            VisitNode(cbNode, concreteNode.Expression);
                     }
 

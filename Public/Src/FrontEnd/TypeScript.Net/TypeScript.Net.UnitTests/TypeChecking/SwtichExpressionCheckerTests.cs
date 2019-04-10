@@ -58,7 +58,7 @@ namespace TypeScript.Net.UnitTests.TypeChecking
    'd': 2,
 };
 ";
-            ExpectOneError(code, "Switch expression only supports checking on string values. Type 'boolean' is not");
+            ExpectOneError(code, "Switch expression only supports checking on string or numeric values. Type 'boolean' is not");
         }
 
         [Fact]
@@ -127,7 +127,37 @@ let result: number = 1 switch {
                 @"
 let result = 'a' switch {};
 ";
-            ExpectOneError(code, "Switch expression must have at least one clause.");
+            ExpectOneError(code, "Switch expression must have at least one clause");
+        }
+
+        [Fact]
+        public void OnlyDefaultClause()
+        {
+            string code =
+                @"
+let result = 'a' switch {default: 10};
+";
+            ExpectOneError(code, "Switch expression must have at least one clause that is not 'default'.");
+        }
+
+        [Fact]
+        public void DefaultClauseMustBeLast()
+        {
+            string code =
+                @"
+let result = 'a' switch {'a': 10, default: 11, 'c': 12, 'd': 13};
+";
+            ExpectOneError(code, "Switch expression 'default' clause must be the last clause.");
+        }
+
+        [Fact]
+        public void MultipleDefaultClauseCaughtByLastCheck()
+        {
+            string code =
+                @"
+let result = 'a' switch {'a': 10, default: 11, 'c': 12, default: 13};
+";
+            ExpectOneError(code, "Switch expression 'default' clause must be the last clause.");
         }
 
         private static void ExpectNoErrors(string code)

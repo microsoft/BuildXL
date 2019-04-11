@@ -399,7 +399,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 }
                 else
                 {
-                    var pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, consoleInput, new ConversionContext(name: m_executeConsoleInput, allowUndefined: false, objectCtx: obj));
+                    var pipData = ProcessData(context, consoleInput, new ConversionContext(name: m_executeConsoleInput, allowUndefined: false, objectCtx: obj));
                     processBuilder.StandardInput = StandardInput.CreateFromData(pipData);
                 }
             }

@@ -617,7 +617,7 @@ namespace BuildXL.FrontEnd.Script.Values
         private EvaluationResult GetOrEvalField(Context context, SymbolAtom name, ModuleLiteral startEnv, bool recurs, ModuleLiteral origin, LineInfo location)
         {
             // This logic is still used only V1 evaluation
-            if (IsFileModule && name == context.Names.Qualifier)
+            if (IsFileModule && name == context.ContextTree.CommonConstants.Qualifier)
             {
                 // Someone references 'qualifier' on the file level.
                 return EvaluationResult.Create(Qualifier.Qualifier);

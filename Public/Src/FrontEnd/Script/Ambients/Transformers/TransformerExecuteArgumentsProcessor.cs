@@ -50,7 +50,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
         private void ProcessArguments(ArrayLiteral arguments)
         {
-            var processedArguments = CommandLineArgumentsConverter.ArrayLiteralToListOfArguments(m_context.Names, arguments);
+            var processedArguments = CommandLineArgumentsConverter.ArrayLiteralToListOfArguments(m_context.StringTable, arguments);
 
             foreach(var argument in processedArguments)
             {

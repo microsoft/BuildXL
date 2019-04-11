@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL;
 using BuildXL.Engine.Cache;
@@ -413,6 +414,11 @@ namespace Test.BuildXL.Scheduler
                 directoryTranslator: DirectoryTranslator,
                 testHooks: testHooks))
             {
+                MountPathExpander mountPathExpander = null;
+                var frontEndNonScrubbablePaths = CollectionUtilities.EmptyArray<string>();
+                var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
+                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, LoggingContext, config, nonScrubbablePaths, tempCleaner);
+
                 if (filter == null)
                 {
                     EngineSchedule.TryGetPipFilter(LoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);

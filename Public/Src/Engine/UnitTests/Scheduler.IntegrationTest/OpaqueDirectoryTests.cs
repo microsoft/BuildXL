@@ -208,8 +208,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             // first run -- cache PipA
             RunScheduler().AssertFailure();
 
-            // scrub the outputs
-            File.Delete(outputFilePipA.Path.ToString(Context.PathTable));
             FileUtilities.DeleteDirectoryContents(opaqueDir, deleteRootDirectory: true);
 
             // second run - PipA should come from cache, PipB should run, but hit the same violation

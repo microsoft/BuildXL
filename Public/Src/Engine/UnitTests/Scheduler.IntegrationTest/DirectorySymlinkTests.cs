@@ -313,12 +313,7 @@ Versions/sym-sym-A -> sym-A
 
             // invalidate producer pip, rerun, expect all cache misses
             InvalidatePip(producerPip);
-            if (dirKind == SealDirectoryKind.SharedOpaque)
-            {
-                // shared opaque dir content must be scrubbed before rerunning
-                FileUtilities.DeleteDirectoryContents(rootDir, deleteRootDirectory: true);
-            }
-            var result = RunSchedulerAndValidateProducedLayout().AssertCacheMiss(allPipIds);
+            RunSchedulerAndValidateProducedLayout().AssertCacheMiss(allPipIds);
 
             // -------------------------------- local functions ---------------------------------
 

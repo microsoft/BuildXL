@@ -116,11 +116,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             // run1 -> cache misses
             RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
 
-            // scrub shared opaque directory content (which would automatically happen in full BuildXL)
-            var sodFilePath = outputInSharedOpaqueDir.Path.ToString(Context.PathTable);
-            FileUtilities.DeleteDirectoryContents(sharedOpaqueDir, deleteRootDirectory: false);
-            XAssert.IsFalse(File.Exists(sodFilePath), "expected to have scrubbed file {0}", sodFilePath);
-
             // run2 -> cache hits
             RunScheduler().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
         }
@@ -148,9 +143,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheMiss(processWithOutputs.Process.PipId);
             RunScheduler().AssertCacheHit(processWithOutputs.Process.PipId);
 
-            // Assert the output was produced. Then delete it to mimic the regular scrubbing behavior.
+            // Assert the output was produced. 
             XAssert.IsTrue(File.Exists(outputInSharedOpaque.Path.ToString(Context.PathTable)));
-            File.Delete(outputInSharedOpaque.Path.ToString(Context.PathTable));
 
             // Run the pip again. It should still be a hit. This makes sure that
             // accesses related to outputs don't end up as part of the fingerprint. In this
@@ -426,13 +420,12 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             builderB.AddOutputDirectory(sharedOpaqueDirPathB, SealDirectoryKind.SharedOpaque);
 
-                // Let's make B depend on A so the write happens before setting the temp directory
+            // Let's make B depend on A so the write happens before setting the temp directory
             builderB.AddInputDirectory(resA.Process.DirectoryOutputs.Single());
             SchedulePipBuilder(builderB);
 
-
             IgnoreWarnings();
-            RunScheduler().AssertFailure();
+            RunScheduler(tempCleaner: new global::BuildXL.Scheduler.TempCleaner(ToString(tempDirUnderSharedPath))).AssertFailure();
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationSharedOpaqueWriteInTempDirectory);
             AssertErrorEventLogged(EventId.FileMonitoringError);
@@ -551,15 +544,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             var nestedSourceSeal = Path.Combine(sharedOpaqueDir, "nestedSourceSeal");
             AbsolutePath nestedSourceSealPath = AbsolutePath.Create(Context.PathTable, nestedSourceSeal);
             FileUtilities.CreateDirectory(nestedSourceSeal);
+            CreateSourceFile(root: nestedSourceSealPath, prefix: "source-seal-file"); // add at least one source file to prevent the scrubber from deleting it
+            PipConstructionHelper.SealDirectorySource(nestedSourceSealPath, SealDirectoryKind.SourceTopDirectoryOnly);
 
             FileArtifact outputUnderSharedOpaqueAndSourceSealed = CreateOutputFileArtifact(nestedSourceSeal);
-            PipConstructionHelper.SealDirectorySource(nestedSourceSealPath);
 
             // PipA writes under the shared opaque, but also under the source sealed underneath. This shouldn't be allowed
             var builderA = CreatePipBuilder(new []
-                                                   {
-                                                       Operation.WriteFile(outputUnderSharedOpaqueAndSourceSealed, doNotInfer: true),
-                                                   });
+                                            {
+                                                Operation.WriteFile(outputUnderSharedOpaqueAndSourceSealed, doNotInfer: true),
+                                            });
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             SchedulePipBuilder(builderA);
 
@@ -784,9 +778,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             
             // run once to cache pipA
             RunScheduler().AssertFailure();
-            
-            // scrub the outputs
-            File.Delete(filePipA.Path.ToString(Context.PathTable));
+
             FileUtilities.DeleteDirectoryContents(sharedOpaqueDir, deleteRootDirectory: true);
 
             // run second time -- PipA should come from cache, PipB should run but still hit the same violation
@@ -827,11 +819,6 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // run once to cache pipA
             RunScheduler().AssertFailure();
-
-            // scrub the outputs
-            File.Delete(filePipA.Path.ToString(Context.PathTable));
-            File.Delete(filePipB.Path.ToString(Context.PathTable));
-            FileUtilities.DeleteDirectoryContents(sharedOpaqueDir, deleteRootDirectory: true);
 
             // run second time -- PipA should come from cache, PipB should run but still hit the same violation
             var result = RunScheduler().AssertFailure();
@@ -1077,10 +1064,6 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // run1 -> cache misses
             RunScheduler().AssertSuccess().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
-
-            // scrub shared opaque directory content (which would automatically happen in full BuildXL)
-            FileUtilities.DeleteDirectoryContents(sharedOpaqueDir, deleteRootDirectory: true);
-            XAssert.IsFalse(Directory.Exists(sharedOpaqueDir));
 
             // run2 -> cache hits
             RunScheduler().AssertSuccess().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);

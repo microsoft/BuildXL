@@ -532,7 +532,7 @@ namespace BuildXL.Engine
             BinaryWriter writer,
             PathTable pathTable,
             IReadOnlyDictionary<string, string> buildParametersImpactingBuild,
-            IReadOnlyDictionary<string, IMount> mountsImpactingBuild,
+            [CanBeNull] IReadOnlyDictionary<string, IMount> mountsImpactingBuild,
             string changeTrackingStatePath)
         {
             Contract.Requires(writer != null);
@@ -584,7 +584,7 @@ namespace BuildXL.Engine
                     foreach (var kvp in mountsImpactingBuild)
                     {
                         writer.Write(kvp.Key);
-                        writer.Write(kvp.Value.Path.ToString(pathTable));
+                        writer.Write(kvp.Value == null ? null : kvp.Value.Path.ToString(pathTable));
                     }
                 }
             }
@@ -919,7 +919,7 @@ namespace BuildXL.Engine
                 {
                     // The previously used mount is not known
                     result.MissType = GraphCacheMissReason.MountChanged;
-                    result.FirstMissIdentifier = string.Format(CultureInfo.InvariantCulture, Strings.InputTracker_MountRemoved, mountName);
+                    result.FirstMissIdentifier = string.Format(CultureInfo.InvariantCulture, Strings.InputTracker_MountRemoved, mountName, previousPath);
                     Logger.Log.InputTrackerDetectedMountChanged(loggingContext, mountName, previousPath, string.Empty);
                     return result;
                 }

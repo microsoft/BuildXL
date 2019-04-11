@@ -220,6 +220,6 @@
     <value>Mount {0} was:'{1}' now:'{2}'</value>
   </data>
   <data name="InputTracker_MountRemoved" xml:space="preserve">
-    <value>{0} was previously defined as a mount but is now undefined</value>
+    <value>Mount '{0}' has been removed, it was previously defined as '{1}'</value>
   </data>
 </root>

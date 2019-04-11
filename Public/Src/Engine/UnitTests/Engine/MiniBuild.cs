@@ -650,6 +650,7 @@ namespace Test.BuildXL.EngineTests
             // Revert environment variable.
             Configuration.Startup.Properties[EnvVarName] = "Env1";
 
+            System.Diagnostics.Debugger.Launch();
             RunEngine("Third build");
 
             AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues, count: 0);

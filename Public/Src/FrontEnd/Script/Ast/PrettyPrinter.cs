@@ -736,8 +736,16 @@ namespace BuildXL.FrontEnd.Script
         /// <inheritdoc />
         public override void Visit(SwitchExpressionClause switchExpressionClause)
         {
-            switchExpressionClause.Match.Accept(this);
-            Print(" : ");
+            if (switchExpressionClause.IsDefaultFallthrough)
+            {
+                Print("default");
+            }
+            else
+            {
+                switchExpressionClause.Match.Accept(this);
+            }
+
+            Print(": ");
             switchExpressionClause.Expression.Accept(this);
         }
 

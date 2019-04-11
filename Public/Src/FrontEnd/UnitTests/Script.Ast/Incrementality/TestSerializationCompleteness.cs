@@ -536,6 +536,7 @@ namespace Test.DScript.Ast.Interpretation
                 {
                     new SwitchExpressionClause(GetExpression2(), GetExpression1(), DefaultLineInfo),
                     new SwitchExpressionClause(GetExpression1(), GetExpression2(), DefaultLineInfo),
+                    new SwitchExpressionClause(GetExpression2(), DefaultLineInfo),
                 },
                 DefaultLineInfo);
             CheckSerializationRoundTrip(node);

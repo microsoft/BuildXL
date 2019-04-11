@@ -2302,12 +2302,26 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
         private SwitchExpressionClause ConvertSwitchExpressionClause(ISwitchExpressionClause source, ConversionContext context)
         {
-            Expression match = ConvertExpression(source.Match, context);
             Expression expression = ConvertExpression(source.Expression, context);
+            if (expression == null)
+            {
+                return null;
+            }
 
-            return (match != null && expression != null)
-                ? new SwitchExpressionClause(match, expression, Location(source))
-                : null;
+            if (source.IsDefaultFallthrough)
+            {
+                return new SwitchExpressionClause(expression, Location(source));
+            }
+            else
+            {
+                Expression match = ConvertExpression(source.Match, context);
+                if (match == null)
+                {
+                    return null;
+                }
+
+                return new SwitchExpressionClause(match, expression, Location(source));
+            }
         }
 
         private Expression ConvertParenthesizedExpression(IParenthesizedExpression source, ConversionContext context)

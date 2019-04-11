@@ -538,7 +538,11 @@ namespace TypeScript.Net.Parsing
                 case SyntaxKind.SwitchExpressionClause:
                     {
                         var concreteNode = node.Cast<ISwitchExpressionClause>();
-                        nodes.Add(Node(concreteNode.Match));
+                        if (!concreteNode.IsDefaultFallthrough)
+                        {
+                            nodes.Add(Node(concreteNode.Match));
+                        }
+
                         nodes.Add(Node(concreteNode.Expression));
                         break;
                     }

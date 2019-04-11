@@ -2517,6 +2517,12 @@ namespace TypeScript.Net.Types
     /// <nodoc/>
     public sealed partial class SwitchExpressionClause : NodeBase<NodeExtraState>, ISwitchExpressionClause
     {
+        /// <summary>
+        /// This indicates the clause is the default case. as in: `default: 10`.
+        /// This means the Match expression will be null.
+        /// </summary>
+        public bool IsDefaultFallthrough { get; set; }
+
         /// <inheritdoc />
         public IExpression Match { get; set; }
 

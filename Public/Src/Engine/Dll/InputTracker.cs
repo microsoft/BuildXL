@@ -584,7 +584,8 @@ namespace BuildXL.Engine
                     foreach (var kvp in mountsImpactingBuild)
                     {
                         writer.Write(kvp.Key);
-                        writer.Write(kvp.Value == null ? null : kvp.Value.Path.ToString(pathTable));
+                        // You can't have an unnamed mount, but you can have an empty path value
+                        writer.Write(kvp.Value == null ? string.Empty : kvp.Value.Path.ToString(pathTable));
                     }
                 }
             }

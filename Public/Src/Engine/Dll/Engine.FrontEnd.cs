@@ -226,6 +226,7 @@ namespace BuildXL.Engine
                         serializer,
                         graphFingerprint: graphFingerprint,
                         availableEnvironmentVariables: effectiveEnvironmentVariables,
+                        availableMounts: availableMounts,
                         journalState: journalState,
                         maxDegreeOfParallelism: maxDegreeOfParallelism);
                     cacheGraphStats.ObjectDirectoryHit = engineCacheMatchResult.Matches;

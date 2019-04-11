@@ -216,4 +216,10 @@
   <data name="Layout_DefaultJunctionNameTotLogFolder" xml:space="preserve">
     <value>BuildXLCurrentLog</value>
   </data>
+  <data name="InputTracker_MountChanged" xml:space="preserve">
+    <value>Mount {0} was:'{1}' now:'{2}'</value>
+  </data>
+  <data name="InputTracker_MountRemoved" xml:space="preserve">
+    <value>Mount '{0}' has been removed, it was previously defined as '{1}'</value>
+  </data>
 </root>

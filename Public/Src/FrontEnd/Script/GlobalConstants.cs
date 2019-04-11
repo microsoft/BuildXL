@@ -19,9 +19,6 @@ namespace BuildXL.FrontEnd.Script
         /// <nodoc />
         public Util.Literals Literals { get; }
 
-        /// <nodoc /> TODO: Merge it with literals.
-        public Names Names { get; }
-
         /// <nodoc />
         public PrimitiveTypes KnownTypes { get; }
 
@@ -37,7 +34,6 @@ namespace BuildXL.FrontEnd.Script
             Contract.Requires(symbolTable != null);
 
             Literals = new Util.Literals(symbolTable.StringTable);
-            Names = new Names(symbolTable);
             KnownTypes = new PrimitiveTypes(symbolTable.StringTable);
             Global = new GlobalModuleLiteral(symbolTable);
             PredefinedTypes = new Ambients.PredefinedTypes(KnownTypes);

@@ -30,6 +30,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_writeContents;
         private SymbolAtom m_writeLines;
         private SymbolAtom m_writeText;
+        private SymbolAtom m_dataSeparator;
+        private SymbolAtom m_dataContents;
 
         private void InitializeWriteNames()
         {
@@ -39,6 +41,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_writeContents = Symbol("contents");
             m_writeLines = Symbol("lines");
             m_writeText = Symbol("text");
+            m_dataSeparator = Symbol("separator");
+            m_dataContents = Symbol("contents");
         }
 
         private UnionType FileContentElementType => UnionType(AmbientTypes.PathType, AmbientTypes.RelativePathType, AmbientTypes.PathAtomType, PrimitiveType.StringType);
@@ -104,7 +108,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 {
                     case WriteFileMode.WriteData:
                         var data = obj[m_writeContents];
-                        pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, data, new ConversionContext(pos: 1));
+                        pipData = ProcessData(context, data, new ConversionContext(pos: 1));
                         break;
                     case WriteFileMode.WriteAllLines:
                         var lines = Converter.ExtractArrayLiteral(obj, m_writeLines);
@@ -112,17 +116,17 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                         var newData = ObjectLiteral.Create(
                             new List<Binding>
                             {
-                                new Binding(context.Names.DataSeparator, Environment.NewLine, entry.InvocationLocation),
-                                new Binding(context.Names.DataContents, lines, entry.InvocationLocation),
+                                new Binding(m_dataSeparator, Environment.NewLine, entry.InvocationLocation),
+                                new Binding(m_dataContents, lines, entry.InvocationLocation),
                             },
                             lines.Location,
                             entry.Path);
 
-                        pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(newData), new ConversionContext(pos: 1));
+                        pipData = ProcessData(context, EvaluationResult.Create(newData), new ConversionContext(pos: 1));
                         break;
                     case WriteFileMode.WriteAllText:
                         var text = Converter.ExtractString(obj, m_writeText);
-                        pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(text), new ConversionContext(pos: 1));
+                        pipData = ProcessData(context, EvaluationResult.Create(text), new ConversionContext(pos: 1));
                         break;
                     default:
                         throw Contract.AssertFailure("Unknown WriteFileMode.");
@@ -147,7 +151,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
                     case WriteFileMode.WriteData:
                         var data = Args.AsIs(args, 1);
-                        pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(data), new ConversionContext(pos: 1));
+                        pipData = ProcessData(context, EvaluationResult.Create(data), new ConversionContext(pos: 1));
                         break;
 
                     case WriteFileMode.WriteAllLines:
@@ -156,18 +160,18 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                         var newData = ObjectLiteral.Create(
                             new List<Binding>
                             {
-                                            new Binding(context.Names.DataSeparator, Environment.NewLine, entry.InvocationLocation),
-                                            new Binding(context.Names.DataContents, lines, entry.InvocationLocation),
+                                            new Binding(m_dataSeparator, Environment.NewLine, entry.InvocationLocation),
+                                            new Binding(m_dataContents, lines, entry.InvocationLocation),
                             },
                             lines.Location,
                             entry.Path);
 
-                        pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(newData), new ConversionContext(pos: 1));
+                        pipData = ProcessData(context, EvaluationResult.Create(newData), new ConversionContext(pos: 1));
                         break;
 
                     case WriteFileMode.WriteAllText:
                         var text = Args.AsString(args, 1);
-                        pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(text), new ConversionContext(pos: 1));
+                        pipData = ProcessData(context, EvaluationResult.Create(text), new ConversionContext(pos: 1));
                         break;
                     default:
                         throw Contract.AssertFailure("Unknown WriteFileMode.");
@@ -207,6 +211,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                     return pipDataBuilder.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping);
                 }
             }
+        }
+
+        private PipData ProcessData(Context context, EvaluationResult data, ConversionContext conversionContext)
+        {
+            return DataProcessor.ProcessData(context.StringTable, m_dataSeparator, m_dataContents, context.FrontEndContext.PipDataBuilderPool, data, conversionContext);
         }
 
         /// <nodoc />

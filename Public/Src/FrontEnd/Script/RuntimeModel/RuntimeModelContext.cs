@@ -22,11 +22,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel
         private readonly FrontEndContext m_frontEndContext;
 
         /// <summary>
-        /// Literals for parser.
-        /// </summary>
-        public Util.Literals Literals { get; }
-
-        /// <summary>
         /// Front-end host.
         /// </summary>
         public FrontEndHost FrontEndHost { get; private set; }
@@ -97,7 +92,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel
             FrontEndContext frontEndContext,
             Logger logger,
             Package package,
-            Util.Literals literals = null,
             GlobalModuleLiteral globals = null,
             ModuleRegistry moduleRegistry = null,
             LocationData origin = default(LocationData))
@@ -108,7 +102,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel
 
             FrontEndHost = frontEndHost;
             m_frontEndContext = frontEndContext;
-            Literals = literals ?? new Util.Literals(frontEndContext.StringTable);
             Package = package;
             RootPath = package.Path.GetParent(frontEndContext.PathTable);
             Globals = globals;

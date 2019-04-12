@@ -212,7 +212,7 @@ namespace BuildXL.Scheduler.Tracing
             catch (Exception ex)
             {
                 // Cache miss analysis shouldn't fail the build
-                Logger.Log.CacheMissAnalysisException(m_loggingContext, pipDescription, ex.ToString(), oldEntry?.ToString(), newEntry?.ToString());
+                Logger.Log.CacheMissAnalysisException(m_loggingContext, pipDescription, ex.ToString(), oldEntry?.PipToFingerprintKeys.ToString(), newEntry?.PipToFingerprintKeys.ToString());
             }
         }
 

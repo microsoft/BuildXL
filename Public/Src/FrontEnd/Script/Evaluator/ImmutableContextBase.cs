@@ -80,11 +80,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         public PredefinedTypes PredefinedTypes => Constants.PredefinedTypes;
 
         /// <summary>
-        /// Well-known literals.
-        /// </summary>
-        public Util.Literals Literals => Constants.Literals;
-
-        /// <summary>
         /// Front end context.
         /// </summary>
         public FrontEndContext FrontEndContext => ContextTree.FrontEndContext;

@@ -97,6 +97,9 @@ export function install(args: Arguments) : Result {
                         nugetCredentialProviderPath,
                         d`${Context.getMount("ProgramData").path}/microsoft/netFramework`, // Most cred providers are managed code so need these folders... 
                         d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetFlushCache`, // Windows uses this location as a certificate cache
+                        d`${Context.getMount("AppData").path}/Microsoft/Crypto/RSA`, // Windows uses this location as a certificate cache
+                        d`${Context.getMount("AppData").path}/Microsoft/SystemCertificates/My/Certificates`, // Cache for certificats
+                        d`${Context.getMount("AppData").path}/Microsoft/VisualStudio Services/7.0/Cache`, // Cache for visaul studio services
                     ],
                 },
             };

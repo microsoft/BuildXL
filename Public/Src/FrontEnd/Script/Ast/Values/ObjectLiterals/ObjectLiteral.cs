@@ -270,7 +270,7 @@ namespace BuildXL.FrontEnd.Script.Values
         [CanBeNull]
         protected virtual MergeFunction TryGetCustomMergeFunction(Context context, EvaluationStackFrame captures)
         {
-            var customMerge = this[context.Literals.CustomMergeFunction];
+            var customMerge = this[context.ContextTree.CommonConstants.CustomMergeFunction];
             if (!customMerge.IsUndefined)
             {
                 return GetCustomMergeFunctionFromClosure(context, captures, customMerge);

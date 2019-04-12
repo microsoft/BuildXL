@@ -18,10 +18,13 @@ namespace BuildXL.FrontEnd.Script.Ambients
     /// </summary>
     public sealed class AmbientObject : AmbientDefinition<ObjectLiteral>
     {
+        private readonly SymbolAtom m_customMergeFunction;
+
         /// <nodoc />
         public AmbientObject(PrimitiveTypes knownTypes)
             : base("Object", knownTypes)
         {
+            m_customMergeFunction = SymbolAtom.Create(knownTypes.StringTable, Constants.Names.CustomMergeFunctionName);
         }
 
         private CallSignature StaticMergeSignature => CreateSignature(
@@ -142,7 +145,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
             return receiver[context.FrontEndContext.StringTable.AddString(argAsStr)];
         }
 
-        private static EvaluationResult WithCustomMerge(Context context, ObjectLiteral receiver, EvaluationResult arg, EvaluationStackFrame captures)
+        private EvaluationResult WithCustomMerge(Context context, ObjectLiteral receiver, EvaluationResult arg, EvaluationStackFrame captures)
         {
             var closure = Converter.ExpectClosure(arg);
 
@@ -154,7 +157,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
             // function as an entry. And since the object literal creation process depends on its number of members, let's just do the override 
             // explicitly
             var newObject = ObjectLiteral.Create(
-                new [] {new NamedValue(context.Literals.CustomMergeFunction.StringId.Value, EvaluationResult.Create(closure)) },
+                new [] {new NamedValue(m_customMergeFunction.StringId.Value, EvaluationResult.Create(closure)) },
                 invocationLocation,
                 invocationPath);
 

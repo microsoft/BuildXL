@@ -2465,6 +2465,19 @@ namespace BuildXL.Scheduler
                 stringBuilder.AppendLine(
                     I($"File name should only differ by casing. File artifact's full path: '{fileArtifactPathString}'; file artifact's file name: '{fileArtifactFileName.ToString(stringTable)}'; materialization info file name: '{fileMaterializationFileNameString}'"));
 
+                // get the bytes of a metadata blob
+                var possibleMetadataBytes = environment.State.Cache.ArtifactContentCache.TryLoadContent(cacheHitData.MetadataHash).GetAwaiter().GetResult();
+                if (!possibleMetadataBytes.Succeeded)
+                {
+                    stringBuilder.AppendLine("Failed to obtain the metadata blob.");
+                }
+                else
+                {
+                    var blobPath = Path.Combine(environment.Configuration.Logging.LogsDirectory.ToString(environment.Context.PathTable), I($"metadata_{cacheHitData.MetadataHash.ToString()}.blob"));
+                    File.WriteAllBytes(blobPath, possibleMetadataBytes.Result);
+                    stringBuilder.AppendLine(I($"saved metadata blob: '{blobPath}'"));
+                }
+
                 Contract.Assert(false, stringBuilder.ToString());
             }
         }

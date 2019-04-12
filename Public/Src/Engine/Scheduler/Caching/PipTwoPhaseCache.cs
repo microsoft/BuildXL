@@ -35,7 +35,10 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// The artifact content cache for retrieving/storing content by hash
         /// </summary>
-        protected readonly IArtifactContentCache ArtifactContentCache;
+        /// <remarks>
+        /// Public visibility is temporary (needed for debugging an issue).
+        /// </remarks>
+        public readonly IArtifactContentCache ArtifactContentCache;
 
         /// <summary>
         /// The two phase fingerprint store for storing/retrieving mapping from fingerprints to content/metadata

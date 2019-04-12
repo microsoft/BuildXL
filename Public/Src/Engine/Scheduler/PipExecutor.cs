@@ -3703,7 +3703,7 @@ namespace BuildXL.Scheduler
             // because the order of such an enumeration is not deterministic.
             foreach (var output in allOutputs)
             {
-                FileArtifact outputArtifact = output.ToFileArtifact(); 
+                FileArtifact outputArtifact = output.ToFileArtifact();
                 if (storeProcessOutputCompletionsByPath.TryGetValue(outputArtifact, out var storeProcessOutputTask))
                 {
                     // the task is now 'processed' => remove it, so we do not add duplicate entries to outputHashPairs
@@ -3712,7 +3712,7 @@ namespace BuildXL.Scheduler
                 else
                 {
                     // there is no task for this artifact => we must have already processed it
-                    continue;                    
+                    continue;
                 }
 
                 var outputData = allOutputData[outputArtifact.Path];

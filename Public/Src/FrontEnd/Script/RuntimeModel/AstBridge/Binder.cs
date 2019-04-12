@@ -2,12 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
 using BuildXL.FrontEnd.Script.Declarations;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Qualifier;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 {
@@ -17,13 +17,14 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
     internal sealed class Binder
     {
         private readonly RuntimeModelContext m_runtimeModelContext;
-
+        private readonly SymbolAtom m_runtimeRootNamespaceSymbol;
         /// <nodoc />
         private Binder(RuntimeModelContext runtimeModelContext)
         {
             Contract.Requires(runtimeModelContext != null);
 
             m_runtimeModelContext = runtimeModelContext;
+            m_runtimeRootNamespaceSymbol = SymbolAtom.Create(runtimeModelContext.StringTable, Constants.Names.RuntimeRootNamespaceAlias);
         }
 
         /// <summary>
@@ -118,7 +119,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         private FullSymbol GetFullyQualifiedName(ModuleLiteral module, SymbolAtom name)
         {
             // If the module is a top most namespace, then we don't use its name since it is _$
-            if (module.Name.IsValid && module.Name.GetName(m_runtimeModelContext.SymbolTable) != m_runtimeModelContext.Literals.RuntimeRootNamespaceSymbol)
+            if (module.Name.IsValid && module.Name.GetName(m_runtimeModelContext.SymbolTable) != m_runtimeRootNamespaceSymbol)
             {
                 // A valid name should mean the module is a type or namespace module
                 Contract.Assert(module is TypeOrNamespaceModuleLiteral);

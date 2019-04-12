@@ -922,7 +922,6 @@ namespace Test.BuildXL.FrontEnd.Core
                     FrontEndContext,
                     ParseAndEvaluateLogger,
                     package,
-                    literals: constants.Literals,
                     globals: constants.Global);
 
                 var expression = translator.ParseExpression(parserContext, specPath, expressions[i]);

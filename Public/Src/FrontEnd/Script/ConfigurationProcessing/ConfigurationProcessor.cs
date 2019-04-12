@@ -239,7 +239,7 @@ namespace BuildXL.FrontEnd.Script
             return instantiatedModule
                 .GetOrEvalFieldBinding(
                     context,
-                    Constants.Literals.ConfigurationKeyword,
+                    SymbolAtom.Create(context.StringTable, Script.Constants.Names.ConfigurationFunctionCall),
                     binding.Value,
                     instantiatedModule.Location)
                 .Value as ObjectLiteral;

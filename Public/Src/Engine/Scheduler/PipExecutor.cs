@@ -3516,7 +3516,7 @@ namespace BuildXL.Scheduler
                 Dictionary<AbsolutePath, FileArtifactWithAttributes> allRedirectedOutputs = null;
                 if (containerConfiguration.IsIsolationEnabled)
                 {
-                    allRedirectedOutputs = poolAbsolutePathFileArtifactWithAttributes.Instance;//new Dictionary<AbsolutePath, FileArtifactWithAttributes>(process.FileOutputs.Length);
+                    allRedirectedOutputs = poolAbsolutePathFileArtifactWithAttributes.Instance;
                 }
 
                 // Let's compute what got actually redirected

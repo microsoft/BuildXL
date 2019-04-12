@@ -46,10 +46,9 @@ namespace BuildXL.FrontEnd.Script
         public ConfigurationProcessor(
             GlobalConstants constants,
             ModuleRegistry sharedModuleRegistry,
+            IFrontEndStatistics statistics,
             Logger logger)
-
-            // Configuration processing is so lightweight that it won't affect overall perf statistics
-            : base(constants, sharedModuleRegistry, new FrontEndStatistics(), logger)
+            : base(constants, sharedModuleRegistry, statistics, logger)
         {
         }
 

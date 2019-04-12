@@ -223,7 +223,11 @@ namespace BuildXL
             FrontEndControllerMemoryObserver.CaptureFrontEndReference(sharedModuleRegistry);
 
             frontEndFactory.SetConfigurationProcessor(
-                new ConfigurationProcessor(globalConstants, sharedModuleRegistry, logger: null));
+                new ConfigurationProcessor(
+                    globalConstants, 
+                    sharedModuleRegistry,
+                    new FrontEndStatistics(), // Configuration processing is so lightweight that it won't affect overall perf statistics
+                    logger: null));
 
             var msBuildFrontEnd = new MsBuildFrontEnd(
                 globalConstants,

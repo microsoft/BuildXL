@@ -239,7 +239,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                     () => new WorkspaceDefaultSourceModuleResolver(constants, moduleRegistry, frontEndStatistics, ParseAndEvaluateLogger));
 
                 var frontEndFactory = FrontEndFactory.CreateInstanceForTesting(
-                    () => new ConfigurationProcessor(constants, moduleRegistry, ParseAndEvaluateLogger),
+                    () => new ConfigurationProcessor(constants, moduleRegistry, new FrontEndStatistics(), ParseAndEvaluateLogger),
                     new DScriptFrontEnd(constants, moduleRegistry, frontEndStatistics, ParseAndEvaluateLogger));
 
                 var evaluationScheduler = new EvaluationScheduler(degreeOfParallelism: 1);

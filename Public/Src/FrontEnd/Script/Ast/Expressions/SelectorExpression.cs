@@ -87,7 +87,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
 
             if (receiver.Value is Expression thisExpressionResult)
             {
-                if (thisExpressionResult.TryProject(context, Selector, env, context.PredefinedTypes, out EvaluationResult projectionResult, Location))
+                if (thisExpressionResult.TryProject(context, Selector, env, out EvaluationResult projectionResult, Location))
                 {
                     return projectionResult;
                 }

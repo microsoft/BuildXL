@@ -233,14 +233,14 @@ namespace BuildXL.FrontEnd.Script.Values
         public abstract bool HasKey(StringId key);
 
         /// <inheritdoc />
-        public override bool TryProject(Context context, SymbolAtom name, ModuleLiteral origin, PredefinedTypes predefinedTypes, out EvaluationResult result, LineInfo location)
+        public override bool TryProject(Context context, SymbolAtom name, ModuleLiteral origin, out EvaluationResult result, LineInfo location)
         {
             var value = this[name.StringId];
 
             if (value.IsUndefined)
             {
                 // TODO: Optimize this for look-up miss cases (there can be tons of them).
-                var resolvedMember = predefinedTypes.AmbientObject.ResolveMember(this, name) ?? (object)UndefinedValue.Instance;
+                var resolvedMember = context.PredefinedTypes.AmbientObject.ResolveMember(this, name) ?? (object)UndefinedValue.Instance;
                 result = EvaluationResult.Create(resolvedMember);
             }
             else

@@ -12,13 +12,13 @@ namespace BuildXL.FrontEnd.Script.Evaluator
     public sealed class CommonConstants
     {
         /// <nodoc />
+        private readonly StringTable m_stringTable;
+
+        /// <nodoc />
         public SymbolAtom Qualifier { get; }
 
         /// <nodoc />
         public SymbolAtom Length { get; }
-
-        /// <nodoc />
-        private readonly StringTable m_stringTable;
 
         /// <nodoc />
         public CommonConstants(StringTable stringTable)

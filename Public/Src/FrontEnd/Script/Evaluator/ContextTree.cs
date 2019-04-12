@@ -29,39 +29,25 @@ namespace BuildXL.FrontEnd.Script.Evaluator
     /// </remarks>
     public sealed class ContextTree : IDisposable
     {
-        /// <summary>
-        /// Front end host.
-        /// </summary>
+        /// <nodoc />
         public FrontEndHost FrontEndHost { get; private set; }
 
-        /// <summary>
-        /// Front end context.
-        /// </summary>
+        /// <nodoc />
         public FrontEndContext FrontEndContext { get; private set; }
 
-        /// <summary>
-        /// Constants
-        /// </summary>
+        /// <nodoc />
         public GlobalConstants Constants { get; private set; }
 
-        /// <summary>
-        /// CommonConstants
-        /// </summary>
+        /// <nodoc />
         public CommonConstants CommonConstants { get; }
 
-        /// <summary>
-        /// Module registry.
-        /// </summary>
+        /// <nodoc />
         public ModuleRegistry ModuleRegistry { get; private set; }
 
-        /// <summary>
-        /// Logger instance.
-        /// </summary>
+        /// <nodoc />
         public Logger Logger { get; private set; }
 
-        /// <summary>
-        /// Evaluation statistics.
-        /// </summary>
+        /// <nodoc />
         public EvaluationStatistics Statistics { get; private set; }
 
         /// <summary>

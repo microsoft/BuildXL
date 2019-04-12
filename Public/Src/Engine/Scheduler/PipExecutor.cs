@@ -3699,15 +3699,28 @@ namespace BuildXL.Scheduler
                 }
             }
 
-            foreach (var storeProcessOutputCompletionsEntry in storeProcessOutputCompletionsByPath)
+            // We cannot enumerate over storeProcessOutputCompletionsByPath here
+            // because the order of such an enumeration is not deterministic.
+            foreach (var output in allOutputs)
             {
-                FileArtifact outputArtifact = storeProcessOutputCompletionsEntry.Key;
+                FileArtifact outputArtifact = output.ToFileArtifact(); 
+                if (storeProcessOutputCompletionsByPath.TryGetValue(outputArtifact, out var storeProcessOutputTask))
+                {
+                    // the task is now 'processed' => remove it, so we do not add duplicate entries to outputHashPairs
+                    storeProcessOutputCompletionsByPath.Remove(outputArtifact);
+                }
+                else
+                {
+                    // there is no task for this artifact => we must have already processed it
+                    continue;                    
+                }
+
                 var outputData = allOutputData[outputArtifact.Path];
 
                 Possible<FileMaterializationInfo> possiblyStoredOutputArtifactInfo;
                 using (operationContext.StartOperation(PipExecutorCounter.SerializeAndStorePipOutputDuration))
                 {
-                    possiblyStoredOutputArtifactInfo = await storeProcessOutputCompletionsEntry.Value;
+                    possiblyStoredOutputArtifactInfo = await storeProcessOutputTask;
                 }
 
                 if (possiblyStoredOutputArtifactInfo.Succeeded)

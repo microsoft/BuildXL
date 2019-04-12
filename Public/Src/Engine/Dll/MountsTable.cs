@@ -20,6 +20,7 @@ using JetBrains.Annotations;
 using IMount = BuildXL.Utilities.Configuration.IMount;
 using SpecialFolder = System.Environment.SpecialFolder;
 using SpecialFolderOption = System.Environment.SpecialFolderOption;
+using MacPaths = BuildXL.Interop.MacOS.IO;
 
 namespace BuildXL.Engine
 {
@@ -160,6 +161,17 @@ namespace BuildXL.Engine
                     RegisterRedirectedMount(context, properties, table, "INetCookies", allowCreateDirectory: true);
                     RegisterRedirectedMount(context, properties, table, "LocalLow");
                 }
+            }
+            else
+            {
+                table.AddStaticSystemMount("Etc", MacPaths.Etc, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("TmpDir", MacPaths.TmpDir, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("Applications", MacPaths.Applications, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("UsrBin", MacPaths.UsrBin, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("UsrInclude", MacPaths.UsrInclude, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("UsrLib", MacPaths.UsrLib, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("Library", MacPaths.Library, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("UserProvisioning", MacPaths.UserProvisioning, trackSourceFileChanges: true);
             }
 
             return table;
@@ -376,7 +388,7 @@ namespace BuildXL.Engine
                 isSystem: true,
                 allowCreateDirectory : allowCreateDirectory);
         }
-
+        
         /// <summary>
         /// Adds a mount that is statically defined at the start fo the build
         /// </summary>

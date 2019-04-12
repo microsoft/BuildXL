@@ -17,7 +17,6 @@ namespace BuildXL.Scheduler.Graph
                 = CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance);
 
             private readonly PipProvenance m_provenance;
-            private readonly FileArtifact[] m_inputFiles;
             private readonly DirectoryArtifact[] m_inputDirectories;
             private readonly FileArtifact[] m_untrackedFiles;
             private readonly DirectoryArtifact[] m_untrackedDirectories;
@@ -34,23 +33,17 @@ namespace BuildXL.Scheduler.Graph
                     QualifierId.Unqualified,
                     PipData.Invalid);
 
-                m_inputFiles =
-                    new[]
-                    {
-                        FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.Etc)),
-                        FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.TmpDir)),
-                    };
-
                 // Sealed Source inputs
                 m_inputDirectories =
                     new[]
                     {
                         GetSourceSeal(pathTable, pipGraph, MacPaths.Applications),
+                        GetSourceSeal(pathTable, pipGraph, MacPaths.Etc),
+                        GetSourceSeal(pathTable, pipGraph, MacPaths.Library),
+                        GetSourceSeal(pathTable, pipGraph, MacPaths.UserProvisioning),
                         GetSourceSeal(pathTable, pipGraph, MacPaths.UsrBin),
                         GetSourceSeal(pathTable, pipGraph, MacPaths.UsrInclude),
                         GetSourceSeal(pathTable, pipGraph, MacPaths.UsrLib),
-                        GetSourceSeal(pathTable, pipGraph, MacPaths.Library),
-                        GetSourceSeal(pathTable, pipGraph, MacPaths.UserProvisioning),
                     };
 
                 m_untrackedFiles =
@@ -72,6 +65,7 @@ namespace BuildXL.Scheduler.Graph
                         DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.Private),
                         DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.Sbin),
                         DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.SystemLibrary),
+                        DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.TmpDir),
                         DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.UsrLibexec),
                         DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.UsrShare),
                         DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.UsrStandalone),
@@ -88,11 +82,6 @@ namespace BuildXL.Scheduler.Graph
             {
                 if ((processBuilder.Options & Process.Options.DependsOnCurrentOs) != 0)
                 {
-                    foreach (var inputFile in m_inputFiles)
-                    {
-                        processBuilder.AddInputFile(inputFile);
-                    }
-
                     foreach (var inputDirectory in m_inputDirectories)
                     {
                         processBuilder.AddInputDirectory(inputDirectory);

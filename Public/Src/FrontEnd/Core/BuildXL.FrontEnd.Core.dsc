@@ -32,6 +32,8 @@ namespace Core {
             importFrom("Newtonsoft.Json").pkg,
             Sdk.dll,
             TypeScript.Net.dll,
+
+            ...BuildXLSdk.tplPackages,
         ],
         internalsVisibleTo: [
             "bxlScriptAnalyzer",

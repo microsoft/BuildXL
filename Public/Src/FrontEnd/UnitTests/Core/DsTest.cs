@@ -830,7 +830,7 @@ namespace Test.BuildXL.FrontEnd.Core
             DScriptWorkspaceResolverFactory workspaceResolverFactory, Logger logger, IDecorator<EvaluationResult> decorator)
         {
             return FrontEndFactory.CreateInstanceForTesting(
-                () => new ConfigurationProcessor(constants, moduleRegistry, logger),
+                () => new ConfigurationProcessor(constants, moduleRegistry, new FrontEndStatistics(), logger),
                 new DScriptFrontEnd(constants, moduleRegistry, FrontEndStatistics, logger, decorator));
         }
 

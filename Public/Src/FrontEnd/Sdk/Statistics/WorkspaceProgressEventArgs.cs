@@ -3,7 +3,7 @@
 
 using System;
 
-namespace BuildXL.FrontEnd.Core
+namespace BuildXL.FrontEnd.Sdk
 {
     /// <summary>
     /// Represents the stages of workspace loading (used for IDE\Langauge Server integration)

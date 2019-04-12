@@ -280,8 +280,14 @@ namespace BuildXL
                 return null;
             }
 
-            return new FrontEndHostController(frontEndFactory, workspaceResolverFactory,
-                frontEndStatistics: frontEndStatistics, collector: collector, collectMemoryAsSoonAsPossible: collectMemoryAsSoonAsPossible);
+            return new FrontEndHostController(
+                frontEndFactory,
+                workspaceResolverFactory,
+                evaluationScheduler: EvaluationScheduler.Default,
+                frontEndStatistics: frontEndStatistics,
+                logger: BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(),
+                collector: collector, 
+                collectMemoryAsSoonAsPossible: collectMemoryAsSoonAsPossible);
         }
 
         private static void RegisterKnownWorkspaceResolvers(

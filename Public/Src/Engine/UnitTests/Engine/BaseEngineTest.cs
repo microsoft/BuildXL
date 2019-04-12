@@ -243,7 +243,14 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                     new DScriptFrontEnd(constants, moduleRegistry, frontEndStatistics, ParseAndEvaluateLogger));
 
                 var evaluationScheduler = new EvaluationScheduler(degreeOfParallelism: 1);
-                return new FrontEndHostController(frontEndFactory, workspaceFactory, evaluationScheduler, logger: InitializationLogger, collectMemoryAsSoonAsPossible: false);
+                return new FrontEndHostController(
+                    frontEndFactory,
+                    workspaceFactory,
+                    evaluationScheduler,
+                    new FrontEndStatistics(),
+                    logger: InitializationLogger, 
+                    collector: null,
+                    collectMemoryAsSoonAsPossible: false);
             }
 
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(Configuration, Context.PathTable, bxlExeLocation: null, inTestMode: true);

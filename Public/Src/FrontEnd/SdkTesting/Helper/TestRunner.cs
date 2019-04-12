@@ -1,3 +1,4 @@
+
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
@@ -141,7 +142,8 @@ export function test(args: TestArguments): TestResult {{
                     new EvaluationScheduler(1),
                     frontEndStatistics,
                     m_tracingLogger,
-                    performanceCollector))
+                    performanceCollector,
+                    collectMemoryAsSoonAsPossible: true))
             {
                 var frontEndController = (IFrontEndController)frontEndHostController;
                 frontEndController.InitializeHost(frontEndContext, configuration);

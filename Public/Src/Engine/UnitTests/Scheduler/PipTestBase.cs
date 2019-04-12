@@ -23,8 +23,6 @@ using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
-
-using static BuildXL.Interop.MacOS.IO;
 using System.Threading;
 using BuildXL.Scheduler;
 
@@ -1115,19 +1113,12 @@ namespace Test.BuildXL.Scheduler
             if (OperatingSystemHelper.IsUnixOS)
             {
                 processBuilder.EnableTempDirectory();
-
-                foreach (var dir in new[] { Private, SystemLibrary, Usr, Dev, Var, AppleInternal, Bin, Etc, Proc, TmpDir, LibraryPreferencesLogging })
-                {
-                    processBuilder.AddUntrackedDirectoryScope(Context.PathTable, dir);
-                }
-
-                string userTextEncodingFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".CFUserTextEncoding");
-                processBuilder.AddUntrackedFile(AbsolutePath.Create(Context.PathTable, userTextEncodingFile));
             }
-            else
-            {
-                processBuilder.AddUntrackedWindowsDirectories();
-            }
+
+            processBuilder.AddCurrentHostOSDirectories();
+
+            PipGraphBuilder.ApplyCurrentOsDefaults(processBuilder);
+
         }
 
         #region IO Helpers

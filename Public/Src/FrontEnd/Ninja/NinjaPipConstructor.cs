@@ -301,7 +301,7 @@ namespace BuildXL.FrontEnd.Ninja
 
         private void UntrackFilesAndDirectories(ProcessBuilder processBuilder)
         {
-            processBuilder.AddUntrackedWindowsDirectories();
+            processBuilder.AddCurrentHostOSDirectories();
             processBuilder.AddUntrackedProgramDataDirectories();
             processBuilder.AddUntrackedAppDataDirectories();
 

@@ -20,6 +20,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.Pips.Builders;
 using Test.BuildXL.EngineTestUtilities;
 
 namespace Test.BuildXL.TestUtilities
@@ -384,6 +385,11 @@ namespace Test.BuildXL.TestUtilities
             public PipGraph Build()
             {
                 throw new NotImplementedException();
+            }
+
+            /// <inheritdoc />
+            public void ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
+            {
             }
         }
 

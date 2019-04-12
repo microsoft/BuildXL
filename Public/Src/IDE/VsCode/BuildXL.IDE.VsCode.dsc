@@ -100,7 +100,10 @@ namespace LanguageService.Server {
 
                         // This contains the actual extension source as well as the
                         // node_modules that it depends on.
-                        Transformer.sealDirectory(d`pluginTemplate/extension`, globR(d`pluginTemplate/extension`)),
+                        Transformer.sealDirectory({
+                            root: d`pluginTemplate/extension`, 
+                            files: globR(d`pluginTemplate/extension`)
+                        }),
                     ]
                 },
                 f`pluginTemplate/[Content_Types].xml`,

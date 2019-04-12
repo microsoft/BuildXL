@@ -10,6 +10,7 @@ namespace Test.Tool.DropDaemon {
         references: [
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
+            importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Tools.DropDaemon").exe,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Ipc.dll,
@@ -28,7 +29,6 @@ namespace Test.Tool.DropDaemon {
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
-            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
         ],
     });
 }

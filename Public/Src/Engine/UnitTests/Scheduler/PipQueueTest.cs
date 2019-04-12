@@ -461,6 +461,12 @@ namespace Test.BuildXL.Scheduler
                 // Do nothing.
             }
 
+            /// <inheritdoc />
+            public void ReportFileArtifactPlaced(in FileArtifact artifact)
+            {
+                // Do nothing.
+            }
+
             public void ReportCacheDescriptorHit(string sourceCache)
             {
                 Contract.Requires(!string.IsNullOrWhiteSpace(sourceCache));
@@ -693,8 +699,9 @@ namespace Test.BuildXL.Scheduler
             m_pathTable = pathTable;
         }
 
-        public bool IsPathUnderOutputDirectory(AbsolutePath path)
+        public bool IsPathUnderOutputDirectory(AbsolutePath path, out bool isItUnderSharedOpaque)
         {
+            isItUnderSharedOpaque = false;
             return false;
         }
 

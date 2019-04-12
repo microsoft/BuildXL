@@ -13,6 +13,7 @@ using ContentStoreTest.Test;
 using BuildXL.Native.IO;
 using Xunit;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using FluentAssertions;
 
 namespace ContentStoreTest.FileSystem
 {
@@ -21,6 +22,17 @@ namespace ContentStoreTest.FileSystem
         public PassThroughFileSystemTests()
             : base(() => new PassThroughFileSystem(TestGlobal.Logger))
         {
+        }
+
+        [Fact]
+        public void TryGetFileAttributeReturnsFalseForNonExistingFile()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var sourcePath = testDirectory.Path / Guid.NewGuid().ToString();
+                bool result = FileSystem.TryGetFileAttributes(sourcePath, out _);
+                Assert.False(result);
+            }
         }
 
         [Fact]
@@ -134,7 +146,8 @@ namespace ContentStoreTest.FileSystem
                                        }
                                    };
 
-                    await Assert.ThrowsAsync<UnauthorizedAccessException>(a);
+                    var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(a);
+                    exception.Message.Should().ContainAny("Handle was used by", "Did not find any actively running processes using the handle");
                 }
             }
         }

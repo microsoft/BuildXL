@@ -264,8 +264,9 @@ namespace BuildXL.Native.IO
         /// </summary>
         /// <param name="filePath">The absolute path to the file</param>
         /// <param name="diagnosticInfo">Diagnostic information for what might have an open handle to the file</param>
+        /// <param name="printCurrentFilePath">If true, the output message would contain a path to a current file.</param>
         /// <returns>true if diagnostic info is available</returns>
-        bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo);
+        bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo, bool printCurrentFilePath = true);
 
         /// <summary>
         /// Gets hard link count.

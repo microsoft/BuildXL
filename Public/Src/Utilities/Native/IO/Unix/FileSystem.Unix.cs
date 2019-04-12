@@ -816,7 +816,7 @@ namespace BuildXL.Native.IO.Unix
         {
             try
             {
-                FileAttributes attributes = TryGetFileAttributes(path);
+                FileAttributes attributes = File.GetAttributes(path);
 
                 if ((attributes & FileAttributes.ReparsePoint) == 0)
                 {
@@ -1235,10 +1235,9 @@ namespace BuildXL.Native.IO.Unix
         public bool IsDirectorySeparator(char c) => c == Path.DirectorySeparatorChar;
 
         /// <inheritdoc />
-        public Possible<string> ResolveReparsePointPrefixes(string path)
+        public Possible<string> TryResolveReparsePointRelativeTarget(string path, string relativeTarget)
         {
-            // TODO: implement this by calling realpath API on the directory path.
-            return path;
+            return FileUtilities.TryResolveRelativeTarget(path, relativeTarget);
         }
     }
 }

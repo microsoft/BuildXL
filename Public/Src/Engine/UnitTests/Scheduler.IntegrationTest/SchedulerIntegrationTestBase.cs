@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL;
 using BuildXL.Engine.Cache;
@@ -52,6 +53,11 @@ namespace Test.BuildXL.Scheduler
         private PipGraph m_lastGraph;
 
         private JournalState m_journalState;
+
+        /// <summary>
+        /// Whether the scheduler should log all of its statistics at the end of every run.
+        /// </summary>
+        public bool ShouldLogSchedulerStats { get; set; } = false;
 
         /// <nodoc/>
         public SchedulerIntegrationTestBase(ITestOutputHelper output) : base(output)
@@ -285,6 +291,17 @@ namespace Test.BuildXL.Scheduler
             }
 
         }
+
+        /// <summary>
+        /// Convenience function that creates and schedules a <see cref="PipBuilder"/> constructed process with an arbitrary output file.
+        /// This is the smallest pip that can be scheduled.
+        /// </summary>
+        public ProcessWithOutputs CreateAndSchedulePipBuilderWithArbitraryOutput(IEnumerable<string> tags = null, string description = null)
+        {
+            var pipBuilder = CreatePipBuilder(new Operation[] { Operation.WriteFile(CreateOutputFileArtifact()) }, tags, description);
+            return SchedulePipBuilder(pipBuilder);
+        }
+
         /// <summary>
         /// Creates and scheduled a <see cref="PipBuilder"/> constructed process
         /// </summary>
@@ -397,6 +414,11 @@ namespace Test.BuildXL.Scheduler
                 directoryTranslator: DirectoryTranslator,
                 testHooks: testHooks))
             {
+                MountPathExpander mountPathExpander = null;
+                var frontEndNonScrubbablePaths = CollectionUtilities.EmptyArray<string>();
+                var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
+                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, LoggingContext, config, nonScrubbablePaths, tempCleaner);
+
                 if (filter == null)
                 {
                     EngineSchedule.TryGetPipFilter(LoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);
@@ -409,6 +431,15 @@ namespace Test.BuildXL.Scheduler
                 bool success = testScheduler.WhenDone().GetAwaiter().GetResult();
                 testScheduler.SaveFileChangeTrackerAsync(LoggingContext).Wait();
 
+                if (ShouldLogSchedulerStats)
+                {
+                    // Logs are not written out normally during these tests, but LogStats depends on the existence of the logs directory
+                    // to write out the stats perf JSON file
+                    var logsDir = config.Logging.LogsDirectory.ToString(Context.PathTable);
+                    Directory.CreateDirectory(logsDir);
+                    testScheduler.LogStats(LoggingContext);
+                }
+
                 return new ScheduleRunResult
                 {
                     Graph = graph,
@@ -420,7 +451,7 @@ namespace Test.BuildXL.Scheduler
                     ProcessPipCountersByFilter = testScheduler.ProcessPipCountersByFilter,
                     ProcessPipCountersByTelemetryTag = testScheduler.ProcessPipCountersByTelemetryTag,
                     SchedulerState = new SchedulerState(testScheduler)
-                };               
+                };
             }
         }
 

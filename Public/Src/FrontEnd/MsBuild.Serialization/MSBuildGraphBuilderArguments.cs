@@ -20,9 +20,10 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         public string EnlistmentRoot { get; }
 
         /// <summary>
-        /// Path to the entry point project to parse
+        /// Optional file paths for the projects or solutions that should be used to start parsing. These are relative
+        /// paths with respect to the enlistment root.
         /// </summary>
-        public string ProjectToParse { get; }
+        public IReadOnlyCollection<string> ProjectsToParse { get; }
 
         /// <summary>
         /// Path to the file were the graph will be serialized to
@@ -48,27 +49,27 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// Collection of target entry points.
         /// </summary>
         /// <remarks>
-        /// Can be empty, in which case the default target of <see cref="ProjectToParse"/> will be used
+        /// Can be empty, in which case the default target of <see cref="ProjectsToParse"/> will be used
         /// </remarks>
         public IReadOnlyCollection<string> EntryPointTargets { get; }
 
         /// <nodoc/>
         public MSBuildGraphBuilderArguments(
-            string enlistmentRoot, 
-            string projectToParse, 
+            string enlistmentRoot,
+            IReadOnlyCollection<string> projectsToParse, 
             string outputPath, 
             IReadOnlyDictionary<string, string> globalProperties, 
             IReadOnlyCollection<string> mSBuildSearchLocations, 
             IReadOnlyCollection<string> entryPointTargets)
         {
             Contract.Requires(!string.IsNullOrEmpty(enlistmentRoot));
-            Contract.Requires(!string.IsNullOrEmpty(projectToParse));
+            Contract.Requires(projectsToParse?.Count > 0);
             Contract.Requires(!string.IsNullOrEmpty(outputPath));
             Contract.Requires(mSBuildSearchLocations != null);
             Contract.Requires(entryPointTargets != null);
 
             EnlistmentRoot = enlistmentRoot;
-            ProjectToParse = projectToParse;
+            ProjectsToParse = projectsToParse;
             OutputPath = outputPath;
             GlobalProperties = globalProperties;
             MSBuildSearchLocations = mSBuildSearchLocations;
@@ -80,7 +81,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         {
             return 
 $@"Enlistment root: {EnlistmentRoot}
-Project entry point: {ProjectToParse}
+Project entry points: [{string.Join(", ", ProjectsToParse)}]
 Serialized graph path: {OutputPath}
 Global properties: {(GlobalProperties == null ? "null" : string.Join(" ", GlobalProperties.Select(kvp => $"[{kvp.Key}]={kvp.Value}")))}
 Search locations: {string.Join(" ", MSBuildSearchLocations)}";

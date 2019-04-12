@@ -24,18 +24,21 @@ function runTest(dropName: string) {
         const enableDrop = Environment.getBooleanValue("OfficeDropTestEnableDrop");
         const outdir = Context.getNewOutputDirectory("officeDropTest");
         const batchSize = numFiles * 3 + 1;
-        const configFile = Transformer.writeAllLines(outdir.combine("config.json"), [
-            "{",
-            `   "Name": "${dropName}",`,
-            `   "EnableCloudBuildIntegration": true,`,
-            `   "Service": "https://mseng.artifacts.visualstudio.com/DefaultCollection",`,
-            `   "Verbose": true,`,
-            `   "RetentionDays": 3,`,
-            `   "BatchSize": ${batchSize},`,
-            `   "MaxConcurrentClients": ${batchSize > 1 ? batchSize : 2},`,
-            `   "NagleTimeMillis": 2000`,
-            "}"
-        ]);
+        const configFile = Transformer.writeAllLines({
+            outputPath: p`${outdir}/config.json`, 
+            lines: [
+                "{",
+                `   "Name": "${dropName}",`,
+                `   "EnableCloudBuildIntegration": true,`,
+                `   "Service": "https://mseng.artifacts.visualstudio.com/DefaultCollection",`,
+                `   "Verbose": true,`,
+                `   "RetentionDays": 3,`,
+                `   "BatchSize": ${batchSize},`,
+                `   "MaxConcurrentClients": ${batchSize > 1 ? batchSize : 2},`,
+                `   "NagleTimeMillis": 2000`,
+                "}"
+            ]
+        });
         const dropData = enableDrop && Drop.startDrop(configFile);
         const dropFile = (f: File, tags?: string[]) => enableDrop ? Drop.dropFile(dropData, r`${f.name}`, f, tags) : {};
         const dropFiles = (fs: File[], tags?: string[]) => enableDrop ? Drop.dropFiles(dropData, fs.map(f => <[RelativePath, File]>[r`${f.name}`, f]), tags) : {};

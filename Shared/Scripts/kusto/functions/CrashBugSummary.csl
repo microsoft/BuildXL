@@ -1,6 +1,5 @@
 // Example call for crashes over the past week:
 // CrashBugSummary(ago(7d), now())
-
 .create-or-alter function with (folder = "triage", docstring = "CrashBugSummary", skipvalidation = "true") CrashBugSummary(startDate:datetime, endDate:datetime)
 {
 let annotatedSessions = AnnotatedSessions(startDate, endDate);
@@ -12,7 +11,7 @@ let annotatedSessions = AnnotatedSessions(startDate, endDate);
 let unknownCrashSessions = annotatedSessions
 | where BucketGroup == "Crash"
 | where RootCause == "Unknown"
-| project SessionId, UniqueSession, InProbation, TimeBucket, KnownBug, BuildInfo_Build, Customer, Codebase, Infra, UserName, SuggestedBugName, Exception, InternalError, BuildQueue, CBCanRetry, CBReturnType, BuildInfo_CommitId;
+| project SessionId, UniqueSession, InProbation, TimeBucket, BuildInfo_Build, Customer, Codebase, Infra, UserName, SuggestedBugName, Exception, InternalError, BuildQueue, CBCanRetry, CBReturnType, BuildInfo_CommitId;
 //
 //
 // *****

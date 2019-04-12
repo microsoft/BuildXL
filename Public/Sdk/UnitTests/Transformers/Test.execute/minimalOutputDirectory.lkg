@@ -10,4 +10,4 @@ Transformer.execute({
     dependencies: [f`./src/tool.exe`],
     implicitOutputs: [d`./Out/outputFolder`],
 });
-Transformer.sealDynamicDirectory(d`./Out/outputFolder`);
+Transformer.sealDynamicDirectory({root: d`./Out/outputFolder`});

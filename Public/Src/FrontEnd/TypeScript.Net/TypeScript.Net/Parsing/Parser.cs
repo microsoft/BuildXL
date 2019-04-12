@@ -49,6 +49,7 @@ namespace TypeScript.Net.Parsing
             TupleElementTypes,         // Element types in tuple element type list
             HeritageClauses,           // Heritage clauses for a class or interface declaration.
             ImportOrExportSpecifiers,  // Named import clause's import specifier list
+            SwitchExpressionClauses,   // Clauses in a switch expression
             JsDocFunctionParameters,
             JsDocTypeArguments,
             JsDocRecordMembers,
@@ -3550,6 +3551,9 @@ namespace TypeScript.Net.Parsing
                 case ParsingContext.SwitchClauses:
                     return IsReusableSwitchClause(node);
 
+                case ParsingContext.SwitchExpressionClauses:
+                    return IsReusableSwitchExpressionClause(node);
+
                 case ParsingContext.SourceElements:
                 case ParsingContext.BlockStatements:
                 case ParsingContext.SwitchClauseStatements:
@@ -3658,6 +3662,11 @@ namespace TypeScript.Net.Parsing
             }
 
             return false;
+        }
+
+        private static bool IsReusableSwitchExpressionClause(INode node)
+        {
+            return node != null && node.Kind == SyntaxKind.SwitchExpressionClause;
         }
 
         private static bool IsReusableStatement(INode node)
@@ -3804,6 +3813,7 @@ namespace TypeScript.Net.Parsing
                 case ParsingContext.BlockStatements: return Errors.Declaration_or_statement_expected;
                 case ParsingContext.SwitchClauses: return Errors.Case_or_default_expected;
                 case ParsingContext.SwitchClauseStatements: return Errors.Statement_expected;
+                case ParsingContext.SwitchExpressionClauses: return Errors.Switch_expression_clause_expected;
                 case ParsingContext.TypeMembers: return Errors.Property_or_signature_expected;
                 case ParsingContext.ClassMembers: return Errors.Unexpected_token_A_constructor_method_accessor_or_property_was_expected;
                 case ParsingContext.EnumMembers: return Errors.Enum_member_expected;
@@ -3853,6 +3863,8 @@ namespace TypeScript.Net.Parsing
                     return !(m_token == SyntaxKind.SemicolonToken && inErrorRecovery) && IsStartOfStatement();
                 case ParsingContext.SwitchClauses:
                     return m_token == SyntaxKind.CaseKeyword || m_token == SyntaxKind.DefaultKeyword;
+                case ParsingContext.SwitchExpressionClauses:
+                    return m_token == SyntaxKind.OpenBracketToken || IsLiteralPropertyName();
                 case ParsingContext.TypeMembers:
                     // DScript-specific. We allow comments here as well
                     return LookAhead(this, p => p.IsTypeMemberStart());
@@ -4267,6 +4279,7 @@ namespace TypeScript.Net.Parsing
             {
                 case ParsingContext.BlockStatements:
                 case ParsingContext.SwitchClauses:
+                case ParsingContext.SwitchExpressionClauses:
                 case ParsingContext.TypeMembers:
                 case ParsingContext.ClassMembers:
                 case ParsingContext.EnumMembers:
@@ -4574,15 +4587,17 @@ namespace TypeScript.Net.Parsing
                 case SyntaxKind.GreaterThanGreaterThanToken:
                 case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
                     return 8;
+                case SyntaxKind.SwitchKeyword:
+                    return 9;
                 case SyntaxKind.PlusToken:
                 case SyntaxKind.MinusToken:
-                    return 9;
+                    return 10;
                 case SyntaxKind.AsteriskToken:
                 case SyntaxKind.SlashToken:
                 case SyntaxKind.PercentToken:
-                    return 10;
-                case SyntaxKind.AsteriskAsteriskToken:
                     return 11;
+                case SyntaxKind.AsteriskAsteriskToken:
+                    return 12;
             }
 
             // -1 is lower than all other precedences.  Returning it will cause binary expression
@@ -5486,6 +5501,10 @@ namespace TypeScript.Net.Parsing
                         leftOperand = MakeAsExpression(leftOperand, ParseType());
                     }
                 }
+                else if (m_token == SyntaxKind.SwitchKeyword)
+                {
+                    leftOperand = ParseSwitchExpression(leftOperand);
+                }
                 else
                 {
                     leftOperand = MakeBinaryExpression(leftOperand, ParseTokenNode<TokenNode>(), ParseBinaryExpressionOrHigher(newPrecedence));
@@ -5493,6 +5512,49 @@ namespace TypeScript.Net.Parsing
             }
 
             return leftOperand;
+        }
+
+        private ISwitchExpression ParseSwitchExpression(IExpression expression)
+        {
+            var node = CreateNode<SwitchExpression>(SyntaxKind.SwitchExpression, expression.Pos, expression.GetLeadingTriviaLength(m_sourceFile));
+            node.Expression = expression;
+
+            ParseExpected(SyntaxKind.SwitchKeyword);
+
+            ParseExpected(SyntaxKind.OpenBraceToken);
+            if (m_scanner.HasPrecedingLineBreak)
+            {
+                node.Flags |= NodeFlags.MultiLine;
+            }
+
+            node.Clauses = ParseDelimitedList(this, ParsingContext.SwitchExpressionClauses, p => p.ParseSwitchExpressionClause());
+            ParseExpected(SyntaxKind.CloseBraceToken);
+
+            return FinishNode(node);
+        }
+
+        private ISwitchExpressionClause ParseSwitchExpressionClause()
+        {
+            IExpression match;
+            if (ParseOptional(SyntaxKind.DefaultKeyword))
+            {
+                match = null;
+            }
+            else
+            {
+                match = ParseLiteralNode();
+            }
+
+            ParseExpected(SyntaxKind.ColonToken);
+            var expression = ParseAssignmentExpressionOrHigher();
+
+            var posDataToUse = match ?? expression;
+            var node = CreateNode<SwitchExpressionClause>(SyntaxKind.SwitchExpressionClause, posDataToUse.Pos, posDataToUse.GetLeadingTriviaLength(m_sourceFile));
+            node.IsDefaultFallthrough = match == null;
+            node.Match = match;
+            node.Expression = expression;
+
+            return FinishNode(node);
         }
 
         private IAsExpression MakeAsExpression(IExpression left, ITypeNode right)

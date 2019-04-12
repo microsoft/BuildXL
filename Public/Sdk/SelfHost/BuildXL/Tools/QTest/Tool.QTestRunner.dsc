@@ -101,10 +101,11 @@ export function runQTest(args: QTestArguments): Result {
                 args.tags
             )
         );
-        qTestDirToDeploy = Transformer.sealDirectory(
-            qTestDirtoDeployCreated,
-            copiedFiles
-        );
+        qTestDirToDeploy = Transformer.sealDirectory({
+            root: qTestDirtoDeployCreated,
+            files: copiedFiles,
+            scrub: true,
+        });
     } 
 
     // If no qTestInputs is specified, use the qTestDirToDeploy

@@ -37,7 +37,10 @@ namespace Sdk.Tests {
         Testing.expectFailure(
             () => 
             {
-                let sealed = Transformer.sealDirectory(d`src`, [f`src/file1`, f`src/file2`]);
+                let sealed = Transformer.sealDirectory({
+                    root: d`src`, 
+                    files: [f`src/file1`, f`src/file2`]
+                });
                 Json.write(p`out.json`, {
                     s: sealed,
                 });

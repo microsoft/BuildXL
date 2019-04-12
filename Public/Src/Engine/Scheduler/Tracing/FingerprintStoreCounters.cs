@@ -22,19 +22,19 @@ namespace BuildXL.Scheduler.Tracing
         NumDirectoryMembershipEvents,
 
         /// <summary>
-        /// The number of <see cref="ProcessFingerprintComputationEventData"/> skipped due to the
-        /// a weak fingerprint miss. Fingerprint computation for misses will be recorded at execution time.
+        /// The number of <see cref="ProcessFingerprintComputationEventData"/> computed at cache lookup time that are skipped.
+        /// Fingerprint computation information for weak fingerprint misses are only recorded at execution time.
         /// </summary>
         /// <note>
         /// This count can include non-cacheable pips.
         /// </note>
-        NumFingerprintComputationSkippedWeakFingerprintMiss,
+        NumCacheLookupFingerprintComputationSkipped,
 
         /// <summary>
-        /// The number of <see cref="ProcessFingerprintComputationEventData"/> skipped due to the
-        /// a strong fingerprint miss. Fingerprint computation for misses will be recorded at execution time.
+        /// The number of <see cref="ProcessFingerprintComputationEventData"/> stored in the <see cref="FingerprintStoreExecutionLogTarget.CacheLookupFingerprintStore"/>.
+        /// To prevent redundancy, only strong fingerprint misses are stored in the cache lookup store. Fingerprint computation information for weak fingerprint misses are only recorded at execution time.
         /// </summary>
-        NumFingerprintComputationSkippedStrongFingerprintMiss,
+        NumCacheLookupFingerprintComputationStored,
 
         /// <summary>
         /// The number of <see cref="ProcessFingerprintComputationEventData"/> skipped due to

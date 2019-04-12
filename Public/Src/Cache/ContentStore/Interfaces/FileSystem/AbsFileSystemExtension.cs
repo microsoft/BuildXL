@@ -18,6 +18,34 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         public const int DefaultFileStreamBufferSize = 4 * 1024;
 
         /// <summary>
+        ///     Try getting the attributes of a file.
+        /// </summary>
+        /// <returns>Returns false if the file doesn't exist.</returns>
+        public static bool TryGetFileAttributes(this IAbsFileSystem fileSystem, AbsolutePath path, out FileAttributes attributes)
+        {
+            if (!fileSystem.FileExists(path))
+            {
+                attributes = default;
+                return false;
+            }
+
+            try
+            {
+                attributes = fileSystem.GetFileAttributes(path);
+            }
+            catch (FileNotFoundException)
+            {
+                // We checked file existence at the top of the method, but due to a race condition, the file can be gone
+                // at the point when we tried getting attributes.
+                // Current implementation tries it best to avoid unnecessary first chance exceptions, but can't eliminate them completely.
+                attributes = default;
+                return false;
+            }
+            
+            return true;
+        }
+
+        /// <summary>
         /// Tries to read the content from a file <paramref name="absolutePath"/>.
         /// </summary>
         /// <returns>Returns <code>null</code> if file does not exist, or content of the file otherwise.</returns>

@@ -2,9 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
@@ -234,6 +236,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 string message = $"Failed to {caller}. {PathTooLongExceptionMessage(Path)}";
                 throw new PathTooLongException(message);
             }
+        }
+
+        internal IReadOnlyCollection<string> GetSegments()
+        {
+            return ParseSegments(Path, false);
         }
 
         internal static PathTooLongException PathTooLongException(string path, Exception inner) => new PathTooLongException(PathTooLongExceptionMessage(path), inner);

@@ -2,10 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
@@ -18,6 +20,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Google.Protobuf;
 using Grpc.Core;
+using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -58,7 +61,7 @@ namespace BuildXL.Engine.Distribution
                 (int)LogEventId.DistributionHostLog,
                 (int)LogEventId.DistributionDebugMessage,
                 (int)LogEventId.DistributionServiceInitializationError,
-                (int)LogEventId.DistributionTrace);
+                (int)LogEventId.GrpcTrace);
 
         /// <summary>
         /// Set of event ids for distribution messages of all levels
@@ -146,6 +149,52 @@ namespace BuildXL.Engine.Distribution
         internal static string GetServiceName(string ipAddress, int port)
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}::{1}", ipAddress, port);
+        }
+
+        internal static string GetExecuteDescription(IList<long> semiStableHashes)
+        {
+            using (var sbPool = Pools.GetStringBuilder())
+            {
+                var sb = sbPool.Instance;
+
+                sb.Append("ExecutePips: ");
+                AppendSemiStableHashes(sb, semiStableHashes);
+
+                return sb.ToString();
+            }
+        }
+
+        internal static string GetNotifyDescription(OpenBond.WorkerNotificationArgs notificationArgs, IList<long> semiStableHashes)
+        {
+            using (var sbPool = Pools.GetStringBuilder())
+            {
+                var sb = sbPool.Instance;
+
+                if (semiStableHashes?.Count > 0)
+                {
+                    sb.Append("NotifyPipResults: ");
+                    AppendSemiStableHashes(sb, semiStableHashes);
+                }
+
+                if (notificationArgs.ExecutionLogData != null && notificationArgs.ExecutionLogData.Count > 0)
+                {
+                    sb.AppendFormat("ExecutionLogData: Size={0}, SequenceNumber={1}", notificationArgs.ExecutionLogData.Count, notificationArgs.ExecutionLogBlobSequenceNumber);
+                }
+
+                return sb.ToString();
+            }
+        }
+
+        internal static void AppendSemiStableHashes(StringBuilder builder, IList<long> semiStableHashes)
+        {
+            if (semiStableHashes.Count > 0)
+            {
+                builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X16}", semiStableHashes[0]);
+                for (int i = 1; i < semiStableHashes.Count; i++)
+                {
+                    builder.Append(',').AppendFormat(CultureInfo.InvariantCulture, " {0:X16}", semiStableHashes[i]);
+                }
+            }
         }
 
 #if !DISABLE_FEATURE_BOND_RPC

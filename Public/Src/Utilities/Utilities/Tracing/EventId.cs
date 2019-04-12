@@ -96,7 +96,7 @@ namespace BuildXL.Utilities.Tracing
         PipProcessResponseFileCreationFailed = 74,
         PipTableStats = 75,
         PipWriterStats = 76,
-        // Free = 77,
+        PipIpcFailedDueToInvalidInput = 77,
         // Free = 78,
         // Free = 79,
         // Free = 80,
@@ -286,6 +286,8 @@ namespace BuildXL.Utilities.Tracing
         PipQueueConcurrency = 298,
         InvalidInputSinceSourceFileCannotBeInsideOutputDirectory = 299,
         ScheduleProcessConfiguredUncacheable = 300,
+
+        ProcessPipProcessWeight = 301,
 
         // Reserved = 306,
         // Reserved = 307,

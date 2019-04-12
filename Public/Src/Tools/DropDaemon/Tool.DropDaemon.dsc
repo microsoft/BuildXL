@@ -22,6 +22,7 @@ export namespace DropDaemon {
         ],
         references: [
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
+            importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             importFrom("BuildXL.Utilities").dll,

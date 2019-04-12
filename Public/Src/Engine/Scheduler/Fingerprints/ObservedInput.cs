@@ -76,6 +76,31 @@ namespace BuildXL.Scheduler.Fingerprints
         /// Hashing label for collection of <see cref="ObservedInput"/>
         /// </summary>
         public const string ObservedInputs = "ObservedInputs";
+
+        /// <summary>
+        /// Helper function to convert from abbreviated strings to full type strings.
+        /// </summary>
+        /// <returns>
+        /// If the input string is an abbreviated observed input type, the expanded form; otherwise, the input string unaltered.
+        /// </returns>
+        public static string ToExpandedString(string observedInputConstant)
+        {
+            switch (observedInputConstant)
+            {
+                case ObservedInputConstants.AbsentPathProbe:
+                    return ObservedInputType.AbsentPathProbe.ToString();
+                case ObservedInputConstants.FileContentRead:
+                    return ObservedInputType.FileContentRead.ToString();
+                case ObservedInputConstants.DirectoryEnumeration:
+                    return ObservedInputType.DirectoryEnumeration.ToString();
+                case ObservedInputConstants.ExistingDirectoryProbe:
+                    return ObservedInputType.ExistingDirectoryProbe.ToString();
+                case ObservedInputConstants.ExistingFileProbe:
+                    return ObservedInputType.ExistingFileProbe.ToString();
+                default:
+                    return observedInputConstant;
+            }
+        }
     }
 
     /// <summary>

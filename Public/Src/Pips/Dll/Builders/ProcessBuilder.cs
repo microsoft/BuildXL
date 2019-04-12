@@ -56,7 +56,7 @@ namespace BuildXL.Pips.Builders
         public FileArtifact ResponseFile { get; set; }
 
         private ResponseFileSpecification m_responseFileSpecification;
-        
+
         /// <nodoc />
         public PipData ResponseFileData { get; set; }
 
@@ -102,6 +102,12 @@ namespace BuildXL.Pips.Builders
         public ReadOnlyArray<int> RetryExitCodes { get; set; } = ReadOnlyArray<int>.Empty;
 
         private Dictionary<StringId, ProcessSemaphoreInfo> m_semaphores;
+
+        /// <summary>
+        /// The weighted value of this pip when limiting concurrency of process pips.
+        /// The higher the weight, the fewer process pips that can run in parallel.
+        /// </summary>
+        public int? Weight { get; set; } = null;
 
         /// <nodoc />
         public TimeSpan? Timeout { get; set; }
@@ -650,7 +656,8 @@ namespace BuildXL.Pips.Builders
                 nestedProcessTerminationTimeout: NestedProcessTerminationTimeout,
                 doubleWritePolicy: DoubleWritePolicy,
                 containerIsolationLevel: ContainerIsolationLevel,
-                absentPathProbeMode: AbsentPathProbeUnderOpaquesMode
+                absentPathProbeMode: AbsentPathProbeUnderOpaquesMode,
+                weight: Weight
             );
 
             return true;

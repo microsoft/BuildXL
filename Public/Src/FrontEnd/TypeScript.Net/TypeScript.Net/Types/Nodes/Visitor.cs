@@ -149,6 +149,12 @@ namespace TypeScript.Net.Types
         void VisitConditionalExpression(ConditionalExpression node);
 
         /// <nodoc />
+        void VisitSwitchExpression(SwitchExpression node);
+
+        /// <nodoc />
+        void VisitSwitchExpressionClause(SwitchExpressionClause node);
+
+        /// <nodoc />
         void VisitFunctionExpression(FunctionExpression node);
 
         /// <nodoc />
@@ -487,6 +493,12 @@ namespace TypeScript.Net.Types
 
         /// <nodoc />
         TResult VisitConditionalExpression(ConditionalExpression node);
+
+        /// <nodoc />
+        TResult VisitSwitchExpression(SwitchExpression node);
+
+        /// <nodoc />
+        TResult VisitSwitchExpressionClause(SwitchExpressionClause node);
 
         /// <nodoc />
         TResult VisitFunctionExpression(FunctionExpression node);
@@ -1474,6 +1486,36 @@ namespace TypeScript.Net.Types
         internal override TResult Accept<TResult>(INodeVisitor<TResult> visitor)
         {
             return visitor.VisitConditionalExpression(this);
+        }
+    }
+
+    partial class SwitchExpression
+    {
+        /// <inheritdoc />
+        internal override void Accept(INodeVisitor visitor)
+        {
+            visitor.VisitSwitchExpression(this);
+        }
+
+        /// <inheritdoc />
+        internal override TResult Accept<TResult>(INodeVisitor<TResult> visitor)
+        {
+            return visitor.VisitSwitchExpression(this);
+        }
+    }
+
+    partial class SwitchExpressionClause
+    {
+        /// <inheritdoc />
+        internal override void Accept(INodeVisitor visitor)
+        {
+            visitor.VisitSwitchExpressionClause(this);
+        }
+
+        /// <inheritdoc />
+        internal override TResult Accept<TResult>(INodeVisitor<TResult> visitor)
+        {
+            return visitor.VisitSwitchExpressionClause(this);
         }
     }
 

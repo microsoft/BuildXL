@@ -131,6 +131,8 @@ namespace BuildXL.Engine.Tracing
         FailureLaunchingBuildExplorerFileNotFound = 2895,
         FailureLaunchingBuildExplorerException = 2896,
 
+        InputTrackerDetectedMountChanged = 2987,
+
         // RESERVED TO [2800, 2899] (BuildXL.Engine.dll)
 
         // Distribution [7000, 7050]
@@ -160,7 +162,7 @@ namespace BuildXL.Engine.Tracing
         DistributionFailedToRetrieveValidationContentFromWorkerCacheWithException = 7023,
         DistributionWorkerPipOutputContent = 7027,
         DistributionPipFailedOnWorker = 7028,
-        DistributionTrace = 7029,
+        GrpcTrace = 7029,
         DistributionFailedToStoreValidationContentToWorkerCacheWithException = 7030,
         DistributionDisableServiceProxyInactive = 7031,
         DistributionWaitingForMasterAttached = 7032,
@@ -214,6 +216,7 @@ namespace BuildXL.Engine.Tracing
         UsingRedirectedUserProfile = 7117,
         FailedToRedirectUserProfile = 7118,
         ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent = 7119,
+        BusyOrUnavailableOutputDirectoriesException = 7120,
         // max 7200
     }
 }

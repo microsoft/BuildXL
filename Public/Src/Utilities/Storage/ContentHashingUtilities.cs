@@ -143,6 +143,17 @@ namespace BuildXL.Storage
         }
 
         /// <summary>
+        /// Gets whether the hash is a special hash (i.e., all zeros except first and last byte),
+        /// additionally checking the value of the first byte. These hashes are assumed to not
+        /// represent real content (unless a counter-example can be found).
+        /// See BuildXL.Scheduler.WellKnownContentHashes
+        /// </summary>
+        public static bool IsSpecialValue(in this ContentHash hash, byte first)
+        {
+            return hash[0] == first && hash.IsSpecialValue();
+        }
+
+        /// <summary>
         /// Create a ContentHash from the given bytes, which must match exactly with the select type.
         /// </summary>
         public static ContentHash CreateFrom(byte[] value, int offset = 0)

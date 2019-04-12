@@ -398,6 +398,13 @@ namespace BuildXL.Ide.LanguageServer.Completion
                 SyntaxKind.ConditionalExpression);
 
             // Handles the case of:
+            // const foo = xxx switch { "{a" : "{Completion happens here}" }
+            AddCompletionItemCompletionHandlerInformation(
+                SyntaxKind.StringLiteral,
+                StringLiteral.CreateCompletionItemsFromSwitchExpression,
+                SyntaxKind.SwitchExpression);
+
+            // Handles the case of:
             // return ""
             AddCompletionItemCompletionHandlerInformation(
                 SyntaxKind.StringLiteral,

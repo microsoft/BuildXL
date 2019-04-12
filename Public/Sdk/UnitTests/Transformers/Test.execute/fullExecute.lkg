@@ -1,6 +1,6 @@
 
-Transformer.sealPartialDirectory(d`./src/seal2`, [f`./src/seal2/file2`]);
-Transformer.sealPartialDirectory(d`./src/seal1`, [f`./src/seal1/file1`]);
+Transformer.sealDirectory({root: d`./src/seal2`, files: [f`./src/seal2/file2`]});
+Transformer.sealDirectory({root: d`./src/seal1`, files: [f`./src/seal1/file1`]});
 Transformer.execute({
     tool: {exe: f`./src/tool/tool.exe`},
     tags: ["aTag", "zTag"],
@@ -92,4 +92,8 @@ Transformer.execute({
     },
     keepOutputsWritable: true,
 });
-Transformer.sealDynamicDirectory(d`./Out/dynamicSealedDirectory`, ["aTag", "zTag"]);
+Transformer.sealDynamicDirectory({
+    root: d`./Out/dynamicSealedDirectory`,
+    tags: ["aTag", "zTag"],
+    description: "testDescription",
+});

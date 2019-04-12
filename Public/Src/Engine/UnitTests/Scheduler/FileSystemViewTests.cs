@@ -335,8 +335,9 @@ namespace Test.BuildXL.Scheduler
                 return FileArtifact.Invalid;
             }
 
-            public bool IsPathUnderOutputDirectory(AbsolutePath path)
+            public bool IsPathUnderOutputDirectory(AbsolutePath path, out bool isItUnderSharedOpaque)
             {
+                isItUnderSharedOpaque = false;
                 return false;
             }
         }

@@ -29,10 +29,15 @@ namespace BuildXL.FrontEnd.Script.Ambients
         // This regular expression matches any string enclosed in curly braces that doesn't contain the '{' character
         private static readonly Regex s_expandPathsRegex = new Regex(@"{([^{]+)}");
 
+        private SymbolAtom m_dataSeparator;
+        private SymbolAtom m_dataContents;
+        
         /// <nodoc />
         public AmbientDebug(PrimitiveTypes knownTypes)
             : base("Debug", knownTypes)
         {
+            m_dataSeparator = Symbol("separator");
+            m_dataContents = Symbol("contents");
         }
 
         /// <inheritdoc />
@@ -99,7 +104,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
             }
         }
 
-        private static EvaluationResult DumpData(Context context, ModuleLiteral env, EvaluationStackFrame args)
+        private EvaluationResult DumpData(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             var pathTable = context.FrontEndContext.PathTable;
             var data = Args.AsIs(args, 0);
@@ -124,7 +129,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
                     break;
                 default: // This is effectively only for object literals
                     // Slow path
-                    dataAsString = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(data), new ConversionContext(pos: 1)).ToString(context.PathTable);
+                    dataAsString = DataProcessor.ProcessData(context.StringTable, m_dataSeparator, m_dataContents, context.FrontEndContext.PipDataBuilderPool, EvaluationResult.Create(data), new ConversionContext(pos: 1)).ToString(context.PathTable);
                     break;
 
             }

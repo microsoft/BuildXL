@@ -91,14 +91,9 @@ namespace BuildXL.Processes
         ZwSetRenameInformationFileDest,
 
         /// <summary>
-        /// ZwSetLinkInformationFileSource (source; written)
+        /// ZwSetLinkInformationFileDest
         /// </summary>
-        ZwSetLinkInformationFileSource,
-
-        /// <summary>
-        /// ZwSetLinkInformationFileDest (destination; read)
-        /// </summary>
-        ZwSetLinkInformationFileDest,
+        ZwSetLinkInformationFile,
 
         /// <summary>
         /// ZwSetDispositionInformationFile (delete-on-clode; deleted)
@@ -186,11 +181,6 @@ namespace BuildXL.Processes
         /// Access checks for source of CreateSymbolicLink API.
         /// </summary>
         CreateSymbolicLinkSource,
-
-        /// <summary>
-        /// Access checks for destination of CreateSymbolicLink API.
-        /// </summary>
-        CreateSymbolicLinkDestination,
 
         /// <summary>
         /// Access check for MoveFileWithgProgress source target.

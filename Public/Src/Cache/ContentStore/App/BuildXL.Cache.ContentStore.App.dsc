@@ -19,6 +19,7 @@ namespace App {
                 : [importFrom("CLAP").pkg]
             ),
             UtilitiesCore.dll,
+            Grpc.dll,
             Hashing.dll,
             Library.dll,
             Distributed.dll,
@@ -26,6 +27,10 @@ namespace App {
             importFrom("BuildXL.Cache.MemoizationStore").Distributed.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Service.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
+
+            importFrom("Grpc.Core").pkg,
+            importFrom("Google.Protobuf").pkg,
+
             ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
         ],
         tools: {

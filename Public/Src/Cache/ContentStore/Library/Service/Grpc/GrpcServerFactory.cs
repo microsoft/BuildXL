@@ -5,6 +5,7 @@
 // --------------------------------------------------------------------
 
 using System.Diagnostics.ContractsLight;
+using System.Net;
 using Grpc.Core;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
@@ -23,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return new Server
             {
                 Services = { service },
-                Ports = { new ServerPort(GrpcEnvironment.Localhost, grpcPort, ServerCredentials.Insecure) },
+                Ports = { new ServerPort(IPAddress.Any.ToString(), grpcPort, ServerCredentials.Insecure) },
                 // need a higher number here to avoid throttling: 7000 worked for initial experiments.
                 RequestCallTokensPerCompletionQueue = requestCallTokensPerCompletionQueue ?? LocalServerConfiguration.DefaultRequestCallTokensPerCompletionQueue,
             };
@@ -37,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             GrpcEnvironment.InitializeIfNeeded();
             var server = new Server
             {
-                Ports = { new ServerPort(GrpcEnvironment.Localhost, grpcPort, ServerCredentials.Insecure) },
+                Ports = { new ServerPort(IPAddress.Any.ToString(), grpcPort, ServerCredentials.Insecure) },
                 // need a higher number here to avoid throttling: 7000 worked for initial experiments.
                 RequestCallTokensPerCompletionQueue = requestCallTokensPerCompletionQueue
             };

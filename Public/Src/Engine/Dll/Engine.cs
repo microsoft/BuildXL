@@ -703,9 +703,19 @@ namespace BuildXL.Engine
                 logging.EngineCacheCorruptFilesLogDirectory = logging.EngineCacheLogDirectory.Combine(pathTable, EngineSerializer.CorruptFilesLogLocation);
             }
 
-            if (!logging.FingerprintStoreLogDirectory.IsValid)
+            if (!logging.FingerprintsLogDirectory.IsValid)
             {
-                logging.FingerprintStoreLogDirectory = logging.EngineCacheLogDirectory.Combine(pathTable, Scheduler.Scheduler.FingerprintStoreDirectory);
+                logging.FingerprintsLogDirectory = logging.LogsDirectory.Combine(pathTable, LogFileExtensions.FingerprintsLogDirectory);
+            }
+
+            if (!logging.ExecutionFingerprintStoreLogDirectory.IsValid)
+            {
+                logging.ExecutionFingerprintStoreLogDirectory = logging.FingerprintsLogDirectory.Combine(pathTable, Scheduler.Scheduler.FingerprintStoreDirectory);
+            }
+
+            if (!logging.CacheLookupFingerprintStoreLogDirectory.IsValid)
+            {
+                logging.CacheLookupFingerprintStoreLogDirectory = logging.FingerprintsLogDirectory.Combine(pathTable, Scheduler.Scheduler.FingerprintStoreDirectory + LogFileExtensions.CacheLookupFingerprintStore);
             }
 
             if (mutableConfig.Cache.HistoricMetadataCache == true && !logging.HistoricMetadataCacheLogDirectory.IsValid)
@@ -2119,7 +2129,7 @@ namespace BuildXL.Engine
             }
             catch (BuildXLException ex)
             {
-                Logger.Log.FailedToAcquireDirectoryDeletionLock(loggingContext, ex.ToStringDemystified());
+                Logger.Log.FailedToAcquireDirectoryDeletionLock(loggingContext, ex.Message);
             }
             finally
             {
@@ -2841,57 +2851,7 @@ namespace BuildXL.Engine
 
         private IReadOnlyList<string> GetNonScrubbablePaths()
         {
-            var nonScrubbablePaths = new List<string>
-            {
-                // Don't scrub the object directory lock file
-                FolderLock.GetLockPath(Configuration.Layout.ObjectDirectory.ToString(Context.PathTable)),
-
-                // Don't scrub the temp directory used for file move-delete
-                // TempCleaner is responsible for cleaning this
-                m_tempCleaner.TempDirectory,
-            };
-
-            AddToNonScrubbableAbsolutePaths(new[]
-            {
-                // Don't scrub the engine cache in the object directory
-                Configuration.Layout.EngineCacheDirectory,
-
-                // Don't scrub the cache directory
-                Configuration.Layout.CacheDirectory,
-
-                // Don't scrub log directories.
-                Configuration.Logging.LogsDirectory,
-                Configuration.Logging.RedirectedLogsDirectory
-            });
-
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                // Don't scrub the .NET Core lock file when running the CoreCLR on Unix even if its parent directory is specified as scrubabble. 
-                // Some build tools use the '/tmp' folder as temporary file location (e.g. xcodebuild, clang, etc.) for dumping state and reports. 
-                // Unfortunately scrubbing the dotnet state files can lead to a missbehaving CoreCLR in subsequent or parallel runs where several 
-                // dotnet invocations happen, so lets avoid scrubbing that folder explicitly!
-                nonScrubbablePaths.AddRange(new []
-                {
-                    "/tmp/.dotnet/",
-                    "/private/tmp/.dotnet/",
-                });
-            }
-
-            // Don't scrub any of the paths flagged as non-scrubbable
-            nonScrubbablePaths.AddRange(FrontEndController.GetNonScrubbablePaths());
-            
-            void AddToNonScrubbableAbsolutePaths(AbsolutePath[] paths)
-            {
-                foreach (AbsolutePath path in paths)
-                {
-                    if (path.IsValid)
-                    {
-                        nonScrubbablePaths.Add(path.ToString(Context.PathTable));
-                    }
-                }
-            }
-
-            return nonScrubbablePaths;
+            return EngineSchedule.GetNonScrubbablePaths(Context.PathTable, Configuration, FrontEndController.GetNonScrubbablePaths(), m_tempCleaner);
         }
 
         private void LogFrontEndStats(LoggingContext loggingContext)
@@ -3115,7 +3075,9 @@ namespace BuildXL.Engine
                         GraphCacheFile.PreviousInputs,
                         writer => inputTracker.WriteToFile(
                             writer,
+                            Context.PathTable,
                             envVarsImpactingBuild,
+                            mountsImpactingBuild,
                             serializer.PreviousInputsJournalCheckpoint),
                         overrideName: EngineSerializer.PreviousInputsIntermediateFile);
 
@@ -3229,6 +3191,7 @@ namespace BuildXL.Engine
             EngineSerializer serializer,
             GraphFingerprint graphFingerprint,
             IBuildParameters availableEnvironmentVariables,
+            MountsTable availableMounts,
             JournalState journalState,
             int maxDegreeOfParallelism)
         {
@@ -3239,6 +3202,7 @@ namespace BuildXL.Engine
                 fileContentTable: FileContentTable,
                 graphFingerprint: graphFingerprint,
                 availableEnvironmentVariables: availableEnvironmentVariables,
+                availableMounts: availableMounts,
                 journalState: journalState,
                 timeLimitForJournalScanning:
                     Configuration.Engine.ScanChangeJournalTimeLimitInSec < 0

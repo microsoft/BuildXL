@@ -541,7 +541,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             // Need to obtain the sequence point first to avoid race between the sequence point and the database's state.
             EventSequencePoint currentSequencePoint = EventStore.GetLastProcessedSequencePoint();
-            if (currentSequencePoint == null)
+            if (currentSequencePoint == null || currentSequencePoint.SequenceNumber == null)
             {
                 Tracer.Debug(context.TracingContext, "Could not create a checkpoint because the sequence point is missing. Apparently, no events were processed at this time.");
                 return BoolResult.Success;

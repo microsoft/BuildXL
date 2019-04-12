@@ -113,7 +113,7 @@ namespace MsBuildGraphBuilderTool
                 reporter,
                 locatedAssemblyPaths,
                 locatedMsBuildPath,
-                arguments.ProjectToParse,
+                arguments.ProjectsToParse,
                 arguments.EnlistmentRoot,
                 arguments.GlobalProperties,
                 arguments.EntryPointTargets,
@@ -127,7 +127,7 @@ namespace MsBuildGraphBuilderTool
             GraphBuilderReporter reporter,
             IReadOnlyDictionary<string, string> assemblyPathsToLoad,
             string locatedMsBuildPath,
-            string projectEntryPoint,
+            IReadOnlyCollection<string> projectEntryPoints,
             string enlistmentRoot,
             IReadOnlyDictionary<string, string> globalProperties,
             IReadOnlyCollection<string> entryPointTargets,
@@ -138,9 +138,10 @@ namespace MsBuildGraphBuilderTool
                 reporter.ReportMessage("Parsing MSBuild specs and constructing the build graph...");
 
                 var projectInstanceToProjectCache = new ConcurrentDictionary<ProjectInstance, Project>();
-                var thisQualifierProjectCollection = new ProjectCollection(globalProperties: globalProperties?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+                var globalPropertiesDict = globalProperties?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                var thisQualifierProjectCollection = new ProjectCollection(globalProperties: globalPropertiesDict);
                 var projectGraph = new ProjectGraph(
-                    projectEntryPoint, 
+                    projectEntryPoints.Select(entryPoint => new ProjectGraphEntryPoint(entryPoint, globalPropertiesDict)), 
                     thisQualifierProjectCollection, 
                     (projectPath, globalProps, projectCollection) => ProjectInstanceFactory(projectPath, globalProps, projectCollection, projectInstanceToProjectCache));
 
@@ -350,10 +351,12 @@ namespace MsBuildGraphBuilderTool
             // Reconstruct all references. A two-pass approach avoids needing to do more complicated reconstruction of references that would need traversing the graph
             foreach (var projectWithPredictions in projectNodes)
             {
-                ProjectWithPredictions[] references = nodeWithPredictionsToMsBuildNodes[projectWithPredictions]
+                // TODO: temporarily getting this as a set due to an MSBuild bug where edges are sometimes duplicated. We can just
+                // treat this as an array once the bug is fixed on MSBuild side
+                var references = nodeWithPredictionsToMsBuildNodes[projectWithPredictions]
                     .ProjectReferences
                     .Select(projectReference => msBuildNodesToNodeWithPredictionIndex[projectReference])
-                    .ToArray();
+                    .ToHashSet();
 
                 projectWithPredictions.SetReferences(references);
             }

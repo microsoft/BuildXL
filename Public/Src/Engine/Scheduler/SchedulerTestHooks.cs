@@ -45,5 +45,11 @@ namespace BuildXL.Scheduler
         /// Test hooks for the <see cref="FingerprintStore"/>.
         /// </summary>
         public FingerprintStoreTestHooks FingerprintStoreTestHooks { get; set; }
+
+        /// <summary>
+        /// Whether <see cref="Scheduler.LogStats(Utilities.Instrumentation.Common.LoggingContext)"/> should be called after the
+        /// scheduler run is completed.
+        /// </summary>
+        public bool LogSchedulerStats = false;
     }
 }

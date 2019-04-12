@@ -13,6 +13,7 @@ using Xunit;
 using Xunit.Abstractions;
 using System;
 using System.Linq;
+using BuildXL.Utilities.Tracing;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -63,6 +64,52 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void ValidateProcessPipCountersByFilterForFailedPip()
+        {
+            var filterTag = "failed";
+            var resetFile = CreateSourceFile();
+            var resetOp = Operation.ReadFile(resetFile);
+
+            var outputA = CreateOutputFileArtifact();
+            var levleA = CreateAndSchedulePipBuilder(new Operation[]{
+                resetOp,
+                Operation.WriteFile(outputA),
+            });
+            //Pip that will fail 
+            var failedPip = CreateAndSchedulePipBuilder(new Operation[]{
+                resetOp,
+                Operation.ReadFile(outputA),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.Fail()
+            },
+            new []{ filterTag });
+
+            var failedPipRun = RunScheduler().AssertFailure();
+            AssertErrorEventLogged(EventId.PipProcessError);
+
+            var explicitlyScheduled = failedPipRun.ProcessPipCountersByFilter.ExplicitlyScheduledProcesses;
+            var implicitlyScheduled = failedPipRun.ProcessPipCountersByFilter.ImplicitlyScheduledProcesses;
+
+            XAssert.AreEqual(0, explicitlyScheduled.GetCounterValue(PipCountersByGroup.Count));
+            XAssert.AreEqual(2, implicitlyScheduled.GetCounterValue(PipCountersByGroup.Count));
+            XAssert.AreEqual(1, implicitlyScheduled.GetCounterValue(PipCountersByGroup.CacheMiss));
+            XAssert.AreEqual(1, implicitlyScheduled.GetCounterValue(PipCountersByGroup.Failed));
+
+
+            Configuration.Filter = $"tag='{filterTag}'";
+            failedPipRun = RunScheduler().AssertFailure();
+            AssertErrorEventLogged(EventId.PipProcessError);
+
+            explicitlyScheduled = failedPipRun.ProcessPipCountersByFilter.ExplicitlyScheduledProcesses;
+            implicitlyScheduled = failedPipRun.ProcessPipCountersByFilter.ImplicitlyScheduledProcesses;
+
+            XAssert.AreEqual(1, explicitlyScheduled.GetCounterValue(PipCountersByGroup.Count));
+            XAssert.AreEqual(1, implicitlyScheduled.GetCounterValue(PipCountersByGroup.Count));
+            XAssert.AreEqual(1, implicitlyScheduled.GetCounterValue(PipCountersByGroup.CacheHit));
+            XAssert.AreEqual(1, explicitlyScheduled.GetCounterValue(PipCountersByGroup.Failed));
+        }
+
+        [Fact]
         public void ValidateProcessPipCountersByFilter()
         {
             var filterTag = "filterMatch";
@@ -110,7 +157,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.WriteFile(outputC1),
             },
             new[] { filterTag }).Process;
-            
+
             // Level D (dependents of level C)
             var dependentD1 = CreateAndSchedulePipBuilder(new Operation[]
             {
@@ -259,7 +306,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             AssertProcessPipCountersByFilterSumToPipExecutorCounters(filterMissFilterRun);
         }
-
+        
         public void ValidateProcessPipCountersByTelemetryTag()
         {
             // A <- B [blue] <- C [blue]

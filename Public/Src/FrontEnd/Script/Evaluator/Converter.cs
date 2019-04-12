@@ -392,6 +392,18 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <summary>
+        /// Extracts <see cref="ArrayLiteral"/> instance from a given object.
+        /// </summary>
+        /// <remarks>
+        /// Returns null if <paramref name="allowUndefined"/> is true and <paramref name="literal"/> doesn't have a given property.
+        /// </remarks>
+        public static string[] ExtractStringArray(ObjectLiteral literal, SymbolAtom property, bool allowUndefined = false)
+        {
+            var array = ExtractArrayLiteral(literal, property, allowUndefined);
+            return Converter.ExpectStringArray(array);
+        }
+
+        /// <summary>
         /// Extracts an object of a concrete reference type from a given object.
         /// </summary>
         /// <remarks>

@@ -25,6 +25,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Threading;
 using BuildXL.Engine.Cache.KeyValueStores;
+using BuildXL.Utilities.Configuration;
 
 namespace Test.BuildXL.FingerprintStore
 {
@@ -34,6 +35,8 @@ namespace Test.BuildXL.FingerprintStore
             : base(output)
         {
             Configuration.Logging.StoreFingerprints = true;
+            // Forces unique, time-stamped logs directory between different scheduler runs within the same test
+            Configuration.Logging.LogsToRetain = int.MaxValue;
         }
 
         [Fact]
@@ -78,7 +81,7 @@ namespace Test.BuildXL.FingerprintStore
                 entry.PipToFingerprintKeys.Key,
                 keys.WeakFingerprint,
                 keys.StrongFingerprint,
-                keys.PathSetHash
+                keys.FormattedPathSetHash
             };
 
             foreach (var str in pipToFingerprintKeysStrings)
@@ -461,7 +464,7 @@ namespace Test.BuildXL.FingerprintStore
             var build = RunScheduler().AssertSuccess();
 
             // No logs should have been recorded
-            XAssert.IsFalse(Directory.Exists(build.Config.Logging.FingerprintStoreLogDirectory.ToString(Context.PathTable)));
+            XAssert.IsFalse(Directory.Exists(build.Config.Logging.ExecutionFingerprintStoreLogDirectory.ToString(Context.PathTable)));
 
             // No directory should have been created
             var fingerprintStoreDirectory = build.Config.Layout.FingerprintStoreDirectory;
@@ -886,6 +889,98 @@ namespace Test.BuildXL.FingerprintStore
             XAssert.AreEqual(passSfInputs, failSfInputs);
         }
 
+        /// <summary>
+        /// Helper function for verifying build results in <see cref="OnlyWriteToCacheLookupStoreOnStrongFingerprintMiss(FingerprintStoreMode)"/>.
+        /// </summary>
+        private void VerifyNoCacheLookupStore(FingerprintStoreMode mode, CounterCollection<FingerprintStoreCounters> counters, ScheduleRunResult result, Pip pipCacheMiss)
+        {
+            XAssert.AreEqual(counters.GetCounterValue(FingerprintStoreCounters.NumCacheLookupFingerprintComputationStored), 0);
+
+            if (mode == FingerprintStoreMode.ExecutionFingerprintsOnly)
+            {
+                XAssert.IsFalse(Directory.Exists(ResultToStoreDirectory(result, cacheLookupStore: true)));
+            }
+            else
+            {
+                FingerprintStoreSession(ResultToStoreDirectory(result, cacheLookupStore: true), store =>
+                {
+                    XAssert.IsFalse(store.TryGetFingerprintStoreEntryBySemiStableHash(pipCacheMiss.FormattedSemiStableHash, out var entry));
+                });
+            }
+        }
+
+        [Theory]
+        [InlineData(FingerprintStoreMode.Default)]
+        [InlineData(FingerprintStoreMode.ExecutionFingerprintsOnly)]
+        public void OnlyWriteToCacheLookupStoreOnStrongFingerprintMiss(FingerprintStoreMode fingerprintStoreMode)
+        {
+            Configuration.Logging.FingerprintStoreMode = fingerprintStoreMode;
+            var testHooks = new SchedulerTestHooks()
+            {
+                FingerprintStoreTestHooks = new FingerprintStoreTestHooks()
+            };
+
+            var srcFile = CreateSourceFile();
+            var dir = CreateUniqueDirectoryArtifact(ReadonlyRoot);
+            var pip = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(srcFile),
+                Operation.EnumerateDir(dir),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            }).Process;
+
+            var build1 = RunScheduler(testHooks).AssertCacheMiss(pip.PipId);
+            var counters1 = testHooks.FingerprintStoreTestHooks.Counters;
+            // One put in execution fingerprint store
+            XAssert.AreEqual(counters1.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut), 1);
+            VerifyNoCacheLookupStore(fingerprintStoreMode, counters1, build1, pip);
+
+            var build2 = RunScheduler(testHooks).AssertCacheHit(pip.PipId);
+            
+            // Fully cache hit is no puts in either execution or cache lookup fingerprint store
+            var counters2 = testHooks.FingerprintStoreTestHooks.Counters;
+            XAssert.AreEqual(counters2.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut), 0);
+            VerifyNoCacheLookupStore(fingerprintStoreMode, counters2, build2, pip);
+
+
+            // Cause a weak fingerprint miss
+            File.WriteAllText(ArtifactToString(srcFile), "asdf");
+
+            var build3 = RunScheduler(testHooks).AssertCacheMiss(pip.PipId);
+            
+            // One put in execution fingerprint store (overwrite)
+            var counters3 = testHooks.FingerprintStoreTestHooks.Counters;
+            XAssert.AreEqual(counters3.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut), 1);
+            VerifyNoCacheLookupStore(fingerprintStoreMode, counters3, build1, pip);
+
+            // Cause a strong fingerprint miss
+            CreateSourceFile(ArtifactToString(dir));
+            var build4 = RunScheduler(testHooks).AssertCacheMiss(pip.PipId);
+            // One put in execution fingerprint store (overwrite), one put in cache lookup fingerprint store
+            var counters4 = testHooks.FingerprintStoreTestHooks.Counters;
+            if (fingerprintStoreMode == FingerprintStoreMode.ExecutionFingerprintsOnly)
+            {
+                XAssert.AreEqual(counters4.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut), 1);
+                VerifyNoCacheLookupStore(fingerprintStoreMode, counters4, build4, pip);
+            }
+            else
+            {
+                XAssert.AreEqual(counters4.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut), 2);
+                XAssert.AreEqual(counters4.GetCounterValue(FingerprintStoreCounters.NumCacheLookupFingerprintComputationStored), 1);
+                
+                // Cache lookup store should be populated on strong fingerprint misses
+                FingerprintStoreSession(ResultToStoreDirectory(build4, cacheLookupStore: true), store =>
+                {
+                    XAssert.IsTrue(store.TryGetFingerprintStoreEntryBySemiStableHash(pip.FormattedSemiStableHash, out var entry));
+                });
+            }
+
+            // No persistence build-over-build
+            var build5 = RunScheduler(testHooks).AssertCacheHit(pip.PipId);
+            var counters5 = testHooks.FingerprintStoreTestHooks.Counters;
+            VerifyNoCacheLookupStore(fingerprintStoreMode, counters5, build5, pip);
+        }
+
         [Fact]
         public void RoundTripCacheMissList()
         {
@@ -1021,7 +1116,7 @@ namespace Test.BuildXL.FingerprintStore
                 XAssert.AreNotEqual(keys1.WeakFingerprint, keys2.WeakFingerprint);
                 XAssert.AreNotEqual(keys1.StrongFingerprint, keys2.StrongFingerprint);
                 // Path set hash can be shared between different pips, which is why they are not keyed by pip semistablehash.
-                XAssert.AreEqual(keys1.PathSetHash, keys2.PathSetHash);
+                XAssert.AreEqual(keys1.FormattedPathSetHash, keys2.FormattedPathSetHash);
             });
         }
 
@@ -1053,7 +1148,6 @@ namespace Test.BuildXL.FingerprintStore
             // Put a random file in store location to make it impossible to delete the directory
             var dontDeleteFile = Path.Combine(engineCacheStore, "dontdelete");
             File.WriteAllText(dontDeleteFile, "asdf");
-            
             // An invalid format version causes the fingerprint store to delete itself before starting a new one
             // The open filestream will prevent the directory from being deleted and prevent a new store from being created
             // The build should continue without error without the fingerprint store
@@ -1206,9 +1300,9 @@ namespace Test.BuildXL.FingerprintStore
                 counters2.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut));
         }
 
-        private string ResultToStoreDirectory(ScheduleRunResult result)
+        private string ResultToStoreDirectory(ScheduleRunResult result, bool cacheLookupStore = false)
         {
-            return result.Config.Logging.FingerprintStoreLogDirectory.ToString(Context.PathTable);
+            return cacheLookupStore ? result.Config.Logging.CacheLookupFingerprintStoreLogDirectory.ToString(Context.PathTable) : result.Config.Logging.ExecutionFingerprintStoreLogDirectory.ToString(Context.PathTable);
         }
 
         /// <summary>
@@ -1251,7 +1345,7 @@ namespace Test.BuildXL.FingerprintStore
         public static ScheduleRunResult AssertCacheMissWithFingerprintStore(this ScheduleRunResult result, PathTable pathTable, PathExpander pathExpander, params PipId[] pipIds)
         {
             var misses = new HashSet<PipId>();
-            FingerprintStoreTests.FingerprintStoreSession(result.Config.Logging.FingerprintStoreLogDirectory.ToString(pathTable), store =>
+            FingerprintStoreTests.FingerprintStoreSession(result.Config.Logging.ExecutionFingerprintStoreLogDirectory.ToString(pathTable), store =>
             {
                 XAssert.IsTrue(store.TryGetCacheMissList(out var cacheMissList));
                 foreach (var miss in cacheMissList)

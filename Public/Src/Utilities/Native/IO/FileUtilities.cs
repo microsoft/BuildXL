@@ -387,8 +387,9 @@ namespace BuildXL.Native.IO
             Func<SafeFileHandle, bool> predicate = null,
             Action<SafeFileHandle> onCompletion = null) => s_fileUtilities.WriteAllBytesAsync(filePath, bytes, predicate, onCompletion);
 
-        /// <see cref="IFileUtilities.TryFindOpenHandlesToFile(string, out string)"/>
-        public static bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo) => s_fileUtilities.TryFindOpenHandlesToFile(filePath, out diagnosticInfo);
+        /// <see cref="IFileUtilities.TryFindOpenHandlesToFile"/>
+        public static bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo, bool printCurrentFilePath = true) 
+            => s_fileUtilities.TryFindOpenHandlesToFile(filePath, out diagnosticInfo, printCurrentFilePath);
 
         /// <see cref="IFileUtilities.GetHardLinkCount(string)"/>
         public static uint GetHardLinkCount(string path) => s_fileUtilities.GetHardLinkCount(path);
@@ -899,7 +900,7 @@ namespace BuildXL.Native.IO
         /// <remarks>
         /// If <paramref name="targetPath"/> is an absolute path, then this method simply returns <paramref name="targetPath"/>.
         /// If <paramref name="targetPath"/> is a relative path, then it first resolves the prefixes of <paramref name="symlinkPath"/>
-        /// using <see cref="IFileSystem.ResolveReparsePointPrefixes(string)"/> (see its documentation for details) before combining the resolved
+        /// using <see cref="IFileSystem.TryResolveReparsePointRelativeTarget(string, string)"/> (see its documentation for details) before combining the resolved
         /// path with <paramref name="targetPath"/>.
         /// </remarks>
         public static Possible<string> ResolveSymlinkTarget(string symlinkPath, string targetPath = null)
@@ -908,29 +909,13 @@ namespace BuildXL.Native.IO
 
             if (targetPath == null)
             {
-                var openResult = TryCreateOrOpenFile(
-                   symlinkPath,
-                   FileDesiredAccess.GenericRead,
-                   FileShare.Read | FileShare.Delete,
-                   FileMode.Open,
-                   FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint,
-                   out SafeFileHandle symlinkHandle);
-
-                if (!openResult.Succeeded)
+                var maybeTarget = s_fileSystem.TryGetReparsePointTarget(null, symlinkPath);
+                if (!maybeTarget.Succeeded)
                 {
-                    return openResult.CreateFailureForError();
+                    return maybeTarget.Failure;
                 }
 
-                using (symlinkHandle)
-                {
-                    var maybeTarget = s_fileSystem.TryGetReparsePointTarget(symlinkHandle, symlinkPath);
-                    if (!maybeTarget.Succeeded)
-                    {
-                        return maybeTarget.Failure;
-                    }
-
-                    targetPath = maybeTarget.Result;
-                }
+                targetPath = maybeTarget.Result;
             }
 
             if (s_fileSystem.IsPathRooted(targetPath))
@@ -939,29 +924,55 @@ namespace BuildXL.Native.IO
                 return targetPath;
             }
 
-            var maybeResolvedPrefixesPath = s_fileSystem.ResolveReparsePointPrefixes(symlinkPath);
+            // Symlink target is a relative path.
+            var maybeResolvedRelative = s_fileSystem.TryResolveReparsePointRelativeTarget(symlinkPath, targetPath);
 
-            if (!maybeResolvedPrefixesPath.Succeeded)
+            if (!maybeResolvedRelative.Succeeded)
             {
-                return maybeResolvedPrefixesPath.Failure;
+                return maybeResolvedRelative.Failure;
             }
 
-            string resolvedPrefixesPath = maybeResolvedPrefixesPath.Result;
+            return maybeResolvedRelative;
+        }
 
-            // Skip last path component of final path.
-            int rootLength = s_fileSystem.GetRootLength(resolvedPrefixesPath);
-            int j = resolvedPrefixesPath.Length - 1;
+        /// <summary>
+        /// Resolve a reparse point path with respect to its relative target.
+        /// </summary>
+        /// <remarks>
+        /// Given a reparse point path A\B\C and its relative target D\E\F, where D and E can be '.' or '..',
+        /// this method simply combines A\B with D\E\F and normalizes the result, i.e., removes '.' and '..'.
+        /// </remarks>
+        public static Possible<string> TryResolveRelativeTarget(
+            string path, 
+            string relativeTarget,
+            Stack<string> processed = null, 
+            Stack<string> needToBeProcessed = null)
+        {
+            int rootLength = s_fileSystem.GetRootLength(path);
+            int j = path.Length - 1;
 
-            while (j > rootLength && !s_fileSystem.IsDirectorySeparator(resolvedPrefixesPath[j]))
+            while (j > rootLength && !s_fileSystem.IsDirectorySeparator(path[j]))
             {
                 --j;
             }
 
             --j;
 
-            if (!TryCombinePaths(resolvedPrefixesPath.Substring(0, j + 1), targetPath, out string result))
+            if (processed != null)
             {
-                return new Failure<string>(I($"Unable to combine {resolvedPrefixesPath} and {targetPath}"));
+                if (processed.Count == 0)
+                {
+                    return new Failure<string>(I($"Failed to resolve relative target of '{path}' and '{relativeTarget}' because processed stack is empty"));
+                }
+
+                processed.Pop();
+            }
+
+            string pathToCombine = path.Substring(0, j + 1);
+
+            if (!TryCombinePaths(pathToCombine, relativeTarget, out string result, processed, needToBeProcessed))
+            {
+                return new Failure<string>(I($"Failed to combine '{pathToCombine}' and '{relativeTarget}'"));
             }
 
             return result;
@@ -970,7 +981,12 @@ namespace BuildXL.Native.IO
         /// <summary>
         /// Tries to combine an absolute path with a relative path by resolving all the "." and ".." prefixes of the relative paths.
         /// </summary>
-        private static bool TryCombinePaths(string absolutePath, string relativePath, out string result)
+        private static bool TryCombinePaths(
+            string absolutePath, 
+            string relativePath, 
+            out string result,
+            Stack<string> processed = null,
+            Stack<string> needToBeProcessed = null)
         {
             Contract.Requires(s_fileSystem.IsPathRooted(absolutePath));
 
@@ -1017,7 +1033,17 @@ namespace BuildXL.Native.IO
                             {
                                 return false;
                             }
-                            
+
+                            if (processed != null)
+                            {
+                                if (processed.Count == 0)
+                                {
+                                    return false;
+                                }
+
+                                processed.Pop();
+                            }
+
                             while (absoluteIndex > rootLength && !s_fileSystem.IsDirectorySeparator(absolutePath[absoluteIndex]))
                             {
                                 --absoluteIndex;
@@ -1036,9 +1062,64 @@ namespace BuildXL.Native.IO
                 break;
             }
 
-            result = absolutePath.Substring(0, absoluteIndex + 1) + Path.DirectorySeparatorChar + relativePath.Substring(start);
+            result = absolutePath.Substring(0, absoluteIndex + 1);
+            string newRelativePath = relativePath.Substring(start);
+
+            if (needToBeProcessed != null)
+            {
+                SplitPathsReverse(newRelativePath, needToBeProcessed);
+            }
+            else
+            {
+                result += Path.DirectorySeparatorChar + newRelativePath;
+            }
 
             return true;
+        }
+
+        /// <summary>
+        /// Splits path into atoms and push it into the stack such that the top stack contains the last atom.
+        /// </summary>
+        public static void SplitPathsReverse(string path, Stack<string> atoms)
+        {
+            int length = path.Length;
+
+            if (length >= 2 && s_fileSystem.IsDirectorySeparator(path[length - 1]))
+            {
+                // Skip ending directory separator without trimming the path.
+                --length;
+            }
+
+            int rootLength = s_fileSystem.GetRootLength(path);
+
+            if (length <= rootLength)
+            {
+                return;
+            }
+
+            int i = length - 1;
+            string dir = path;
+
+            while (i >= rootLength)
+            {
+                while (i > rootLength && !s_fileSystem.IsDirectorySeparator(dir[i]))
+                {
+                    --i;
+                }
+
+                if (i >= rootLength)
+                {
+                    atoms.Push(dir.Substring(i));
+                }
+
+                --i;
+                dir = dir.Substring(0, i + 1);
+            }
+
+            if (dir.Length != 0)
+            {
+                atoms.Push(dir);
+            }
         }
 
         /// <summary>

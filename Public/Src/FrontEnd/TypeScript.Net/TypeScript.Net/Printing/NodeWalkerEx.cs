@@ -334,6 +334,19 @@ namespace TypeScript.Net.Printing
                            VisitNode(cbNode, concreteNode.ColonToken) ??
                            VisitNode(cbNode, concreteNode.WhenFalse);
                     }
+                    
+                case SyntaxKind.SwitchExpression:
+                    {
+                        var concreteNode = node.Cast<ISwitchExpression>();
+                        return VisitNode(cbNode, concreteNode.Expression) ??
+                            visitNodes(cbNode, concreteNode.Clauses);
+                    }
+                case SyntaxKind.SwitchExpressionClause:
+                    {
+                        var concreteNode = node.Cast<ISwitchExpressionClause>();
+                        return (concreteNode.IsDefaultFallthrough ? null : VisitNode(cbNode, concreteNode.Match)) ??
+                           VisitNode(cbNode, concreteNode.Expression);
+                    }
 
                 case SyntaxKind.SpreadElementExpression:
                     return VisitNode(cbNode, node.Cast<ISpreadElementExpression>().Expression);

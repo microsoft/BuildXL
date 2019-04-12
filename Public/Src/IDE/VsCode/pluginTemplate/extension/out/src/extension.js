@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
 // This must be the first statement otherwise modules might got loaded with
@@ -23,32 +22,29 @@ function activate(context) {
     // Check to see if we have extension updates available.
     update_1.checkForUpdates();
     let exeName = 'BuildXL.Ide.LanguageServer';
-    if (process.platform === "win32") {
+    if (process.platform === "win32")
         exeName = exeName + ".exe";
-    }
-
     // If the extension is launched in debug mode then the debug server options are used
     // Otherwise the run options are used
     const serverOptions = {
         run: {
-            module: "BuildXL DScript Language Server",
+            module: "DScript Language Server",
             transport: vscode_languageclient_1.TransportKind.pipe,
             runtime: context.asAbsolutePath(path.join('./bin', exeName)),
         },
         debug: {
-            module: "BuildXL DScript Language Server",
+            module: "DScript Language Server",
             transport: vscode_languageclient_1.TransportKind.pipe,
-            runtime: context.asAbsolutePath('../../../../../Out/objects/tempdeployment/debug/net461/win-x64/VsCodeVsix/extension/bin/' + exeName),
+            runtime: context.asAbsolutePath(`../../../../../Out/objects/tempdeployment/debug/net472/win-x64/VsCodeVsix/extension/bin/${exeName}`),
         },
     };
-
     // Options to control the language client
     const clientOptions = {
         // Register the server for plain text documents
-        documentSelector: ['dscript'],
+        documentSelector: ['DScript'],
         synchronize: {
-            // Synchronize the setting section 'dscript' to the server
-            configurationSection: 'dscript',
+            // Synchronize the setting section 'DScript' to the server
+            configurationSection: 'DScript',
             // Notify the server about file changes to '.clientrc files contain in the workspace
             fileEvents: vscode_1.workspace.createFileSystemWatcher('**/.clientrc')
         },
@@ -57,7 +53,7 @@ function activate(context) {
         }
     };
     // Create the language client
-    languageClient = new vscode_languageclient_1.LanguageClient('dscriptLanguageClient', 'BuildXL DScript Language Client', serverOptions, clientOptions);
+    languageClient = new vscode_languageclient_1.LanguageClient('DScriptLanguageClient', 'BuildXL DScript Language Client', serverOptions, clientOptions);
     // Set up our "back channel" RPC messags
     languageClient.onReady().then(() => {
         languageClient.onNotification(workspaceLoadingNotification_1.WorkspaceLoadingNotification.type, workspaceLoadingNotification_1.WorkspaceLoadingNotification.handler);
@@ -68,23 +64,23 @@ function activate(context) {
     });
     // Now start the client
     let languageServer = languageClient.start();
-    context.subscriptions.push(vscode_1.commands.registerCommand('dscript.reloadWorkspace', () => {
+    context.subscriptions.push(vscode_1.commands.registerCommand('DScript.reloadWorkspace', () => {
         return reloadWorkspace();
     }));
-    context.subscriptions.push(vscode_1.commands.registerCommand('dscript.openLogFile', () => {
+    context.subscriptions.push(vscode_1.commands.registerCommand('DScript.openLogFile', () => {
         return openLogFile();
     }));
     // Set the context of the workspace loaded to be false.
-    vscode_1.commands.executeCommand('setContext', 'dscript.workspaceLoaded', false);
-    context.subscriptions.push(vscode_1.commands.registerCommand('dscript.openDocument', (uriString, range) => {
+    vscode_1.commands.executeCommand('setContext', 'DScript.workspaceLoaded', false);
+    context.subscriptions.push(vscode_1.commands.registerCommand('DScript.openDocument', (uriString, range) => {
         return openDocument(uriString, range);
     }));
-    // Set up the DScript project browser.
+    // Set up the BuildXL script project browser.
     projectBrowser_1.createDominoProjectBrowser(languageClient, context);
     // Register for configuration changes so we can create\enable the
     // BuildXL project browser when the user changes their configuration.
     vscode_1.workspace.onDidChangeConfiguration(() => {
-        // Set up the BuildXL script project browser.
+        // Set up the DScript project browser.
         projectBrowser_1.createDominoProjectBrowser(languageClient, context);
     });
     // Register language configuration
@@ -116,7 +112,7 @@ function openDocument(uriString, range) {
     });
 }
 function registerLanguageConfiguration() {
-    vscode_1.languages.setLanguageConfiguration('dscript', {
+    vscode_1.languages.setLanguageConfiguration('DScript', {
         indentationRules: {
             // ^(.*\*/)?\s*\}.*$
             decreaseIndentPattern: /^(.*\*\/)?\s*\}.*$/,

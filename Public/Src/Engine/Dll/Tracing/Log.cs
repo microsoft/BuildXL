@@ -143,6 +143,16 @@ namespace BuildXL.Engine.Tracing
         public abstract void InputTrackerDetectedEnvironmentVariableChanged(LoggingContext context, string variableName, string recordedValue, string currentValue);
 
         [GeneratedEvent(
+           (ushort)LogEventId.InputTrackerDetectedMountChanged,
+           EventGenerators = EventGenerators.LocalOnly,
+           EventLevel = Level.Verbose,
+           EventTask = (ushort)Events.Tasks.Engine,
+           EventOpcode = (byte)EventOpcode.Start,
+           Keywords = (int)(Events.Keywords.UserMessage),
+           Message = "Input tracker detected first changed mount: Mount name: {mountName} | Recorded path: {recordedPath} | Current path: {currentPath}")]
+        public abstract void InputTrackerDetectedMountChanged(LoggingContext context, string mountName, string recordedPath, string currentPath);
+
+        [GeneratedEvent(
             (ushort)LogEventId.InputTrackerUnableToDetectChangedInputFileByCheckingContentHash,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -798,14 +808,14 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionPipFailedOnWorker(LoggingContext context, long pipSemiStableHash, string pipDescription, string step, string workerName);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DistributionTrace,
+            (ushort)LogEventId.GrpcTrace,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "Distribution: {message}.",
+            Message = "Grpc: {message}.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Events.Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)Events.Keywords.UserMessage)]
-        public abstract void DistributionTrace(LoggingContext context, string message);
+        public abstract void GrpcTrace(LoggingContext context, string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerFinishedPipRequest,
@@ -1399,8 +1409,8 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Error,
             Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.InfrastructureError),
             EventTask = (int)Events.Tasks.Engine,
-            Message = "Failed to acquire a lock to prevent directory deletion: {0}")]
-        public abstract void FailedToAcquireDirectoryDeletionLock(LoggingContext context, string innerException);
+            Message = "Failed to acquire a lock to prevent directory deletion. This may be due to invoking concurrent builds with overlapping directories. Error: {0}")]
+        public abstract void FailedToAcquireDirectoryDeletionLock(LoggingContext context, string message);
 
         [GeneratedEvent(
             (int)LogEventId.FailedToAcquireDirectoryLock,
@@ -1703,14 +1713,29 @@ If you can't update and need this feature after July 2018 please reach out to th
             Message = "{ShortProductName} failed to run because only 'case-insensitive' file-systems are currently supported on non-windows hosts.")]
         public abstract void ErrorCaseSensitiveFileSystemDetected(LoggingContext context);
 
+        public void BusyOrUnavailableOutputDirectories(LoggingContext context, string objectDirectoryPath, string exception)
+        {
+            BusyOrUnavailableOutputDirectories(context, objectDirectoryPath);
+            BusyOrUnavailableOutputDirectoriesException(context, objectDirectoryPath, exception);
+        }
+
         [GeneratedEvent(
             (int)EventId.BusyOrUnavailableOutputDirectories,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.InfrastructureError),
             EventTask = (int)Events.Tasks.Engine,
-            Message = "Concurrent builds using the same output directories are not supported. Directory already in use or not reachable {0}. Exception: {1}")]
-        public abstract void BusyOrUnavailableOutputDirectories(LoggingContext context, string objectDirectoryPath, string exception);
+            Message = "Concurrent builds using the same output directories are not supported. Directory already in use or not reachable {0}.")]
+        public abstract void BusyOrUnavailableOutputDirectories(LoggingContext context, string objectDirectoryPath);
+
+        [GeneratedEvent(
+            (int)LogEventId.BusyOrUnavailableOutputDirectoriesException,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.Engine,
+            Message = "Directory {0} lock exception: {1}")]
+        public abstract void BusyOrUnavailableOutputDirectoriesException(LoggingContext context, string objectDirectoryPath, string exception);
 
         [GeneratedEvent(
             (int)EventId.BusyOrUnavailableOutputDirectoriesRetry,
@@ -2856,6 +2881,11 @@ If you can't update and need this feature after July 2018 please reach out to th
         /// One or more environment variables changed
         /// </summary>
         EnvironmentVariableChanged,
+
+        /// <summary>
+        /// One or more mounts or mount paths changed
+        /// </summary>
+        MountChanged,
 
         /// <summary>
         /// One or more spec files changed

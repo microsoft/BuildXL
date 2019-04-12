@@ -79,7 +79,7 @@ namespace Test.ProjectGraphBuilder
             {
                 var arguments = new MSBuildGraphBuilderArguments(
                     TemporaryDirectory,
-                    entryPoint,
+                    new[] { entryPoint },
                     outputFile,
                     globalProperties: null,
                     mSBuildSearchLocations: new string[] {TestDeploymentDir},

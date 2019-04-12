@@ -403,7 +403,7 @@ namespace BuildXL.Cache.Tests
         }
 
         /// <summary>
-        /// Verifies that InitializeCache returns a valid Failure when a Json string contains fields that do not exist in the factory's config structure
+        /// Verifies that InitializeCache returns a valid cache when a Json string contains fields that do not exist in the factory's config structure
         /// </summary>
         [Fact]
         public async Task TestInvalidJsonField()
@@ -415,17 +415,20 @@ namespace BuildXL.Cache.Tests
                     { "StringWithNoDefaultValue", "Value_of_StringWithNoDefaultValue" },
                 });
 
-            // this Json string will produce a failure and there will be no results to validate. We will set the result validation to null here
-            resultValidationLambda = null;
+            // set up the result validation lambda
+            resultValidationLambda = (obj1) =>
+            {
+                XAssert.AreEqual("Value_of_StringWithDefaultValue", obj1.StringWithDefaultValue);
+
+                // the lambda assigned to resultValidationLambda is static and each test should set it. We will set it to null to make sure that no other tests use this lambda accidentally.
+                resultValidationLambda = null;
+            };
 
             // call InitializeCache, there should be no exception
             Possible<ICache, Failure> cache = await InitializeCacheAsync(jsonString);
 
             // make sure that we do not get a cache
-            Assert.False(cache.Succeeded);
-
-            // validate the returned error message
-            XAssert.AreEqual("BuildXL.Cache.Tests.TestCacheFactory does not support setting 'InvalidFieldName' in Json configuration data", cache.Failure.Describe());
+            Assert.True(cache.Succeeded);
         }
 
         /// <summary>

@@ -140,11 +140,11 @@ namespace BuildXL.Scheduler
         public const string DefaultSchedulerFileChangeTrackerFile = "SchedulerFileChangeTracker";
 
         /// <summary>
-        /// Fingerprint store directory name.
+        /// <see cref="FingerprintStore"/> directory name.
         /// </summary>
         public const string FingerprintStoreDirectory = "FingerprintStore";
-
-        #endregion
+        
+        #endregion Constants
 
         #region State
 
@@ -929,6 +929,7 @@ namespace BuildXL.Scheduler
 
         private PipCountersByGroupAggregator m_groupedPipCounters;
         private readonly CounterCollection<PipExecutionStep> m_pipExecutionStepCounters = new CounterCollection<PipExecutionStep>();
+        private readonly CounterCollection<FingerprintStoreCounters> m_fingerprintStoreCounters = new CounterCollection<FingerprintStoreCounters>();
 
         private sealed class CriticalPathStats
         {
@@ -1174,6 +1175,7 @@ namespace BuildXL.Scheduler
                     m_pipContentFingerprinter,
                     cache,
                     DataflowGraph,
+                    m_fingerprintStoreCounters,
                     m_runnablePipPerformance,
                     m_testHooks?.FingerprintStoreTestHooks);
 
@@ -1334,8 +1336,6 @@ namespace BuildXL.Scheduler
 
                 if (m_fingerprintStoreTarget != null)
                 {
-                    // Capture the counters before disposing
-                    var counters = m_fingerprintStoreTarget.Counters;
                     // Dispose the fingerprint store to allow copying the files
                     m_fingerprintStoreTarget.Dispose();
 
@@ -1345,9 +1345,13 @@ namespace BuildXL.Scheduler
                         m_loggingContext,
                         Context.PathTable,
                         m_configuration,
-                        counters);
+                        m_fingerprintStoreCounters);
 
-                    counters.LogAsStatistics("FingerprintStore", m_loggingContext);
+                    m_fingerprintStoreCounters.LogAsStatistics("FingerprintStore", m_loggingContext);
+                    if (m_testHooks?.FingerprintStoreTestHooks != null)
+                    {
+                        m_testHooks.FingerprintStoreTestHooks.Counters = m_fingerprintStoreCounters;
+                    }
                 }
 
                 return !HasFailed && shutdownServicesSucceeded;
@@ -2176,6 +2180,11 @@ namespace BuildXL.Scheduler
                         PipExecutionCounters.AddToCounter(PipExecutorCounter.ProcessDuration, processDuration);
                         m_groupedPipCounters.IncrementCounter(processRunnablePip.Process, PipCountersByGroup.Count);
                         m_groupedPipCounters.AddToCounter(processRunnablePip.Process, PipCountersByGroup.ProcessDuration, processDuration);
+
+                        if(!succeeded && result.Status == PipResultStatus.Failed)
+                        {
+                            m_groupedPipCounters.IncrementCounter(processRunnablePip.Process, PipCountersByGroup.Failed);
+                        }
                     }
                 }
                 else if (pipType == PipType.Ipc)
@@ -2428,10 +2437,10 @@ namespace BuildXL.Scheduler
 
             var directoryOutputs = executionResult.DirectoryOutputs;
             ExecutionLog?.PipExecutionDirectoryOutputs(new PipExecutionDirectoryOutputs
-                                                       {
-                                                           PipId = runnablePip.PipId,
-                                                           DirectoryOutputs = directoryOutputs,
-                                                       });
+            {
+                PipId = runnablePip.PipId,
+                DirectoryOutputs = directoryOutputs,
+            });
         }
 
         private async Task ScheduleDependents(PipResult result, bool succeeded, RunnablePip runnablePip, PipRuntimeInfo pipRuntimeInfo)
@@ -3384,6 +3393,12 @@ namespace BuildXL.Scheduler
                     {
                         MarkPipStartExecuting();
 
+                        if (processRunnable.Process.Weight > 1)
+                        {
+                            // Only log for pips with non-standard process weights
+                            Logger.Log.ProcessPipProcessWeight(loggingContext, processRunnable.Description, processRunnable.Process.Weight);
+                        }
+
                         processRunnable.Executed = true;
                         var executionResult = await worker.ExecuteProcessAsync(processRunnable);
 
@@ -3453,7 +3468,7 @@ namespace BuildXL.Scheduler
                         // Make sure all shared outputs are flagged as such.
                         // We need to do this even if the pip failed, so any writes under shared opaques are flagged anyway.
                         // This allows the scrubber to remove those files as well in the next run.
-                        FlagSharedOpaqueOutputs(environment, executionResult);
+                        FlagSharedOpaqueOutputs(environment, processRunnable);
 
                         // Set the process as executed. NOTE: We do this here rather than during ExecuteProcess to handle
                         // case of processes executed remotely
@@ -3514,15 +3529,21 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static void FlagSharedOpaqueOutputs(IPipExecutionEnvironment environment, ExecutionResult executionResult)
+        private void FlagSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)
         {
+            // Select all declared output files
+            foreach (var fileArtifact in process.Process.FileOutputs)
+            {
+                MakeSharedOpaqueOutputIfNeeded(fileArtifact.Path);
+            }
+
             // The shared dynamic accesses can be null when the pip failed on preparation, in which case it didn't run at all, so there is
             // nothing to flag
-            if (executionResult.SharedDynamicDirectoryWriteAccesses != null)
+            if (process.ExecutionResult.SharedDynamicDirectoryWriteAccesses != null)
             {
                 // Directory outputs are reported only when the pip is successful. So we need to rely on the raw shared dynamic write accesses,
                 // since flagging also happens on failed pips
-                foreach (IReadOnlyCollection<AbsolutePath> writesPerSharedOpaque in executionResult.SharedDynamicDirectoryWriteAccesses.Values)
+                foreach (IReadOnlyCollection<AbsolutePath> writesPerSharedOpaque in process.ExecutionResult.SharedDynamicDirectoryWriteAccesses.Values)
                 {
                     foreach (AbsolutePath writeInPath in writesPerSharedOpaque)
                     {
@@ -5099,7 +5120,8 @@ namespace BuildXL.Scheduler
                         aggregatedContent.AddRange(memberContents);
                     }
 
-                    m_fileContentManager.ReportDynamicDirectoryContents(pip.Directory, aggregatedContent, PipOutputOrigin.UpToDate);
+                    // the directory artifacts that this composite shared opaque consists of might or might not be materialized
+                    m_fileContentManager.ReportDynamicDirectoryContents(pip.Directory, aggregatedContent, PipOutputOrigin.NotMaterialized);
                 }
             }
         }
@@ -5342,6 +5364,27 @@ namespace BuildXL.Scheduler
             }
 
             m_pipOutputMaterializationTracker.ReportMaterializedArtifact(artifact);
+        }
+
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        void IFileContentManagerHost.ReportFileArtifactPlaced(in FileArtifact artifact)
+        {
+            MakeSharedOpaqueOutputIfNeeded(artifact.Path);
+        }
+
+        private void MakeSharedOpaqueOutputIfNeeded(AbsolutePath path)
+        {
+            if (IsPathUnderSharedOpaqueDirectory(path))
+            {
+                SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path.ToString(Context.PathTable));
+            }
+        }
+
+        private bool IsPathUnderSharedOpaqueDirectory(AbsolutePath path)
+        {
+            return
+                PipGraph.IsPathUnderOutputDirectory(path, out var isItSharedOpaque) &&
+                isItSharedOpaque;
         }
 
         /// <inheritdoc />
@@ -5704,32 +5747,21 @@ namespace BuildXL.Scheduler
             PipContentFingerprinter fingerprinter,
             EngineCache cache,
             IReadonlyDirectedGraph graph,
+            CounterCollection<FingerprintStoreCounters> fingerprintStoreCounters,
             IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance = null,
             FingerprintStoreTestHooks testHooks = null)
         {
             if (configuration.FingerprintStoreEnabled())
             {
-                var fingerprintStorePathString = configuration.Layout.FingerprintStoreDirectory.ToString(context.PathTable);
-
-                try
-                {
-                    FileUtilities.CreateDirectoryWithRetry(fingerprintStorePathString);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Log.FingerprintStoreUnableToCreateDirectory(loggingContext, fingerprintStorePathString, ex.Message);
-                    throw new BuildXLException("Unable to create fingerprint store directory: ", ex);
-                }
-
                 return FingerprintStoreExecutionLogTarget.Create(
                     context,
                     pipTable,
                     fingerprinter,
-                    fingerprintStorePathString,
                     loggingContext,
                     configuration,
                     cache,
                     graph,
+                    fingerprintStoreCounters,
                     runnablePipPerformance,
                     testHooks);
             }

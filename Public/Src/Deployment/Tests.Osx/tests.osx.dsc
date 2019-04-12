@@ -224,9 +224,10 @@ namespace Tests.Osx {
     }
 
     function writeFile(fileName: PathAtom, content: string): DerivedFile {
-        const data: Transformer.Data = {contents: [content]};
-        const destination = p`${Context.getNewOutputDirectory("mac-tests")}/${fileName}`;
-        return Transformer.writeData(destination, data);
+        return Transformer.writeAllText({
+            outputPath: p`${Context.getNewOutputDirectory("mac-tests")}/${fileName}`, 
+            text: content
+        });
     }
 
     /*

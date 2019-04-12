@@ -277,6 +277,16 @@ namespace BuildXL.Pips.Operations
         public ServiceInfo ServiceInfo { get; }
 
         /// <summary>
+        /// The # of process slots this process requires when limiting concurrency of process pips.
+        /// The total weight of all proceses running concurrently must be less than or equal to the number of available process slots.
+        /// The # of available process slots is typically a function of the number of cores on the machine, but can also be limited by runtime resource exhaustion or be set per-build by configuration.
+        /// Valid input range for the weight is [min Int32, max Int32] though all values will be effectively coerced to fit within [1, # of process slots]
+        /// If a given weight is greater than or equal to # of available process slots, the process will run alone.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public int Weight { get; }
+
+        /// <summary>
         /// A helper flag to indicate if the Test for execution retries is executing.
         /// </summary>
         public bool TestRetries { get; }
@@ -329,7 +339,8 @@ namespace BuildXL.Pips.Operations
             TimeSpan? nestedProcessTerminationTimeout = null,
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
             DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
-            ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None)
+            ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
+            int? weight = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -428,6 +439,7 @@ namespace BuildXL.Pips.Operations
             ProcessAbsentPathProbeInUndeclaredOpaquesMode = absentPathProbeMode;
             DoubleWritePolicy = doubleWritePolicy;
             ContainerIsolationLevel = containerIsolationLevel;
+            Weight = weight.HasValue && weight.Value > 0 ? weight.Value : 1;
         }
 
         /// <summary>
@@ -472,7 +484,8 @@ namespace BuildXL.Pips.Operations
             TimeSpan? nestedProcessTerminationTimeout = null,
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
             DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
-            ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None)
+            ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
+            int? weight = null)
         {
             return new Process(
                 executable ?? Executable,
@@ -513,7 +526,8 @@ namespace BuildXL.Pips.Operations
                 nestedProcessTerminationTimeout,
                 absentPathProbeMode,
                 doubleWritePolicy,
-                containerIsolationLevel);
+                containerIsolationLevel,
+                weight);
         }
 
         /// <inheritdoc />
@@ -730,8 +744,9 @@ namespace BuildXL.Pips.Operations
                 allowedSurvivingChildProcessNames: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
                 nestedProcessTerminationTimeout: reader.ReadNullableStruct(reader1 => reader1.ReadTimeSpan()),
                 absentPathProbeMode: (AbsentPathProbeInUndeclaredOpaquesMode)reader.ReadByte(),
-                doubleWritePolicy: (DoubleWritePolicy) reader.ReadByte(),
-                containerIsolationLevel: (ContainerIsolationLevel) reader.ReadByte()
+                doubleWritePolicy: (DoubleWritePolicy)reader.ReadByte(),
+                containerIsolationLevel: (ContainerIsolationLevel)reader.ReadByte(),
+                weight: reader.ReadInt32Compact()
                 );
         }
 
@@ -776,6 +791,7 @@ namespace BuildXL.Pips.Operations
             writer.Write((byte)ProcessAbsentPathProbeInUndeclaredOpaquesMode);
             writer.Write((byte)DoubleWritePolicy);
             writer.Write((byte)ContainerIsolationLevel);
+            writer.WriteCompact(Weight);
         }
         #endregion
     }

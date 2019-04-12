@@ -95,6 +95,11 @@ namespace Test.BuildXL.Executables.TestProcess
             ReadFile,
 
             /// <summary>
+            /// Type for reading a file (fails if a file does not exist)
+            /// </summary>
+            ReadRequiredFile,
+
+            /// <summary>
             /// Type for copying a file
             /// </summary>
             CopyFile,
@@ -294,6 +299,9 @@ namespace Test.BuildXL.Executables.TestProcess
                     case Type.ReadFile:
                         DoReadFile();
                         return;
+                    case Type.ReadRequiredFile:
+                        DoReadRequiredFile();
+                        return;
                     case Type.CopyFile:
                         DoCopyFile();
                         return;
@@ -436,6 +444,14 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation ReadFile(FileArtifact path, bool doNotInfer = false)
         {
             return new Operation(Type.ReadFile, path, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
+        /// Creates a read file operation (fails if a file does not exist)
+        /// </summary>
+        public static Operation ReadRequiredFile(FileArtifact path, bool doNotInfer = false)
+        {
+            return new Operation(Type.ReadRequiredFile, path, doNotInfer: doNotInfer);
         }
 
         /// <summary>
@@ -689,6 +705,11 @@ namespace Test.BuildXL.Executables.TestProcess
             {
                 // Ignore tests for denied file access policies
             }
+        }
+
+        private void DoReadRequiredFile()
+        {
+            File.ReadAllText(FileOrDirectoryToString(Path));
         }
 
         private void DoCopyFile()

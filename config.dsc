@@ -496,8 +496,8 @@ config({
     qualifiers: {
         defaultQualifier: {
             configuration: "debug",
-            targetFramework: "net472",
-            targetRuntime: "win-x64",
+            targetFramework: Context.getCurrentHost().os === "win" ? "net472" : "netcoreapp2.2",
+            targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "osx-x64",
         },
         namedQualifiers: {
             Debug: {

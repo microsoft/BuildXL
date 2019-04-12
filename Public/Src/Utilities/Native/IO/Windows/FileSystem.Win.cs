@@ -1167,7 +1167,8 @@ namespace BuildXL.Native.IO.Windows
                     error == NativeIOConstants.ErrorJournalNotActive ||
                     error == NativeIOConstants.ErrorInvalidFunction ||
                     error == NativeIOConstants.ErrorOnlyIfConnected ||
-                    error == NativeIOConstants.ErrorAccessDenied)
+                    error == NativeIOConstants.ErrorAccessDenied ||
+                    error == NativeIOConstants.ErrorNotSupported)
                 {
                     return null;
                 }
@@ -2656,7 +2657,30 @@ namespace BuildXL.Native.IO.Windows
         {
             try
             {
-                return GetReparsePointTarget(handle);
+                if (handle == null || handle.IsInvalid)
+                {
+                    var openResult = TryCreateOrOpenFile(
+                        sourcePath,
+                        FileDesiredAccess.GenericRead,
+                        FileShare.Read | FileShare.Delete,
+                        FileMode.Open,
+                        FileFlagsAndAttributes.FileFlagOpenReparsePoint | FileFlagsAndAttributes.FileFlagBackupSemantics,
+                        out SafeFileHandle symlinkHandle);
+
+                    if (!openResult.Succeeded)
+                    {
+                        return openResult.CreateFailureForError();
+                    }
+
+                    using (symlinkHandle)
+                    {
+                        return GetReparsePointTarget(symlinkHandle);
+                    }
+                }
+                else
+                {
+                    return GetReparsePointTarget(handle);
+                }
             }
             catch (NativeWin32Exception e)
             {
@@ -3859,7 +3883,7 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <summary>
-        /// Resolves the reparse points in the path prefix. 
+        /// Resolves the reparse points with relative target. 
         /// </summary>
         /// <remarks>
         /// This method resolves reparse points that occur in the path prefix. This method should only be called when path itself
@@ -3903,92 +3927,88 @@ namespace BuildXL.Native.IO.Windows
         /// with ..\target\file2.txt results in a correct path, i.e., repo\target\file2.txt. The same reasoning can be given for repo\source\symlink1.link, and its resolution results in
         /// a non-existent path target\file1.txt.
         /// </remarks>
-        public Possible<string> ResolveReparsePointPrefixes(string path)
+        public Possible<string> TryResolveReparsePointRelativeTarget(string path, string relativeTarget)
         {
-            int length = path.Length;
+            var needToBeProcessed = new Stack<string>();
+            var processed = new Stack<string>();
 
-            if (length >= 2 && IsDirectorySeparator(path[length - 1]))
+            using (var sbWrapper = Pools.GetStringBuilder())
             {
-                // Skip ending directory separator without trimming the path.
-                --length;
-            }
+                StringBuilder result = sbWrapper.Instance;
 
-            int rootLength = GetRootLength(path);
+                FileUtilities.SplitPathsReverse(path, needToBeProcessed);
 
-            if (length <= rootLength)
-            {
-                return path;
-            }
-
-            int i = length - 1;
-            var atoms = new Stack<string>();
-            string dir = path;
-
-            while (i >= rootLength)
-            {
-                while (i > rootLength && !IsDirectorySeparator(dir[i]))
+                while (needToBeProcessed.Count != 0)
                 {
-                    --i;
-                }
+                    string atom = needToBeProcessed.Pop();
+                    processed.Push(atom);
 
-                if (i >= rootLength)
-                {
-                    atoms.Push(dir.Substring(i));
-                }
-
-                --i;
-                dir = dir.Substring(0, i + 1);
-            }
-
-            var maybeReparsePointType = TryGetReparsePointType(dir);
-
-            if (!maybeReparsePointType.Succeeded)
-            {
-                return maybeReparsePointType.Failure;
-            }
-
-            if (maybeReparsePointType.Result == ReparsePointType.SymLink)
-            {
-                var maybeRealPath = TryGetFinalPathByHandle(dir);
-
-                if (!maybeRealPath.Succeeded)
-                {
-                    return maybeRealPath.Failure;
-                }
-
-                dir = maybeRealPath.Result;
-            }
-
-            while (atoms.Count > 0)
-            {
-                dir = dir + atoms.Pop();
-
-                if (atoms.Count == 0)
-                {
-                    break;
-                }
-
-                maybeReparsePointType = TryGetReparsePointType(dir);
-
-                if (!maybeReparsePointType.Succeeded)
-                {
-                    return maybeReparsePointType.Failure;
-                }
-
-                if (maybeReparsePointType.Result == ReparsePointType.SymLink)
-                {
-                    var maybeRealPath = TryGetFinalPathByHandle(dir);
-
-                    if (!maybeRealPath.Succeeded)
+                    if (result.Length > 0)
                     {
-                        return maybeRealPath.Failure;
+                        if (!IsDirectorySeparator(result[result.Length - 1]) && !IsDirectorySeparator(atom[0]))
+                        {
+                            result.Append(Path.DirectorySeparatorChar);
+                        }
                     }
 
-                    dir = maybeRealPath.Result;
-                }
-            }
+                    result.Append(atom);
 
-            return dir;
+                    if (needToBeProcessed.Count == 0)
+                    {
+                        // The last atom is the one that we are going to replace.
+                        break;
+                    }
+
+                    string resultSoFar = result.ToString();
+
+                    var maybeReparsePointType = TryGetReparsePointType(resultSoFar);
+
+                    if (!maybeReparsePointType.Succeeded)
+                    {
+                        return maybeReparsePointType.Failure;
+                    }
+
+                    if (maybeReparsePointType.Result == ReparsePointType.SymLink)
+                    {
+                        var maybeTarget = TryGetReparsePointTarget(null, resultSoFar);
+
+                        if (!maybeTarget.Succeeded)
+                        {
+                            return maybeTarget.Failure;
+                        }
+
+                        if (IsPathRooted(maybeTarget.Result))
+                        {
+                            // Target is an absolute path -> restart symlink resolution.
+                            result.Clear();
+                            processed.Clear();
+                            FileUtilities.SplitPathsReverse(maybeTarget.Result, needToBeProcessed);
+                        }
+                        else
+                        {
+                            // Target is a relative path.
+                            var maybeResolveRelative = FileUtilities.TryResolveRelativeTarget(resultSoFar, maybeTarget.Result, processed, needToBeProcessed);
+
+                            if (!maybeResolveRelative.Succeeded)
+                            {
+                                return maybeResolveRelative.Failure;
+                            }
+
+                            result.Clear();
+                            result.Append(maybeResolveRelative.Result);
+                        }
+                    }
+                }
+
+                var maybeResolveFinalRelative = FileUtilities.TryResolveRelativeTarget(result.ToString(), relativeTarget, null, null);
+
+                if (!maybeResolveFinalRelative.Succeeded)
+                {
+                    return maybeResolveFinalRelative.Failure;
+                }
+
+                return maybeResolveFinalRelative;
+            }
         }
     }
 }

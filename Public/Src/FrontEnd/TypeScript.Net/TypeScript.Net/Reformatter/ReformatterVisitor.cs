@@ -263,6 +263,40 @@ namespace TypeScript.Net.Reformatter
             Writer.Whitespace();
             AppendNode(node.WhenFalse);
         }
+        
+        /// <nodoc />
+        public virtual void VisitSwitchExpression(SwitchExpression node)
+        {
+            AppendNode(node.Expression);
+
+            Writer.Whitespace().AppendToken("switch").Whitespace().AppendToken("{").NewLine();
+            using (Writer.Indent())
+            {
+                foreach (var clause in node.Clauses)
+                {
+                    AppendNode(clause);
+                    Writer.AppendLine(",");
+                }
+            }
+
+            Writer.AppendToken("}");
+        }
+
+        /// <nodoc />
+        public virtual void VisitSwitchExpressionClause(SwitchExpressionClause node)
+        {
+            if (node.IsDefaultFallthrough)
+            {
+                Writer.AppendToken("default");
+            }
+            else
+            {
+                AppendNode(node.Match);
+            }
+
+            Writer.AppendToken(":").Whitespace();
+            AppendNode(node.Expression);
+        }
 
         /// <nodoc />
         public virtual void VisitDecorator(Decorator node)

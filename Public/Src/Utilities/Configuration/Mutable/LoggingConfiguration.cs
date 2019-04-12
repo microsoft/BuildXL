@@ -30,7 +30,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FingerprintStoreMaxEntryAgeMinutes = 4320; // 3 days
             EngineCacheLogDirectory = AbsolutePath.Invalid;
             EngineCacheCorruptFilesLogDirectory = AbsolutePath.Invalid;
-            FingerprintStoreLogDirectory = AbsolutePath.Invalid;
+            FingerprintsLogDirectory = AbsolutePath.Invalid;
+            ExecutionFingerprintStoreLogDirectory = AbsolutePath.Invalid;
+            CacheLookupFingerprintStoreLogDirectory = AbsolutePath.Invalid;
             HistoricMetadataCacheLogDirectory = AbsolutePath.Invalid;
             ReplayWarnings = true;
             SubstSource = AbsolutePath.Invalid;
@@ -62,7 +64,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             StoreFingerprints = template.StoreFingerprints;
             FingerprintStoreMode = template.FingerprintStoreMode;
             FingerprintStoreMaxEntryAgeMinutes = template.FingerprintStoreMaxEntryAgeMinutes;
-            FingerprintStoreLogDirectory = pathRemapper.Remap(template.FingerprintStoreLogDirectory);
+            FingerprintsLogDirectory = pathRemapper.Remap(template.FingerprintsLogDirectory);
+            ExecutionFingerprintStoreLogDirectory = pathRemapper.Remap(template.ExecutionFingerprintStoreLogDirectory);
+            CacheLookupFingerprintStoreLogDirectory = pathRemapper.Remap(template.CacheLookupFingerprintStoreLogDirectory);
             HistoricMetadataCacheLogDirectory = pathRemapper.Remap(template.HistoricMetadataCacheLogDirectory);
             EngineCacheLogDirectory = pathRemapper.Remap(template.EngineCacheLogDirectory);
             EngineCacheCorruptFilesLogDirectory = pathRemapper.Remap(template.EngineCacheCorruptFilesLogDirectory);
@@ -168,7 +172,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public int FingerprintStoreMaxEntryAgeMinutes { get; set; }
 
         /// <inheritdoc />
-        public AbsolutePath FingerprintStoreLogDirectory { get; set; }
+        public AbsolutePath FingerprintsLogDirectory { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath ExecutionFingerprintStoreLogDirectory { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath CacheLookupFingerprintStoreLogDirectory { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath HistoricMetadataCacheLogDirectory { get; set; }

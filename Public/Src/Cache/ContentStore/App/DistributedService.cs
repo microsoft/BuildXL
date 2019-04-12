@@ -7,6 +7,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.Host.Service;
 using CLAP;
@@ -26,11 +28,13 @@ namespace BuildXL.Cache.ContentStore.App
             (
             [Description("Cache name")] string cacheName,
             [Description("Cache root path")] string cachePath,
-            [DefaultValue(ServiceConfiguration.GrpcDisabledPort), Description(GrpcPortDescription)] uint grpcPort,
+            [DefaultValue(ServiceConfiguration.GrpcDisabledPort), Description(GrpcPortDescription)] int grpcPort,
+            [Description("Name of the memory mapped file used to share GRPC port. 'CASaaS GRPC port' if not specified.")] string grpcPortFileName,
             [DefaultValue(null), Description("Writable directory for service operations (use CWD if null)")] string dataRootPath,
             [DefaultValue(null), Description("Identifier for the stamp this service will run as")] string stampId,
             [DefaultValue(null), Description("Identifier for the ring this service will run as")] string ringId,
-            [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB
+            [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB,
+            [DefaultValue(false)] bool useDistributedGrpc
             )
         {
             Initialize();
@@ -43,17 +47,20 @@ namespace BuildXL.Cache.ContentStore.App
                     cancellationTokenSource.Cancel();
                 };
 
-                var copier = new DistributedCopier();
-                var pathTransformer = new DistributedPathTransformer();
                 var host = new HostInfo(stampId, ringId, new List<string>());
 
+                if (grpcPort == 0)
+                {
+                    grpcPort = Helpers.GetGrpcPortFromFile(_logger, grpcPortFileName);
+                }
+
                 var arguments = CreateDistributedCacheServiceArguments(
-                    copier: copier,
-                    pathTransformer: pathTransformer,
+                    copier: useDistributedGrpc ? new GrpcFileCopier(new Interfaces.Tracing.Context(_logger), grpcPort) : (IAbsolutePathFileCopier)new DistributedCopier(),
+                    pathTransformer: useDistributedGrpc ? new GrpcDistributedPathTransformer() : (IAbsolutePathTransformer)new DistributedPathTransformer(),
                     host: host,
                     cacheName: cacheName,
                     cacheRootPath: cachePath,
-                    grpcPort: grpcPort,
+                    grpcPort: (uint)grpcPort,
                     maxSizeQuotaMB: maxSizeQuotaMB,
                     dataRootPath: dataRootPath,
                     ct: cancellationTokenSource.Token);

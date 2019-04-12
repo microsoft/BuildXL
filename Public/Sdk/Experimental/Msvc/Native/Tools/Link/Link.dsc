@@ -181,7 +181,12 @@ export function evaluate(args: Arguments): Result {
     });
 
     let midlOutput = <Midl.Result>{
-        header: midlHeaderOutFiles.length > 0 ? Transformer.sealDirectory(d`${midlHeaderOutFiles[0].parent}`, midlHeaderOutFiles.map(File.fromPath)) : undefined,
+        header: midlHeaderOutFiles.length > 0 
+            ? Transformer.sealDirectory({
+                root: d`${midlHeaderOutFiles[0].parent}`, 
+                files: midlHeaderOutFiles.map(File.fromPath)
+            }) 
+            : undefined,
         proxy: result.getOutputFile(firstIfExists(midlProxyOutFiles)),
         dllData: result.getOutputFile(firstIfExists(midlDllOutFiles)),
         iid: result.getOutputFile(firstIfExists(midlIidOutFiles)),

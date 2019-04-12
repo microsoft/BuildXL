@@ -2502,6 +2502,38 @@ namespace TypeScript.Net.Types
     }
 
     /// <nodoc/>
+    public sealed partial class SwitchExpression : NodeBase<NodeExtraState>, ISwitchExpression
+    {
+        /// <inheritdoc />
+        public IExpression Expression { get; set; }
+
+        /// <inheritdoc />
+        public NodeArray<ISwitchExpressionClause> Clauses { get; set; }
+
+        /// <inheritdoc/>
+        protected override SyntaxKind SyntaxKind => SyntaxKind.SwitchExpression;
+    }
+
+    /// <nodoc/>
+    public sealed partial class SwitchExpressionClause : NodeBase<NodeExtraState>, ISwitchExpressionClause
+    {
+        /// <summary>
+        /// This indicates the clause is the default case. as in: `default: 10`.
+        /// This means the Match expression will be null.
+        /// </summary>
+        public bool IsDefaultFallthrough { get; set; }
+
+        /// <inheritdoc />
+        public IExpression Match { get; set; }
+
+        /// <inheritdoc />
+        public IExpression Expression { get; set; }
+
+        /// <inheritdoc/>
+        protected override SyntaxKind SyntaxKind => SyntaxKind.SwitchExpressionClause;
+    }
+
+    /// <nodoc/>
     public sealed partial class BinaryExpression : NodeBase<NodeExtraState>, IBinaryExpression
     {
         /// <inheritdoc/>

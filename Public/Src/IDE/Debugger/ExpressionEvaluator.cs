@@ -74,7 +74,6 @@ namespace BuildXL.FrontEnd.Script.Debugger
                     context.FrontEndContext,
                     m_logger,
                     context.Package,
-                    context.Literals,
                     context.Constants.Global,
                     evalState.Context.ModuleRegistry);
 

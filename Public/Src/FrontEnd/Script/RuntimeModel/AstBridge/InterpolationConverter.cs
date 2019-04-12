@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Qualifier;
 using BuildXL.FrontEnd.Script.Expressions.CompositeExpressions;
@@ -488,16 +489,16 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         private SelectorExpression CreatePathAtomInterpolateSelectorExpression()
         {
             return new SelectorExpression(
-                new ModuleIdExpression(FullSymbol.Create(RuntimeModelContext.SymbolTable, RuntimeModelContext.Literals.PathAtomNamespace), location: default(LineInfo)),
-                RuntimeModelContext.Literals.PathInterpolate,
+                new ModuleIdExpression(FullSymbol.Create(RuntimeModelContext.SymbolTable, Names.PathAtomNamespace), location: default(LineInfo)),
+                SymbolAtom.Create(RuntimeModelContext.StringTable, Names.InterpolateString),
                 location: default(LineInfo));
         }
 
         private SelectorExpression CreateStringInterpolateSelectorExpression()
         {
             return new SelectorExpression(
-                new ModuleIdExpression(FullSymbol.Create(RuntimeModelContext.SymbolTable, Util.Literals.StringNamespace), location: default(LineInfo)),
-                SymbolAtom.Create(RuntimeModelContext.StringTable, Util.Literals.InterpolateString),
+                new ModuleIdExpression(FullSymbol.Create(RuntimeModelContext.SymbolTable, Names.StringNamespace), location: default(LineInfo)),
+                SymbolAtom.Create(RuntimeModelContext.StringTable, Names.InterpolateString),
                 location: default(LineInfo));
         }
 

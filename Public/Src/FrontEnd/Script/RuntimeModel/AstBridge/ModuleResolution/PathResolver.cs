@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
@@ -58,7 +59,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                 return false;
             }
 
-            return value[0] == Util.Literals.PathAtomMarker;
+            return value[0] == Names.PathAtomMarker;
         }
 
         /// <summary>
@@ -86,7 +87,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                 return false;
             }
 
-            return value[0] == Util.Literals.PathFragmentMarker;
+            return value[0] == Names.PathFragmentMarker;
         }
 
         /// <summary>

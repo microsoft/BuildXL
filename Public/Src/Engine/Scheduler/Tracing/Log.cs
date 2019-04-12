@@ -4150,7 +4150,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (ushort)Events.Tasks.Storage,
-            Message = "Cache miss analysis failed for {pipDescription} with exception: {exception}\r\nOld entry:\r\n{oldEntry}\r\nNew entry:\r\n{newEntry}")]
+            Message = "Cache miss analysis failed for {pipDescription} with exception: {exception}\r\nOld entry keys:\r\n{oldEntry}\r\nNew entry keys:\r\n{newEntry}")]
         public abstract void CacheMissAnalysisException(LoggingContext loggingContext, string pipDescription, string exception, string oldEntry, string newEntry);
 
         [GeneratedEvent(

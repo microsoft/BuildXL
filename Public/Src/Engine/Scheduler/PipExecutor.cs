@@ -2504,6 +2504,9 @@ namespace BuildXL.Scheduler
                     I($"File name should only differ by casing. File artifact's full path: '{fileArtifactPathString}'; file artifact's file name: '{fileArtifactFileName.ToString(stringTable)}'; materialization info file name: '{fileMaterializationFileNameString}'."));                
                 stringBuilder.AppendLine(I($"[{process.FormattedSemiStableHash}] Weak FP: '{runnableFromCacheCheckResult.WeakFingerprint.ToString()}', Strong FP: '{cacheHitData.StrongFingerprint.ToString()}', Metadata Hash: '{cacheHitData.MetadataHash.ToString()}'"));
 
+                // log the error so the information is not lost if we hit any exception bellow
+                Events.Log.ErrorEvent(stringBuilder.ToString());
+
                 // get the bytes of a metadata blob
                 var possibleMetadataBytes = environment.State.Cache.ArtifactContentCache.TryLoadContent(cacheHitData.MetadataHash).GetAwaiter().GetResult();
                 if (!possibleMetadataBytes.Succeeded)
@@ -2512,7 +2515,7 @@ namespace BuildXL.Scheduler
                 }
                 else
                 {
-                    var blobPath = Path.Combine(environment.Configuration.Logging.LogsDirectory.ToString(environment.Context.PathTable), I($"metadata_{cacheHitData.MetadataHash.ToString()}.blob"));
+                    var blobPath = Path.Combine(environment.Configuration.Logging.LogsDirectory.ToString(environment.Context.PathTable), I($"metadata_{cacheHitData.MetadataHash.ToHex()}.blob"));
                     File.WriteAllBytes(blobPath, possibleMetadataBytes.Result);
                     stringBuilder.AppendLine(I($"saved metadata blob: '{blobPath}'"));
                 }

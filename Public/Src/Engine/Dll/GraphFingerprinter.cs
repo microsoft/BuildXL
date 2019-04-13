@@ -193,6 +193,10 @@ namespace BuildXL.Engine
                 using (var configHasher = new CoreHashingHelper(recordFingerprintString: false))
                 {
                     var configFiles = new List<AbsolutePath> { startUpConfig.ConfigFile };
+                    if (startUpConfig.AdditionalConfigFiles != null)
+                    {
+                        configFiles.AddRange(startUpConfig.AdditionalConfigFiles);
+                    }
 
                     try
                     {

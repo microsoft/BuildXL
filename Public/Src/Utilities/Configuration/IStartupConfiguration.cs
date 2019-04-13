@@ -18,6 +18,11 @@ namespace BuildXL.Utilities.Configuration
         AbsolutePath ConfigFile { get; }
 
         /// <summary>
+        /// The additional configuration files that supply extra config
+        /// </summary>
+        IReadOnlyList<AbsolutePath> AdditionalConfigFiles { get; }
+
+        /// <summary>
         /// The overrides for environment variables
         /// </summary>
         // TODO: Consider if we should just rename AllowedEnvironmentVars and support default values for them.

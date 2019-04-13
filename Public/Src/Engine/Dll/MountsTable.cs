@@ -164,8 +164,6 @@ namespace BuildXL.Engine
             }
             else
             {
-                table.AddStaticSystemMount("Etc", MacPaths.Etc, trackSourceFileChanges: true);
-                table.AddStaticSystemMount("TmpDir", MacPaths.TmpDir, trackSourceFileChanges: true);
                 table.AddStaticSystemMount("Applications", MacPaths.Applications, trackSourceFileChanges: true);
                 table.AddStaticSystemMount("UsrBin", MacPaths.UsrBin, trackSourceFileChanges: true);
                 table.AddStaticSystemMount("UsrInclude", MacPaths.UsrInclude, trackSourceFileChanges: true);

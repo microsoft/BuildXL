@@ -38,7 +38,6 @@ namespace BuildXL.Scheduler.Graph
                     new[]
                     {
                         GetSourceSeal(pathTable, pipGraph, MacPaths.Applications),
-                        GetSourceSeal(pathTable, pipGraph, MacPaths.Etc),
                         GetSourceSeal(pathTable, pipGraph, MacPaths.Library),
                         GetSourceSeal(pathTable, pipGraph, MacPaths.UserProvisioning),
                         GetSourceSeal(pathTable, pipGraph, MacPaths.UsrBin),
@@ -51,9 +50,11 @@ namespace BuildXL.Scheduler.Graph
                     {
                         // login.keychain is created by the OS the first time any process invokes an OS API that references the keychain.
                         // Untracked because build state will not be stored there and code signing will fail if required certs are in the keychain
+                        FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.Etc)),
                         FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.UserKeyChainsDb)),
                         FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.UserKeyChains)),
                         FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.UserCFTextEncoding)),
+                        FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.TmpDir)),
                         
                     };
 
@@ -65,7 +66,6 @@ namespace BuildXL.Scheduler.Graph
                         DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.Private),
                         DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.Sbin),
                         DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.SystemLibrary),
-                        DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.TmpDir),
                         DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.UsrLibexec),
                         DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.UsrShare),
                         DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.UsrStandalone),

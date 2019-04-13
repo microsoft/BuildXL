@@ -9,9 +9,9 @@ namespace BuildXL.Utilities.Configuration
     public enum AdminRequiredProcessExecutionMode : byte
     {
         /// <summary>
-        /// The admin-required sandboxed process will be launched from inside BuildXL process.
+        /// The admin-required sandboxed process will be launched internally from BuildXL process.
         /// </summary>
-        InProc,
+        Internal,
 
         /// <summary>
         /// The admin-required sandboxed process will be launched from a separate sandboxed process executor tool.
@@ -19,11 +19,11 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// This mode is mainly used for testing purpose.
         /// </remarks>
-        OutOfProc,
+        ExternalTool,
 
         /// <summary>
         /// The admin-required sandboxed process will be launched from a VM via a separate sandboxed process executor tool 
         /// </summary>
-        VM,
+        ExternalVM,
     }
 }

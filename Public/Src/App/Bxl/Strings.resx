@@ -998,6 +998,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Configures the default for all scheduled pips to run in a container with output isolation, allowing double writes to occur. Individual pips can override this setting. This is an unsafe option.</value>
   </data>
   <data name="HelpText_DisplayHelp_AdminRequiredProcessExecutionMode" xml:space="preserve">
-    <value>Mode for running processes that required admin privilege in VM. Allowed values are 'InProc', 'OutOfProc', 'VM'. Defaults to 'InProc'.</value>
+    <value>Mode for running processes that required admin privilege in VM. Allowed values are 'Internal', 'ExternalTool', 'ExternalVM'. Defaults to 'Internal'.</value>
   </data>
 </root>

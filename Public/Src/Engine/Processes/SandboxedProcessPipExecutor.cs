@@ -679,7 +679,8 @@ namespace BuildXL.Processes
                         NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
                     };
 
-                    if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.InProc
+                    if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal
+                        || !m_pip.RequiresAdmin
                         || m_processIdListener != null
                         || m_containerConfiguration.IsIsolationEnabled
                         || OperatingSystemHelper.IsUnixOS)
@@ -1490,7 +1491,7 @@ namespace BuildXL.Processes
                     }
 
                     // TODO: named semaphores are not supported in NetStandard2.0
-                    if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.InProc 
+                    if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal 
                         && checkMessageCount 
                         && !OperatingSystemHelper.IsUnixOS)
                     {

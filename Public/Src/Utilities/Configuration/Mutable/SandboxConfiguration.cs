@@ -41,7 +41,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             KextThrottleCpuUsageWakeupThresholdPercent = 0; // no throttling by default
             KextThrottleMinAvailableRamMB = 0;              // no throttling by default
             ContainerConfiguration = new SandboxContainerConfiguration();
-            AdminRequiredProcessExecutionMode = AdminRequiredProcessExecutionMode.InProc;
+            AdminRequiredProcessExecutionMode = AdminRequiredProcessExecutionMode.Internal;
         }
 
         /// <nodoc />

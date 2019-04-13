@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using BuildXL.Processes;
 using BuildXL.ToolSupport;
 
 namespace BuildXL.SandboxedProcessExecutor
@@ -23,7 +24,7 @@ namespace BuildXL.SandboxedProcessExecutor
                 Console.Error.WriteLine("Execution error: " + (e.InnerException ?? e).Message);
             }
 
-            return (int)ExitCode.InvalidArgument;
+            return (int)SandboxedProcessExecutorExitCode.InvalidArgument;
         }
 
         public override bool TryParse(string[] rawArgs, out Args arguments)
@@ -39,12 +40,12 @@ namespace BuildXL.SandboxedProcessExecutor
 
             if (!success)
             {
-                return (int)ExitCode.InvalidArgument;
+                return (int)SandboxedProcessExecutorExitCode.InvalidArgument;
             }
 
             if (arguments.Help)
             {
-                return (int)ExitCode.Success;
+                return (int)SandboxedProcessExecutorExitCode.Success;
             }
 
             var exitCode = new Executor(configuration).Run();

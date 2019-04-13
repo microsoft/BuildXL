@@ -64,7 +64,12 @@ namespace BuildXL {
                             importFrom("BuildXL.Tools").CMakeRunner.exe,
                         ]
                     },
-                    
+                    {
+                        subfolder: r`SandboxedProcessExecutor`,
+                        contents: [
+                            importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
+                        ]
+                    },
                 ]
             }])
         ]

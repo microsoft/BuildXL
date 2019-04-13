@@ -389,20 +389,12 @@ namespace BuildXL.Processes
         public StandardInputInfo StandardInputSourceInfo { get; set; }
 
         /// <summary>
-        /// Regex for standard output observer.
+        /// Observer descriptor.
         /// </summary>
         /// <remarks>
-        /// This instance of <see cref="RegexDescriptor"/> is used as a serialized version of <see cref="StandardOutputObserver"/>.
+        /// This instance of <see cref="ObserverDescriptor"/> is used as a serialized version of <see cref="StandardOutputObserver"/> and <see cref="StandardErrorObserver"/>.
         /// </remarks>
-        public RegexDescriptor StandardOutputObserverRegex { get; set; }
-
-        /// <summary>
-        /// Regex for standard error observer.
-        /// </summary>
-        /// <remarks>
-        /// This instance of <see cref="RegexDescriptor"/> is used as a serialized version of <see cref="StandardErrorObserver"/>.
-        /// </remarks>
-        public RegexDescriptor StandardErrorObserverRegex { get; set; }
+        public ObserverDescriptor StandardObserverDescriptor { get; set; }
 
         #region Serialization
 
@@ -441,8 +433,7 @@ namespace BuildXL.Processes
                 writer.WriteNullableString(StandardDirectory);
                 writer.Write(SandboxedProcessStandardFiles, (w, v) => v.Serialize(w));
                 writer.Write(StandardInputSourceInfo, (w, v) => v.Serialize(w));
-                writer.Write(StandardOutputObserverRegex, (w, v) => v.Serialize(w));
-                writer.Write(StandardErrorObserverRegex, (w, v) => v.Serialize(w));
+                writer.Write(StandardObserverDescriptor, (w, v) => v.Serialize(w));
 
                 // File access manifest should be serialize the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
@@ -480,8 +471,7 @@ namespace BuildXL.Processes
                 string standardDirectory = reader.ReadNullableString();
                 SandboxedProcessStandardFiles sandboxedProcessStandardFiles = reader.ReadNullable(r => SandboxedProcessStandardFiles.Deserialize(r));
                 StandardInputInfo standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
-                RegexDescriptor standardOutputObeserverRegex = reader.ReadNullable(r => RegexDescriptor.Deserialize(r));
-                RegexDescriptor standardErrorObeserverRegex = reader.ReadNullable(r => RegexDescriptor.Deserialize(r));
+                ObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => ObserverDescriptor.Deserialize(r));
 
                 FileAccessManifest fam = FileAccessManifest.Deserialize(stream);
 
@@ -513,8 +503,7 @@ namespace BuildXL.Processes
                     StandardDirectory = standardDirectory,
                     SandboxedProcessStandardFiles = sandboxedProcessStandardFiles,
                     StandardInputSourceInfo = standardInputSourceInfo,
-                    StandardOutputObserverRegex = standardOutputObeserverRegex,
-                    StandardErrorObserverRegex = standardErrorObeserverRegex,
+                    StandardObserverDescriptor = standardObserverDescriptor
                 };
             }
         }
@@ -633,6 +622,54 @@ namespace BuildXL.Processes
                 Contract.Requires(reader != null);
 
                 return new RegexDescriptor(reader.ReadString(), (RegexOptions)reader.ReadUInt32());
+            }
+        }
+
+        /// <summary>
+        /// Descriptor for observer.
+        /// </summary>
+        public class ObserverDescriptor
+        {
+            /// <summary>
+            /// Warning regex.
+            /// </summary>
+            public RegexDescriptor WarningRegex { get; set; }
+
+            /// <summary>
+            /// Logs output to console.
+            /// </summary>
+            public bool LogOutputToConsole { get; set; }
+
+            /// <summary>
+            /// Logs error to console.
+            /// </summary>
+            public bool LogErrorToConsole { get; set; }
+
+            /// <summary>
+            /// Serializes this instance to a given <paramref name="writer"/>.
+            /// </summary>
+            public void Serialize(BuildXLWriter writer)
+            {
+                Contract.Requires(writer != null);
+
+                writer.Write(WarningRegex, (w, v) => v.Serialize(w));
+                writer.Write(LogOutputToConsole);
+                writer.Write(LogErrorToConsole);
+            }
+
+            /// <summary>
+            /// Deserializes an instance of <see cref="ObserverDescriptor"/>.
+            /// </summary>
+            public static ObserverDescriptor Deserialize(BuildXLReader reader)
+            {
+                Contract.Requires(reader != null);
+
+                return new ObserverDescriptor()
+                {
+                    WarningRegex = reader.ReadNullable(r => RegexDescriptor.Deserialize(r)),
+                    LogOutputToConsole = reader.ReadBoolean(),
+                    LogErrorToConsole = reader.ReadBoolean()
+                };
             }
         }
 

@@ -16,30 +16,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Adapted from Microsoft.BUild.Utilities.Core / CanonicalError.cs
         /// </summary>
-        public const string DefaultWarningPattern =
-
-            // Beginning of line and any amount of whitespace.
-            @"^\s*"
-
-                // Match a [optional project number prefix 'ddd>'], single letter + colon + remaining filename, or
-                // string with no colon followed by a colon.
-            + @"((((((\d+>)?[a-zA-Z]?:[^:]*)|([^:]*))):)"
-
-                // Origin may also be empty. In this case there's no trailing colon.
-            + "|())"
-
-                // Match the empty string or a string without a colon that ends with a space
-            + "(()|([^:]*? ))"
-
-                // Match 'warning'.
-            + @"warning"
-
-                // Match anything starting with a space that's not a colon/space, followed by a colon.
-                // Error code is optional in which case "warning" can be followed immediately by a colon.
-            + @"( \s*([^: ]*))?\s*:"
-
-                // Whatever's left on this line, including colons.
-            + ".*$";
+        public const string DefaultWarningPattern = Warning.DefaultWarningPattern;
 
         private const RegexOptions DefaultOptions = RegexOptions.IgnoreCase;
 

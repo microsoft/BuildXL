@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using BuildXL.Utilities;
 
@@ -131,7 +132,28 @@ namespace BuildXL.Processes
         /// <summary>
         /// Number of warnings.
         /// </summary>
-        public int WarningCount { get; internal set; }
+        public int WarningCount { get; set; }
+
+        /// <summary>
+        /// Maximum heap size of the sandboxed process.
+        /// </summary>
+        public long DetoursMaxHeapSize { get; set; }
+
+        /// <summary>
+        /// Differences in sent and received messages from sandboxed process.
+        /// </summary>
+        public int LastMessageCount { get; set; }
+
+        /// <summary>
+        /// Serializes this instance to a given <paramref name="stream"/>.
+        /// </summary>
+        public void Serialize(Stream stream)
+        {
+            using (var writer = new BuildXLWriter(false, stream, true, true))
+            {
+                Serialize(writer);
+            }
+        }
 
         /// <summary>
         /// Serializes this instance to a given <paramref name="writer"/>.
@@ -163,6 +185,19 @@ namespace BuildXL.Processes
             writer.WriteNullableString(MessageProcessingFailure?.Describe());
             writer.Write(ProcessStartTime);
             writer.Write(WarningCount);
+            writer.Write(DetoursMaxHeapSize);
+            writer.Write(LastMessageCount);
+        }
+
+        /// <summary>
+        /// Deserializes an instance of <see cref="SandboxedProcessResult"/>.
+        /// </summary>
+        public static SandboxedProcessResult Deserialize(Stream stream)
+        {
+            using (var reader = new BuildXLReader(false, stream, true))
+            {
+                return Deserialize(reader);
+            }
         }
 
         /// <summary>
@@ -196,6 +231,8 @@ namespace BuildXL.Processes
             string messageProcessingFailureMessage = reader.ReadNullableString();
             long processStartTime = reader.ReadInt64();
             int warningCount = reader.ReadInt32();
+            long detoursMaxHeapSize = reader.ReadInt64();
+            int lastMessageCount = reader.ReadInt32();
 
             return new SandboxedProcessResult()
             {
@@ -220,7 +257,9 @@ namespace BuildXL.Processes
                 HasReadWriteToReadFileAccessRequest = hasReadWriteToReadFileAccessRequest,
                 MessageProcessingFailure = messageProcessingFailureMessage != null ? new Failure<string>(messageProcessingFailureMessage) : null,
                 ProcessStartTime = processStartTime,
-                WarningCount = warningCount
+                WarningCount = warningCount,
+                DetoursMaxHeapSize = detoursMaxHeapSize,
+                LastMessageCount = lastMessageCount
             };
         }
 

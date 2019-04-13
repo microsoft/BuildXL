@@ -12,7 +12,7 @@ namespace BuildXL.Pips.Operations
         /// Flag options controlling process pip behavior.
         /// </summary>
         [Flags]
-        public enum Options : byte
+        public enum Options : int
         {
             /// <nodoc />
             None = 0,
@@ -65,7 +65,31 @@ namespace BuildXL.Pips.Operations
             /// <remarks>
             /// When specified, no cache lookup will be performed for the pip.
             /// </remarks>
-            DisableCacheLookup = 1 << 7
+            DisableCacheLookup = 1 << 7,
+
+            /// <summary>
+            /// Whether this process is dependent on common OS binaries.
+            /// </summary>
+            /// <remarks>
+            /// When specified, no cache lookup will be performed for the pip.
+            /// </remarks>
+            DependsOnCurrentOs = 1 << 8,
+
+            /// <summary>
+            /// Whether this process is dependent on windows' AppData folders
+            /// </summary>
+            /// <remarks>
+            /// Windows only, has no effect on other operating systems.
+            /// </remarks>
+            DependsOnWindowsAppData = 1 << 9,
+
+            /// <summary>
+            /// Whether this process is dependent on windows' ProgramData location.
+            /// </summary>
+            /// <remarks>
+            /// Windows only, has no effect on other operating systems.
+            /// </remarks>
+            DependsOnWindowsProgramData = 1 << 10,
         }
     }
 }

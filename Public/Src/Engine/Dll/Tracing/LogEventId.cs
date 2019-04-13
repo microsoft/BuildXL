@@ -131,6 +131,8 @@ namespace BuildXL.Engine.Tracing
         FailureLaunchingBuildExplorerFileNotFound = 2895,
         FailureLaunchingBuildExplorerException = 2896,
 
+        InputTrackerDetectedMountChanged = 2987,
+
         // RESERVED TO [2800, 2899] (BuildXL.Engine.dll)
 
         // Distribution [7000, 7050]

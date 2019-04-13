@@ -162,6 +162,13 @@ namespace Transformer {
          */
         disableCacheLookup?: boolean;
 
+        /** 
+          * True if the executable depends on directories that comprise the current host OS. 
+          * For instance on windows this signals that accesses to the Windows Directories %WINDIR% should be allowed.
+          * This is the same as the field on ToolDefinition.dependsOnCurrentHostOSDirectories
+          */
+        dependsOnCurrentHostOSDirectories?: boolean;
+
         /**
          * The # of process slots this process requires when limiting concurrency of process pips.
          * The total weight of all proceses running concurrently must be less than or equal to the # of available process slots.

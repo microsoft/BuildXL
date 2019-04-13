@@ -225,15 +225,15 @@ namespace BuildXL.Pips
         protected override void SpecializedSerialize(BuildXLWriter writer)
         {
             writer.Write(ServiceInfo, ServiceInfo.InternalSerialize);
-            writer.Write((byte)ProcessOptions);
+            writer.Write((int)ProcessOptions);
         }
 
         internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId)
         {
             ServiceInfo serviceInfo = reader.ReadNullable(ServiceInfo.InternalDeserialize);
-            byte optionsByte = reader.ReadByte();
+            int options = reader.ReadInt32();
 
-            return new ProcessMutablePipState(pipType, semiStableHash, storeId, serviceInfo, (Process.Options)optionsByte);
+            return new ProcessMutablePipState(pipType, semiStableHash, storeId, serviceInfo, (Process.Options)options);
         }
 
         public override bool IsPreservedOutputsPip() => (ProcessOptions & Process.Options.AllowPreserveOutputs) != 0;

@@ -738,7 +738,7 @@ namespace BuildXL.Pips.Operations
                 uniqueOutputDirectory: reader.ReadAbsolutePath(),
                 uniqueRedirectedDirectoryRoot: reader.ReadAbsolutePath(),
                 tempDirectory: reader.ReadAbsolutePath(),
-                options: (Options)reader.ReadByte(),
+                options: (Options)reader.ReadInt32(),
                 serviceInfo: reader.ReadNullable(reader1 => Operations.ServiceInfo.InternalDeserialize(reader1)),
                 retryExitCodes: reader.ReadReadOnlyArray(r => r.ReadInt32()),
                 allowedSurvivingChildProcessNames: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
@@ -783,7 +783,7 @@ namespace BuildXL.Pips.Operations
             writer.Write(UniqueOutputDirectory);
             writer.Write(UniqueRedirectedDirectoryRoot);
             writer.Write(TempDirectory);
-            writer.Write((byte)ProcessOptions);
+            writer.Write((int)ProcessOptions);
             writer.Write(ServiceInfo, ServiceInfo.InternalSerialize);
             writer.Write(RetryExitCodes, (w, v) => w.Write(v));
             writer.Write(AllowedSurvivingChildProcessNames, (w, v) => w.Write(v));

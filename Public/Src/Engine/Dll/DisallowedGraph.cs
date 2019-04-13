@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
+using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
@@ -153,6 +154,11 @@ namespace BuildXL.Engine
         public DirectoryArtifact ReserveSharedOpaqueDirectory(AbsolutePath directoryArtifactRoot)
         {
             return DirectoryArtifact.CreateWithZeroPartialSealId(directoryArtifactRoot);
+        }
+
+        /// <inheritdoc />
+        public void ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
+        {
         }
     }
 }

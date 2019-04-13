@@ -253,24 +253,39 @@ namespace BuildXL.Interop.MacOS
         [DllImport(Libraries.LibC, SetLastError = true, EntryPoint = "clonefile")]
         public static extern int CloneFile(string source, string destination, CloneFileFlags flags);
 
+        private static readonly string s_user = Environment.GetEnvironmentVariable("USER") ?? string.Empty;
+
         public const string AppleInternal             = "/AppleInternal";
+        public const string Applications              = "/Applications";
         public const string Bin                       = "/bin";
         public const string BinBash                   = "/bin/bash";
         public const string BinSh                     = "/bin/sh";
         public const string Dev                       = "/dev";
         public const string Etc                       = "/etc";
+        public const string Library                   = "/Library";
         public const string LibraryPreferencesLogging = "/Library/Preferences/Logging";
         public const string Private                   = "/private";
         public const string PrivateVar                = "/private/var";
         public const string Proc                      = "/proc";
+        public const string Sbin                      = "/sbin";
         public const string System                    = "/System";
         public const string SystemLibrary             = "/System/Library";
         public const string TmpDir                    = "/tmp";
         public const string Usr                       = "/usr";
         public const string UsrBin                    = "/usr/bin";
+        public const string UsrInclude                = "/usr/include";
         public const string UsrLib                    = "/usr/lib";
+        public const string UsrLibexec                = "/usr/libexec";
         public const string UsrShare                  = "/usr/share";
+        public const string UsrStandalone             = "/usr/standalone";
+        public const string UsrSbin                   = "/usr/sbin";
         public const string Var                       = "/var";
+        
+        public static readonly string UserProvisioning      = $"/Users/{s_user}/Library/MobileDevice/Provisioning Profiles";
+        public static readonly string UserKeyChainsDb       = $"/Users/{s_user}/Library/Keychains/login.keychain-db";
+        public static readonly string UserKeyChains         = $"/Users/{s_user}/Library/Keychains/login.keychain";
+        public static readonly string UserCFTextEncoding    = $"/Users/{s_user}/.CFUserTextEncoding";
+        public static readonly string UserPreferences       = $"/Users/{s_user}/Library/Preferences";
 
 #pragma warning restore CS1591
     }

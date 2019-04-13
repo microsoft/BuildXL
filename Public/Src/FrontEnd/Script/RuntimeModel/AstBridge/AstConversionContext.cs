@@ -1,11 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.RuntimeModel;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
@@ -15,6 +14,14 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
     /// </summary>
     internal sealed class AstConversionContext
     {
+        internal readonly SymbolAtom WithQualifierKeyword;
+        internal readonly SymbolAtom UndefinedLiteral;
+        internal readonly SymbolAtom QualifierDeclarationKeyword;
+        internal readonly SymbolAtom LegacyPackageKeyword;
+        internal readonly SymbolAtom ModuleKeyword;
+        internal readonly SymbolAtom TemplateReference;
+        internal readonly SymbolAtom RuntimeRootNamespaceSymbol;
+
         public AstConversionContext(
             RuntimeModelContext runtimeModelContext,
             AbsolutePath currentSpecPath,
@@ -25,6 +32,19 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             CurrentSpecPath = currentSpecPath;
             CurrentSourceFile = currentSourceFile;
             CurrentFileModule = currentFileModule;
+
+            QualifierDeclarationKeyword = CreateSymbol(Constants.Names.CurrentQualifier);
+            WithQualifierKeyword = CreateSymbol(Constants.Names.WithQualifierFunction);
+            UndefinedLiteral = CreateSymbol(Constants.Names.Undefined);
+            LegacyPackageKeyword = CreateSymbol(Constants.Names.LegacyModuleConfigurationFunctionCall);
+            ModuleKeyword = CreateSymbol(Constants.Names.ModuleConfigurationFunctionCall);
+            TemplateReference = CreateSymbol(Constants.Names.TemplateReference);
+            RuntimeRootNamespaceSymbol = CreateSymbol(Constants.Names.RuntimeRootNamespaceAlias);
+        }
+
+        private SymbolAtom CreateSymbol(string name)
+        {
+            return SymbolAtom.Create(RuntimeModelContext.StringTable, name);
         }
 
         public RuntimeModelContext RuntimeModelContext { get; }

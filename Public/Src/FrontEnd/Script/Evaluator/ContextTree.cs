@@ -45,6 +45,11 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         public GlobalConstants Constants { get; private set; }
 
         /// <summary>
+        /// CommonConstants
+        /// </summary>
+        public CommonConstants CommonConstants { get; }
+
+        /// <summary>
         /// Module registry.
         /// </summary>
         public ModuleRegistry ModuleRegistry { get; private set; }
@@ -140,6 +145,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
             QualifierValueCache = qualifierValueCache;
             ToolDefinitionCache = new ConcurrentDictionary<ObjectLiteral, CachedToolDefinition>();
             ValueCache = new ConcurrentDictionary<Fingerprint, EvaluationResult>();
+            CommonConstants = new CommonConstants(frontEndContext.StringTable);
 
             RootContext =
                 new Context(

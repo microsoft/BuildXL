@@ -6,5 +6,40 @@ config({
         d`sdk`,
         d`src`,
         d`test`
-    ].mapMany(dir => [...globR(dir, "module.config.dsc"), ...globR(dir, "package.config.dsc")])
+    ].mapMany(dir => [...globR(dir, "module.config.dsc"), ...globR(dir, "package.config.dsc")]),
+
+    mounts: Context.getCurrentHost().os === "macOS" ? [
+        {
+            name: a`usrbin`,
+            path: p`/usr/bin`,
+            trackSourceFileChanges: true,
+            isWritable: false,
+            isReadable: true,
+            isScrubbable: false,
+        },
+        {
+            name: a`usrlib`,
+            path: p`/usr/lib`,
+            trackSourceFileChanges: true,
+            isWritable: false,
+            isReadable: true,
+            isScrubbable: false,
+        },
+        {
+            name: a`usrinclude`,
+            path: p`/usr/include`,
+            trackSourceFileChanges: true,
+            isWritable: false,
+            isReadable: true,
+            isScrubbable: false,
+        },
+        {
+            name: a`library`,
+            path: p`/Library`,
+            trackSourceFileChanges: true,
+            isWritable: false,
+            isReadable: true,
+            isScrubbable: false,
+        },
+    ] : []
 });

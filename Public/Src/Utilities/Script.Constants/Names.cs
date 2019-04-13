@@ -44,6 +44,41 @@ namespace BuildXL.FrontEnd.Script.Constants
         /// <nodoc/>
         public const string CustomMergeFunctionName = "customMerge";
 
+        /// <summary>
+        /// Gets the namespace for ambient string type.
+        /// </summary>
+        public const string StringNamespace = "String";
+
+        /// <summary>
+        /// Gets the namespace for ambient pathATom type.
+        /// </summary>
+        public const string PathAtomNamespace = "PathAtom";
+
+        /// <summary>
+        /// Gets the function name for string interpolation.
+        /// </summary>
+        public const string InterpolateString = "interpolate";
+
+        /// <summary>
+        /// Marker for path atom
+        /// </summary>
+        public const char PathAtomMarker = '@';
+
+        /// <summary>
+        /// Marker for path fragment
+        /// </summary>
+        public const char PathFragmentMarker = '#';
+
+        /// <summary>
+        /// Undefined instance
+        /// </summary>
+        public const string Undefined = "undefined";
+
+        /// <summary>
+        /// name of the Array length property.
+        /// </summary>
+        public const string ArrayLengthName = "length";
+
         #region Configuration functions
 
         /// <nodoc />

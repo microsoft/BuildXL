@@ -18,16 +18,6 @@ namespace BuildXL.FrontEnd.Script
         /// </summary>
         public SymbolAtom ConfigKeyword { get; }
 
-        /// <summary>
-        /// Construcructed workspace.
-        /// </summary>
-        public Workspace Workspace { get; }
-
-        /// <summary>
-        /// Resulting converted module.
-        /// </summary>
-        public FileModuleLiteral Module => Result;
-
         /// <nodoc/>
         public ConfigConversionResult(int errorCount)
             : base(errorCount)
@@ -35,10 +25,9 @@ namespace BuildXL.FrontEnd.Script
         }
 
         /// <nodoc/>
-        public ConfigConversionResult(Workspace workspace, FileModuleLiteral module, SymbolAtom configKeyword)
+        public ConfigConversionResult(FileModuleLiteral module, SymbolAtom configKeyword)
             : base(module)
         {
-            Workspace = workspace;
             ConfigKeyword = configKeyword;
         }
     }

@@ -113,8 +113,6 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
         private BuildXL.Utilities.SymbolTable SymbolTable => m_conversionContext.RuntimeModelContext.SymbolTable;
 
-        private Util.Literals Literals => m_conversionContext.RuntimeModelContext.Literals;
-
         private AstConverter(QualifierTable qualifierTable, AstConversionContext conversionContext, AstConversionConfiguration conversionConfiguration, [CanBeNull]Workspace workspace)
         {
             Contract.Requires(conversionContext != null);
@@ -176,7 +174,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             // is not a file.
             // If the module is a top most namespace (_$ is used for its name), we skip that name so it doesn't
             // leak into namespace names
-            var fullName = module.IsFileModule || module.Name.GetName(SymbolTable) == Literals.RuntimeRootNamespaceSymbol ?
+            var fullName = module.IsFileModule || module.Name.GetName(SymbolTable) == m_conversionContext.RuntimeRootNamespaceSymbol ?
                 FullSymbol.Invalid :
                 module.Name;
 
@@ -253,7 +251,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
             ModuleLiteral rootModule = CreateNamespaceModule(
                 CurrentFileModule,
-                new List<SymbolAtom> { Literals.RuntimeRootNamespaceSymbol },
+                new List<SymbolAtom> { m_conversionContext.RuntimeRootNamespaceSymbol },
                 Location(CurrentSourceFile),
                 semanticQualifierId);
 
@@ -328,7 +326,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
             var isLegacyKeyword = sourceFile.Statements[0].IsLegacyPackageConfigurationDeclaration();
 
-            var bindingName = isLegacyKeyword ? Literals.LegacyPackageKeyword : Literals.ModuleKeyword;
+            var bindingName = isLegacyKeyword ? m_conversionContext.LegacyPackageKeyword : m_conversionContext.ModuleKeyword;
 
             // Need to register package invocation in the module
             m_binder.AddExportBinding(
@@ -430,7 +428,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                         var resolvedQualifierType = ExtractSourceQualifierSpace(resolvedSymbol);
 
                         // Need to exclude 'withQualifier' because it doesn't fall into the common pattern.
-                        if (context.CurrentQualifierSpaceId != resolvedQualifierType && resolvedExpression.Name != Literals.WithQualifierKeyword)
+                        if (context.CurrentQualifierSpaceId != resolvedQualifierType && resolvedExpression.Name != m_conversionContext.WithQualifierKeyword)
                         {
                             var targetSourceFile = resolvedPropertyDeclaration.GetSourceFile();
                             Contract.Assert(targetSourceFile != null);
@@ -1203,7 +1201,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             // We found a template to capture. We create a regular reference to it, so
             // it can be later evaluated
             templateReference = CreateSymbolReferenceExpression(
-                RuntimeModelContext.Literals.TemplateReference,
+                m_conversionContext.TemplateReference,
                 templateSymbol,
                 referenceLocation);
 
@@ -2504,7 +2502,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             }
 
             var selector = functor as SelectorExpressionBase;
-            if (selector?.Selector == Literals.WithQualifierKeyword)
+            if (selector?.Selector == m_conversionContext.WithQualifierKeyword)
             {
                 Contract.Assert(arguments.Length != 0, "withQualifier should have at least one argument.");
                 var qualifierExpression = arguments[0];
@@ -2555,7 +2553,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
         private bool IsDecoratorObsolete(IDecorator decorator, out string msg)
         {
-            bool result = UnwrapIdentifier(decorator.Expression)?.Text == RuntimeModelContext.Literals.ObsoleteString;
+            bool result = UnwrapIdentifier(decorator.Expression)?.Text == Constants.Names.ObsoleteAttributeName;
             if (result)
             {
                 var literal = decorator.Expression?.As<ICallExpression>()?.Arguments?.FirstOrDefault();
@@ -2897,12 +2895,12 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         {
             // TODO: do we really need to do that?!?!?
             // Because of this check the result of this function can't be SymbolReferenceExpression!
-            if (nameAtom == Literals.UndefinedLiteral)
+            if (nameAtom == m_conversionContext.UndefinedLiteral)
             {
                 return UndefinedLiteral.Instance;
             }
 
-            if (nameAtom == Literals.QualifierDeclarationKeyword)
+            if (nameAtom == m_conversionContext.QualifierDeclarationKeyword)
             {
                 // Qualifier instance was referenced, using a different expression type for it.
                 return new QualifierReferenceExpression(location);

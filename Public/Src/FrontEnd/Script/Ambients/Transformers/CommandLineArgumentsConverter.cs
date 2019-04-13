@@ -15,42 +15,69 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
     /// </summary>
     internal sealed class CommandLineArgumentsConverter
     {
-        private readonly Names m_names;
+        private readonly StringTable m_stringTable;
+        private readonly SymbolAtom m_argumentNameField;
+        private readonly SymbolAtom m_argumentValueField;
+        private readonly SymbolAtom m_artifactPathField;
+        private readonly SymbolAtom m_artifactKindField;
+        private readonly SymbolAtom m_artifactOriginalField;
+        private readonly SymbolAtom m_primitiveArgumentValueField;
+        private readonly SymbolAtom m_primitiveArgumentKindField;
+        private readonly SymbolAtom m_listArgumentValuesField;
+        private readonly SymbolAtom m_listArgumentSeparatorField;
 
-        private CommandLineArgumentsConverter(Names names)
+        private CommandLineArgumentsConverter(StringTable stringTable)
         {
-            Contract.Requires(names != null);
-            m_names = names;
+            Contract.Requires(stringTable != null);
+            m_stringTable = stringTable;
+            m_argumentNameField = Create("name");
+            m_argumentValueField = Create("value");
+            m_artifactPathField = Create("path");
+            m_artifactKindField = Create("kind");
+            m_artifactOriginalField = Create("original");
+            m_primitiveArgumentValueField = Create("value");
+            m_primitiveArgumentKindField = Create("kind");
+            m_listArgumentValuesField = Create("values");
+            m_listArgumentSeparatorField = Create("separator");
+        }
+
+        /// <summary>
+        /// Creates name.
+        /// </summary>
+        public SymbolAtom Create(string name)
+        {
+            Contract.Requires(!string.IsNullOrWhiteSpace(name));
+            return SymbolAtom.Create(m_stringTable, name);
         }
 
         /// <summary>
         /// Factory that converts array literal to an array of <see cref="Argument" /> instances.
         /// </summary>
-        public static IEnumerable<Argument> ArrayLiteralToListOfArguments(Names names, ArrayLiteral literal)
+        public static IEnumerable<Argument> ArrayLiteralToListOfArguments(StringTable stringTable, ArrayLiteral literal)
         {
-            Contract.Requires(names != null);
+            Contract.Requires(stringTable != null);
             Contract.Requires(literal != null);
 
-            return GetInstance(names).ConvertArrayOfArguments(literal);
+            return GetInstance(stringTable).ConvertArrayOfArguments(literal);
         }
 
         /// <summary>
         /// Factory that converts object literal to an <see cref="Argument" /> instance.
         /// </summary>
-        public static Argument ObjectLiteralToArgument(Names names, ObjectLiteral literal)
+        public static Argument ObjectLiteralToArgument(StringTable stringTable, ObjectLiteral literal)
         {
-            Contract.Requires(names != null);
+            Contract.Requires(stringTable != null);
             Contract.Requires(literal != null);
 
-            return GetInstance(names).ConvertArgument(EvaluationResult.Create(literal), -1);
+            return GetInstance(stringTable).ConvertArgument(EvaluationResult.Create(literal), -1);
         }
 
-        private static CommandLineArgumentsConverter GetInstance(Names names)
+        private static CommandLineArgumentsConverter GetInstance(StringTable stringTable)
         {
-            Contract.Requires(names != null);
+            Contract.Requires(stringTable != null);
             Contract.Ensures(Contract.Result<CommandLineArgumentsConverter>() != null);
 
-            return new CommandLineArgumentsConverter(names);
+            return new CommandLineArgumentsConverter(stringTable);
         }
 
         private IEnumerable<Argument> ConvertArrayOfArguments(ArrayLiteral literal)
@@ -77,7 +104,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
             var literal = Converter.ExpectObjectLiteral(argumentValue, new ConversionContext(allowUndefined: false, objectCtx: origin, pos: index));
 
-            var name = Converter.ExtractString(literal, m_names.CmdArgumentNameField, allowUndefined: true);
+            var name = Converter.ExtractString(literal, m_argumentNameField, allowUndefined: true);
             var value = ConvertCommandLineValue(literal);
 
             return new Argument(name, value);
@@ -87,7 +114,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         {
             // Argument interface definition:
             // interface Argument {name?: string; value: ArgumentValue | ArgumentValue[];}
-            var value = literal[m_names.CmdArgumentValueField];
+            var value = literal[m_argumentValueField];
 
             // value is not required field but can be null. In this case the argument would be skipped, no error should be emitted.
             if (value.IsUndefined)
@@ -110,7 +137,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             throw Converter.UnexpectedTypeException(
-                m_names.CmdArgumentValueField,
+                m_argumentValueField,
                 value,
                 literal,
                 typeof(ArgumentValue),
@@ -184,20 +211,20 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (value.Value is ObjectLiteral objValue)
             {
                 // case: CompoundArgumentValue; distinguishing fields: 'separator', 'values'
-                if (!objValue[m_names.CmdListArgumentSeparatorField].IsUndefined ||
-                    !objValue[m_names.CmdListArgumentValuesField].IsUndefined)
+                if (!objValue[m_listArgumentSeparatorField].IsUndefined ||
+                    !objValue[m_listArgumentValuesField].IsUndefined)
                 {
                     return new ArgumentValue(ConvertCompoundArgument(objValue));
                 }
 
                 // case: Artifact; distinguishing field: 'path'
-                if (!objValue[m_names.CmdArtifactPathField].IsUndefined)
+                if (!objValue[m_artifactPathField].IsUndefined)
                 {
                     return new ArgumentValue(ConvertArtifact(objValue));
                 }
 
                 // case: PrimitiveArgument;
-                if (!objValue[m_names.CmdArtifactKindField].IsUndefined)
+                if (!objValue[m_artifactKindField].IsUndefined)
                 {
                     return new ArgumentValue(ConvertPrimitiveArgument(objValue));
                 }
@@ -251,13 +278,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
             // 'separator' is a required field. Fail if it is missing or has wrong type.
             var separator = Converter.ExpectString(
-                value[m_names.CmdListArgumentSeparatorField],
-                new ConversionContext(name: m_names.CmdListArgumentSeparatorField, objectCtx: value));
+                value[m_listArgumentSeparatorField],
+                new ConversionContext(name: m_listArgumentSeparatorField, objectCtx: value));
 
             // 'values' is a required field.
             var values = Converter.ExpectArrayLiteral(
-                value[m_names.CmdListArgumentValuesField],
-                new ConversionContext(name: m_names.CmdListArgumentValuesField, objectCtx: value));
+                value[m_listArgumentValuesField],
+                new ConversionContext(name: m_listArgumentValuesField, objectCtx: value));
 
             var scalarArguments = ConvertArrayOfScalarArguments(values);
             return new CompoundArgumentValue(separator, scalarArguments);
@@ -266,17 +293,17 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private PrimitiveArgument ConvertPrimitiveArgument(ObjectLiteral objectLiteral)
         {
             var kindEnum = Converter.ExpectEnumValue(
-                objectLiteral[m_names.CmdPrimitiveArgumentKindField],
-                new ConversionContext(name: m_names.CmdPrimitiveArgumentKindField, objectCtx: objectLiteral));
+                objectLiteral[m_primitiveArgumentKindField],
+                new ConversionContext(name: m_primitiveArgumentKindField, objectCtx: objectLiteral));
 
             // Values should be in sync, so cast is safe
             var argumentKind = (ArgumentKind)kindEnum.Value;
 
-            var fieldValue = objectLiteral[m_names.CmdPrimitiveArgumentValueField];
+            var fieldValue = objectLiteral[m_primitiveArgumentValueField];
 
             var value = fieldValue.IsUndefined
                 ? default(PrimitiveValue)
-                : ConvertPrimitiveValue(new PropertyValue(m_names.CmdPrimitiveArgumentValueField, objectLiteral, fieldValue));
+                : ConvertPrimitiveValue(new PropertyValue(m_primitiveArgumentValueField, objectLiteral, fieldValue));
 
             return new PrimitiveArgument(argumentKind, value);
         }
@@ -294,14 +321,14 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             // interface Artifact { value: File | Directory | StaticDirectory; kind: ArtifactKind; }
             // const enum ArtifactKind { input = 1, output, rewritten, none, vsoHash, fileId };
             var kind = Converter.ExpectEnumValue(
-                literal[m_names.CmdArtifactKindField],
-                new ConversionContext(name: m_names.CmdArtifactKindField, objectCtx: literal));
+                literal[m_artifactKindField],
+                new ConversionContext(name: m_artifactKindField, objectCtx: literal));
 
             // Values should be in sync, so freely convert numbers.
             var artifactKind = (ArtifactKind)kind.Value;
-            var value = literal[m_names.CmdArtifactPathField];
-            var original = literal[m_names.CmdArtifactOriginalField];
-            var convContext = new ConversionContext(name: m_names.CmdArtifactPathField, objectCtx: literal);
+            var value = literal[m_artifactPathField];
+            var original = literal[m_artifactOriginalField];
+            var convContext = new ConversionContext(name: m_artifactPathField, objectCtx: literal);
 
             Converter.ExpectPathOrFileOrDirectory(value, out FileArtifact file, out DirectoryArtifact directory, out AbsolutePath path, convContext);
 
@@ -314,7 +341,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
             var originalFile = original.IsUndefined
                 ? FileArtifact.Invalid
-                : Converter.ExpectFile(original, false, new ConversionContext(name: m_names.CmdArtifactOriginalField, objectCtx: literal));
+                : Converter.ExpectFile(original, false, new ConversionContext(name: m_artifactOriginalField, objectCtx: literal));
 
             return file.IsValid
                 ? new Artifact(artifactKind, file)

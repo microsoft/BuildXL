@@ -333,7 +333,6 @@ namespace BuildXL.FrontEnd.Script
                 frontEndContext: Context,
                 logger: Logger,
                 package: package,
-                literals: Constants.Literals,
                 globals: Constants.Global,
                 moduleRegistry: SharedModuleRegistry,
                 origin: origin ?? default(LocationData));

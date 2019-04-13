@@ -59,6 +59,18 @@ namespace BuildXL.Scheduler
 
         private static readonly object s_telemetryDetoursHeapLock = new object();
 
+        private static readonly ObjectPool<Dictionary<AbsolutePath, FileOutputData>> s_absolutePathFileOutputDataMapPool =
+            new ObjectPool<Dictionary<AbsolutePath, FileOutputData>>(
+                () => new Dictionary<AbsolutePath, FileOutputData>(),
+                map => { map.Clear(); return map; });
+        
+        private static readonly ObjectPool<List<(AbsolutePath, FileMaterializationInfo)>> s_absolutePathFileMaterializationInfoTuppleListPool = Pools.CreateListPool<(AbsolutePath, FileMaterializationInfo)>();
+
+        private static readonly ObjectPool<Dictionary<FileArtifact, Task<Possible<FileMaterializationInfo>>>> s_fileArtifactPossibleFileMaterializationInfoTaskMapPool =
+            new ObjectPool<Dictionary<FileArtifact, Task<Possible<FileMaterializationInfo>>>>(
+                () => new Dictionary<FileArtifact, Task<Possible<FileMaterializationInfo>>>(),
+                map => { map.Clear(); return map; });
+
         /// <summary>
         /// Materializes pip's inputs.
         /// </summary>
@@ -390,7 +402,7 @@ namespace BuildXL.Scheduler
 
                     // If the file is not known to the graph, check whether the file is in an opaque or shared opaque directory.
                     // If it's inside such a directory, we treat it as an output file -> chain is not valid.
-                    if (!targetArtifact.IsValid && environment.PipGraphView.IsPathUnderOutputDirectory(targetPath))
+                    if (!targetArtifact.IsValid && environment.PipGraphView.IsPathUnderOutputDirectory(targetPath, out _))
                     {
                         return CreateInvalidChainFailure(I($"An element of the chain ('{chainElement}') is inside of an opaque directory."));
                     } 
@@ -420,6 +432,13 @@ namespace BuildXL.Scheduler
             if (!copy)
             {
                 (new Failure<string>(I($"Unable to copy from '{source}' to '{destination}'"))).Throw();
+            }
+
+            // if /storeOutputsToCache- was used, mark the destination here;
+            // otherwise it will get marked in ReportFileArtifactPlaced.
+            if (!environment.Configuration.Schedule.StoreOutputsToCache)
+            {
+                MakeSharedOpaqueOutputIfNeeded(environment, copyFile.Destination);
             }
 
             var mayBeTracked = await TrackPipOutputAsync(operationContext, environment, copyFile.Destination, isSymlink: false);
@@ -657,6 +676,15 @@ namespace BuildXL.Scheduler
             }
         }
 
+        private static void MakeSharedOpaqueOutputIfNeeded(IPipExecutionEnvironment environment, AbsolutePath path)
+        {
+            if (environment.PipGraphView.IsPathUnderOutputDirectory(path, out bool isItSharedOpaque) && isItSharedOpaque)
+            {
+                string expandedPath = path.ToString(environment.Context.PathTable);
+                SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(expandedPath);
+            }
+        }
+
         /// <summary>
         /// Writes <paramref name="contents"/> to disk at location <paramref name="destinationFile"/> using
         /// <paramref name="encoding"/>.
@@ -784,6 +812,8 @@ namespace BuildXL.Scheduler
                             outputOrigin);
                     }
                 }
+
+                MakeSharedOpaqueOutputIfNeeded(environment, destinationFile.Path);
 
                 return outputOrigin.ToPipResult();
             }
@@ -1847,9 +1877,9 @@ namespace BuildXL.Scheduler
                                 }
 
                                 var pathSet = maybePathSet.Value;
-                                (ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint? strongContentFingerPrint, ObservedPathSet pathSetUsed, ContentHash pathSetHashUsed)
+                                (bool succeeded, ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint? strongContentFingerprint, ObservedPathSet pathSetUsed, ContentHash pathSetHashUsed)
                                     strongFingerprintComputationResult =
-                                        await ComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
+                                        await TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
                                             operationContext,
                                             environment,
                                             state,
@@ -1858,10 +1888,16 @@ namespace BuildXL.Scheduler
                                             pathSet,
                                             entryRef.PathSetHash);
 
-                                BoxRef<ProcessStrongFingerprintComputationData> strongFingerprintComputationData = new ProcessStrongFingerprintComputationData(
-                                    pathSet: strongFingerprintComputationResult.pathSetUsed,
-                                    pathSetHash: strongFingerprintComputationResult.pathSetHashUsed,
-                                    priorStrongFingerprints: new List<StrongContentFingerprint>(1) { entryRef.StrongFingerprint });
+                                // Record the most relevant strong fingerprint information, defaulting to information retrieved from cache
+                                BoxRef<ProcessStrongFingerprintComputationData> strongFingerprintComputationData = strongFingerprintComputationResult.succeeded 
+                                    ? new ProcessStrongFingerprintComputationData(
+                                        pathSet: strongFingerprintComputationResult.pathSetUsed,
+                                        pathSetHash: strongFingerprintComputationResult.pathSetHashUsed,
+                                        priorStrongFingerprints: new List<StrongContentFingerprint>(1) { strongFingerprintComputationResult.strongContentFingerprint.Value })
+                                    : new ProcessStrongFingerprintComputationData(
+                                        pathSet: pathSet,
+                                        pathSetHash: entryRef.PathSetHash,
+                                        priorStrongFingerprints: new List<StrongContentFingerprint>(1) { entryRef.StrongFingerprint });
 
                                 strongFingerprintComputationList.Add(strongFingerprintComputationData);
 
@@ -1871,7 +1907,7 @@ namespace BuildXL.Scheduler
                                 switch (processingStatus)
                                 {
                                     case ObservedInputProcessingStatus.Success:
-                                        strongFingerprint = strongFingerprintComputationResult.Item2;
+                                        strongFingerprint = strongFingerprintComputationResult.strongContentFingerprint;
                                         Contract.Assume(strongFingerprint.HasValue);
 
                                         strongFingerprintComputationData.Value = strongFingerprintComputationData.Value.ToSuccessfulResult(
@@ -2453,6 +2489,7 @@ namespace BuildXL.Scheduler
         private static void AssertNoFileNamesMismatch(
             IPipExecutionEnvironment environment,
             Process process,
+            RunnableFromCacheResult runnableFromCacheCheckResult,
             FileArtifact file,
             in FileMaterializationInfo info)
         {
@@ -2470,12 +2507,14 @@ namespace BuildXL.Scheduler
             {
                 var pathTable = environment.Context.PathTable;
                 var stringTable = environment.Context.StringTable;
+                var cacheHitData = runnableFromCacheCheckResult.GetCacheHitData();
 
                 string fileArtifactPathString = file.Path.ToString(pathTable);
                 string fileMaterializationFileNameString = info.FileName.ToString(stringTable);
                 var stringBuilder = new StringBuilder();
                 stringBuilder.AppendLine(
-                    I($"File name should only differ by casing. File artifact's full path: '{fileArtifactPathString}'; file artifact's file name: '{fileArtifactFileName.ToString(stringTable)}'; materialization info file name: '{fileMaterializationFileNameString}'"));
+                    I($"File name should only differ by casing. File artifact's full path: '{fileArtifactPathString}'; file artifact's file name: '{fileArtifactFileName.ToString(stringTable)}'; materialization info file name: '{fileMaterializationFileNameString}'."));                
+                stringBuilder.AppendLine(I($"[{process.FormattedSemiStableHash}] Weak FP: '{runnableFromCacheCheckResult.WeakFingerprint.ToString()}', Strong FP: '{cacheHitData.StrongFingerprint.ToString()}', Metadata Hash: '{cacheHitData.MetadataHash.ToString()}'"));
 
                 Contract.Assert(false, stringBuilder.ToString());
             }
@@ -2513,7 +2552,7 @@ namespace BuildXL.Scheduler
                 var info = cacheHitData.CachedArtifactContentHashes[i].fileMaterializationInfo;
                 var file = cacheHitData.CachedArtifactContentHashes[i].fileArtifact;
 
-                AssertNoFileNamesMismatch(environment, pip, file, info);
+                AssertNoFileNamesMismatch(environment, pip, runnableFromCacheCheckResult, file, info);
                 executionResult.ReportOutputContent(file, info, PipOutputOrigin.NotMaterialized);
             }
 
@@ -3085,7 +3124,7 @@ namespace BuildXL.Scheduler
         /// Note that if the returned processing status is <see cref="ObservedInputProcessingStatus.Aborted"/>, then a failure has been logged and pip
         /// execution must fail.
         /// </summary>
-        private static async Task<(ObservedInputProcessingResult, StrongContentFingerprint?, ObservedPathSet, ContentHash)> ComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
+        private static async Task<(bool, ObservedInputProcessingResult, StrongContentFingerprint?, ObservedPathSet, ContentHash)> TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state,
@@ -3114,7 +3153,7 @@ namespace BuildXL.Scheduler
                 // force cache miss if observed input processing result is not 'Success'
                 if (validationResult.Status != ObservedInputProcessingStatus.Success)
                 {
-                    return (validationResult, default(StrongContentFingerprint?), default(ObservedPathSet), default(ContentHash));
+                    return (false, validationResult, default(StrongContentFingerprint?), default(ObservedPathSet), default(ContentHash));
                 }
 
                 // check if now running with safer options than before (i.e., prior are not strictly safer than current)
@@ -3147,7 +3186,7 @@ namespace BuildXL.Scheduler
                         finalPathSetHash);
                 }
 
-                return (validationResult, strongFingerprint, finalPathSet, finalPathSetHash);
+                return (true, validationResult, strongFingerprint, finalPathSet, finalPathSetHash);
             }
         }
 
@@ -3460,46 +3499,51 @@ namespace BuildXL.Scheduler
             ContentHash? standardOutputContentHash = null;
             ContentHash? standardErrorContentHash = null;
 
-            // Each dynamic output should map to which opaque directory they belong.
-            // Because we will store the hashes and paths of the dynamic outputs by preserving the ordering of process.DirectoryOutputs
-            var allOutputs = new List<FileArtifactWithAttributes>(process.FileOutputs.Length);
-            var allOutputData = new Dictionary<AbsolutePath, FileOutputData>(process.FileOutputs.Length);
-
-            // If container isolation is enabled, this will represent a map between original outputs and its redirected output
-            // This is used to achieve output isolation: we keep the original paths, but use the content of redirected outputs
-            Dictionary<AbsolutePath, FileArtifactWithAttributes> allRedirectedOutputs = null;
-            if (containerConfiguration.IsIsolationEnabled)
+            using (var poolFileArtifactWithAttributesList = Pools.GetFileArtifactWithAttributesList())
+            using (var poolAbsolutePathFileOutputDataMap = s_absolutePathFileOutputDataMapPool.GetInstance())
+            using (var poolAbsolutePathFileArtifactWithAttributes = Pools.GetAbsolutePathFileArtifactWithAttributesMap())
+            using (var poolFileList = Pools.GetFileArtifactList())
+            using (var poolAbsolutePathFileMaterializationInfoTuppleList = s_absolutePathFileMaterializationInfoTuppleListPool.GetInstance())
+            using (var poolFileArtifactPossibleFileMaterializationInfoTaskMap = s_fileArtifactPossibleFileMaterializationInfoTaskMapPool.GetInstance())
             {
-                allRedirectedOutputs = new Dictionary<AbsolutePath, FileArtifactWithAttributes>(process.FileOutputs.Length);
-            }
+                // Each dynamic output should map to which opaque directory they belong.
+                // Because we will store the hashes and paths of the dynamic outputs by preserving the ordering of process.DirectoryOutputs
+                var allOutputs = poolFileArtifactWithAttributesList.Instance;
+                var allOutputData = poolAbsolutePathFileOutputDataMap.Instance;
 
-            // Let's compute what got actually redirected
-            bool outputFilesAreRedirected = containerConfiguration.IsIsolationEnabled && process.ContainerIsolationLevel.IsolateOutputFiles();
-            bool exclusiveOutputDirectoriesAreRedirected = containerConfiguration.IsIsolationEnabled && process.ContainerIsolationLevel.IsolateExclusiveOpaqueOutputDirectories();
-            bool sharedOutputDirectoriesAreRedirected = containerConfiguration.IsIsolationEnabled && process.ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories();
-
-            foreach (var output in process.FileOutputs)
-            {
-                FileOutputData.UpdateFileData(allOutputData, output.Path, OutputFlags.DeclaredFile);
-
-                // If the directory containing the output file was redirected, then we want to cache the content of the redirected output instead.
-                AbsolutePath originalDirectory = output.Path.GetParent(pathTable);
-                if (outputFilesAreRedirected && containerConfiguration.OriginalDirectories.TryGetValue(originalDirectory, out var redirectedDirectories))
+                // If container isolation is enabled, this will represent a map between original outputs and its redirected output
+                // This is used to achieve output isolation: we keep the original paths, but use the content of redirected outputs
+                Dictionary<AbsolutePath, FileArtifactWithAttributes> allRedirectedOutputs = null;
+                if (containerConfiguration.IsIsolationEnabled)
                 {
-                    // The original directory was an output directory, so there should always be a single redirected directory for it
-                    ExpandedAbsolutePath redirectedDirectory = redirectedDirectories.Single();
-                    AbsolutePath redirectedOutputPath = output.Path.Relocate(pathTable, originalDirectory, redirectedDirectory.Path);
-
-                    var redirectedOutput = new FileArtifactWithAttributes(redirectedOutputPath, output.RewriteCount, output.FileExistence);
-                    allRedirectedOutputs.Add(output.Path, redirectedOutput);
+                    allRedirectedOutputs = poolAbsolutePathFileArtifactWithAttributes.Instance;
                 }
 
-                allOutputs.Add(output);
-            }
+                // Let's compute what got actually redirected
+                bool outputFilesAreRedirected = containerConfiguration.IsIsolationEnabled && process.ContainerIsolationLevel.IsolateOutputFiles();
+                bool exclusiveOutputDirectoriesAreRedirected = containerConfiguration.IsIsolationEnabled && process.ContainerIsolationLevel.IsolateExclusiveOpaqueOutputDirectories();
+                bool sharedOutputDirectoriesAreRedirected = containerConfiguration.IsIsolationEnabled && process.ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories();
 
-            // We need to discover dynamic outputs in the given opaque directories.
-            using (var poolFileList = Pools.GetFileArtifactList())
-            {
+                foreach (var output in process.FileOutputs)
+                {
+                    FileOutputData.UpdateFileData(allOutputData, output.Path, OutputFlags.DeclaredFile);
+
+                    // If the directory containing the output file was redirected, then we want to cache the content of the redirected output instead.
+                    AbsolutePath originalDirectory = output.Path.GetParent(pathTable);
+                    if (outputFilesAreRedirected && containerConfiguration.OriginalDirectories.TryGetValue(originalDirectory, out var redirectedDirectories))
+                    {
+                        // The original directory was an output directory, so there should always be a single redirected directory for it
+                        ExpandedAbsolutePath redirectedDirectory = redirectedDirectories.Single();
+                        AbsolutePath redirectedOutputPath = output.Path.Relocate(pathTable, originalDirectory, redirectedDirectory.Path);
+
+                        var redirectedOutput = new FileArtifactWithAttributes(redirectedOutputPath, output.RewriteCount, output.FileExistence);
+                        allRedirectedOutputs.Add(output.Path, redirectedOutput);
+                    }
+
+                    allOutputs.Add(output);
+                }
+
+                // We need to discover dynamic outputs in the given opaque directories.
                 var fileList = poolFileList.Instance;
 
                 for (int i = 0; i < process.DirectoryOutputs.Length; i++)
@@ -3598,219 +3642,230 @@ namespace BuildXL.Scheduler
                     processExecutionResult.ReportDirectoryOutput(directoryArtifact, fileList);
                     numDynamicOutputs += fileList.Count;
                 }
-            }
 
-            if (encodedStandardOutput != null)
-            {
-                var path = encodedStandardOutput.Item1;
-                FileOutputData.UpdateFileData(allOutputData, path, OutputFlags.StandardOut);
-                allOutputs.Add(FileArtifact.CreateOutputFile(path).WithAttributes(FileExistence.Required));
-            }
-
-            if (encodedStandardError != null)
-            {
-                var path = encodedStandardError.Item1;
-                FileOutputData.UpdateFileData(allOutputData, path, OutputFlags.StandardError);
-                allOutputs.Add(FileArtifact.CreateOutputFile(path).WithAttributes(FileExistence.Required));
-            }
-
-            List<(AbsolutePath, FileMaterializationInfo)> outputHashPairs =
-                new List<(AbsolutePath, FileMaterializationInfo)>(allOutputData.Count);
-            Dictionary<FileArtifact, Task<Possible<FileMaterializationInfo>>> storeProcessOutputCompletionsByPath =
-                new Dictionary<FileArtifact, Task<Possible<FileMaterializationInfo>>>();
-
-            bool successfullyProcessedOutputs = true;
-
-            SemaphoreSlim concurrencySemaphore = new SemaphoreSlim(Environment.ProcessorCount);
-            foreach (var output in allOutputs)
-            {
-                var outputData = allOutputData[output.Path];
-
-                // For all cacheable outputs, start a task to store into the cache
-                if (output.CanBeReferencedOrCached())
+                if (encodedStandardOutput != null)
                 {
-                    Task<Possible<FileMaterializationInfo>> storeCompletion;
+                    var path = encodedStandardOutput.Item1;
+                    FileOutputData.UpdateFileData(allOutputData, path, OutputFlags.StandardOut);
+                    allOutputs.Add(FileArtifact.CreateOutputFile(path).WithAttributes(FileExistence.Required));
+                }
 
-                    // Deduplicate output store operations so outputs are not stored to the cache concurrently.
-                    // (namely declared file outputs can also be under a dynamic directory as a dynamic output)
-                    if (!storeProcessOutputCompletionsByPath.TryGetValue(output.ToFileArtifact(), out storeCompletion))
+                if (encodedStandardError != null)
+                {
+                    var path = encodedStandardError.Item1;
+                    FileOutputData.UpdateFileData(allOutputData, path, OutputFlags.StandardError);
+                    allOutputs.Add(FileArtifact.CreateOutputFile(path).WithAttributes(FileExistence.Required));
+                }
+
+                var outputHashPairs = poolAbsolutePathFileMaterializationInfoTuppleList.Instance;
+                var storeProcessOutputCompletionsByPath = poolFileArtifactPossibleFileMaterializationInfoTaskMap.Instance;
+
+                bool successfullyProcessedOutputs = true;
+
+                SemaphoreSlim concurrencySemaphore = new SemaphoreSlim(Environment.ProcessorCount);
+                foreach (var output in allOutputs)
+                {
+                    var outputData = allOutputData[output.Path];
+
+                    // For all cacheable outputs, start a task to store into the cache
+                    if (output.CanBeReferencedOrCached())
                     {
-                        var contentToStore = output;
-                        // If there is a redirected output for this path, use that one, so we always cache redirected outputs instead of the original ones
-                        if (containerConfiguration.IsIsolationEnabled && allRedirectedOutputs.TryGetValue(output.Path, out var redirectedOutput))
+                        Task<Possible<FileMaterializationInfo>> storeCompletion;
+
+                        // Deduplicate output store operations so outputs are not stored to the cache concurrently.
+                        // (namely declared file outputs can also be under a dynamic directory as a dynamic output)
+                        if (!storeProcessOutputCompletionsByPath.TryGetValue(output.ToFileArtifact(), out storeCompletion))
                         {
-                            contentToStore = redirectedOutput;
-                        }
-
-                        storeCompletion = Task.Run(
-                            async () =>
+                            var contentToStore = output;
+                            // If there is a redirected output for this path, use that one, so we always cache redirected outputs instead of the original ones
+                            if (containerConfiguration.IsIsolationEnabled && allRedirectedOutputs.TryGetValue(output.Path, out var redirectedOutput))
                             {
-                                using (await concurrencySemaphore.AcquireAsync())
+                                contentToStore = redirectedOutput;
+                            }
+
+                            storeCompletion = Task.Run(
+                                async () =>
                                 {
-                                    if (environment.Context.CancellationToken.IsCancellationRequested)
+                                    using (await concurrencySemaphore.AcquireAsync())
                                     {
-                                        return environment.Context.CancellationToken.CreateFailure();
+                                        if (environment.Context.CancellationToken.IsCancellationRequested)
+                                        {
+                                            return environment.Context.CancellationToken.CreateFailure();
+                                        }
+
+                                        return await StoreCacheableProcessOutputAsync(
+                                                environment,
+                                                operationContext,
+                                                process,
+                                                contentToStore,
+                                                outputData);
                                     }
+                                });
 
-                                    return await StoreCacheableProcessOutputAsync(
-                                            environment,
-                                            operationContext,
-                                            process,
-                                            contentToStore,
-                                            outputData);
-                                }
-                            });
-
-                        storeProcessOutputCompletionsByPath[output.ToFileArtifact()] = storeCompletion;
+                            storeProcessOutputCompletionsByPath[output.ToFileArtifact()] = storeCompletion;
+                        }
+                    }
+                    else if (outputData.HasAllFlags(OutputFlags.DynamicFile))
+                    {
+                        // Do not attempt to store dynamic temporary files into cache. However, we store them as a part of metadata as files with AbsentFile hash,
+                        // so accesses could be properly reported to FileMonitoringViolationAnalyzer on cache replay.
+                        storeProcessOutputCompletionsByPath[output.ToFileArtifact()] = Task.FromResult(Possible.Create(FileMaterializationInfo.CreateWithUnknownLength(WellKnownContentHashes.AbsentFile)));
                     }
                 }
-                else if (outputData.HasAllFlags(OutputFlags.DynamicFile))
+
+                // We cannot enumerate over storeProcessOutputCompletionsByPath here
+                // because the order of such an enumeration is not deterministic.
+                foreach (var output in allOutputs)
                 {
-                    // Do not attempt to store dynamic temporary files into cache. However, we store them as a part of metadata as files with AbsentFile hash,
-                    // so accesses could be properly reported to FileMonitoringViolationAnalyzer on cache replay.
-                    storeProcessOutputCompletionsByPath[output.ToFileArtifact()] = Task.FromResult(Possible.Create(FileMaterializationInfo.CreateWithUnknownLength(WellKnownContentHashes.AbsentFile)));
-                }
-            }
-
-            foreach (var storeProcessOutputCompletionsEntry in storeProcessOutputCompletionsByPath)
-            {
-                FileArtifact outputArtifact = storeProcessOutputCompletionsEntry.Key;
-                var outputData = allOutputData[outputArtifact.Path];
-
-                Possible<FileMaterializationInfo> possiblyStoredOutputArtifactInfo;
-                using (operationContext.StartOperation(PipExecutorCounter.SerializeAndStorePipOutputDuration))
-                {
-                    possiblyStoredOutputArtifactInfo = await storeProcessOutputCompletionsEntry.Value;
-                }
-
-                if (possiblyStoredOutputArtifactInfo.Succeeded)
-                {
-                    FileMaterializationInfo outputArtifactInfo = possiblyStoredOutputArtifactInfo.Result;
-                    outputHashPairs.Add((outputArtifact.Path, outputArtifactInfo));
-
-                    // Sometimes standard error / standard out is a declared output. Other times it is an implicit output that we shouldn't report.
-                    // If it is a declared output, we notice that here and avoid trying to look at the file again below.
-                    // Generally we want to avoid looking at a file repeatedly to avoid seeing it in multiple states (perhaps even deleted).
-                    // TODO: Would be cleaner to always model console streams as outputs, but 'maybe present' (a generally useful status for outputs).
-                    if (outputData.HasAllFlags(OutputFlags.StandardOut))
+                    FileArtifact outputArtifact = output.ToFileArtifact();
+                    if (storeProcessOutputCompletionsByPath.TryGetValue(outputArtifact, out var storeProcessOutputTask))
                     {
-                        standardOutputContentHash = outputArtifactInfo.Hash;
-                    }
-
-                    if (outputData.HasAllFlags(OutputFlags.StandardError))
-                    {
-                        standardErrorContentHash = outputArtifactInfo.Hash;
-                    }
-
-                    PipOutputOrigin origin;
-                    if (outputArtifactInfo.FileContentInfo.HasKnownLength)
-                    {
-                        totalOutputSize += outputArtifactInfo.Length;
-                        origin = PipOutputOrigin.Produced;
+                        // the task is now 'processed' => remove it, so we do not add duplicate entries to outputHashPairs
+                        storeProcessOutputCompletionsByPath.Remove(outputArtifact);
                     }
                     else
                     {
-                        // Absent file
-                        origin = PipOutputOrigin.UpToDate;
-                    }
-
-                    if (!outputData.HasAnyFlag(OutputFlags.DeclaredFile | OutputFlags.DynamicFile))
-                    {
-                        // Only report output content if file is a 'real' pip output
-                        // i.e. declared or dynamic output (not just standard out/error)
+                        // there is no task for this artifact => we must have already processed it
                         continue;
                     }
 
-                    processExecutionResult.ReportOutputContent(
-                        outputArtifact,
-                        outputArtifactInfo,
-                        origin);
-                }
-                else
-                {
-                    if (!(possiblyStoredOutputArtifactInfo.Failure is CancellationFailure))
+                    var outputData = allOutputData[outputArtifact.Path];
+
+                    Possible<FileMaterializationInfo> possiblyStoredOutputArtifactInfo;
+                    using (operationContext.StartOperation(PipExecutorCounter.SerializeAndStorePipOutputDuration))
                     {
-                        // Storing output to cache failed. Log failure.
-                        Logger.Log.ProcessingPipOutputFileFailed(
-                            operationContext,
-                            description,
-                            outputArtifact.Path.ToString(pathTable),
-                            possiblyStoredOutputArtifactInfo.Failure.DescribeIncludingInnerFailures());
+                        possiblyStoredOutputArtifactInfo = await storeProcessOutputTask;
                     }
 
-                    successfullyProcessedOutputs = false;
-                }
-            }
-
-            // Short circuit before updating cache to avoid potentially creating an incorrect cache descriptor since there may
-            // be some missing output file hashes
-            if (!successfullyProcessedOutputs)
-            {
-                Contract.Assume(operationContext.LoggingContext.ErrorWasLogged);
-                return false;
-            }
-
-            Contract.Assert(encodedStandardOutput == null || standardOutputContentHash.HasValue, "Hashed as a declared output, or independently");
-            Contract.Assert(encodedStandardError == null || standardErrorContentHash.HasValue, "Hashed as a declared output, or independently");
-
-            if (enableCaching)
-            {
-                Contract.Assert(observedInputs.HasValue);
-
-                PipCacheDescriptorV2Metadata metadata =
-                    new PipCacheDescriptorV2Metadata
+                    if (possiblyStoredOutputArtifactInfo.Succeeded)
                     {
-                        Id = PipFingerprintEntry.CreateUniqueId(),
-                        NumberOfWarnings = numberOfWarnings,
-                        StandardError = GetOptionalEncodedStringKeyedHash(environment, state, encodedStandardError, standardErrorContentHash),
-                        StandardOutput = GetOptionalEncodedStringKeyedHash(environment, state, encodedStandardOutput, standardOutputContentHash),
-                        TraceInfo = operationContext.LoggingContext.Session.Environment,
-                        TotalOutputSize = totalOutputSize,
-                        SemiStableHash = process.SemiStableHash,
-                        WeakFingerprint = fingerprintComputation.Value.WeakFingerprint.ToString(),
-                    };
+                        FileMaterializationInfo outputArtifactInfo = possiblyStoredOutputArtifactInfo.Result;
+                        outputHashPairs.Add((outputArtifact.Path, outputArtifactInfo));
 
-                RecordOutputsOnMetadata(metadata, process, allOutputData, outputHashPairs, pathTable);
+                        // Sometimes standard error / standard out is a declared output. Other times it is an implicit output that we shouldn't report.
+                        // If it is a declared output, we notice that here and avoid trying to look at the file again below.
+                        // Generally we want to avoid looking at a file repeatedly to avoid seeing it in multiple states (perhaps even deleted).
+                        // TODO: Would be cleaner to always model console streams as outputs, but 'maybe present' (a generally useful status for outputs).
+                        if (outputData.HasAllFlags(OutputFlags.StandardOut))
+                        {
+                            standardOutputContentHash = outputArtifactInfo.Hash;
+                        }
 
-                // An assertion for the static outputs
-                Contract.Assert(metadata.StaticOutputHashes.Count == process.GetCacheableOutputsCount());
+                        if (outputData.HasAllFlags(OutputFlags.StandardError))
+                        {
+                            standardErrorContentHash = outputArtifactInfo.Hash;
+                        }
 
-                // An assertion for the dynamic outputs
-                Contract.Assert(metadata.DynamicOutputs.Sum(a => a.Count) == numDynamicOutputs);
+                        PipOutputOrigin origin;
+                        if (outputArtifactInfo.FileContentInfo.HasKnownLength)
+                        {
+                            totalOutputSize += outputArtifactInfo.Length;
+                            origin = PipOutputOrigin.Produced;
+                        }
+                        else
+                        {
+                            // Absent file
+                            origin = PipOutputOrigin.UpToDate;
+                        }
 
-                var entryStore = await TryCreateTwoPhaseCacheEntryAndStoreMetadata(
-                    operationContext,
-                    environment,
-                    state,
-                    process,
-                    description,
-                    metadata,
-                    outputHashPairs,
-                    standardOutputContentHash,
-                    standardErrorContentHash,
-                    observedInputs.Value,
-                    fingerprintComputation);
+                        if (!outputData.HasAnyFlag(OutputFlags.DeclaredFile | OutputFlags.DynamicFile))
+                        {
+                            // Only report output content if file is a 'real' pip output
+                            // i.e. declared or dynamic output (not just standard out/error)
+                            continue;
+                        }
 
-                if (entryStore == null)
+                        processExecutionResult.ReportOutputContent(
+                            outputArtifact,
+                            outputArtifactInfo,
+                            origin);
+                    }
+                    else
+                    {
+                        if (!(possiblyStoredOutputArtifactInfo.Failure is CancellationFailure))
+                        {
+                            // Storing output to cache failed. Log failure.
+                            Logger.Log.ProcessingPipOutputFileFailed(
+                                operationContext,
+                                description,
+                                outputArtifact.Path.ToString(pathTable),
+                                possiblyStoredOutputArtifactInfo.Failure.DescribeIncludingInnerFailures());
+                        }
+
+                        successfullyProcessedOutputs = false;
+                    }
+                }
+
+                // Short circuit before updating cache to avoid potentially creating an incorrect cache descriptor since there may
+                // be some missing output file hashes
+                if (!successfullyProcessedOutputs)
                 {
                     Contract.Assume(operationContext.LoggingContext.ErrorWasLogged);
                     return false;
                 }
 
-                processExecutionResult.TwoPhaseCachingInfo = entryStore;
+                Contract.Assert(encodedStandardOutput == null || standardOutputContentHash.HasValue, "Hashed as a declared output, or independently");
+                Contract.Assert(encodedStandardError == null || standardErrorContentHash.HasValue, "Hashed as a declared output, or independently");
 
-                if (environment.State.Cache.IsNewlyAdded(entryStore.PathSetHash))
+                if (enableCaching)
                 {
-                    processExecutionResult.PathSet = observedInputs.Value.GetPathSet(state.UnsafeOptions);
+                    Contract.Assert(observedInputs.HasValue);
+
+                    PipCacheDescriptorV2Metadata metadata =
+                        new PipCacheDescriptorV2Metadata
+                        {
+                            Id = PipFingerprintEntry.CreateUniqueId(),
+                            NumberOfWarnings = numberOfWarnings,
+                            StandardError = GetOptionalEncodedStringKeyedHash(environment, state, encodedStandardError, standardErrorContentHash),
+                            StandardOutput = GetOptionalEncodedStringKeyedHash(environment, state, encodedStandardOutput, standardOutputContentHash),
+                            TraceInfo = operationContext.LoggingContext.Session.Environment,
+                            TotalOutputSize = totalOutputSize,
+                            SemiStableHash = process.SemiStableHash,
+                            WeakFingerprint = fingerprintComputation.Value.WeakFingerprint.ToString(),
+                        };
+
+                    RecordOutputsOnMetadata(metadata, process, allOutputData, outputHashPairs, pathTable);
+
+                    // An assertion for the static outputs
+                    Contract.Assert(metadata.StaticOutputHashes.Count == process.GetCacheableOutputsCount());
+
+                    // An assertion for the dynamic outputs
+                    Contract.Assert(metadata.DynamicOutputs.Sum(a => a.Count) == numDynamicOutputs);
+
+                    var entryStore = await TryCreateTwoPhaseCacheEntryAndStoreMetadata(
+                        operationContext,
+                        environment,
+                        state,
+                        process,
+                        description,
+                        metadata,
+                        outputHashPairs,
+                        standardOutputContentHash,
+                        standardErrorContentHash,
+                        observedInputs.Value,
+                        fingerprintComputation);
+
+                    if (entryStore == null)
+                    {
+                        Contract.Assume(operationContext.LoggingContext.ErrorWasLogged);
+                        return false;
+                    }
+
+                    processExecutionResult.TwoPhaseCachingInfo = entryStore;
+
+                    if (environment.State.Cache.IsNewlyAdded(entryStore.PathSetHash))
+                    {
+                        processExecutionResult.PathSet = observedInputs.Value.GetPathSet(state.UnsafeOptions);
+                    }
+
+                    if (environment.State.Cache.IsNewlyAdded(entryStore.CacheEntry.MetadataHash))
+                    {
+                        processExecutionResult.PipCacheDescriptorV2Metadata = metadata;
+                    }
                 }
 
-                if (environment.State.Cache.IsNewlyAdded(entryStore.CacheEntry.MetadataHash))
-                {
-                    processExecutionResult.PipCacheDescriptorV2Metadata = metadata;
-                }
+                return true;
             }
-
-            return true;
         }
 
         private static void PopulateRedirectedOutputsForFileInOpaque(PathTable pathTable, ContainerConfiguration containerConfiguration, AbsolutePath opaqueDirectory, FileArtifactWithAttributes fileArtifactInOpaque, Dictionary<AbsolutePath, FileArtifactWithAttributes> allRedirectedOutputs)

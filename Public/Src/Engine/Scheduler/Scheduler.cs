@@ -3468,7 +3468,7 @@ namespace BuildXL.Scheduler
                         // Make sure all shared outputs are flagged as such.
                         // We need to do this even if the pip failed, so any writes under shared opaques are flagged anyway.
                         // This allows the scrubber to remove those files as well in the next run.
-                        FlagSharedOpaqueOutputs(environment, executionResult);
+                        FlagSharedOpaqueOutputs(environment, processRunnable);
 
                         // Set the process as executed. NOTE: We do this here rather than during ExecuteProcess to handle
                         // case of processes executed remotely
@@ -3529,15 +3529,21 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static void FlagSharedOpaqueOutputs(IPipExecutionEnvironment environment, ExecutionResult executionResult)
+        private void FlagSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)
         {
+            // Select all declared output files
+            foreach (var fileArtifact in process.Process.FileOutputs)
+            {
+                MakeSharedOpaqueOutputIfNeeded(fileArtifact.Path);
+            }
+
             // The shared dynamic accesses can be null when the pip failed on preparation, in which case it didn't run at all, so there is
             // nothing to flag
-            if (executionResult.SharedDynamicDirectoryWriteAccesses != null)
+            if (process.ExecutionResult.SharedDynamicDirectoryWriteAccesses != null)
             {
                 // Directory outputs are reported only when the pip is successful. So we need to rely on the raw shared dynamic write accesses,
                 // since flagging also happens on failed pips
-                foreach (IReadOnlyCollection<AbsolutePath> writesPerSharedOpaque in executionResult.SharedDynamicDirectoryWriteAccesses.Values)
+                foreach (IReadOnlyCollection<AbsolutePath> writesPerSharedOpaque in process.ExecutionResult.SharedDynamicDirectoryWriteAccesses.Values)
                 {
                     foreach (AbsolutePath writeInPath in writesPerSharedOpaque)
                     {
@@ -5114,7 +5120,8 @@ namespace BuildXL.Scheduler
                         aggregatedContent.AddRange(memberContents);
                     }
 
-                    m_fileContentManager.ReportDynamicDirectoryContents(pip.Directory, aggregatedContent, PipOutputOrigin.UpToDate);
+                    // the directory artifacts that this composite shared opaque consists of might or might not be materialized
+                    m_fileContentManager.ReportDynamicDirectoryContents(pip.Directory, aggregatedContent, PipOutputOrigin.NotMaterialized);
                 }
             }
         }
@@ -5357,6 +5364,27 @@ namespace BuildXL.Scheduler
             }
 
             m_pipOutputMaterializationTracker.ReportMaterializedArtifact(artifact);
+        }
+
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        void IFileContentManagerHost.ReportFileArtifactPlaced(in FileArtifact artifact)
+        {
+            MakeSharedOpaqueOutputIfNeeded(artifact.Path);
+        }
+
+        private void MakeSharedOpaqueOutputIfNeeded(AbsolutePath path)
+        {
+            if (IsPathUnderSharedOpaqueDirectory(path))
+            {
+                SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path.ToString(Context.PathTable));
+            }
+        }
+
+        private bool IsPathUnderSharedOpaqueDirectory(AbsolutePath path)
+        {
+            return
+                PipGraph.IsPathUnderOutputDirectory(path, out var isItSharedOpaque) &&
+                isItSharedOpaque;
         }
 
         /// <inheritdoc />

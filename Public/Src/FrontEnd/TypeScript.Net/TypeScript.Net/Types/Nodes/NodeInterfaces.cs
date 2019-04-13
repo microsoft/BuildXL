@@ -865,6 +865,34 @@ namespace TypeScript.Net.Types
     }
 
     /// <nodoc/>
+    [NodeInfo(SyntaxKinds = new[] { SyntaxKind.SwitchExpression }, NodeType = NodeType.Leaf)]
+    public interface ISwitchExpression : IExpression
+    {
+        /// <nodoc/>
+        IExpression Expression { get; set; }
+
+        /// <nodoc/>
+        NodeArray<ISwitchExpressionClause> Clauses { get; set; }
+    }
+
+    /// <nodoc/>
+    [NodeInfo(SyntaxKinds = new[] { SyntaxKind.SwitchExpressionClause }, NodeType = NodeType.Leaf)]
+    public interface ISwitchExpressionClause : IExpression
+    {
+        /// <summary>
+        /// This indicates the clause is the default case. as in: `default: 10`.
+        /// This means the Match expression will be null.
+        /// </summary>
+        bool IsDefaultFallthrough { get; set; }
+
+        /// <nodoc/>
+        IExpression Match { get; set; }
+
+        /// <nodoc/>
+        IExpression Expression { get; set; }
+    }
+
+    /// <nodoc/>
     [NodeInfo(SyntaxKinds = new[] { SyntaxKind.FunctionExpression }, NodeType = NodeType.Leaf)]
     public interface IFunctionExpression : IPrimaryExpression, IFunctionLikeDeclaration
     {

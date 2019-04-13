@@ -62,7 +62,7 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
-        /// Global pool of of maps from <see cref="BuildXL.Utilities.FileArtifact"/> to <see cref="BuildXL.Utilities.DirectoryArtifact"/>.
+        /// Global pool of maps from <see cref="BuildXL.Utilities.FileArtifact"/> to <see cref="BuildXL.Utilities.DirectoryArtifact"/>.
         /// </summary>
         public static ObjectPool<Dictionary<FileArtifact, DirectoryArtifact>> FileDirectoryMapPool { get; } =
             new ObjectPool<Dictionary<FileArtifact, DirectoryArtifact>>(
@@ -70,12 +70,20 @@ namespace BuildXL.Utilities
                 map => { map.Clear(); return map; });
 
         /// <summary>
-        /// Global pool of of maps from <see cref="BuildXL.Utilities.FileArtifact"/> to many <see cref="BuildXL.Utilities.DirectoryArtifact"/> .
+        /// Global pool of maps from <see cref="BuildXL.Utilities.FileArtifact"/> to many <see cref="BuildXL.Utilities.DirectoryArtifact"/>.
         /// </summary>
         public static ObjectPool<MultiValueDictionary<FileArtifact, DirectoryArtifact>> FileMultiDirectoryMapPool { get; } =
             new ObjectPool<MultiValueDictionary<FileArtifact, DirectoryArtifact>>(
                 () => new MultiValueDictionary<FileArtifact, DirectoryArtifact>(),
                 map => { map.Clear(); return map; });
+
+        /// <summary>
+        /// Global pool of maps from <see cref="BuildXL.Utilities.AbsolutePath"/> to many <see cref="BuildXL.Utilities.FileArtifactWithAttributes"/>.
+        /// </summary>
+        public static ObjectPool<Dictionary<AbsolutePath, FileArtifactWithAttributes>> AbsolutePathFileArtifactWithAttributesMap { get; } =
+            new ObjectPool<Dictionary<AbsolutePath, FileArtifactWithAttributes>>(
+                () => new Dictionary<AbsolutePath, FileArtifactWithAttributes>(),
+                map => { map.Clear(); return map;});
 
         /// <summary>
         /// Global pool of StringBuilder instances.
@@ -443,6 +451,18 @@ namespace BuildXL.Utilities
         public static PooledObjectWrapper<HashSet<StringId>> GetStringIdSet()
         {
             return StringIdSetPool.GetInstance();
+        }
+
+        /// <summary>
+        /// Gets a mapping from <see cref="BuildXL.Utilities.AbsolutePath"/> to <see cref="FileArtifactWithAttributes"/> from a common object pool.
+        /// </summary>
+        /// <remarks>
+        /// You are expected to call the Dispose method on the returned PooledObjectWrapper instance
+        /// when you are done with the set. Calling Dispose returns the set to the pool.
+        /// </remarks>
+        public static PooledObjectWrapper<Dictionary<AbsolutePath, FileArtifactWithAttributes>> GetAbsolutePathFileArtifactWithAttributesMap()
+        {
+            return AbsolutePathFileArtifactWithAttributesMap.GetInstance();
         }
     }
 }

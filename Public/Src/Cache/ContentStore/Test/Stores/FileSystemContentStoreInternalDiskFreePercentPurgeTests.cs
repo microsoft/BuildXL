@@ -40,7 +40,8 @@ namespace ContentStoreTest.Stores
                 config,
                 contentHashWithSize => ((MyMemoryFileSystem)FileSystem).ContentAdded(contentHashWithSize.Size),
                 contentHashWithSize => ((MyMemoryFileSystem)FileSystem).ContentEvicted(contentHashWithSize.Size),
-                nagleBlock
+                nagleBlock,
+                settings: ContentStoreSettings
                 );
         }
 

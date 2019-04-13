@@ -669,15 +669,17 @@ namespace BuildXL.Cache.ContentStore.Stores
                 GetPinnedSize,
                 _nagleQueue);
 
+            var quotaKeeperConfiguration = QuotaKeeperConfiguration.Create(
+                Configuration,
+                _distributedEvictionSettings,
+                _settings,
+                size);
             _quotaKeeper = QuotaKeeper.Create(
                 FileSystem,
                 _tracer,
-                Configuration,
-                size,
                 ShutdownStartedCancellationToken,
                 this,
-                _distributedEvictionSettings,
-                useLegacyQuotaKeeper: _settings.UseLegacyQuotaKeeperImplementation);
+                quotaKeeperConfiguration);
 
             var result = await _quotaKeeper.StartupAsync(context);
 
@@ -1103,9 +1105,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Complete all pending/background operations.
         /// </summary>
-        public async Task SyncAsync(Context context)
+        public async Task SyncAsync(Context context, bool purge = true)
         {
-            await _quotaKeeper.SyncAsync(context);
+            await _quotaKeeper.SyncAsync(context, purge);
 
             // Ensure there are no pending LRU updates.
             await ContentDirectory.SyncAsync();

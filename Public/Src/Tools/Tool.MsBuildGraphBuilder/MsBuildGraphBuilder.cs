@@ -351,10 +351,12 @@ namespace MsBuildGraphBuilderTool
             // Reconstruct all references. A two-pass approach avoids needing to do more complicated reconstruction of references that would need traversing the graph
             foreach (var projectWithPredictions in projectNodes)
             {
-                ProjectWithPredictions[] references = nodeWithPredictionsToMsBuildNodes[projectWithPredictions]
+                // TODO: temporarily getting this as a set due to an MSBuild bug where edges are sometimes duplicated. We can just
+                // treat this as an array once the bug is fixed on MSBuild side
+                var references = nodeWithPredictionsToMsBuildNodes[projectWithPredictions]
                     .ProjectReferences
                     .Select(projectReference => msBuildNodesToNodeWithPredictionIndex[projectReference])
-                    .ToArray();
+                    .ToHashSet();
 
                 projectWithPredictions.SetReferences(references);
             }

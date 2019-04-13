@@ -12,6 +12,7 @@ using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
+using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Performance;
@@ -56,6 +57,10 @@ namespace BuildXL.Scheduler.Graph
             private NodeId m_dummyHashSourceFileNode;
 
             private readonly IConfiguration m_configuration;
+
+            private WindowsOsDefaults m_windowsOsDefaults;
+            private MacOsDefaults m_macOsDefaults;
+            private object m_osDefaultLock = new object();
 
             #region State
 
@@ -288,6 +293,42 @@ namespace BuildXL.Scheduler.Graph
                 SealDirectoryTable.TryGetSealForDirectoryArtifact(directoryArtifact, out PipId pipId);
                 return pipId.ToNodeId();
             }
+
+            /// <inheritdoc />
+            public void ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
+            {
+                if (OperatingSystemHelper.IsUnixOS)
+                {
+                    if (m_macOsDefaults == null)
+                    {
+                        lock(m_osDefaultLock)
+                        {
+                            if (m_macOsDefaults == null) 
+                            {
+                                m_macOsDefaults = new MacOsDefaults(Context.PathTable, this);
+                            }
+                        }
+                    }
+
+                    m_macOsDefaults.ProcessDefaults(processBuilder);
+                }
+                else
+                {
+                    if (m_windowsOsDefaults == null)
+                    {
+                        lock(m_osDefaultLock)
+                        {
+                            if (m_windowsOsDefaults == null) 
+                            {
+                                m_windowsOsDefaults = new WindowsOsDefaults(Context.PathTable);
+                            }
+                        }
+                    }
+
+                    m_windowsOsDefaults.ProcessDefaults(processBuilder);
+                }
+            }
+
 
             #region Validation
 
@@ -1914,7 +1955,11 @@ namespace BuildXL.Scheduler.Graph
                     foreach (var directory in process.DirectoryOutputs)
                     {
                         OutputDirectoryProducers.Add(directory, processNode);
-                        OutputDirectoryRoots.Add(directory.Path);
+                        OutputDirectoryRoots.AddOrUpdate(
+                            key: directory.Path,
+                            data: directory.IsSharedOpaque,
+                            addValueFactory: (p, isShared) => isShared,
+                            updateValueFactory: (p, isShared, oldValue) => oldValue || isShared);
                     }
 
                     // Link to value pip

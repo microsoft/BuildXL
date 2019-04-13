@@ -85,18 +85,26 @@ export const libDeployment: Transformer.ToolDefinition = visualCppDeploymentTemp
 
 export namespace AtlMfc {
     @@public
-    export const include: StaticDirectory = Transformer.sealDirectory(
-        d`${rootFolder}/atlmfc/include`,
-        globR(d`${rootFolder}/atlmfc/include`, "*"));
+    export const include: StaticDirectory = Transformer.sealDirectory({
+        root: d`${rootFolder}/atlmfc/include`,
+        files: globR(d`${rootFolder}/atlmfc/include`, "*")
+    });
 
     @@public
-    export const lib: StaticDirectory = Transformer.sealDirectory(mfcLibFolder, globR(mfcLibFolder, "*"));
+    export const lib: StaticDirectory = Transformer.sealDirectory({
+        root: mfcLibFolder, 
+        files: globR(mfcLibFolder, "*")
+    });
 }
 
 @@public
-export const include: StaticDirectory = Transformer.sealDirectory(
-    d`${rootFolder}/include`,
-    globR(d`${rootFolder}/include`, "*"));
+export const include: StaticDirectory = Transformer.sealDirectory({
+    root: d`${rootFolder}/include`,
+    files: globR(d`${rootFolder}/include`, "*")
+});
     
 @@public
-export const lib: StaticDirectory = Transformer.sealDirectory(libFolder, globR(libFolder, "*"));
+export const lib: StaticDirectory = Transformer.sealDirectory({
+    root: libFolder, 
+    files: globR(libFolder, "*")
+});

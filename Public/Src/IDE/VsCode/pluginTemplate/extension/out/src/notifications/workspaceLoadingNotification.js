@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
 const vscode_1 = require("vscode");
@@ -44,7 +43,7 @@ var WorkspaceLoadingNotification;
     function handler(params) {
         if (workspaceLoadingStatusBarItem === undefined) {
             workspaceLoadingStatusBarItem = vscode_1.window.createStatusBarItem(vscode_1.StatusBarAlignment.Left);
-            workspaceLoadingStatusBarItem.command = "dscript.openLogFile";
+            workspaceLoadingStatusBarItem.command = "DScript.openLogFile";
             workspaceLoadingStatusBarItem.show();
         }
         let progressString = undefined;
@@ -79,7 +78,7 @@ var WorkspaceLoadingNotification;
                     workspaceLoadingStatusBarItem = undefined;
                 }, 5000);
                 // Enable the add-file context menu option
-                vscode_1.commands.executeCommand('setContext', 'dscript.workspaceLoaded', true);
+                vscode_1.commands.executeCommand('setContext', 'DScript.workspaceLoaded', true);
                 break;
             case 3 /* Failure */:
                 workspaceLoadingStatusBarItem.text = "$(stop) Workspace loading failed ";

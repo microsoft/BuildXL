@@ -61,6 +61,29 @@ namespace Test.ProjectGraphBuilder.Utilities
         }
 
         /// <summary>
+        /// Writes a collection of projects to disk, where the name and content of the project is already computed
+        /// </summary>
+        /// <remarks>
+        /// The first project of the collection is assumed to be the entry point
+        /// </remarks>
+        public string WriteProjectsWithReferences(params (string projectName, string projectContent)[] projects)
+        {
+            // Create a unique sub-directory to hold all the projects
+            string outputDirectory = Path.Combine(m_outputDirectoryRoot, Guid.NewGuid().ToString());
+            Directory.CreateDirectory(outputDirectory);
+
+            // Write all generated projects to disk
+            foreach (var kvp in projects)
+            {
+                var projectFile = Path.Combine(outputDirectory, kvp.projectName);
+                File.WriteAllText(projectFile, kvp.projectContent);
+            }
+
+            return Path.Combine(outputDirectory, projects[0].projectName);
+        }
+
+
+        /// <summary>
         /// Validates that a <param name="projectGraph"/> is contained by a set of <see cref="projectChains"/>. If <param name="assertEqual"/> is specified,
         /// the graph must match exactly (not just be a sub-graph).
         /// </summary>

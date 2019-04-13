@@ -88,7 +88,7 @@ namespace BuildXL.Engine.Distribution
 
             if (m_isGrpcEnabled)
             {
-                m_masterServer = new Grpc.GrpcMasterServer(loggingContext, this);
+                m_masterServer = new Grpc.GrpcMasterServer(loggingContext, this, buildId);
             }
             else
             {

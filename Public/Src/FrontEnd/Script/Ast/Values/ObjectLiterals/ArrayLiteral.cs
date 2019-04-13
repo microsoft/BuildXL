@@ -163,7 +163,7 @@ namespace BuildXL.FrontEnd.Script.Values
         {
             Contract.Requires(name.IsValid);
 
-            if (name == context.Names.Length.StringId)
+            if (name == context.ContextTree.CommonConstants.Length.StringId)
             {
                 return EvaluationResult.Create(Length);
             }
@@ -185,7 +185,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <inheritdoc />
         public override bool TryProject(Context context, SymbolAtom name, ModuleLiteral origin, PredefinedTypes predefinedTypes, out EvaluationResult result, LineInfo location)
         {
-            if (name == context.Names.Length)
+            if (name == context.ContextTree.CommonConstants.Length)
             {
                 result = EvaluationResult.Create(Length);
                 return true;

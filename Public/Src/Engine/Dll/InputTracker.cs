@@ -530,7 +530,9 @@ namespace BuildXL.Engine
         /// </summary>
         public void WriteToFile(
             BinaryWriter writer,
+            PathTable pathTable,
             IReadOnlyDictionary<string, string> buildParametersImpactingBuild,
+            [CanBeNull] IReadOnlyDictionary<string, IMount> mountsImpactingBuild,
             string changeTrackingStatePath)
         {
             Contract.Requires(writer != null);
@@ -566,6 +568,24 @@ namespace BuildXL.Engine
                     {
                         writer.Write(kvp.Key);
                         writer.Write(NormalizeEnvironmentVariableValue(kvp.Value));
+                    }
+                }
+            }
+
+            // Write the mounts that impact the build
+            if (mountsImpactingBuild == null)
+            {
+                writer.Write(0);
+            }
+            else
+            {
+                writer.Write(mountsImpactingBuild.Count);
+                {
+                    foreach (var kvp in mountsImpactingBuild)
+                    {
+                        writer.Write(kvp.Key);
+                        // You can't have an unnamed mount, but you can have an empty path value
+                        writer.Write(kvp.Value == null ? string.Empty : kvp.Value.Path.ToString(pathTable));
                     }
                 }
             }
@@ -613,7 +633,7 @@ namespace BuildXL.Engine
         /// Deserializes input tracker and writes it as text.
         /// </summary>
         /// <remarks>
-        /// We never create an input tracker from its serialized form. In <see cref="MatchesReader(LoggingContext, BinaryReader, FileContentTable, JournalState, TimeSpan?, string, IBuildParameters, Engine.GraphFingerprint, int, IConfiguration, bool)"/>
+        /// We never create an input tracker from its serialized form. In <see cref="MatchesReader(LoggingContext, BinaryReader, FileContentTable, JournalState, TimeSpan?, string, IBuildParameters, MountsTable, Engine.GraphFingerprint, int, IConfiguration, bool)"/>
         /// we do both serialization and input matching simultaneously. This method is only intended for analyzer to read and print the content of input tracker.
         /// </remarks>
         public static void ReadAndWriteText(BinaryReader reader, TextWriter writer)
@@ -636,6 +656,24 @@ namespace BuildXL.Engine
                 }
 
                 foreach (var envVar in envVarList.OrderBy(tuple => tuple.Item1, StringComparer.OrdinalIgnoreCase))
+                {
+                    writer.WriteLine(I($"\t - ({envVar.Item1}, {envVar.Item2})"));
+                }
+            }
+
+            int mountsImpactingBuildCount = reader.ReadInt32();
+
+            if (mountsImpactingBuildCount > 0)
+            {
+                var mountList = new List<(string, string)>();
+                writer.WriteLine("Mounts: ");
+
+                for (int i = 0; i < mountsImpactingBuildCount; ++i)
+                {
+                    mountList.Add((reader.ReadString(), reader.ReadString()));
+                }
+
+                foreach (var envVar in mountList.OrderBy(tuple => tuple.Item1, StringComparer.OrdinalIgnoreCase))
                 {
                     writer.WriteLine(I($"\t - ({envVar.Item1}, {envVar.Item2})"));
                 }
@@ -703,6 +741,7 @@ namespace BuildXL.Engine
             EngineSerializer serializer,
             FileContentTable fileContentTable,
             IBuildParameters availableEnvironmentVariables,
+            MountsTable availableMounts,
             GraphFingerprint graphFingerprint,
             int maxDegreeOfParallelism,
             IConfiguration configuration,
@@ -736,6 +775,7 @@ namespace BuildXL.Engine
                                     timeLimitForJournalScanning,
                                     changeTrackingStatePath,
                                     availableEnvironmentVariables,
+                                    availableMounts,
                                     graphFingerprint,
                                     maxDegreeOfParallelism,
                                     configuration,
@@ -767,6 +807,7 @@ namespace BuildXL.Engine
             TimeSpan? timeLimitForJournalScanning,
             string changeTrackingStatePath,
             IBuildParameters availableEnvironmentVariables,
+            MountsTable availableMounts,
             GraphFingerprint graphFingerprint,
             int maxDegreeOfParallelism,
             IConfiguration configuration,
@@ -851,7 +892,41 @@ namespace BuildXL.Engine
                 }
             }
 
-            // Step 4: Check if input files in the input tracker match the actual ones using journal scan and, if needed, checking content hashes.
+            // Step 4: Check if all mounts in the previous input tracker match with the current ones.
+            var availableMountsByName = availableMounts.MountsByName;
+            int mountCount = reader.ReadInt32();
+            for (int i = 0; i < mountCount; i++)
+            {
+                string mountName = reader.ReadString();
+                string previousPath = reader.ReadString();
+
+                if (availableMountsByName.ContainsKey(mountName))
+                {
+                    string currentPath = availableMountsByName[mountName].Path.ToString(availableMounts.MountPathExpander.PathTable);
+                    if (!previousPath.Equals(currentPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.MissType = GraphCacheMissReason.MountChanged;
+                        result.FirstMissIdentifier = string.Format(
+                            CultureInfo.InvariantCulture,
+                            Strings.InputTracker_MountChanged,
+                            mountName,
+                            previousPath,
+                            currentPath);
+                        Logger.Log.InputTrackerDetectedMountChanged(loggingContext, mountName, previousPath, currentPath);
+                        return result;
+                    }
+                }
+                else
+                {
+                    // The previously used mount is not known
+                    result.MissType = GraphCacheMissReason.MountChanged;
+                    result.FirstMissIdentifier = string.Format(CultureInfo.InvariantCulture, Strings.InputTracker_MountRemoved, mountName, previousPath);
+                    Logger.Log.InputTrackerDetectedMountChanged(loggingContext, mountName, previousPath, string.Empty);
+                    return result;
+                }
+            }
+
+            // Step 5: Check if input files in the input tracker match the actual ones using journal scan and, if needed, checking content hashes.
 
             // The previous run may have had journal-based change tracking enabled. If so, we can try to establish the absence
             // of changes without checking individual files.

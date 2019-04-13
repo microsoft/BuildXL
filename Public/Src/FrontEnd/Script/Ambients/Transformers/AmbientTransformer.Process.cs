@@ -102,6 +102,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeAdditionalTempDirectories;
         private SymbolAtom m_executeAllowedSurvivingChildProcessNames;
         private SymbolAtom m_executeNestedProcessTerminationTimeoutMs;
+        private SymbolAtom m_executeDependsOnCurrentHostOSDirectories;
         private SymbolAtom m_toolTimeoutInMilliseconds;
         private SymbolAtom m_toolWarningTimeoutInMilliseconds;
         private SymbolAtom m_argN;
@@ -121,6 +122,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_toolUntrackedDirectoryScopes;
         private SymbolAtom m_toolUntrackedFiles;
         private SymbolAtom m_toolDependsOnWindowsDirectories;
+        private SymbolAtom m_toolDependsOnCurrentHostOSDirectories;
         private SymbolAtom m_toolDependsOnAppDataDirectory;
         private SymbolAtom m_toolPrepareTempDirectory;
         private SymbolAtom m_toolDescription;
@@ -231,6 +233,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeErrorRegex = Symbol("errorRegex");
             m_executeAllowedSurvivingChildProcessNames = Symbol("allowedSurvivingChildProcessNames");
             m_executeNestedProcessTerminationTimeoutMs = Symbol("nestedProcessTerminationTimeoutMs");
+            m_executeDependsOnCurrentHostOSDirectories = Symbol("dependsOnCurrentHostOSDirectories");
             m_weight = Symbol("weight");
 
             m_argN = Symbol("n");
@@ -255,6 +258,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_toolUntrackedFiles = Symbol("untrackedFiles");
             m_toolDependsOnWindowsDirectories = Symbol("dependsOnWindowsDirectories");
             m_toolDependsOnAppDataDirectory = Symbol("dependsOnAppDataDirectory");
+            m_toolDependsOnCurrentHostOSDirectories = Symbol("dependsOnCurrentHostOSDirectories");
             m_toolPrepareTempDirectory = Symbol("prepareTempDirectory");
             m_toolTimeoutInMilliseconds = Symbol("timeoutInMilliseconds");
             m_toolWarningTimeoutInMilliseconds = Symbol("warningTimeoutInMilliseconds");
@@ -399,7 +403,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 }
                 else
                 {
-                    var pipData = DataProcessor.ProcessData(context, context.FrontEndContext.PipDataBuilderPool, consoleInput, new ConversionContext(name: m_executeConsoleInput, allowUndefined: false, objectCtx: obj));
+                    var pipData = ProcessData(context, consoleInput, new ConversionContext(name: m_executeConsoleInput, allowUndefined: false, objectCtx: obj));
                     processBuilder.StandardInput = StandardInput.CreateFromData(pipData);
                 }
             }
@@ -622,6 +626,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             {
                 processBuilder.NestedProcessTerminationTimeout = TimeSpan.FromMilliseconds(nestedProcessTerminationTimeoutMs.Value);
             }
+
+            var executeDependsOnCurrentHostOSDirectories = Converter.ExtractOptionalBoolean(obj, m_executeDependsOnCurrentHostOSDirectories);
+            if (executeDependsOnCurrentHostOSDirectories == true)
+            {
+                processBuilder.AddCurrentHostOSDirectories();
+            }
         }
 
         private void ProcessTool(Context context, ObjectLiteral tool, ProcessBuilder processBuilder)
@@ -668,9 +678,17 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 processBuilder.SetEnvironmentVariable(kv.Key, kv.Value);
             }
 
+            if (cachedTool.DependsOnCurrentHostOSDirectories)
+            {
+                processBuilder.AddCurrentHostOSDirectories();
+            }
+
             if (cachedTool.UntrackedWindowsDirectories)
             {
-                processBuilder.AddUntrackedWindowsDirectories();
+                if (!OperatingSystemHelper.IsUnixOS)
+                {
+                    processBuilder.AddCurrentHostOSDirectories();
+                }
             }
 
             if (cachedTool.UntrackedAppDataDirectories)
@@ -764,6 +782,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (Converter.ExtractOptionalBoolean(tool, m_toolDependsOnWindowsDirectories) == true)
             {
                 cachedTool.UntrackedWindowsDirectories = true;
+            }
+
+            if (Converter.ExtractOptionalBoolean(tool, m_toolDependsOnCurrentHostOSDirectories) == true)
+            {
+                cachedTool.DependsOnCurrentHostOSDirectories = true;
             }
 
             if (Converter.ExtractOptionalBoolean(tool, m_toolDependsOnAppDataDirectory) == true)

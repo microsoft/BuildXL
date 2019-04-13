@@ -932,6 +932,8 @@ namespace TypeScript.Net.Types
                 case SyntaxKind.PostfixUnaryExpression:
                 case SyntaxKind.BinaryExpression:
                 case SyntaxKind.ConditionalExpression:
+                case SyntaxKind.SwitchExpression:
+                case SyntaxKind.SwitchExpressionClause:
                 case SyntaxKind.SpreadElementExpression:
                 case SyntaxKind.TemplateExpression:
                 case SyntaxKind.NoSubstitutionTemplateLiteral:

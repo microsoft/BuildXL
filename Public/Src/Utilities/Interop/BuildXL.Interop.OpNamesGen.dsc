@@ -86,7 +86,10 @@ namespace BuildXL.Interop.MacOS
     const exe = BuildXLSdk.executable({
         assemblyName: "BuildXL.Interop.TmpOpNameGenerator",
         sources: [
-            Transformer.writeAllText(p`${Context.getNewOutputDirectory("op-name-gen")}/Program.cs`, program)
+            Transformer.writeAllText({
+                outputPath: p`${Context.getNewOutputDirectory("op-name-gen")}/Program.cs`, 
+                text: program
+            })
         ],
         allowUnsafeBlocks: true,
     });

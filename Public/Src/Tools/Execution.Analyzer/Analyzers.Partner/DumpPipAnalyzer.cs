@@ -12,6 +12,7 @@ using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -503,7 +504,7 @@ namespace BuildXL.Execution.Analyzer
                 m_html.CreateBlock(
                     "Process inputs/outputs",
                     m_html.CreateRow("File Dependencies", pip.Dependencies),
-                    m_html.CreateRow("Directory Dependencies", pip.DirectoryDependencies),
+                    m_html.CreateRow("Directory Dependencies", GetDirectoryDependencies(pip.DirectoryDependencies), sortEntries: false),
                     m_html.CreateRow("Pip Dependencies", pip.OrderDependencies),
                     m_html.CreateRow("File Outputs", pip.FileOutputs.Select(output => output.Path.ToString(PathTable) + " (" + Enum.Format(typeof(FileExistence), output.FileExistence, "f") + ")")),
                     m_html.CreateRow("Directory Outputs", GetDirectoryOutputsWithContent(pip), sortEntries: false),
@@ -600,7 +601,7 @@ namespace BuildXL.Execution.Analyzer
 
             foreach (var directoryOutput in pip.DirectoryOutputs)
             {
-                outputs.Add(directoryOutput.Path.ToString(PathTable));
+                outputs.Add(FormattableStringEx.I($"{directoryOutput.Path.ToString(PathTable)} (PartialSealId: {directoryOutput.PartialSealId}, IsSharedOpaque: {directoryOutput.IsSharedOpaque})"));
                 if (m_directoryContents.TryGetValue(directoryOutput, out var directoryContent))
                 {
                     foreach (var file in directoryContent)
@@ -611,6 +612,39 @@ namespace BuildXL.Execution.Analyzer
             }
 
             return outputs;
+        }
+
+        /// <summary>
+        /// Returns a properly formatted/sorted list of directory dependencies.
+        /// </summary>
+        private List<string> GetDirectoryDependencies(ReadOnlyArray<DirectoryArtifact> dependencies)
+        {
+            var result = new List<string>();
+            var directories = new Stack<(DirectoryArtifact artifact, string path, int tabCount)>(
+                dependencies
+                    .Select(d => (artifact: d, path: d.Path.ToString(PathTable), 0))
+                    .OrderByDescending(tupple => tupple.path));
+
+            while (directories.Count > 0)
+            {
+                var directory = directories.Pop();
+                result.Add(directory.tabCount == 0
+                    ? FormattableStringEx.I($"{directory.path} (PartialSealId: {directory.artifact.PartialSealId}, IsSharedOpaque: {directory.artifact.IsSharedOpaque})")
+                    : FormattableStringEx.I($"|{string.Concat(Enumerable.Repeat("---", directory.tabCount))}{directory.path} (PartialSealId: {directory.artifact.PartialSealId}, IsSharedOpaque: {directory.artifact.IsSharedOpaque})"));
+
+                var sealPipId = CachedGraph.PipGraph.GetSealedDirectoryNode(directory.artifact).ToPipId();
+
+                if (PipTable.IsSealDirectoryComposite(sealPipId))
+                {
+                    var sealPip = (SealDirectory)CachedGraph.PipGraph.GetSealedDirectoryPip(directory.artifact, PipQueryContext.SchedulerExecuteSealDirectoryPip);
+                    foreach (var nestedDirectory in sealPip.ComposedDirectories.Select(d => (artifact: d, path: d.Path.ToString(PathTable))).OrderByDescending(tupple => tupple.path))
+                    {
+                        directories.Push((nestedDirectory.artifact, nestedDirectory.path, directory.tabCount + 1));
+                    }
+                }
+            }
+
+            return result;
         }
     }
 }

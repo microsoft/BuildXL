@@ -195,7 +195,7 @@ namespace BuildXL.FrontEnd.MsBuild
             env[BuildEnvironmentConstants.MsPdbSrvEndpointEnvVar] = mspdbsrvGuid;
 
             // Enable MSBuild debugging if requested
-            if (m_resolverSettings?.EnableEngineTracing == true)
+            if (m_resolverSettings.EnableEngineTracing == true)
             {
                 env[BuildEnvironmentConstants.MsBuildDebug] = "1";
                 env[BuildEnvironmentConstants.MsBuildDebugPath] = logDirectory.ToString(PathTable);
@@ -455,6 +455,11 @@ namespace BuildXL.FrontEnd.MsBuild
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.err"), FileExistence.Optional);
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.prf"), FileExistence.Optional);
 
+            if (m_resolverSettings.EnableBinLogTracing == true)
+            {
+                processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.binlog"), FileExistence.Optional);
+            }
+
             // Unless the legacy non-isolated mode is explicitly specified, the project builds in isolation, and therefore
             // it produces an output cache file. This file is placed on the (unique) object directory for this project
             if (m_resolverSettings.UseLegacyProjectIsolation != true)
@@ -550,7 +555,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
 
             // Configure binary logger if specified
-            if (m_resolverSettings?.EnableBinLogTracing == true)
+            if (m_resolverSettings.EnableBinLogTracing == true)
             {
                 using (pipDataBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, string.Empty))
                 {
@@ -718,7 +723,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             processBuilder.Executable = cmdExeArtifact;
             processBuilder.AddInputFile(cmdExeArtifact);
-            processBuilder.AddUntrackedWindowsDirectories();
+            processBuilder.AddCurrentHostOSDirectories();
             processBuilder.AddUntrackedAppDataDirectories();
             processBuilder.AddUntrackedProgramDataDirectories();
 

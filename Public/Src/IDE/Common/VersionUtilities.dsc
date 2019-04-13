@@ -20,7 +20,10 @@ namespace IDE.VersionUtilities {
         let content = File.readAllText(file, TextEncoding.utf8);
         
         content = content.replace("0.0.0", version);
-        let newFile = Transformer.writeAllText(p`${brandingDirectory}/${file.name}`, content);
+        let newFile = Transformer.writeAllText({
+            outputPath: p`${brandingDirectory}/${file.name}`, 
+            text: content
+        });
 
         return newFile;
     }

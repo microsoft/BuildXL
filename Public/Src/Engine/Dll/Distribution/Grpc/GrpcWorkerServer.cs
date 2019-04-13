@@ -8,7 +8,9 @@ using System.Net;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Cache.Fingerprints;
+using BuildXL.Utilities.Instrumentation.Common;
 using Grpc.Core;
+using Grpc.Core.Interceptors;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -17,23 +19,29 @@ namespace BuildXL.Engine.Distribution.Grpc
     /// </summary>
     public class GrpcWorkerServer : Worker.WorkerBase, IServer
     {
-        private WorkerService m_workerService;
+        private readonly WorkerService m_workerService;
+        private readonly LoggingContext m_loggingContext;
+        private readonly string m_buildId;
+
         private Server m_server;
 
         /// <summary>
         /// Class constructor
         /// </summary>
-        public GrpcWorkerServer(WorkerService workerService)
+        public GrpcWorkerServer(WorkerService workerService, LoggingContext loggingContext, string buildId)
         {
             m_workerService = workerService;
+            m_loggingContext = loggingContext;
+            m_buildId = buildId;
         }
 
         /// <nodoc/>
         public void Start(int port)
         {
+            var interceptor = new ServerInterceptor(m_loggingContext, m_buildId);
             m_server = new Server(ClientConnectionManager.DefaultChannelOptions)
             {
-                Services = { Worker.BindService(this) },
+                Services = { Worker.BindService(this).Intercept(interceptor) },
                 Ports = { new ServerPort(IPAddress.Any.ToString(), port, ServerCredentials.Insecure) },
             };
             m_server.Start();

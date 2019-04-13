@@ -1,9 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
-// This must be the first statement otherwise modules might got loaded with
+// This must be the first statement otherwise modules might get loaded with
 // the wrong locale.
 const nls = require("vscode-nls");
 const vscode_1 = require("vscode");
@@ -46,7 +45,7 @@ function checkForUpdates() {
             minor: 0
         };
         // Our build version is in the form of "date.index.minor"
-        const thisExtension = vscode_1.extensions.getExtension("Microsoft.BuildXL.dscript");
+        const thisExtension = vscode_1.extensions.getExtension("Microsoft.buildxldscript");
         const thisVersion = thisExtension.packageJSON.version;
         const splitVersion = thisVersion.split('.');
         if (splitVersion.length === 3) {

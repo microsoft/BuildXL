@@ -21,19 +21,6 @@ namespace BuildXL.Pips.Builders
     {
         internal const int MaxCommandLineLength = 8192;
 
-        // SpecialFolderUtilities can be reinitialized with different values, e.g., due to user-profile redirection.
-        // To be on the safe side, we recompute the paths below.
-
-        private string WindowsPath => SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows);
-        private string InternetCachePath => SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.InternetCache);
-        private string HistoryPath => SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.History);
-        private string DefenderX64Path => Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Windows Defender");
-        private string DefenderX86Path => Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Windows Defender");
-        private string DefenderProgramDataPath => Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Microsoft", "Windows Defender");
-        private string ApplicationDataPath => SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        private string LocalApplicationDataPath => SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        private string CommonApplicationDataPath => SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-
         // State
         private readonly PathTable m_pathTable;
 
@@ -348,29 +335,12 @@ namespace BuildXL.Pips.Builders
         }
 
         /// <summary>
-        /// Indicates that no file accesses should be tracked under the Windows directory.
+        /// Adds the common folders that almost every app reads as either untracked scopes if they should
+        /// have no effect on the build output (like the OS kernel binary), as dependencies in case of OS-Wide settings like a timezeone file.
         /// </summary>
-        public void AddUntrackedWindowsDirectories()
+        public void AddCurrentHostOSDirectories()
         {
-            var untrackedPaths = !OperatingSystemHelper.IsUnixOS
-                ? new[]
-                  {
-                      WindowsPath,
-                      InternetCachePath,
-                      HistoryPath,
-                      // Starting with RS6, Windows Defender gets in the way when node tries to authenticate
-                      // TODO: This is not a bullet proof method since some other virus scanner might
-                      // be configured, or Windows Defender might be installed in a different path
-                      DefenderX64Path,
-                      DefenderX86Path,
-                      DefenderProgramDataPath,
-                  }
-                : new string[] { }; // TODO: figure out what to add here for non-Windows systems
-
-            foreach (var path in untrackedPaths)
-            {
-                AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(m_pathTable, path));
-            }
+            Options |= Options.DependsOnCurrentOs;
         }
 
         /// <summary>
@@ -379,11 +349,7 @@ namespace BuildXL.Pips.Builders
         /// <remarks>This includes both ApplicationData and LocalApplicationData folders</remarks>
         public void AddUntrackedAppDataDirectories()
         {
-            if (!OperatingSystemHelper.IsUnixOS)
-            {
-                AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(m_pathTable, ApplicationDataPath));
-                AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(m_pathTable, LocalApplicationDataPath));
-            }
+            Options |= Options.DependsOnWindowsAppData;
         }
 
         /// <summary>
@@ -391,10 +357,7 @@ namespace BuildXL.Pips.Builders
         /// </summary>
         public void AddUntrackedProgramDataDirectories()
         {
-            if (!OperatingSystemHelper.IsUnixOS)
-            {
-                AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(m_pathTable, CommonApplicationDataPath));
-            }
+            Options |= Options.DependsOnWindowsProgramData;
         }
 
         /// <nodoc />

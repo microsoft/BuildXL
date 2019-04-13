@@ -7260,6 +7260,14 @@ namespace TypeScript.Net.TypeChecking
                     return IsContextSensitive(node.Cast<IConditionalExpression>().WhenTrue) ||
                            IsContextSensitive(node.Cast<IConditionalExpression>().WhenFalse);
 
+                case SyntaxKind.SwitchExpression:
+                    return IsContextSensitive(node.Cast<ISwitchExpression>().Expression) ||
+                        node.Cast<ISwitchExpression>().Clauses.Any(clause => IsContextSensitive(clause));
+
+                case SyntaxKind.SwitchExpressionClause:
+                    return IsContextSensitive(node.Cast<ISwitchExpressionClause>().Match) ||
+                           IsContextSensitive(node.Cast<ISwitchExpressionClause>().Expression);
+
                 case SyntaxKind.BinaryExpression:
                     return (node.Cast<IBinaryExpression>().OperatorToken.Kind == SyntaxKind.BarBarToken) &&
                            (IsContextSensitive(node.Cast<IBinaryExpression>().Left) || IsContextSensitive(node.Cast<IBinaryExpression>().Right));
@@ -10031,6 +10039,7 @@ namespace TypeScript.Net.TypeChecking
                 case SyntaxKind.PostfixUnaryExpression:
                 case SyntaxKind.YieldExpression:
                 case SyntaxKind.ConditionalExpression:
+                case SyntaxKind.SwitchExpression:
                 case SyntaxKind.SpreadElementExpression:
                 case SyntaxKind.Block:
                 case SyntaxKind.VariableStatement:
@@ -10136,6 +10145,7 @@ namespace TypeScript.Net.TypeChecking
                                 // if-else was used.
                                 if (node.Kind == SyntaxKind.IfStatement ||
                                     node.Kind == SyntaxKind.ConditionalExpression ||
+                                    node.Kind == SyntaxKind.SwitchExpression ||
                                     node.Kind == SyntaxKind.BinaryExpression)
                                 {
                                     nodeStack.Push(new NodeAndChild(node, child));
@@ -10182,6 +10192,18 @@ namespace TypeScript.Net.TypeChecking
                                                     type,
                                                     n.Cast<IConditionalExpression>().Condition,
                                                     /*assumeTrue*/ c.ResolveUnionType() == n.Cast<IConditionalExpression>().WhenTrue.ResolveUnionType());
+                                        }
+
+                                        break;
+                                    
+                                    case SyntaxKind.SwitchExpression:
+                                        // In a branch of a switch expression, narrow based on controlling pattern match
+                                        if (c.ResolveUnionType() != n.Cast<ISwitchExpression>().Expression.ResolveUnionType())
+                                        {
+                                            type = NarrowType(
+                                                    type,
+                                                    n.Cast<ISwitchExpression>().Expression,
+                                                    /*assumeFirstMatch*/ c.ResolveUnionType() == n.Cast<ISwitchExpression>().Clauses.First().Expression.ResolveUnionType());
                                         }
 
                                         break;
@@ -11368,6 +11390,19 @@ namespace TypeScript.Net.TypeChecking
                     null;
         }
 
+        // In a contextually typed switch expression, all clauses are contextually typed by the same type.
+        private IType GetContextualTypeForSwitchExpression(IExpression node)
+        {
+            var switchExpression = node.Parent.Cast<ISwitchExpression>();
+            var nodeUnionType = node.ResolveUnionType();
+            if (switchExpression.Clauses.Any(clause => nodeUnionType == clause.Expression.ResolveUnionType()))
+            {
+                return GetContextualType(switchExpression);
+            }
+
+            return null;;
+        }
+
         // Return the contextual type for a given expression node. During overload resolution, a contextual type may temporarily
         // be "pushed" onto a node using the contextualType property.
         private IType GetApparentTypeOfContextualType(IExpression node)
@@ -11447,6 +11482,9 @@ namespace TypeScript.Net.TypeChecking
                 case SyntaxKind.ConditionalExpression:
                     return GetContextualTypeForConditionalOperand(node);
 
+                case SyntaxKind.SwitchExpression:
+                    return GetContextualTypeForSwitchExpression(node);
+
                 case SyntaxKind.TemplateSpan:
                     Contract.Assert(parent.Parent.Kind == SyntaxKind.TemplateExpression);
                     return GetContextualTypeForSubstitutionExpression(parent.Parent.Cast<ITemplateExpression>(), node);
@@ -11524,6 +11562,16 @@ namespace TypeScript.Net.TypeChecking
                     if (expression.ResolveUnionType() == conditional.WhenTrue.ResolveUnionType() || expression.ResolveUnionType() == conditional.WhenFalse.ResolveUnionType())
                     {
                         return IsEqualityComparisonOperand(conditional);
+                    }
+
+                    return false;
+
+                case SyntaxKind.SwitchExpression:
+                    var switchExpression = parent.As<ISwitchExpression>();
+                    var expressionUnion = expression.ResolveUnionType();
+                    if (switchExpression.Clauses.Any(clause => expressionUnion == clause.Expression.ResolveUnionType()))
+                    {
+                        return IsEqualityComparisonOperand(switchExpression);
                     }
 
                     return false;
@@ -15866,6 +15914,64 @@ namespace TypeScript.Net.TypeChecking
             return GetUnionType(new List<IType> { type1, type2 });
         }
 
+        private IType CheckSwitchExpression(ISwitchExpression node, ITypeMapper contextualMapper = null)
+        {
+            var expressionType = CheckExpression(node.Expression, contextualMapper);
+            if (!IsValidSwitchExpressionType(expressionType))
+            {
+                Error(
+                    node.Expression,
+                    Errors.Switch_expression_must_be_of_type_string,
+                    TypeToString(expressionType));
+            }
+
+            if (!node.Clauses.Any(clause => !clause.IsDefaultFallthrough))
+            {
+                Error(
+                    node.Expression,
+                    Errors.Switch_expression_must_have_at_least_one_clause);
+            }
+
+            for (int i = 0; i < node.Clauses.Count - 1; i++)
+            {
+                if (node.Clauses[i].IsDefaultFallthrough)
+                {
+                    Error(
+                        node.Expression,
+                        Errors.Switch_expression_default_clause_must_be_last);
+                }
+            }
+
+            return GetUnionType(
+                node.Clauses.Select(clause => CheckExpression(clause.Expression, contextualMapper)).ToList()
+            );
+        }
+
+        private bool IsValidSwitchExpressionType(IType type)
+        {
+            var intrinsicType = type.As<IIntrinsicType>();
+            if (intrinsicType == m_stringType
+                || intrinsicType == m_numberType
+                || intrinsicType == m_undefinedType
+                )
+            {
+                return true;
+            }
+
+            if (type.As<IStringLiteralType>() != null)
+            {
+                return true;
+            }
+
+            var unionType = type.As<IUnionType>();
+            if (unionType != null)
+            {
+                return unionType.Types.All(entry => IsValidSwitchExpressionType(entry));
+            }
+
+            return false;
+        }
+
         private IType CheckStringLiteralExpression(IStringLiteral node)
         {
             if (ShouldAcquireLiteralType(node))
@@ -16170,6 +16276,11 @@ namespace TypeScript.Net.TypeChecking
                 case SyntaxKind.ConditionalExpression:
                     return CheckConditionalExpression(
                             node.Cast<IConditionalExpression>(),
+                            contextualMapper);
+
+                case SyntaxKind.SwitchExpression:
+                    return CheckSwitchExpression(
+                            node.Cast<ISwitchExpression>(),
                             contextualMapper);
 
                 case SyntaxKind.SpreadElementExpression:

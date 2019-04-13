@@ -59,13 +59,19 @@ namespace Sandbox {
     const bundleInfoTestFile = f`BundleInfoTest.xcconfig`;
 
     const isMacOs = Context.getCurrentHost().os === "macOS";
-    const interopXcodeproj = Transformer.sealDirectory(d`Interop/Interop.xcodeproj`, globR(d`Interop/Interop.xcodeproj`, "*"));
-    const sandboxXcodeproj = Transformer.sealDirectory(d`Sandbox/Sandbox.xcodeproj`, globR(d`Sandbox/Sandbox.xcodeproj`, "*"));
+    const interopXcodeproj = Transformer.sealDirectory({
+        root: d`Interop/Interop.xcodeproj`, 
+        files: globR(d`Interop/Interop.xcodeproj`, "*")
+    });
+    const sandboxXcodeproj = Transformer.sealDirectory({
+        root: d`Sandbox/Sandbox.xcodeproj`, 
+        files: globR(d`Sandbox/Sandbox.xcodeproj`, "*")
+    });
 
     const ariaPkg = importFrom("Aria.Cpp.SDK.osx-x64");
-    const ariaXcconfig = Transformer.writeData(
-        p`${Context.getNewOutputDirectory("xcconfig")}/Aria.xcconfig`,
-        {
+    const ariaXcconfig = Transformer.writeData({
+        outputPath: p`${Context.getNewOutputDirectory("xcconfig")}/Aria.xcconfig`,
+        contents: {
             separator: "\n",
             contents: [
                 "GCC_PREPROCESSOR_DEFINITIONS = MICROSOFT_INTERNAL",
@@ -74,7 +80,7 @@ namespace Sandbox {
                 "OTHER_LDFLAGS = $(inherited) -laria_osx_objc_cpp"
             ]
         }
-    );
+    });
 
     @@public
     export const libAria = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : isMacOs && build({

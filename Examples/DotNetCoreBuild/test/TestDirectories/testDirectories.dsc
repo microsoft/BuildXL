@@ -32,11 +32,13 @@ export const explicitOutputsByDifferentPipsAreAllowedInSharedOpaqueDirectory = !
 
 @@public
 export const twoPipsWritingArbitraryFilesIntoSharedOpaqueDirectoryIsAllowed = !Context.isWindowsOS() && (() => {
-    const sodPath = Context.getNewOutputDirectory("sod");
+    const sodPath = Context.getNewOutputDirectory("sod-mix");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
     writeFileToDir("arbitrary1", sod);
     writeFileToDir("arbitrary2", sod);
     writeFileToDir(p`${sodPath}/explicit3`, sod);
+    const wrFile = Transformer.writeFile(p`${sodPath}/write-file.txt`, "Hi");
+    Transformer.copyFile(wrFile, p`${sodPath}/copy-file.txt`);
 })();
 
 @@public
@@ -56,7 +58,10 @@ export const writeHardLinkInSharedOpaqueDirectoryIsAllowed = !Context.isWindowsO
     linkFileIntoDirectory(f`testDirectories.dsc`, sod);
 
     // hardlink an output file
-    const outFile = Transformer.writeFile(p`${Context.getNewOutputDirectory("write-file")}/writefile.txt`, "hi");
+    const outFile = Transformer.writeAllText({
+        outputPath: p`${Context.getNewOutputDirectory("write-file")}/writefile.txt`, 
+        text: "hi"
+    });
     linkFileIntoDirectory(outFile, sod);
 
     // symlink a source file
@@ -76,7 +81,10 @@ export const testSealedSourceDir = readFileFromDirectory(
 @@public
 export const testSealedDir = readFileFromDirectory(
     "read-seal-dir",
-    Transformer.sealDirectory(d`src-dir`, globR(d`src-dir`, "*")),
+    Transformer.sealDirectory({
+        root: d`src-dir`, 
+        files: globR(d`src-dir`, "*")
+    }),
     "src-file1.txt");
 
 @@public

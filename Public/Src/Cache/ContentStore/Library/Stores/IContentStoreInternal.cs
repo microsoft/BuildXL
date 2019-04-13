@@ -303,7 +303,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Complete all pending/background operations.
         /// </summary>
-        Task SyncAsync(Context context);
+        Task SyncAsync(Context context, bool purge = true);
 
         /// <summary>
         ///     Read pin history.

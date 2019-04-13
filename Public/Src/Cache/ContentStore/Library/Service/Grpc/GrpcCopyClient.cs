@@ -2,12 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -28,6 +27,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly ContentServer.ContentServerClient _client;
         private readonly string _host;
         private readonly int _grpcPort;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether compression may be used during transmission.
+        /// </summary>
+        public bool SupportsCompression { get; set; } = true;
 
         /// <inheritdoc />
         public bool ShutdownCompleted { get; private set; }
@@ -50,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private GrpcCopyClient(string host, int grpcPort)
         {
             GrpcEnvironment.InitializeIfNeeded();
-            _channel = new Channel(host, (int)grpcPort, ChannelCredentials.Insecure);
+            _channel = new Channel(host, grpcPort, ChannelCredentials.Insecure);
             _client = new ContentServer.ContentServerClient(_channel);
             _host = host;
             _grpcPort = grpcPort;
@@ -83,74 +87,167 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <summary>
-        /// Copies file to local path
+        /// Copies content from the server to the given local path.
         /// </summary>
-        public async Task<CopyFileResult> CopyFileAsync(Context context, ContentHash contentHash, AbsolutePath destinationPath, CancellationToken cancellationToken, long fileSize = -1, bool enableCompression = false)
+        public Task<CopyFileResult> CopyFileAsync(Context context, ContentHash hash, AbsolutePath destinationPath, CancellationToken ct = default(CancellationToken))
         {
-            try
-            {
-                using (var stream = new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, ContentStore.Grpc.Utils.DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan))
-                {
-                    return await CopyToAsync(context, contentHash, stream, cancellationToken, fileSize, enableCompression);
-                }
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is InvalidOperationException)
-            {
-                return new CopyFileResult(CopyFileResult.ResultCode.DestinationPathError, ex, $"Error copying to file {destinationPath.Path}");
-            }
+            Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, ContentStore.Grpc.CopyConstants.DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            return CopyToAsync(context, hash, streamFactory, ct);        
+        }
+        
+        /// <summary>
+        /// Copies content from the server to the given stream.
+        /// </summary>
+        public Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Stream stream, CancellationToken ct = default(CancellationToken))
+        {
+            return CopyToAsync(context, hash, () => stream, ct);
         }
 
         /// <summary>
-        /// Copies file to stream
+        /// Copies content from the server to the stream returned by the factory.
         /// </summary>
-        public async Task<CopyFileResult> CopyToAsync(Context context, ContentHash contentHash, Stream stream, CancellationToken cancellationToken, long fileSize = -1, bool enableCompression = false)
+        public async Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Func<Stream> streamFactory, CancellationToken ct = default(CancellationToken))
         {
-            // TODO: Pipe through flag for compression type
-            CopyCompression compression = enableCompression ? CopyCompression.Gzip : CopyCompression.None;
-            long bytesReceived = 0L;
-
             try
             {
-                AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(new CopyFileRequest
+                CopyFileRequest request = new CopyFileRequest()
                 {
                     TraceId = context.Id.ToString(),
-                    HashType = (int)contentHash.HashType,
-                    ContentHash = contentHash.ToByteString(),
-                    // TODO: If `Drive` is expected to be the drive of the file on the source machine, then this should have nothing to do with the destination's drive
-                    Drive = "B",
+                    HashType = (int) hash.HashType,
+                    ContentHash = hash.ToByteString(),
                     Offset = 0,
-                    Compression = compression
-                });
+                    Compression = SupportsCompression ? CopyCompression.Gzip : CopyCompression.None
+                };
 
-                bytesReceived = await StreamContentAsync(stream, response.ResponseStream);
+                AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request);
+
+                Metadata headers = await response.ResponseHeadersAsync;
+
+                // If the remote machine couldn't be contacted, GRPC returns an empty
+                // header collection. GRPC would throw an RpcException when we tried
+                // to stream response, but by that time we would have created target
+                // stream. To avoid that, exit early instead.
+                if (headers.Count == 0)
+                {
+                    return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Failed to connect to copy server {_host} at port {_grpcPort}.");
+                }
+
+                // Parse header collection.
+                string exception = null;
+                string message = null;
+                CopyCompression compression = CopyCompression.None;
+                foreach(Metadata.Entry header in headers)
+                {
+                    switch (header.Key)
+                    {
+                        case "exception":
+                            exception = header.Value;
+                            break;
+                        case "message":
+                            message = header.Value;
+                            break;
+                        case "compression":
+                            Enum.TryParse<CopyCompression>(header.Value, out compression);
+                            break;
+                    }
+                }
+
+                // Process reported server-side errors.
+                if (exception != null)
+                {
+                    Debug.Assert(message != null);
+                    switch (exception)
+                    {
+                        case "ContentNotFound":
+                            return new CopyFileResult(CopyFileResult.ResultCode.FileNotFoundError, message);
+                        default:
+                            return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, message);
+                    }
+                }
+
+                // We got headers back with no errors, so create the target stream.
+                Stream targetStream;
+                try
+                {
+                    targetStream = streamFactory();
+                }
+                catch (Exception targetException)
+                {
+                    return new CopyFileResult(CopyFileResult.ResultCode.DestinationPathError, targetException);
+                }
+
+                // Copy the content to the target stream.
+                using (targetStream)
+                {
+                    switch (compression)
+                    {
+                        case CopyCompression.None:
+                            await StreamContentAsync(targetStream, response.ResponseStream, ct).ConfigureAwait(false);
+                            break;
+                        case CopyCompression.Gzip:
+                            await StreamContentWithCompressionAsync(targetStream, response.ResponseStream, ct).ConfigureAwait(false);
+                            break;
+                    }
+                }
+
+                return CopyFileResult.Success;
             }
-            catch (RpcException r) when (r.StatusCode == StatusCode.Unavailable && r.Message.Contains("Connect Failed"))
+            catch (RpcException r)
             {
-                return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, r, $"Failed to connect to server {_host} at port {_grpcPort}");
+                if (r.StatusCode == StatusCode.Unavailable)
+                {
+                    return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, r);
+                }
+                else
+                {
+                    return new CopyFileResult(CopyFileResult.ResultCode.Unknown, r);
+                }
             }
 
-            if (bytesReceived == 0)
-            {
-                return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Received {bytesReceived} bytes for {contentHash}. Source file does not exist");
-            }
-            else if (fileSize >= 0 && bytesReceived != fileSize)
-            {
-                return new CopyFileResult(CopyFileResult.ResultCode.InvalidHash, $"Received {bytesReceived} bytes for {contentHash}, expected {fileSize}");
-            }
-
-            return CopyFileResult.SuccessWithSize(bytesReceived);
         }
 
-        private async Task<long> StreamContentAsync(Stream fileStream, IAsyncStreamReader<CopyFileResponse> replyStream)
+        private async Task<(long Chunks, long Bytes)> StreamContentAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CancellationToken ct = default(CancellationToken))
         {
-            long bytesReceived = 0L;
-            while (await replyStream.MoveNext(CancellationToken.None))
+            long chunks = 0L;
+            long bytes = 0L;
+            while (await replyStream.MoveNext(ct).ConfigureAwait(false))
             {
-                CopyFileResponse oneOfManyReply = replyStream.Current;
-                bytesReceived += oneOfManyReply.Content.Length;
-                oneOfManyReply.Content.WriteTo(fileStream);
+                chunks++;
+                CopyFileResponse reply = replyStream.Current;
+                bytes += reply.Content.Length;
+                reply.Content.WriteTo(targetStream);
             }
-            return bytesReceived;
+            return (chunks, bytes);
+        }
+
+        private async Task<(long Chunks, long Bytes)> StreamContentWithCompressionAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CancellationToken ct = default(CancellationToken))
+        {
+            Debug.Assert(targetStream != null);
+            Debug.Assert(replyStream != null);
+
+            long chunks = 0L;
+            long bytes = 0L;
+            using (BufferedReadStream grpcStream = new BufferedReadStream(async () =>
+            {
+                if (await replyStream.MoveNext(ct).ConfigureAwait(false))
+                {
+                    chunks++;
+                    bytes += replyStream.Current.Content.Length;
+                    return replyStream.Current.Content.ToByteArray();
+                }
+                else
+                {
+                    return null;
+                }
+            }))
+            {
+                using (Stream decompressedStream = new GZipStream(grpcStream, CompressionMode.Decompress, true))
+                {
+                    await decompressedStream.CopyToAsync(targetStream, ContentStore.Grpc.CopyConstants.DefaultBufferSize, ct).ConfigureAwait(false);
+                }
+            }
+
+            return (chunks, bytes);
         }
         
         private async Task<T> RunClientActionAndThrowIfFailedAsync<T>(Context context, Func<Task<T>> clientAction)

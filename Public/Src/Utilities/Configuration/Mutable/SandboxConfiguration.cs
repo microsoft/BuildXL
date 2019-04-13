@@ -41,6 +41,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             KextThrottleCpuUsageWakeupThresholdPercent = 0; // no throttling by default
             KextThrottleMinAvailableRamMB = 0;              // no throttling by default
             ContainerConfiguration = new SandboxContainerConfiguration();
+            AdminRequiredProcessExecutionMode = AdminRequiredProcessExecutionMode.InProc;
         }
 
         /// <nodoc />
@@ -82,6 +83,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             KextThrottleCpuUsageWakeupThresholdPercent = template.KextThrottleCpuUsageWakeupThresholdPercent;
             KextThrottleMinAvailableRamMB = template.KextThrottleMinAvailableRamMB;
             ContainerConfiguration = new SandboxContainerConfiguration(template.ContainerConfiguration);
+            AdminRequiredProcessExecutionMode = template.AdminRequiredProcessExecutionMode;
         }
 
         /// <inheritdoc />
@@ -213,5 +215,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         ISandboxContainerConfiguration ISandboxConfiguration.ContainerConfiguration => ContainerConfiguration;
+
+        /// <inheritdoc />
+        public AdminRequiredProcessExecutionMode AdminRequiredProcessExecutionMode { get; set; }
     }
 }

@@ -298,6 +298,12 @@ namespace BuildXL.Pips.Operations
         public bool IsStartOrShutdownKind => ServiceInfo != null && ServiceInfo.IsStartOrShutdownKind;
 
         /// <summary>
+        /// Indicates whether running this process requires admin privilege.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public bool RequiresAdmin { get; }
+
+        /// <summary>
         /// Class constructor
         /// </summary>
         public Process(
@@ -340,7 +346,8 @@ namespace BuildXL.Pips.Operations
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
             DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
-            int? weight = null)
+            int? weight = null,
+            bool requiresAdmin = false)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -440,6 +447,7 @@ namespace BuildXL.Pips.Operations
             DoubleWritePolicy = doubleWritePolicy;
             ContainerIsolationLevel = containerIsolationLevel;
             Weight = weight.HasValue && weight.Value > 0 ? weight.Value : 1;
+            RequiresAdmin = requiresAdmin;
         }
 
         /// <summary>
@@ -485,7 +493,8 @@ namespace BuildXL.Pips.Operations
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
             DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
-            int? weight = null)
+            int? weight = null,
+            bool requiresAdmin = false)
         {
             return new Process(
                 executable ?? Executable,
@@ -527,7 +536,8 @@ namespace BuildXL.Pips.Operations
                 absentPathProbeMode,
                 doubleWritePolicy,
                 containerIsolationLevel,
-                weight);
+                weight,
+                requiresAdmin);
         }
 
         /// <inheritdoc />

@@ -199,6 +199,9 @@ namespace BuildXL
                 m_handlers =
                     new[]
                     {
+                        OptionHandlerFactory.CreateOption(
+                            "adminRequiredProcessExecutionMode",
+                            opt => sandboxConfiguration.AdminRequiredProcessExecutionMode = CommandLineUtilities.ParseEnumOption<AdminRequiredProcessExecutionMode>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
                             "allowFetchingCachedGraphFromContentCache",
                             sign => cacheConfiguration.AllowFetchingCachedGraphFromContentCache = sign),

@@ -746,6 +746,11 @@ namespace BuildXL
                 "/useFileContentTable[+|-]",
                 Strings.HelpText_DisplayHelp_UseFileContentTable,
                 HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/adminRequiredProcessExecutionMode:<mode>",
+                Strings.HelpText_DisplayHelp_AdminRequiredProcessExecutionMode,
+                HelpLevel.Verbose);
             #endregion
 
             hw.WriteBanner(

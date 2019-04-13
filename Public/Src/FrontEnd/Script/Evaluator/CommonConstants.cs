@@ -19,9 +19,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         public SymbolAtom Qualifier { get; }
 
         /// <nodoc />
-        public SymbolAtom Qualifier { get; }
-
-        /// <nodoc />
         public SymbolAtom Length { get; }
 
         /// <nodoc />

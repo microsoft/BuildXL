@@ -30,7 +30,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 54: Added AbsentPathProbeUnderOpaquesMode to Process and WeakFingerPrint
         /// 55: Changed FileMaterializationInfo/FileContentInfo bond serialization
         /// 56: Added NeedsToRunInContainer, ContainerIsolationLevel and DoubleWritePolicy
+        /// 57: Fixed enumeration in StoreContentForProcessAndCreateCacheEntryAsync
         /// </remarks>
-        TwoPhaseV2 = 56,
+        TwoPhaseV2 = 57,
     }
 }

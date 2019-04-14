@@ -418,7 +418,7 @@ namespace BuildXL.FrontEnd.Script.Values
         }
 
         /// <inheritdoc />
-        public sealed override bool TryProject(Context context, SymbolAtom name, ModuleLiteral origin, PredefinedTypes predefinedTypes, out EvaluationResult result, LineInfo location)
+        public sealed override bool TryProject(Context context, SymbolAtom name, ModuleLiteral origin, out EvaluationResult result, LineInfo location)
         {
             result = GetOrEvalField(context, name, recurs: false, origin: origin, location: Location);
             return true;

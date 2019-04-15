@@ -223,7 +223,11 @@ namespace BuildXL
             FrontEndControllerMemoryObserver.CaptureFrontEndReference(sharedModuleRegistry);
 
             frontEndFactory.SetConfigurationProcessor(
-                new ConfigurationProcessor(globalConstants, sharedModuleRegistry, logger: null));
+                new ConfigurationProcessor(
+                    globalConstants, 
+                    sharedModuleRegistry,
+                    new FrontEndStatistics(), // Configuration processing is so lightweight that it won't affect overall perf statistics
+                    logger: null));
 
             var msBuildFrontEnd = new MsBuildFrontEnd(
                 globalConstants,
@@ -276,8 +280,14 @@ namespace BuildXL
                 return null;
             }
 
-            return new FrontEndHostController(frontEndFactory, workspaceResolverFactory,
-                frontEndStatistics: frontEndStatistics, collector: collector, collectMemoryAsSoonAsPossible: collectMemoryAsSoonAsPossible);
+            return new FrontEndHostController(
+                frontEndFactory,
+                workspaceResolverFactory,
+                evaluationScheduler: EvaluationScheduler.Default,
+                frontEndStatistics: frontEndStatistics,
+                logger: BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(),
+                collector: collector, 
+                collectMemoryAsSoonAsPossible: collectMemoryAsSoonAsPossible);
         }
 
         private static void RegisterKnownWorkspaceResolvers(

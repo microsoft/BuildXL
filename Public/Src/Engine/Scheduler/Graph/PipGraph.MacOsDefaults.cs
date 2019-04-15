@@ -17,7 +17,6 @@ namespace BuildXL.Scheduler.Graph
                 = CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance);
 
             private readonly PipProvenance m_provenance;
-            private readonly FileArtifact[] m_inputFiles;
             private readonly DirectoryArtifact[] m_inputDirectories;
             private readonly FileArtifact[] m_untrackedFiles;
             private readonly DirectoryArtifact[] m_untrackedDirectories;
@@ -34,23 +33,16 @@ namespace BuildXL.Scheduler.Graph
                     QualifierId.Unqualified,
                     PipData.Invalid);
 
-                m_inputFiles =
-                    new[]
-                    {
-                        FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.Etc)),
-                        FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.TmpDir)),
-                    };
-
                 // Sealed Source inputs
                 m_inputDirectories =
                     new[]
                     {
                         GetSourceSeal(pathTable, pipGraph, MacPaths.Applications),
+                        GetSourceSeal(pathTable, pipGraph, MacPaths.Library),
+                        GetSourceSeal(pathTable, pipGraph, MacPaths.UserProvisioning),
                         GetSourceSeal(pathTable, pipGraph, MacPaths.UsrBin),
                         GetSourceSeal(pathTable, pipGraph, MacPaths.UsrInclude),
                         GetSourceSeal(pathTable, pipGraph, MacPaths.UsrLib),
-                        GetSourceSeal(pathTable, pipGraph, MacPaths.Library),
-                        GetSourceSeal(pathTable, pipGraph, MacPaths.UserProvisioning),
                     };
 
                 m_untrackedFiles =
@@ -58,9 +50,11 @@ namespace BuildXL.Scheduler.Graph
                     {
                         // login.keychain is created by the OS the first time any process invokes an OS API that references the keychain.
                         // Untracked because build state will not be stored there and code signing will fail if required certs are in the keychain
+                        FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.Etc)),
                         FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.UserKeyChainsDb)),
                         FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.UserKeyChains)),
                         FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.UserCFTextEncoding)),
+                        FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.TmpDir)),
                         
                     };
 
@@ -88,11 +82,6 @@ namespace BuildXL.Scheduler.Graph
             {
                 if ((processBuilder.Options & Process.Options.DependsOnCurrentOs) != 0)
                 {
-                    foreach (var inputFile in m_inputFiles)
-                    {
-                        processBuilder.AddInputFile(inputFile);
-                    }
-
                     foreach (var inputDirectory in m_inputDirectories)
                     {
                         processBuilder.AddInputDirectory(inputDirectory);

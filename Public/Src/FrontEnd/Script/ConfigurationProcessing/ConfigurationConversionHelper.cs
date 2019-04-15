@@ -84,8 +84,8 @@ namespace BuildXL.FrontEnd.Script
             FrontEndHost host,
             FrontEndContext context,
             IConfiguration configuration,
-            IFrontEndStatistics statistics = null)
-            : base(constants, sharedModuleRegistry, statistics ?? new FrontEndStatistics(), logger, host, context, configuration)
+            IFrontEndStatistics statistics)
+            : base(constants, sharedModuleRegistry, statistics, logger, host, context, configuration)
         {
             Engine = engine ?? new SimpleFrontEndEngineAbstraction(context.PathTable, context.FileSystem, configuration);
             Kind = kind;
@@ -351,7 +351,7 @@ namespace BuildXL.FrontEnd.Script
 
         private async Task<Workspace> TypeCheckWorkspaceAsync(Workspace workspace)
         {
-            var frontEndStatistics = new FrontEndStatistics(); // don't polute global statistics with this
+            var frontEndStatistics = new FrontEndStatistics(); // don't pollute global statistics with this
             var semanticWorkspaceProvider = new SemanticWorkspaceProvider(frontEndStatistics, WorkspaceConfiguration);
             workspace = await semanticWorkspaceProvider.ComputeSemanticWorkspaceAsync(Context.PathTable, workspace);
 

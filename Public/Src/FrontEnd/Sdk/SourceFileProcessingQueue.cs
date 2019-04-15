@@ -9,7 +9,7 @@ using System.Threading.Tasks.Dataflow;
 using BuildXL.Utilities.Tasks;
 using TypeScript.Net.Types;
 
-namespace BuildXL.FrontEnd.Core
+namespace BuildXL.FrontEnd.Sdk
 {
     /// <summary>
     /// Convers parsed file (<see cref="ISourceFile"/> into evaluation representations.

@@ -830,7 +830,7 @@ namespace Test.BuildXL.FrontEnd.Core
             DScriptWorkspaceResolverFactory workspaceResolverFactory, Logger logger, IDecorator<EvaluationResult> decorator)
         {
             return FrontEndFactory.CreateInstanceForTesting(
-                () => new ConfigurationProcessor(constants, moduleRegistry, logger),
+                () => new ConfigurationProcessor(constants, moduleRegistry, new FrontEndStatistics(), logger),
                 new DScriptFrontEnd(constants, moduleRegistry, FrontEndStatistics, logger, decorator));
         }
 
@@ -1019,7 +1019,14 @@ namespace Test.BuildXL.FrontEnd.Core
 
             var engineContext = new EngineContext(FrontEndContext.CancellationToken, FrontEndContext.PathTable, FrontEndContext.SymbolTable, FrontEndContext.QualifierTable, FrontEndContext.FileSystem, new TokenTextTable());
 
-            var controller = new FrontEndHostController(frontEndFactory, workspaceFactory, EvaluationScheduler, logger: InitializationLogger, collectMemoryAsSoonAsPossible: false);
+            var controller = new FrontEndHostController(
+                frontEndFactory, 
+                workspaceFactory, 
+                EvaluationScheduler,
+                new FrontEndStatistics(),
+                InitializationLogger, 
+                collector: null,
+                collectMemoryAsSoonAsPossible: false);
             var engine = BuildXLEngine.Create(LoggingContext, engineContext, config, new LambdaBasedFrontEndControllerFactory((_, __) => controller));
 
             if (engine == null)

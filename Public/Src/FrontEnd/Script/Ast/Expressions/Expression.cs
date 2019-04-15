@@ -131,14 +131,12 @@ namespace BuildXL.FrontEnd.Script.Expressions
             Context context,
             SymbolAtom name,
             ModuleLiteral origin,
-            PredefinedTypes predefinedTypes,
             out EvaluationResult result,
             LineInfo location)
         {
             Contract.Requires(context != null);
             Contract.Requires(name.IsValid);
             Contract.Requires(origin != null);
-            Contract.Requires(predefinedTypes != null);
 
             result = EvaluationResult.Error;
             return false;

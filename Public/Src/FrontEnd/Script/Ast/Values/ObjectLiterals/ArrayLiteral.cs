@@ -183,7 +183,7 @@ namespace BuildXL.FrontEnd.Script.Values
         public abstract void Copy(int sourceIndex, EvaluationResult[] destination, int destinationIndex, int length);
 
         /// <inheritdoc />
-        public override bool TryProject(Context context, SymbolAtom name, ModuleLiteral origin, PredefinedTypes predefinedTypes, out EvaluationResult result, LineInfo location)
+        public override bool TryProject(Context context, SymbolAtom name, ModuleLiteral origin, out EvaluationResult result, LineInfo location)
         {
             if (name == context.ContextTree.CommonConstants.Length)
             {
@@ -191,7 +191,7 @@ namespace BuildXL.FrontEnd.Script.Values
                 return true;
             }
 
-            var resolvedMember = predefinedTypes.AmbientArray.ResolveMember(this, name);
+            var resolvedMember = context.PredefinedTypes.AmbientArray.ResolveMember(this, name);
 
             if (resolvedMember == null)
             {

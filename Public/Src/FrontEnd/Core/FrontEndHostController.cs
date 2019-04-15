@@ -118,22 +118,25 @@ namespace BuildXL.FrontEnd.Core
         public FrontEndHostController(
             FrontEndFactory frontEndFactory,
             DScriptWorkspaceResolverFactory workspaceResolverFactory,
-            EvaluationScheduler evaluationScheduler = null,
-            IFrontEndStatistics frontEndStatistics = null,
-            Logger logger = null,
-            PerformanceCollector collector = null,
-            bool collectMemoryAsSoonAsPossible = true)
+            EvaluationScheduler evaluationScheduler,
+            IFrontEndStatistics frontEndStatistics,
+            Logger logger,
+            PerformanceCollector collector,
+            bool collectMemoryAsSoonAsPossible)
         {
             Contract.Requires(frontEndFactory != null);
             Contract.Requires(frontEndFactory.IsSealed);
-
-            m_logger = logger ?? Logger.CreateLogger();
+            Contract.Requires(evaluationScheduler != null);
+            Contract.Requires(frontEndStatistics != null);
+            Contract.Requires(logger != null);
+            
+            m_logger = logger;
 
             // Temporary initialization
             m_frontEndFactory = frontEndFactory;
             m_workspaceResolverFactory = workspaceResolverFactory;
-            m_evaluationScheduler = evaluationScheduler ?? EvaluationScheduler.Default;
-            m_frontEndStatistics = frontEndStatistics ?? new FrontEndStatistics();
+            m_evaluationScheduler = evaluationScheduler;
+            m_frontEndStatistics = frontEndStatistics;
             m_cycleDetectorStatistics = new CycleDetectorStatistics();
 
             m_collector = collector;
@@ -1035,7 +1038,12 @@ namespace BuildXL.FrontEnd.Core
         /// need front-end context that the host carries.
         /// </remarks>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Clients should dispose the host")]
-        public static FrontEndHostController CreateForTesting(FrontEndContext frontEndContext, FrontEndEngineAbstraction engine, string configFilePath, Logger logger = null, string outputDirectory = null)
+        public static FrontEndHostController CreateForTesting(
+            FrontEndContext frontEndContext, 
+            FrontEndEngineAbstraction engine, 
+            string configFilePath, 
+            Logger logger = null, 
+            string outputDirectory = null)
         {
             Contract.Requires(frontEndContext != null);
 
@@ -1047,7 +1055,8 @@ namespace BuildXL.FrontEnd.Core
                 new DScriptWorkspaceResolverFactory(),
                 new EvaluationScheduler(degreeOfParallelism: 1, cancellationToken: frontEndContext.CancellationToken),
                 new FrontEndStatistics(),
-                logger,
+                logger ?? Logger.CreateLogger(),
+                collector: null,
                 collectMemoryAsSoonAsPossible: false); // Don't need to collect memory in tests.
 
             ((IFrontEndController)frontEndHost).InitializeHost(

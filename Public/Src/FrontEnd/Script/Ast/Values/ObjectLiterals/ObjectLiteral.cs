@@ -403,8 +403,18 @@ namespace BuildXL.FrontEnd.Script.Values
             }
 
             var entry = context.TopStack;
-            var location = entry.InvocationLocation;
-            var path = entry.Path;
+            LineInfo location;
+            AbsolutePath path;
+            if (entry != null)
+            {
+                location = entry.InvocationLocation;
+                path = entry.Path;
+            }
+            else
+            {
+                location = default(LineInfo);
+                path = AbsolutePath.Invalid;
+            }
 
             // We don't want to return an ObjectLiteralN unconditionally, to leverage ObjectLiteralSlim memory savings
             // If the result doesn't fit in an ObjectLiteralSlim, we already have a dictionary built for an ObjectLiteralN, so

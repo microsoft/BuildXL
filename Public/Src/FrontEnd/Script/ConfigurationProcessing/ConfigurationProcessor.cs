@@ -79,6 +79,12 @@ namespace BuildXL.FrontEnd.Script
                 return null;
             }
 
+            // Apply Additional configurations from the commandline
+            foreach (var additionalConfigurationFile in commandLineConfiguration.Startup.AdditionalConfigFiles)
+            {
+                configObjectLiteral = ParseAndInterpretConfigFile(additionalConfigurationFile, configObjectLiteral);
+            }
+
             // TODO: user override is not really working now. Fix me!
 
             try
@@ -140,12 +146,13 @@ namespace BuildXL.FrontEnd.Script
             return AbsolutePath.Invalid;
         }
 
-        private ObjectLiteral ParseAndInterpretConfigFile(AbsolutePath configPath)
+
+        private ObjectLiteral ParseAndInterpretConfigFile(AbsolutePath additionalConfigPath, ObjectLiteral configObjectLiteral = null)
         {
-            return ParseAndInterpretConfigFileAsync(configPath).GetAwaiter().GetResult();
+            return ParseAndInterpretConfigFileAsync(additionalConfigPath, configObjectLiteral).GetAwaiter().GetResult();
         }
 
-        private async Task<ObjectLiteral> ParseAndInterpretConfigFileAsync(AbsolutePath configPath)
+        private async Task<ObjectLiteral> ParseAndInterpretConfigFileAsync(AbsolutePath configPath, ObjectLiteral configObjectLiteralMerging)
         {
             Contract.Requires(configPath.IsValid);
 
@@ -158,7 +165,7 @@ namespace BuildXL.FrontEnd.Script
                 return null;
             }
 
-            var configObjectLiteral = EvaluateConfigObjectLiteral(parsedConfig.Result);
+            var configObjectLiteral = EvaluateConfigObjectLiteral(parsedConfig.Result, configObjectLiteralMerging);
             if (configObjectLiteral == null)
             {
                 var configPathString = configPath.ToString(Context.PathTable);
@@ -192,7 +199,7 @@ namespace BuildXL.FrontEnd.Script
                 FrontEndStatistics);
         }
 
-        private ObjectLiteral EvaluateConfigObjectLiteral(FileModuleLiteral moduleLiteral)
+        private ObjectLiteral EvaluateConfigObjectLiteral(FileModuleLiteral moduleLiteral, ObjectLiteral configObjectLiteral)
         {
             // Instantiate config module, and because config is qualifier-agnositic, it is instantiated with empty qualifier.
             var instantiatedModule = InstantiateModuleWithDefaultQualifier(moduleLiteral);
@@ -220,7 +227,8 @@ namespace BuildXL.FrontEnd.Script
                     return null;
                 }
 
-                return ResolveConfigObjectLiteral(instantiatedModule, context);
+                return configObjectLiteral == null ? ResolveConfigObjectLiteral(instantiatedModule, context) 
+                    : (ObjectLiteral)configObjectLiteral.Merge(context, EvaluationStackFrame.UnsafeFrom(new EvaluationResult[0]), new EvaluationResult(ResolveConfigObjectLiteral(instantiatedModule, context))).Value;
             }
         }
 

@@ -215,7 +215,7 @@ namespace BuildXL.FrontEnd.Ninja
         }
 
         /// <inheritdoc cref="IDScriptWorkspaceModuleResolver" />
-        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings)
+        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings, [NotNull] QualifierId[] requestedQualifiers)
         {
             InitializeInterpreter(host, context, configuration);
             m_resolverSettings = resolverSettings as INinjaResolverSettings;

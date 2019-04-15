@@ -480,7 +480,7 @@ namespace BuildXL.FrontEnd.MsBuild
                                                     
             processBuilder.SetResponseFileSpecification(rspFileSpec);
 
-            if (!TryAddMsBuildArguments(project, qualifier, processBuilder.ArgumentsBuilder, logDirectory, outputResultCacheFile, out failureDetail))
+            if (!TryAddMsBuildArguments(project, processBuilder.ArgumentsBuilder, logDirectory, outputResultCacheFile, out failureDetail))
             {
                 return false;
             }
@@ -516,7 +516,7 @@ namespace BuildXL.FrontEnd.MsBuild
             return true;
         }
 
-        private bool TryAddMsBuildArguments(ProjectWithPredictions<AbsolutePath> project, Qualifier qualifier, PipDataBuilder pipDataBuilder, AbsolutePath logDirectory, AbsolutePath outputResultCacheFile, out string failureDetail)
+        private bool TryAddMsBuildArguments(ProjectWithPredictions<AbsolutePath> project, PipDataBuilder pipDataBuilder, AbsolutePath logDirectory, AbsolutePath outputResultCacheFile, out string failureDetail)
         {
             // Common arguments to all MsBuildExe invocations
             pipDataBuilder.AddRange(s_commonArgumentsToMsBuildExe.Select(argument => PipDataAtom.FromString(argument)));
@@ -537,21 +537,6 @@ namespace BuildXL.FrontEnd.MsBuild
             foreach(var kvp in project.GlobalProperties)
             {
                 AddMsBuildProperty(pipDataBuilder, kvp.Key, kvp.Value);
-            }
-
-            // The specified qualifier, unless overridden by a global property, is turned into a property as well
-            // This means that:
-            // 1) if the project is not being referenced with a specific property that matters to the qualifier, the requested qualifier is used
-            // 2) if a particular property (e.g. platform) is set when referencing the project, that is honored
-            foreach (StringId key in qualifier.Keys)
-            {
-                string keyAsString = key.ToString(m_context.StringTable);
-                if (!project.GlobalProperties.ContainsKey(keyAsString))
-                {
-                    var success = qualifier.TryGetValue(m_context.StringTable, keyAsString, out string value);
-                    Contract.Assert(success);
-                    AddMsBuildProperty(pipDataBuilder, keyAsString, value);
-                }
             }
 
             // Configure binary logger if specified

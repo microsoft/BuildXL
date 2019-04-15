@@ -33,11 +33,14 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// <summary>
         /// Global MSBuild properties to use for all projects
         /// </summary>
-        /// <remarks>
-        /// Can be null
-        /// </remarks>
         [JsonProperty(IsReference = false)]
-        public IReadOnlyDictionary<string, string> GlobalProperties { get; }
+        public GlobalProperties GlobalProperties { get; }
+
+        /// <summary>
+        /// All requested qualifiers for this build, represented as global properties
+        /// </summary>
+        [JsonProperty(IsReference = false)]
+        public IReadOnlyCollection<GlobalProperties> RequestedQualifiers { get; }
 
         /// <summary>
         /// Collection of paths to search for the MSBuild toolset (assemblies), and MSBuild.exe itself
@@ -58,15 +61,18 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
             string enlistmentRoot,
             IReadOnlyCollection<string> projectsToParse, 
             string outputPath, 
-            IReadOnlyDictionary<string, string> globalProperties, 
+            GlobalProperties globalProperties,
             IReadOnlyCollection<string> mSBuildSearchLocations, 
-            IReadOnlyCollection<string> entryPointTargets)
+            IReadOnlyCollection<string> entryPointTargets,
+            IReadOnlyCollection<GlobalProperties> requestedQualifiers)
         {
             Contract.Requires(!string.IsNullOrEmpty(enlistmentRoot));
             Contract.Requires(projectsToParse?.Count > 0);
             Contract.Requires(!string.IsNullOrEmpty(outputPath));
+            Contract.Requires(globalProperties != null);
             Contract.Requires(mSBuildSearchLocations != null);
             Contract.Requires(entryPointTargets != null);
+            Contract.Requires(requestedQualifiers?.Count > 0);
 
             EnlistmentRoot = enlistmentRoot;
             ProjectsToParse = projectsToParse;
@@ -74,6 +80,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
             GlobalProperties = globalProperties;
             MSBuildSearchLocations = mSBuildSearchLocations;
             EntryPointTargets = entryPointTargets;
+            RequestedQualifiers = requestedQualifiers;
         }
 
         /// <inheritdoc/>
@@ -83,8 +90,9 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
 $@"Enlistment root: {EnlistmentRoot}
 Project entry points: [{string.Join(", ", ProjectsToParse)}]
 Serialized graph path: {OutputPath}
-Global properties: {(GlobalProperties == null ? "null" : string.Join(" ", GlobalProperties.Select(kvp => $"[{kvp.Key}]={kvp.Value}")))}
-Search locations: {string.Join(" ", MSBuildSearchLocations)}";
+Global properties: {string.Join(" ", GlobalProperties.Select(kvp => $"[{kvp.Key}]={kvp.Value}"))}
+Search locations: {string.Join(" ", MSBuildSearchLocations)}
+Requested qualifiers: {string.Join(" ", RequestedQualifiers.Select(qualifier => string.Join(";", qualifier.Select(kvp => $"[{kvp.Key}]={kvp.Value}"))))}";
         }
     }
 }

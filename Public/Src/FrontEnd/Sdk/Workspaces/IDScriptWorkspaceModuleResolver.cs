@@ -3,6 +3,7 @@
 
 using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Sdk.Workspaces
 {
@@ -16,6 +17,11 @@ namespace BuildXL.FrontEnd.Sdk.Workspaces
         /// <summary>
         /// Initializes the workspace resolver
         /// </summary>
-        bool TryInitialize([NotNull]FrontEndHost host, [NotNull]FrontEndContext context, [NotNull]IConfiguration configuration, [NotNull]IResolverSettings resolverSettings);
+        bool TryInitialize(
+            [NotNull]FrontEndHost host, 
+            [NotNull]FrontEndContext context, 
+            [NotNull]IConfiguration configuration, 
+            [NotNull]IResolverSettings resolverSettings,
+            [NotNull]QualifierId[] requestedQualifiers);
     }
 }

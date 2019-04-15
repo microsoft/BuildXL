@@ -19,6 +19,7 @@ using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Sdk.Workspaces;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
 using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.FrontEnd.MsBuild.Serialization;
 
 namespace BuildXL.FrontEnd.MsBuild
 {
@@ -86,6 +87,27 @@ namespace BuildXL.FrontEnd.MsBuild
                 return false;
             }
 
+            // Global property keys for MSBuild are case insensitive, but unfortunately we don't have maps with explicit comparers in dscript. 
+            // So we need to validate there are not two property keys that only differ in case
+            if (msBuildResolverSettings.GlobalProperties != null)
+            {
+                var globalKeys = msBuildResolverSettings.GlobalProperties.Keys;
+
+                // Store all keys in a case insensitive dictionary. If any of them get collapsed, there are keys that only differ in case
+                var caseInsensitiveKeys = new HashSet<string>(globalKeys, StringComparer.OrdinalIgnoreCase);
+                if (caseInsensitiveKeys.Count == globalKeys.Count())
+                {
+                    return true;
+                }
+
+                // So there are some keys that only differ in case. Each case insensitive key that is not in the original set of keys is problematic
+                var problematicKeys = globalKeys.Except(caseInsensitiveKeys);
+
+                Tracing.Logger.Log.InvalidResolverSettings(Context.LoggingContext, Location.FromFile(pathToFile), 
+                    $"Global property key(s) '{string.Join(", ", problematicKeys)}' specified multiple times with casing differences only. MSBuild global property keys are case insensitive.");
+                return false;
+            }
+
             return true;
         }
 
@@ -125,14 +147,25 @@ namespace BuildXL.FrontEnd.MsBuild
 
             ProjectGraphResult result = m_msBuildWorkspaceResolver.ComputedProjectGraph.Result;
 
-            // TODO: Filter out projects with non-matching qualifiers
+            GlobalProperties qualifier = MsBuildResolverUtils.CreateQualifierAsGlobalProperties(qualifierId, Context);
+
             IReadOnlySet<ProjectWithPredictions> filteredBuildFiles = result.ProjectGraph.ProjectNodes
                             .Where(project => evaluationGoals.Contains(project.FullPath))
+                            .Where(project => ProjectMatchesQualifier(project, qualifier))
                             .ToReadOnlySet();
 
             var graphConstructor = new PipGraphConstructor(Context, FrontEndHost, result.ModuleDefinition, m_msBuildResolverSettings, result.MsBuildExeLocation, m_frontEndName);
 
             return graphConstructor.TrySchedulePipsForFilesAsync(filteredBuildFiles, qualifierId);
+        }
+
+        private bool ProjectMatchesQualifier(ProjectWithPredictions project, GlobalProperties qualifier)
+        {
+            return qualifier.All(kvp =>
+                    // The project properties should contain all qualifier keys
+                    project.GlobalProperties.TryGetValue(kvp.Key, out string value) &&
+                    // The values should be the same. Not that values are case sensitive.
+                    kvp.Value.Equals(value, StringComparison.Ordinal));
         }
     }
 }

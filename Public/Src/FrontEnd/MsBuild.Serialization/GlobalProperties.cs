@@ -23,5 +23,11 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// <nodoc/>
         public GlobalProperties(IEnumerable<KeyValuePair<string, string>> dictionary): base(dictionary.ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase))
         { }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return $"[{string.Join(";", Keys.Select(key => $"{key.ToUpperInvariant()}={this[key]}"))}]";
+        }
     }
 }

@@ -139,12 +139,13 @@ namespace BuildXL.FrontEnd.Script
         }
 
         /// <nodoc/>
-        public virtual bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings)
+        public virtual bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings, QualifierId[] requestedQualifiers)
         {
             Contract.Requires(context != null);
             Contract.Requires(host != null);
             Contract.Requires(configuration != null);
             Contract.Requires(resolverSettings != null);
+            Contract.Requires(requestedQualifiers?.Length > 0);
 
             var sourceResolverSettings = resolverSettings as IDScriptResolverSettings;
             Contract.Assert(sourceResolverSettings != null);

@@ -45,6 +45,7 @@ namespace Scheduler {
             "BuildXL.Engine",
             "Test.BuildXL.FingerprintStore",
             "Test.BuildXL.Scheduler",
+            "Test.BuildXL.FrontEnd.MsBuild",
             "Test.Tool.Analyzers",
             "IntegrationTest.BuildXL.Scheduler",
         ],

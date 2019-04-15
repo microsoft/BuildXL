@@ -50,6 +50,7 @@ namespace BuildXL.FrontEnd.CMake
 
         private AbsolutePath ProjectRoot => m_resolverSettings.ProjectRoot;
         private AbsolutePath m_buildDirectory;
+        private QualifierId[] m_requestedQualifiers;
         private const string DefaultBuildTarget = "all";
 
         // AsyncLazy graph
@@ -168,7 +169,8 @@ namespace BuildXL.FrontEnd.CMake
                 FrontEndHost,
                 Context,
                 Configuration,
-                m_embeddedResolverSettings.Value));
+                m_embeddedResolverSettings.Value,
+                m_requestedQualifiers));
         }
 
         private async Task<Possible<Unit>> GenerateBuildDirectoryAsync()
@@ -359,12 +361,14 @@ namespace BuildXL.FrontEnd.CMake
         }
 
         /// <inheritdoc cref="IDScriptWorkspaceModuleResolver" />
-        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings)
+        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings, [NotNull] QualifierId[] requestedQualifiers)
         {
             InitializeInterpreter(host, context, configuration);
             m_resolverSettings = resolverSettings as ICMakeResolverSettings;
             Contract.Assert(m_resolverSettings != null);
             m_buildDirectory = Configuration.Layout.OutputDirectory.Combine(Context.PathTable, m_resolverSettings.BuildDirectory);
+            m_requestedQualifiers = requestedQualifiers;
+
             return true;
         }
 

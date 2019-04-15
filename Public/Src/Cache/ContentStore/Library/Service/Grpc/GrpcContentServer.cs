@@ -24,6 +24,7 @@ using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
 using PinRequest = ContentStore.Grpc.PinRequest;
+using BuildXL.Cache.ContentStore.FileSystem;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -34,25 +35,24 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     {
         private readonly Capabilities _serviceCapabilities;
         private readonly ILogger _logger;
-        private readonly Dictionary<string, string> _nameByDrive;
         private readonly Dictionary<string, IContentStore> _contentStoreByCacheName;
         private readonly ISessionHandler<IContentSession> _sessionHandler;
         private readonly ContentServerAdapter _adapter;
+        private readonly PassThroughFileSystem _fileSystem;
 
         /// <nodoc />
         public GrpcContentServer(
             ILogger logger,
             Capabilities serviceCapabilities,
             ISessionHandler<IContentSession> sessionHandler,
-            Dictionary<string, string> nameByDrive,
             Dictionary<string, IContentStore> storesByName)
         {
             _logger = logger;
             _serviceCapabilities = serviceCapabilities;
             _sessionHandler = sessionHandler;
             _adapter = new ContentServerAdapter(this);
-            _nameByDrive = nameByDrive;
             _contentStoreByCacheName = storesByName;
+            _fileSystem = new PassThroughFileSystem(logger);
         }
 
         /// <nodoc />
@@ -156,29 +156,30 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             };
         }
 
-        private async Task<OpenStreamResult> GetFileStreamAsync(Context context, ContentHash hash)
+        private async Task<OpenStreamResult> GetFileStreamAsync(Context context, AbsolutePath path)
         {
-            Debug.Assert(_contentStoreByCacheName != null);
+            Debug.Assert(_fileSystem != null);
 
-            // Iterate through all known stores, looking for contant in each.
-            // In most of our configurations there is just one store anyway,
-            // and doing this means both we can callers don't have
-            // to deal with cache roots and drive letters.
-
-            foreach (KeyValuePair<string, IContentStore> entry in _contentStoreByCacheName)
             {
-                IStreamStore store = entry.Value as IStreamStore;
-                if (store != null)
+                if (_fileSystem.FileExists(path))
                 {
-                    OpenStreamResult result = await store.StreamContentAsync(context, hash);
-                    if (result.Code != OpenStreamResult.ResultCode.ContentNotFound)
+                    try
                     {
-                        return result;
+                        var stream = await _fileSystem.OpenReadOnlySafeAsync(path, FileShare.Read | FileShare.Delete);
+                        return new OpenStreamResult(stream);
+                    }
+                    catch (FileNotFoundException)
+                    {
+                        return new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, $"File not found at {path}");
+                    }
+                    catch (Exception exception)
+                    {
+                        return new OpenStreamResult(OpenStreamResult.ResultCode.Error, $"{exception}");
                     }
                 }
-            }
 
-            return new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, $"{hash} to found");
+                return new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, $"File not found at path {path}");
+            }
         }
 
         /// <summary>
@@ -192,21 +193,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 // Get the content stream.
                 Context cacheContext = new Context(new Guid(request.TraceId), _logger);
-                HashType type = (HashType) request.HashType;
-                ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
-                OpenStreamResult result = await GetFileStreamAsync(cacheContext, hash);
+                OpenStreamResult result = await GetFileStreamAsync(cacheContext, new AbsolutePath(request.AbsolutePath));
 
                 using (result.Stream)
                 {
                     // Figure out response headers.
                     CopyCompression compression = CopyCompression.None;
                     Metadata headers = new Metadata();
-                    headers.Add("ContentHash", hash.ToString());
                     switch (result.Code)
                     {
                         case OpenStreamResult.ResultCode.ContentNotFound:
                             headers.Add("Exception", "ContentNotFound");
-                            headers.Add("Message", $"Requested content {hash} not found.");
+                            headers.Add("Message", $"Requested file at {request.AbsolutePath} not found.");
                             break;
                         case OpenStreamResult.ResultCode.Error:
                             Debug.Assert(result.Exception != null);

@@ -2,7 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
@@ -16,15 +18,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// </summary>
     public class GrpcDistributedPathTransformer : IAbsolutePathTransformer
     {
+        private readonly IReadOnlyDictionary<string, string> _junctionsByDirectory;
         private static readonly string _localMachineName = Environment.MachineName;
         internal const string BlobFileExtension = ".blob";
 
+        /// <nodoc />
+        public GrpcDistributedPathTransformer(IReadOnlyDictionary<string, string> junctionsByDirectory = null)
+        {
+            _junctionsByDirectory = junctionsByDirectory ?? new Dictionary<string,string>();
+        }
+
         /// <inheritdoc />
-        public AbsolutePath GeneratePath(ContentHash contentHash, byte[] contentLocationIdContent)
+        public AbsolutePath GeneratePath(ContentHash contentHash, byte[] contentLocation)
         {
             string contentHashString = contentHash.ToHex();
-            var pathRoot = new AbsolutePath(Encoding.UTF8.GetString(contentLocationIdContent));
-            return pathRoot / contentHash.HashType.ToString() / contentHashString.Substring(0, 3) / (contentHashString + BlobFileExtension);
+            var cacheRoot = new AbsolutePath(Encoding.UTF8.GetString(contentLocation));
+            return cacheRoot / contentHash.HashType.ToString() / contentHashString.Substring(0, 3) / (contentHashString + BlobFileExtension);
         }
 
         /// <inheritdoc />
@@ -40,11 +49,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 cacheRoot = cacheRoot / Constants.SharedDirectoryName;
             }
 
-            string networkPathRoot = cacheRoot.Path.Replace(":", "$");
+            var cacheRootString = cacheRoot.Path.ToUpperInvariant();
+
+            // Determine if cacheRoot needs to be accessed through its directory junction.
+            var directoryToReplace = _junctionsByDirectory.Keys.SingleOrDefault(directory => cacheRoot.Path.StartsWith(directory, StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrEmpty(directoryToReplace))
+            {
+                var junction = _junctionsByDirectory[directoryToReplace].ToUpperInvariant();
+                cacheRootString = cacheRootString.Replace(directoryToReplace, junction);
+            }
+
+            string networkPathRoot = cacheRootString.Replace(":", "$");
 
             return
                 Encoding.UTF8.GetBytes(
-                    Path.Combine(@"\\" + _localMachineName, networkPathRoot).ToUpperInvariant());
+                    Path.Combine(@"\\" + _localMachineName, networkPathRoot));
         }
 
         /// <inheritdoc />

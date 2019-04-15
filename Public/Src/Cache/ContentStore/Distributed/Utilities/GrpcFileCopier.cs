@@ -45,56 +45,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         public async Task<CopyFileResult> CopyFileAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, long contentSize, bool overwrite, CancellationToken cancellationToken)
         {
             // Extract host and contentHash from sourcePath
-            (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
+            string host = ExtractHostFromAbsolutePath(sourcePath);
 
             CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
             using (var client = GrpcCopyClient.Create(host, DefaultGrpcPort))
             {
-                copyFileResult = await client.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken);
+                copyFileResult = await client.CopyFileAsync(_context, sourcePath, destinationPath, cancellationToken);
             }
 
             return copyFileResult;
         }
 
-        private (string host, ContentHash contentHash) ExtractHostHashFromAbsolutePath(AbsolutePath sourcePath)
+        private string ExtractHostFromAbsolutePath(AbsolutePath sourcePath)
         {
             Contract.Assert(sourcePath.IsUnc);
-
-            // TODO: Keep the segments in the AbsolutePath object?
-            // TODO: Indexable structure?
             var segments = sourcePath.GetSegments();
-            Contract.Assert(segments.Count >= 4);
-
-            var host = segments.First();
-            var hashLiteral = segments.Last();
-            if (hashLiteral.EndsWith(GrpcDistributedPathTransformer.BlobFileExtension))
-            {
-                hashLiteral = hashLiteral.Substring(0, hashLiteral.Length - GrpcDistributedPathTransformer.BlobFileExtension.Length);
-            }
-            var hashTypeLiteral = segments.ElementAt(segments.Count - 1 - 2);
-
-            if (!Enum.TryParse(hashTypeLiteral, out HashType hashType))
-            {
-                throw new InvalidOperationException($"{hashTypeLiteral} is not a valid member of {nameof(HashType)}");
-            }
-
-            var contentHash = new ContentHash(hashType, HexUtilities.HexToBytes(hashLiteral));
-
-            return (host, contentHash);
+            return segments.First();
         }
 
         /// <inheritdoc />
         public async Task<CopyFileResult> CopyToAsync(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
         {
             // Extract host and contentHash from sourcePath
-            (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
+            string host = ExtractHostFromAbsolutePath(sourcePath);
 
             CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
             using (var client = GrpcCopyClient.Create(host, DefaultGrpcPort))
             {
-                copyFileResult = await client.CopyToAsync(_context, contentHash, destinationStream, cancellationToken);
+                copyFileResult = await client.CopyToAsync(_context, sourcePath, destinationStream, cancellationToken);
             }
 
             return copyFileResult;

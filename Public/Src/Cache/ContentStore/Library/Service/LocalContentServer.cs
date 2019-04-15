@@ -37,14 +37,7 @@ namespace BuildXL.Cache.ContentStore.Service
             LocalServerConfiguration localContentServerConfiguration)
         : base(logger, fileSystem, scenario, contentStoreFactory, localContentServerConfiguration)
         {
-            var nameByDrive = new Dictionary<string, string>();
-
-            foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
-            {
-                nameByDrive.Add(kvp.Value.DriveLetter.ToString(), kvp.Key);
-            }
-
-            _grpcContentServer = new GrpcContentServer(logger, Capabilities.ContentOnly, this, nameByDrive, StoresByName);
+            _grpcContentServer = new GrpcContentServer(logger, Capabilities.ContentOnly, this, StoresByName);
         }
 
         /// <inheritdoc />

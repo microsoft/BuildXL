@@ -89,32 +89,31 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the given local path.
         /// </summary>
-        public Task<CopyFileResult> CopyFileAsync(Context context, ContentHash hash, AbsolutePath destinationPath, CancellationToken ct = default(CancellationToken))
+        public Task<CopyFileResult> CopyFileAsync(Context context, AbsolutePath sourcePath, AbsolutePath destinationPath, CancellationToken ct = default(CancellationToken))
         {
             Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, ContentStore.Grpc.CopyConstants.DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-            return CopyToAsync(context, hash, streamFactory, ct);        
+            return CopyToAsync(context, sourcePath, streamFactory, ct);        
         }
         
         /// <summary>
         /// Copies content from the server to the given stream.
         /// </summary>
-        public Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Stream stream, CancellationToken ct = default(CancellationToken))
+        public Task<CopyFileResult> CopyToAsync(Context context, AbsolutePath sourcePath, Stream stream, CancellationToken ct = default(CancellationToken))
         {
-            return CopyToAsync(context, hash, () => stream, ct);
+            return CopyToAsync(context, sourcePath, () => stream, ct);
         }
 
         /// <summary>
         /// Copies content from the server to the stream returned by the factory.
         /// </summary>
-        public async Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Func<Stream> streamFactory, CancellationToken ct = default(CancellationToken))
+        public async Task<CopyFileResult> CopyToAsync(Context context, AbsolutePath sourcePath, Func<Stream> streamFactory, CancellationToken ct = default(CancellationToken))
         {
             try
             {
                 CopyFileRequest request = new CopyFileRequest()
                 {
                     TraceId = context.Id.ToString(),
-                    HashType = (int) hash.HashType,
-                    ContentHash = hash.ToByteString(),
+                    AbsolutePath = sourcePath.Path,
                     Offset = 0,
                     Compression = SupportsCompression ? CopyCompression.Gzip : CopyCompression.None
                 };

@@ -16,6 +16,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     public class DistributedPathTransformer : IAbsolutePathTransformer
     {
         private const string BlobFileExtension = ".blob";
+        private static readonly string _localMachineName = Environment.MachineName;
 
         /// <inheritdoc />
         public AbsolutePath GeneratePath(ContentHash contentHash, byte[] contentLocationIdContent)

@@ -220,14 +220,15 @@ namespace BuildXL.FrontEnd.Ninja
         {
             foreach (AbsolutePath output in node.Outputs)
             {
+                // TODO: outputs should be optional/required depending on the Ninja graph semantics instead of always optional
                 FileArtifact file;
                 if (m_outputFileArtifacts.TryGetValue(output, out file))
                 {
-                    processBuilder.AddOutputFile(file, FileExistence.Required);
+                    processBuilder.AddOutputFile(file, FileExistence.Optional);
                 }
                 else
                 {
-                    processBuilder.AddOutputFile(output, FileExistence.Required);
+                    processBuilder.AddOutputFile(output, FileExistence.Optional);
                 }
             }
 

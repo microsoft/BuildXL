@@ -141,7 +141,8 @@ export function test(args: TestArguments): TestResult {{
                     new EvaluationScheduler(1),
                     frontEndStatistics,
                     m_tracingLogger,
-                    performanceCollector))
+                    performanceCollector,
+                    collectMemoryAsSoonAsPossible: true))
             {
                 var frontEndController = (IFrontEndController)frontEndHostController;
                 frontEndController.InitializeHost(frontEndContext, configuration);

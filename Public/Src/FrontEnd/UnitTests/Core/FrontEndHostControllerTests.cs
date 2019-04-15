@@ -266,7 +266,14 @@ namespace Test.BuildXL.FrontEnd.Core
             factory.AddFrontEnd(new DummyFrontEnd1());
             factory.TrySeal(new LoggingContext("UnitTest"));
 
-            var controller = new FrontEndHostController(factory, new DScriptWorkspaceResolverFactory(), new EvaluationScheduler(degreeOfParallelism: 8), collectMemoryAsSoonAsPossible: false);
+            var controller = new FrontEndHostController(
+                factory, 
+                new DScriptWorkspaceResolverFactory(), 
+                new EvaluationScheduler(degreeOfParallelism: 8),
+                new FrontEndStatistics(),
+                Logger.CreateLogger(),
+                collector: null,
+                collectMemoryAsSoonAsPossible: false);
 
             var context = BuildXLContext.CreateInstanceForTesting();
 

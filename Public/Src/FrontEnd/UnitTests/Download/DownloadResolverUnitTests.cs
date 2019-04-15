@@ -404,6 +404,9 @@ namespace Test.BuildXL.FrontEnd.Download
                 frontEndFactory,
                 workspaceFactory,
                 new EvaluationScheduler(degreeOfParallelism: 1),
+                new FrontEndStatistics(),
+                global::BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(),
+                collector: null,
                 collectMemoryAsSoonAsPossible: false))
             {
 

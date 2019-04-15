@@ -17,8 +17,8 @@ let numsReplacement = "[#]";
 //      every domino.exe invocation.
 //
 let annotatedSessions =
-dominoinvocation
-| where EventInfo_Time >= startDate and EventInfo_Time <= endDate
+cluster('cbuild').database('Domino').dominoinvocation
+| where EventInfo_Time between (startDate .. endDate)
 | where BuildInfo_IsDeveloperBuild != "True"
 | extend OfficeBuildType = case(
             Environment contains "EnlistmentBuild", "enlist",
@@ -49,14 +49,16 @@ dominoinvocation
 //      This event has categorized ExitKind (success, usererror, infrastructureerror, internalerror)
 //      as well as the ErrorBucket for errors that are categorized
 //
-dominocompletion
+cluster('cbuild').database('Domino').dominocompletion
+| where EventInfo_Time between (startDate .. endDate)
 | project SessionId, ErrorBucket, ExitKind 
 ) on SessionId 
 | join kind= leftouter (
 //
 // 3. Join against dominocatastrophicfailure to see if the invocation crashed
-//      
-dominocatastrophicfailure
+// 
+cluster('cbuild').database('Domino').dominocatastrophicfailure
+| where EventInfo_Time between (startDate .. endDate)
 | project SessionId, Exception, RootCause, FirstInsfrastructureError, FirstInternalError , FirstUserError , LastInfrastructureError , LastInternalError , LastUserError 
 ) on SessionId 
 // This determines whether we classify the invocation as an internal error or not.
@@ -88,8 +90,9 @@ dominocatastrophicfailure
 // 4. Join against the CB data
 //
 | join kind = leftouter (
-    database("CloudBuildProd").BuildInfo
-| project InProbation , BuildQueue, InternalRetryCount, BuildId, ReturnType 
+    cluster('cbuild').database("CloudBuildProd").BuildInfo
+    | where EndTime between (startDate .. endDate)
+    | project InProbation , BuildQueue, InternalRetryCount, BuildId, ReturnType 
 ) on $left.UniqueSession == $right.BuildId
 //
 // 5. Merge all domino.exe invocations into a single overall session

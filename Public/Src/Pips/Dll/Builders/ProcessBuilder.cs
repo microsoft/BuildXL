@@ -96,11 +96,6 @@ namespace BuildXL.Pips.Builders
         /// </summary>
         public int? Weight { get; set; } = null;
 
-        /// <summary>
-        /// Indicates if the process requires admin privilege.
-        /// </summary>
-        public bool RequiresAdmin { get; set; }
-
         /// <nodoc />
         public TimeSpan? Timeout { get; set; }
 
@@ -625,8 +620,7 @@ namespace BuildXL.Pips.Builders
                 doubleWritePolicy: DoubleWritePolicy,
                 containerIsolationLevel: ContainerIsolationLevel,
                 absentPathProbeMode: AbsentPathProbeUnderOpaquesMode,
-                weight: Weight,
-                requiresAdmin: RequiresAdmin);
+                weight: Weight);
 
             return true;
         }

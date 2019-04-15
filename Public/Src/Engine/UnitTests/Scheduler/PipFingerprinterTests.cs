@@ -626,6 +626,7 @@ namespace Test.BuildXL.Scheduler
             bool outputsMustBeWritable = source.Vary(p => p.OutputsMustRemainWritable);
             bool allowUndeclaredSourceReads = source.Vary(p => p.AllowUndeclaredSourceReads);
             bool needsToRunInContainer = source.Vary(p => p.NeedsToRunInContainer);
+            bool requiresAdmin = source.Vary(p => p.RequiresAdmin);
             DoubleWritePolicy doubleWritePolicy = source.Vary(p => p.DoubleWritePolicy);
             ContainerIsolationLevel containerIsolationLevel = source.Vary(p => p.ContainerIsolationLevel);
             var uniqueRedirectedDirectoryRoot = source.Vary(p => p.UniqueRedirectedDirectoryRoot);
@@ -660,6 +661,11 @@ namespace Test.BuildXL.Scheduler
                 {
                     uniqueRedirectedDirectoryRoot = AbsolutePath.Create(source.PathTable, X("/Z/DefaultRedirectedDirectory"));
                 }
+            }
+
+            if (requiresAdmin)
+            {
+                options |= Process.Options.RequiresAdmin;
             }
 
             return new Process(

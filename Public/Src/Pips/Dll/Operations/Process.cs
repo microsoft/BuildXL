@@ -298,12 +298,6 @@ namespace BuildXL.Pips.Operations
         public bool IsStartOrShutdownKind => ServiceInfo != null && ServiceInfo.IsStartOrShutdownKind;
 
         /// <summary>
-        /// Indicates whether running this process requires admin privilege.
-        /// </summary>
-        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
-        public bool RequiresAdmin { get; }
-
-        /// <summary>
         /// Class constructor
         /// </summary>
         public Process(
@@ -346,8 +340,7 @@ namespace BuildXL.Pips.Operations
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
             DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
-            int? weight = null,
-            bool requiresAdmin = false)
+            int? weight = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -447,7 +440,6 @@ namespace BuildXL.Pips.Operations
             DoubleWritePolicy = doubleWritePolicy;
             ContainerIsolationLevel = containerIsolationLevel;
             Weight = weight.HasValue && weight.Value > 0 ? weight.Value : 1;
-            RequiresAdmin = requiresAdmin;
         }
 
         /// <summary>
@@ -493,8 +485,7 @@ namespace BuildXL.Pips.Operations
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
             DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
-            int? weight = null,
-            bool requiresAdmin = false)
+            int? weight = null)
         {
             return new Process(
                 executable ?? Executable,
@@ -536,8 +527,7 @@ namespace BuildXL.Pips.Operations
                 absentPathProbeMode,
                 doubleWritePolicy,
                 containerIsolationLevel,
-                weight,
-                requiresAdmin);
+                weight);
         }
 
         /// <inheritdoc />
@@ -567,6 +557,12 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.None)]
         public bool OutputsMustRemainWritable => (ProcessOptions & Options.OutputsMustRemainWritable) != 0;
+
+        /// <summary>
+        /// Whether this process requires admin privilege
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public bool RequiresAdmin => (ProcessOptions & Options.RequiresAdmin) != 0;
 
         /// <summary>
         /// Indicates the process may run without deleting prior outputs from a previous run.

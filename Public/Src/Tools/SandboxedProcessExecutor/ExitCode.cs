@@ -1,12 +1,12 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-namespace BuildXL.Processes
+namespace BuildXL.SandboxedProcessExecutor
 {
     /// <summary>
     /// Exit status.
     /// </summary>
-    public enum SandboxedProcessExecutorExitCode : short
+    public enum ExitCode : short
     {
         /// <summary>
         /// Internal error.

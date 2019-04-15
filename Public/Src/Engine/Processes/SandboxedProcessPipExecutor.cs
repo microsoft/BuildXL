@@ -685,7 +685,7 @@ namespace BuildXL.Processes
                         || m_containerConfiguration.IsIsolationEnabled
                         || OperatingSystemHelper.IsUnixOS)
                     {
-                        return await RunInProcAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+                        return await RunInternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
                     }
                     else
                     {
@@ -701,7 +701,7 @@ namespace BuildXL.Processes
             }
         }
 
-        private async Task<SandboxedProcessPipExecutionResult> RunInProcAsync(
+        private async Task<SandboxedProcessPipExecutionResult> RunInternalAsync(
             SandboxedProcessInfo info,
             HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             System.Diagnostics.Stopwatch sandboxPrepTime,
@@ -828,47 +828,124 @@ namespace BuildXL.Processes
                         }
                     }
 
-                    using (var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_context.CancellationToken))
-                    {
-                        var cancellationTokenRegistration = cancellationTokenSource.Token.Register(() => process.KillAsync());
-
-                        SandboxedProcessResult result;
-
-                        int lastMessageCount;
-
-                        try
-                        {
-                            m_activeProcess = process;
-                            result = await process.GetResultAsync();
-                            lastMessageCount = process.GetLastMessageCount();
-                        }
-                        finally
-                        {
-                            m_activeProcess = null;
-                            cancellationTokenRegistration.Dispose();
-                            process.Dispose();
-                        }
-
-                        result.NumberOfProcessLaunchRetries = processLaunchRetryCount;
-                        SandboxedProcessPipExecutionResult executionResult =
-                            await
-                                ProcessSandboxedProcessResultAsync(
-                                    m_loggingContext,
-                                    result,
-                                    sandboxPrepTime.ElapsedMilliseconds,
-                                    cancellationTokenSource.Token,
-                                    process.GetDetoursMaxHeapSize(),
-                                    allInputPathsUnderSharedOpaques);
-                        return ValidateDetoursCommunication(executionResult, lastMessageCount);
-                    }
+                    return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
                 }
+            }
+        }
+
+        private async Task<SandboxedProcessPipExecutionResult> RunExternalAsync(
+            SandboxedProcessInfo info,
+            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
+            System.Diagnostics.Stopwatch sandboxPrepTime,
+            CancellationToken cancellationToken = default)
+        {
+            SandboxedProcessInfo.StandardInputInfo standardInputSource = m_pip.StandardInput != null
+                ? (m_pip.StandardInput.Data.IsValid
+                    ? SandboxedProcessInfo.StandardInputInfo.CreateForData(m_pip.StandardInput.Data.ToString(m_context.PathTable))
+                    : SandboxedProcessInfo.StandardInputInfo.CreateForFile(m_pip.StandardInput.File.Path.ToString(m_context.PathTable)))
+                : null;
+
+            info.StandardInputSourceInfo = standardInputSource;
+
+            if (m_pip.WarningRegex.IsValid)
+            {
+                var expandedDescriptor = new ExpandedRegexDescriptor(m_context.StringTable, m_pip.WarningRegex);
+                var observerDescriptor = new SandboxedProcessInfo.ObserverDescriptor
+                {
+                    WarningRegex = new SandboxedProcessInfo.RegexDescriptor(expandedDescriptor.Pattern, expandedDescriptor.Options)
+                };
+
+                info.StandardObserverDescriptor = observerDescriptor;
+            }
+
+            // Preparation should be finished.
+            sandboxPrepTime.Stop();
+            ISandboxedProcess process = null;
+
+            try
+            {
+                if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalTool)
+                {
+                    string toolPath = Path.Combine(
+                        m_layoutConfiguration.BuildEngineDirectory.ToString(m_context.PathTable),
+                        ExternalToolSandboxedProcess.DefaultToolRelativePath);
+
+                    process = await ExternalToolSandboxedProcess.StartAsync(info, toolPath);
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+            }
+            catch (BuildXLException ex)
+            {
+                Tracing.Logger.Log.PipProcessStartFailed(
+                    m_loggingContext,
+                    m_pip.SemiStableHash,
+                    m_pip.GetDescription(m_context),
+                    ex.LogEventErrorCode,
+                    ex.LogEventMessage);
+
+                return SandboxedProcessPipExecutionResult.PreparationFailure(0, ex.LogEventErrorCode);
+            }
+
+            return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+        }
+
+        private async Task<SandboxedProcessPipExecutionResult> GetAndProcessResultAsync(
+            ISandboxedProcess process,
+            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
+            System.Diagnostics.Stopwatch sandboxPrepTime,
+            CancellationToken cancellationToken)
+        {
+            using (var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_context.CancellationToken))
+            {
+                var cancellationTokenRegistration = cancellationTokenSource.Token.Register(() => process.KillAsync());
+
+                SandboxedProcessResult result;
+
+                int lastMessageCount = 0;
+                bool isMessageCountSemaphoreCreated = false;
+
+                try
+                {
+                    m_activeProcess = process;
+                    result = await process.GetResultAsync();
+                    lastMessageCount = process.GetLastMessageCount() + result.LastMessageCount;
+                    m_numWarnings += result.WarningCount;
+                    isMessageCountSemaphoreCreated = m_fileAccessManifest.MessageCountSemaphore != null || result.MessageCountSemaphoreCreated;
+                }
+                finally
+                {
+                    m_activeProcess = null;
+                    cancellationTokenRegistration.Dispose();
+                    process.Dispose();
+                }
+
+                SandboxedProcessPipExecutionResult executionResult =
+                    await
+                        ProcessSandboxedProcessResultAsync(
+                            m_loggingContext,
+                            result,
+                            sandboxPrepTime.ElapsedMilliseconds,
+                            cancellationTokenSource.Token,
+                            process.GetDetoursMaxHeapSize() + result.DetoursMaxHeapSize,
+                            allInputPathsUnderSharedOpaques);
+
+                return ValidateDetoursCommunication(
+                    executionResult,
+                    lastMessageCount,
+                    isMessageCountSemaphoreCreated);
             }
         }
 
         /// <summary>
         /// These various validations that the detours communication channel
         /// </summary>
-        private SandboxedProcessPipExecutionResult ValidateDetoursCommunication(SandboxedProcessPipExecutionResult result, int lastMessageCount)
+        private SandboxedProcessPipExecutionResult ValidateDetoursCommunication(
+            SandboxedProcessPipExecutionResult result, 
+            int lastMessageCount,
+            bool isMessageSemaphoreCountCreated)
         {
             // If we have a failure already, that could have cause some of the mismatch in message count of writing the side communication file.
             if (result.Status == SandboxedProcessPipExecutionStatus.Succeeded && !string.IsNullOrEmpty(m_detoursFailuresFile))
@@ -905,7 +982,7 @@ namespace BuildXL.Processes
                 // a pip running longer than the timeout (5 hours). The pip gets killed and in such cases the message count mismatch
                 // is legitimate.
                 // Report a counter mismatch only if there are no other errors.
-                if (result.Status == SandboxedProcessPipExecutionStatus.Succeeded && m_fileAccessManifest.MessageCountSemaphore != null)
+                if (result.Status == SandboxedProcessPipExecutionStatus.Succeeded && isMessageSemaphoreCountCreated)
                 {
                     if (lastMessageCount != 0)
                     {
@@ -915,25 +992,7 @@ namespace BuildXL.Processes
                             m_pip.GetDescription(m_context),
                             lastMessageCount);
 
-                        return new SandboxedProcessPipExecutionResult(
-                            SandboxedProcessPipExecutionStatus.MismatchedMessageCount,
-                            result.ObservedFileAccesses,
-                            result.SharedDynamicDirectoryWriteAccesses,
-                            result.EncodedStandardOutput,
-                            result.EncodedStandardError,
-                            result.NumberOfWarnings,
-                            result.UnexpectedFileAccesses,
-                            result.PrimaryProcessTimes,
-                            result.JobAccountingInformation,
-                            result.NumberOfProcessLaunchRetries,
-                            result.ExitCode,
-                            result.SandboxPrepMs,
-                            result.ProcessSandboxedProcessResultMs,
-                            result.ProcessStartTimeMs,
-                            result.AllReportedFileAccesses,
-                            result.DetouringStatuses,
-                            result.MaxDetoursHeapSizeInBytes,
-                            result.ContainerConfiguration);
+                        return SandboxedProcessPipExecutionResult.MismatchedMessageCountFailure(result);
                     }
                 }
             }

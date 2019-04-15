@@ -45,7 +45,7 @@ namespace BuildXL.SandboxedProcessExecutor
 
             TelemetryStartup();
 
-            SandboxedProcessExecutorExitCode exitCode = RunInternal();
+            ExitCode exitCode = RunInternal();
 
             TelemetryShutdown();
 
@@ -64,7 +64,7 @@ namespace BuildXL.SandboxedProcessExecutor
                 TelemetryShutdown();
             }
 
-            Environment.Exit((int)SandboxedProcessExecutorExitCode.InternalError);
+            Environment.Exit((int)ExitCode.InternalError);
         }
 
         private void TelemetryStartup()
@@ -87,25 +87,25 @@ namespace BuildXL.SandboxedProcessExecutor
             }
         }
 
-        internal SandboxedProcessExecutorExitCode RunInternal()
+        internal ExitCode RunInternal()
         {
             if (!TryReadSandboxedProcessInfo(out SandboxedProcessInfo sandboxedProcessInfo))
             {
-                return SandboxedProcessExecutorExitCode.FailedReadInput;
+                return ExitCode.FailedReadInput;
             }
 
             if (!TryPrepareSandboxedProcess(sandboxedProcessInfo))
             {
-                return SandboxedProcessExecutorExitCode.FailedSandboxPreparation;
+                return ExitCode.FailedSandboxPreparation;
             }
 
-            (SandboxedProcessExecutorExitCode exitCode, SandboxedProcessResult result) executeResult = ExecuteAsync(sandboxedProcessInfo).GetAwaiter().GetResult();
+            (ExitCode exitCode, SandboxedProcessResult result) executeResult = ExecuteAsync(sandboxedProcessInfo).GetAwaiter().GetResult();
 
             if (executeResult.result != null)
             {
                 if (!TryWriteSandboxedProcessResult(executeResult.result))
                 {
-                    return SandboxedProcessExecutorExitCode.FailedWriteOutput;
+                    return ExitCode.FailedWriteOutput;
                 }
             }
 
@@ -188,7 +188,7 @@ namespace BuildXL.SandboxedProcessExecutor
             return true;
         }
 
-        private async Task<(SandboxedProcessExecutorExitCode, SandboxedProcessResult)> ExecuteAsync(SandboxedProcessInfo info)
+        private async Task<(ExitCode, SandboxedProcessResult)> ExecuteAsync(SandboxedProcessInfo info)
         {
             try
             {
@@ -196,7 +196,7 @@ namespace BuildXL.SandboxedProcessExecutor
                 {
                     if (!succeedInOpeningStdIn)
                     {
-                        return (SandboxedProcessExecutorExitCode.FailedSandboxPreparation, null);
+                        return (ExitCode.FailedSandboxPreparation, null);
                     }
 
                     using (StreamReader standardInputReader = standardInputStream == null ? null : new StreamReader(standardInputStream, CharUtilities.Utf8NoBomNoThrow))
@@ -207,7 +207,7 @@ namespace BuildXL.SandboxedProcessExecutor
 
                         if (process == null)
                         {
-                            return (SandboxedProcessExecutorExitCode.FailedStartProcess, null);
+                            return (ExitCode.FailedStartProcess, null);
                         }
 
                         SandboxedProcessResult result = await process.GetResultAsync();
@@ -216,8 +216,9 @@ namespace BuildXL.SandboxedProcessExecutor
                         result.WarningCount = m_outputErrorObserver.WarningCount;
                         result.LastMessageCount = process.GetLastMessageCount();
                         result.DetoursMaxHeapSize = process.GetDetoursMaxHeapSize();
+                        result.MessageCountSemaphoreCreated = info.FileAccessManifest.MessageCountSemaphore != null;
 
-                        return (SandboxedProcessExecutorExitCode.Success, result);
+                        return (ExitCode.Success, result);
                     }
                 }
             }

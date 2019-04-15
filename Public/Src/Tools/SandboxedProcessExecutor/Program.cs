@@ -24,7 +24,7 @@ namespace BuildXL.SandboxedProcessExecutor
                 Console.Error.WriteLine("Execution error: " + (e.InnerException ?? e).Message);
             }
 
-            return (int)SandboxedProcessExecutorExitCode.InvalidArgument;
+            return (int)ExitCode.InvalidArgument;
         }
 
         public override bool TryParse(string[] rawArgs, out Args arguments)
@@ -40,12 +40,12 @@ namespace BuildXL.SandboxedProcessExecutor
 
             if (!success)
             {
-                return (int)SandboxedProcessExecutorExitCode.InvalidArgument;
+                return (int)ExitCode.InvalidArgument;
             }
 
             if (arguments.Help)
             {
-                return (int)SandboxedProcessExecutorExitCode.Success;
+                return (int)ExitCode.Success;
             }
 
             var exitCode = new Executor(configuration).Run();

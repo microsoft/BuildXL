@@ -368,11 +368,6 @@ namespace BuildXL.Processes
         public Action<int> ProcessIdListener { get; set; }
 
         /// <summary>
-        /// Pip standard directory.
-        /// </summary>
-        public string StandardDirectory { get; set; }
-
-        /// <summary>
         /// Standard output and error for sandboxed process.
         /// </summary>
         /// <remarks>
@@ -430,8 +425,16 @@ namespace BuildXL.Processes
                 writer.WriteNullableString(TimeoutDumpDirectory);
                 writer.Write((byte)SandboxKind);
                 writer.WriteNullableString(PipDescription);
-                writer.WriteNullableString(StandardDirectory);
-                writer.Write(SandboxedProcessStandardFiles, (w, v) => v.Serialize(w));
+
+                if (SandboxedProcessStandardFiles == null)
+                {
+                    SandboxedProcessStandardFiles.From(FileStorage).Serialize(writer);
+                }
+                else
+                {
+                    SandboxedProcessStandardFiles.Serialize(writer);
+                }
+
                 writer.Write(StandardInputSourceInfo, (w, v) => v.Serialize(w));
                 writer.Write(StandardObserverDescriptor, (w, v) => v.Serialize(w));
 
@@ -468,8 +471,7 @@ namespace BuildXL.Processes
                 string timeoutDumpDirectory = reader.ReadNullableString();
                 SandboxKind sandboxKind = (SandboxKind)reader.ReadByte();
                 string pipDescription = reader.ReadNullableString();
-                string standardDirectory = reader.ReadNullableString();
-                SandboxedProcessStandardFiles sandboxedProcessStandardFiles = reader.ReadNullable(r => SandboxedProcessStandardFiles.Deserialize(r));
+                SandboxedProcessStandardFiles sandboxedProcessStandardFiles = SandboxedProcessStandardFiles.Deserialize(reader);
                 StandardInputInfo standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
                 ObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => ObserverDescriptor.Deserialize(r));
 
@@ -500,7 +502,6 @@ namespace BuildXL.Processes
                     TimeoutDumpDirectory = timeoutDumpDirectory,
                     SandboxKind = sandboxKind,
                     PipDescription = pipDescription,
-                    StandardDirectory = standardDirectory,
                     SandboxedProcessStandardFiles = sandboxedProcessStandardFiles,
                     StandardInputSourceInfo = standardInputSourceInfo,
                     StandardObserverDescriptor = standardObserverDescriptor
@@ -538,7 +539,7 @@ namespace BuildXL.Processes
             /// <summary>
             /// Creates a standard input info where the source comes from a file.
             /// </summary>
-            public StandardInputInfo CreateForFile(string file)
+            public static StandardInputInfo CreateForFile(string file)
             {
                 Contract.Requires(!string.IsNullOrEmpty(file));
 
@@ -548,7 +549,7 @@ namespace BuildXL.Processes
             /// <summary>
             /// Creates a standard input info where the source comes from raw data.
             /// </summary>
-            public StandardInputInfo CreateForData(string data)
+            public static StandardInputInfo CreateForData(string data)
             {
                 Contract.Requires(data != null);
 

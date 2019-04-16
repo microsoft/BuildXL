@@ -1688,7 +1688,9 @@ namespace BuildXL.Engine
                                 success &= constructScheduleResult != ConstructScheduleResult.Failure;
                                 ValidateSuccessMatches(success, pm.LoggingContext);
 
-                                if (success && !Configuration.Schedule.DisableProcessRetryOnResourceExhaustion)
+                                var phase = Configuration.Engine.Phase;
+
+                                if (success && phase.HasFlag(EnginePhases.Schedule) && !Configuration.Schedule.DisableProcessRetryOnResourceExhaustion)
                                 {
                                     // TODO: update this once shared opaques play nicely with resource based cancellation
                                     // Resource based cancellation might lead to wrong cache entries.
@@ -1710,8 +1712,6 @@ namespace BuildXL.Engine
                                     }
                                     ValidateSuccessMatches(success, pm.LoggingContext);
                                 }
-
-                                var phase = Configuration.Engine.Phase;
 
                                 if (success && phase.HasFlag(EnginePhases.Schedule) && Configuration.Ide.IsEnabled)
                                 {

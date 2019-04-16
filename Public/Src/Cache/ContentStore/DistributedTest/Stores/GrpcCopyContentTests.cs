@@ -73,7 +73,7 @@ namespace ContentStoreTest.Distributed.Stores
                 FileSystem.WriteAllBytes(sourcePath, content);
 
                 // Check if file exists
-                (await client.CheckFileExistsAsync(_context, sourcePath, CancellationToken.None)).ShouldBeSuccess();
+                (await client.CheckFileExistsAsync(_context, sourcePath)).ShouldBeSuccess();
             });
         }
 
@@ -96,8 +96,6 @@ namespace ContentStoreTest.Distributed.Stores
         [Fact]
         public async Task CheckNonExistingFile()
         {
-            System.Diagnostics.Debugger.Launch();
-
             await RunTestCase(nameof(CheckNonExistingFile), async (rootPath, session, client) =>
             {
                 // Write a random file
@@ -106,7 +104,7 @@ namespace ContentStoreTest.Distributed.Stores
                 FileSystem.WriteAllBytes(sourcePath, content);
 
                 // Check if file exists
-                (await client.CheckFileExistsAsync(_context, sourcePath, CancellationToken.None)).ShouldBeError();
+                (await client.CheckFileExistsAsync(_context, sourcePath)).ShouldBeError();
             });
         }
 
@@ -120,7 +118,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var bogusPort = PortExtensions.GetNextAvailablePort();
                 using (client = GrpcCopyClient.Create(host, bogusPort))
                 {
-                    var copyFileResult = await client.CopyFileAsync(_context, rootPath / ThreadSafeRandom.Generator.Next().ToString() / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
+                    var copyFileResult = await client.CopyFileAsync(_context, rootPath / ThreadSafeRandom.Generator.Next().ToString(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
                     Assert.Equal(CopyFileResult.ResultCode.SourcePathError, copyFileResult.Code);
                 }
             });

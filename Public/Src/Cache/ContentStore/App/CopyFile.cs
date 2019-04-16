@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.App
         [Verb(Description = "Copy file from another CASaaS")]
         internal void CopyFile(
             [Required, Description("Machine to copy from")] string host,
-            [Required, Description("Absolute path to file")] string path,
+            [Required, Description("Absolute path to file")] string sourcePath,
             [Required, Description("Path to destination file")] string destinationPath,
             [Description("File name where the GRPC port can be found when using cache service. 'CASaaS GRPC port' if not specified")] string grpcPortFileName,
             [Description("The GRPC port"), DefaultValue(0)] int grpcPort)
@@ -48,14 +48,14 @@ namespace BuildXL.Cache.ContentStore.App
                     var finalPath = new AbsolutePath(destinationPath);
 
                     // This action is synchronous to make sure the calling application doesn't exit before the method returns.
-                    var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.CopyFileAsync(context, new AbsolutePath(path), finalPath, CancellationToken.None)).Result;
+                    var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.CopyFileAsync(context, new AbsolutePath(sourcePath), finalPath, CancellationToken.None)).Result;
                     if (!copyFileResult.Succeeded)
                     {
                         throw new CacheException(copyFileResult.ErrorMessage);
                     }
                     else
                     {
-                        _logger.Debug($"Copy of {path} to {finalPath} was successful");
+                        _logger.Debug($"Copy of {sourcePath} to {finalPath} was successful");
                     }
 
                     var shutdownResult = rpcClient.ShutdownAsync(context).Result;

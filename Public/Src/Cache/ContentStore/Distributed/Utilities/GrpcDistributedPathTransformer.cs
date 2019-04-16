@@ -53,12 +53,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             // Determine if cacheRoot needs to be accessed through its directory junction
             var directories = _junctionsByDirectory.Keys;
-            var directoryToReplace = directories.SingleOrDefault(directory => cacheRootString.StartsWith(directory, StringComparison.OrdinalIgnoreCase));
+            var directoryToReplace = directories.SingleOrDefault(directory => cacheRootString.StartsWith(directory, StringComparison.OrdinalIgnoreCase)).ToUpperInvariant();
             if (!string.IsNullOrEmpty(directoryToReplace))
             {
                 // Replace directory with its junction
-                directoryToReplace = directoryToReplace.ToUpperInvariant();
-                var junction = _junctionsByDirectory[directoryToReplace].ToUpperInvariant();
+                var junction = _junctionsByDirectory[directoryToReplace];
                 cacheRootString = cacheRootString.Replace(directoryToReplace, junction);
             }
 
@@ -66,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             return
                 Encoding.UTF8.GetBytes(
-                    Path.Combine(@"\\" + _localMachineName, networkPathRoot));
+                    Path.Combine(@"\\" + _localMachineName, networkPathRoot).ToUpperInvariant());
         }
 
         /// <inheritdoc />

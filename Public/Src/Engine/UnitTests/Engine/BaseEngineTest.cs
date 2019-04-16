@@ -227,8 +227,8 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
             IFrontEndController Create(PathTable pathTable, SymbolTable symbolTable)
             {
                 var frontEndStatistics = new FrontEndStatistics();
-                var moduleRegistry = new ModuleRegistry();
                 var constants = new GlobalConstants(symbolTable);
+                var moduleRegistry = new ModuleRegistry(constants.Global);
 
                 var workspaceFactory = new DScriptWorkspaceResolverFactory();
                 workspaceFactory.RegisterResolver(KnownResolverKind.SourceResolverKind,
@@ -247,6 +247,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                     frontEndFactory,
                     workspaceFactory,
                     evaluationScheduler,
+                    moduleRegistry,
                     new FrontEndStatistics(),
                     logger: InitializationLogger, 
                     collector: null,

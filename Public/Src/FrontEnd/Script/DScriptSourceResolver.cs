@@ -21,6 +21,7 @@ using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.Workspaces;
 using TypeScript.Net.Types;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
@@ -148,7 +149,7 @@ namespace BuildXL.FrontEnd.Script
         }
 
         /// <inheritdoc />
-        public async Task<bool?> TryConvertModuleToEvaluationAsync(ParsedModule module, IWorkspace workspace)
+        public async Task<bool?> TryConvertModuleToEvaluationAsync(IModuleRegistry moduleRegistry, ParsedModule module, IWorkspace workspace)
         {
             Contract.Requires(module != null);
             Contract.Assert(m_resolverState == State.ResolverInitialized);

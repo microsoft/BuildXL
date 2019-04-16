@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 
@@ -42,7 +43,7 @@ namespace BuildXL.FrontEnd.Script
             throw new System.NotImplementedException();
         }
 
-        public Task<bool?> TryConvertModuleToEvaluationAsync(ParsedModule module, IWorkspace workspace)
+        public Task<bool?> TryConvertModuleToEvaluationAsync(IModuleRegistry moduleRegistry, ParsedModule module, IWorkspace workspace)
         {
             Contract.Requires(module != null);
             Contract.Requires(workspace != null);

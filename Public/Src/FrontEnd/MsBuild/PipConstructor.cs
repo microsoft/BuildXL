@@ -7,10 +7,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
@@ -20,10 +20,8 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
-using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
 using static BuildXL.Utilities.FormattableStringEx;
-using BuildXL.FrontEnd.Utilities;
-using static BuildXL.FrontEnd.Utilities.FrontEndUtilities;
+using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
 
 namespace BuildXL.FrontEnd.MsBuild
 {

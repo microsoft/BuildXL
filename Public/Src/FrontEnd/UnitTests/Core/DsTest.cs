@@ -33,6 +33,7 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.RuntimeModel;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Sdk.Tracing;
@@ -211,7 +212,10 @@ namespace Test.BuildXL.FrontEnd.Core
 
             const string PrettyPrintConfigAsPackagePath = global::BuildXL.FrontEnd.Script.Constants.Names.ConfigDsc;
             var configStringPath = Path.Combine(TemporaryDirectory, PrettyPrintConfigAsPackagePath);
-            var frontEndHost = FrontEndHostController.CreateForTesting(FrontEndContext, Engine, configStringPath);
+
+            var constants = new GlobalConstants(FrontEndContext.SymbolTable);
+            var moduleRegistry = new ModuleRegistry(constants.Global);
+            var frontEndHost = FrontEndHostController.CreateForTesting(FrontEndContext, Engine, moduleRegistry, configStringPath);
 
             var currentDirectory = specFullPath.GetParent(frontEndHost.FrontEndContext.PathTable);
             var currentRootDirectory = AbsolutePath.Create(FrontEndContext.PathTable, configStringPath).GetParent(frontEndHost.FrontEndContext.PathTable);
@@ -662,8 +666,8 @@ namespace Test.BuildXL.FrontEnd.Core
 
             frontEndConfiguration = config.FrontEnd;
 
-            var sharedModuleRegistry = new ModuleRegistry();
             constants = new GlobalConstants(FrontEndContext.SymbolTable);
+            var sharedModuleRegistry = new ModuleRegistry(constants.Global);
 
             var workspaceFactory = CreateWorkspaceFactoryForTesting(constants, sharedModuleRegistry, ParseAndEvaluateLogger);
             var frontEndFactory = CreateFrontEndFactoryForEvaluation(constants, sharedModuleRegistry, workspaceFactory, ParseAndEvaluateLogger);
@@ -671,7 +675,7 @@ namespace Test.BuildXL.FrontEnd.Core
             specFullPath = string.IsNullOrEmpty(specRelativePath) ? AbsolutePath.Invalid : CreateAbsolutePathFor(testWriter, specRelativePath);
 
             // Prepare infrastructure.
-            frontEndHost = CreateFrontEndHost(config, frontEndFactory, workspaceFactory, specFullPath, out finalConfig, out workspace);
+            frontEndHost = CreateFrontEndHost(config, frontEndFactory, workspaceFactory, sharedModuleRegistry, specFullPath, out finalConfig, out workspace);
             return sharedModuleRegistry;
         }
 
@@ -907,6 +911,7 @@ namespace Test.BuildXL.FrontEnd.Core
             var frontEndHostForExpressions = FrontEndHostController.CreateForTesting(
                 frontEndHostController.FrontEndContext,
                 Engine,
+                moduleRegistry,
                 frontEndHostController.PrimaryConfigFile.ToString(frontEndHostController.FrontEndContext.PathTable));
 
             var frontEnd = CreateScriptFrontEndForTesting(frontEndHostForExpressions, constants, moduleRegistry, FrontEndContext);
@@ -1008,6 +1013,7 @@ namespace Test.BuildXL.FrontEnd.Core
             ICommandLineConfiguration config,
             FrontEndFactory frontEndFactory,
             DScriptWorkspaceResolverFactory workspaceFactory,
+            IModuleRegistry moduleRegistry,
             AbsolutePath fileToProcess,
             out IConfiguration finalConfig,
             out Workspace workspace,
@@ -1024,6 +1030,7 @@ namespace Test.BuildXL.FrontEnd.Core
                 frontEndFactory, 
                 workspaceFactory, 
                 EvaluationScheduler,
+                moduleRegistry,
                 new FrontEndStatistics(),
                 InitializationLogger, 
                 collector: null,

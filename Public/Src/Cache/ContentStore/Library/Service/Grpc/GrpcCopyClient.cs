@@ -106,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
                 else
                 {
-                    return new FileExistenceResult((FileExistenceResult.ResultCode)response.Header.Result, response.Header.ErrorMessage);
+                    return new FileExistenceResult(FileExistenceResult.ResultCode.FileNotFound, response.Header.ErrorMessage);
                 }
             }
             catch (RpcException r)

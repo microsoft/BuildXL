@@ -193,7 +193,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 response = new ExistenceResponse
                 {
-                    Header = new ResponseHeader(startTime, true, (int)FileExistenceResult.ResultCode.FileExists, null, null)
+                    Header = ResponseHeader.Success(startTime)
                 };
             }
             else

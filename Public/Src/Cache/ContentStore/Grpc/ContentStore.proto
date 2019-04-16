@@ -172,9 +172,10 @@ message RemoveFromTrackerResponse {
 // CopyFile
 message CopyFileRequest {
     string traceId = 1;
-    string absolutePath = 2;
-    int64 offset = 3;
-    CopyCompression compression = 4;
+    int32 hashType = 2;
+    bytes contentHash = 3;
+    int64 offset = 4;
+    CopyCompression compression = 5;
 }
 
 message CopyFileResponse {
@@ -190,7 +191,8 @@ enum CopyCompression {
 // CheckFileExists
 message ExistenceRequest {
     string traceId = 1;
-    string absolutePath = 2;
+    int32 hashType = 2;
+    bytes contentHash = 3;
 }
 
 message ExistenceResponse {

@@ -156,61 +156,61 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             };
         }
 
-        private async Task<OpenStreamResult> GetFileStreamAsync(Context context, AbsolutePath path)
+        private async Task<OpenStreamResult> GetFileStreamAsync(Context context, ContentHash hash)
         {
-            Debug.Assert(_fileSystem != null);
+            Debug.Assert(_contentStoreByCacheName != null);
 
+            // Iterate through all known stores, looking for content in each.
+            // In most of our configurations there is just one store anyway,
+            // and doing this means both we can callers don't have
+            // to deal with cache roots and drive letters.
+
+            foreach (KeyValuePair<string, IContentStore> entry in _contentStoreByCacheName)
             {
-                _logger.Debug($"Retrieving {path} to begin copying...");
-
-                if (_fileSystem.FileExists(path))
+                IStreamStore store = entry.Value as IStreamStore;
+                if (store != null)
                 {
-                    try
+                    OpenStreamResult result = await store.StreamContentAsync(context, hash);
+                    if (result.Code != OpenStreamResult.ResultCode.ContentNotFound)
                     {
-                        var stream = await _fileSystem.OpenReadOnlySafeAsync(path, FileShare.Read | FileShare.Delete);
-                        return new OpenStreamResult(stream);
-                    }
-                    catch (FileNotFoundException)
-                    {
-                        return new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, $"File not found at {path}");
-                    }
-                    catch (Exception exception)
-                    {
-                        return new OpenStreamResult(OpenStreamResult.ResultCode.Error, $"{exception}");
+                        return result;
                     }
                 }
-
-                return new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, $"File not found at path {path}");
             }
+
+            return new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, $"{hash} to found");
         }
 
-        private Task<ExistenceResponse> CheckFileExistsAsync(ExistenceRequest request, CancellationToken token)
+            private async Task<ExistenceResponse> CheckFileExistsAsync(ExistenceRequest request, CancellationToken token)
         {
             LogRequestHandling();
 
+            Debug.Assert(_contentStoreByCacheName != null);
+
             DateTime startTime = DateTime.UtcNow;
             Context cacheContext = new Context(new Guid(request.TraceId), _logger);
-            ExistenceResponse response;
-            if (_fileSystem.FileExists(new AbsolutePath(request.AbsolutePath)))
-            {
-                _logger.Debug($"File found at {request.AbsolutePath}");
-                response = new ExistenceResponse
-                {
-                    Header = ResponseHeader.Success(startTime)
-                };
-            }
-            else
-            {
-                string errorMessage = $"File not found at {request.AbsolutePath}";
-                _logger.Debug(errorMessage);
+            HashType type = (HashType)request.HashType;
+            ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
 
-                response = new ExistenceResponse
+            // Iterate through all known stores, looking for content in each.
+            // In most of our configurations there is just one store anyway,
+            // and doing this means both we can callers don't have
+            // to deal with cache roots and drive letters.
+
+            foreach (KeyValuePair<string, IContentStore> entry in _contentStoreByCacheName)
+            {
+                IStreamStore store = entry.Value as IStreamStore;
+                if (store != null)
                 {
-                    Header = ResponseHeader.Failure(startTime, errorMessage)
-                };
+                    FileExistenceResult result = await store.CheckFileExistsAsync(cacheContext, hash);
+                    if (result.Succeeded)
+                    {
+                        return new ExistenceResponse{ Header = ResponseHeader.Success(startTime) };
+                    }
+                }
             }
 
-            return Task.FromResult(response);
+            return new ExistenceResponse { Header = ResponseHeader.Failure(startTime, $"{hash} not found in the cache") };
         }
 
         /// <summary>
@@ -224,7 +224,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 // Get the content stream.
                 Context cacheContext = new Context(new Guid(request.TraceId), _logger);
-                OpenStreamResult result = await GetFileStreamAsync(cacheContext, new AbsolutePath(request.AbsolutePath));
+                HashType type = (HashType)request.HashType;
+                ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
+                OpenStreamResult result = await GetFileStreamAsync(cacheContext, hash);
 
                 using (result.Stream)
                 {
@@ -235,7 +237,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     {
                         case OpenStreamResult.ResultCode.ContentNotFound:
                             headers.Add("Exception", "ContentNotFound");
-                            headers.Add("Message", $"Requested file at {request.AbsolutePath} not found.");
+                            headers.Add("Message", $"Requested file at {hash} not found.");
                             break;
                         case OpenStreamResult.ResultCode.Error:
                             Debug.Assert(result.Exception != null);

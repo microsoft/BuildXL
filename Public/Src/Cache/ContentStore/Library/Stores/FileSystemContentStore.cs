@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// <summary>
     ///     An <see cref="IContentStore"/> implemented over <see cref="FileSystemContentStoreInternal"/>
     /// </summary>
-    public class FileSystemContentStore : StartupShutdownBase, IContentStore, IAcquireDirectoryLock, IRepairStore, ILocalContentStore
+    public class FileSystemContentStore : StartupShutdownBase, IContentStore, IAcquireDirectoryLock, IRepairStore, ILocalContentStore, IStreamStore
     {
         private const string Component = nameof(FileSystemContentStore);
 
@@ -207,6 +207,12 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool Contains(ContentHash hash)
         {
             return Store.Contains(hash);
+        }
+
+        /// <inheritdoc />
+        public Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
+        {
+            return Store.OpenStreamAsync(context, contentHash, pinRequest: null);
         }
     }
 }

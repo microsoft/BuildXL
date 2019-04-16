@@ -89,14 +89,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Checks if file exists on remote machine.
         /// </summary>
-        public async Task<FileExistenceResult> CheckFileExistsAsync(Context context, AbsolutePath path)
+        public async Task<FileExistenceResult> CheckFileExistsAsync(Context context, ContentHash hash)
         {
             try
             {
                 ExistenceRequest request = new ExistenceRequest()
                 {
                     TraceId = context.Id.ToString(),
-                    AbsolutePath = path.Path
+                    HashType = (int)hash.HashType,
+                    ContentHash = hash.ToByteString()
                 };
 
                 ExistenceResponse response = await _client.CheckFileExistsAsync(request);
@@ -125,31 +126,32 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the given local path.
         /// </summary>
-        public Task<CopyFileResult> CopyFileAsync(Context context, AbsolutePath sourcePath, AbsolutePath destinationPath, CancellationToken ct = default(CancellationToken))
+        public Task<CopyFileResult> CopyFileAsync(Context context, ContentHash hash, AbsolutePath destinationPath, CancellationToken ct = default(CancellationToken))
         {
             Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, ContentStore.Grpc.CopyConstants.DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-            return CopyToAsync(context, sourcePath, streamFactory, ct);        
+            return CopyToAsync(context, hash, streamFactory, ct);        
         }
         
         /// <summary>
         /// Copies content from the server to the given stream.
         /// </summary>
-        public Task<CopyFileResult> CopyToAsync(Context context, AbsolutePath sourcePath, Stream stream, CancellationToken ct = default(CancellationToken))
+        public Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Stream stream, CancellationToken ct = default(CancellationToken))
         {
-            return CopyToAsync(context, sourcePath, () => stream, ct);
+            return CopyToAsync(context, hash, () => stream, ct);
         }
 
         /// <summary>
         /// Copies content from the server to the stream returned by the factory.
         /// </summary>
-        public async Task<CopyFileResult> CopyToAsync(Context context, AbsolutePath sourcePath, Func<Stream> streamFactory, CancellationToken ct = default(CancellationToken))
+        public async Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Func<Stream> streamFactory, CancellationToken ct = default(CancellationToken))
         {
             try
             {
                 CopyFileRequest request = new CopyFileRequest()
                 {
                     TraceId = context.Id.ToString(),
-                    AbsolutePath = sourcePath.Path,
+                    HashType = (int)hash.HashType,
+                    ContentHash = hash.ToByteString(),
                     Offset = 0,
                     Compression = SupportsCompression ? CopyCompression.Gzip : CopyCompression.None
                 };

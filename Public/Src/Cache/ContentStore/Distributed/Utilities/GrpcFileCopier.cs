@@ -7,9 +7,11 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
@@ -35,13 +37,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// <inheritdoc />
         public async Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
         {
-            // Extract host from sourcePath
-            string host = ExtractHostFromAbsolutePath(path);
+            // Extract host and contentHash from sourcePath
+            (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(path);
 
             FileExistenceResult fileExistenceResult = null;
             using (var client = GrpcCopyClient.Create(host, _grpcPort))
             {
-                fileExistenceResult = await client.CheckFileExistsAsync(_context, path);
+                fileExistenceResult = await client.CheckFileExistsAsync(_context, contentHash);
             }
 
             return fileExistenceResult;
@@ -50,35 +52,57 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// <inheritdoc />
         public async Task<CopyFileResult> CopyFileAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, long contentSize, bool overwrite, CancellationToken cancellationToken)
         {
-            // Extract host from sourcePath
-            string host = ExtractHostFromAbsolutePath(sourcePath);
+            // Extract host and contentHash from sourcePath
+            (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
 
             CopyFileResult copyFileResult = null;
+            // Contact hard-coded port on source
             using (var client = GrpcCopyClient.Create(host, _grpcPort))
             {
-                copyFileResult = await client.CopyFileAsync(_context, sourcePath, destinationPath, cancellationToken);
+                copyFileResult = await client.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken);
             }
 
             return copyFileResult;
         }
 
-        private string ExtractHostFromAbsolutePath(AbsolutePath sourcePath)
+        private (string host, ContentHash contentHash) ExtractHostHashFromAbsolutePath(AbsolutePath sourcePath)
         {
             Contract.Assert(sourcePath.IsUnc);
+
+            // TODO: Keep the segments in the AbsolutePath object?
+            // TODO: Indexable structure?
             var segments = sourcePath.GetSegments();
-            return segments.First();
+            Contract.Assert(segments.Count >= 4);
+
+            var host = segments.First();
+            var hashLiteral = segments.Last();
+            if (hashLiteral.EndsWith(GrpcDistributedPathTransformer.BlobFileExtension))
+            {
+                hashLiteral = hashLiteral.Substring(0, hashLiteral.Length - GrpcDistributedPathTransformer.BlobFileExtension.Length);
+            }
+            var hashTypeLiteral = segments.ElementAt(segments.Count - 1 - 2);
+
+            if (!Enum.TryParse(hashTypeLiteral, out HashType hashType))
+            {
+                throw new InvalidOperationException($"{hashTypeLiteral} is not a valid member of {nameof(HashType)}");
+            }
+
+            var contentHash = new ContentHash(hashType, HexUtilities.HexToBytes(hashLiteral));
+
+            return (host, contentHash);
         }
 
         /// <inheritdoc />
         public async Task<CopyFileResult> CopyToAsync(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
         {
             // Extract host and contentHash from sourcePath
-            string host = ExtractHostFromAbsolutePath(sourcePath);
+            (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
 
             CopyFileResult copyFileResult = null;
+            // Contact hard-coded port on source
             using (var client = GrpcCopyClient.Create(host, _grpcPort))
             {
-                copyFileResult = await client.CopyToAsync(_context, sourcePath, destinationStream, cancellationToken);
+                copyFileResult = await client.CopyToAsync(_context, contentHash, destinationStream, cancellationToken);
             }
 
             return copyFileResult;

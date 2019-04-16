@@ -38,7 +38,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly Dictionary<string, IContentStore> _contentStoreByCacheName;
         private readonly ISessionHandler<IContentSession> _sessionHandler;
         private readonly ContentServerAdapter _adapter;
-        private readonly PassThroughFileSystem _fileSystem;
 
         /// <nodoc />
         public GrpcContentServer(
@@ -52,7 +51,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _sessionHandler = sessionHandler;
             _adapter = new ContentServerAdapter(this);
             _contentStoreByCacheName = storesByName;
-            _fileSystem = new PassThroughFileSystem(logger);
         }
 
         /// <nodoc />
@@ -237,7 +235,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     {
                         case OpenStreamResult.ResultCode.ContentNotFound:
                             headers.Add("Exception", "ContentNotFound");
-                            headers.Add("Message", $"Requested file at {hash} not found.");
+                            headers.Add("Message", $"Requested content at {hash} not found.");
                             break;
                         case OpenStreamResult.ResultCode.Error:
                             Debug.Assert(result.Exception != null);

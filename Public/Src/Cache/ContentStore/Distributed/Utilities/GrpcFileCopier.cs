@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             FileExistenceResult fileExistenceResult = null;
             using (var client = GrpcCopyClient.Create(host, _grpcPort))
             {
-                fileExistenceResult = await client.CheckFileExistsAsync(_context, path, cancellationToken);
+                fileExistenceResult = await client.CheckFileExistsAsync(_context, path);
             }
 
             return fileExistenceResult;

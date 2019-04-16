@@ -89,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Checks if file exists on remote machine.
         /// </summary>
-        public async Task<FileExistenceResult> CheckFileExistsAsync(Context context, AbsolutePath path, CancellationToken ct = default(CancellationToken))
+        public async Task<FileExistenceResult> CheckFileExistsAsync(Context context, AbsolutePath path)
         {
             try
             {
@@ -100,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 };
 
                 ExistenceResponse response = await _client.CheckFileExistsAsync(request);
-                if (!response.Header.Succeeded)
+                if (response.Header.Succeeded)
                 {
                     return new FileExistenceResult();
                 }

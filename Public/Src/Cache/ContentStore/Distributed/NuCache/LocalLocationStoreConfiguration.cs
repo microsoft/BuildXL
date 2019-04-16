@@ -195,7 +195,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// The maximum number of gigabytes to retain in CAS
         /// </summary>
-        public int MaxRetentionGb { get; set; } = 1;
+        public int MaxRetentionGb { get; set; } = 20;
 
         /// <summary>
         /// Defines the target maximum number of simulataneous copies
@@ -306,6 +306,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// The interval by which the checkpoint manager applies checkpoints to the local database.
         /// </summary>
         public TimeSpan RestoreCheckpointInterval { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// Number of files downloaded in parallel during restroring process.
+        /// </summary>
+        public int RestoreCheckpointDegreeOfParallelism { get; set; } = 24;
 
         /// <inheritdoc />
         public CheckpointConfiguration(AbsolutePath workingDirectory) => WorkingDirectory = workingDirectory;

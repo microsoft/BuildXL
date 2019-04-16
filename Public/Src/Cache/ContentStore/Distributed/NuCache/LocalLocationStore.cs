@@ -372,6 +372,97 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             CurrentRole = await GlobalStore.ReleaseRoleIfNecessaryAsync(operationContext);
         }
 
+        /// <summary>
+        /// Restore checkpoint.
+        /// </summary>
+        internal async Task<BoolResult> RestoreCheckpointAsync(OperationContext context, CheckpointState checkpointState, bool inline, bool forceRestore = false)
+        {
+            return await RunOutOfBandAsync(
+                inline,
+                ref _pendingProcessCheckpointTask,
+                async () =>
+                {
+                    BoolResult result = BoolResult.Success;
+
+                    var oldRole = CurrentRole;
+                    var newRole = checkpointState.Role;
+                    var switchedRoles = oldRole != newRole;
+
+                    if (switchedRoles)
+                    {
+                        Tracer.Debug(context, $"Switching Roles: New={newRole}, Old={oldRole}.");
+
+                            // Local database should be immutable on workers and only master is responsible for collecting stale records
+                            Database.ConfigureGarbageCollection(shouldDoGc: newRole == Role.Master);
+                    }
+
+                        // Always restore when switching roles
+                        bool shouldRestore = switchedRoles;
+
+                        // Restore if this is a worker and the last restore time is past the restore interval
+                        shouldRestore |= (newRole == Role.Worker && ShouldSchedule(
+                                          _configuration.Checkpoint.RestoreCheckpointInterval,
+                                          _lastRestoreTime));
+
+                    if (shouldRestore || forceRestore)
+                    {
+                        result = await RestoreCheckpointStateAsync(context, checkpointState);
+                        if (!result)
+                        {
+                            return result;
+                        }
+
+                        _lastRestoreTime = _clock.UtcNow;
+
+                            // Update the checkpoint time to avoid uploading a checkpoint immediately after restoring on the master
+                            _lastCheckpointTime = _lastRestoreTime;
+                    }
+
+                    var updateResult = await UpdateClusterStateAsync(context);
+
+                    if (!updateResult)
+                    {
+                        return updateResult;
+                    }
+
+                    if (newRole == Role.Master)
+                    {
+                            // Start receiving events from the given checkpoint
+                            result = EventStore.StartProcessing(context, checkpointState.StartSequencePoint);
+                    }
+                    else
+                    {
+                            // Stop receiving events. 
+                            result = EventStore.SuspendProcessing(context);
+                    }
+
+                    if (!result)
+                    {
+                        return result;
+                    }
+
+                    if (newRole == Role.Master)
+                    {
+                            // Only create a checkpoint if the machine is currently a master machine and was a master machine 
+                            if (ShouldSchedule(_configuration.Checkpoint.CreateCheckpointInterval, _lastCheckpointTime))
+                        {
+                            result = await CreateCheckpointAsync(context);
+                            if (!result)
+                            {
+                                return result;
+                            }
+
+                            _lastCheckpointTime = _clock.UtcNow;
+                        }
+                    }
+
+                        // Successfully, applied changes for role. Set it as the current role. 
+                        CurrentRole = newRole;
+
+                    return result;
+                });
+        }
+
         private async Task<BoolResult> ProcessStateAsync(OperationContext context, bool inline)
         {
             try
@@ -383,90 +474,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return checkpointState;
                 }
 
-                return await RunOutOfBandAsync(
-                    inline,
-                    ref _pendingProcessCheckpointTask,
-                    async () =>
-                    {
-                        BoolResult result = BoolResult.Success;
-
-                        var oldRole = CurrentRole;
-                        var newRole = checkpointState.Value.Role;
-                        var switchedRoles = oldRole != newRole;
-
-                        if (switchedRoles)
-                        {
-                            Tracer.Debug(context, $"Switching Roles: New={newRole}, Old={oldRole}.");
-
-                            // Local database should be immutable on workers and only master is responsible for collecting stale records
-                            Database.ConfigureGarbageCollection(shouldDoGc: newRole == Role.Master);
-                        }
-
-                        // Always restore when switching roles
-                        bool shouldRestore = switchedRoles;
-
-                        // Restore if this is a worker and the last restore time is past the restore interval
-                        shouldRestore |= (newRole == Role.Worker && ShouldSchedule(
-                                              _configuration.Checkpoint.RestoreCheckpointInterval,
-                                              _lastRestoreTime));
-
-                        if (shouldRestore)
-                        {
-                            result = await RestoreCheckpointStateAsync(context, checkpointState.Value);
-                            if (!result)
-                            {
-                                return result;
-                            }
-
-                            _lastRestoreTime = _clock.UtcNow;
-
-                            // Update the checkpoint time to avoid uploading a checkpoint immediately after restoring on the master
-                            _lastCheckpointTime = _lastRestoreTime;
-                        }
-
-                        var updateResult = await UpdateClusterStateAsync(context);
-
-                        if (!updateResult)
-                        {
-                            return updateResult;
-                        }
-
-                        if (newRole == Role.Master)
-                        {
-                            // Start receiving events from the given checkpoint
-                            result = EventStore.StartProcessing(context, checkpointState.Value.StartSequencePoint);
-                        }
-                        else
-                        {
-                            // Stop receiving events. 
-                            result = EventStore.SuspendProcessing(context);
-                        }
-
-                        if (!result)
-                        {
-                            return result;
-                        }
-
-                        if (newRole == Role.Master)
-                        {
-                            // Only create a checkpoint if the machine is currently a master machine and was a master machine 
-                            if (ShouldSchedule(_configuration.Checkpoint.CreateCheckpointInterval, _lastCheckpointTime))
-                            {
-                                result = await CreateCheckpointAsync(context);
-                                if (!result)
-                                {
-                                    return result;
-                                }
-
-                                _lastCheckpointTime = _clock.UtcNow;
-                            }
-                        }
-
-                        // Successfully, applied changes for role. Set it as the current role. 
-                        CurrentRole = newRole;
-
-                        return result;
-                    });
+                return await RestoreCheckpointAsync(context, checkpointState.Value, inline);
             }
             finally
             {
@@ -1122,7 +1130,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         var allLocalStoreContent = allLocalStoreContentInfos.Select(c => (hash: new ShortHash(c.ContentHash), size: c.Size)).OrderBy(c => c.hash).ToList();
 
-                        var dbContent = GetSortedDatabaseEntriesWithLocalLocation(context);
+                        var dbContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(context, LocalMachineId);
                         token.ThrowIfCancellationRequested();
 
                         // Diff the two views of the local machines content (left = local store, right = content location db)
@@ -1173,35 +1181,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 },
                 Counters[ContentLocationStoreCounters.Reconcile]);
-        }
-
-        private IEnumerable<(ShortHash hash, long size)> GetSortedDatabaseEntriesWithLocalLocation(OperationContext context)
-        {
-            foreach (var hash in Database.EnumerateSortedKeys(context.Token))
-            {
-                if (TryGetEntry(context, hash, out var entry))
-                {
-                    if (entry.Locations[LocalMachineId.Index])
-                    {
-                        // Entry is present on the local machine
-                        yield return (hash, entry.ContentSize);
-                    }
-                }
-            }
-        }
-
-        private bool TryGetEntry(OperationContext context, ShortHash hash, out ContentLocationEntry entry)
-        {
-            try
-            {
-                return Database.TryGetEntry(context, hash, out entry);
-            }
-            catch (BuildXLException)
-            {
-                // BuildXLException may occur due to a race condition when the instance is disposed.
-                entry = default;
-                return false;
-            }
         }
 
         /// <nodoc />

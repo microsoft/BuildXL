@@ -59,9 +59,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             if (!string.IsNullOrEmpty(directoryToReplace))
             {
                 // Replace directory with its junction
-                directoryToReplace = directoryToReplace.ToUpperInvariant();
-                var junction = _junctionsByDirectory[directoryToReplace].ToUpperInvariant();
-                cacheRootString = cacheRootString.Replace(directoryToReplace, junction);
+                var junction = _junctionsByDirectory[directoryToReplace];
+                cacheRootString = cacheRootString.Replace(directoryToReplace.ToUpperInvariant(), junction);
             }
 
             string networkPathRoot = cacheRootString.Replace(":", "$");

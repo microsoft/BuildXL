@@ -208,11 +208,5 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             return Store.Contains(hash);
         }
-
-        /// <inheritdoc />
-        public Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
-        {
-            return Store.OpenStreamAsync(context, contentHash, pinRequest: null);
-        }
     }
 }

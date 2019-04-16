@@ -98,13 +98,8 @@ namespace ContentStoreTest.Distributed.Stores
         {
             await RunTestCase(nameof(CheckNonExistingFile), async (rootPath, session, client) =>
             {
-                // Write a random file
-                var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
-                var content = ThreadSafeRandom.GetBytes(FileSize);
-                FileSystem.WriteAllBytes(sourcePath, content);
-
-                // Check if file exists
-                (await client.CheckFileExistsAsync(_context, sourcePath)).ShouldBeError();
+                // Check if random non-existent file exists
+                (await client.CheckFileExistsAsync(_context, rootPath / ThreadSafeRandom.Generator.Next().ToString())).ShouldBeError();
             });
         }
 

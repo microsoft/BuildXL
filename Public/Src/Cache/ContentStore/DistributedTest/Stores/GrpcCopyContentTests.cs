@@ -98,7 +98,7 @@ namespace ContentStoreTest.Distributed.Stores
         {
             System.Diagnostics.Debugger.Launch();
 
-            await RunTestCase(nameof(CheckExistingFile), async (rootPath, session, client) =>
+            await RunTestCase(nameof(CheckNonExistingFile), async (rootPath, session, client) =>
             {
                 // Write a random file
                 var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
@@ -115,15 +115,12 @@ namespace ContentStoreTest.Distributed.Stores
         {
             await RunTestCase(nameof(WrongPort), async (rootPath, session, client) =>
             {
-                // Create random non-existent file
-                var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
-
-                // Copy the file out via GRPC
+                // Copy fake file out via GRPC
                 var host = "localhost";
                 var bogusPort = PortExtensions.GetNextAvailablePort();
                 using (client = GrpcCopyClient.Create(host, bogusPort))
                 {
-                    var copyFileResult = await client.CopyFileAsync(_context, sourcePath, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
+                    var copyFileResult = await client.CopyFileAsync(_context, rootPath / ThreadSafeRandom.Generator.Next().ToString() / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
                     Assert.Equal(CopyFileResult.ResultCode.SourcePathError, copyFileResult.Code);
                 }
             });

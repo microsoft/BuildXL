@@ -161,6 +161,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Debug.Assert(_fileSystem != null);
 
             {
+                _logger.Debug($"Retrieving {path} to begin copying...");
+
                 if (_fileSystem.FileExists(path))
                 {
                     try
@@ -191,6 +193,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             ExistenceResponse response;
             if (_fileSystem.FileExists(new AbsolutePath(request.AbsolutePath)))
             {
+                _logger.Debug($"File found at {request.AbsolutePath}");
                 response = new ExistenceResponse
                 {
                     Header = ResponseHeader.Success(startTime)
@@ -198,9 +201,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
             else
             {
+                string errorMessage = $"File not found at {request.AbsolutePath}";
+                _logger.Debug(errorMessage);
+
                 response = new ExistenceResponse
                 {
-                    Header = ResponseHeader.Failure(startTime, $"{request.AbsolutePath} doesn't exist")
+                    Header = ResponseHeader.Failure(startTime, errorMessage)
                 };
             }
 
@@ -257,6 +263,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     // Send the content.
                     if (result.Succeeded)
                     {
+                        _logger.Debug($"Streaming file through GRPC with GZip {(compression == CopyCompression.Gzip ? "on" : "off")}");
+
                         byte[] buffer = new byte[ContentStore.Grpc.CopyConstants.DefaultBufferSize];
                         switch (compression)
                         {

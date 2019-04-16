@@ -29,7 +29,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// A store that is based on content locations for opaque file locations.
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class DistributedContentStore<T> : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore, IStreamStore
+    public class DistributedContentStore<T> : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore
         where T : PathBase
     {
         private readonly byte[] _localMachineLocation;
@@ -479,17 +479,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             {
                 throw Contract.AssertFailure($"Cannot call GetLruPages when CanComputeLru returns false");
             }
-        }
-
-        /// <inheritdoc />
-        public async Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
-        {
-            if (InnerContentStore is IStreamStore innerStreamStore)
-            {
-                return await innerStreamStore.StreamContentAsync(context, contentHash);
-            }
-
-            return new OpenStreamResult($"{InnerContentStore} does not implement {nameof(IStreamStore)} in {nameof(DistributedContentStore<T>)}.");
         }
     }
 }

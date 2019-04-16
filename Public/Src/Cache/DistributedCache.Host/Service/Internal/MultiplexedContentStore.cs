@@ -8,7 +8,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -21,7 +20,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 namespace BuildXL.Cache.Host.Service.Internal
 {
     // TODO: move it to the library?
-    public class MultiplexedContentStore : IContentStore, IRepairStore, IStreamStore
+    public class MultiplexedContentStore : IContentStore, IRepairStore
     {
         private readonly Dictionary<string, IContentStore> _drivesWithContentStore;
         private readonly string _preferredCacheDrive;
@@ -260,44 +259,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                     return new StructResult<long>(filesTrimmed);
                 }
             });
-        }
-
-        public async Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
-        {
-            OpenStreamResult openStreamResult = null;
-
-            // Check primary content store
-            var preferredCacheStore = _drivesWithContentStore[_preferredCacheDrive];
-            if (preferredCacheStore is IStreamStore streamStore)
-            {
-                openStreamResult = await streamStore.StreamContentAsync(context, contentHash);
-
-                if (openStreamResult.Succeeded)
-                {
-                    return openStreamResult;
-                }
-            }
-
-            foreach (var kvp in _drivesWithContentStore)
-            {
-                if (kvp.Key == _preferredCacheDrive)
-                {
-                    // Already checked the preferred cache
-                    continue;
-                }
-
-                if (kvp.Value is IStreamStore otherStreamStore)
-                {
-                    openStreamResult = await otherStreamStore.StreamContentAsync(context, contentHash);
-
-                    if (openStreamResult.Succeeded)
-                    {
-                        return openStreamResult;
-                    }
-                }
-            }
-
-            return openStreamResult ?? new OpenStreamResult($"Could not find a content store which implements {nameof(IStreamStore)} in {nameof(MultiplexedContentStore)}.");
         }
     }
 }

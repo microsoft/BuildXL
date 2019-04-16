@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -851,6 +852,33 @@ namespace Test.BuildXL.Storage
 
             XAssert.IsTrue(Directory.Exists(originalRoot));
             XAssert.AreEqual(0, Directory.GetFileSystemEntries(originalRoot).Length);
+        }
+
+        [Fact]
+        public void CreateHardlinkSupportsLongPath()
+        {
+            var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(TemporaryDirectory, (path, _) => Path.Combine(path, "dir"));
+
+            FileUtilities.CreateDirectory(longPath);
+
+            var file = Path.Combine(longPath, "out.txt");
+            var link = Path.Combine(longPath, "hardlink");
+
+            SafeFileHandle fileHandle;
+            var result = FileUtilities.TryCreateOrOpenFile(
+                file,
+                FileDesiredAccess.GenericWrite,
+                FileShare.Delete,
+                FileMode.Create,
+                FileFlagsAndAttributes.FileAttributeNormal,
+                out fileHandle);
+            XAssert.IsTrue(result.Succeeded);
+            using (FileStream stream = new FileStream(fileHandle, FileAccess.Write))
+            {
+                stream.WriteByte(255);
+            }
+
+            XAssert.IsTrue(CreateHardLinkIfSupported(link: link, linkTarget: file));
         }
 
         [Fact]

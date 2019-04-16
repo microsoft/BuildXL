@@ -2289,7 +2289,7 @@ namespace BuildXL.Native.IO.Windows
         /// <inheritdoc />
         public CreateHardLinkStatus TryCreateHardLink(string link, string linkTarget)
         {
-            bool result = CreateHardLinkW(link, linkTarget, IntPtr.Zero);
+            bool result = CreateHardLinkW(ToLongPathIfExceedMaxPath(link), ToLongPathIfExceedMaxPath(linkTarget), IntPtr.Zero);
             if (result)
             {
                 return CreateHardLinkStatus.Success;

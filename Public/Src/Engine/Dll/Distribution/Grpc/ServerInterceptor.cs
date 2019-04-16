@@ -65,7 +65,7 @@ namespace BuildXL.Engine.Distribution
             (string, string) tuple = InterceptCallContext(context);
             var watch = Stopwatch.StartNew();
             var result = await continuation(request, context);
-            Logger.Log.GrpcTrace(m_loggingContext, string.Format(RespondedLogFormat, tuple.Item1, tuple.Item2, watch.ElapsedMilliseconds));
+            Logger.Log.GrpcTrace(m_loggingContext, string.Format(RespondedLogFormat, tuple.Item1, tuple.Item2, context.Method, watch.ElapsedMilliseconds));
             return result;
         }
 

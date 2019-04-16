@@ -176,6 +176,19 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             AssertVerboseEventLogged(LogEventId.ProjectWithEmptyTargetsIsNotScheduled);
         }
 
+        [Fact]
+        public void GlobalPropertyKeysAreCaseInsensitive()
+        {
+            var config = Build("globalProperties: Map.empty<string, string>().add('Blah', 'a').add('BLAH', 'b')")
+                .AddSpec(R("A.proj"), CreateHelloWorldProject())
+                .PersistSpecsAndGetConfiguration();
+
+            var result = RunEngineWithConfig(config);
+            Assert.False(result.IsSuccess);
+
+            AssertErrorEventLogged(LogEventId.InvalidResolverSettings);
+        }
+
         #region helpers
 
         private Process CreateDummyProjectWithEnvironment(Dictionary<string, string> environment)

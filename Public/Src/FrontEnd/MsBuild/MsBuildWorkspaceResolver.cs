@@ -30,6 +30,8 @@ using BuildXL.FrontEnd.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using ISourceFile = TypeScript.Net.Types.ISourceFile;
 using SourceFile = TypeScript.Net.Types.SourceFile;
+using BuildXL.Utilities.Qualifier;
+using System.Collections.ObjectModel;
 
 namespace BuildXL.FrontEnd.MsBuild
 {
@@ -73,6 +75,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 "SystemRoot",
                 "SYSTEMTYPE"
             };
+        private QualifierId[] m_requestedQualifiers;
 
         /// <summary>
         /// Keep in sync with the BuildXL deployment spec that places the tool
@@ -133,12 +136,17 @@ namespace BuildXL.FrontEnd.MsBuild
             FrontEndHost host,
             FrontEndContext context,
             IConfiguration configuration,
-            IResolverSettings resolverSettings)
+            IResolverSettings resolverSettings,
+            QualifierId[] requestedQualifiers)
         {
+            Contract.Requires(requestedQualifiers?.Length > 0);
+
             InitializeInterpreter(host, context, configuration);
 
             m_resolverSettings = resolverSettings as IMsBuildResolverSettings;
             Contract.Assert(m_resolverSettings != null);
+
+            m_requestedQualifiers = requestedQualifiers;
 
             return true;
         }
@@ -310,8 +318,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
             else
             {
-                var candidates = string.Join(", ", filesInRootTraversal.Select(file => file.ToString(Context.PathTable)));
-                Tracing.Logger.Log.TooManyParsingEntryPointCandidates(Context.LoggingContext, m_resolverSettings.Location(Context.PathTable), m_resolverSettings.RootTraversal.ToString(Context.PathTable), candidates);
+                Tracing.Logger.Log.TooManyParsingEntryPointCandidates(Context.LoggingContext, m_resolverSettings.Location(Context.PathTable), m_resolverSettings.RootTraversal.ToString(Context.PathTable));
             }
             
             parsingEntryPoints = null;
@@ -319,9 +326,6 @@ namespace BuildXL.FrontEnd.MsBuild
 
         }
 
-        /// <summary>
-        /// TODO: this needs to be qualifier-specific
-        /// </summary>
         private async Task<Possible<ProjectGraphResult>> TryComputeBuildGraphAsync(IEnumerable<AbsolutePath> searchLocations, IEnumerable<AbsolutePath> parsingEntryPoints, BuildParameters.IBuildParameters buildParameters)
         {
             // We create a unique output file on the obj folder associated with the current front end, and using a GUID as the file name
@@ -516,14 +520,17 @@ namespace BuildXL.FrontEnd.MsBuild
             string outputFileString = outputFile.ToString(Context.PathTable);
             string enlistmentRoot = m_resolverSettings.Root.ToString(Context.PathTable);
             IReadOnlyCollection<string> entryPointTargets = m_resolverSettings.InitialTargets ?? CollectionUtilities.EmptyArray<string>();
-                
+
+            var requestedQualifiers = m_requestedQualifiers.Select(qualifierId => MsBuildResolverUtils.CreateQualifierAsGlobalProperties(qualifierId, Context)).ToList();
+
             var arguments = new MSBuildGraphBuilderArguments(
                 enlistmentRoot,
                 projectEntryPoints.Select(entryPoint => entryPoint.ToString(Context.PathTable)).ToList(),
                 outputFileString,
-                m_resolverSettings.GlobalProperties,
+                new GlobalProperties(m_resolverSettings.GlobalProperties ?? CollectionUtilities.EmptyDictionary<string, string>()),
                 searchLocations.Select(location => location.ToString(Context.PathTable)).ToList(),
-                entryPointTargets);
+                entryPointTargets,
+                requestedQualifiers);
 
             var responseFilePath = responseFile.ToString(Context.PathTable);
             SerializeResponseFile(responseFilePath, arguments);
@@ -539,10 +546,10 @@ namespace BuildXL.FrontEnd.MsBuild
                 buildStorageDirectory: outputDirectory,
                 fileAccessManifest: GenerateFileAccessManifest(toolDirectory, outputFile),
                 arguments: I($"\"{responseFilePath}\""),
-                workingDirectory:outputDirectory,
-                description:"MsBuild graph builder",
+                workingDirectory: outputDirectory,
+                description: "MsBuild graph builder",
                 buildParameters,
-                beforeLaunch:() => ConnectToServerPipeAndLogProgress(outputFileString));
+                beforeLaunch: () => ConnectToServerPipeAndLogProgress(outputFileString));
         }
 
         private void SerializeResponseFile(string responseFile, MSBuildGraphBuilderArguments arguments)

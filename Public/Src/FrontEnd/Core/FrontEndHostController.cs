@@ -348,6 +348,11 @@ namespace BuildXL.FrontEnd.Core
                 CycleDetector = null;
             }
 
+            if (!TryGetQualifiers(configuration, startupConfiguration.QualifierIdentifiers, out QualifierId[] qualifiersToEvaluate))
+            {
+                return false;
+            }
+
             // Frontend and resolver initialization happens before any other phase. Frontend initialization should happen before any 
             // access to the workspace resolver factory: a frontend may trigger a workspace resolver creation with a particular setting.
             // TODO: during workspace construction the workspace resolver factory is accessed directly, which is wrong from an architecture
@@ -360,7 +365,7 @@ namespace BuildXL.FrontEnd.Core
                 delegate(LoggingContext nestedLoggingContext, ref InitializeResolversStatistics statistics)
                 {
                     // TODO: Use nestedLoggingContext for resolver errors
-                    var success = TryInitializeFrontEndsAndResolvers(configuration);
+                    var success = TryInitializeFrontEndsAndResolvers(configuration, qualifiersToEvaluate);
 
                     statistics.ResolverCount = success ? m_resolvers.Length : 0;
 
@@ -378,7 +383,7 @@ namespace BuildXL.FrontEnd.Core
                 m_logger.FrontEndBuildWorkspacePhaseComplete,
                 delegate(LoggingContext nestedLoggingContext, ref WorkspaceStatistics statistics)
                 {
-                    Workspace = DoPhaseBuildWorkspace(configuration, engineAbstraction, evaluationFilter);
+                    Workspace = DoPhaseBuildWorkspace(configuration, engineAbstraction, evaluationFilter, qualifiersToEvaluate);
 
                     statistics.ProjectCount = Workspace.SpecCount;
                     statistics.ModuleCount = Workspace.ModuleCount;
@@ -438,11 +443,6 @@ namespace BuildXL.FrontEnd.Core
 
                     return result.Succeeded;
                 }))
-            {
-                return false;
-            }
-
-            if (!TryGetQualifiers(configuration, startupConfiguration.QualifierIdentifiers, out QualifierId[] qualifiersToEvaluate))
             {
                 return false;
             }
@@ -1082,7 +1082,7 @@ namespace BuildXL.FrontEnd.Core
         /// <summary>
         /// Initializes front-ends.
         /// </summary>
-        public bool TryInitializeFrontEndsAndResolvers(IConfiguration configuration)
+        public bool TryInitializeFrontEndsAndResolvers(IConfiguration configuration, QualifierId[] requestedQualifiers)
         {
             Contract.Requires(configuration != null);
             Contract.Requires(HostState == State.ConfigInterpreted);
@@ -1098,7 +1098,7 @@ namespace BuildXL.FrontEnd.Core
             // The factory context may be not set if the controller is not using the workspace, so we set that here
             if (!m_workspaceResolverFactory.IsInitialized)
             {
-                m_workspaceResolverFactory.Initialize(FrontEndContext, this, configuration);
+                m_workspaceResolverFactory.Initialize(FrontEndContext, this, configuration, requestedQualifiers);
             }
 
             foreach (IFrontEnd frontEnd in m_frontEndFactory.RegisteredFrontEnds)
@@ -1144,7 +1144,7 @@ namespace BuildXL.FrontEnd.Core
         }
 
         /// <summary>
-        /// An alternative to <see cref="TryInitializeFrontEndsAndResolvers(IConfiguration)"/> used for testing.  Instead
+        /// An alternative to <see cref="TryInitializeFrontEndsAndResolvers(IConfiguration, QualifierId[])"/> used for testing.  Instead
         /// of taking and parsing a config object, this method directly takes a list of resolvers.
         /// </summary>
         internal void InitializeResolvers(IEnumerable<IResolver> resolvers)
@@ -1156,14 +1156,14 @@ namespace BuildXL.FrontEnd.Core
         /// <summary>
         /// Returns a <see cref="IWorkspaceProvider"/> responsible for <see cref="Workspace"/> computation.
         /// </summary>
-        internal bool TryGetWorkspaceProvider(IConfiguration configuration, out IWorkspaceProvider workspaceProvider, out IEnumerable<Failure> failures)
+        internal bool TryGetWorkspaceProvider(IConfiguration configuration, QualifierId[] requestedQualifiers, out IWorkspaceProvider workspaceProvider, out IEnumerable<Failure> failures)
         {
             var workspaceConfiguration = GetWorkspaceConfiguration(configuration);
 
             // This is the point where we have all the objects we need to complete setting up the workspace factory
             if (!m_workspaceResolverFactory.IsInitialized)
             {
-                m_workspaceResolverFactory.Initialize(FrontEndContext, this, configuration);
+                m_workspaceResolverFactory.Initialize(FrontEndContext, this, configuration, requestedQualifiers);
             }
 
             return TryGetWorkspaceProvider(workspaceConfiguration, out workspaceProvider, out failures);
@@ -1333,7 +1333,7 @@ namespace BuildXL.FrontEnd.Core
             // Register the meta pips for the modules and the specs with the graph
             RegisterModuleAndSpecPips(Workspace);
 
-            // Workspace has been converted and is not needed any more
+            // Workspace has been converted and is not needed anymore
             CleanWorkspaceMemory();
 
             // Evaluate with progress reporting

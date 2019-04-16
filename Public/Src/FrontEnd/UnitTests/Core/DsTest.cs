@@ -1010,7 +1010,8 @@ namespace Test.BuildXL.FrontEnd.Core
             DScriptWorkspaceResolverFactory workspaceFactory,
             AbsolutePath fileToProcess,
             out IConfiguration finalConfig,
-            out Workspace workspace)
+            out Workspace workspace,
+            QualifierId[] requestedQualifiers = null)
         {
             Contract.Requires(config != null);
 
@@ -1038,9 +1039,12 @@ namespace Test.BuildXL.FrontEnd.Core
             controller.SetState(frontEndEngineAbstraction, GetPipGraph(), config);
 
             var evaluationFilter = fileToProcess.IsValid ? EvaluationFilter.FromSingleSpecPath(FrontEndContext.SymbolTable, FrontEndContext.PathTable, fileToProcess) : EvaluationFilter.Empty;
-            workspace = BuildAndAnalyzeWorkspace(controller, engine.Configuration, frontEndEngineAbstraction, evaluationFilter);
 
-            bool initFrontEnds = controller.TryInitializeFrontEndsAndResolvers(engine.Configuration);
+            var requestedQualifiersOrDefault = requestedQualifiers ?? new QualifierId[] { engine.Context.QualifierTable.EmptyQualifierId };
+
+            workspace = BuildAndAnalyzeWorkspace(controller, engine.Configuration, frontEndEngineAbstraction, evaluationFilter, requestedQualifiersOrDefault);
+
+            bool initFrontEnds = controller.TryInitializeFrontEndsAndResolvers(engine.Configuration, requestedQualifiers: requestedQualifiersOrDefault);
             if (!initFrontEnds)
             {
                 return null;
@@ -1052,10 +1056,10 @@ namespace Test.BuildXL.FrontEnd.Core
 
         protected virtual bool FilterWorkspaceForConversion => false;
 
-        private Workspace BuildAndAnalyzeWorkspace(FrontEndHostController controller, IConfiguration configuration, BasicFrontEndEngineAbstraction frontEndEngineAbstraction, EvaluationFilter evaluationFilter)
+        private Workspace BuildAndAnalyzeWorkspace(FrontEndHostController controller, IConfiguration configuration, BasicFrontEndEngineAbstraction frontEndEngineAbstraction, EvaluationFilter evaluationFilter, QualifierId[] requestedQualifiers)
         {
             BeforeBuildWorkspaceHook();
-            var workspace = controller.DoPhaseBuildWorkspace(configuration, frontEndEngineAbstraction, evaluationFilter);
+            var workspace = controller.DoPhaseBuildWorkspace(configuration, frontEndEngineAbstraction, evaluationFilter, requestedQualifiers: requestedQualifiers);
 
             if (workspace.Succeeded)
             {
@@ -1245,7 +1249,7 @@ namespace Test.BuildXL.FrontEnd.Core
                 resolverSettings = sourceResolverSettings;
             }
 
-            workspaceFactory.Initialize(context, frontEndHost, frontEndHost.Configuration);
+            workspaceFactory.Initialize(context, frontEndHost, frontEndHost.Configuration, requestedQualifiers: new QualifierId[] { context.QualifierTable.EmptyQualifierId });
             var workspaceResolver = workspaceFactory.TryGetResolver(resolverSettings).Result;
 
             var resolver = frontEnd.CreateResolver(resolverSettings.Kind);

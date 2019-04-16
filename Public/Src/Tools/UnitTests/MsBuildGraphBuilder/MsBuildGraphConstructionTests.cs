@@ -95,25 +95,111 @@ namespace Test.ProjectGraphBuilder
             Assert.Equal(0, innerProject.ProjectReferences.Count);
         }
 
+        [Fact]
+        public void QualifiersAndGlobalPropertiesShouldAgree()
+        {
+            var entryPointPath = m_builder.WriteProjectsWithReferences(("A", "<Project/>"));
+
+            var requestedQualifiers = new GlobalProperties[] { new GlobalProperties(new Dictionary<string, string> { ["platform"] = "x64" }) };
+            var globalProperties = new GlobalProperties(new Dictionary<string, string> { ["platform"] = "amd64" });
+
+            var arguments = CreateBuilderArguments(entryPointPath, requestedQualifiers, globalProperties);
+
+            var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(arguments);
+
+            Assert.False(projectGraphWithPredictionsResult.Succeeded);
+            Assert.Contains("the specified values for 'PLATFORM' do not agree", projectGraphWithPredictionsResult.Failure.Message);
+        }
+
+        [Fact]
+        public void QualifiersAndGlobalPropertiesAreMerged()
+        {
+            var entryPointPath = m_builder.WriteProjectsWithReferences(("A", "<Project/>"));
+
+            var requestedQualifiers = new GlobalProperties[] { new GlobalProperties(new Dictionary<string, string> { ["platform"] = "x64" }) };
+            var globalProperties = new GlobalProperties(new Dictionary<string, string> { ["configuration"] = "release" });
+
+            var arguments = CreateBuilderArguments(entryPointPath, requestedQualifiers, globalProperties);
+
+            var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(arguments);
+
+            Assert.True(projectGraphWithPredictionsResult.Succeeded);
+            var projectProperties = projectGraphWithPredictionsResult.Result.ProjectNodes.Single().GlobalProperties;
+            
+            Assert.Equal("x64", projectProperties["platform"]);
+            Assert.Equal("release", projectProperties["configuration"]);
+        }
+
+        [Fact]
+        public void QualifiersAndGlobalPropertiesAreMergedPerQualifier()
+        {
+            var entryPointPath = m_builder.WriteProjectsWithReferences(("A", "<Project/>"));
+
+            // let's 'build' for debug and release
+            var requestedQualifiers = new GlobalProperties[] {
+                new GlobalProperties(new Dictionary<string, string> { ["configuration"] = "debug" }),
+                new GlobalProperties(new Dictionary<string, string> { ["configuration"] = "release" }),
+            };
+
+            var globalProperties = new GlobalProperties(new Dictionary<string, string> { ["platform"] = "x86" });
+
+            var arguments = CreateBuilderArguments(entryPointPath, requestedQualifiers, globalProperties);
+
+            var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(arguments);
+
+            Assert.True(projectGraphWithPredictionsResult.Succeeded);
+            var nodes = projectGraphWithPredictionsResult.Result.ProjectNodes;
+
+            // There should be two nodes, one per qualifier
+            Assert.Equal(2, nodes.Count());
+            var debugNode = nodes.First(node => node.GlobalProperties["configuration"] == "debug");
+            var releaseNode = nodes.First(node => node.GlobalProperties["configuration"] == "release");
+
+            // Both nodes should have the same platform, since that's part of the global properties
+            Assert.All(nodes, node => Assert.Equal("x86", node.GlobalProperties["platform"]));
+        }
+
+        private ProjectGraphWithPredictionsResult<string> BuildGraphAndDeserialize(MSBuildGraphBuilderArguments arguments)
+        {
+            MsBuildGraphBuilder.BuildGraphAndSerialize(arguments);
+
+            // The serialized graph should exist
+            Assert.True(File.Exists(arguments.OutputPath));
+
+            var projectGraphWithPredictionsResult = SimpleDeserializer.Instance.DeserializeGraph(arguments.OutputPath);
+
+            return projectGraphWithPredictionsResult;
+        }
+
         private ProjectGraphWithPredictionsResult<string> BuildGraphAndDeserialize(IReadOnlyCollection<string> projectEntryPoints)
         {
             string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
 
-            MsBuildGraphBuilder.BuildGraphAndSerialize(
-                new MSBuildGraphBuilderArguments(
+            var arguments = new MSBuildGraphBuilderArguments(
                     TestOutputDirectory,
                     projectEntryPoints,
                     outputFile,
-                    globalProperties: null,
+                    globalProperties: GlobalProperties.Empty,
                     mSBuildSearchLocations: new[] {TestDeploymentDir},
-                    entryPointTargets: new string[0]));
+                    entryPointTargets: new string[0],
+                    requestedQualifiers: new GlobalProperties[] { GlobalProperties.Empty });
 
-            // The serialized graph should exist
-            Assert.True(File.Exists(outputFile));
+            return BuildGraphAndDeserialize(arguments);
+            
+        }
 
-            var projectGraphWithPredictionsResult = SimpleDeserializer.Instance.DeserializeGraph(outputFile);
-
-            return projectGraphWithPredictionsResult;
+        private MSBuildGraphBuilderArguments CreateBuilderArguments(string entryPointPath, GlobalProperties[] requestedQualifiers, GlobalProperties globalProperties)
+        {
+            string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
+            var arguments = new MSBuildGraphBuilderArguments(
+                    TestOutputDirectory,
+                    new string[] { entryPointPath },
+                    outputFile,
+                    globalProperties: globalProperties,
+                    mSBuildSearchLocations: new[] { TestDeploymentDir },
+                    entryPointTargets: new string[0],
+                    requestedQualifiers: requestedQualifiers);
+            return arguments;
         }
     }
 }

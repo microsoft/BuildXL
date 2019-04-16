@@ -214,5 +214,18 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             return Store.OpenStreamAsync(context, contentHash, pinRequest: null);
         }
+
+        /// <inheritdoc />
+        public async Task<FileExistenceResult> CheckFileExistsAsync(Context context, ContentHash contentHash)
+        {
+            if (await Store.ContainsAsync(context, contentHash, null))
+            {
+                return new FileExistenceResult();
+            }
+            else
+            {
+                return new FileExistenceResult(FileExistenceResult.ResultCode.FileNotFound, $"{contentHash} wasn't found in the cache");
+            }
+        }
     }
 }

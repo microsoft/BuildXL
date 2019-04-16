@@ -17,6 +17,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -49,9 +50,13 @@ namespace ContentStoreTest.Distributed.Stores
                 var content = ThreadSafeRandom.GetBytes(FileSize);
                 FileSystem.WriteAllBytes(sourcePath, content);
 
+                // Put the random file
+                PutResult putResult = await session.PutFileAsync(_context, HashType.Vso0, sourcePath, FileRealizationMode.Any, CancellationToken.None);
+                putResult.ShouldBeSuccess();
+
                 // Copy the file out via GRPC
                 var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
-                (await client.CopyFileAsync(_context, content.CalculateHash(DefaultHashType), destinationPath, CancellationToken.None)).ShouldBeSuccess();
+                (await client.CopyFileAsync(_context, putResult.ContentHash, destinationPath, CancellationToken.None)).ShouldBeSuccess();
 
                 var copied = FileSystem.ReadAllBytes(destinationPath);
 
@@ -72,8 +77,12 @@ namespace ContentStoreTest.Distributed.Stores
                 var content = ThreadSafeRandom.GetBytes(FileSize);
                 FileSystem.WriteAllBytes(sourcePath, content);
 
+                // Put the random file
+                PutResult putResult = await session.PutFileAsync(_context, HashType.Vso0, sourcePath, FileRealizationMode.Any, CancellationToken.None);
+                putResult.ShouldBeSuccess();
+
                 // Check if file exists
-                (await client.CheckFileExistsAsync(_context, content.CalculateHash(DefaultHashType))).ShouldBeSuccess();
+                (await client.CheckFileExistsAsync(_context, putResult.ContentHash)).ShouldBeSuccess();
             });
         }
 

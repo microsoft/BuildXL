@@ -181,7 +181,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, $"{hash} to found");
         }
 
-            private async Task<ExistenceResponse> CheckFileExistsAsync(ExistenceRequest request, CancellationToken token)
+        private async Task<ExistenceResponse> CheckFileExistsAsync(ExistenceRequest request, CancellationToken token)
         {
             LogRequestHandling();
 

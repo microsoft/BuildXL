@@ -292,11 +292,6 @@ namespace Test.BuildXL.Storage
         /// If a file or directory is on the Windows pending deletion queue,
         /// no process will report having an open handle
         /// </summary>
-        /// <remarks>
-        /// This test is failing on an RS6 preview. The failure is not related to Helium
-        /// but probably to some behavior change in the APIs this test uses. Requiring the Helium
-        /// drivers to NOT be available is just a very cheap way of detecting an RS6 preview.
-        /// </remarks>
         [FactIfSupported(requiresHeliumDriversNotAvailable: true)]
         public void FailToFindAllOpenHandlesPendingDeletion()
         {

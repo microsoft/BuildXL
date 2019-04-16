@@ -330,7 +330,7 @@ namespace Test.BuildXL.Storage
                 builder.AppendLine(FileUtilitiesMessages.NoProcessesUsingHandle);
                 builder.AppendLine(FileUtilitiesMessages.PathMayBePendingDeletion);
                 // Befores Windows 10 Version 1903, attempting to create a file handle to a file pending deletion would throw an access exception, including calling File.Exists
-                // With Windows 10 Version 1903 and later, creating handles to filese on the pending deletion queue does not throw exceptions and pending deletion files are considered deleted by File.Exists
+                // With Windows 10 Version 1903 and later, creating handles to files on the pending deletion queue does not throw exceptions and pending deletion files are considered deleted by File.Exists
                 // This change in behavior is NOT true for directories, see testing below for the directory behavior
                 XAssert.IsTrue(openHandles.Contains(builder.ToString()) || /* Check for Windows 10 Version 1903 and later */ !File.Exists(file));
                 XAssert.IsFalse(openHandles.Contains(FileUtilitiesMessages.ActiveHandleUsage + file));

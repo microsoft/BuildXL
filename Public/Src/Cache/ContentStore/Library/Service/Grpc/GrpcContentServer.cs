@@ -188,18 +188,23 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             DateTime startTime = DateTime.UtcNow;
             Context cacheContext = new Context(new Guid(request.TraceId), _logger);
+            ExistenceResponse response;
             if (_fileSystem.FileExists(new AbsolutePath(request.AbsolutePath)))
             {
-                return Task.FromResult(new ExistenceResponse
+                response = new ExistenceResponse
                 {
                     Header = new ResponseHeader(startTime, true, (int)FileExistenceResult.ResultCode.FileExists, null, null)
-                });
+                };
+            }
+            else
+            {
+                response = new ExistenceResponse
+                {
+                    Header = ResponseHeader.Failure(startTime, $"{request.AbsolutePath} doesn't exist")
+                };
             }
 
-            return Task.FromResult(new ExistenceResponse
-            {
-                Header = ResponseHeader.Failure(startTime, $"{request.AbsolutePath} doesn't exist")
-            });
+            return Task.FromResult(response);
         }
 
         /// <summary>

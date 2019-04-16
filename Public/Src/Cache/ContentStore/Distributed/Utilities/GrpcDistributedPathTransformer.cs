@@ -51,10 +51,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             var cacheRootString = cacheRoot.Path.ToUpperInvariant();
 
-            // Determine if cacheRoot needs to be accessed through its directory junction.
-            var directoryToReplace = _junctionsByDirectory.Keys.SingleOrDefault(directory => cacheRoot.Path.StartsWith(directory, StringComparison.OrdinalIgnoreCase));
+            // Determine if cacheRoot needs to be accessed through its directory junction
+            var directories = _junctionsByDirectory.Keys;
+            var directoryToReplace = directories.SingleOrDefault(directory => cacheRootString.StartsWith(directory, StringComparison.OrdinalIgnoreCase));
             if (!string.IsNullOrEmpty(directoryToReplace))
             {
+                // Replace directory with its junction
+                directoryToReplace = directoryToReplace.ToUpperInvariant();
                 var junction = _junctionsByDirectory[directoryToReplace].ToUpperInvariant();
                 cacheRootString = cacheRootString.Replace(directoryToReplace, junction);
             }

@@ -35,21 +35,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
+        public async Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
         {
-            // TODO: Implement!
-            throw new NotImplementedException();
+            // Extract host from sourcePath
+            string host = ExtractHostFromAbsolutePath(path);
+
+            FileExistenceResult fileExistenceResult = null;
+            using (var client = GrpcCopyClient.Create(host, _grpcPort))
+            {
+                fileExistenceResult = await client.CheckFileExistsAsync(_context, path, cancellationToken);
+            }
+
+            return fileExistenceResult;
         }
 
         /// <inheritdoc />
         public async Task<CopyFileResult> CopyFileAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, long contentSize, bool overwrite, CancellationToken cancellationToken)
         {
-            // Extract host and contentHash from sourcePath
+            // Extract host from sourcePath
             string host = ExtractHostFromAbsolutePath(sourcePath);
 
             CopyFileResult copyFileResult = null;
-            // Contact hard-coded port on source
-            using (var client = GrpcCopyClient.Create(host, DefaultGrpcPort))
+            using (var client = GrpcCopyClient.Create(host, _grpcPort))
             {
                 copyFileResult = await client.CopyFileAsync(_context, sourcePath, destinationPath, cancellationToken);
             }
@@ -71,8 +78,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             string host = ExtractHostFromAbsolutePath(sourcePath);
 
             CopyFileResult copyFileResult = null;
-            // Contact hard-coded port on source
-            using (var client = GrpcCopyClient.Create(host, DefaultGrpcPort))
+            using (var client = GrpcCopyClient.Create(host, _grpcPort))
             {
                 copyFileResult = await client.CopyToAsync(_context, sourcePath, destinationStream, cancellationToken);
             }

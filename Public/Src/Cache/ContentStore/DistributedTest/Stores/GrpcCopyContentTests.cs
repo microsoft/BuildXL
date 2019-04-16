@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -16,7 +17,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
-using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -30,6 +30,7 @@ namespace ContentStoreTest.Distributed.Stores
     public class GrpcCopyContentTests : TestBase
     {
         private const int FileSize = 1000;
+        private const HashType DefaultHashType = HashType.Vso0;
         private Context _context;
 
         public GrpcCopyContentTests()
@@ -43,34 +44,69 @@ namespace ContentStoreTest.Distributed.Stores
         {
             await RunTestCase(nameof(CopyExistingFile), async (rootPath, session, client) =>
             {
-                // Write a random file to put into the cache
-                var path = rootPath / ThreadSafeRandom.Generator.Next().ToString();
+                // Write a random file
+                var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
                 var content = ThreadSafeRandom.GetBytes(FileSize);
-                FileSystem.WriteAllBytes(path, content);
-
-                // Put the random file
-                PutResult putResult = await session.PutFileAsync(_context, HashType.Vso0, path, FileRealizationMode.Any, CancellationToken.None);
-                putResult.ShouldBeSuccess();
+                FileSystem.WriteAllBytes(sourcePath, content);
 
                 // Copy the file out via GRPC
-                (await client.CopyFileAsync(_context, putResult.ContentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None)).ShouldBeSuccess();
+                var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
+                (await client.CopyFileAsync(_context, sourcePath, destinationPath, CancellationToken.None)).ShouldBeSuccess();
+
+                var copied = FileSystem.ReadAllBytes(destinationPath);
+
+                // Compare original and copied files
+                var originalHash = content.CalculateHash(DefaultHashType);
+                var copiedHash = copied.CalculateHash(DefaultHashType);
+                Assert.Equal(originalHash, copiedHash);
             });
         }
 
         [Fact]
-        public async Task CopyNonexistingFile()
+        public async Task CheckExistingFile()
         {
-            await RunTestCase(nameof(CopyNonexistingFile), async (rootPath, session, client) =>
+            await RunTestCase(nameof(CheckExistingFile), async (rootPath, session, client) =>
             {
-                // Write a random file to put into the cache
+                // Write a random file
+                var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
                 var content = ThreadSafeRandom.GetBytes(FileSize);
-                var contentHash = HashingExtensions.CalculateHash(content, HashType.Vso0);
+                FileSystem.WriteAllBytes(sourcePath, content);
+
+                // Check if file exists
+                (await client.CheckFileExistsAsync(_context, sourcePath, CancellationToken.None)).ShouldBeSuccess();
+            });
+        }
+
+        [Fact]
+        public async Task CopyNonExistingFile()
+        {
+            await RunTestCase(nameof(CopyNonExistingFile), async (rootPath, session, client) =>
+            {
+                // Create random non-existent file
+                var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
 
                 // Copy the file out via GRPC
-                var copyFileResult = await client.CopyFileAsync(_context, contentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
+                var copyFileResult = await client.CopyFileAsync(_context, sourcePath, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
 
                 Assert.False(copyFileResult.Succeeded);
                 Assert.Equal(CopyFileResult.ResultCode.FileNotFoundError, copyFileResult.Code);
+            });
+        }
+
+        [Fact]
+        public async Task CheckNonExistingFile()
+        {
+            System.Diagnostics.Debugger.Launch();
+
+            await RunTestCase(nameof(CheckExistingFile), async (rootPath, session, client) =>
+            {
+                // Write a random file
+                var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
+                var content = ThreadSafeRandom.GetBytes(FileSize);
+                FileSystem.WriteAllBytes(sourcePath, content);
+
+                // Check if file exists
+                (await client.CheckFileExistsAsync(_context, sourcePath, CancellationToken.None)).ShouldBeError();
             });
         }
 
@@ -79,16 +115,15 @@ namespace ContentStoreTest.Distributed.Stores
         {
             await RunTestCase(nameof(WrongPort), async (rootPath, session, client) =>
             {
-                // Write a random file to put into the cache
-                var content = ThreadSafeRandom.GetBytes(FileSize);
-                var contentHash = HashingExtensions.CalculateHash(content, HashType.Vso0);
+                // Create random non-existent file
+                var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
 
                 // Copy the file out via GRPC
                 var host = "localhost";
                 var bogusPort = PortExtensions.GetNextAvailablePort();
                 using (client = GrpcCopyClient.Create(host, bogusPort))
                 {
-                    var copyFileResult = await client.CopyFileAsync(_context, contentHash, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
+                    var copyFileResult = await client.CopyFileAsync(_context, sourcePath, rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
                     Assert.Equal(CopyFileResult.ResultCode.SourcePathError, copyFileResult.Code);
                 }
             });

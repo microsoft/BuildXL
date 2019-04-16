@@ -25,6 +25,8 @@ service ContentServer {
     rpc RemoveFromTracker(RemoveFromTrackerRequest) returns (RemoveFromTrackerResponse) {}
 
     rpc CopyFile(CopyFileRequest) returns (stream CopyFileResponse) {}
+
+    rpc CheckFileExists(ExistenceRequest) returns (ExistenceResponse) {}
 }
 
 // Defines an interface of a cache server
@@ -167,6 +169,34 @@ message RemoveFromTrackerResponse {
     int64 FilesEvicted = 2;
 }
 
+// CopyFile
+message CopyFileRequest {
+    string traceId = 1;
+    string absolutePath = 2;
+    int64 offset = 3;
+    CopyCompression compression = 4;
+}
+
+message CopyFileResponse {
+    bytes content = 1;
+    int64 index = 2;
+}
+
+enum CopyCompression {
+    none = 0;
+    gzip = 1;
+}
+
+// CheckFileExists
+message ExistenceRequest {
+    string traceId = 1;
+    string absolutePath = 2;
+}
+
+message ExistenceResponse {
+    ResponseHeader Header = 1;
+}
+
 // AddOrGetContentHashList
 message AddOrGetContentHashListRequest {
     RequestHeader Header = 1;
@@ -244,21 +274,4 @@ message ContentHashListData {
 message SelectorData {
     ContentHashAndHashTypeData ContentHash = 1;
     bytes Output = 2;
-}
-
-message CopyFileRequest {
-    string traceId = 1;
-    string absolutePath = 2;
-    int64 offset = 3;
-    CopyCompression compression = 4;
-}
-
-message CopyFileResponse {
-    bytes content = 1;
-    int64 index = 2;
-}
-
-enum CopyCompression {
-    none = 0;
-    gzip = 1;
 }

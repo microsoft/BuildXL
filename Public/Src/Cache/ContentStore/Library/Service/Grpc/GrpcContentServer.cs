@@ -182,10 +182,30 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
         }
 
+        private Task<ExistenceResponse> CheckFileExistsAsync(ExistenceRequest request, CancellationToken token)
+        {
+            LogRequestHandling();
+
+            DateTime startTime = DateTime.UtcNow;
+            Context cacheContext = new Context(new Guid(request.TraceId), _logger);
+            if (_fileSystem.FileExists(new AbsolutePath(request.AbsolutePath)))
+            {
+                return Task.FromResult(new ExistenceResponse
+                {
+                    Header = new ResponseHeader(startTime, true, (int)FileExistenceResult.ResultCode.FileExists, null, null)
+                });
+            }
+
+            return Task.FromResult(new ExistenceResponse
+            {
+                Header = ResponseHeader.Failure(startTime, $"{request.AbsolutePath} doesn't exist")
+            });
+        }
+
         /// <summary>
         /// Implements a copy file request.
         /// </summary>
-        public async Task CopyFileAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context)
+        private async Task CopyFileAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context)
         {
             try
             {
@@ -545,6 +565,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 _contentServer = contentServer;
             }
+
+            /// <inheritdoc />
+            public override Task<ExistenceResponse> CheckFileExists(ExistenceRequest request, ServerCallContext context) => _contentServer.CheckFileExistsAsync(request, context.CancellationToken);
 
             /// <inheritdoc />
             public override Task CopyFile(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context) => _contentServer.CopyFileAsync(request, responseStream, context);

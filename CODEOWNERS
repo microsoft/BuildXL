@@ -1,0 +1,35 @@
+
+#######################################
+# Feature area's
+#######################################
+
+# VsCode ide integration
+/Public/Src/IDE/VsCode/*                                            @dannyvv @smera @SergeyTeplyakov
+
+# Mac code
+/Public/Src/Utilities/Native/Streams/Unix/                          @almiliMSFT @Kr1sso
+/Public/Src/Utilities/Native/Processes/Unix/                        @almiliMSFT @Kr1sso
+/Public/Src/Utilities/Native/IO/Unix/                               @almiliMSFT @Kr1sso
+/MacOs/                                                             @almiliMSFT @Kr1sso
+/Example/                                                           @almiliMSFT @Kr1sso
+*Kext*                                                              @almiliMSFT @Kr1sso
+*/Domino.Interop/                                                   @almiliMSFT @Kr1sso
+/Public/Src/Deployment/DotNetCore/CoreDotNetTests.dsc               @almiliMSFT @Kr1sso
+
+# Cache Code
+\Public\Src\Cache\                                                  @dcwuser @JuanCarlosGI @kewilli @ljcollins25 @thpha
+
+#######################################
+#  Personal interests
+#######################################
+
+# Danny's interests
+CODEOWNERS                                                          @dannyvv
+/*.dsc                                                              @dannyvv
+/Public/Src/FrontEnd/Sdk/                                           @dannyvv
+/Public/Src/Explorer/                                               @dannyvv
+
+# Iman's interests
+/Public/Src/Utilities/Storage/ChangeTracking/FileChangeTrack*       @narasamdya
+/Public/Src/Engine/Scheduler/Incremental*                           @narasamdya
+/Public/Src/Engine/Scheduler/BuildSetCalculator.cs                  @narasamdya

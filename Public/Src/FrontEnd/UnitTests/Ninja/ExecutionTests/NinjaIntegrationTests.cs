@@ -193,5 +193,34 @@ namespace Test.BuildXL.FrontEnd.Ninja
 
             return PipId.Invalid;
         }
+
+        [Fact]
+        public void DummyTargetsAreOptionalFiles()
+        {
+            const string PhonyOutputFile1 = "a.txt";
+            const string PhonyOutputFile2 = "b.txt";
+            const string DummyFile = "dummy.txt";
+            const string EffectiveFile = "real.txt";
+
+            var config = BuildAndGetConfiguration(CreateDummyFilePhonyProject(PhonyOutputFile1, PhonyOutputFile2, DummyFile, EffectiveFile));
+            var engineResult = RunEngineWithConfig(config);
+
+            Assert.True(engineResult.IsSuccess);
+
+            // The dummy file should be declared as output and be optional. It may or not be present afterwards
+            var pipGraph = engineResult.EngineState.PipGraph;
+            var pipId = FindPipIdThatProducedFile(pipGraph, DummyFile);
+            var pip = pipGraph.GetPipFromPipId(pipId) as Process;
+            Assert.False(pip.FileOutputs.Any(file => file.IsRequiredOutputFile));
+
+            // In this case, the dummy file should not exist; implies nothing weird happened
+            var dummyOutputPath = Path.Combine(SourceRoot, DefaultProjectRoot, DummyFile);
+            Assert.False(File.Exists(dummyOutputPath));
+
+            // The file that is written by the rule that has the dummy dependency must exist; implies execution happened
+            var effectiveOutputPath = Path.Combine(SourceRoot, DefaultProjectRoot, EffectiveFile);
+            Assert.True(File.Exists(effectiveOutputPath));
+
+        }
     }
 }

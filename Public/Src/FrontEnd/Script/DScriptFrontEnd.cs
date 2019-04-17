@@ -4,13 +4,12 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Script
 {
@@ -24,12 +23,10 @@ namespace BuildXL.FrontEnd.Script
 
         /// <nodoc/>
         public DScriptFrontEnd(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
             IFrontEndStatistics statistics,
             Logger logger = null,
             IDecorator<EvaluationResult> evaluationDecorator = null)
-            : base(constants, sharedModuleRegistry, statistics, logger)
+            : base(statistics, logger)
         {
             Name = nameof(DScriptFrontEnd);
 
@@ -69,7 +66,7 @@ namespace BuildXL.FrontEnd.Script
             Contract.Assert(m_sourceFileProcessingQueue != null, "Initialize method should called to initialize m_sourceFileProcessingQueue.");
 
             // A DScriptSourceResolver can take care of a source and a default source resolver settings
-            return new DScriptSourceResolver(Constants, SharedModuleRegistry, FrontEndHost, Context, Configuration,
+            return new DScriptSourceResolver(FrontEndHost, Context, Configuration,
                 FrontEndStatistics, m_sourceFileProcessingQueue, Logger, m_evaluationDecorator);
         }
 

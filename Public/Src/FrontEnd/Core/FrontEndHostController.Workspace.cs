@@ -91,9 +91,9 @@ namespace BuildXL.FrontEnd.Core
         /// Builds and filters the worksapce.
         /// </summary>
         [System.Diagnostics.ContractsLight.Pure]
-        internal Workspace DoPhaseBuildWorkspace(IConfiguration configuration, FrontEndEngineAbstraction engineAbstraction, EvaluationFilter evaluationFilter)
+        internal Workspace DoPhaseBuildWorkspace(IConfiguration configuration, FrontEndEngineAbstraction engineAbstraction, EvaluationFilter evaluationFilter, QualifierId[] requestedQualifiers)
         {
-            if (!TryGetWorkspaceProvider(configuration, out var workspaceProvider, out var failures))
+            if (!TryGetWorkspaceProvider(configuration, requestedQualifiers, out var workspaceProvider, out var failures))
             {
                 var workspaceConfiguration = GetWorkspaceConfiguration(configuration);
 

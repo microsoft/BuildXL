@@ -16,6 +16,7 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
@@ -252,6 +253,8 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         {
             var stream = new MemoryStream(ast.Content, 0, ast.Length);
 
+            var moduleRegistry = (ModuleRegistry)runtimeModelContext.FrontEndHost.ModuleRegistry;
+
             // TODO: change to a regular BuildXLReader when we start serializing the qualifier table
             using (var reader = new QualifierTableAgnosticReader(
                 runtimeModelContext.QualifierTable,
@@ -261,8 +264,8 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             {
                 var deserializedResult = SourceFileParseResult.Read(
                     reader,
-                    runtimeModelContext.Globals,
-                    runtimeModelContext.ModuleRegistry,
+                    moduleRegistry.GlobalLiteral,
+                    moduleRegistry,
                     runtimeModelContext.PathTable);
 
                 return deserializedResult;
@@ -279,7 +282,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 
         private IAstConverter CreateAstConverter(ISourceFile sourceFile, RuntimeModelContext runtimeModelContext, AbsolutePath path, AstConversionConfiguration conversionConfiguration, Workspace workspace)
         {
-            var module = ModuleLiteral.CreateFileModule(path, runtimeModelContext.Globals, runtimeModelContext.Package, runtimeModelContext.ModuleRegistry, sourceFile.LineMap);
+            var module = ModuleLiteral.CreateFileModule(path, runtimeModelContext.FrontEndHost.ModuleRegistry, runtimeModelContext.Package, sourceFile.LineMap);
             return CreateAstConverter(sourceFile, module, runtimeModelContext, path, conversionConfiguration, workspace);
         }
 

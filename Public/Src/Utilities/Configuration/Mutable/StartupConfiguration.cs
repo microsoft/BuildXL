@@ -15,6 +15,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc />
         public StartupConfiguration()
         {
+            AdditionalConfigFiles = new List<AbsolutePath>();
             Properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             QualifierIdentifiers = new List<string>();
             ImplicitFilters = new List<string>();
@@ -29,7 +30,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Contract.Assume(pathRemapper != null);
 
             ConfigFile = pathRemapper.Remap(template.ConfigFile);
-
+            AdditionalConfigFiles = pathRemapper.Remap(template.AdditionalConfigFiles);
             Properties = new Dictionary<string, string>();
             foreach (var kv in template.Properties)
             {
@@ -43,6 +44,16 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath ConfigFile { get; set; }
+
+        /// <nodoc />
+        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public List<AbsolutePath> AdditionalConfigFiles { get; set; }
+
+        /// <inheritdoc />
+        IReadOnlyList<AbsolutePath> IStartupConfiguration.AdditionalConfigFiles
+        {
+            get { return AdditionalConfigFiles; }
+        }
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]

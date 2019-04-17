@@ -7,33 +7,29 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using BuildXL.FrontEnd.MsBuild.Serialization;
+using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Utilities;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
-using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Core;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.Workspaces;
-using BuildXL.FrontEnd.MsBuild.Serialization;
 using Newtonsoft.Json;
 using TypeScript.Net.DScript;
-using System.IO.Pipes;
-using System.Text;
-using BuildXL.FrontEnd.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using ISourceFile = TypeScript.Net.Types.ISourceFile;
 using SourceFile = TypeScript.Net.Types.SourceFile;
 
 namespace BuildXL.FrontEnd.MsBuild
 {
-    
+
     /// <summary>
     /// Workspace resolver using the MsBuild static graph API
     /// </summary>
@@ -42,7 +38,6 @@ namespace BuildXL.FrontEnd.MsBuild
         internal const string MsBuildResolverName = "MsBuild";
 
         private IMsBuildResolverSettings m_resolverSettings;
-        private readonly MsBuildFrontEnd m_frontEnd;
 
         // path-to-source-file to source file. Parsing requests may happen concurrently.
         private readonly ConcurrentDictionary<AbsolutePath, SourceFile> m_createdSourceFiles =
@@ -73,6 +68,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 "SystemRoot",
                 "SYSTEMTYPE"
             };
+        private QualifierId[] m_requestedQualifiers;
 
         /// <summary>
         /// Keep in sync with the BuildXL deployment spec that places the tool
@@ -93,14 +89,10 @@ namespace BuildXL.FrontEnd.MsBuild
 
         /// <inheritdoc/>
         public MsBuildWorkspaceResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
-            IFrontEndStatistics statistics,
-            MsBuildFrontEnd frontEnd)
-            : base(constants, sharedModuleRegistry, statistics, logger: null)
+            IFrontEndStatistics statistics)
+            : base(statistics, logger: null)
         {
             Name = nameof(MsBuildWorkspaceResolver);
-            m_frontEnd = frontEnd;
         }
 
         /// <inheritdoc cref="DScriptInterpreterBase"/>
@@ -133,12 +125,17 @@ namespace BuildXL.FrontEnd.MsBuild
             FrontEndHost host,
             FrontEndContext context,
             IConfiguration configuration,
-            IResolverSettings resolverSettings)
+            IResolverSettings resolverSettings,
+            QualifierId[] requestedQualifiers)
         {
+            Contract.Requires(requestedQualifiers?.Length > 0);
+
             InitializeInterpreter(host, context, configuration);
 
             m_resolverSettings = resolverSettings as IMsBuildResolverSettings;
             Contract.Assert(m_resolverSettings != null);
+
+            m_requestedQualifiers = requestedQualifiers;
 
             return true;
         }
@@ -310,8 +307,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
             else
             {
-                var candidates = string.Join(", ", filesInRootTraversal.Select(file => file.ToString(Context.PathTable)));
-                Tracing.Logger.Log.TooManyParsingEntryPointCandidates(Context.LoggingContext, m_resolverSettings.Location(Context.PathTable), m_resolverSettings.RootTraversal.ToString(Context.PathTable), candidates);
+                Tracing.Logger.Log.TooManyParsingEntryPointCandidates(Context.LoggingContext, m_resolverSettings.Location(Context.PathTable), m_resolverSettings.RootTraversal.ToString(Context.PathTable));
             }
             
             parsingEntryPoints = null;
@@ -319,13 +315,10 @@ namespace BuildXL.FrontEnd.MsBuild
 
         }
 
-        /// <summary>
-        /// TODO: this needs to be qualifier-specific
-        /// </summary>
         private async Task<Possible<ProjectGraphResult>> TryComputeBuildGraphAsync(IEnumerable<AbsolutePath> searchLocations, IEnumerable<AbsolutePath> parsingEntryPoints, BuildParameters.IBuildParameters buildParameters)
         {
             // We create a unique output file on the obj folder associated with the current front end, and using a GUID as the file name
-            AbsolutePath outputDirectory = FrontEndHost.GetFolderForFrontEnd(m_frontEnd.Name);
+            AbsolutePath outputDirectory = FrontEndHost.GetFolderForFrontEnd(MsBuildFrontEnd.Name);
             AbsolutePath outputFile = outputDirectory.Combine(Context.PathTable, Guid.NewGuid().ToString());
             // We create a unique response file that will contain the tool arguments
             AbsolutePath responseFile = outputDirectory.Combine(Context.PathTable, Guid.NewGuid().ToString());
@@ -416,7 +409,7 @@ namespace BuildXL.FrontEnd.MsBuild
         private bool TryRetrieveMsBuildSearchLocations(out IEnumerable<AbsolutePath> searchLocations)
         {
             return FrontEndUtilities.TryRetrieveExecutableSearchLocations(
-                m_frontEnd.Name,
+                MsBuildFrontEnd.Name,
                 Context,
                 Engine,
                 m_resolverSettings.MsBuildSearchLocations?.SelectList(directoryLocation => directoryLocation.Path),
@@ -497,10 +490,10 @@ namespace BuildXL.FrontEnd.MsBuild
             // graph caching sound. We need to modify this when MsBuild static graph API starts providing used env vars.
             foreach (string key in buildParameters.ToDictionary().Keys)
             {
-                Engine.TryGetBuildParameter(key, m_frontEnd.Name, out _);
+                Engine.TryGetBuildParameter(key, MsBuildFrontEnd.Name, out _);
             }
 
-            FrontEndUtilities.TrackToolFileAccesses(Engine, Context, m_frontEnd.Name, fileAccesses, frontEndFolder);
+            FrontEndUtilities.TrackToolFileAccesses(Engine, Context, MsBuildFrontEnd.Name, fileAccesses, frontEndFolder);
         }
 
         private Task<SandboxedProcessResult> RunMsBuildGraphBuilderAsync(
@@ -516,14 +509,17 @@ namespace BuildXL.FrontEnd.MsBuild
             string outputFileString = outputFile.ToString(Context.PathTable);
             string enlistmentRoot = m_resolverSettings.Root.ToString(Context.PathTable);
             IReadOnlyCollection<string> entryPointTargets = m_resolverSettings.InitialTargets ?? CollectionUtilities.EmptyArray<string>();
-                
+
+            var requestedQualifiers = m_requestedQualifiers.Select(qualifierId => MsBuildResolverUtils.CreateQualifierAsGlobalProperties(qualifierId, Context)).ToList();
+
             var arguments = new MSBuildGraphBuilderArguments(
                 enlistmentRoot,
                 projectEntryPoints.Select(entryPoint => entryPoint.ToString(Context.PathTable)).ToList(),
                 outputFileString,
-                m_resolverSettings.GlobalProperties,
+                new GlobalProperties(m_resolverSettings.GlobalProperties ?? CollectionUtilities.EmptyDictionary<string, string>()),
                 searchLocations.Select(location => location.ToString(Context.PathTable)).ToList(),
-                entryPointTargets);
+                entryPointTargets,
+                requestedQualifiers);
 
             var responseFilePath = responseFile.ToString(Context.PathTable);
             SerializeResponseFile(responseFilePath, arguments);
@@ -539,10 +535,10 @@ namespace BuildXL.FrontEnd.MsBuild
                 buildStorageDirectory: outputDirectory,
                 fileAccessManifest: GenerateFileAccessManifest(toolDirectory, outputFile),
                 arguments: I($"\"{responseFilePath}\""),
-                workingDirectory:outputDirectory,
-                description:"MsBuild graph builder",
+                workingDirectory: outputDirectory,
+                description: "MsBuild graph builder",
                 buildParameters,
-                beforeLaunch:() => ConnectToServerPipeAndLogProgress(outputFileString));
+                beforeLaunch: () => ConnectToServerPipeAndLogProgress(outputFileString));
         }
 
         private void SerializeResponseFile(string responseFile, MSBuildGraphBuilderArguments arguments)

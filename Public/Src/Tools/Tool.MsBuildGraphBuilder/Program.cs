@@ -58,7 +58,7 @@ namespace MsBuildGraphBuilderTool
         private static MSBuildGraphBuilderArguments DeserializeArguments(string argumentFile)
         {
             var serializer = JsonSerializer.Create(ProjectGraphSerializationSettings.Settings);
-
+ 
             MSBuildGraphBuilderArguments arguments;
             using (StreamReader sr = new StreamReader(argumentFile))
             using (JsonReader reader = new JsonTextReader(sr))

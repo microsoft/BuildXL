@@ -820,7 +820,11 @@ namespace TypeScript.Net.Types.Nodes
                 return;
             }
 
-            VisitExpressionDispatch(node.Match);
+            if (!node.IsDefaultFallthrough)
+            {
+                VisitExpressionDispatch(node.Match);
+            }
+
             VisitExpressionDispatch(node.Expression);
         }
 

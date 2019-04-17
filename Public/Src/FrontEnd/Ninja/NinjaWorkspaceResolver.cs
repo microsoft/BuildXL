@@ -6,30 +6,26 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using JetBrains.Annotations;
 using BuildXL.FrontEnd.Ninja.Serialization;
-using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Sdk.Workspaces;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Core;
-using ISourceFile = TypeScript.Net.Types.ISourceFile;
-using SourceFile = TypeScript.Net.Types.SourceFile;
-using TypeScript.Net.DScript;
-using BuildXL.Utilities.Collections;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Workspaces;
+using BuildXL.FrontEnd.Utilities;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
+using JetBrains.Annotations;
+using Newtonsoft.Json;
+using TypeScript.Net.DScript;
 using static BuildXL.Utilities.FormattableStringEx;
-using System.IO;
-using BuildXL.Processes.Containers;
-using TypeScript.Net.Types;
+using ISourceFile = TypeScript.Net.Types.ISourceFile;
+using SourceFile = TypeScript.Net.Types.SourceFile;
 
 namespace BuildXL.FrontEnd.Ninja
 {
@@ -41,7 +37,6 @@ namespace BuildXL.FrontEnd.Ninja
         internal const string NinjaResolverName = "Ninja";
 
         private INinjaResolverSettings m_resolverSettings;
-        private readonly NinjaFrontEnd m_frontEnd;
 
         internal AbsolutePath ProjectRoot;
         internal AbsolutePath SpecFile;
@@ -73,15 +68,12 @@ namespace BuildXL.FrontEnd.Ninja
 
         /// <inheritdoc/>
         public NinjaWorkspaceResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
-            IFrontEndStatistics statistics,
-            NinjaFrontEnd frontEnd)
-            : base(constants, sharedModuleRegistry, statistics, logger: null)
+            StringTable stringTable,
+            IFrontEndStatistics statistics)
+            : base(statistics, logger: null)
         {
             Name = nameof(NinjaWorkspaceResolver);
-            m_frontEnd = frontEnd;
-            m_relativePathToGraphConstructionTool = RelativePath.Create(frontEnd.Context.StringTable, NinjaGraphBuilderRelativePath);
+            m_relativePathToGraphConstructionTool = RelativePath.Create(stringTable, NinjaGraphBuilderRelativePath);
             m_graph = new Lazy<Task<Possible<NinjaGraphWithModuleDefinition>>>(TryComputeBuildGraphAsync);
             SerializedGraphPath = new Lazy<AbsolutePath>(GetToolOutputPath);
         }
@@ -215,7 +207,7 @@ namespace BuildXL.FrontEnd.Ninja
         }
 
         /// <inheritdoc cref="IDScriptWorkspaceModuleResolver" />
-        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings)
+        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings, [NotNull] QualifierId[] requestedQualifiers)
         {
             InitializeInterpreter(host, context, configuration);
             m_resolverSettings = resolverSettings as INinjaResolverSettings;
@@ -315,7 +307,7 @@ namespace BuildXL.FrontEnd.Ninja
                     standardError);
             }
             
-            FrontEndUtilities.TrackToolFileAccesses(Engine, Context, m_frontEnd.Name, result.AllUnexpectedFileAccesses, outputFile.GetParent(Context.PathTable));
+            FrontEndUtilities.TrackToolFileAccesses(Engine, Context, NinjaFrontEnd.Name, result.AllUnexpectedFileAccesses, outputFile.GetParent(Context.PathTable));
             var serializer = JsonSerializer.Create(GraphSerializationSettings.Settings);
             
             // Add custom deserializer for converting string arrays to AbsolutePath ReadOnlySets
@@ -403,7 +395,7 @@ namespace BuildXL.FrontEnd.Ninja
         /// </summary>
         private AbsolutePath GetToolOutputPath()
         {
-            AbsolutePath outputDirectory = FrontEndHost.GetFolderForFrontEnd(m_frontEnd.Name);
+            AbsolutePath outputDirectory = FrontEndHost.GetFolderForFrontEnd(NinjaFrontEnd.Name);
             var now = DateTime.UtcNow.ToString("yyyy-MM-dd-THH-mm-ss.SSS-Z");
             var uniqueName = $"ninja_graph_{now}.json";
             return outputDirectory.Combine(Context.PathTable, uniqueName);

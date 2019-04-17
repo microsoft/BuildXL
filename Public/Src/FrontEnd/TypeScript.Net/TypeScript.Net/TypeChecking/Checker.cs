@@ -15925,11 +15925,21 @@ namespace TypeScript.Net.TypeChecking
                     TypeToString(expressionType));
             }
 
-            if (node.Clauses.Count == 0)
+            if (!node.Clauses.Any(clause => !clause.IsDefaultFallthrough))
             {
                 Error(
                     node.Expression,
                     Errors.Switch_expression_must_have_at_least_one_clause);
+            }
+
+            for (int i = 0; i < node.Clauses.Count - 1; i++)
+            {
+                if (node.Clauses[i].IsDefaultFallthrough)
+                {
+                    Error(
+                        node.Expression,
+                        Errors.Switch_expression_default_clause_must_be_last);
+                }
             }
 
             return GetUnionType(

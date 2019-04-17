@@ -4,11 +4,12 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Ambients;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.FrontEnd.Script.Evaluator;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Script.Values;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.Evaluator
@@ -16,8 +17,19 @@ namespace BuildXL.FrontEnd.Script.Evaluator
     /// <summary>
     /// Module registry.
     /// </summary>
-    public sealed class ModuleRegistry
+    public sealed class ModuleRegistry : IModuleRegistry
     {
+        /// <summary>
+        /// The legacy global module registration
+        /// </summary>
+        public GlobalModuleLiteral GlobalLiteral { get; }
+
+        /// <nodoc />
+        public PrimitiveTypes PrimitiveTypes { get; }
+
+        /// <nodoc />
+        public PredefinedTypes PredefinedTypes { get; }
+
         /// <summary>
         /// Registry for module instances.
         /// </summary>
@@ -40,6 +52,16 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// For serialization purposes only.
         /// </summary>
         internal ConcurrentDictionary<ModuleLiteralId, UninstantiatedModuleInfo> UninstantiatedModules => m_uninstantiatedModuleDictionary;
+
+        /// <nodoc />
+        public ModuleRegistry(SymbolTable symbolTable)
+        {
+            PrimitiveTypes = new PrimitiveTypes(symbolTable.StringTable);
+            GlobalLiteral = new GlobalModuleLiteral(symbolTable);
+            PredefinedTypes = new Ambients.PredefinedTypes(PrimitiveTypes);
+            PredefinedTypes.Register(GlobalLiteral);
+
+        }
 
         /// <nodoc/>
         [NotNull]
@@ -94,10 +116,11 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <nodoc/>
-        public void AddUninstantiatedModuleInfo(UninstantiatedModuleInfo moduleInfo)
+        public void AddUninstantiatedModuleInfo(IUninstantiatedModuleInfo moduleInfo)
         {
             Contract.Requires(moduleInfo != null, "moduleInfo != null");
-            m_uninstantiatedModuleDictionary.TryAdd(moduleInfo.ModuleLiteral.Id, moduleInfo);
+            var uninstantiatedModule = (UninstantiatedModuleInfo)moduleInfo;
+            m_uninstantiatedModuleDictionary.TryAdd(uninstantiatedModule.ModuleLiteral.Id, uninstantiatedModule);
         }
 
         /// <nodoc/>

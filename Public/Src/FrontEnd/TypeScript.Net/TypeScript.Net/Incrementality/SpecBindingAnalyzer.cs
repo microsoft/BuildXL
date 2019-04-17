@@ -576,7 +576,11 @@ namespace TypeScript.Net.Incrementality
                 case SyntaxKind.SwitchExpressionClause:
                 {
                     var node = expression.Cast<ISwitchExpressionClause>();
-                    AnalyzeExpression(node.Match, idx);
+                    if (!node.IsDefaultFallthrough)
+                    {
+                        AnalyzeExpression(node.Match, idx);
+                    }
+
                     AnalyzeExpression(node.Expression, idx);
                     break;
                 }

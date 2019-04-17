@@ -163,7 +163,7 @@ namespace BuildXL.FrontEnd.Script.Values
         {
             Contract.Requires(name.IsValid);
 
-            if (name == context.Names.Length.StringId)
+            if (name == context.ContextTree.CommonConstants.Length.StringId)
             {
                 return EvaluationResult.Create(Length);
             }
@@ -183,15 +183,15 @@ namespace BuildXL.FrontEnd.Script.Values
         public abstract void Copy(int sourceIndex, EvaluationResult[] destination, int destinationIndex, int length);
 
         /// <inheritdoc />
-        public override bool TryProject(Context context, SymbolAtom name, ModuleLiteral origin, PredefinedTypes predefinedTypes, out EvaluationResult result, LineInfo location)
+        public override bool TryProject(Context context, SymbolAtom name, ModuleLiteral origin, out EvaluationResult result, LineInfo location)
         {
-            if (name == context.Names.Length)
+            if (name == context.ContextTree.CommonConstants.Length)
             {
                 result = EvaluationResult.Create(Length);
                 return true;
             }
 
-            var resolvedMember = predefinedTypes.AmbientArray.ResolveMember(this, name);
+            var resolvedMember = ((ModuleRegistry)context.FrontEndHost.ModuleRegistry).PredefinedTypes.AmbientArray.ResolveMember(this, name);
 
             if (resolvedMember == null)
             {

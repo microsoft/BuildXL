@@ -24,5 +24,21 @@ namespace TypeScript.Net.UnitTests.Parsing
             var node = ParsingHelper.ParseFirstStatementFrom<IBlock>(code);
             Assert.Equal(code, node.GetFormattedText());
         }
+
+        [Fact]
+        public void DefaultClause()
+        {
+            string code =
+                @"{
+    let x = '10' switch {
+        '1': 1,
+        '10': 10,
+        default: 100,
+    };
+}";
+
+            var node = ParsingHelper.ParseFirstStatementFrom<IBlock>(code);
+            Assert.Equal(code, node.GetFormattedText());
+        }
     }
 }

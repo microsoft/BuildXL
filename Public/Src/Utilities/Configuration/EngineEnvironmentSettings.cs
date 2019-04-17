@@ -125,7 +125,7 @@ namespace BuildXL.Utilities.Configuration
         /// Maximum time to wait while establishing a connection to the remote machine (both master->worker and worker->master)
         /// </summary>
         public static readonly Setting<TimeSpan> DistributionConnectTimeout = CreateSetting("BuildXLDistribConnectTimeoutSec", value => ParseTimeSpan(value, ts => TimeSpan.FromSeconds(ts)) ??
-            TimeSpan.FromMinutes(3));
+            TimeSpan.FromMinutes(5));
 
         /// <summary>
         /// Inactivity timeout
@@ -134,6 +134,22 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static readonly Setting<TimeSpan> DistributionInactiveTimeout = CreateSetting("BuildXLDistribInactiveTimeoutMin", value => ParseTimeSpan(value, ts => TimeSpan.FromMinutes(ts)) ??
             TimeSpan.FromMinutes(30));
+
+        /// <summary>
+        /// The number of threads in the grpc thread pool.
+        /// </summary>
+        /// <remarks>
+        /// Cache layer was using 70 by default, so we set the default limit based on their usage.
+        /// </remarks>
+        public static readonly Setting<int> GrpcThreadPoolSize = CreateSetting("BuildXLGrpcThreadPoolSize", value => ParseInt32(value) ?? 70);
+
+        /// <summary>
+        /// Whether HandlerInlining is enabled for grpc.
+        /// </summary>
+        /// <remarks>
+        /// Default enabled
+        /// </remarks>
+        public static readonly Setting<bool> GrpcHandlerInliningEnabled = CreateSetting("BuildXLGrpcHandlerInliningEnabled", value => string.IsNullOrWhiteSpace(value) ? true : value == "1");
 
         /// <summary>
         /// An artificial delay in reporting notifications to force batching

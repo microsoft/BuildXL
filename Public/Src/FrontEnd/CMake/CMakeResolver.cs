@@ -1,23 +1,17 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Threading.Tasks;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Ninja;
 using BuildXL.FrontEnd.Ninja.Serialization;
-using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Script.Tracing;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.Workspaces;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.CMake
 {
@@ -25,29 +19,31 @@ namespace BuildXL.FrontEnd.CMake
     /// Resolver for CMake based builds. This resolver generates Ninja specs from a CMake workspace
     /// and uses a Ninja resolver for the rest of the work.
     /// </summary>
-    public class CMakeResolver : DScriptInterpreterBase, IResolver
+    public class CMakeResolver : IResolver
     {
         private readonly string m_frontEndName;
+        private readonly FrontEndContext m_context;
+        private readonly FrontEndHost m_host;
+
         private CMakeWorkspaceResolver m_cMakeWorkspaceResolver;
         private ICMakeResolverSettings m_cMakeResolverSettings;
 
         // TODO: Multiple modules
         private ModuleDefinition ModuleDef => m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.ComputedGraph.Result.ModuleDefinition;
-        
+
+        /// <nodoc />
+        public string Name { get; private set; }
+
         /// <nodoc/>
         public CMakeResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
-            IFrontEndStatistics statistics,
             FrontEndHost host,
             FrontEndContext context,
-            IConfiguration configuration,
-            Logger logger,
             string frontEndName)
-            : base(constants, sharedModuleRegistry, statistics, logger, host, context, configuration)
         {
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
             m_frontEndName = frontEndName;
+            m_host = host;
+            m_context = context;
         }
 
         /// <inheritdoc/>
@@ -70,7 +66,7 @@ namespace BuildXL.FrontEnd.CMake
         }
 
         /// <inheritdoc/>
-        public Task<bool?> TryConvertModuleToEvaluationAsync(ParsedModule module, IWorkspace workspace)
+        public Task<bool?> TryConvertModuleToEvaluationAsync(IModuleRegistry moduleRegistry, ParsedModule module, IWorkspace workspace)
         {
             // No conversion needed.
             return Task.FromResult<bool?>(true);
@@ -91,7 +87,7 @@ namespace BuildXL.FrontEnd.CMake
         {
             NinjaGraphWithModuleDefinition result = m_cMakeWorkspaceResolver.ComputedGraph.Result;
             IReadOnlyCollection<NinjaNode> filteredNodes = result.Graph.Nodes;
-            var graphConstructor = new NinjaPipGraphBuilder(Context, FrontEndHost, ModuleDef, 
+            var graphConstructor = new NinjaPipGraphBuilder(m_context, m_host, ModuleDef, 
                 m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.ProjectRoot, 
                 m_cMakeWorkspaceResolver.EmbeddedNinjaWorkspaceResolver.SpecFile, 
                 qualifierId, 

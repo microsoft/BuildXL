@@ -16,6 +16,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 
 namespace BuildXL.FrontEnd.Script.Evaluator
 {
@@ -29,34 +30,22 @@ namespace BuildXL.FrontEnd.Script.Evaluator
     /// </remarks>
     public sealed class ContextTree : IDisposable
     {
-        /// <summary>
-        /// Front end host.
-        /// </summary>
+        /// <nodoc />
         public FrontEndHost FrontEndHost { get; private set; }
 
-        /// <summary>
-        /// Front end context.
-        /// </summary>
+        /// <nodoc />
         public FrontEndContext FrontEndContext { get; private set; }
+        
+        /// <nodoc />
+        public CommonConstants CommonConstants { get; }
 
-        /// <summary>
-        /// Constants
-        /// </summary>
-        public GlobalConstants Constants { get; private set; }
-
-        /// <summary>
-        /// Module registry.
-        /// </summary>
+        /// <nodoc />
         public ModuleRegistry ModuleRegistry { get; private set; }
 
-        /// <summary>
-        /// Logger instance.
-        /// </summary>
+        /// <nodoc />
         public Logger Logger { get; private set; }
 
-        /// <summary>
-        /// Evaluation statistics.
-        /// </summary>
+        /// <nodoc />
         public EvaluationStatistics Statistics { get; private set; }
 
         /// <summary>
@@ -106,8 +95,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         public ContextTree(
             [NotNull]FrontEndHost frontEndHost,
             [NotNull]FrontEndContext frontEndContext,
-            [NotNull]GlobalConstants constants,
-            [NotNull]ModuleRegistry moduleRegistry,
             [NotNull]Logger logger,
             [NotNull]EvaluationStatistics statistics,
             QualifierValueCache qualifierValueCache,
@@ -120,8 +107,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         {
             Contract.Requires(frontEndHost != null);
             Contract.Requires(frontEndContext != null);
-            Contract.Requires(constants != null);
-            Contract.Requires(moduleRegistry != null);
             Contract.Requires(logger != null);
             Contract.Requires(statistics != null);
             Contract.Requires(module != null);
@@ -130,8 +115,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
 
             FrontEndHost = frontEndHost;
             FrontEndContext = frontEndContext;
-            Constants = constants;
-            ModuleRegistry = moduleRegistry;
+            ModuleRegistry = (ModuleRegistry)frontEndHost.ModuleRegistry;
             Logger = logger;
             Statistics = statistics;
             IsBeingDebugged = isBeingDebugged;
@@ -140,6 +124,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
             QualifierValueCache = qualifierValueCache;
             ToolDefinitionCache = new ConcurrentDictionary<ObjectLiteral, CachedToolDefinition>();
             ValueCache = new ConcurrentDictionary<Fingerprint, EvaluationResult>();
+            CommonConstants = new CommonConstants(frontEndContext.StringTable);
 
             RootContext =
                 new Context(
@@ -168,7 +153,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
                 RootContext.Dispose();
                 FrontEndHost = null;
                 FrontEndContext = null;
-                Constants = null;
                 ModuleRegistry = null;
                 Logger = null;
                 Statistics = null;

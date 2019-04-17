@@ -285,7 +285,15 @@ namespace TypeScript.Net.Reformatter
         /// <nodoc />
         public virtual void VisitSwitchExpressionClause(SwitchExpressionClause node)
         {
-            AppendNode(node.Match);
+            if (node.IsDefaultFallthrough)
+            {
+                Writer.AppendToken("default");
+            }
+            else
+            {
+                AppendNode(node.Match);
+            }
+
             Writer.AppendToken(":").Whitespace();
             AppendNode(node.Expression);
         }

@@ -1,21 +1,17 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Expressions;
+using BuildXL.FrontEnd.Script.Literals;
+using BuildXL.FrontEnd.Script.Util;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Script.Ambients;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Expressions;
-using BuildXL.FrontEnd.Script.Literals;
-using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Script.Util;
 using TypeScript.Net.Extensions;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
@@ -233,14 +229,14 @@ namespace BuildXL.FrontEnd.Script.Values
         public abstract bool HasKey(StringId key);
 
         /// <inheritdoc />
-        public override bool TryProject(Context context, SymbolAtom name, ModuleLiteral origin, PredefinedTypes predefinedTypes, out EvaluationResult result, LineInfo location)
+        public override bool TryProject(Context context, SymbolAtom name, ModuleLiteral origin, out EvaluationResult result, LineInfo location)
         {
             var value = this[name.StringId];
 
             if (value.IsUndefined)
             {
                 // TODO: Optimize this for look-up miss cases (there can be tons of them).
-                var resolvedMember = predefinedTypes.AmbientObject.ResolveMember(this, name) ?? (object)UndefinedValue.Instance;
+                var resolvedMember = ((ModuleRegistry)context.FrontEndHost.ModuleRegistry).PredefinedTypes.AmbientObject.ResolveMember(this, name) ?? (object)UndefinedValue.Instance;
                 result = EvaluationResult.Create(resolvedMember);
             }
             else
@@ -270,7 +266,7 @@ namespace BuildXL.FrontEnd.Script.Values
         [CanBeNull]
         protected virtual MergeFunction TryGetCustomMergeFunction(Context context, EvaluationStackFrame captures)
         {
-            var customMerge = this[context.Literals.CustomMergeFunction];
+            var customMerge = this[context.ContextTree.CommonConstants.CustomMergeFunction];
             if (!customMerge.IsUndefined)
             {
                 return GetCustomMergeFunctionFromClosure(context, captures, customMerge);
@@ -403,8 +399,18 @@ namespace BuildXL.FrontEnd.Script.Values
             }
 
             var entry = context.TopStack;
-            var location = entry.InvocationLocation;
-            var path = entry.Path;
+            LineInfo location;
+            AbsolutePath path;
+            if (entry != null)
+            {
+                location = entry.InvocationLocation;
+                path = entry.Path;
+            }
+            else
+            {
+                location = default(LineInfo);
+                path = AbsolutePath.Invalid;
+            }
 
             // We don't want to return an ObjectLiteralN unconditionally, to leverage ObjectLiteralSlim memory savings
             // If the result doesn't fit in an ObjectLiteralSlim, we already have a dictionary built for an ObjectLiteralN, so

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -292,11 +293,6 @@ namespace Test.BuildXL.Storage
         /// If a file or directory is on the Windows pending deletion queue,
         /// no process will report having an open handle
         /// </summary>
-        /// <remarks>
-        /// This test is failing on an RS6 preview. The failure is not related to Helium
-        /// but probably to some behavior change in the APIs this test uses. Requiring the Helium
-        /// drivers to NOT be available is just a very cheap way of detecting an RS6 preview.
-        /// </remarks>
         [FactIfSupported(requiresHeliumDriversNotAvailable: true)]
         public void FailToFindAllOpenHandlesPendingDeletion()
         {
@@ -334,7 +330,10 @@ namespace Test.BuildXL.Storage
                 builder.AppendLine(file);
                 builder.AppendLine(FileUtilitiesMessages.NoProcessesUsingHandle);
                 builder.AppendLine(FileUtilitiesMessages.PathMayBePendingDeletion);
-                XAssert.IsTrue(openHandles.Contains(builder.ToString()));
+                // Befores Windows 10 Version 1903, attempting to create a file handle to a file pending deletion would throw an access exception, including calling File.Exists
+                // With Windows 10 Version 1903 and later, creating handles to files on the pending deletion queue does not throw exceptions and pending deletion files are considered deleted by File.Exists
+                // This change in behavior is NOT true for directories, see testing below for the directory behavior
+                XAssert.IsTrue(openHandles.Contains(builder.ToString()) || /* Check for Windows 10 Version 1903 and later */ !File.Exists(file));
                 XAssert.IsFalse(openHandles.Contains(FileUtilitiesMessages.ActiveHandleUsage + file));
             }
 
@@ -851,6 +850,33 @@ namespace Test.BuildXL.Storage
 
             XAssert.IsTrue(Directory.Exists(originalRoot));
             XAssert.AreEqual(0, Directory.GetFileSystemEntries(originalRoot).Length);
+        }
+
+        [Fact]
+        public void CreateHardlinkSupportsLongPath()
+        {
+            var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(TemporaryDirectory, (path, _) => Path.Combine(path, "dir"));
+
+            FileUtilities.CreateDirectory(longPath);
+
+            var file = Path.Combine(longPath, "out.txt");
+            var link = Path.Combine(longPath, "hardlink");
+
+            SafeFileHandle fileHandle;
+            var result = FileUtilities.TryCreateOrOpenFile(
+                file,
+                FileDesiredAccess.GenericWrite,
+                FileShare.Delete,
+                FileMode.Create,
+                FileFlagsAndAttributes.FileAttributeNormal,
+                out fileHandle);
+            XAssert.IsTrue(result.Succeeded);
+            using (FileStream stream = new FileStream(fileHandle, FileAccess.Write))
+            {
+                stream.WriteByte(255);
+            }
+
+            XAssert.IsTrue(CreateHardLinkIfSupported(link: link, linkTarget: file));
         }
 
         [Fact]

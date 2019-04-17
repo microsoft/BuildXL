@@ -43,6 +43,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         public Dictionary<StringId, PipDataAtom> EnvironmentVariables { get; } = new Dictionary<StringId, PipDataAtom>();
 
         /// <nodoc />
+        public bool DependsOnCurrentHostOSDirectories { get; set; }
+
+        /// <nodoc />
         public bool UntrackedWindowsDirectories { get; set; }
 
         /// <nodoc />

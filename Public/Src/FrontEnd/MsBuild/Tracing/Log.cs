@@ -105,9 +105,9 @@ namespace BuildXL.FrontEnd.MsBuild.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Events.Tasks.Parser,
-            Message = Events.LabeledProvenancePrefix + "Too many parsing entry point candidates were found under '{rootTraversal}'. Please configure 'FileNameEntryPoint' in the configuration settings to pick one from the following list: {candidates}",
+            Message = Events.LabeledProvenancePrefix + "Too many parsing entry point candidates were found under '{rootTraversal}'. Please configure 'fileNameEntryPoints' in the configuration settings to define the desired list of projects.",
             Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Diagnostics))]
-        public abstract void TooManyParsingEntryPointCandidates(LoggingContext context, Location location, string rootTraversal, string candidates);
+        public abstract void TooManyParsingEntryPointCandidates(LoggingContext context, Location location, string rootTraversal);
 
         [GeneratedEvent(
             (ushort)LogEventId.GraphConstructionInternalError,

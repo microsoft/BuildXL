@@ -6,14 +6,14 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Script.Ambients.Map;
 using BuildXL.FrontEnd.Script.Ambients.Set;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
 using static BuildXL.Utilities.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
@@ -193,7 +193,7 @@ namespace BuildXL.FrontEnd.Script
             try
             {
                 // TODO: this is inherently unsafe and can throw for many reasons because it requires that type.Name is a valid identifier!
-                return Converter.GetType(type, m_context.Constants.KnownTypes).ToDisplayString(m_context);
+                return Converter.GetType(type, ((ModuleRegistry)m_context.FrontEndHost.ModuleRegistry).PrimitiveTypes).ToDisplayString(m_context);
             }
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
             catch

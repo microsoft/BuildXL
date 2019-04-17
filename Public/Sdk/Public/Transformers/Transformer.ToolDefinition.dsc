@@ -45,6 +45,12 @@ namespace Transformer {
         dependsOnWindowsDirectories?: boolean;
 
         /** 
+          * True if the executable depends on directories that comprise the current host OS. 
+          * For instance on windows this signals that accesses to the Windows Directories %WINDIR% should be allowed. 
+          */
+        dependsOnCurrentHostOSDirectories?: boolean;
+
+        /** 
          * True if the executable depends on the per-user AppData directory. Setting this to true means that AppData
          * will be an untracked directory scope and the specific location of AppData will not be included in the pip's fingerpint. 
          */

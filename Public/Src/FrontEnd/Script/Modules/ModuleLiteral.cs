@@ -18,6 +18,7 @@ using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using BindingDictionary = System.Collections.Generic.Dictionary<BuildXL.Utilities.SymbolAtom, BuildXL.FrontEnd.Script.Values.ModuleBinding>;
@@ -187,6 +188,23 @@ namespace BuildXL.FrontEnd.Script.Values
             return new TypeOrNamespaceModuleLiteral(moduleId, qualifier: QualifierValue.Unqualified,
                 outerScope: outerScope, location: location);
         }
+
+        /// <summary>
+        /// Constructs an uninstantiated file module denoted by a path.
+        /// </summary>
+        /// <remarks>
+        /// This factory should only be used during parsing.
+        /// </remarks>
+        public static FileModuleLiteral CreateFileModule(AbsolutePath path, IModuleRegistry moduleRegistry, Package package, LineMap lineMap)
+        {
+            Contract.Requires(path.IsValid);
+            Contract.Requires(moduleRegistry != null);
+            Contract.Requires(package != null);
+            Contract.Requires(lineMap != null);
+
+            return CreateInstantiatedFileModule(path, QualifierValue.Unqualified, ((ModuleRegistry)moduleRegistry).GlobalLiteral, package, (ModuleRegistry)moduleRegistry, lineMap: lineMap);
+        }
+
 
         /// <summary>
         /// Constructs an uninstantiated file module denoted by a path.
@@ -418,7 +436,7 @@ namespace BuildXL.FrontEnd.Script.Values
         }
 
         /// <inheritdoc />
-        public sealed override bool TryProject(Context context, SymbolAtom name, ModuleLiteral origin, PredefinedTypes predefinedTypes, out EvaluationResult result, LineInfo location)
+        public sealed override bool TryProject(Context context, SymbolAtom name, ModuleLiteral origin, out EvaluationResult result, LineInfo location)
         {
             result = GetOrEvalField(context, name, recurs: false, origin: origin, location: Location);
             return true;
@@ -617,7 +635,7 @@ namespace BuildXL.FrontEnd.Script.Values
         private EvaluationResult GetOrEvalField(Context context, SymbolAtom name, ModuleLiteral startEnv, bool recurs, ModuleLiteral origin, LineInfo location)
         {
             // This logic is still used only V1 evaluation
-            if (IsFileModule && name == context.Names.Qualifier)
+            if (IsFileModule && name == context.ContextTree.CommonConstants.Qualifier)
             {
                 // Someone references 'qualifier' on the file level.
                 return EvaluationResult.Create(Qualifier.Qualifier);

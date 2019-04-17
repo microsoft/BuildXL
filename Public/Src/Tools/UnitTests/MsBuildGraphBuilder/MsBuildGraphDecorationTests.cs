@@ -81,9 +81,10 @@ namespace Test.ProjectGraphBuilder
                     TemporaryDirectory,
                     new[] { entryPoint },
                     outputFile,
-                    globalProperties: null,
+                    globalProperties: GlobalProperties.Empty,
                     mSBuildSearchLocations: new string[] {TestDeploymentDir},
-                    entryPointTargets: new string[0]);
+                    entryPointTargets: new string[0],
+                    requestedQualifiers: new GlobalProperties[] { GlobalProperties.Empty});
 
                 MsBuildGraphBuilder.BuildGraphAndSerializeForTesting(assemblyLoader, reporter, arguments);
             }

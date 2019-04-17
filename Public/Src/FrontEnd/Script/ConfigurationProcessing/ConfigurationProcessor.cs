@@ -44,12 +44,9 @@ namespace BuildXL.FrontEnd.Script
 
         /// <nodoc />
         public ConfigurationProcessor(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
+            IFrontEndStatistics statistics,
             Logger logger)
-
-            // Configuration processing is so lightweight that it won't affect overall perf statistics
-            : base(constants, sharedModuleRegistry, new FrontEndStatistics(), logger)
+            : base(statistics, logger)
         {
         }
 
@@ -78,6 +75,12 @@ namespace BuildXL.FrontEnd.Script
             {
                 // Error has been reported already
                 return null;
+            }
+
+            // Apply Additional configurations from the commandline
+            foreach (var additionalConfigurationFile in commandLineConfiguration.Startup.AdditionalConfigFiles)
+            {
+                configObjectLiteral = ParseAndInterpretConfigFile(additionalConfigurationFile, configObjectLiteral);
             }
 
             // TODO: user override is not really working now. Fix me!
@@ -141,12 +144,13 @@ namespace BuildXL.FrontEnd.Script
             return AbsolutePath.Invalid;
         }
 
-        private ObjectLiteral ParseAndInterpretConfigFile(AbsolutePath configPath)
+
+        private ObjectLiteral ParseAndInterpretConfigFile(AbsolutePath additionalConfigPath, ObjectLiteral configObjectLiteral = null)
         {
-            return ParseAndInterpretConfigFileAsync(configPath).GetAwaiter().GetResult();
+            return ParseAndInterpretConfigFileAsync(additionalConfigPath, configObjectLiteral).GetAwaiter().GetResult();
         }
 
-        private async Task<ObjectLiteral> ParseAndInterpretConfigFileAsync(AbsolutePath configPath)
+        private async Task<ObjectLiteral> ParseAndInterpretConfigFileAsync(AbsolutePath configPath, ObjectLiteral configObjectLiteralMerging)
         {
             Contract.Requires(configPath.IsValid);
 
@@ -159,7 +163,7 @@ namespace BuildXL.FrontEnd.Script
                 return null;
             }
 
-            var configObjectLiteral = EvaluateConfigObjectLiteral(parsedConfig.Result);
+            var configObjectLiteral = EvaluateConfigObjectLiteral(parsedConfig.Result, configObjectLiteralMerging);
             if (configObjectLiteral == null)
             {
                 var configPathString = configPath.ToString(Context.PathTable);
@@ -184,8 +188,6 @@ namespace BuildXL.FrontEnd.Script
             return new ConfigurationConversionHelper(
                 Engine,
                 ConfigurationConversionHelper.ConfigurationKind.PrimaryConfig,
-                Constants,
-                SharedModuleRegistry,
                 Logger,
                 FrontEndHost,
                 Context,
@@ -193,7 +195,7 @@ namespace BuildXL.FrontEnd.Script
                 FrontEndStatistics);
         }
 
-        private ObjectLiteral EvaluateConfigObjectLiteral(FileModuleLiteral moduleLiteral)
+        private ObjectLiteral EvaluateConfigObjectLiteral(FileModuleLiteral moduleLiteral, ObjectLiteral configObjectLiteral)
         {
             // Instantiate config module, and because config is qualifier-agnositic, it is instantiated with empty qualifier.
             var instantiatedModule = InstantiateModuleWithDefaultQualifier(moduleLiteral);
@@ -221,7 +223,8 @@ namespace BuildXL.FrontEnd.Script
                     return null;
                 }
 
-                return ResolveConfigObjectLiteral(instantiatedModule, context);
+                return configObjectLiteral == null ? ResolveConfigObjectLiteral(instantiatedModule, context) 
+                    : (ObjectLiteral)configObjectLiteral.Merge(context, EvaluationStackFrame.UnsafeFrom(new EvaluationResult[0]), new EvaluationResult(ResolveConfigObjectLiteral(instantiatedModule, context))).Value;
             }
         }
 
@@ -239,7 +242,7 @@ namespace BuildXL.FrontEnd.Script
             return instantiatedModule
                 .GetOrEvalFieldBinding(
                     context,
-                    Constants.Literals.ConfigurationKeyword,
+                    SymbolAtom.Create(context.StringTable, Script.Constants.Names.ConfigurationFunctionCall),
                     binding.Value,
                     instantiatedModule.Location)
                 .Value as ObjectLiteral;

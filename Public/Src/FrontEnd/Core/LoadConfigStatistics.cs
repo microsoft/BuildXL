@@ -37,36 +37,6 @@ namespace BuildXL.FrontEnd.Core
         public int ConversionDurationMs => (int) ConversionDuration.AggregateDuration.TotalMilliseconds;
     }
 
-    /// <summary>
-    /// Statistics interface for a configuration processing.
-    /// </summary>
-    public interface ILoadConfigStatistics : IConfigurationStatistics
-    {
-        /// <nodoc />
-        Counter FileCountCounter { get; }
-
-        /// <nodoc />
-        int FileCount { get; }
-
-        /// <nodoc />
-        Counter TotalDuration { get; }
-
-        /// <nodoc />
-        int TotalDurationMs { get; }
-
-        /// <nodoc />
-        Counter ParseDuration { get; }
-
-        /// <nodoc />
-        int ParseDurationMs { get; }
-
-        /// <nodoc />
-        Counter ConversionDuration { get; }
-
-        /// <nodoc />
-        int ConversionDurationMs { get; }
-    }
-
     /// <nodoc />
     public static class LoadConfigStatisticsExtensions
     {

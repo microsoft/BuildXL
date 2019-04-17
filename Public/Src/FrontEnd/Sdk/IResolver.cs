@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
@@ -39,7 +40,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// and logs the errors.
         /// </summary>
         /// TODO: This is an intermediate step. An actual solution can store 'resolver' into the parsed module itself
-        Task<bool?> TryConvertModuleToEvaluationAsync([NotNull]ParsedModule module, [NotNull]IWorkspace workspace);
+        Task<bool?> TryConvertModuleToEvaluationAsync([NotNull]IModuleRegistry moduleRegistry, [NotNull]ParsedModule module, [NotNull]IWorkspace workspace);
 
         /// <summary>
         /// If the resolver owns the module, returns a task

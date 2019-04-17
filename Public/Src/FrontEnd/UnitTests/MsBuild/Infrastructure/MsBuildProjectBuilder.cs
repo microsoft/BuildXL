@@ -18,18 +18,21 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         private readonly MsBuildPipSchedulingTestBase m_testBase;
         private readonly MsBuildResolverSettings m_resolverSettings;
         private readonly QualifierId m_qualifierId;
+        private readonly QualifierId[] m_requestedQualifiers;
 
         /// <nodoc/>
-        public MsBuildProjectBuilder(MsBuildPipSchedulingTestBase testBase, MsBuildResolverSettings resolverSettings, QualifierId qualifierId)
+        public MsBuildProjectBuilder(MsBuildPipSchedulingTestBase testBase, MsBuildResolverSettings resolverSettings, QualifierId currentQualifier, QualifierId[] requestedQualifiers)
         {
             Contract.Requires(testBase != null);
             Contract.Requires(resolverSettings != null);
-            Contract.Requires(qualifierId != QualifierId.Invalid);
+            Contract.Requires(currentQualifier != QualifierId.Invalid);
+            Contract.Requires(requestedQualifiers?.Length > 0);
 
             m_projects = new HashSet<ProjectWithPredictions>();
             m_testBase = testBase;
             m_resolverSettings = resolverSettings;
-            m_qualifierId = qualifierId;
+            m_qualifierId = currentQualifier;
+            m_requestedQualifiers = requestedQualifiers;
         }
 
         /// <summary>
@@ -45,7 +48,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         /// <nodoc/>
         internal MsBuildSchedulingResult ScheduleAll()
         {
-            return m_testBase.ScheduleAll(m_resolverSettings, m_projects, m_qualifierId);
+            return m_testBase.ScheduleAll(m_resolverSettings, m_projects, m_qualifierId, m_requestedQualifiers);
         }
     }
 }

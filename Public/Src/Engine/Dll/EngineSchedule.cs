@@ -37,6 +37,8 @@ using BuildXL.Cache.ContentStore.Hashing;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Engine.Tracing.Logger;
 using SchedulerLogger = BuildXL.Scheduler.Tracing.Logger;
+using System.Threading;
+using JetBrains.Annotations;
 
 namespace BuildXL.Engine
 {
@@ -734,27 +736,29 @@ namespace BuildXL.Engine
                 rootFilter: out rootFilter);
         }
 
-        private void ScrubExtraneousFilesAndDirectories(
+        internal static void ScrubExtraneousFilesAndDirectories(
+            [CanBeNull] MountPathExpander mountPathExpander,
+            Scheduler.Scheduler scheduler,
             LoggingContext loggingContext,
             IConfiguration configuration,
-            IEnumerable<string> nonScrubbablePaths)
+            IEnumerable<string> nonScrubbablePaths,
+            ITempDirectoryCleaner tempCleaner)
         {
             var pathsToScrub = new List<string>();
-
-            if (configuration.Engine.Scrub)
+            if (configuration.Engine.Scrub && mountPathExpander != null)
             {
-                pathsToScrub.AddRange(MountPathExpander.GetScrubbableRoots().Select(p => p.ToString(Context.PathTable)));
+                pathsToScrub.AddRange(mountPathExpander.GetScrubbableRoots().Select(p => p.ToString(scheduler.Context.PathTable)));
             }
 
             if (configuration.Engine.ScrubDirectories.Count > 0)
             {
-                pathsToScrub.AddRange(configuration.Engine.ScrubDirectories.Select(p => p.ToString(Context.PathTable)));
+                pathsToScrub.AddRange(configuration.Engine.ScrubDirectories.Select(p => p.ToString(scheduler.Context.PathTable)));
             }
 
             // We don't scrub composite shared directories since scrubbing the non-composite ones is enough to clean up all outputs
-            var sharedOpaqueDirectories = Scheduler.PipGraph.AllSealDirectories.Where(directoryArtifact =>
+            var sharedOpaqueDirectories = scheduler.PipGraph.AllSealDirectories.Where(directoryArtifact =>
                 directoryArtifact.IsSharedOpaque &&
-                !Scheduler.PipGraph.PipTable.IsSealDirectoryComposite(Scheduler.PipGraph.GetSealedDirectoryNode(directoryArtifact).ToPipId())
+                !scheduler.PipGraph.PipTable.IsSealDirectoryComposite(scheduler.PipGraph.GetSealedDirectoryNode(directoryArtifact).ToPipId())
             );
 
             List<string> outputDirectories = null;
@@ -767,7 +771,7 @@ namespace BuildXL.Engine
                 //
                 // Another alternative is to make incremental scheduling use FileSystemView for existence checking
                 // during journal scanning. This alternative requires more plumbing; see Task 1241786.
-                outputDirectories = Scheduler.PipGraph.AllDirectoriesContainingOutputs().Select(d => d.ToString(Context.PathTable)).ToList();
+                outputDirectories = scheduler.PipGraph.AllDirectoriesContainingOutputs().Select(d => d.ToString(scheduler.Context.PathTable)).ToList();
             }
 
             if (pathsToScrub.Count > 0)
@@ -775,16 +779,16 @@ namespace BuildXL.Engine
                 var scrubber = new DirectoryScrubber(
                     loggingContext: loggingContext,
                     loggingConfiguration: configuration.Logging,
-                    isPathInBuild: path => Scheduler.PipGraph.IsPathInBuild(AbsolutePath.Create(Context.PathTable, path)),
+                    isPathInBuild: path => scheduler.PipGraph.IsPathInBuild(AbsolutePath.Create(scheduler.Context.PathTable, path)),
                     pathsToScrub: pathsToScrub,
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
-                    mountPathExpander: MountPathExpander,
+                    mountPathExpander: mountPathExpander,
                     maxDegreeParallelism: Environment.ProcessorCount,
-                    tempDirectoryCleaner: m_tempCleaner);
+                    tempDirectoryCleaner: tempCleaner);
 
                 Logger.Log.ScrubbingStarted(loggingContext);
-                scrubber.RemoveExtraneousFilesAndDirectories(Context.CancellationToken);
+                scrubber.RemoveExtraneousFilesAndDirectories(scheduler.Context.CancellationToken);
             }
 
             // Shared opaque content is always deleted, regardless of what configuration.Engine.Scrub says
@@ -806,19 +810,95 @@ namespace BuildXL.Engine
                     // Everything that is not an output under a shared opaque is considered part of the build. 
                     isPathInBuild: path =>
                         // Scheduler.PipGraph.IsPathInBuild is used for extra safety.
-                        Scheduler.PipGraph.IsPathInBuild(AbsolutePath.Create(Context.PathTable, path)) ||
+                        scheduler.PipGraph.IsPathInBuild(AbsolutePath.Create(scheduler.Context.PathTable, path)) ||
                         !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path), 
-                    pathsToScrub: sharedOpaqueDirectories.Select(directory => directory.Path.ToString(Context.PathTable)),
+                    pathsToScrub: sharedOpaqueDirectories.Select(directory => directory.Path.ToString(scheduler.Context.PathTable)),
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
                     // Mounts don't need to be scrubbable for this operation to take place.
                     mountPathExpander: null,
                     maxDegreeParallelism: Environment.ProcessorCount,
-                    tempDirectoryCleaner: m_tempCleaner);
+                    tempDirectoryCleaner: tempCleaner);
 
                 Logger.Log.ScrubbingSharedOpaquesStarted(loggingContext);
-                scrubber.RemoveExtraneousFilesAndDirectories(Context.CancellationToken);
+                scrubber.RemoveExtraneousFilesAndDirectories(scheduler.Context.CancellationToken);
             }
+        }
+
+        internal static IReadOnlyList<string> GetNonScrubbablePaths(
+            PathTable pathTable,
+            IConfiguration configuration, 
+            IEnumerable<string> extraNonScrubbablePaths, 
+            [CanBeNull] ITempDirectoryCleaner tempCleaner)
+        {
+            var nonScrubbablePaths = new List<string>(new[]
+            {
+                // Don't scrub the object directory lock file
+                FolderLock.GetLockPath(configuration.Layout.ObjectDirectory.ToString(pathTable))
+            });
+
+            if (tempCleaner != null)
+            {
+                // Don't scrub the temp directory used for file move-delete
+                // TempCleaner is responsible for cleaning this
+                nonScrubbablePaths.Add(tempCleaner.TempDirectory);
+            }
+
+            AddToNonScrubbableAbsolutePaths(new[]
+            {
+                // Don't scrub the engine cache in the object directory
+                configuration.Layout.EngineCacheDirectory,
+
+                // Don't scrub the cache directory
+                configuration.Layout.CacheDirectory,
+
+                // Don't scrub log directories.
+                configuration.Logging.LogsDirectory,
+                configuration.Logging.RedirectedLogsDirectory
+            });
+
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                // Don't scrub the .NET Core lock file when running the CoreCLR on Unix even if its parent directory is specified as scrubabble. 
+                // Some build tools use the '/tmp' folder as temporary file location (e.g. xcodebuild, clang, etc.) for dumping state and reports. 
+                // Unfortunately scrubbing the dotnet state files can lead to a missbehaving CoreCLR in subsequent or parallel runs where several 
+                // dotnet invocations happen, so lets avoid scrubbing that folder explicitly!
+                nonScrubbablePaths.AddRange(new[]
+                {
+                    "/tmp/.dotnet/",
+                    "/private/tmp/.dotnet/",
+                });
+            }
+
+            // Don't scrub any of the paths flagged as non-scrubbable
+            nonScrubbablePaths.AddRange(extraNonScrubbablePaths);
+
+            void AddToNonScrubbableAbsolutePaths(AbsolutePath[] paths)
+            {
+                foreach (AbsolutePath path in paths)
+                {
+                    if (path.IsValid)
+                    {
+                        nonScrubbablePaths.Add(path.ToString(pathTable));
+                    }
+                }
+            }
+
+            return nonScrubbablePaths;
+        }
+
+        private void ScrubExtraneousFilesAndDirectories(
+            LoggingContext loggingContext,
+            IConfiguration configuration,
+            IEnumerable<string> nonScrubbablePaths)
+        {
+            ScrubExtraneousFilesAndDirectories(
+                MountPathExpander,
+                Scheduler,
+                loggingContext,
+                configuration,
+                nonScrubbablePaths,
+                m_tempCleaner);
         }
 
         /// <summary>

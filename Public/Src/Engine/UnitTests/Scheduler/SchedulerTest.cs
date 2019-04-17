@@ -444,7 +444,10 @@ namespace Test.BuildXL.Scheduler
 
             builder.AddOutputFile(outputArtifact);
             builder.AddInputDirectory(sealedDir);
-            builder.AddUntrackedWindowsDirectories();
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                builder.AddCurrentHostOSDirectories();
+            }
             env.PipConstructionHelper.AddProcess(builder);
         }
 

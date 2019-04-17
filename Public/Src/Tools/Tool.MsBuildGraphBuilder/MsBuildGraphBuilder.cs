@@ -113,10 +113,7 @@ namespace MsBuildGraphBuilderTool
                 reporter,
                 locatedAssemblyPaths,
                 locatedMsBuildPath,
-                arguments.ProjectsToParse,
-                arguments.EnlistmentRoot,
-                arguments.GlobalProperties,
-                arguments.EntryPointTargets,
+                arguments,
                 projectPredictorsForTesting);
         }
 
@@ -127,10 +124,7 @@ namespace MsBuildGraphBuilderTool
             GraphBuilderReporter reporter,
             IReadOnlyDictionary<string, string> assemblyPathsToLoad,
             string locatedMsBuildPath,
-            IReadOnlyCollection<string> projectEntryPoints,
-            string enlistmentRoot,
-            IReadOnlyDictionary<string, string> globalProperties,
-            IReadOnlyCollection<string> entryPointTargets,
+            MSBuildGraphBuilderArguments graphBuildArguments,
             IReadOnlyCollection<IProjectStaticPredictor> projectPredictorsForTesting)
         {
             try
@@ -138,11 +132,24 @@ namespace MsBuildGraphBuilderTool
                 reporter.ReportMessage("Parsing MSBuild specs and constructing the build graph...");
 
                 var projectInstanceToProjectCache = new ConcurrentDictionary<ProjectInstance, Project>();
-                var globalPropertiesDict = globalProperties?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-                var thisQualifierProjectCollection = new ProjectCollection(globalProperties: globalPropertiesDict);
+
+                if (!TryBuildEntryPoints(
+                    graphBuildArguments.ProjectsToParse, 
+                    graphBuildArguments.RequestedQualifiers, 
+                    graphBuildArguments.GlobalProperties, 
+                    out List<ProjectGraphEntryPoint> entryPoints, 
+                    out string failure))
+                {
+                    return ProjectGraphWithPredictionsResult.CreateFailure(
+                        GraphConstructionError.CreateFailureWithoutLocation(failure),
+                        assemblyPathsToLoad,
+                        locatedMsBuildPath);
+                }
+
                 var projectGraph = new ProjectGraph(
-                    projectEntryPoints.Select(entryPoint => new ProjectGraphEntryPoint(entryPoint, globalPropertiesDict)), 
-                    thisQualifierProjectCollection, 
+                    entryPoints,
+                    // The project collection doesn't need any specific global properties, since entry points already contain all the ones that are needed, and the project graph will merge them
+                    new ProjectCollection(), 
                     (projectPath, globalProps, projectCollection) => ProjectInstanceFactory(projectPath, globalProps, projectCollection, projectInstanceToProjectCache));
 
                 // This is a defensive check to make sure the assembly loader actually honored the search locations provided by the user. The path of the assembly where ProjectGraph
@@ -163,14 +170,14 @@ namespace MsBuildGraphBuilderTool
 
                 if (!TryConstructGraph(
                     projectGraph, 
-                    locatedMsBuildPath, 
-                    enlistmentRoot, 
+                    locatedMsBuildPath,
+                    graphBuildArguments.EnlistmentRoot, 
                     reporter, 
-                    projectInstanceToProjectCache, 
-                    entryPointTargets, 
+                    projectInstanceToProjectCache,
+                    graphBuildArguments.EntryPointTargets, 
                     projectPredictorsForTesting, 
                     out ProjectGraphWithPredictions projectGraphWithPredictions, 
-                    out string failure))
+                    out failure))
                 {
                     return ProjectGraphWithPredictionsResult.CreateFailure(
                         GraphConstructionError.CreateFailureWithoutLocation(failure), 
@@ -200,6 +207,55 @@ namespace MsBuildGraphBuilderTool
                     assemblyPathsToLoad,
                     locatedMsBuildPath);
             }
+        }
+
+        /// <summary>
+        /// Each entry point is a starting project associated (for each requested qualifier) with global properties
+        /// </summary>
+        /// <remarks>
+        /// The global properties for each starting project is computed as a combination of the global properties specified for the whole build (in the resolver
+        /// configuration) plus the particular qualifier, which is passed to MSBuild as properties as well.
+        /// </remarks>
+        private static bool TryBuildEntryPoints(
+            IReadOnlyCollection<string> projectsToParse, 
+            IReadOnlyCollection<GlobalProperties> requestedQualifiers, 
+            GlobalProperties globalProperties, 
+            out List<ProjectGraphEntryPoint> entryPoints,
+            out string failure)
+        {
+            entryPoints = new List<ProjectGraphEntryPoint>(projectsToParse.Count * requestedQualifiers.Count);
+            failure = string.Empty;
+
+            foreach (GlobalProperties qualifier in requestedQualifiers)
+            {
+                // Merge the qualifier first
+                var mergedProperties = new Dictionary<string, string>(qualifier);
+
+                // Go through global properties of the build and merge, making sure there are no incompatible values
+                foreach (var kvp in globalProperties)
+                {
+                    string key = kvp.Key;
+                    string value = kvp.Value;
+
+                    if (qualifier.TryGetValue(key, out string duplicateValue))
+                    {
+                        // Property names are case insensitive, but property values are not!
+                        if (!value.Equals(duplicateValue, StringComparison.Ordinal))
+                        {
+                            string displayKey = key.ToUpperInvariant();
+                            failure = $"The qualifier {qualifier.ToString()} is requested, but that is incompatible with the global property '{displayKey}={value}' since the specified values for '{displayKey}' do not agree.";
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        mergedProperties.Add(key, value);
+                    }
+                }
+                entryPoints.AddRange(projectsToParse.Select(entryPoint => new ProjectGraphEntryPoint(entryPoint, mergedProperties)));
+            }
+
+            return true;
         }
 
         private static ProjectGraphWithPredictionsResult<string> CreateFailureFromInvalidProjectFile(IReadOnlyDictionary<string, string> assemblyPathsToLoad, string locatedMsBuildPath, InvalidProjectFileException e)

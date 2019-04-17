@@ -34,6 +34,7 @@ using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Testing.Helper.Ambients;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using Test.BuildXL.TestUtilities;
 using Xunit.Sdk;
@@ -125,10 +126,15 @@ export function test(args: TestArguments): TestResult {{
 
             var frontEndStatistics = new FrontEndStatistics();
 
-            AmbientTesting ambientTesting;
-            DScriptWorkspaceResolverFactory workspaceFactory;
-            FrontEndFactory frontEndFactory;
-            if (!CreateFactories(frontEndContext, engineAbstraction, frontEndStatistics, configuration, out ambientTesting, out workspaceFactory, out frontEndFactory))
+            if (!CreateFactories(
+                frontEndContext, 
+                engineAbstraction, 
+                frontEndStatistics, 
+                configuration, 
+                out var ambientTesting, 
+                out var workspaceFactory, 
+                out var moduleRegistry, 
+                out var frontEndFactory))
             {
                 return false;
             }
@@ -139,9 +145,11 @@ export function test(args: TestArguments): TestResult {{
                     frontEndFactory,
                     workspaceFactory,
                     new EvaluationScheduler(1),
+                    moduleRegistry,
                     frontEndStatistics,
                     m_tracingLogger,
-                    performanceCollector))
+                    performanceCollector,
+                    collectMemoryAsSoonAsPossible: true))
             {
                 var frontEndController = (IFrontEndController)frontEndHostController;
                 frontEndController.InitializeHost(frontEndContext, configuration);
@@ -224,35 +232,32 @@ export function test(args: TestArguments): TestResult {{
             ICommandLineConfiguration configuration,
             out AmbientTesting ambientTesting,
             out DScriptWorkspaceResolverFactory workspaceFactory,
+            out ModuleRegistry moduleRegistry,
             out FrontEndFactory frontEndFactory)
         {
-            var globalConstants = new GlobalConstants(frontEndContext.SymbolTable);
-            ambientTesting = new AmbientTesting(engineAbstraction, GetAllDiagnostics, globalConstants.KnownTypes);
-            ambientTesting.Initialize(globalConstants.Global);
+            moduleRegistry = new ModuleRegistry(frontEndContext.SymbolTable);
+            ambientTesting = new AmbientTesting(engineAbstraction, GetAllDiagnostics, moduleRegistry.PrimitiveTypes);
+            ambientTesting.Initialize(moduleRegistry.GlobalLiteral);
 
-            var ambientAssert = new AmbientAssert(globalConstants.KnownTypes);
-            ambientAssert.Initialize(globalConstants.Global);
-
-            var sharedModuleRegistry = new ModuleRegistry();
+            var ambientAssert = new AmbientAssert(moduleRegistry.PrimitiveTypes);
+            ambientAssert.Initialize(moduleRegistry.GlobalLiteral);
 
             workspaceFactory = new DScriptWorkspaceResolverFactory();
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.DScriptResolverKind,
-                () => new WorkspaceSourceModuleResolver(globalConstants, sharedModuleRegistry, frontEndStatistics));
+                () => new WorkspaceSourceModuleResolver(frontEndContext.StringTable, frontEndStatistics));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.SourceResolverKind,
-                () => new WorkspaceSourceModuleResolver(globalConstants, sharedModuleRegistry, frontEndStatistics));
+                () => new WorkspaceSourceModuleResolver(frontEndContext.StringTable, frontEndStatistics));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.DefaultSourceResolverKind,
-                () => new WorkspaceDefaultSourceModuleResolver(globalConstants, sharedModuleRegistry, frontEndStatistics));
+                () => new WorkspaceDefaultSourceModuleResolver(frontEndContext.StringTable, frontEndStatistics));
 
             // Create the controller
             frontEndFactory = new FrontEndFactory();
             frontEndFactory.SetConfigurationProcessor(new TestConfigProcessor(configuration));
             frontEndFactory.AddFrontEnd(
                 new DScriptFrontEnd(
-                    globalConstants,
-                    sharedModuleRegistry,
                     frontEndStatistics,
                     logger: m_astLogger));
 

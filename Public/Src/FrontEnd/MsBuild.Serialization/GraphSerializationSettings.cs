@@ -19,6 +19,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
             PreserveReferencesHandling = PreserveReferencesHandling.Objects,
             Formatting = Formatting.Indented,
             NullValueHandling = NullValueHandling.Include,
+            Converters = new [] { new GlobalPropertiesDeserializer() }
         };
     }
 }

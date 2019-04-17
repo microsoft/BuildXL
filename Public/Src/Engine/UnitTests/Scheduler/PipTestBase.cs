@@ -23,10 +23,9 @@ using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
-
-using static BuildXL.Interop.MacOS.IO;
 using System.Threading;
 using BuildXL.Scheduler;
+using MacPaths = BuildXL.Interop.MacOS.IO;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -265,15 +264,18 @@ namespace Test.BuildXL.Scheduler
             Directory.CreateDirectory(SourceRoot);
             Directory.CreateDirectory(ObjectRoot);
 
+            var pathTable = Context.PathTable;
+            var stringTable = Context.StringTable;
+
             PipTable = new PipTable(
-                Context.PathTable,
+                pathTable,
                 Context.SymbolTable,
                 initialBufferSize: 16,
                 maxDegreeOfParallelism: disablePipSerialization ? 0 : Environment.ProcessorCount,
                 debug: true);
 
             QualifierTable = new QualifierTable(Context.StringTable);
-            Expander = new MountPathExpander(Context.PathTable);
+            Expander = new MountPathExpander(pathTable);
             configuration = configuration ?? new ConfigurationImpl();
 
             PipGraphBuilder = new PipGraph.Builder(
@@ -284,7 +286,7 @@ namespace Test.BuildXL.Scheduler
                 configuration,
                 Expander,
                 fingerprintSalt: configuration.Cache.CacheSalt,
-                directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(configuration, Context.StringTable));
+                directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(configuration, stringTable));
 
             ReadonlyRoot = Path.Combine(ObjectRoot, "readonly");
             NonHashableRoot = Path.Combine(ObjectRoot, "nonhashable");
@@ -294,54 +296,99 @@ namespace Test.BuildXL.Scheduler
             Directory.CreateDirectory(NonHashableRoot);
             Directory.CreateDirectory(NonReadableRoot);
 
-            Expander.Add(Context.PathTable, new SemanticPathInfo(
-                rootName: PathAtom.Create(Context.PathTable.StringTable, "SourceRoot"),
+            Expander.Add(pathTable, new SemanticPathInfo(
+                rootName: PathAtom.Create(stringTable, "SourceRoot"),
                 root: SourceRootPath,
                 allowHashing: true,
                 readable: true,
                 writable: true));
 
-            Expander.Add(Context.PathTable, new SemanticPathInfo(
-                rootName: PathAtom.Create(Context.PathTable.StringTable, "ObjectRoot"),
+            Expander.Add(pathTable, new SemanticPathInfo(
+                rootName: PathAtom.Create(stringTable, "ObjectRoot"),
                 root: ObjectRootPath,
                 allowHashing: true,
                 readable: true,
                 writable: true));
 
-            Expander.Add(Context.PathTable, new SemanticPathInfo(
-                rootName: PathAtom.Create(Context.PathTable.StringTable, "NonReadableRoot"),
-                root: AbsolutePath.Create(Context.PathTable, NonReadableRoot),
+            Expander.Add(pathTable, new SemanticPathInfo(
+                rootName: PathAtom.Create(stringTable, "NonReadableRoot"),
+                root: AbsolutePath.Create(pathTable, NonReadableRoot),
                 allowHashing: false,
                 readable: false,
                 writable: false));
 
-            Expander.Add(Context.PathTable, new SemanticPathInfo(
-                rootName: PathAtom.Create(Context.PathTable.StringTable, "ReadOnlyRoot"),
-                root: AbsolutePath.Create(Context.PathTable, ReadonlyRoot),
+            Expander.Add(pathTable, new SemanticPathInfo(
+                rootName: PathAtom.Create(stringTable, "ReadOnlyRoot"),
+                root: AbsolutePath.Create(pathTable, ReadonlyRoot),
                 allowHashing: true,
                 readable: true,
                 writable: false));
 
-            Expander.Add(Context.PathTable, new SemanticPathInfo(
-                rootName: PathAtom.Create(Context.PathTable.StringTable, "NonHashableRoot"),
-                root: AbsolutePath.Create(Context.PathTable, NonHashableRoot),
+            Expander.Add(pathTable, new SemanticPathInfo(
+                rootName: PathAtom.Create(stringTable, "NonHashableRoot"),
+                root: AbsolutePath.Create(pathTable, NonHashableRoot),
                 allowHashing: false,
                 readable: true,
                 writable: true));
 
-            Expander.Add(Context.PathTable, new SemanticPathInfo(
-                rootName: PathAtom.Create(Context.PathTable.StringTable, "CmdRoot"),
-                root: CmdExecutable.Path.GetParent(Context.PathTable),
+            Expander.Add(pathTable, new SemanticPathInfo(
+                rootName: PathAtom.Create(stringTable, "CmdRoot"),
+                root: CmdExecutable.Path.GetParent(pathTable),
                 allowHashing: false,
                 readable: true,
                 writable: true));
 
-            Expander.Add(Context.PathTable, new SemanticPathInfo(
-                rootName: PathAtom.Create(Context.PathTable.StringTable, nameof(TestBinRoot)),
+            Expander.Add(pathTable, new SemanticPathInfo(
+                rootName: PathAtom.Create(stringTable, nameof(TestBinRoot)),
                 root: TestBinRootPath,
                 allowHashing: true,
                 readable: true,
                 writable: false));
+
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                Expander.Add(pathTable, new SemanticPathInfo(
+                    rootName: PathAtom.Create(stringTable, "Applications"),
+                    root: AbsolutePath.Create(pathTable, MacPaths.Applications),
+                    allowHashing: true,
+                    readable: true,
+                    writable: false));
+
+                Expander.Add(pathTable, new SemanticPathInfo(
+                    rootName: PathAtom.Create(stringTable, "UsrBin"),
+                    root: AbsolutePath.Create(pathTable, MacPaths.UsrBin),
+                    allowHashing: true,
+                    readable: true,
+                    writable: false));
+
+                Expander.Add(pathTable, new SemanticPathInfo(
+                    rootName: PathAtom.Create(stringTable, "UsrInclude"),
+                    root: AbsolutePath.Create(pathTable, MacPaths.UsrInclude),
+                    allowHashing: true,
+                    readable: true,
+                    writable: false));
+
+                Expander.Add(pathTable, new SemanticPathInfo(
+                    rootName: PathAtom.Create(stringTable, "UsrLib"),
+                    root: AbsolutePath.Create(pathTable, MacPaths.UsrLib),
+                    allowHashing: true,
+                    readable: true,
+                    writable: false));
+
+                Expander.Add(pathTable, new SemanticPathInfo(
+                    rootName: PathAtom.Create(stringTable, "Library"),
+                    root: AbsolutePath.Create(pathTable, MacPaths.Library),
+                    allowHashing: true,
+                    readable: true,
+                    writable: false));
+
+                Expander.Add(pathTable, new SemanticPathInfo(
+                    rootName: PathAtom.Create(stringTable, "UserProvisioning"),
+                    root: AbsolutePath.Create(pathTable, MacPaths.UserProvisioning),
+                    allowHashing: true,
+                    readable: true,
+                    writable: false));
+            }
         }
 
         /// <summary>
@@ -1115,19 +1162,12 @@ namespace Test.BuildXL.Scheduler
             if (OperatingSystemHelper.IsUnixOS)
             {
                 processBuilder.EnableTempDirectory();
-
-                foreach (var dir in new[] { Private, SystemLibrary, Usr, Dev, Var, AppleInternal, Bin, Etc, Proc, TmpDir, LibraryPreferencesLogging })
-                {
-                    processBuilder.AddUntrackedDirectoryScope(Context.PathTable, dir);
-                }
-
-                string userTextEncodingFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".CFUserTextEncoding");
-                processBuilder.AddUntrackedFile(AbsolutePath.Create(Context.PathTable, userTextEncodingFile));
             }
-            else
-            {
-                processBuilder.AddUntrackedWindowsDirectories();
-            }
+
+            processBuilder.AddCurrentHostOSDirectories();
+
+            PipGraphBuilder.ApplyCurrentOsDefaults(processBuilder);
+
         }
 
         #region IO Helpers

@@ -4,29 +4,24 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Tasks;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.FrontEnd.Workspaces.Core;
-using JetBrains.Annotations;
-using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.RuntimeModel;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Script.RuntimeModel;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.FileSystem;
-using BuildXL.FrontEnd.Sdk.Workspaces;
+using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.ParallelAlgorithms;
+using BuildXL.Utilities.Tasks;
+using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 using TypeScript.Net.Utilities;
@@ -83,14 +78,12 @@ namespace BuildXL.FrontEnd.Script
         public ConfigurationConversionHelper(
             [CanBeNull] FrontEndEngineAbstraction engine,
             ConfigurationKind kind,
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
             Logger logger,
             FrontEndHost host,
             FrontEndContext context,
             IConfiguration configuration,
-            IFrontEndStatistics statistics = null)
-            : base(constants, sharedModuleRegistry, statistics ?? new FrontEndStatistics(), logger, host, context, configuration)
+            IFrontEndStatistics statistics)
+            : base(statistics, logger, host, context, configuration)
         {
             Engine = engine ?? new SimpleFrontEndEngineAbstraction(context.PathTable, context.FileSystem, configuration);
             Kind = kind;
@@ -182,7 +175,7 @@ namespace BuildXL.FrontEnd.Script
 
                 FileModuleLiteral configModule = convertedModules.First(m => m.Path == configPath);
                 SymbolAtom configKeyword = GetConfigKeyword(workspace.ConfigurationModule.Specs[configPath].SourceFile);
-                return new ConfigConversionResult(workspace, configModule, configKeyword);
+                return new ConfigConversionResult(configModule, configKeyword);
             }
         }
 
@@ -356,7 +349,7 @@ namespace BuildXL.FrontEnd.Script
 
         private async Task<Workspace> TypeCheckWorkspaceAsync(Workspace workspace)
         {
-            var frontEndStatistics = new FrontEndStatistics(); // don't polute global statistics with this
+            var frontEndStatistics = new FrontEndStatistics(); // don't pollute global statistics with this
             var semanticWorkspaceProvider = new SemanticWorkspaceProvider(frontEndStatistics, WorkspaceConfiguration);
             workspace = await semanticWorkspaceProvider.ComputeSemanticWorkspaceAsync(Context.PathTable, workspace);
 
@@ -424,7 +417,7 @@ namespace BuildXL.FrontEnd.Script
 
         private FileModuleLiteral ConvertAndRegisterSourceFile(RuntimeModelContext runtimeModelContext, Workspace workspace, ISourceFile sourceFile, AbsolutePath path, bool isConfig)
         {
-            var moduleLiteral = ModuleLiteral.CreateFileModule(path, Constants.Global, runtimeModelContext.Package, SharedModuleRegistry, sourceFile.LineMap);
+            var moduleLiteral = ModuleLiteral.CreateFileModule(path, FrontEndHost.ModuleRegistry, runtimeModelContext.Package, sourceFile.LineMap);
 
             var conversionContext = new AstConversionContext(runtimeModelContext, path, sourceFile, moduleLiteral);
             var converter = AstConverter.Create(Context.QualifierTable, conversionContext, ConversionConfiguration, workspace);
@@ -468,15 +461,13 @@ namespace BuildXL.FrontEnd.Script
                     Contract.Assert(
                         configKeywordString == Script.Constants.Names.ConfigurationFunctionCall,
                         I($"Configuration validation for '{Kind}' should have caught that a wrong configuration keyword was used ('{configKeywordString}' instead of '{Script.Constants.Names.ConfigurationFunctionCall}')"));
-                    return Constants.Literals.ConfigurationKeyword;
+                    return SymbolAtom.Create(Context.StringTable, configKeywordString);
 
                 case ConfigurationKind.ModuleConfig:
                     Contract.Assert(
                         configKeywordString == Script.Constants.Names.ModuleConfigurationFunctionCall || configKeywordString == Script.Constants.Names.LegacyModuleConfigurationFunctionCall,
                         I($"Configuration validation for '{Kind}' should have caught that a wrong configuration keyword was used ('{configKeywordString}' instead of either '{Script.Constants.Names.ModuleConfigurationFunctionCall}' or '{Script.Constants.Names.LegacyModuleConfigurationFunctionCall}')"));
-                    return configKeywordString == Script.Constants.Names.ModuleConfigurationFunctionCall
-                        ? Constants.Literals.ModuleKeyword
-                        : Constants.Literals.LegacyPackageKeyword;
+                    return SymbolAtom.Create(Context.StringTable, configKeywordString);
                 default:
                     throw Contract.AssertFailure(UnimplementedOperationForConfigKindErrorMessage);
             }

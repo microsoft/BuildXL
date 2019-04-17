@@ -22,6 +22,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Distribution;
+using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Recovery;
 using BuildXL.Engine.Tracing;
 using BuildXL.Engine.Visualization;
@@ -275,10 +276,16 @@ namespace BuildXL.Engine
 
             if (configuration.Distribution.IsGrpcEnabled)
             {
-                GrpcEnvironment.InitializeIfNeeded();
+                bool grpcHandlerInliningEnabled = GrpcSettings.HandlerInliningEnabled;
+
 #if FEATURE_CORECLR
-                global::Grpc.Core.GrpcEnvironment.SetHandlerInlining(false);
+                // Handler inlining causing deadlock on the mac platform.
+                grpcHandlerInliningEnabled = false;
 #endif
+
+                GrpcEnvironment.InitializeIfNeeded(GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled);
+
+                Logger.Log.GrpcSettings(loggingContext, GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled, (int)GrpcSettings.CallTimeout.TotalMinutes, (int)GrpcSettings.InactiveTimeout.TotalMinutes);
             }
 
             Context = context;
@@ -1688,7 +1695,9 @@ namespace BuildXL.Engine
                                 success &= constructScheduleResult != ConstructScheduleResult.Failure;
                                 ValidateSuccessMatches(success, pm.LoggingContext);
 
-                                if (success && !Configuration.Schedule.DisableProcessRetryOnResourceExhaustion)
+                                var phase = Configuration.Engine.Phase;
+
+                                if (success && phase.HasFlag(EnginePhases.Schedule) && !Configuration.Schedule.DisableProcessRetryOnResourceExhaustion)
                                 {
                                     // TODO: update this once shared opaques play nicely with resource based cancellation
                                     // Resource based cancellation might lead to wrong cache entries.
@@ -1710,8 +1719,6 @@ namespace BuildXL.Engine
                                     }
                                     ValidateSuccessMatches(success, pm.LoggingContext);
                                 }
-
-                                var phase = Configuration.Engine.Phase;
 
                                 if (success && phase.HasFlag(EnginePhases.Schedule) && Configuration.Ide.IsEnabled)
                                 {
@@ -2851,57 +2858,7 @@ namespace BuildXL.Engine
 
         private IReadOnlyList<string> GetNonScrubbablePaths()
         {
-            var nonScrubbablePaths = new List<string>
-            {
-                // Don't scrub the object directory lock file
-                FolderLock.GetLockPath(Configuration.Layout.ObjectDirectory.ToString(Context.PathTable)),
-
-                // Don't scrub the temp directory used for file move-delete
-                // TempCleaner is responsible for cleaning this
-                m_tempCleaner.TempDirectory,
-            };
-
-            AddToNonScrubbableAbsolutePaths(new[]
-            {
-                // Don't scrub the engine cache in the object directory
-                Configuration.Layout.EngineCacheDirectory,
-
-                // Don't scrub the cache directory
-                Configuration.Layout.CacheDirectory,
-
-                // Don't scrub log directories.
-                Configuration.Logging.LogsDirectory,
-                Configuration.Logging.RedirectedLogsDirectory
-            });
-
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                // Don't scrub the .NET Core lock file when running the CoreCLR on Unix even if its parent directory is specified as scrubabble. 
-                // Some build tools use the '/tmp' folder as temporary file location (e.g. xcodebuild, clang, etc.) for dumping state and reports. 
-                // Unfortunately scrubbing the dotnet state files can lead to a missbehaving CoreCLR in subsequent or parallel runs where several 
-                // dotnet invocations happen, so lets avoid scrubbing that folder explicitly!
-                nonScrubbablePaths.AddRange(new []
-                {
-                    "/tmp/.dotnet/",
-                    "/private/tmp/.dotnet/",
-                });
-            }
-
-            // Don't scrub any of the paths flagged as non-scrubbable
-            nonScrubbablePaths.AddRange(FrontEndController.GetNonScrubbablePaths());
-
-            void AddToNonScrubbableAbsolutePaths(AbsolutePath[] paths)
-            {
-                foreach (AbsolutePath path in paths)
-                {
-                    if (path.IsValid)
-                    {
-                        nonScrubbablePaths.Add(path.ToString(Context.PathTable));
-                    }
-                }
-            }
-
-            return nonScrubbablePaths;
+            return EngineSchedule.GetNonScrubbablePaths(Context.PathTable, Configuration, FrontEndController.GetNonScrubbablePaths(), m_tempCleaner);
         }
 
         private void LogFrontEndStats(LoggingContext loggingContext)
@@ -3125,7 +3082,9 @@ namespace BuildXL.Engine
                         GraphCacheFile.PreviousInputs,
                         writer => inputTracker.WriteToFile(
                             writer,
+                            Context.PathTable,
                             envVarsImpactingBuild,
+                            mountsImpactingBuild,
                             serializer.PreviousInputsJournalCheckpoint),
                         overrideName: EngineSerializer.PreviousInputsIntermediateFile);
 
@@ -3239,6 +3198,7 @@ namespace BuildXL.Engine
             EngineSerializer serializer,
             GraphFingerprint graphFingerprint,
             IBuildParameters availableEnvironmentVariables,
+            MountsTable availableMounts,
             JournalState journalState,
             int maxDegreeOfParallelism)
         {
@@ -3249,6 +3209,7 @@ namespace BuildXL.Engine
                 fileContentTable: FileContentTable,
                 graphFingerprint: graphFingerprint,
                 availableEnvironmentVariables: availableEnvironmentVariables,
+                availableMounts: availableMounts,
                 journalState: journalState,
                 timeLimitForJournalScanning:
                     Configuration.Engine.ScanChangeJournalTimeLimitInSec < 0

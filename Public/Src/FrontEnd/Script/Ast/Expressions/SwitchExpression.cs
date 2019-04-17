@@ -90,15 +90,22 @@ namespace BuildXL.FrontEnd.Script.Expressions
 
             foreach (var clause in Clauses)
             {
-                var match = clause.Match.Eval(context, env, frame);
-                if (match.IsErrorValue)
-                {
-                    return match;
-                }
-
-                if (expression.Equals(match))
+                if (clause.IsDefaultFallthrough)
                 {
                     return clause.Expression.Eval(context, env, frame);
+                }
+                else
+                {
+                    var match = clause.Match.Eval(context, env, frame);
+                    if (match.IsErrorValue)
+                    {
+                        return match;
+                    }
+
+                    if (expression.Equals(match))
+                    {
+                        return clause.Expression.Eval(context, env, frame);
+                    }
                 }
             }
 

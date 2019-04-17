@@ -143,6 +143,16 @@ namespace BuildXL.Engine.Tracing
         public abstract void InputTrackerDetectedEnvironmentVariableChanged(LoggingContext context, string variableName, string recordedValue, string currentValue);
 
         [GeneratedEvent(
+           (ushort)LogEventId.InputTrackerDetectedMountChanged,
+           EventGenerators = EventGenerators.LocalOnly,
+           EventLevel = Level.Verbose,
+           EventTask = (ushort)Events.Tasks.Engine,
+           EventOpcode = (byte)EventOpcode.Start,
+           Keywords = (int)(Events.Keywords.UserMessage),
+           Message = "Input tracker detected first changed mount: Mount name: {mountName} | Recorded path: {recordedPath} | Current path: {currentPath}")]
+        public abstract void InputTrackerDetectedMountChanged(LoggingContext context, string mountName, string recordedPath, string currentPath);
+
+        [GeneratedEvent(
             (ushort)LogEventId.InputTrackerUnableToDetectChangedInputFileByCheckingContentHash,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -2626,6 +2636,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             Message = "Scheduler has been configured to cancel/re-run pips due to resource exhaustion. There is at least one pip that produces a shared opaque directory ('{sharedOpaquePath}'). "
                       + "Resource based cancellation and shared opaque directories are not compatible. Please use /disableProcessRetryOnResourceExhaustion+ argument to disable resource based cancellation.")]
         internal abstract void ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent(LoggingContext loggingContext, string sharedOpaquePath);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.GrpcSettings,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.Distribution,
+            Message = "Grpc settings: ThreadPoolSize {threadPoolSize}, HandlerInlining {handlerInlining}, CallTimeoutMin {callTimeoutMin}, InactiveTimeoutMin {inactiveTimeoutMin}")]
+        internal abstract void GrpcSettings(LoggingContext context, int threadPoolSize, bool handlerInlining, int callTimeoutMin, int inactiveTimeoutMin);
     }
 
     /// <summary>
@@ -2871,6 +2890,11 @@ If you can't update and need this feature after July 2018 please reach out to th
         /// One or more environment variables changed
         /// </summary>
         EnvironmentVariableChanged,
+
+        /// <summary>
+        /// One or more mounts or mount paths changed
+        /// </summary>
+        MountChanged,
 
         /// <summary>
         /// One or more spec files changed

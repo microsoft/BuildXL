@@ -17,41 +17,53 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
     /// <remarks>
     /// Data that can be processed has the following recursive definitions:
     ///     Data = int | string | PathAtom | RelativePath | AbsolutePath | CompoundData
-    ///     CompoundData = { separator: string, contents: Data[] }
+    ///     CompoundData = { separatorSymbol: string, contentsSymbol: Data[] }
     /// </remarks>
     internal sealed class DataProcessor
     {
         private readonly ObjectPool<PipDataBuilder> m_pipDataBuilderPool;
-        private readonly ImmutableContextBase m_context;
+        private readonly StringTable m_stringTable;
+        private readonly SymbolAtom m_separatorSymbol;
+        private readonly SymbolAtom m_contentsSymbol;
 
-        private DataProcessor(ImmutableContextBase context, ObjectPool<PipDataBuilder> pipDataBuilderPool)
+        private DataProcessor(StringTable stringTable, SymbolAtom separatorSymbol, SymbolAtom contentsSymbol, ObjectPool<PipDataBuilder> pipDataBuilderPool)
         {
-            Contract.Requires(context != null);
+            Contract.Requires(stringTable != null);
+            Contract.Requires(separatorSymbol.IsValid);
+            Contract.Requires(contentsSymbol.IsValid);
             Contract.Requires(pipDataBuilderPool != null);
 
-            m_context = context;
+            m_stringTable = stringTable;
+            m_separatorSymbol = separatorSymbol;
+            m_contentsSymbol = contentsSymbol;
             m_pipDataBuilderPool = pipDataBuilderPool;
         }
 
         /// <summary>
         /// Processes data.
         /// </summary>
-        /// <param name="context">Evaluation context.</param>
+        /// <param name="stringTable">StringTable for printing values.</param>
+        /// <param name="separatorSymbol">Symbol for separator field in data object.</param>
+        /// <param name="contentsSymbol">Symbol for contents field in data object.</param>
         /// <param name="pipDataBuilderPool">Pool for PipDataBuilders.</param>
         /// <param name="data">Data to be processed.</param>
         /// <param name="conversionContext">Conversion context.</param>
         /// <returns>Pip data.</returns>
         public static PipData ProcessData(
-            ImmutableContextBase context,
+            StringTable stringTable,
+            SymbolAtom separatorSymbol,
+            SymbolAtom contentsSymbol,
             ObjectPool<PipDataBuilder> pipDataBuilderPool,
             EvaluationResult data,
             in ConversionContext conversionContext = default(ConversionContext))
         {
-            Contract.Requires(context != null);
+            Contract.Requires(stringTable != null);
+            Contract.Requires(separatorSymbol.IsValid);
+            Contract.Requires(contentsSymbol.IsValid);
             Contract.Requires(pipDataBuilderPool != null);
             Contract.Requires(data != null);
 
-            return new DataProcessor(context, pipDataBuilderPool).ProcessData(data, conversionContext);
+            return new DataProcessor(stringTable, separatorSymbol, contentsSymbol, pipDataBuilderPool).ProcessData(data, conversionContext);
         }
 
         private PipData ProcessData(EvaluationResult data, in ConversionContext conversionContext)
@@ -83,10 +95,10 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             else if (data is ObjectLiteral compoundData)
             {
                 var separator = Converter.ExpectString(
-                    compoundData[m_context.Names.DataSeparator],
-                    new ConversionContext(name: m_context.Names.DataSeparator, allowUndefined: true, objectCtx: compoundData));
+                    compoundData[m_separatorSymbol],
+                    new ConversionContext(name: m_separatorSymbol, allowUndefined: true, objectCtx: compoundData));
                 separator = separator ?? Environment.NewLine;
-                var arrayOfData = Converter.ExtractArrayLiteral(compoundData, m_context.Names.DataContents);
+                var arrayOfData = Converter.ExtractArrayLiteral(compoundData, m_contentsSymbol);
                 using (pipDataBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, separator))
                 {
                     for (int i = 0; i < arrayOfData.Length; ++i)
@@ -101,7 +113,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
             else if (data is RelativePath)
             {
-                pipDataBuilder.Add(((RelativePath)data).ToString(m_context.StringTable));
+                pipDataBuilder.Add(((RelativePath)data).ToString(m_stringTable));
             }
             else if (data is int)
             {

@@ -46,7 +46,7 @@ namespace Test.DScript.Ast.Interpretation.Transformers
 
             // Act
             var parsedLiteral = ParseArrayLiteral(WrapWithCmdApi(Literal));
-            var parsedArguments = CommandLineArgumentsConverter.ArrayLiteralToListOfArguments(new Names(FrontEndContext.SymbolTable), parsedLiteral).ToArray();
+            var parsedArguments = CommandLineArgumentsConverter.ArrayLiteralToListOfArguments(FrontEndContext.StringTable, parsedLiteral).ToArray();
 
             // Assert
             Assert.Equal(
@@ -92,7 +92,7 @@ namespace Test.DScript.Ast.Interpretation.Transformers
 
                 if (parsedObjectLiteral != null)
                 {
-                    CommandLineArgumentsConverter.ObjectLiteralToArgument(new Names(FrontEndContext.SymbolTable), parsedObjectLiteral);
+                    CommandLineArgumentsConverter.ObjectLiteralToArgument(FrontEndContext.StringTable, parsedObjectLiteral);
                 }
 
                 XAssert.Fail("DScript snippet '{0}' didn't fail as expected", literal);
@@ -414,7 +414,7 @@ namespace Test.DScript.Ast.Interpretation.Transformers
                 else
                 {
                     var parsedArgument = CommandLineArgumentsConverter.ObjectLiteralToArgument(
-                        new Names(FrontEndContext.SymbolTable),
+                        FrontEndContext.StringTable,
                         parsedLiteral as ObjectLiteral);
                     Assert.Equal(argument, parsedArgument);
                 }

@@ -653,6 +653,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Utilities
             if (left == null) { return 1; }
             if (right == null) { return -1; }
 
+            if (left.IsDefaultFallthrough != right.IsDefaultFallthrough)
+            {
+                return left.IsDefaultFallthrough ? 1 : -1;
+            }
+
             var result = CompareExpression(left.Match, right.Match);
             if (result != 0)
             {

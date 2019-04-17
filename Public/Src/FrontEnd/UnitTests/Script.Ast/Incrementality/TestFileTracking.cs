@@ -231,6 +231,31 @@ namespace Test.DScript.Ast.Incrementality
             }
         }
 
+        [Fact]
+        public void ChangingMountsGraphCacheMiss()
+        {
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory))
+            {
+                var appDeployment = CreateAppDeployment(tempFiles);
+
+                // The same testRootDirectory is used for all invocations, so the spec cache can be reused.
+                var testRoot = tempFiles.GetUniqueDirectory(PathTable).ToString(PathTable);
+
+                string spec = @"export const r = File.exists(f`${Context.getMount(""ObjectRoot"").path}/foo/a.txt`);";
+                var buildDefinition = CreateDefinition(spec);
+
+                var config = WriteSpecs(testRoot, buildDefinition);
+                RunAndAssertGraphCacheMiss(config, appDeployment);
+
+                var mutableConfig = (CommandLineConfiguration)config;
+                RunAndAssertGraphCacheHit(mutableConfig, appDeployment);
+
+                // Changing the path for a mount should cause a graph cache miss
+                mutableConfig.Layout.ObjectDirectory = tempFiles.GetUniqueDirectory(PathTable);
+                RunAndAssertGraphCacheMiss(mutableConfig, appDeployment);
+            }
+        }
+
         private static BuildDefinition CreateDefinition(string specContent, string specFile = "spec.dsc")
         {
             return new BuildDefinition

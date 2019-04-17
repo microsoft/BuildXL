@@ -3,31 +3,26 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.FrontEnd.Core;
-using BuildXL.FrontEnd.Ninja;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Configuration;
-using Logger = BuildXL.FrontEnd.Script.Tracing.Logger;
 
 namespace BuildXL.FrontEnd.CMake
 {
     /// <summary>
     /// Resolver frontend that can schedule CMake projects
     /// </summary>
-    public sealed class CMakeFrontEnd : DScriptInterpreterBase, IFrontEnd
+    public sealed class CMakeFrontEnd : IFrontEnd
     {
+        /// <nodoc />
+        public const string Name = CMakeWorkspaceResolver.CMakeResolverName;
+
+        private FrontEndContext m_context;
+        private FrontEndHost m_host;
+
         /// <nodoc/>
-        public CMakeFrontEnd(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
-            IFrontEndStatistics statistics,
-            Logger logger = null)
-            : base(constants, sharedModuleRegistry, statistics, logger)
+        public CMakeFrontEnd()
         {
-            Name = nameof(CMakeFrontEnd);
         }
 
         /// <inheritdoc/>
@@ -38,21 +33,14 @@ namespace BuildXL.FrontEnd.CMake
         {
             Contract.Requires(kind == KnownResolverKind.CMakeResolverKind);
 
-            return new CMakeResolver(
-                Constants,
-                SharedModuleRegistry,
-                FrontEndStatistics,
-                FrontEndHost,
-                Context,
-                Configuration,
-                Logger,
-                Name);
+            return new CMakeResolver(m_host, m_context, Name);
         }
 
         /// <inheritdoc/>
         public void InitializeFrontEnd(FrontEndHost host, FrontEndContext context, IConfiguration configuration)
         {
-            InitializeInterpreter(host, context, configuration);
+            m_host = host;
+            m_context = context;
         }
 
         /// <inheritdoc/>

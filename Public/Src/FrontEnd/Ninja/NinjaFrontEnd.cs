@@ -3,30 +3,26 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.FrontEnd.Core;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Configuration;
-using Logger = BuildXL.FrontEnd.Script.Tracing.Logger;
 
 namespace BuildXL.FrontEnd.Ninja
 {
     /// <summary>
     /// Resolver frontend that can schedule Ninja projects
     /// </summary>
-    public sealed class NinjaFrontEnd : DScriptInterpreterBase, IFrontEnd
+    public sealed class NinjaFrontEnd : IFrontEnd
     {
+        /// <nodoc />
+        public const string Name = NinjaWorkspaceResolver.NinjaResolverName;
+
+        private FrontEndContext m_context;
+        private FrontEndHost m_host;
+
         /// <nodoc/>
-        public NinjaFrontEnd(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
-            IFrontEndStatistics statistics,
-            Logger logger = null)
-            : base(constants, sharedModuleRegistry, statistics, logger)
+        public NinjaFrontEnd()
         {
-            Name = nameof(NinjaFrontEnd);
         }
 
         /// <inheritdoc/>
@@ -37,21 +33,14 @@ namespace BuildXL.FrontEnd.Ninja
         {
             Contract.Requires(kind == KnownResolverKind.NinjaResolverKind);
 
-            return new NinjaResolver(
-                Constants,
-                SharedModuleRegistry,
-                FrontEndStatistics,
-                FrontEndHost,
-                Context,
-                Configuration,
-                Logger,
-                Name);
+            return new NinjaResolver(m_host, m_context, Name);
         }
 
         /// <inheritdoc/>
         public void InitializeFrontEnd(FrontEndHost host, FrontEndContext context, IConfiguration configuration)
         {
-            InitializeInterpreter(host, context, configuration);
+            m_host = host;
+            m_context = context;
         }
 
         /// <inheritdoc/>

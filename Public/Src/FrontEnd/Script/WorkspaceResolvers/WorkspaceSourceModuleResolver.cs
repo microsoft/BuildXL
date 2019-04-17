@@ -27,6 +27,7 @@ using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
 using ConfigurationConverter = BuildXL.FrontEnd.Script.Util.ConfigurationConverter;
 using ConversionException = BuildXL.FrontEnd.Script.Util.ConversionException;
+using Names = BuildXL.FrontEnd.Script.Constants.Names;
 
 namespace BuildXL.FrontEnd.Script
 {
@@ -116,35 +117,46 @@ namespace BuildXL.FrontEnd.Script
 
         private PathTable PathTable => Context.PathTable;
 
-        private Util.Literals Literals => Constants.Literals;
-
         private StringTable StringTable => Context.StringTable;
 
         /// <inheritdoc/>
         public virtual string Kind => KnownResolverKind.DScriptResolverKind;
         
+        private readonly PathAtom m_packageConfigDsc;
+        private readonly PathAtom m_moduleConfigBm;
+        private readonly PathAtom m_moduleConfigDsc;
+        private readonly PathAtom m_configDsc;
+        private readonly PathAtom m_configBc;
+        private readonly PathAtom m_packageDsc;
+        private readonly PathAtom m_dotConfigDotDscExtension;
+
         /// <nodoc/>
         public WorkspaceSourceModuleResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
+            StringTable stringTable,
             IFrontEndStatistics statistics,
             Logger logger = null)
-            : base(constants, sharedModuleRegistry, statistics, logger)
+            : base(statistics, logger)
         {
-            Contract.Requires(constants != null);
-            Contract.Requires(sharedModuleRegistry != null);
-
             Name = nameof(WorkspaceSourceModuleResolver);
             m_moduleResolutionState = ModuleResolutionState.Unresolved;
+
+            m_configDsc = PathAtom.Create(stringTable, Names.ConfigDsc);
+            m_configBc = PathAtom.Create(stringTable, Names.ConfigBc);
+            m_packageDsc = PathAtom.Create(stringTable, Names.PackageDsc);
+            m_packageConfigDsc = PathAtom.Create(stringTable, Names.PackageConfigDsc);
+            m_moduleConfigBm = PathAtom.Create(stringTable, Names.ModuleConfigBm);
+            m_moduleConfigDsc = PathAtom.Create(stringTable, Names.ModuleConfigDsc);
+            m_dotConfigDotDscExtension = PathAtom.Create(stringTable, Names.DotConfigDotDscExtension);
         }
 
         /// <nodoc/>
-        public virtual bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings)
+        public virtual bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings, QualifierId[] requestedQualifiers)
         {
             Contract.Requires(context != null);
             Contract.Requires(host != null);
             Contract.Requires(configuration != null);
             Contract.Requires(resolverSettings != null);
+            Contract.Requires(requestedQualifiers?.Length > 0);
 
             var sourceResolverSettings = resolverSettings as IDScriptResolverSettings;
             Contract.Assert(sourceResolverSettings != null);
@@ -156,8 +168,6 @@ namespace BuildXL.FrontEnd.Script
             m_configConversionHelper = new ConfigurationConversionHelper(
                 host.Engine,
                 ConfigurationConversionHelper.ConfigurationKind.ModuleConfig,
-                Constants,
-                SharedModuleRegistry,
                 Logger,
                 FrontEndHost,
                 Context,
@@ -684,9 +694,9 @@ namespace BuildXL.FrontEnd.Script
                         ExceptionUtilities.HandleRecoverableIOException(
                             (Action)(() =>
                                 {
-                                    foreach (var filePath in Engine.EnumerateFiles(currentDir).Where(filePath => ExtensionUtilities.IsNonConfigurationFile(filePath.GetName(PathTable).ToString(PathTable.StringTable))))
+                                    foreach (var filePath in Engine.EnumerateFiles(currentDir).Where(filePath => ExtensionUtilities.IsNonConfigurationFile(filePath.GetName(PathTable).ToString(StringTable))))
                                     {
-                                        if (ExtensionUtilities.IsNonConfigurationFile(filePath.GetName(PathTable).ToString(PathTable.StringTable)))
+                                        if (ExtensionUtilities.IsNonConfigurationFile(filePath.GetName(PathTable).ToString(StringTable)))
                                         {
                                             var projectFilePath = filePath;
 
@@ -862,7 +872,7 @@ namespace BuildXL.FrontEnd.Script
                             return (success: false, moduleWorkspace: null);
                         }
 
-                        ChangeNameResolutionSemanticIfNeeded(packageConfiguration, packageConfigPath.GetName(PathTable).ToString(PathTable.StringTable));
+                        ChangeNameResolutionSemanticIfNeeded(packageConfiguration, packageConfigPath.GetName(PathTable).ToString(StringTable));
 
                         if (!ValidatePackageConfiguration(packageConfiguration, packageConfigPath))
                         {
@@ -1072,7 +1082,7 @@ namespace BuildXL.FrontEnd.Script
             // Get package main file; package.dsc if not specified.
             return packageConfiguration.Main.IsValid ?
                 packageConfiguration.Main :
-                packageConfigPath.GetParent(PathTable).Combine(PathTable, Constants.Literals.PackageDsc);
+                packageConfigPath.GetParent(PathTable).Combine(PathTable, m_packageDsc);
         }
 
         private AbsolutePath GetPackageConfigPath(AbsolutePath path)
@@ -1081,25 +1091,25 @@ namespace BuildXL.FrontEnd.Script
 
             PathAtom fileName = path.GetName(PathTable);
 
-            if (Constants.Literals.IsModuleConfigFile(fileName))
+            if (IsModuleConfigFile(fileName))
             {
                 // File name is package.config.dsc, module.config.bm or module.config.dsc. Use as-is.
                 return path;
             }
 
-            if (Constants.Literals.IsLegacyPackageFile(fileName))
+            if (IsLegacyPackageFile(fileName))
             {
                 // File name is package.dsc.
                 // Users may specify package.dsc instead, so change it to package.config.dsc.
                 // This provide backward compatibility.
                 return path.ChangeExtension(
                     PathTable,
-                    Constants.Literals.DotConfigDotDscExtension);
+                    m_dotConfigDotDscExtension);
             }
 
             // File name is neither package.config.dsc nor package.dsc.
             // We assume that users specify a directory containing a package.
-            return path.Combine(PathTable, Constants.Literals.PackageConfigDsc);
+            return path.Combine(PathTable, m_packageConfigDsc);
         }
 
         private bool IsWellKnownModuleConfigurationFileExists(AbsolutePath basePath, out AbsolutePath outputConfig)
@@ -1119,21 +1129,21 @@ namespace BuildXL.FrontEnd.Script
 
         private bool IsWellKnownConfigFile(AbsolutePath fileName)
         {
-            return Literals.IsWellKnownConfigFile(fileName.GetName(PathTable));
+            return IsWellKnownConfigFile(fileName.GetName(PathTable));
         }
 
         private bool IsRootConfigurationFileExists(AbsolutePath searchPath, out AbsolutePath outputConfig)
         {
             // Check that the config package owns the search folder.
             // This prevents from file system probing in case of a miss.
-            var legacyConfigFile = searchPath.Combine(PathTable, Constants.Literals.ConfigDsc);
+            var legacyConfigFile = searchPath.Combine(PathTable, m_configDsc);
             if (Engine.FileExists(legacyConfigFile))
             {
                 outputConfig = legacyConfigFile;
                 return true;
             }
 
-            var configFile = searchPath.Combine(PathTable, Constants.Literals.ConfigBc);
+            var configFile = searchPath.Combine(PathTable, m_configBc);
 
             if (Engine.FileExists(configFile))
             {
@@ -1295,6 +1305,43 @@ namespace BuildXL.FrontEnd.Script
 
             Contract.Assert(moduleConfig.IsValid);
             return moduleConfig.ToString(PathTable);
+        }
+
+        /// <summary>
+        /// Returns true if a given candidate is a package config file name (including legacy name).
+        /// </summary>
+        /// <remarks>
+        /// The comparison is case insensitive.
+        /// </remarks>
+        private bool IsModuleConfigFile(PathAtom candidate)
+        {
+            return candidate.CaseInsensitiveEquals(StringTable, m_packageConfigDsc) ||
+                   candidate.CaseInsensitiveEquals(StringTable, m_moduleConfigBm) ||
+                   candidate.CaseInsensitiveEquals(StringTable, m_moduleConfigDsc);
+        }
+
+        /// <summary>
+        /// Returns true if a given candidate is a package config file name (including legacy name) or a root config file name.
+        /// </summary>
+        /// <remarks>
+        /// The comparison is case insensitive.
+        /// </remarks>
+        private bool IsWellKnownConfigFile(PathAtom candidate)
+        {
+            return IsModuleConfigFile(candidate) ||
+                   candidate.CaseInsensitiveEquals(StringTable, m_configDsc) ||
+                   candidate.CaseInsensitiveEquals(StringTable, m_configBc);
+        }
+
+        /// <summary>
+        /// Returns true if a given candidate is a legacy package file name.
+        /// </summary>
+        /// <remarks>
+        /// The comparison is case insensitive.
+        /// </remarks>
+        private bool IsLegacyPackageFile(PathAtom candidate)
+        {
+            return candidate.CaseInsensitiveEquals(StringTable, m_packageDsc);
         }
     }
 }

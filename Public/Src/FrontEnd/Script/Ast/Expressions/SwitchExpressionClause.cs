@@ -16,6 +16,9 @@ namespace BuildXL.FrontEnd.Script.Expressions
     /// </summary>
     public class SwitchExpressionClause : Expression
     {
+        /// <nodoc/>
+        public bool IsDefaultFallthrough { get; set; }
+
         /// <nodoc />
         public Expression Match { get; }
 
@@ -37,17 +40,39 @@ namespace BuildXL.FrontEnd.Script.Expressions
         }
 
         /// <nodoc />
+        public SwitchExpressionClause(
+            Expression expression,
+            LineInfo location)
+            : base(location)
+        {
+            Contract.Requires(expression != null);
+
+            IsDefaultFallthrough = true;
+            Expression = expression;
+        }
+
+        /// <nodoc />
         public SwitchExpressionClause(DeserializationContext context, LineInfo location)
             : base(location)
         {
-            Match = ReadExpression(context);
+            IsDefaultFallthrough = context.Reader.ReadBoolean();
+            if (!IsDefaultFallthrough)
+            {
+                Match = ReadExpression(context);
+            }
+
             Expression = ReadExpression(context);
         }
 
         /// <inheritdoc />
         protected override void DoSerialize(BuildXLWriter writer)
         {
-            Match.Serialize(writer);
+            writer.Write(IsDefaultFallthrough);
+            if (!IsDefaultFallthrough)
+            {
+                Match.Serialize(writer);
+            }
+
             Expression.Serialize(writer);
         }
 
@@ -63,7 +88,8 @@ namespace BuildXL.FrontEnd.Script.Expressions
         /// <inheritdoc />
         public override string ToDebugString()
         {
-            return I($"{Match.ToDebugString()} : {Expression.ToDebugString()}");
+            var match = IsDefaultFallthrough ? "default" : Match.ToDebugString();
+            return I($"{match} : {Expression.ToDebugString()}");
         }
 
         /// <inheritdoc />

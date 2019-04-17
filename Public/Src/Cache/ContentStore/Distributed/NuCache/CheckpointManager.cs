@@ -341,16 +341,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return true;
         }
 
-        private Task<BoolResult> RestoreFileAsync(OperationContext context, AbsolutePath checkpointTargetDirectory, string relativePath, string storageId, bool forceUseExistingFiles = false)
+        private Task<BoolResult> RestoreFileAsync(OperationContext context, AbsolutePath checkpointTargetDirectory, string relativePath, string storageId)
         {
             return context.PerformOperationAsync(
                 _tracer,
                 async () =>
                 {
                     var incrementalCheckpointFile = _incrementalCheckpointDirectory / relativePath;
-                    if ((forceUseExistingFiles || (
-                            _incrementalCheckpointInfo.TryGetValue(relativePath, out var fileStorageId)
-                            && storageId == fileStorageId))
+                    if ((_incrementalCheckpointInfo.TryGetValue(relativePath, out var fileStorageId)
+                            && storageId == fileStorageId)
                         && _database.IsImmutable(incrementalCheckpointFile)
                         && _fileSystem.FileExists(incrementalCheckpointFile))
                     {

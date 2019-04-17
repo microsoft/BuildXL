@@ -127,7 +127,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 configuration.RedisGlobalStoreSecondaryConnectionString = _secondaryGlobalStoreDatabase.ConnectionString;
             }
 
-            configuration.DistributedCentralStore = null;//new DistributedCentralStoreConfiguration(rootPath);
+            configuration.DistributedCentralStore = new DistributedCentralStoreConfiguration(rootPath);
 
             _configurations[index] = configuration;
             var testPathTransformer = new TestPathTransformer();

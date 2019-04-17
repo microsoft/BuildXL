@@ -65,6 +65,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             string networkPathRoot = cacheRootString.Replace(":", "$");
 
+            // Ensure final path root is uppercase for uniform encoding
             return
                 Encoding.UTF8.GetBytes(
                     Path.Combine(@"\\" + _localMachineName, networkPathRoot).ToUpperInvariant());

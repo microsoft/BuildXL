@@ -3,19 +3,10 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Threading;
-using BuildXL.Cache.ContentStore.Exceptions;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Service.Grpc;
-using Microsoft.Practices.TransientFaultHandling;
 using CLAP;
-using BuildXL.Cache.ContentStore.Sessions;
-using Grpc.Core;
 using ContentStore.Grpc;
-using System.Linq;
+using Grpc.Core;
 
 namespace BuildXL.Cache.ContentStore.App
 {
@@ -43,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.App
             var _client = new ContentServer.ContentServerClient(_channel);
             var helloResponse = _client.Hello(new HelloRequest(), new CallOptions(deadline: DateTime.UtcNow + TimeSpan.FromSeconds(2)));
 
-            _logger.Always($"Hello response {(helloResponse.Success ? "succeeded" : "failed")}: {helloResponse.ToString()}");
+            _logger.Always("Hello response {0}: {1}", helloResponse.Success ? "succeeded" : "failed", helloResponse.ToString());
         }
     }
 }

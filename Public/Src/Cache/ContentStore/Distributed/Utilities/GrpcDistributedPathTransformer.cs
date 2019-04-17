@@ -7,6 +7,7 @@ using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
@@ -42,9 +43,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             string networkPathRoot = cacheRoot.Path.Replace(":", "$");
 
-            return
-                Encoding.UTF8.GetBytes(
-                    Path.Combine(@"\\" + _localMachineName, networkPathRoot).ToUpperInvariant());
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                // Only unify paths along casing if on Windows
+                networkPathRoot = Path.Combine(@"\\" + _localMachineName, networkPathRoot).ToUpperInvariant();
+            }
+            else
+            {
+                // Path.Combine ignores the first parameter if the second is a rooted path. To get the machine name before the rooted network path, the combination must be done manually.
+                networkPathRoot = @"\\" + _localMachineName + (networkPathRoot.StartsWith(Path.DirectorySeparatorChar.ToString()) ? string.Empty : Path.DirectorySeparatorChar.ToString()) + networkPathRoot;
+            }
+
+            return Encoding.UTF8.GetBytes(networkPathRoot);
         }
 
         /// <inheritdoc />

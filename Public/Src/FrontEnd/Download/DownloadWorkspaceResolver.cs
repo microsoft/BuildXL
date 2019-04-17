@@ -7,10 +7,8 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.Workspaces;
+using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -27,7 +25,7 @@ namespace BuildXL.FrontEnd.Download
     /// <summary>
     /// A workspace module resolver that can download and extract archives.
     /// </summary>
-    public sealed class DownloadWorkspaceResolver : IDScriptWorkspaceModuleResolver, IWorkspaceModuleResolver
+    public sealed class DownloadWorkspaceResolver : IWorkspaceModuleResolver
     {
         /// <inheritdoc />
         public string Kind => "Download";

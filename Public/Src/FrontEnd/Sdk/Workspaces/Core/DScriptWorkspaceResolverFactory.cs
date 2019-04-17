@@ -12,23 +12,23 @@ using BuildXL.FrontEnd.Sdk.Workspaces;
 namespace BuildXL.FrontEnd.Workspaces.Core
 {
     /// <summary>
-    /// A DScript workspace resolver factory. Since some context is needed for creating a <see cref="IDScriptWorkspaceModuleResolver"/>
+    /// A DScript workspace resolver factory. Since some context is needed for creating a <see cref="IWorkspaceModuleResolver"/>
     /// that is only available later in time, after registration, <see name="Initialize"/> needs to be called before creating a resolver.
     /// </summary>
-    public sealed class DScriptWorkspaceResolverFactory : IWorkspaceResolverFactory<IDScriptWorkspaceModuleResolver>
+    public sealed class DScriptWorkspaceResolverFactory : IWorkspaceResolverFactory<IWorkspaceModuleResolver>
     {
         private FrontEndContext m_frontEndContext;
         private FrontEndHost m_frontEndHost;
         private IConfiguration m_configuration;
         private QualifierId[] m_requestedQualifiers;
-        private readonly Dictionary<string, Func<IDScriptWorkspaceModuleResolver>> m_registeredKinds;
-        private readonly Dictionary<IResolverSettings, IDScriptWorkspaceModuleResolver> m_instantiatedResolvers;
+        private readonly Dictionary<string, Func<IWorkspaceModuleResolver>> m_registeredKinds;
+        private readonly Dictionary<IResolverSettings, IWorkspaceModuleResolver> m_instantiatedResolvers;
 
         /// <nodoc/>
         public DScriptWorkspaceResolverFactory()
         {
-            m_registeredKinds = new Dictionary<string, Func<IDScriptWorkspaceModuleResolver>>();
-            m_instantiatedResolvers = new Dictionary<IResolverSettings, IDScriptWorkspaceModuleResolver>();
+            m_registeredKinds = new Dictionary<string, Func<IWorkspaceModuleResolver>>();
+            m_instantiatedResolvers = new Dictionary<IResolverSettings, IWorkspaceModuleResolver>();
         }
 
         /// <nodoc/>
@@ -48,14 +48,14 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// Registers a specific resolver for a particular <param name="kind"/>. The provided <param name="constructor"/>
         /// is used for creating the resolver
         /// </summary>
-        public void RegisterResolver(string kind, Func<IDScriptWorkspaceModuleResolver> constructor)
+        public void RegisterResolver(string kind, Func<IWorkspaceModuleResolver> constructor)
         {
             Contract.Requires(!IsRegistered(kind));
             m_registeredKinds[kind] = constructor;
         }
 
         /// <summary>
-        /// Sets DScript-specific objects that <see cref="IDScriptWorkspaceModuleResolver"/> need at creation time
+        /// Sets DScript-specific objects that <see cref="IWorkspaceModuleResolver"/> need at creation time
         /// </summary>
         /// <remarks>
         /// This is exposed as a separate methods since the set context is usually available after resolvers are registered.
@@ -82,7 +82,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <remarks>
         /// This method is not thread safe.
         /// </remarks>
-        public Possible<IDScriptWorkspaceModuleResolver> TryGetResolver(IResolverSettings resolverSettings)
+        public Possible<IWorkspaceModuleResolver> TryGetResolver(IResolverSettings resolverSettings)
         {
             Contract.Requires(resolverSettings != null);
             Contract.Assert(IsRegistered(resolverSettings.Kind), "Kind '" + resolverSettings.Kind + "' is not registered.");
@@ -91,7 +91,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             // Check if there is an already instantiated resolver for this settings
             if (m_instantiatedResolvers.TryGetValue(resolverSettings, out var resolver))
             {
-                return new Possible<IDScriptWorkspaceModuleResolver>(resolver);
+                return new Possible<IWorkspaceModuleResolver>(resolver);
             }
 
             // There is not, so we need to create and instantiate one.
@@ -103,7 +103,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
             m_instantiatedResolvers[resolverSettings] = resolver;
 
-            return new Possible<IDScriptWorkspaceModuleResolver>(resolver);
+            return new Possible<IWorkspaceModuleResolver>(resolver);
         }
     }
 }

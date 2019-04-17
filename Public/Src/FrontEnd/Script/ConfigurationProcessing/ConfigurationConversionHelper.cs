@@ -14,6 +14,7 @@ using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;

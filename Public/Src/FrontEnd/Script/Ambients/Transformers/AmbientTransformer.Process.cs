@@ -90,6 +90,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeDoubleWritePolicy;
         private SymbolAtom m_executeAllowUndeclaredSourceReads;
         private SymbolAtom m_executeKeepOutputsWritable;
+        private SymbolAtom m_requiresAdmin;
         private SymbolAtom m_disableCacheLookup;
         private SymbolAtom m_executeWarningRegex;
         private SymbolAtom m_executeErrorRegex;
@@ -222,6 +223,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeAbsentPathProbeInUndeclaredOpaqueMode = Symbol("absentPathProbeInUndeclaredOpaquesMode");
 
             m_executeKeepOutputsWritable = Symbol("keepOutputsWritable");
+            m_requiresAdmin = Symbol("requiresAdmin");
             m_disableCacheLookup = Symbol("disableCacheLookup");
             m_executeTags = Symbol("tags");
             m_executeServiceShutdownCmd = Symbol("serviceShutdownCmd");
@@ -488,6 +490,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (keepOutputsWritable == true)
             {
                 processBuilder.Options |= Process.Options.OutputsMustRemainWritable;
+            }
+
+            // Set outputs to remain writable.
+            var requiresAdmin = Converter.ExtractOptionalBoolean(obj, m_requiresAdmin);
+            if (requiresAdmin == true)
+            {
+                processBuilder.Options |= Process.Options.RequiresAdmin;
             }
 
             var absentPathProbeMode = Converter.ExtractStringLiteral(obj, m_executeAbsentPathProbeInUndeclaredOpaqueMode, s_absentPathProbeModes.Keys, allowUndefined: true);

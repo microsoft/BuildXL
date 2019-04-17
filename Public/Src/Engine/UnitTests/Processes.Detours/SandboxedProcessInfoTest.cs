@@ -122,6 +122,7 @@ namespace Test.BuildXL.Processes.Detours
             XAssert.AreEqual(standardFiles.StandardError, readInfo.SandboxedProcessStandardFiles.StandardError);
             XAssert.AreEqual(standardFiles.StandardOutput, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardOutput));
             XAssert.AreEqual(standardFiles.StandardError, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardError));
+            XAssert.IsFalse(readInfo.ContainerConfiguration.IsIsolationEnabled);
 
             ValidationDataCreator.TestManifestRetrieval(vac.DataItems, readInfo.FileAccessManifest, false);
         }

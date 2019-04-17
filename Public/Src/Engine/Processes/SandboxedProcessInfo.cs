@@ -483,7 +483,8 @@ namespace BuildXL.Processes
                     fileName,
                     fam,
                     disableConHostSharing,
-                    containerConfiguration: null,
+                    // TODO: serialize/deserialize container configuration.
+                    containerConfiguration: ContainerConfiguration.DisabledIsolation,
                     loggingContext: loggingContext,
                     detoursEventListener: detoursEventListener)
                 {

@@ -51,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             else
             {
                 // Path.Combine ignores the first parameter if the second is a rooted path. To get the machine name before the rooted network path, the combination must be done manually.
-                networkPathRoot = @"\\" + _localMachineName + (networkPathRoot.StartsWith(Path.DirectorySeparatorChar.ToString()) ? string.Empty : Path.DirectorySeparatorChar.ToString()) + networkPathRoot;
+                networkPathRoot = Path.Combine(Path.DirectorySeparatorChar + _localMachineName, networkPathRoot.TrimStart(Path.DirectorySeparatorChar));
             }
 
             return Encoding.UTF8.GetBytes(networkPathRoot);

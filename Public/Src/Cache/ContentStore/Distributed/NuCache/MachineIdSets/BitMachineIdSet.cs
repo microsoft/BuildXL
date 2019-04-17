@@ -117,6 +117,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new BitMachineIdSet(data, 0);
         }
 
+        internal static bool HasMachineIdCore(BuildXLReader reader, int index)
+        {
+            var count = reader.ReadInt32Compact();
+
+            var data = reader.ReadBytes(count);
+
+            return GetValue(data, 0, index);
+        }
+
         /// <summary>
         /// Enumerates the bits in the machine id set
         /// </summary>
@@ -146,7 +155,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return $"Count: {Count}";
         }
 
-        private static bool GetValue(byte[] data, int offset, int index)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="offset"></param>
+        /// <param name="index"></param>
+        /// <returns></returns>
+        public static bool GetValue(byte[] data, int offset, int index)
         {
             int dataIndex = offset + index / 8;
 

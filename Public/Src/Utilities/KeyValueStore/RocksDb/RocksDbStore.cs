@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -350,7 +351,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 RemoveBatch(keys, key => key, columnFamilyNames: columnFamilyNames);
             }
 
-            /// <inheritdoc />
             private void RemoveBatch<TKey>(IEnumerable<TKey> keys, Func<TKey, byte[]> convertKey, IEnumerable<string> columnFamilyNames = null)
             {
                 var columnsInfo = new List<ColumnFamilyInfo>();
@@ -447,8 +447,21 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 CancellationToken cancellationToken = default,
                 byte[] startValue = null)
             {
-                var gcStats = new GarbageCollectResult();
-                gcStats.BatchSize = GarbageCollectionBatchSize;
+                return GarbageCollectByKeyValue(i => canCollect(i.Key()), columnFamilyName, additionalColumnFamilies, cancellationToken, startValue);
+            }
+            
+            /// <inheritdoc />
+            public GarbageCollectResult GarbageCollectByKeyValue(
+                Func<Iterator, bool> canCollect,
+                string columnFamilyName = null,
+                IEnumerable<string> additionalColumnFamilies = null,
+                CancellationToken cancellationToken = default,
+                byte[] startValue = null)
+            {
+                var gcStats = new GarbageCollectResult
+                {
+                    BatchSize = GarbageCollectionBatchSize
+                };
 
                 var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
 
@@ -465,7 +478,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 var keysToRemove = new List<byte[]>();
                 var primaryColumn = new string[] { columnFamilyName };
                 var columnsToUse = additionalColumnFamilies == null ?  primaryColumn : additionalColumnFamilies.Concat(primaryColumn);
-                using (var iterator = m_store.NewIterator(columnFamilyHandleToUse))
+                using (Iterator iterator = m_store.NewIterator(columnFamilyHandleToUse, m_readOptions))
                 {
                     if (startValue != null)
                     {
@@ -479,12 +492,12 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     bool reachedEnd = !iterator.Valid();
                     while (!reachedEnd && !cancellationToken.IsCancellationRequested)
                     {
-                        var bytesKey = iterator.Key();
                         gcStats.TotalCount++;
+                        bool canCollectResult = canCollect(iterator);
 
-                        startValue = bytesKey;
-                        if (canCollect(bytesKey))
+                        if (canCollectResult)
                         {
+                            var bytesKey = iterator.Key();
                             keysToRemove.Add(bytesKey);
                         }
 

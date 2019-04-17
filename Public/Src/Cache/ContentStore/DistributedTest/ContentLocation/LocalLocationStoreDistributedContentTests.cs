@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -29,6 +30,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using ContentStoreTest.Distributed.ContentLocation;
@@ -37,6 +39,7 @@ using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -1361,42 +1364,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        [Fact(Skip = "Diagnostic purposes only")]
-        public async Task TestCollectContentLocationDatabaseStats()
-        {
-            string databasePath = @"Put Path Here";
-            var db = new RocksDbContentLocationDatabase(TestClock, new RocksDbContentLocationDatabaseConfiguration(new AbsolutePath(databasePath))
-            {
-                CleanOnInitialize = false
-            }, () => CollectionUtilities.EmptyArray<MachineId>());
-
-            var context = new OperationContext(new Context(Logger));
-            await db.StartupAsync(context).ThrowIfFailure();
-
-            var entries = db.EnumerateSortedKeys(Token).AsParallel().Select(k => db.TryGetEntry(context, k, out var entry) ? entry : ContentLocationEntry.Missing).OrderBy(e => e.ContentSize).ToList();
-            StringBuilder builder = new StringBuilder();
-
-            long lastPercentage = -1;
-            long i = 0;
-            long accumulatedSize = 0;
-            foreach (var locationEntry in entries)
-            {
-                long percentage = (i * 100) / entries.Count;
-                if (percentage != lastPercentage)
-                {
-                    lastPercentage = percentage;
-                    builder.AppendLine($"{i}, {percentage}, {locationEntry.ContentSize}, {accumulatedSize}");
-                    Logger.Debug($"{i}, {percentage}, {locationEntry.ContentSize}, {accumulatedSize}");
-                }
-
-                i++;
-                if (locationEntry.ContentSize > 0)
-                {
-                    accumulatedSize += locationEntry.ContentSize;
-                }
-            }
-        }
-
         [Fact]
         public async Task DualRedundancyGlobalRedisTest()
         {
@@ -1911,9 +1878,9 @@ namespace ContentStoreTest.Distributed.Sessions
             }
         }
 
-        private void ConfigureWithOneMaster()
+        protected void ConfigureWithOneMaster(CentralStoreConfiguration centralStoreConfiguration = null)
         {
-            var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
+            centralStoreConfiguration = centralStoreConfiguration ?? new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
 
             // Extremely hacky way to make the first redis instance to be a master and the rest to be workers.
             ConfigureRocksDbContentLocationBasedTest(
@@ -1935,7 +1902,7 @@ namespace ContentStoreTest.Distributed.Sessions
         private static readonly TimeSpan LocalDatabaseEntryTimeToLive = TimeSpan.FromMinutes(3);
         private const int SafeToLazilyUpdateMachineCountThreshold = 3;
         private const int ReplicaCreditInMinutes = 3;
-        private bool _enableReconciliation;
+        protected bool _enableReconciliation;
         private ContentLocationMode _readMode = ContentLocationMode.LocalLocationStore;
         private ContentLocationMode _writeMode = ContentLocationMode.LocalLocationStore;
         private bool _enableSecondaryRedis = false;

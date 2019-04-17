@@ -91,6 +91,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         protected abstract void SerializeCore(BuildXLWriter writer);
 
+        /// <summary>
+        /// Returns true if deserialized instance would have a machine id with a given index.
+        /// </summary>
+        public static bool HasMachineId(BuildXLReader reader, int index)
+        {
+            var format = (SetFormat)reader.ReadByte();
+
+            if (format == SetFormat.Bits)
+            {
+                return BitMachineIdSet.HasMachineIdCore(reader, index);
+            }
+            else
+            {
+                return ArrayMachineIdSet.HasMachineIdCore(reader, index);
+            }
+        }
+
         /// <nodoc />
         public static MachineIdSet Deserialize(BuildXLReader reader)
         {

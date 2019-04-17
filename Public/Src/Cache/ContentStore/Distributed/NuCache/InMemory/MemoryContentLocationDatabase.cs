@@ -61,6 +61,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         }
 
         /// <inheritdoc />
+        public override IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeys(
+            CancellationToken token,
+            EnumerationFilter filter = null)
+        {
+            foreach (var kvp in _map)
+            {
+                if (filter == null || filter(Serialize(kvp.Value)))
+                {
+                    yield return (kvp.Key, kvp.Value);
+                }
+            }
+        }
+
+        /// <inheritdoc />
         protected override BoolResult SaveCheckpointCore(OperationContext context, AbsolutePath checkpointDirectory)
         {
             return BoolResult.Success;

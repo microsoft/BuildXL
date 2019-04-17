@@ -889,6 +889,10 @@ namespace BuildXL
                             sign => schedulingConfiguration.UnsafeDisableGraphPostValidation = sign,
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_DisableSharedOpaqueEmptyDirectoryScrubbing",
+                            sign => schedulingConfiguration.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = sign,
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_ExistingDirectoryProbesAsEnumerations",
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.ExistingDirectoryProbesAsEnumerations = sign,
                             isUnsafe: true),
@@ -991,10 +995,6 @@ namespace BuildXL
                             CommandLineUtilities.ParseBoolEnumOption(opt, sign, PreserveOutputsMode.Enabled, PreserveOutputsMode.Disabled),
                             isUnsafe: true,
                             isEnabled: (() => sandboxConfiguration.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled)),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_DisableSharedOpaqueEmptyDirectoryScrubbing",
-                            sign => schedulingConfiguration.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = sign,
-                            isUnsafe: true),
                         // TODO: Remove this!
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_SourceFileCanBeInsideOutputDirectory",

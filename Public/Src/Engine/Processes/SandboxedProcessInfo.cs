@@ -475,7 +475,7 @@ namespace BuildXL.Processes
                 StandardInputInfo standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
                 ObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => ObserverDescriptor.Deserialize(r));
 
-                FileAccessManifest fam = FileAccessManifest.Deserialize(stream);
+                FileAccessManifest fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
 
                 return new SandboxedProcessInfo(
                     new PathTable(),
@@ -516,7 +516,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Info about the source of standard input.
         /// </summary>
-        public class StandardInputInfo
+        public class StandardInputInfo : IEquatable<StandardInputInfo>
         {
             /// <summary>
             /// File path.
@@ -576,6 +576,52 @@ namespace BuildXL.Processes
 
                 return new StandardInputInfo(reader.ReadNullableString(), reader.ReadNullableString());
             }
+
+            /// <inheritdoc />
+            public override bool Equals(object obj)
+            {
+                return !(obj is null) && (ReferenceEquals(this, obj) || ((obj is StandardInputInfo info) && Equals(info)));
+            }
+
+            /// <summary>
+            /// Checks for equality.
+            /// </summary>
+            public bool Equals(StandardInputInfo standardInputInfo)
+            {
+                return !(standardInputInfo is null)
+                    && (ReferenceEquals(this, standardInputInfo)
+                        || (string.Equals(File, standardInputInfo.File, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(Data, standardInputInfo.Data)));
+            }
+
+            /// <summary>
+            /// Checks for equality.
+            /// </summary>
+            public static bool operator ==(StandardInputInfo info1, StandardInputInfo info2)
+            {
+                if (ReferenceEquals(info1, info2))
+                {
+                    return true;
+                }
+
+                if (info1 is null)
+                {
+                    return false;
+                }
+
+                return info1.Equals(info2);
+            }
+
+            /// <summary>
+            /// Checks for disequality.
+            /// </summary>
+            public static bool operator !=(StandardInputInfo info1, StandardInputInfo info2) => !(info1 == info2);
+
+            /// <inheritdoc />
+            public override int GetHashCode()
+            {
+                return HashCodeHelper.Combine(File != null ? File.GetHashCode() : -1, Data != null ? Data.GetHashCode() : -1);
+            }
         }
 
         /// <summary>
@@ -624,6 +670,51 @@ namespace BuildXL.Processes
 
                 return new RegexDescriptor(reader.ReadString(), (RegexOptions)reader.ReadUInt32());
             }
+
+            /// <inheritdoc />
+            public override bool Equals(object obj)
+            {
+                return !(obj is null) && (ReferenceEquals(this, obj) || ((obj is RegexDescriptor descriptor) && Equals(descriptor)));
+            }
+
+            /// <summary>
+            /// Checks for equality.
+            /// </summary>
+            public bool Equals(RegexDescriptor descriptor)
+            {
+                return !(descriptor is null)
+                    && (ReferenceEquals(this, descriptor)
+                        || (string.Equals(Pattern, descriptor.Pattern) && Options == descriptor.Options));
+            }
+
+            /// <summary>
+            /// Checks for equality.
+            /// </summary>
+            public static bool operator ==(RegexDescriptor descriptor1, RegexDescriptor descriptor2)
+            {
+                if (ReferenceEquals(descriptor1, descriptor2))
+                {
+                    return true;
+                }
+
+                if (descriptor1 is null)
+                {
+                    return false;
+                }
+
+                return descriptor1.Equals(descriptor2);
+            }
+
+            /// <summary>
+            /// Checks for disequality.
+            /// </summary>
+            public static bool operator !=(RegexDescriptor descriptor1, RegexDescriptor descriptor2) => !(descriptor1 == descriptor2);
+
+            /// <inheritdoc />
+            public override int GetHashCode()
+            {
+                return HashCodeHelper.Combine(Pattern.GetHashCode(), (int)Options);
+            }
         }
 
         /// <summary>
@@ -671,6 +762,51 @@ namespace BuildXL.Processes
                     LogOutputToConsole = reader.ReadBoolean(),
                     LogErrorToConsole = reader.ReadBoolean()
                 };
+            }
+
+            /// <inheritdoc />
+            public override bool Equals(object obj)
+            {
+                return !(obj is null) && (ReferenceEquals(this, obj) || ((obj is ObserverDescriptor descriptor) && Equals(descriptor)));
+            }
+
+            /// <summary>
+            /// Checks for equality.
+            /// </summary>
+            public bool Equals(ObserverDescriptor descriptor)
+            {
+                return !(descriptor is null)
+                    && (ReferenceEquals(this, descriptor)
+                        || (LogErrorToConsole == descriptor.LogErrorToConsole && LogOutputToConsole == descriptor.LogOutputToConsole && WarningRegex == descriptor.WarningRegex));
+            }
+
+            /// <summary>
+            /// Checks for equality.
+            /// </summary>
+            public static bool operator ==(ObserverDescriptor descriptor1, ObserverDescriptor descriptor2)
+            {
+                if (ReferenceEquals(descriptor1, descriptor2))
+                {
+                    return true;
+                }
+
+                if (descriptor1 is null)
+                {
+                    return false;
+                }
+
+                return descriptor1.Equals(descriptor2);
+            }
+
+            /// <summary>
+            /// Checks for disequality.
+            /// </summary>
+            public static bool operator !=(ObserverDescriptor descriptor1, ObserverDescriptor descriptor2) => !(descriptor1 == descriptor2);
+
+            /// <inheritdoc />
+            public override int GetHashCode()
+            {
+                return HashCodeHelper.Combine(WarningRegex.GetHashCode(), LogErrorToConsole ? 1 : 0, LogOutputToConsole ? 1 : 0);
             }
         }
 

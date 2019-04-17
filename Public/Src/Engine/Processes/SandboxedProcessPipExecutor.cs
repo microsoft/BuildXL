@@ -689,7 +689,7 @@ namespace BuildXL.Processes
                     }
                     else
                     {
-                        throw new NotImplementedException();
+                        return await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
                     }
                 }
             }
@@ -839,11 +839,11 @@ namespace BuildXL.Processes
             System.Diagnostics.Stopwatch sandboxPrepTime,
             CancellationToken cancellationToken = default)
         {
-            SandboxedProcessInfo.StandardInputInfo standardInputSource = m_pip.StandardInput != null
-                ? (m_pip.StandardInput.Data.IsValid
-                    ? SandboxedProcessInfo.StandardInputInfo.CreateForData(m_pip.StandardInput.Data.ToString(m_context.PathTable))
-                    : SandboxedProcessInfo.StandardInputInfo.CreateForFile(m_pip.StandardInput.File.Path.ToString(m_context.PathTable)))
-                : null;
+            SandboxedProcessInfo.StandardInputInfo standardInputSource = m_pip.StandardInput.IsData
+                ? SandboxedProcessInfo.StandardInputInfo.CreateForData(m_pip.StandardInput.Data.ToString(m_context.PathTable))
+                : (m_pip.StandardInput.IsFile
+                    ? SandboxedProcessInfo.StandardInputInfo.CreateForFile(m_pip.StandardInput.File.Path.ToString(m_context.PathTable))
+                    : null);
 
             info.StandardInputSourceInfo = standardInputSource;
 

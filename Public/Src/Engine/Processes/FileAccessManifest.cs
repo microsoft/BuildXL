@@ -87,6 +87,11 @@ namespace BuildXL.Processes
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;
 
+        /// <summary>
+        /// Gets file access manifest flag.
+        /// </summary>
+        internal FileAccessManifestFlag Flag => m_fileAccessManifestFlag;
+
         private void SetFlag(FileAccessManifestFlag flag, bool value)
         {
             if (value)
@@ -842,7 +847,7 @@ namespace BuildXL.Processes
 
         // Keep this in sync with the C++ version declared in DataTypes.h
         [Flags]
-        private enum FileAccessManifestFlag
+        internal enum FileAccessManifestFlag
         {
             None = 0,
             BreakOnAccessDenied = 0x1,

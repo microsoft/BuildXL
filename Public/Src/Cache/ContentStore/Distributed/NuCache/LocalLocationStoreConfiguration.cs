@@ -307,11 +307,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public TimeSpan RestoreCheckpointInterval { get; set; } = TimeSpan.FromMinutes(10);
 
-        /// <summary>
-        /// Number of files downloaded in parallel during restroring process.
-        /// </summary>
-        public int RestoreCheckpointDegreeOfParallelism { get; set; } = 24;
-
         /// <inheritdoc />
         public CheckpointConfiguration(AbsolutePath workingDirectory) => WorkingDirectory = workingDirectory;
     }

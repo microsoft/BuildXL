@@ -360,7 +360,6 @@ namespace BuildXL.Engine
                         {
                             try
                             {
-                                Tracing.Logger.Log.ScrubbingDirectory(pm.LoggingContext, directory);
                                 FileUtilities.DeleteDirectoryContents(directory, deleteRootDirectory: true, tempDirectoryCleaner: m_tempDirectoryCleaner);
                                 Interlocked.Increment(ref directoriesRemovedRecursively);
                             }

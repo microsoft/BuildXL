@@ -22,6 +22,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Distribution;
+using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Recovery;
 using BuildXL.Engine.Tracing;
 using BuildXL.Engine.Visualization;
@@ -275,10 +276,16 @@ namespace BuildXL.Engine
 
             if (configuration.Distribution.IsGrpcEnabled)
             {
-                GrpcEnvironment.InitializeIfNeeded();
+                bool grpcHandlerInliningEnabled = GrpcSettings.HandlerInliningEnabled;
+
 #if FEATURE_CORECLR
-                global::Grpc.Core.GrpcEnvironment.SetHandlerInlining(false);
+                // Handler inlining causing deadlock on the mac platform.
+                grpcHandlerInliningEnabled = false;
 #endif
+
+                GrpcEnvironment.InitializeIfNeeded(GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled);
+
+                Logger.Log.GrpcSettings(loggingContext, GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled, (int)GrpcSettings.CallTimeout.TotalMinutes, (int)GrpcSettings.InactiveTimeout.TotalMinutes);
             }
 
             Context = context;

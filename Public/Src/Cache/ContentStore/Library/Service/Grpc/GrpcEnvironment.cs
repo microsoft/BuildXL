@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Initialize the GRPC environment if not yet initialized.
         /// </summary>
-        public static void InitializeIfNeeded(int numThreads = 70)
+        public static void InitializeIfNeeded(int numThreads = 70, bool handlerInliningEnabled = true)
         {
             if (Interlocked.CompareExchange(ref _isInitialized, 1, 0) == 0)
             {
@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 // only use it if you know what you are doing. Most users should rely on the default value provided by gRPC library.
                 // Note: this method is part of an experimental API that can change or be removed without any prior notice.
                 // Note: inlineHandlers=true was the default in gRPC C# v1.4.x and earlier.
-                global::Grpc.Core.GrpcEnvironment.SetHandlerInlining(true);
+                global::Grpc.Core.GrpcEnvironment.SetHandlerInlining(handlerInliningEnabled);
             }
         }
     }

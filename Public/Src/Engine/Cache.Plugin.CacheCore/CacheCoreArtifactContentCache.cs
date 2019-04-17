@@ -113,7 +113,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
 
         private struct FileToDelete
         {
-            public string Path;
+            public readonly string Path;
 
             private FileInfo m_fileInfoPriorDeletion;
 

@@ -26,7 +26,7 @@ namespace BuildXL.FrontEnd.Nuget
         private Dictionary<string, INugetPackage> m_packagesById;
         private Dictionary<string, INugetPackage> m_packagesByIdPlusVersion;
 
-        private Lazy<Possible<Unit>> m_validationResult;
+        private readonly Lazy<Possible<Unit>> m_validationResult;
 
         public PackageRegistry(FrontEndContext context, IReadOnlyList<INugetPackage> packages)
         {

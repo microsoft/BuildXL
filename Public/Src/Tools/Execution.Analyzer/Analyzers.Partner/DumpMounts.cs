@@ -47,7 +47,7 @@ namespace BuildXL.Execution.Analyzer
 
     internal class DumpMountsAnalyzer : Analyzer
     {
-        private string m_outputFilePath;
+        private readonly string m_outputFilePath;
 
         public DumpMountsAnalyzer(AnalysisInput input, string outputFilePath) : base(input)
         {

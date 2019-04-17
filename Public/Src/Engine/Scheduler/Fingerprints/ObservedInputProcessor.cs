@@ -1513,10 +1513,10 @@ namespace BuildXL.Scheduler.Fingerprints
             () => new PipFileSystemView(),
             state => state.Clear());
 
-        private static ConcurrentBigSet<AbsolutePath> RegexFilterPaths = new ConcurrentBigSet<AbsolutePath>();
-        private static ConcurrentBigSet<AbsolutePath> UnionFilterPaths = new ConcurrentBigSet<AbsolutePath>();
-        private static ConcurrentBigSet<AbsolutePath> AllowAllFilterPaths = new ConcurrentBigSet<AbsolutePath>();
-        private static ConcurrentBigSet<AbsolutePath> SearchPathFilterPaths = new ConcurrentBigSet<AbsolutePath>();
+        private static readonly ConcurrentBigSet<AbsolutePath> RegexFilterPaths = new ConcurrentBigSet<AbsolutePath>();
+        private static readonly ConcurrentBigSet<AbsolutePath> UnionFilterPaths = new ConcurrentBigSet<AbsolutePath>();
+        private static readonly ConcurrentBigSet<AbsolutePath> AllowAllFilterPaths = new ConcurrentBigSet<AbsolutePath>();
+        private static readonly ConcurrentBigSet<AbsolutePath> SearchPathFilterPaths = new ConcurrentBigSet<AbsolutePath>();
 
         private FileSystemView FileSystemView => m_env.State.FileSystemView;
 

@@ -49,7 +49,7 @@ namespace BuildXL.Scheduler
         /// MaterializeOutput is executed per each worker
         /// so the single index of the array might be concurrently mutated.
         /// </remarks>
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
 
         internal RunnablePipPerformanceInfo(DateTime scheduleTime)
         {

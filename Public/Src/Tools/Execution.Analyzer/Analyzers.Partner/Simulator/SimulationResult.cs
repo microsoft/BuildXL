@@ -22,9 +22,9 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
         public ConcurrentNodeDictionary<ulong> Priorities;
         public ConcurrentNodeDictionary<ulong> StartTimes = new ConcurrentNodeDictionary<ulong>(false);
 
-        private SortedSet<PipAndPriority> m_readyAtMinimumStartTimePips = new SortedSet<PipAndPriority>();
-        private SortedSet<PipAndPriority> m_readyWithPriorityPips = new SortedSet<PipAndPriority>();
-        private List<PipAndPriority> m_pipBuffer = new List<PipAndPriority>();
+        private readonly SortedSet<PipAndPriority> m_readyAtMinimumStartTimePips = new SortedSet<PipAndPriority>();
+        private readonly SortedSet<PipAndPriority> m_readyWithPriorityPips = new SortedSet<PipAndPriority>();
+        private readonly List<PipAndPriority> m_pipBuffer = new List<PipAndPriority>();
 
         private ulong m_simulationCurrentTime = 0;
         public ulong TotalTime = 0;

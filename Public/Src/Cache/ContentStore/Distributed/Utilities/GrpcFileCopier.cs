@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     public class GrpcFileCopier : IAbsolutePathFileCopier
     {
         private const int DefaultGrpcPort = 7089;
-        private Context _context;
+        private readonly Context _context;
         private int _grpcPort;
 
         /// <summary>

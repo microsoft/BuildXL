@@ -99,7 +99,7 @@ namespace BuildXL.Utilities.Serialization
         /// </summary>
         private Stream m_writeStream;
 
-        private PartStreamImpl m_listingPartStream;
+        private readonly PartStreamImpl m_listingPartStream;
 
         #endregion
 

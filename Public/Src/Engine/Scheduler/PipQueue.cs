@@ -129,7 +129,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private IScheduleConfiguration m_config;
+        private readonly IScheduleConfiguration m_config;
 
         /// <summary>
         /// Creates instance

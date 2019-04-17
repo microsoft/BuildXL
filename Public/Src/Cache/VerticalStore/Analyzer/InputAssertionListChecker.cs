@@ -100,7 +100,7 @@ namespace BuildXL.Cache.Analyzer
         /// A dictionary of the hashes for all input assertion lists pointing
         /// to their respective file lengths
         /// </summary>
-        private ConcurrentDictionary<CasHash, long> m_inputAssertionListLengths =
+        private readonly ConcurrentDictionary<CasHash, long> m_inputAssertionListLengths =
             new ConcurrentDictionary<CasHash, long>();
 
         /// <summary>

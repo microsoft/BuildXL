@@ -198,7 +198,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Documentation
     public class FunctionDocumentation : Documentation
     {
         private const string ParamPattern = "@param ([^\\s]+)( (.*))?";
-        private static Regex rgx = new Regex(ParamPattern);
+        private static readonly Regex rgx = new Regex(ParamPattern);
 
         /// <summary>
         /// Constructor.

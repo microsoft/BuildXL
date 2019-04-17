@@ -8,8 +8,8 @@ namespace System.Diagnostics.Internal
 {
     internal class ILReader
     {
-        private static OpCode[] singleByteOpCode;
-        private static OpCode[] doubleByteOpCode;
+        private static readonly OpCode[] singleByteOpCode;
+        private static readonly OpCode[] doubleByteOpCode;
 
         private readonly byte[] _cil;
         private int ptr;

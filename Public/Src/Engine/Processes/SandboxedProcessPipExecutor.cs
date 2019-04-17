@@ -2219,7 +2219,7 @@ namespace BuildXL.Processes
             Mt = 12
         }
 
-        private static Dictionary<string, SpecialProcessKind> s_specialTools = new Dictionary<string, SpecialProcessKind>(StringComparer.OrdinalIgnoreCase)
+        private static readonly Dictionary<string, SpecialProcessKind> s_specialTools = new Dictionary<string, SpecialProcessKind>(StringComparer.OrdinalIgnoreCase)
         {
             ["csc"] = SpecialProcessKind.Csc,
             ["csc.exe"] = SpecialProcessKind.Csc,

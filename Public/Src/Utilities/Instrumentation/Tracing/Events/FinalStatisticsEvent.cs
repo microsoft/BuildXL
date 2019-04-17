@@ -21,7 +21,7 @@ namespace BuildXL.Tracing.CloudBuild
     [EventData]
     public sealed class DominoFinalStatisticsEvent : CloudBuildEvent
     {
-        private static PropertyInfo[] s_members = typeof(DominoFinalStatisticsEvent).GetProperties();
+        private static readonly PropertyInfo[] s_members = typeof(DominoFinalStatisticsEvent).GetProperties();
 
         /// <inheritdoc />
         internal override PropertyInfo[] Members => s_members;

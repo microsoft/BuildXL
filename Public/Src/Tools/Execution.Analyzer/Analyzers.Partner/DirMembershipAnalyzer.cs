@@ -66,7 +66,7 @@ namespace BuildXL.Execution.Analyzer
             public readonly string Path;
             public readonly bool IsStatic;
             public readonly bool IsSearchPath;
-            public List<string> Files = new List<string>();
+            public readonly List<string> Files = new List<string>();
             public readonly PipId PipId;
             public readonly string EnumeratePatternRegex;
 

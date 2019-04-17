@@ -237,7 +237,7 @@ namespace BuildXL.Utilities.Tracing
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
         public struct EventScope : IDisposable
         {
-            private PooledObjectWrapper<EventWriter> m_writerWrapper;
+            private readonly PooledObjectWrapper<EventWriter> m_writerWrapper;
 
             /// <summary>
             /// The writer for writing event data

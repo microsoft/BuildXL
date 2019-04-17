@@ -151,7 +151,7 @@ namespace BuildXL.Native.IO.Windows
             /// <summary>
             /// First character of filename; this is a variable length array as determined by FileNameLength.
             /// </summary>
-            public char FileName;
+            public readonly char FileName;
         }
 
         /// <summary>
@@ -210,16 +210,16 @@ namespace BuildXL.Native.IO.Windows
         /// Header data in common between USN_RECORD_V2 and USN_RECORD_V3. These fields are needed to determine how to interpret a returned record.
         /// </summary>
         [StructLayout(LayoutKind.Sequential)]
-        private struct NativeUsnRecordHeader
+        private readonly struct NativeUsnRecordHeader
         {
             /// <summary>
             /// Size of the record header in bytes.
             /// </summary>
             public static readonly int Size = Marshal.SizeOf<NativeUsnRecordHeader>();
 
-            public int RecordLength;
-            public ushort MajorVersion;
-            public ushort MinorVersion;
+            public readonly int RecordLength;
+            public readonly ushort MajorVersion;
+            public readonly ushort MinorVersion;
         }
 
         /// <summary>
@@ -231,7 +231,7 @@ namespace BuildXL.Native.IO.Windows
         /// (for Usn, Timestamp, etc.). Two of those padding bytes are actually the first character of the filename.
         /// </remarks>
         [StructLayout(LayoutKind.Sequential, Size = 0x50)]
-        private struct NativeUsnRecordV3
+        private readonly struct NativeUsnRecordV3
         {
             /// <summary>
             /// Size of a record with two filename characters (starting at WCHAR FileName[1]; not modeled in the C# struct),
@@ -250,17 +250,17 @@ namespace BuildXL.Native.IO.Windows
             /// </remarks>
             public static readonly int MaximumSize = MinimumSize + (254 * 2);
 
-            public NativeUsnRecordHeader Header;
-            public FileId FileReferenceNumber;
-            public FileId ParentFileReferenceNumber;
-            public Usn Usn;
-            public long TimeStamp;
-            public uint Reason;
-            public uint SourceInfo;
-            public uint SecurityId;
-            public uint FileAttributes;
-            public ushort FileNameLength;
-            public ushort FileNameOffset;
+            public readonly NativeUsnRecordHeader Header;
+            public readonly FileId FileReferenceNumber;
+            public readonly FileId ParentFileReferenceNumber;
+            public readonly Usn Usn;
+            public readonly long TimeStamp;
+            public readonly uint Reason;
+            public readonly uint SourceInfo;
+            public readonly uint SecurityId;
+            public readonly uint FileAttributes;
+            public readonly ushort FileNameLength;
+            public readonly ushort FileNameOffset;
 
             // WCHAR FileName[1];
         }
@@ -332,17 +332,17 @@ namespace BuildXL.Native.IO.Windows
             /// </remarks>
             public static readonly int MaximumSize = MinimumSize + (254 * 2);
 
-            public NativeUsnRecordHeader Header;
-            public ulong FileReferenceNumber;
-            public ulong ParentFileReferenceNumber;
-            public Usn Usn;
-            public long TimeStamp;
-            public uint Reason;
-            public uint SourceInfo;
-            public uint SecurityId;
-            public uint FileAttributes;
-            public ushort FileNameLength;
-            public ushort FileNameOffset;
+            public readonly NativeUsnRecordHeader Header;
+            public readonly ulong FileReferenceNumber;
+            public readonly ulong ParentFileReferenceNumber;
+            public readonly Usn Usn;
+            public readonly long TimeStamp;
+            public readonly uint Reason;
+            public readonly uint SourceInfo;
+            public readonly uint SecurityId;
+            public readonly uint FileAttributes;
+            public readonly ushort FileNameLength;
+            public readonly ushort FileNameOffset;
 
             // WCHAR FileName[1];
         }
@@ -900,10 +900,10 @@ namespace BuildXL.Native.IO.Windows
         [StructLayout(LayoutKind.Sequential)]
         private struct DEVICE_SEEK_PENALTY_DESCRIPTOR
         {
-            public uint Version;
-            public uint Size;
+            public readonly uint Version;
+            public readonly uint Size;
             [MarshalAs(UnmanagedType.U1)]
-            public bool IncursSeekPenalty;
+            public readonly bool IncursSeekPenalty;
         }
 
         // Consts from sdk\inc\winioctl.h
@@ -928,7 +928,7 @@ namespace BuildXL.Native.IO.Windows
 
             public ushort ReparseDataLength;
 
-            public ushort Reserved;
+            public readonly ushort Reserved;
 
             public ushort SubstituteNameOffset;
 
@@ -1024,7 +1024,7 @@ namespace BuildXL.Native.IO.Windows
                 : MaxDirectoryPathOld;
         }
 
-        private Lazy<bool> m_supportUnprivilegedCreateSymbolicLinkFlag = default;
+        private readonly Lazy<bool> m_supportUnprivilegedCreateSymbolicLinkFlag = default;
 
         /// <summary>
         /// Checks if the OS supports SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE flag for creating symlink.

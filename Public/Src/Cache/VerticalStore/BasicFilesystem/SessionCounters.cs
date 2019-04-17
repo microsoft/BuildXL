@@ -23,11 +23,11 @@ namespace BuildXL.Cache.BasicFilesystem
         // EnumerateStrongFingerprints is a yield-return of some
         // number of fingerprints.  This provides both number of
         // calls and the amount returned
-        private CountedNumberDistribution m_enumerateStrongFingerprints = new CountedNumberDistribution();
+        private readonly CountedNumberDistribution m_enumerateStrongFingerprints = new CountedNumberDistribution();
 
         // GetCacheEntry has two cases - one hit and one miss
-        private TimedCounter m_getCacheEntry_Hit = new TimedCounter();
-        private TimedCounter m_getCacheEntry_Miss = new TimedCounter();
+        private readonly TimedCounter m_getCacheEntry_Hit = new TimedCounter();
+        private readonly TimedCounter m_getCacheEntry_Miss = new TimedCounter();
 
         // PinToCAS as 4 outcomes:
         //   Miss  - failed pin attempt - content did not exist
@@ -38,48 +38,48 @@ namespace BuildXL.Cache.BasicFilesystem
         // pinning so it still has the cost but would not have been
         // needed a few moments later as another pending pin completed on
         // the same CAS item.
-        private TimedCounter m_pinToCas_Miss = new TimedCounter();
-        private TimedCounter m_pinToCas_Hit = new TimedCounter();
-        private TimedCounter m_pinToCas_Dup = new TimedCounter();
-        private TimedCounter m_pinToCas_Raced = new TimedCounter();
+        private readonly TimedCounter m_pinToCas_Miss = new TimedCounter();
+        private readonly TimedCounter m_pinToCas_Hit = new TimedCounter();
+        private readonly TimedCounter m_pinToCas_Dup = new TimedCounter();
+        private readonly TimedCounter m_pinToCas_Raced = new TimedCounter();
 
         // ProduceFile has 3 cases today but one may need to be renamed
         // Today, since pin is needed before get, the "unpinned" case
         // is the same as a "cache miss" so we are calling it a miss.
-        private CountedBytesDistribution m_produceFile_Hit = new CountedBytesDistribution();
-        private TimedCounter m_produceFile_Miss = new TimedCounter();
-        private TimedCounter m_produceFile_Fail = new TimedCounter();
+        private readonly CountedBytesDistribution m_produceFile_Hit = new CountedBytesDistribution();
+        private readonly TimedCounter m_produceFile_Miss = new TimedCounter();
+        private readonly TimedCounter m_produceFile_Fail = new TimedCounter();
 
-        private CountedBytesDistribution m_getStream_Hit = new CountedBytesDistribution();
-        private TimedCounter m_getStream_Miss = new TimedCounter();
-        private TimedCounter m_getStream_Fail = new TimedCounter();
+        private readonly CountedBytesDistribution m_getStream_Hit = new CountedBytesDistribution();
+        private readonly TimedCounter m_getStream_Miss = new TimedCounter();
+        private readonly TimedCounter m_getStream_Fail = new TimedCounter();
 
         // Counters for the validation of content API (rarely called)
-        private CountedBytesDistribution m_validateContent_Ok = new CountedBytesDistribution();
-        private CountedBytesDistribution m_validateContent_Remediated = new CountedBytesDistribution();
-        private CountedBytesDistribution m_validateContent_Invalid = new CountedBytesDistribution();
-        private TimedCounter m_validateContent_Fail = new TimedCounter();
+        private readonly CountedBytesDistribution m_validateContent_Ok = new CountedBytesDistribution();
+        private readonly CountedBytesDistribution m_validateContent_Remediated = new CountedBytesDistribution();
+        private readonly CountedBytesDistribution m_validateContent_Invalid = new CountedBytesDistribution();
+        private readonly TimedCounter m_validateContent_Fail = new TimedCounter();
 
         // Since close should be called only once this is a bit
         // of overkill but it makes for consistent behaviors
-        private TimedCounter m_close = new TimedCounter();
+        private readonly TimedCounter m_close = new TimedCounter();
         private SafeDouble m_close_Fingerprints = default(SafeDouble);
 
-        private CountedBytesDistribution m_addToCas_Stream_New = new CountedBytesDistribution();
-        private CountedBytesDistribution m_addToCas_Stream_Dup = new CountedBytesDistribution();
-        private CountedBytesDistribution m_addToCas_Stream_Failed = new CountedBytesDistribution();
-        private CountedBytesDistribution m_addToCas_File_New = new CountedBytesDistribution();
-        private CountedBytesDistribution m_addToCas_File_Dup = new CountedBytesDistribution();
-        private CountedBytesDistribution m_addToCas_File_Failed = new CountedBytesDistribution();
+        private readonly CountedBytesDistribution m_addToCas_Stream_New = new CountedBytesDistribution();
+        private readonly CountedBytesDistribution m_addToCas_Stream_Dup = new CountedBytesDistribution();
+        private readonly CountedBytesDistribution m_addToCas_Stream_Failed = new CountedBytesDistribution();
+        private readonly CountedBytesDistribution m_addToCas_File_New = new CountedBytesDistribution();
+        private readonly CountedBytesDistribution m_addToCas_File_Dup = new CountedBytesDistribution();
+        private readonly CountedBytesDistribution m_addToCas_File_Failed = new CountedBytesDistribution();
 
-        private CountedNumberDistribution m_addOrGet_New = new CountedNumberDistribution();
-        private CountedNumberDistribution m_addOrGet_Dup = new CountedNumberDistribution();
-        private CountedNumberDistribution m_addOrGet_Repair = new CountedNumberDistribution();
-        private CountedNumberDistribution m_addOrGet_Det = new CountedNumberDistribution();
-        private CountedNumberDistribution m_addOrGet_Get = new CountedNumberDistribution();
-        private CountedNumberDistribution m_addOrGet_Failed = new CountedNumberDistribution();
+        private readonly CountedNumberDistribution m_addOrGet_New = new CountedNumberDistribution();
+        private readonly CountedNumberDistribution m_addOrGet_Dup = new CountedNumberDistribution();
+        private readonly CountedNumberDistribution m_addOrGet_Repair = new CountedNumberDistribution();
+        private readonly CountedNumberDistribution m_addOrGet_Det = new CountedNumberDistribution();
+        private readonly CountedNumberDistribution m_addOrGet_Get = new CountedNumberDistribution();
+        private readonly CountedNumberDistribution m_addOrGet_Failed = new CountedNumberDistribution();
 
-        private TimedCounter m_incorporateRecords = new TimedCounter();
+        private readonly TimedCounter m_incorporateRecords = new TimedCounter();
         private SafeDouble m_incorporateRecords_New = default(SafeDouble);
         private SafeDouble m_incorporateRecords_Dup = default(SafeDouble);
 
@@ -103,7 +103,7 @@ namespace BuildXL.Cache.BasicFilesystem
         public struct EnumerateStrongFingerprintsCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private double m_count;
 
             internal EnumerateStrongFingerprintsCountCollector(SessionCounters sessionCounters)
@@ -142,7 +142,7 @@ namespace BuildXL.Cache.BasicFilesystem
         public struct GetCacheEntryCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private bool m_hit;
 
             internal GetCacheEntryCountCollector(SessionCounters sessionCounters)
@@ -189,7 +189,7 @@ namespace BuildXL.Cache.BasicFilesystem
         public struct PinToCasCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private TimedCounter m_theCounter;
 
             internal PinToCasCountCollector(SessionCounters sessionCounters)
@@ -247,7 +247,7 @@ namespace BuildXL.Cache.BasicFilesystem
             }
 
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private State m_state;
             private long m_size;
 
@@ -321,7 +321,7 @@ namespace BuildXL.Cache.BasicFilesystem
             }
 
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private State m_state;
             private long m_size;
 
@@ -386,7 +386,7 @@ namespace BuildXL.Cache.BasicFilesystem
         public struct ValidateContentCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private ValidateContentStatus m_state;
             private long m_size;
 
@@ -464,7 +464,7 @@ namespace BuildXL.Cache.BasicFilesystem
         public struct CloseCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private double m_count;
 
             internal CloseCountCollector(SessionCounters sessionCounters)
@@ -505,9 +505,9 @@ namespace BuildXL.Cache.BasicFilesystem
         public struct AddToCasCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private long m_size;
-            private bool m_file;
+            private readonly bool m_file;
             private CountedBytesDistribution m_theCounter;
 
             internal AddToCasCountCollector(SessionCounters sessionCounters, bool file)
@@ -567,7 +567,7 @@ namespace BuildXL.Cache.BasicFilesystem
         public struct AddOrGetCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private CountedNumberDistribution m_theCounter;
             private int m_entriesCount;
 
@@ -635,7 +635,7 @@ namespace BuildXL.Cache.BasicFilesystem
         public struct IncorporateRecordsCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private long m_new;
             private long m_dup;
 

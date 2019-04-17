@@ -31,19 +31,19 @@ namespace BuildXL.FrontEnd.Ninja
         private static readonly Regex s_allMspdbsrvRelevantOptionsRegex = new Regex(@"(\s/(Z[iI]|FS|MP\d*))+(\s|$)");
         private static readonly Regex s_allDebugOptionsRegex = new Regex(@"(\s/(Z[iI7]|FS|MP\d*|DEBUG))+(\s|$)");
 
-        private FrontEndContext m_context;
-        private FrontEndHost m_frontEndHost;
-        private string m_frontEndName;
-        private ModuleDefinition m_moduleDefinition;
-        private AbsolutePath m_projectRoot;
-        private AbsolutePath m_specPath;
+        private readonly FrontEndContext m_context;
+        private readonly FrontEndHost m_frontEndHost;
+        private readonly string m_frontEndName;
+        private readonly ModuleDefinition m_moduleDefinition;
+        private readonly AbsolutePath m_projectRoot;
+        private readonly AbsolutePath m_specPath;
         private readonly bool m_suppressDebugFlags;
 
-        private PipConstructionHelper m_pipConstructionHelper;
+        private readonly PipConstructionHelper m_pipConstructionHelper;
         private readonly ConcurrentDictionary<NinjaNode, ProcessOutputs> m_processOutputs = new ConcurrentDictionary<NinjaNode, ProcessOutputs>();
         private readonly ConcurrentDictionary<AbsolutePath, FileArtifact> m_outputFileArtifacts = new ConcurrentDictionary<AbsolutePath, FileArtifact>();
         private readonly ConcurrentDictionary<string, AbsolutePath> m_exeLocations = new ConcurrentDictionary<string, AbsolutePath>();
-        private IUntrackingSettings m_untrackingSettings;
+        private readonly IUntrackingSettings m_untrackingSettings;
 
 
         /// <summary>
@@ -53,8 +53,8 @@ namespace BuildXL.FrontEnd.Ninja
 
         
         /// We expose all the environment to the processes so we can get these values lazily
-        private Lazy<IEnumerable<KeyValuePair<string, string>>> m_environmentVariables;
-        private Lazy<IEnumerable<KeyValuePair<string, string>>> m_passThroughEnvironmentVariables;
+        private readonly Lazy<IEnumerable<KeyValuePair<string, string>>> m_environmentVariables;
+        private readonly Lazy<IEnumerable<KeyValuePair<string, string>>> m_passThroughEnvironmentVariables;
 
         public NinjaPipConstructor(FrontEndContext context, FrontEndHost frontEndHost, string frontEndName, ModuleDefinition moduleDefinition, QualifierId qualifierId, AbsolutePath projectRoot, AbsolutePath specPath, bool suppressDebugFlags, IUntrackingSettings untrackingSettings)
         {

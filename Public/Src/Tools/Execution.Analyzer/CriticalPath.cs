@@ -15,11 +15,11 @@ namespace BuildXL.Execution.Analyzer
             m_getOutgoingNodes = getOutgoingNodes;
         }
 
-        private Func<NodeId, TimeSpan> m_getElapsed;
+        private readonly Func<NodeId, TimeSpan> m_getElapsed;
 
-        private Func<NodeId, IEnumerable<NodeId>> m_getOutgoingNodes;
+        private readonly Func<NodeId, IEnumerable<NodeId>> m_getOutgoingNodes;
 
-        private IDictionary<NodeId, Tuple<TimeSpan, NodeId>> m_nodeToCriticalPath = new Dictionary<NodeId, Tuple<TimeSpan, NodeId>>();
+        private readonly IDictionary<NodeId, Tuple<TimeSpan, NodeId>> m_nodeToCriticalPath = new Dictionary<NodeId, Tuple<TimeSpan, NodeId>>();
 
         public Tuple<TimeSpan, NodeId> ComputeCriticalPath(NodeId node)
         {

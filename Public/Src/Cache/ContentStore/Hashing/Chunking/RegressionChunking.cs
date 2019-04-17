@@ -67,35 +67,35 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
         static readonly HashValueT[] g_arrPolynomialsTU = Rabin64Table.g_arrPolynomialsTU;
 
         // Parameters
-        size_t m_nMinChunkSize => g_ulMinimumChunkSizeDefault;
-        size_t m_nMaxChunkSize => g_ulMaximumChunkSizeDefault;
-        size_t m_nAverageChunkSize => g_ulAverageChunkSizeDefault;
+        private size_t m_nMinChunkSize => g_ulMinimumChunkSizeDefault;
+        private size_t m_nMaxChunkSize => g_ulMaximumChunkSizeDefault;
+        private size_t m_nAverageChunkSize => g_ulAverageChunkSizeDefault;
 
-        DWORD m_dwInitialChunkingTruncateBits => g_dwChunkingTruncateBits;
-        DWORD m_dwInitialChunkingHashMatchValue => g_dwChunkingHashMatchValue;
+        private DWORD m_dwInitialChunkingTruncateBits => g_dwChunkingTruncateBits;
+        private DWORD m_dwInitialChunkingHashMatchValue => g_dwChunkingHashMatchValue;
 
-        DWORD m_dwSmallestChunkingTruncateMask;
-        DWORD m_dwSmallestChunkingHashMatchValue;
+        private readonly DWORD m_dwSmallestChunkingTruncateMask;
+        private readonly DWORD m_dwSmallestChunkingHashMatchValue;
 
         // State maintained across multiple FindRabinChunkBoundariesInternal() calls
-        HashValueT m_hash;               // Last hash value
-        BYTE[] m_history;                // Last bytes from the previous chunk. Used to reinitialize the state machine for chunking (size = window size)
+        private HashValueT m_hash;               // Last hash value
+        private readonly BYTE[] m_history;                // Last bytes from the previous chunk. Used to reinitialize the state machine for chunking (size = window size)
 
-        OffsetT[] m_regressChunkLen;
-        OffsetT m_lastNonZeroChunkLen;
-        OffsetT m_numZeroRun;                       // Size of continuous zeros after last chunk. 
+        private readonly OffsetT[] m_regressChunkLen;
+        private OffsetT m_lastNonZeroChunkLen;
+        private OffsetT m_numZeroRun;                       // Size of continuous zeros after last chunk. 
                                                     // >= 0, a run is counted (# of consecutive zeros)
                                                     // <  0, a run has been interrupted, i.e., encounter at least one none zero values. 
 
         // Regress hash values
-        DWORD[] m_arrRegressChunkingTruncateMask;             // Array of hash masks for the regression match
-        DWORD[] m_arrRegressChunkingHashMatchValue;           // Array of hash values for the regression matche
+        private readonly DWORD[] m_arrRegressChunkingTruncateMask;             // Array of hash masks for the regression match
+        private readonly DWORD[] m_arrRegressChunkingHashMatchValue;           // Array of hash values for the regression matche
 
-        size_t previouslyProcessedBytesAcrossCalls;
-        size_t lastChunkAbsoluteOffsetAcrossCalls;
+        private size_t previouslyProcessedBytesAcrossCalls;
+        private size_t lastChunkAbsoluteOffsetAcrossCalls;
 
-        List<DedupBasicChunkInfo> outOffsetsVector = new List<DedupBasicChunkInfo>();
-        Action<DedupBasicChunkInfo> chunkCallback;
+        private readonly List<DedupBasicChunkInfo> outOffsetsVector = new List<DedupBasicChunkInfo>();
+        private readonly Action<DedupBasicChunkInfo> chunkCallback;
 
         public IReadOnlyList<DedupBasicChunkInfo> Chunks => outOffsetsVector;
 

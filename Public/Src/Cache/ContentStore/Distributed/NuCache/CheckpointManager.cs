@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private CounterCollection<ContentLocationStoreCounters> Counters { get; }
 
-        private CheckpointConfiguration _configuration;
+        private readonly CheckpointConfiguration _configuration;
 
         /// <summary>
         /// Maps file name to storage id for the currently downloaded checkpoint

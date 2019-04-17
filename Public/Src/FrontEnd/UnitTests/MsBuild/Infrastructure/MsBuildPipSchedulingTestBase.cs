@@ -115,13 +115,11 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         /// Uses <see cref="MsBuildPipConstructor"/> to schedule the specified projects and retrieves the result
         internal MsBuildSchedulingResult ScheduleAll(MsBuildResolverSettings resolverSettings, IEnumerable<ProjectWithPredictions> projectsWithPredictions, QualifierId currentQualifier, QualifierId[] requestedQualifiers)
         {
-            var constants = new GlobalConstants(FrontEndContext.SymbolTable);
-            var sharedModuleRegistry = new ModuleRegistry(constants.Global);
+            var moduleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
+            var workspaceFactory = CreateWorkspaceFactoryForTesting(FrontEndContext, ParseAndEvaluateLogger);
+            var frontEndFactory = CreateFrontEndFactoryForEvaluation(workspaceFactory, ParseAndEvaluateLogger);
 
-            var workspaceFactory = CreateWorkspaceFactoryForTesting(constants, sharedModuleRegistry, ParseAndEvaluateLogger);
-            var frontEndFactory = CreateFrontEndFactoryForEvaluation(constants, sharedModuleRegistry, workspaceFactory, ParseAndEvaluateLogger);
-
-            using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, workspaceFactory, sharedModuleRegistry, AbsolutePath.Invalid, out _, out _, requestedQualifiers))
+            using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, workspaceFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _, requestedQualifiers))
             {
                 var pipConstructor = new PipConstructor(
                     FrontEndContext,

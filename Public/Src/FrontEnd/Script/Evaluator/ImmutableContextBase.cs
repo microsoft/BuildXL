@@ -70,16 +70,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         public FrontEndHost FrontEndHost => ContextTree.FrontEndHost;
 
         /// <summary>
-        /// Constants
-        /// </summary>
-        public GlobalConstants Constants => ContextTree.Constants;
-
-        /// <summary>
-        /// Predefined types.
-        /// </summary>
-        public PredefinedTypes PredefinedTypes => Constants.PredefinedTypes;
-
-        /// <summary>
         /// Front end context.
         /// </summary>
         public FrontEndContext FrontEndContext => ContextTree.FrontEndContext;

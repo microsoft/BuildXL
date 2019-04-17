@@ -8,30 +8,27 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
-using BuildXL.Native.IO;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.RuntimeModel;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Script.RuntimeModel;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Mutable;
+using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
 using ConversionException = BuildXL.FrontEnd.Script.Util.ConversionException;
-using LineInfo = TypeScript.Net.Utilities.LineInfo;
-using SourceFile = BuildXL.FrontEnd.Script.SourceFile;
 using IFileSystem = global::BuildXL.FrontEnd.Sdk.FileSystem.IFileSystem;
+using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 
 namespace BuildXL.FrontEnd.Script
@@ -70,14 +67,10 @@ namespace BuildXL.FrontEnd.Script
             cycleDetectorStartupDelay: TimeSpan.FromSeconds(m_configuration.FrontEnd.CycleDetectorStartupDelay()));
 
         /// <nodoc />
-        protected DScriptInterpreterBase(GlobalConstants constants, ModuleRegistry sharedModuleRegistry, IFrontEndStatistics statistics, Logger logger)
+        protected DScriptInterpreterBase(IFrontEndStatistics statistics, Logger logger)
         {
-            Contract.Requires(constants != null);
-            Contract.Requires(sharedModuleRegistry != null);
             Contract.Requires(statistics != null);
 
-            Constants = constants;
-            SharedModuleRegistry = sharedModuleRegistry;
             Name = "DScript";
             FrontEndStatistics = statistics;
             Logger = logger ?? Logger.CreateLogger();
@@ -86,9 +79,9 @@ namespace BuildXL.FrontEnd.Script
 
         ///<inhertdoc/>
         [SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
-        protected DScriptInterpreterBase(GlobalConstants constants, ModuleRegistry sharedModuleRegistry, IFrontEndStatistics statistics, Logger logger,
+        protected DScriptInterpreterBase(IFrontEndStatistics statistics, Logger logger,
             FrontEndHost host, FrontEndContext context, IConfiguration configuration)
-            : this(constants, sharedModuleRegistry, statistics, logger)
+            : this(statistics, logger)
         {
             // ReSharper disable once VirtualMemberCallInConstructor
             // The call is safe and used only for testing purposes.
@@ -129,15 +122,6 @@ namespace BuildXL.FrontEnd.Script
         protected EvaluationStatistics Statistics { get; }
 
         /// <nodoc />
-        protected GlobalConstants Constants { get; }
-
-        // TODO: Solve the entanglement of all frontends needing to share the module registry.
-        // This should move to the Host.
-
-        /// <nodoc />
-        protected ModuleRegistry SharedModuleRegistry { get; }
-
-        /// <nodoc />
         protected Logger Logger { get; }
 
         /// <summary>
@@ -169,14 +153,14 @@ namespace BuildXL.FrontEnd.Script
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
         protected FileModuleLiteral InstantiateModuleWithDefaultQualifier(FileModuleLiteral module)
         {
-            return module.InstantiateFileModuleLiteral(SharedModuleRegistry, EmptyQualifier);
+            return module.InstantiateFileModuleLiteral(FrontEndHost.ModuleRegistry, EmptyQualifier);
         }
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
         protected FileModuleLiteral InstantiateModule(FileModuleLiteral module, QualifierValue qualifier)
         {
-            return module.InstantiateFileModuleLiteral(SharedModuleRegistry, qualifier);
+            return module.InstantiateFileModuleLiteral(FrontEndHost.ModuleRegistry, qualifier);
         }
 
         private DiagnosticAnalyzer m_linter;
@@ -243,7 +227,7 @@ namespace BuildXL.FrontEnd.Script
         protected void RegisterModuleData(UninstantiatedModuleInfo moduleInfo)
         {
             Contract.Requires(moduleInfo != null);
-            SharedModuleRegistry.AddUninstantiatedModuleInfo(moduleInfo);
+            FrontEndHost.ModuleRegistry.AddUninstantiatedModuleInfo(moduleInfo);
         }
 
         /// <summary>
@@ -285,8 +269,6 @@ namespace BuildXL.FrontEnd.Script
             return new ContextTree(
                 FrontEndHost,
                 Context,
-                Constants,
-                SharedModuleRegistry,
                 Logger,
                 Statistics,
                 qualifierValueCache: QualifierValueCache,
@@ -312,8 +294,6 @@ namespace BuildXL.FrontEnd.Script
             return new ContextTree(
                 FrontEndHost,
                 Context,
-                Constants,
-                SharedModuleRegistry,
                 Logger,
                 Statistics,
                 qualifierValueCache: QualifierValueCache,
@@ -333,8 +313,6 @@ namespace BuildXL.FrontEnd.Script
                 frontEndContext: Context,
                 logger: Logger,
                 package: package,
-                globals: Constants.Global,
-                moduleRegistry: SharedModuleRegistry,
                 origin: origin ?? default(LocationData));
         }
 

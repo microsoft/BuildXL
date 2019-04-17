@@ -389,10 +389,9 @@ namespace Test.BuildXL.FrontEnd.Download
         {
             var dummyConfigFile = Path.Combine(TemporaryDirectory, m_uniqueTestFolder, "config.dsc");
 
-            var constants = new GlobalConstants(FrontEndContext.SymbolTable);
             var statistics = new Statistics();
-            var moduleRegistry = new ModuleRegistry(constants.Global);
-            var workspaceFactory = CreateWorkspaceFactoryForTesting(constants, moduleRegistry, ParseAndEvaluateLogger);
+            var moduleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
+            var workspaceFactory = CreateWorkspaceFactoryForTesting(FrontEndContext, ParseAndEvaluateLogger);
             var configuration = ConfigurationHelpers.GetDefaultForTesting(FrontEndContext.PathTable, AbsolutePath.Create(FrontEndContext.PathTable, dummyConfigFile));
             var resolverSettings = new ResolverSettings();
 
@@ -427,7 +426,7 @@ namespace Test.BuildXL.FrontEnd.Download
                     "TestFrontEnd"
                 );
 
-                var workspaceResolver = new DownloadWorkspaceResolver(constants, moduleRegistry);
+                var workspaceResolver = new DownloadWorkspaceResolver();
                 workspaceResolver.UpdateDataForDownloadData(data);
                 await resolver.InitResolverAsync(resolverSettings, workspaceResolver);
 

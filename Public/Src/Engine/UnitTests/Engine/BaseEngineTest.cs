@@ -227,20 +227,19 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
             IFrontEndController Create(PathTable pathTable, SymbolTable symbolTable)
             {
                 var frontEndStatistics = new FrontEndStatistics();
-                var constants = new GlobalConstants(symbolTable);
-                var moduleRegistry = new ModuleRegistry(constants.Global);
+                var moduleRegistry = new ModuleRegistry(symbolTable);
 
                 var workspaceFactory = new DScriptWorkspaceResolverFactory();
                 workspaceFactory.RegisterResolver(KnownResolverKind.SourceResolverKind,
-                    () => new WorkspaceSourceModuleResolver(constants, moduleRegistry, frontEndStatistics, ParseAndEvaluateLogger));
+                    () => new WorkspaceSourceModuleResolver(pathTable.StringTable, frontEndStatistics, ParseAndEvaluateLogger));
                 workspaceFactory.RegisterResolver(KnownResolverKind.DScriptResolverKind,
-                    () => new WorkspaceSourceModuleResolver(constants, moduleRegistry, frontEndStatistics, ParseAndEvaluateLogger));
+                    () => new WorkspaceSourceModuleResolver(pathTable.StringTable, frontEndStatistics, ParseAndEvaluateLogger));
                 workspaceFactory.RegisterResolver(KnownResolverKind.DefaultSourceResolverKind,
-                    () => new WorkspaceDefaultSourceModuleResolver(constants, moduleRegistry, frontEndStatistics, ParseAndEvaluateLogger));
+                    () => new WorkspaceDefaultSourceModuleResolver(pathTable.StringTable, frontEndStatistics, ParseAndEvaluateLogger));
 
                 var frontEndFactory = FrontEndFactory.CreateInstanceForTesting(
-                    () => new ConfigurationProcessor(constants, moduleRegistry, new FrontEndStatistics(), ParseAndEvaluateLogger),
-                    new DScriptFrontEnd(constants, moduleRegistry, frontEndStatistics, ParseAndEvaluateLogger));
+                    () => new ConfigurationProcessor(new FrontEndStatistics(), ParseAndEvaluateLogger),
+                    new DScriptFrontEnd(frontEndStatistics, ParseAndEvaluateLogger));
 
                 var evaluationScheduler = new EvaluationScheduler(degreeOfParallelism: 1);
                 return new FrontEndHostController(

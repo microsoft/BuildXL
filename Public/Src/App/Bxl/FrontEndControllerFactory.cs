@@ -214,8 +214,7 @@ namespace BuildXL
             // Statistic should be global for all front-ends, not per an instance.
             var frontEndStatistics = statistics ?? new FrontEndStatistics();
 
-            var globalConstants = new GlobalConstants(symbolTable);
-            var sharedModuleRegistry = new ModuleRegistry(globalConstants.Global);
+            var sharedModuleRegistry = new ModuleRegistry(symbolTable);
 
             // Note, that the following code is absolutely critical for detecting that front-end related objects
             // are freed successfully after evaluation.
@@ -224,8 +223,6 @@ namespace BuildXL
 
             frontEndFactory.SetConfigurationProcessor(
                 new ConfigurationProcessor(
-                    globalConstants, 
-                    sharedModuleRegistry,
                     new FrontEndStatistics(), // Configuration processing is so lightweight that it won't affect overall perf statistics
                     logger: null));
 
@@ -238,20 +235,15 @@ namespace BuildXL
             // TODO: Workspace resolvers and frontends are registered in separate factories. Consider
             // adding a main coordinator/registry
             RegisterKnownWorkspaceResolvers(
+                symbolTable.StringTable,
                 workspaceResolverFactory, 
-                globalConstants, 
-                sharedModuleRegistry, 
                 frontEndStatistics);
 
             frontEndFactory.AddFrontEnd(new DScriptFrontEnd(
-                globalConstants,
-                sharedModuleRegistry,
                 frontEndStatistics,
                 evaluationDecorator: decorator));
 
             frontEndFactory.AddFrontEnd(new NugetFrontEnd(
-                globalConstants,
-                sharedModuleRegistry,
                 frontEndStatistics,
                 evaluationDecorator: decorator));
 
@@ -278,38 +270,34 @@ namespace BuildXL
         }
 
         private static void RegisterKnownWorkspaceResolvers(
+            StringTable stringTable,
             DScriptWorkspaceResolverFactory workspaceFactory,
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
             IFrontEndStatistics statistics)
         {
-            // TODO: Pass stringtable in a cleaner fashion
-            var stringTable = constants.Global.SymbolTable.StringTable;
-
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.SourceResolverKind,
-                () => new WorkspaceSourceModuleResolver(constants, sharedModuleRegistry, statistics, logger: null));
+                () => new WorkspaceSourceModuleResolver(stringTable, statistics, logger: null));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.DScriptResolverKind,
-                () => new WorkspaceSourceModuleResolver(constants, sharedModuleRegistry, statistics, logger: null));
+                () => new WorkspaceSourceModuleResolver(stringTable, statistics, logger: null));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.DefaultSourceResolverKind,
-                () => new WorkspaceDefaultSourceModuleResolver(constants, sharedModuleRegistry, statistics, logger: null));
+                () => new WorkspaceDefaultSourceModuleResolver(stringTable, statistics, logger: null));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.NugetResolverKind,
-                () => new WorkspaceNugetModuleResolver(constants, sharedModuleRegistry, statistics));
+                () => new WorkspaceNugetModuleResolver(stringTable, statistics));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.DownloadResolverKind,
-                () => new DownloadWorkspaceResolver(constants, sharedModuleRegistry));
+                () => new DownloadWorkspaceResolver());
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.MsBuildResolverKind,
-                () => new MsBuildWorkspaceResolver(constants, sharedModuleRegistry, statistics));
+                () => new MsBuildWorkspaceResolver(statistics));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.NinjaResolverKind,
-                () => new NinjaWorkspaceResolver(stringTable, constants, sharedModuleRegistry, statistics));
+                () => new NinjaWorkspaceResolver(stringTable, statistics));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.CMakeResolverKind,
-                () => new CMakeWorkspaceResolver(stringTable, constants, sharedModuleRegistry, statistics));
+                () => new CMakeWorkspaceResolver(stringTable, statistics));
         }
     }
 }

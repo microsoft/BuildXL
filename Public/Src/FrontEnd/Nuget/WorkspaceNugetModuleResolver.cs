@@ -93,15 +93,11 @@ namespace BuildXL.FrontEnd.Nuget
 
         /// <nodoc/>
         public WorkspaceNugetModuleResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
+            StringTable stringTable,
             IFrontEndStatistics statistics)
         {
-            Contract.Requires(constants != null);
-            Contract.Requires(sharedModuleRegistry != null);
-
             m_statistics = statistics.NugetStatistics;
-            m_embeddedSpecsResolver = new WorkspaceSourceModuleResolver(constants, sharedModuleRegistry, statistics, logger: null);
+            m_embeddedSpecsResolver = new WorkspaceSourceModuleResolver(stringTable, statistics, logger: null);
 
             m_useMonoBasedNuGet = OperatingSystemHelper.IsUnixOS;
 

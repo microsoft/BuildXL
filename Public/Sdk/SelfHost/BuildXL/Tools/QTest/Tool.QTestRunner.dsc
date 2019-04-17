@@ -111,6 +111,7 @@ export function runQTest(args: QTestArguments): Result {
     // If no qTestInputs is specified, use the qTestDirToDeploy
     qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
 
+    let qTestContextInfo = Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo") ? f`${Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo")}` : undefined;
     let commandLineArgs: Argument[] = [
         Cmd.option("--testBinary ", args.testAssembly),
         Cmd.option(
@@ -154,6 +155,7 @@ export function runQTest(args: QTestArguments): Result {
         ),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
+        Cmd.option("--qTestContextInfo ", Artifact.input(qTestContextInfo)),
     ];
 
     let result = Transformer.execute({

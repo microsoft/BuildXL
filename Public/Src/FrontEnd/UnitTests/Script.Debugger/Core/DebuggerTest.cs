@@ -7,14 +7,13 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Debugger;
 using BuildXL.FrontEnd.Script.Evaluator;
-using Test.BuildXL.TestUtilities.Xunit;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities;
 using Test.BuildXL.FrontEnd.Core;
+using Test.BuildXL.TestUtilities.Xunit;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;
 using Xunit;
@@ -36,8 +35,8 @@ namespace Test.DScript.Debugger
         public DsDebuggerTest(ITestOutputHelper output)
             : base(output, usePassThroughFileSystem: true)
         {
-            var sharedModuleRegistry = new ModuleRegistry();
             var constants = new GlobalConstants(FrontEndContext.SymbolTable);
+            var sharedModuleRegistry = new ModuleRegistry(constants.Global);
             Debugger = new MockService(FrontEndContext.PathTable, LoggingContext).Debugger;
         }
 

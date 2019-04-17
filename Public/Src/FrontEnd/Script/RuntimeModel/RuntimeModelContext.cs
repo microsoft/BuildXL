@@ -10,7 +10,6 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
-using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel
 {
@@ -105,7 +104,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel
             Package = package;
             RootPath = package.Path.GetParent(frontEndContext.PathTable);
             Globals = globals;
-            ModuleRegistry = moduleRegistry ?? new ModuleRegistry();
+            ModuleRegistry = moduleRegistry ?? new ModuleRegistry(globals);
             Origin = origin;
             Logger = logger;
         }

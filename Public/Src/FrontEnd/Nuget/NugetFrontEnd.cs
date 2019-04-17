@@ -4,22 +4,19 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Nuget
 {
     /// <summary>
     /// NuGet resolver frontend
     /// </summary>
-    public sealed class NugetFrontEnd : DScriptInterpreterBase, Sdk.IFrontEnd
+    public sealed class NugetFrontEnd : DScriptInterpreterBase, IFrontEnd
     {
         private readonly IDecorator<EvaluationResult> m_evaluationDecorator;
         private SourceFileProcessingQueue<bool> m_sourceFileProcessingQueue;

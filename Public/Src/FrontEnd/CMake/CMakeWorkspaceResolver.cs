@@ -2,38 +2,36 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using JetBrains.Annotations;
-using BuildXL.FrontEnd.Utilities;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Sdk.Workspaces;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Core;
-using ISourceFile = TypeScript.Net.Types.ISourceFile;
-using SourceFile = TypeScript.Net.Types.SourceFile;
-using TypeScript.Net.DScript;
-using BuildXL.Utilities.Collections;
-using BuildXL.FrontEnd.Sdk;
-using BuildXL.Native.IO;
-using BuildXL.Processes;
-using static BuildXL.Utilities.FormattableStringEx;
-using System.IO;
 using BuildXL.FrontEnd.CMake.Failures;
 using BuildXL.FrontEnd.CMake.Serialization;
 using BuildXL.FrontEnd.Ninja;
+using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Workspaces;
+using BuildXL.FrontEnd.Utilities;
+using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Native.IO;
+using BuildXL.Processes;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Tasks;
+using JetBrains.Annotations;
+using Newtonsoft.Json;
+using TypeScript.Net.DScript;
+using static BuildXL.Utilities.FormattableStringEx;
+using ISourceFile = TypeScript.Net.Types.ISourceFile;
+using SourceFile = TypeScript.Net.Types.SourceFile;
 
 namespace BuildXL.FrontEnd.CMake
 {
@@ -45,8 +43,6 @@ namespace BuildXL.FrontEnd.CMake
         internal const string CMakeResolverName = "CMake";
 
         private ICMakeResolverSettings m_resolverSettings;
-
-        private readonly CMakeFrontEnd m_frontEnd;
 
         private AbsolutePath ProjectRoot => m_resolverSettings.ProjectRoot;
         private AbsolutePath m_buildDirectory;
@@ -71,17 +67,15 @@ namespace BuildXL.FrontEnd.CMake
 
         /// <inheritdoc/>
         public CMakeWorkspaceResolver(
+            StringTable stringTable,
             GlobalConstants constants,
             ModuleRegistry sharedModuleRegistry,
-            IFrontEndStatistics statistics,
-            CMakeFrontEnd frontEnd,
-            NinjaFrontEnd ninjaFrontEnd)
+            IFrontEndStatistics statistics)
             : base(constants, sharedModuleRegistry, statistics, logger: null)
         {
             Name = nameof(CMakeWorkspaceResolver);
-            m_frontEnd = frontEnd;
-            m_relativePathToCMakeRunner = RelativePath.Create(frontEnd.Context.StringTable, CMakeRunnerRelativePath);
-            EmbeddedNinjaWorkspaceResolver = new NinjaWorkspaceResolver(constants, sharedModuleRegistry, statistics, ninjaFrontEnd);
+            m_relativePathToCMakeRunner = RelativePath.Create(stringTable, CMakeRunnerRelativePath);
+            EmbeddedNinjaWorkspaceResolver = new NinjaWorkspaceResolver(stringTable, constants, sharedModuleRegistry, statistics);
             m_embeddedResolverSettings = new Lazy<NinjaResolverSettings>(CreateEmbeddedResolverSettings);
         }
 
@@ -176,7 +170,7 @@ namespace BuildXL.FrontEnd.CMake
         private async Task<Possible<Unit>> GenerateBuildDirectoryAsync()
         {
             Contract.Assert(m_buildDirectory.IsValid);
-            AbsolutePath outputDirectory = FrontEndHost.GetFolderForFrontEnd(m_frontEnd.Name);
+            AbsolutePath outputDirectory = FrontEndHost.GetFolderForFrontEnd(CMakeFrontEnd.Name);
             AbsolutePath argumentsFile = outputDirectory.Combine(Context.PathTable, Guid.NewGuid().ToString());
             if (!TryRetrieveCMakeSearchLocations(out IEnumerable<AbsolutePath> searchLocations))
             {
@@ -200,7 +194,7 @@ namespace BuildXL.FrontEnd.CMake
                 return new CMakeGenerationError(m_resolverSettings.ModuleName, m_buildDirectory.ToString(Context.PathTable));
             }
 
-            FrontEndUtilities.TrackToolFileAccesses(Engine, Context, m_frontEnd.Name, result.AllUnexpectedFileAccesses, outputDirectory);
+            FrontEndUtilities.TrackToolFileAccesses(Engine, Context, CMakeFrontEnd.Name, result.AllUnexpectedFileAccesses, outputDirectory);
             return Possible.Create(Unit.Void);
         }
 
@@ -229,7 +223,7 @@ namespace BuildXL.FrontEnd.CMake
                 }
             }
 
-            var environment = FrontEndUtilities.GetEngineEnvironment(Engine, m_frontEnd.Name);
+            var environment = FrontEndUtilities.GetEngineEnvironment(Engine, CMakeFrontEnd.Name);
 
             // TODO: This manual configuration is temporary. Remove after the cloud builders have the correct configuration
             var pathToManuallyDroppedTools = Configuration.Layout.BuildEngineDirectory.Combine(Context.PathTable, RelativePath.Create(Context.StringTable, @"tools\CmakeNinjaPipEnvironment"));
@@ -302,7 +296,7 @@ namespace BuildXL.FrontEnd.CMake
 
 
             return FrontEndUtilities.TryRetrieveExecutableSearchLocations(
-                m_frontEnd.Name,
+                CMakeFrontEnd.Name,
                 Context,
                 Engine,
                 cmakeSearchLocations,

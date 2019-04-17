@@ -132,7 +132,7 @@ namespace Test.DScript.Ast.PartialEvaluation
         {
             var nonPreludeModules = NonPreludeModules(workspace).ToArray();
             var constants = new GlobalConstants(SymbolTable);
-            var moduleRegistry = new ModuleRegistry();
+            var moduleRegistry = new ModuleRegistry(constants.Global);
 
             var configStringPath = Path.Combine(SrcRoot.ToString(PathTable), Names.ConfigDsc);
 
@@ -147,7 +147,7 @@ namespace Test.DScript.Ast.PartialEvaluation
                                         UsePartialEvaluation = false,
                                     }
                                 };
-            var frontEndHost = FrontEndHostController.CreateForTesting(FrontEndContext, Engine, configStringPath, FrontEndLogger);
+            var frontEndHost = FrontEndHostController.CreateForTesting(FrontEndContext, Engine, moduleRegistry, configStringPath, FrontEndLogger);
             var frontEnd = new DScriptFrontEnd(constants, moduleRegistry, FrontEndStatistics, AstLogger, null);
             frontEnd.InitializeFrontEnd(frontEndHost, FrontEndContext, configuration);
 

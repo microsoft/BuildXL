@@ -207,15 +207,15 @@ namespace BuildXL
             bool collectMemoryAsSoonAsPossible,
             IFrontEndStatistics statistics)
         {
-            var workspaceResolverFactory = new DScriptWorkspaceResolverFactory();
-
             Contract.Requires(frontEndFactory != null && !frontEndFactory.IsSealed);
+
+            var workspaceResolverFactory = new DScriptWorkspaceResolverFactory();
 
             // Statistic should be global for all front-ends, not per an instance.
             var frontEndStatistics = statistics ?? new FrontEndStatistics();
 
             var globalConstants = new GlobalConstants(symbolTable);
-            var sharedModuleRegistry = new ModuleRegistry();
+            var sharedModuleRegistry = new ModuleRegistry(globalConstants.Global);
 
             // Note, that the following code is absolutely critical for detecting that front-end related objects
             // are freed successfully after evaluation.
@@ -229,20 +229,11 @@ namespace BuildXL
                     new FrontEndStatistics(), // Configuration processing is so lightweight that it won't affect overall perf statistics
                     logger: null));
 
-            var msBuildFrontEnd = new MsBuildFrontEnd(
-                globalConstants,
-                sharedModuleRegistry,
-                frontEndStatistics);
+            var msBuildFrontEnd = new MsBuildFrontEnd();
 
-            var ninjaFrontEnd = new NinjaFrontEnd(
-                globalConstants,
-                sharedModuleRegistry,
-                frontEndStatistics);
+            var ninjaFrontEnd = new NinjaFrontEnd();
 
-            var cmakeFrontEnd = new CMakeFrontEnd(
-                globalConstants,
-                sharedModuleRegistry,
-                frontEndStatistics);
+            var cmakeFrontEnd = new CMakeFrontEnd();
 
             // TODO: Workspace resolvers and frontends are registered in separate factories. Consider
             // adding a main coordinator/registry
@@ -250,10 +241,7 @@ namespace BuildXL
                 workspaceResolverFactory, 
                 globalConstants, 
                 sharedModuleRegistry, 
-                frontEndStatistics, 
-                msBuildFrontEnd,
-                ninjaFrontEnd,
-                cmakeFrontEnd);
+                frontEndStatistics);
 
             frontEndFactory.AddFrontEnd(new DScriptFrontEnd(
                 globalConstants,
@@ -267,9 +255,7 @@ namespace BuildXL
                 frontEndStatistics,
                 evaluationDecorator: decorator));
 
-            frontEndFactory.AddFrontEnd(new DownloadFrontEnd(
-                globalConstants,
-                sharedModuleRegistry));
+            frontEndFactory.AddFrontEnd(new DownloadFrontEnd());
 
             frontEndFactory.AddFrontEnd(msBuildFrontEnd);
             frontEndFactory.AddFrontEnd(ninjaFrontEnd);
@@ -284,6 +270,7 @@ namespace BuildXL
                 frontEndFactory,
                 workspaceResolverFactory,
                 evaluationScheduler: EvaluationScheduler.Default,
+                moduleRegistry: sharedModuleRegistry,
                 frontEndStatistics: frontEndStatistics,
                 logger: BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(),
                 collector: collector, 
@@ -294,11 +281,11 @@ namespace BuildXL
             DScriptWorkspaceResolverFactory workspaceFactory,
             GlobalConstants constants,
             ModuleRegistry sharedModuleRegistry,
-            IFrontEndStatistics statistics,
-            MsBuildFrontEnd msBuildFrontEnd,
-            NinjaFrontEnd ninjaFrontEnd,
-            CMakeFrontEnd cmakeFrontend)
+            IFrontEndStatistics statistics)
         {
+            // TODO: Pass stringtable in a cleaner fashion
+            var stringTable = constants.Global.SymbolTable.StringTable;
+
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.SourceResolverKind,
                 () => new WorkspaceSourceModuleResolver(constants, sharedModuleRegistry, statistics, logger: null));
@@ -316,13 +303,13 @@ namespace BuildXL
                 () => new DownloadWorkspaceResolver(constants, sharedModuleRegistry));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.MsBuildResolverKind,
-                () => new MsBuildWorkspaceResolver(constants, sharedModuleRegistry, statistics, msBuildFrontEnd));
+                () => new MsBuildWorkspaceResolver(constants, sharedModuleRegistry, statistics));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.NinjaResolverKind,
-                () => new NinjaWorkspaceResolver(constants, sharedModuleRegistry, statistics, ninjaFrontEnd));
+                () => new NinjaWorkspaceResolver(stringTable, constants, sharedModuleRegistry, statistics));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.CMakeResolverKind,
-                () => new CMakeWorkspaceResolver(constants, sharedModuleRegistry, statistics, cmakeFrontend, ninjaFrontEnd));
+                () => new CMakeWorkspaceResolver(stringTable, constants, sharedModuleRegistry, statistics));
         }
     }
 }

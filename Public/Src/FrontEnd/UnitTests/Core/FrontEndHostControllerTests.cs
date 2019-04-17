@@ -19,6 +19,8 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -266,16 +268,21 @@ namespace Test.BuildXL.FrontEnd.Core
             factory.AddFrontEnd(new DummyFrontEnd1());
             factory.TrySeal(new LoggingContext("UnitTest"));
 
+            var context = BuildXLContext.CreateInstanceForTesting();
+
+            var constants = new GlobalConstants(context.SymbolTable);
+            var moduleRegistry = new ModuleRegistry(constants.Global);
+
             var controller = new FrontEndHostController(
                 factory, 
                 new DScriptWorkspaceResolverFactory(), 
                 new EvaluationScheduler(degreeOfParallelism: 8),
+                moduleRegistry,
                 new FrontEndStatistics(),
                 Logger.CreateLogger(),
                 collector: null,
                 collectMemoryAsSoonAsPossible: false);
 
-            var context = BuildXLContext.CreateInstanceForTesting();
 
             var fileSystem = new InMemoryFileSystem(context.PathTable);
 

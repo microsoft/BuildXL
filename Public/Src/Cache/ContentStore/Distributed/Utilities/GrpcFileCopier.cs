@@ -35,10 +35,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
+        public async Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
         {
-            // TODO: Implement!
-            throw new NotImplementedException();
+            // Extract host and contentHash from sourcePath
+            (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(path);
+
+            FileExistenceResult fileExistenceResult = null;
+            using (var client = GrpcCopyClient.Create(host, _grpcPort))
+            {
+                fileExistenceResult = await client.CheckFileExistsAsync(_context, contentHash);
+            }
+
+            return fileExistenceResult;
         }
 
         /// <inheritdoc />
@@ -49,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
-            using (var client = GrpcCopyClient.Create(host, DefaultGrpcPort))
+            using (var client = GrpcCopyClient.Create(host, _grpcPort))
             {
                 copyFileResult = await client.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken);
             }
@@ -92,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
-            using (var client = GrpcCopyClient.Create(host, DefaultGrpcPort))
+            using (var client = GrpcCopyClient.Create(host, _grpcPort))
             {
                 copyFileResult = await client.CopyToAsync(_context, contentHash, destinationStream, cancellationToken);
             }

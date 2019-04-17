@@ -47,13 +47,8 @@ namespace BuildXL.FrontEnd.Download
         private Dictionary<ModuleDescriptor, ModuleDefinition> m_definitions;
 
         /// <nodoc/>
-        public DownloadWorkspaceResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry)
+        public DownloadWorkspaceResolver()
         {
-            Contract.Requires(constants != null);
-            Contract.Requires(sharedModuleRegistry != null);
-
             m_descriptors = new HashSet<ModuleDescriptor>();
             m_descriptorsByName = new MultiValueDictionary<string, ModuleDescriptor>(StringComparer.Ordinal);
             m_descriptorsBySpecPath = new Dictionary<AbsolutePath, ModuleDescriptor>();
@@ -61,12 +56,13 @@ namespace BuildXL.FrontEnd.Download
         }
 
         /// <inheritdoc />
-        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings)
+        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings, [NotNull] QualifierId[] requestedQualifiers)
         {
             Contract.Requires(context != null);
             Contract.Requires(host != null);
             Contract.Requires(configuration != null);
             Contract.Requires(resolverSettings != null);
+            Contract.Requires(requestedQualifiers?.Length > 0);
 
             var settings = resolverSettings as IDownloadResolverSettings;
             Contract.Assert(settings != null);

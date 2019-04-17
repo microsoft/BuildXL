@@ -78,14 +78,12 @@ namespace BuildXL.FrontEnd.Script
         public ConfigurationConversionHelper(
             [CanBeNull] FrontEndEngineAbstraction engine,
             ConfigurationKind kind,
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
             Logger logger,
             FrontEndHost host,
             FrontEndContext context,
             IConfiguration configuration,
             IFrontEndStatistics statistics)
-            : base(constants, sharedModuleRegistry, statistics, logger, host, context, configuration)
+            : base(statistics, logger, host, context, configuration)
         {
             Engine = engine ?? new SimpleFrontEndEngineAbstraction(context.PathTable, context.FileSystem, configuration);
             Kind = kind;
@@ -419,7 +417,7 @@ namespace BuildXL.FrontEnd.Script
 
         private FileModuleLiteral ConvertAndRegisterSourceFile(RuntimeModelContext runtimeModelContext, Workspace workspace, ISourceFile sourceFile, AbsolutePath path, bool isConfig)
         {
-            var moduleLiteral = ModuleLiteral.CreateFileModule(path, Constants.Global, runtimeModelContext.Package, SharedModuleRegistry, sourceFile.LineMap);
+            var moduleLiteral = ModuleLiteral.CreateFileModule(path, FrontEndHost.ModuleRegistry, runtimeModelContext.Package, sourceFile.LineMap);
 
             var conversionContext = new AstConversionContext(runtimeModelContext, path, sourceFile, moduleLiteral);
             var converter = AstConverter.Create(Context.QualifierTable, conversionContext, ConversionConfiguration, workspace);

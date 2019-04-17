@@ -100,7 +100,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
             }
 
             // Trying to find member function for well-known types.
-            var boundMember = context.PredefinedTypes.ResolveMember(receiver.Value, Selector);
+            var boundMember = ((ModuleRegistry)context.FrontEndHost.ModuleRegistry).PredefinedTypes.ResolveMember(receiver.Value, Selector);
 
             if (boundMember != null)
             {

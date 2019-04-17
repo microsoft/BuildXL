@@ -40,7 +40,9 @@ namespace Test.DScript.Ast.Interpretation
             m_symbolTable = new SymbolTable(m_stringTable);
         }
 
-        private GlobalModuleLiteral GlobalModuleLiteral => new GlobalModuleLiteral(m_symbolTable);
+        private GlobalModuleLiteral GlobalModuleLiteral => ModuleRegistry.GlobalLiteral;
+
+        private ModuleRegistry ModuleRegistry => new ModuleRegistry(m_symbolTable);
 
         private readonly StringTable m_stringTable;
 
@@ -48,7 +50,6 @@ namespace Test.DScript.Ast.Interpretation
 
         private readonly PathTable m_pathTable = new PathTable();
 
-        private readonly ModuleRegistry m_moduleRegistry = new ModuleRegistry();
 
         private readonly QualifierSpaceId m_qualifierSpaceId = new QualifierSpaceId(42);
 
@@ -83,7 +84,7 @@ namespace Test.DScript.Ast.Interpretation
 
         public FileModuleLiteral GetFileModuleLiteral()
         {
-            return new FileModuleLiteral(GetAbsolutePath(), GetQualifierValue(), GlobalModuleLiteral, GetPackage(), m_moduleRegistry, GetLineMap());
+            return new FileModuleLiteral(GetAbsolutePath(), GetQualifierValue(), GlobalModuleLiteral, GetPackage(), ModuleRegistry, GetLineMap());
         }
 
         public LocationBasedSymbolReference GetLocationBasedSymbolReference()
@@ -928,7 +929,7 @@ namespace Test.DScript.Ast.Interpretation
         [Fact]
         public void TestResolvedFileModuleLiteral()
         {
-            FileModuleLiteral node = new FileModuleLiteral(GetAbsolutePath(), GetQualifierValue(), GlobalModuleLiteral, GetPackage(), m_moduleRegistry, GetLineMap());
+            FileModuleLiteral node = new FileModuleLiteral(GetAbsolutePath(), GetQualifierValue(), GlobalModuleLiteral, GetPackage(), ModuleRegistry, GetLineMap());
 
             node.AddResolvedEntry(GetFullSymbol(), new ResolvedEntry(GetFullSymbol(), GetExpression1()));
 
@@ -953,7 +954,7 @@ namespace Test.DScript.Ast.Interpretation
 
                     // Deserialize
                     DeserializationContext context = new DeserializationContext(null, reader, m_pathTable, node.LineMap);
-                    var node2 = FileModuleLiteral.Read(reader, context.PathTable, GlobalModuleLiteral, m_moduleRegistry);
+                    var node2 = FileModuleLiteral.Read(reader, context.PathTable, GlobalModuleLiteral, ModuleRegistry);
 
                     Assert.NotNull(node2);
 

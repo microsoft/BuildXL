@@ -25,8 +25,6 @@ namespace BuildXL.FrontEnd.Script
 
         /// <nodoc />
         public NugetResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
             FrontEndHost host,
             FrontEndContext context,
             IConfiguration configuration,
@@ -34,7 +32,7 @@ namespace BuildXL.FrontEnd.Script
             SourceFileProcessingQueue<bool> parseQueue,
             Logger logger = null,
             IDecorator<EvaluationResult> evaluationDecorator = null)
-            : base(constants, sharedModuleRegistry, host, context, configuration, statistics, parseQueue, logger, evaluationDecorator)
+            : base(host, context, configuration, statistics, parseQueue, logger, evaluationDecorator)
         { }
 
         /// <inheritdoc/>

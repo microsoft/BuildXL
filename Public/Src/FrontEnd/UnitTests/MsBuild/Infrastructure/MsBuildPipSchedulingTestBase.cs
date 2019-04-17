@@ -64,7 +64,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         /// Starts the addition of projects
         /// </summary>
         /// <returns></returns>
-        public MsBuildProjectBuilder Start(MsBuildResolverSettings resolverSettings = null, QualifierId qualifierId = default)
+        public MsBuildProjectBuilder Start(MsBuildResolverSettings resolverSettings = null, QualifierId currentQualifier = default, QualifierId[] requestedQualifiers = default)
         {
             var settings = resolverSettings ?? new MsBuildResolverSettings();
             // Make sure the Root is set
@@ -73,12 +73,17 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
                 settings.Root = AbsolutePath.Create(PathTable, TestRoot);
             }
 
-            if (qualifierId == default)
+            if (currentQualifier == default)
             {
-                qualifierId = FrontEndContext.QualifierTable.CreateQualifier(CollectionUtilities.EmptyDictionary<string, string>());
+                currentQualifier = FrontEndContext.QualifierTable.EmptyQualifierId;
             }
 
-            return new MsBuildProjectBuilder(this, settings, qualifierId);
+            if (requestedQualifiers == default)
+            {
+                requestedQualifiers = new QualifierId[] { FrontEndContext.QualifierTable .EmptyQualifierId };
+            }
+
+            return new MsBuildProjectBuilder(this, settings, currentQualifier, requestedQualifiers);
         }
 
         /// <summary>
@@ -108,15 +113,13 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
 
         /// <summary>
         /// Uses <see cref="MsBuildPipConstructor"/> to schedule the specified projects and retrieves the result
-        internal MsBuildSchedulingResult ScheduleAll(MsBuildResolverSettings resolverSettings, IEnumerable<ProjectWithPredictions> projectsWithPredictions, QualifierId qualifierId)
+        internal MsBuildSchedulingResult ScheduleAll(MsBuildResolverSettings resolverSettings, IEnumerable<ProjectWithPredictions> projectsWithPredictions, QualifierId currentQualifier, QualifierId[] requestedQualifiers)
         {
-            var sharedModuleRegistry = new ModuleRegistry();
-            var constants = new GlobalConstants(FrontEndContext.SymbolTable);
+            var moduleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
+            var workspaceFactory = CreateWorkspaceFactoryForTesting(FrontEndContext, ParseAndEvaluateLogger);
+            var frontEndFactory = CreateFrontEndFactoryForEvaluation(workspaceFactory, ParseAndEvaluateLogger);
 
-            var workspaceFactory = CreateWorkspaceFactoryForTesting(constants, sharedModuleRegistry, ParseAndEvaluateLogger);
-            var frontEndFactory = CreateFrontEndFactoryForEvaluation(constants, sharedModuleRegistry, workspaceFactory, ParseAndEvaluateLogger);
-
-            using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, workspaceFactory, AbsolutePath.Invalid, out _, out _))
+            using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, workspaceFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _, requestedQualifiers))
             {
                 var pipConstructor = new PipConstructor(
                     FrontEndContext,
@@ -130,7 +133,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
 
                 foreach (var projectWithPredictions in projectsWithPredictions)
                 {
-                    var result = pipConstructor.TrySchedulePipForFile(projectWithPredictions, qualifierId, out string failureDetail, out Process process);
+                    var result = pipConstructor.TrySchedulePipForFile(projectWithPredictions, currentQualifier, out string failureDetail, out Process process);
                     schedulingResults[projectWithPredictions] = (result, failureDetail, process);
                 }
 

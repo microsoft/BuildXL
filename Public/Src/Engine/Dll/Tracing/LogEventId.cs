@@ -217,6 +217,7 @@ namespace BuildXL.Engine.Tracing
         FailedToRedirectUserProfile = 7118,
         ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent = 7119,
         BusyOrUnavailableOutputDirectoriesException = 7120,
+        GrpcSettings = 7121,
         // max 7200
     }
 }

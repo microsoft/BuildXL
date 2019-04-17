@@ -7,9 +7,9 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private CounterCollection<ContentLocationStoreCounters> Counters { get; }
 
-        private CheckpointConfiguration _configuration;
+        private readonly CheckpointConfiguration _configuration;
 
         /// <summary>
         /// Maps file name to storage id for the currently downloaded checkpoint
@@ -67,6 +67,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _fileSystem = new PassThroughFileSystem();
             _checkpointStagingDirectory = configuration.WorkingDirectory / "staging";
             _incrementalCheckpointDirectory = configuration.WorkingDirectory / "incremental";
+            _fileSystem.CreateDirectory(_incrementalCheckpointDirectory);
+
             _incrementalCheckpointInfoFile = _incrementalCheckpointDirectory / "checkpointInfo.txt";
             Counters = counters;
         }
@@ -316,7 +318,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private static void RestoreFullCheckpointAsync(AbsolutePath checkpointFile, AbsolutePath extractedCheckpointDirectory)
         {
-            // Extracting the checkpoint archieve
+            // Extracting the checkpoint archive
             ZipFile.ExtractToDirectory(checkpointFile.ToString(), extractedCheckpointDirectory.ToString());
         }
 
@@ -327,38 +329,47 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Parse the checkpoint info for the checkpoint being restored
             var newCheckpointInfo = ParseCheckpointInfo(checkpointFile);
 
-            foreach (var entry in newCheckpointInfo)
+
+            foreach (var (key, value) in newCheckpointInfo)
             {
-                var relativePath = entry.Key;
-                var storageId = entry.Value;
-
-                var incrementalCheckpointFile = _incrementalCheckpointDirectory / relativePath;
-
-                if (_incrementalCheckpointInfo.TryGetValue(relativePath, out var fileStorageId)
-                    && storageId == fileStorageId
-                    && _database.IsImmutable(incrementalCheckpointFile)
-                    && _fileSystem.FileExists(incrementalCheckpointFile))
-                {
-                    // File is already present in the incremental checkpoint directory, no need to download it
-                    await _storage.TouchBlobAsync(context, incrementalCheckpointFile, storageId, isUploader: false).ThrowIfFailure();
-                    Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesDownloadSkipped].Increment();
-                }
-                else
-                {
-                    // File is missing, different, or mutable so download it and update it in the incremental checkpoint
-                    _fileSystem.DeleteFile(incrementalCheckpointFile);
-                    await _storage.TryGetFileAsync(context, storageId, incrementalCheckpointFile).ThrowIfFailure();
-                    Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesDownloaded].Increment();
-                }
-
-                // Move the file from the incremental checkpoint into the extraction directory for loading by the database
-                await HardlinkWithFallBackAsync(context, incrementalCheckpointFile, checkpointTargetDirectory / relativePath);
+                await RestoreFileAsync(context, checkpointTargetDirectory, key, value).ThrowIfFailure();
             }
-
+            
             // Finalize by adding the incremental checkpoint info file to the local incremental checkpoint directory
             await HardlinkWithFallBackAsync(context, checkpointFile, _incrementalCheckpointInfoFile);
             UpdateIncrementalCheckpointInfo(newCheckpointInfo);
             return true;
+        }
+
+        private Task<BoolResult> RestoreFileAsync(OperationContext context, AbsolutePath checkpointTargetDirectory, string relativePath, string storageId)
+        {
+            return context.PerformOperationAsync(
+                _tracer,
+                async () =>
+                {
+                    var incrementalCheckpointFile = _incrementalCheckpointDirectory / relativePath;
+                    if ((_incrementalCheckpointInfo.TryGetValue(relativePath, out var fileStorageId)
+                            && storageId == fileStorageId)
+                        && _database.IsImmutable(incrementalCheckpointFile)
+                        && _fileSystem.FileExists(incrementalCheckpointFile))
+                    {
+                        // File is already present in the incremental checkpoint directory, no need to download it
+                        await _storage.TouchBlobAsync(context, incrementalCheckpointFile, storageId, isUploader: false).ThrowIfFailure();
+                        Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesDownloadSkipped].Increment();
+                    }
+                    else
+                    {
+                        // File is missing, different, or mutable so download it and update it in the incremental checkpoint
+                        _fileSystem.DeleteFile(incrementalCheckpointFile);
+                        await _storage.TryGetFileAsync(context, storageId, incrementalCheckpointFile).ThrowIfFailure();
+                        Counters[ContentLocationStoreCounters.IncrementalCheckpointFilesDownloaded].Increment();
+                    }
+
+                    // Move the file from the incremental checkpoint into the extraction directory for loading by the database
+                    await HardlinkWithFallBackAsync(context, incrementalCheckpointFile, checkpointTargetDirectory / relativePath);
+                    return BoolResult.Success;
+                }, extraStartMessage: relativePath
+            );
         }
     }
 }

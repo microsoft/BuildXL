@@ -24,6 +24,7 @@ using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
 using PinRequest = ContentStore.Grpc.PinRequest;
+using BuildXL.Cache.ContentStore.FileSystem;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -34,7 +35,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     {
         private readonly Capabilities _serviceCapabilities;
         private readonly ILogger _logger;
-        private readonly Dictionary<string, string> _nameByDrive;
         private readonly Dictionary<string, IContentStore> _contentStoreByCacheName;
         private readonly ISessionHandler<IContentSession> _sessionHandler;
         private readonly ContentServerAdapter _adapter;
@@ -44,14 +44,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             ILogger logger,
             Capabilities serviceCapabilities,
             ISessionHandler<IContentSession> sessionHandler,
-            Dictionary<string, string> nameByDrive,
             Dictionary<string, IContentStore> storesByName)
         {
             _logger = logger;
             _serviceCapabilities = serviceCapabilities;
             _sessionHandler = sessionHandler;
             _adapter = new ContentServerAdapter(this);
-            _nameByDrive = nameByDrive;
             _contentStoreByCacheName = storesByName;
         }
 
@@ -160,7 +158,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             Debug.Assert(_contentStoreByCacheName != null);
 
-            // Iterate through all known stores, looking for contant in each.
+            // Iterate through all known stores, looking for content in each.
             // In most of our configurations there is just one store anyway,
             // and doing this means both we can callers don't have
             // to deal with cache roots and drive letters.
@@ -181,10 +179,42 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, $"{hash} to found");
         }
 
+        private async Task<ExistenceResponse> CheckFileExistsAsync(ExistenceRequest request, CancellationToken token)
+        {
+            LogRequestHandling();
+
+            Debug.Assert(_contentStoreByCacheName != null);
+
+            DateTime startTime = DateTime.UtcNow;
+            Context cacheContext = new Context(new Guid(request.TraceId), _logger);
+            HashType type = (HashType)request.HashType;
+            ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
+
+            // Iterate through all known stores, looking for content in each.
+            // In most of our configurations there is just one store anyway,
+            // and doing this means both we can callers don't have
+            // to deal with cache roots and drive letters.
+
+            foreach (KeyValuePair<string, IContentStore> entry in _contentStoreByCacheName)
+            {
+                IStreamStore store = entry.Value as IStreamStore;
+                if (store != null)
+                {
+                    FileExistenceResult result = await store.CheckFileExistsAsync(cacheContext, hash);
+                    if (result.Succeeded)
+                    {
+                        return new ExistenceResponse{ Header = ResponseHeader.Success(startTime) };
+                    }
+                }
+            }
+
+            return new ExistenceResponse { Header = ResponseHeader.Failure(startTime, $"{hash} not found in the cache") };
+        }
+
         /// <summary>
         /// Implements a copy file request.
         /// </summary>
-        public async Task CopyFileAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context)
+        private async Task CopyFileAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context)
         {
             try
             {
@@ -192,7 +222,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 // Get the content stream.
                 Context cacheContext = new Context(new Guid(request.TraceId), _logger);
-                HashType type = (HashType) request.HashType;
+                HashType type = (HashType)request.HashType;
                 ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
                 OpenStreamResult result = await GetFileStreamAsync(cacheContext, hash);
 
@@ -201,12 +231,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     // Figure out response headers.
                     CopyCompression compression = CopyCompression.None;
                     Metadata headers = new Metadata();
-                    headers.Add("ContentHash", hash.ToString());
                     switch (result.Code)
                     {
                         case OpenStreamResult.ResultCode.ContentNotFound:
                             headers.Add("Exception", "ContentNotFound");
-                            headers.Add("Message", $"Requested content {hash} not found.");
+                            headers.Add("Message", $"Requested content at {hash} not found.");
                             break;
                         case OpenStreamResult.ResultCode.Error:
                             Debug.Assert(result.Exception != null);
@@ -234,6 +263,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     // Send the content.
                     if (result.Succeeded)
                     {
+                        _logger.Debug($"Streaming file through GRPC with GZip {(compression == CopyCompression.Gzip ? "on" : "off")}");
+
                         byte[] buffer = new byte[ContentStore.Grpc.CopyConstants.DefaultBufferSize];
                         switch (compression)
                         {
@@ -547,6 +578,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 _contentServer = contentServer;
             }
+
+            /// <inheritdoc />
+            public override Task<ExistenceResponse> CheckFileExists(ExistenceRequest request, ServerCallContext context) => _contentServer.CheckFileExistsAsync(request, context.CancellationToken);
 
             /// <inheritdoc />
             public override Task CopyFile(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context) => _contentServer.CopyFileAsync(request, responseStream, context);

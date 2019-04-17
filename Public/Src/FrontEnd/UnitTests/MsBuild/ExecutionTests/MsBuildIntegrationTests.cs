@@ -112,7 +112,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         }
 
         [Fact]
-        public void ProjectThatRemovesAFileDuringEvalutionIsProperlyHandled()
+        public void ProjectThatRemovesAFileDuringEvaluationIsProperlyHandled()
         {
             // This project writes and deletes a file during evaluation
             var mainProject =

@@ -3,60 +3,55 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Ninja.Serialization;
-using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
+using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Script.Tracing;
-using BuildXL.FrontEnd.Sdk.Workspaces;
-using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.FrontEnd.Ninja
 {
     /// <summary>
     /// Resolver for static graph Ninja based builds.
     /// </summary>
-    public class NinjaResolver : DScriptInterpreterBase, IResolver
+    public class NinjaResolver : IResolver
     {
         private readonly string m_frontEndName;
+        private readonly FrontEndContext m_context;
+        private readonly FrontEndHost m_host;
+
         private NinjaWorkspaceResolver m_ninjaWorkspaceResolver;
         private INinjaResolverSettings m_ninjaResolverSettings;
         private ModuleDefinition ModuleDef => m_ninjaWorkspaceResolver.ComputedGraph.Result.ModuleDefinition;
 
+        /// <nodoc />
+        public string Name { get; private set; }
+
         /// <nodoc/>
         public NinjaResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
-            IFrontEndStatistics statistics,
             FrontEndHost host,
             FrontEndContext context,
-            IConfiguration configuration,
-            Logger logger,
             string frontEndName)
-            : base(constants, sharedModuleRegistry, statistics, logger, host, context, configuration)
         {
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
             m_frontEndName = frontEndName;
-
+            m_host = host;
+            m_context = context;
         }
 
         /// <inheritdoc/>
         public Task<bool> InitResolverAsync(IResolverSettings resolverSettings, object workspaceResolver)
         {
             Contract.Requires(resolverSettings != null);
-            Name = resolverSettings.Name;
 
+            Name = resolverSettings.Name;
             m_ninjaResolverSettings = resolverSettings as INinjaResolverSettings; 
             m_ninjaWorkspaceResolver = workspaceResolver as NinjaWorkspaceResolver;
             
             // TODO: Failure cases, logging
-            
             return Task.FromResult<bool>(true);
         }
 
@@ -67,7 +62,7 @@ namespace BuildXL.FrontEnd.Ninja
         }
 
         /// <inheritdoc/>
-        public Task<bool?> TryConvertModuleToEvaluationAsync(ParsedModule module, IWorkspace workspace)
+        public Task<bool?> TryConvertModuleToEvaluationAsync(IModuleRegistry moduleRegistry, ParsedModule module, IWorkspace workspace)
         {
             // No conversion needed.
             return Task.FromResult<bool?>(true);
@@ -95,8 +90,9 @@ namespace BuildXL.FrontEnd.Ninja
             // TODO: Actual filtering. For now [first development only] we schedule all pips because we are dealing with a single spec 'all'
             IReadOnlyCollection<NinjaNode> filteredNodes = result.Graph.Nodes;
 
-            var graphConstructor = new NinjaPipGraphBuilder(Context, 
-                FrontEndHost, 
+            var graphConstructor = new NinjaPipGraphBuilder(
+                m_context, 
+                m_host, 
                 ModuleDef, 
                 m_ninjaWorkspaceResolver.ProjectRoot, 
                 m_ninjaWorkspaceResolver.SpecFile, 

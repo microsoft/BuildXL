@@ -127,7 +127,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 new Tuple<StringId, StringId>(StringId.Create(StringTable, "key1"), StringId.Create(StringTable, "value1")),
                 new Tuple<StringId, StringId>(StringId.Create(StringTable, "key2"), StringId.Create(StringTable, "value2")));
 
-            var key1Key2Project = Start(qualifierId: key1Key2Qualifier)
+            var key1Key2Project = Start(currentQualifier: key1Key2Qualifier)
                 .Add(project)
                 .ScheduleAll()
                 .AssertSuccess()
@@ -137,7 +137,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 new Tuple<StringId, StringId>(StringId.Create(StringTable, "key2"), StringId.Create(StringTable, "value2")),
                 new Tuple<StringId, StringId>(StringId.Create(StringTable, "key1"), StringId.Create(StringTable, "value1")));
 
-            var key2Key1Project = Start(qualifierId: key2Key1Qualifier)
+            var key2Key1Project = Start(currentQualifier: key2Key1Qualifier)
                 .Add(project)
                 .ScheduleAll()
                 .AssertSuccess()

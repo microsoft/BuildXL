@@ -68,7 +68,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 try
                 {
                     Logger.Log.GrpcTrace(m_loggingContext, $"Attempt to connect to {Channel.Target}. ChannelState {Channel.State}. Operation {operation}");
-                    await Channel.ConnectAsync(DateTime.UtcNow.Add(GrpcConstants.InactiveTimeout));
+                    await Channel.ConnectAsync(DateTime.UtcNow.Add(GrpcSettings.InactiveTimeout));
                     Logger.Log.GrpcTrace(m_loggingContext, $"Connected to {Channel.Target}. Duration {watch.ElapsedMilliseconds}ms");
                 }
                 catch (OperationCanceledException e)
@@ -82,14 +82,14 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             Guid traceId = Guid.NewGuid();
             var headers = new Metadata();
-            headers.Add(GrpcConstants.TraceIdKey, traceId.ToByteArray());
-            headers.Add(GrpcConstants.BuildIdKey, m_buildId);
+            headers.Add(GrpcSettings.TraceIdKey, traceId.ToByteArray());
+            headers.Add(GrpcSettings.BuildIdKey, m_buildId);
 
             RpcCallResultState state = RpcCallResultState.Succeeded;
             Failure failure = null;
 
             uint numTry = 0;
-            while (numTry < GrpcConstants.MaxRetry)
+            while (numTry < GrpcSettings.MaxRetry)
             {
                 numTry++;
                 watch.Restart();
@@ -97,7 +97,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 try
                 {
                     var callOptions = new CallOptions(
-                        deadline: DateTime.UtcNow.Add(GrpcConstants.CallTimeout),
+                        deadline: DateTime.UtcNow.Add(GrpcSettings.CallTimeout),
                         cancellationToken: cancellationToken,
                         headers: headers);
 

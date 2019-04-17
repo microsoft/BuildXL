@@ -64,7 +64,7 @@ namespace BuildXL.FrontEnd.Nuget
 
         // These are set during Initialize
         private INugetResolverSettings m_resolverSettings;
-
+        private QualifierId[] m_requestedQualifiers;
         private PackageRegistry m_packageRegistry;
         private IReadOnlyDictionary<string, string> m_repositories;
         private FrontEndContext m_context;
@@ -93,15 +93,11 @@ namespace BuildXL.FrontEnd.Nuget
 
         /// <nodoc/>
         public WorkspaceNugetModuleResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
+            StringTable stringTable,
             IFrontEndStatistics statistics)
         {
-            Contract.Requires(constants != null);
-            Contract.Requires(sharedModuleRegistry != null);
-
             m_statistics = statistics.NugetStatistics;
-            m_embeddedSpecsResolver = new WorkspaceSourceModuleResolver(constants, sharedModuleRegistry, statistics, logger: null);
+            m_embeddedSpecsResolver = new WorkspaceSourceModuleResolver(stringTable, statistics, logger: null);
 
             m_useMonoBasedNuGet = OperatingSystemHelper.IsUnixOS;
 
@@ -310,18 +306,20 @@ namespace BuildXL.FrontEnd.Nuget
         }
 
         /// <inheritdoc/>
-        public bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings)
+        public bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings, QualifierId[] requestedQualifiers)
         {
             Contract.Requires(context != null);
             Contract.Requires(host != null);
             Contract.Requires(configuration != null);
             Contract.Requires(resolverSettings != null);
+            Contract.Requires(requestedQualifiers?.Length > 0);
 
             var nugetResolverSettings = resolverSettings as INugetResolverSettings;
             Contract.Assert(nugetResolverSettings != null);
 
             m_context = context;
             m_resolverSettings = nugetResolverSettings;
+            m_requestedQualifiers = requestedQualifiers;
 
             m_repositories = ComputeRepositories(nugetResolverSettings.Repositories);
             var possibleRegistry = PackageRegistry.Create(context, m_resolverSettings.Packages);
@@ -349,7 +347,7 @@ namespace BuildXL.FrontEnd.Nuget
         public void SetDownloadedPackagesForTesting(IDictionary<string, NugetAnalyzedPackage> downloadedPackages)
         {
             var possiblePackages = GenerateSpecsForDownloadedPackages(downloadedPackages);
-            var result = m_embeddedSpecsResolver.TryInitialize(m_host, m_context, m_configuration, CreateSettingsForEmbeddedResolver(downloadedPackages.Values));
+            var result = m_embeddedSpecsResolver.TryInitialize(m_host, m_context, m_configuration, CreateSettingsForEmbeddedResolver(downloadedPackages.Values), m_requestedQualifiers);
             Contract.Assert(result);
 
             Analysis.IgnoreResult(
@@ -514,7 +512,7 @@ namespace BuildXL.FrontEnd.Nuget
                 var possiblePackages = GenerateSpecsForDownloadedPackages(restoredPackagesById);
 
                 // At this point we know which are all the packages that contain embedded specs, so we can initialize the embedded resolver properly
-                if (!m_embeddedSpecsResolver.TryInitialize(m_host, m_context, m_configuration, CreateSettingsForEmbeddedResolver(restoredPackagesById.Values)))
+                if (!m_embeddedSpecsResolver.TryInitialize(m_host, m_context, m_configuration, CreateSettingsForEmbeddedResolver(restoredPackagesById.Values), m_requestedQualifiers))
                 {
                     var failure = new WorkspaceModuleResolverGenericInitializationFailure(Kind);
                     Logger.Log.NugetFailedDownloadPackagesAndGenerateSpecs(m_context.LoggingContext, failure.DescribeIncludingInnerFailures());

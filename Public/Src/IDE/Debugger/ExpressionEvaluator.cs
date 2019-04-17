@@ -60,7 +60,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
             var context = evalState.Context;
             var moduleLiteral = evalState.GetEnvForFrame(frameContext.FrameIndex);
 
-            var frontEnd = new DScriptFrontEnd(evalState.Context.Constants, context.ModuleRegistry, new FrontEndStatistics());
+            var frontEnd = new DScriptFrontEnd(new FrontEndStatistics());
             frontEnd.InitializeFrontEnd(context.FrontEndHost, context.FrontEndContext, s_configuration);
 
             // We clear the logger before using it.
@@ -73,9 +73,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
                     context.FrontEndHost,
                     context.FrontEndContext,
                     m_logger,
-                    context.Package,
-                    context.Constants.Global,
-                    evalState.Context.ModuleRegistry);
+                    context.Package);
 
             // We recreate the local scope so the expression is parsed using the same local variables indexes
             // than the context where it is going to be evaluated

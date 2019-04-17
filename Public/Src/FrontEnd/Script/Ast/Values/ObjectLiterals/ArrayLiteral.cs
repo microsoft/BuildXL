@@ -191,7 +191,7 @@ namespace BuildXL.FrontEnd.Script.Values
                 return true;
             }
 
-            var resolvedMember = context.PredefinedTypes.AmbientArray.ResolveMember(this, name);
+            var resolvedMember = ((ModuleRegistry)context.FrontEndHost.ModuleRegistry).PredefinedTypes.AmbientArray.ResolveMember(this, name);
 
             if (resolvedMember == null)
             {

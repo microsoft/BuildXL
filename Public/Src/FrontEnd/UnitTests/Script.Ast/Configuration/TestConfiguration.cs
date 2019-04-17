@@ -276,13 +276,11 @@ config({
 
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(config, pathTable, bxlExeLocation: null, inTestMode: true);
 
-            var sharedModuleRegistry = new ModuleRegistry();
-            var constants = new GlobalConstants(FrontEndContext.SymbolTable);
+            var workspaceFactory = CreateWorkspaceFactoryForTesting(FrontEndContext, ParseAndEvaluateLogger);
+            var frontEndFactory = CreateFrontEndFactoryForParsingConfig(workspaceFactory, ParseAndEvaluateLogger);
+            var moduleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
 
-            var workspaceFactory = CreateWorkspaceFactoryForTesting(constants, sharedModuleRegistry, ParseAndEvaluateLogger);
-            var frontEndFactory = CreateFrontEndFactoryForParsingConfig(constants, sharedModuleRegistry, workspaceFactory, ParseAndEvaluateLogger);
-
-            CreateFrontEndHost(config, frontEndFactory, workspaceFactory, configFile, out var finalConfig, out _);
+            CreateFrontEndHost(config, frontEndFactory, workspaceFactory, moduleRegistry, configFile, out var finalConfig, out _);
             if (finalConfig != null)
             {
                 return new TestResult<IConfiguration>(finalConfig);

@@ -46,6 +46,11 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_ConfigFile);
 
             hw.WriteOption(
+                "/additionalConfigFile:<file>*",
+                Strings.HelpText_DisplayHelp_AdditionalConfigFile,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/qualifier:<qualifier list>",
                 Strings.HelpText_DisplayHelp_Qualifiers);
 

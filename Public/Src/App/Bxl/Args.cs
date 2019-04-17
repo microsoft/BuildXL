@@ -199,6 +199,10 @@ namespace BuildXL
                 m_handlers =
                     new[]
                     {
+                        OptionHandlerFactory.CreateOption2(
+                            "additionalConfigFile",
+                            "ac",
+                            opt => ParsePathOption(opt, pathTable, startupConfiguration.AdditionalConfigFiles)),
                         OptionHandlerFactory.CreateOption(
                             "adminRequiredProcessExecutionMode",
                             opt => sandboxConfiguration.AdminRequiredProcessExecutionMode = CommandLineUtilities.ParseEnumOption<AdminRequiredProcessExecutionMode>(opt)),
@@ -1346,6 +1350,11 @@ namespace BuildXL
             }
 
             return logPrefix;
+        }
+
+        private static void ParsePathOption(CommandLineUtilities.Option opt, PathTable pathTable, List<AbsolutePath> list)
+        {
+            list.Add(CommandLineUtilities.ParsePathOption(opt, pathTable));
         }
 
         private static void ParseStringOption(CommandLineUtilities.Option opt, List<string> list)

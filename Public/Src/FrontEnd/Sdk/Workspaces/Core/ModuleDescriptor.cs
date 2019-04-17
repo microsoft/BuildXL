@@ -4,8 +4,8 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.Utilities;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 

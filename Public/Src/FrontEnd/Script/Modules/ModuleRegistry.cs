@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Ambients;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.Utilities;
@@ -22,6 +23,12 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// The legacy global module registration
         /// </summary>
         public GlobalModuleLiteral GlobalLiteral { get; }
+
+        /// <nodoc />
+        public PrimitiveTypes PrimitiveTypes { get; }
+
+        /// <nodoc />
+        public PredefinedTypes PredefinedTypes { get; }
 
         /// <summary>
         /// Registry for module instances.
@@ -47,9 +54,13 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         internal ConcurrentDictionary<ModuleLiteralId, UninstantiatedModuleInfo> UninstantiatedModules => m_uninstantiatedModuleDictionary;
 
         /// <nodoc />
-        public ModuleRegistry(GlobalModuleLiteral globalLiteral)
+        public ModuleRegistry(SymbolTable symbolTable)
         {
-            GlobalLiteral = globalLiteral;
+            PrimitiveTypes = new PrimitiveTypes(symbolTable.StringTable);
+            GlobalLiteral = new GlobalModuleLiteral(symbolTable);
+            PredefinedTypes = new Ambients.PredefinedTypes(PrimitiveTypes);
+            PredefinedTypes.Register(GlobalLiteral);
+
         }
 
         /// <nodoc/>

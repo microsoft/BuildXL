@@ -47,13 +47,8 @@ namespace BuildXL.FrontEnd.Download
         private Dictionary<ModuleDescriptor, ModuleDefinition> m_definitions;
 
         /// <nodoc/>
-        public DownloadWorkspaceResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry)
+        public DownloadWorkspaceResolver()
         {
-            Contract.Requires(constants != null);
-            Contract.Requires(sharedModuleRegistry != null);
-
             m_descriptors = new HashSet<ModuleDescriptor>();
             m_descriptorsByName = new MultiValueDictionary<string, ModuleDescriptor>(StringComparer.Ordinal);
             m_descriptorsBySpecPath = new Dictionary<AbsolutePath, ModuleDescriptor>();

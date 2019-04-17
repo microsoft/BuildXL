@@ -40,9 +40,9 @@ namespace Test.DScript.Ast.Interpretation
             m_symbolTable = new SymbolTable(m_stringTable);
         }
 
-        private GlobalModuleLiteral GlobalModuleLiteral => new GlobalModuleLiteral(m_symbolTable);
+        private GlobalModuleLiteral GlobalModuleLiteral => ModuleRegistry.GlobalLiteral;
 
-        private ModuleRegistry ModuleRegistry => new ModuleRegistry(GlobalModuleLiteral);
+        private ModuleRegistry ModuleRegistry => new ModuleRegistry(m_symbolTable);
 
         private readonly StringTable m_stringTable;
 

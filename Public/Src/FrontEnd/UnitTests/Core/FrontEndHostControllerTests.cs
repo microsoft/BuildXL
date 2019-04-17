@@ -270,8 +270,7 @@ namespace Test.BuildXL.FrontEnd.Core
 
             var context = BuildXLContext.CreateInstanceForTesting();
 
-            var constants = new GlobalConstants(context.SymbolTable);
-            var moduleRegistry = new ModuleRegistry(constants.Global);
+            var moduleRegistry = new ModuleRegistry(context.SymbolTable);
 
             var controller = new FrontEndHostController(
                 factory, 

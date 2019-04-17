@@ -35,8 +35,6 @@ namespace Test.DScript.Debugger
         public DsDebuggerTest(ITestOutputHelper output)
             : base(output, usePassThroughFileSystem: true)
         {
-            var constants = new GlobalConstants(FrontEndContext.SymbolTable);
-            var sharedModuleRegistry = new ModuleRegistry(constants.Global);
             Debugger = new MockService(FrontEndContext.PathTable, LoggingContext).Debugger;
         }
 

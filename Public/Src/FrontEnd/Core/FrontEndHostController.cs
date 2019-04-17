@@ -105,8 +105,6 @@ namespace BuildXL.FrontEnd.Core
         /// </summary>
         private readonly FrontEndFactory m_frontEndFactory;
 
-        private readonly IModuleRegistry m_moduleRegistry;
-
         private EvaluationScheduler m_evaluationScheduler;
 
         private readonly IFrontEndStatistics m_frontEndStatistics;
@@ -140,7 +138,7 @@ namespace BuildXL.FrontEnd.Core
             m_frontEndFactory = frontEndFactory;
             m_workspaceResolverFactory = workspaceResolverFactory;
             m_evaluationScheduler = evaluationScheduler;
-            m_moduleRegistry = moduleRegistry;
+            ModuleRegistry = moduleRegistry;
             m_frontEndStatistics = frontEndStatistics;
             m_cycleDetectorStatistics = new CycleDetectorStatistics();
 
@@ -1290,7 +1288,7 @@ namespace BuildXL.FrontEnd.Core
 
                 try
                 {
-                    var task = await resolver.TryConvertModuleToEvaluationAsync(m_moduleRegistry, module, workspace);
+                    var task = await resolver.TryConvertModuleToEvaluationAsync(ModuleRegistry, module, workspace);
                     if (task != null)
                     {
                         return task.Value;

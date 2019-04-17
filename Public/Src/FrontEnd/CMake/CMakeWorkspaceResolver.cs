@@ -68,14 +68,12 @@ namespace BuildXL.FrontEnd.CMake
         /// <inheritdoc/>
         public CMakeWorkspaceResolver(
             StringTable stringTable,
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
             IFrontEndStatistics statistics)
-            : base(constants, sharedModuleRegistry, statistics, logger: null)
+            : base(statistics, logger: null)
         {
             Name = nameof(CMakeWorkspaceResolver);
             m_relativePathToCMakeRunner = RelativePath.Create(stringTable, CMakeRunnerRelativePath);
-            EmbeddedNinjaWorkspaceResolver = new NinjaWorkspaceResolver(stringTable, constants, sharedModuleRegistry, statistics);
+            EmbeddedNinjaWorkspaceResolver = new NinjaWorkspaceResolver(stringTable, statistics);
             m_embeddedResolverSettings = new Lazy<NinjaResolverSettings>(CreateEmbeddedResolverSettings);
         }
 

@@ -16,6 +16,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 
 namespace BuildXL.FrontEnd.Script.Evaluator
 {
@@ -34,10 +35,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
 
         /// <nodoc />
         public FrontEndContext FrontEndContext { get; private set; }
-
-        /// <nodoc />
-        public GlobalConstants Constants { get; private set; }
-
+        
         /// <nodoc />
         public CommonConstants CommonConstants { get; }
 
@@ -97,8 +95,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         public ContextTree(
             [NotNull]FrontEndHost frontEndHost,
             [NotNull]FrontEndContext frontEndContext,
-            [NotNull]GlobalConstants constants,
-            [NotNull]ModuleRegistry moduleRegistry,
             [NotNull]Logger logger,
             [NotNull]EvaluationStatistics statistics,
             QualifierValueCache qualifierValueCache,
@@ -111,8 +107,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         {
             Contract.Requires(frontEndHost != null);
             Contract.Requires(frontEndContext != null);
-            Contract.Requires(constants != null);
-            Contract.Requires(moduleRegistry != null);
             Contract.Requires(logger != null);
             Contract.Requires(statistics != null);
             Contract.Requires(module != null);
@@ -121,8 +115,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
 
             FrontEndHost = frontEndHost;
             FrontEndContext = frontEndContext;
-            Constants = constants;
-            ModuleRegistry = moduleRegistry;
+            ModuleRegistry = (ModuleRegistry)frontEndHost.ModuleRegistry;
             Logger = logger;
             Statistics = statistics;
             IsBeingDebugged = isBeingDebugged;
@@ -160,7 +153,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
                 RootContext.Dispose();
                 FrontEndHost = null;
                 FrontEndContext = null;
-                Constants = null;
                 ModuleRegistry = null;
                 Logger = null;
                 Statistics = null;

@@ -13,7 +13,6 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
@@ -27,8 +26,6 @@ using TypeScript.Net.DScript;
 using static BuildXL.Utilities.FormattableStringEx;
 using ISourceFile = TypeScript.Net.Types.ISourceFile;
 using SourceFile = TypeScript.Net.Types.SourceFile;
-using BuildXL.Utilities.Qualifier;
-using System.Collections.ObjectModel;
 
 namespace BuildXL.FrontEnd.MsBuild
 {
@@ -92,10 +89,8 @@ namespace BuildXL.FrontEnd.MsBuild
 
         /// <inheritdoc/>
         public MsBuildWorkspaceResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
             IFrontEndStatistics statistics)
-            : base(constants, sharedModuleRegistry, statistics, logger: null)
+            : base(statistics, logger: null)
         {
             Name = nameof(MsBuildWorkspaceResolver);
         }

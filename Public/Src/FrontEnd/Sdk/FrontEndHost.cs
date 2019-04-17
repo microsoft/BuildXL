@@ -7,13 +7,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.FrontEnd.Sdk.Evaluation;
+using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.Pips;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
-using JetBrains.Annotations;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Sdk.Workspaces;
+using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -74,6 +74,11 @@ namespace BuildXL.FrontEnd.Sdk
         /// Useful for deciding default values for options outside of the front-end configuration
         /// </remarks>
         public IConfiguration Configuration { get; protected set; }
+
+        /// <summary>
+        /// The global module registry
+        /// </summary>
+        public IModuleRegistry ModuleRegistry { get; protected set; }
 
         /// <summary>
         /// Engine.

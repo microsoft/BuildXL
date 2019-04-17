@@ -132,19 +132,13 @@ namespace BuildXL.FrontEnd.Script
 
         /// <nodoc/>
         public WorkspaceSourceModuleResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
+            StringTable stringTable,
             IFrontEndStatistics statistics,
             Logger logger = null)
-            : base(constants, sharedModuleRegistry, statistics, logger)
+            : base(statistics, logger)
         {
-            Contract.Requires(constants != null);
-            Contract.Requires(sharedModuleRegistry != null);
-
             Name = nameof(WorkspaceSourceModuleResolver);
             m_moduleResolutionState = ModuleResolutionState.Unresolved;
-
-            var stringTable = constants.KnownTypes.StringTable;
 
             m_configDsc = PathAtom.Create(stringTable, Names.ConfigDsc);
             m_configBc = PathAtom.Create(stringTable, Names.ConfigBc);
@@ -174,8 +168,6 @@ namespace BuildXL.FrontEnd.Script
             m_configConversionHelper = new ConfigurationConversionHelper(
                 host.Engine,
                 ConfigurationConversionHelper.ConfigurationKind.ModuleConfig,
-                Constants,
-                SharedModuleRegistry,
                 Logger,
                 FrontEndHost,
                 Context,

@@ -111,13 +111,11 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
         /// </summary>
         internal NinjaSchedulingResult ScheduleAll(NinjaResolverSettings resolverSettings, IList<NinjaNode> nodes, QualifierId qualifierId)
         {
-            var constants = new GlobalConstants(FrontEndContext.SymbolTable);
-            var sharedModuleRegistry = new ModuleRegistry(constants.Global);
+            var moduleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
+            var workspaceFactory = CreateWorkspaceFactoryForTesting(FrontEndContext, ParseAndEvaluateLogger);
+            var frontEndFactory = CreateFrontEndFactoryForEvaluation(workspaceFactory, ParseAndEvaluateLogger);
 
-            var workspaceFactory = CreateWorkspaceFactoryForTesting(constants, sharedModuleRegistry, ParseAndEvaluateLogger);
-            var frontEndFactory = CreateFrontEndFactoryForEvaluation(constants, sharedModuleRegistry, workspaceFactory, ParseAndEvaluateLogger);
-
-            using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, workspaceFactory, sharedModuleRegistry, AbsolutePath.Invalid, out _, out _))
+            using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, workspaceFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _))
             {
                 var pipConstructor = new NinjaPipConstructor(
                     FrontEndContext,

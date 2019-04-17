@@ -23,12 +23,10 @@ namespace BuildXL.FrontEnd.Nuget
 
         /// <nodoc/>
         public NugetFrontEnd(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
             IFrontEndStatistics statistics,
             Logger logger = null,
             IDecorator<EvaluationResult> evaluationDecorator = null)
-            : base(constants, sharedModuleRegistry, statistics, logger)
+            : base(statistics, logger)
         {
             Name = nameof(NugetFrontEnd);
 
@@ -63,8 +61,6 @@ namespace BuildXL.FrontEnd.Nuget
             Contract.Assert(m_sourceFileProcessingQueue != null, "Initialize method should be called to initialize m_sourceFileProcessingQueue.");
 
             return new NugetResolver(
-                Constants,
-                SharedModuleRegistry,
                 FrontEndHost,
                 Context,
                 Configuration,

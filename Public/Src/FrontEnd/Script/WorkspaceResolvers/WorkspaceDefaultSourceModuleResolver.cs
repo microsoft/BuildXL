@@ -50,11 +50,10 @@ namespace BuildXL.FrontEnd.Script
 
         /// <nodoc/>
         public WorkspaceDefaultSourceModuleResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
+            StringTable stringTable,
             IFrontEndStatistics statistics,
             Logger logger = null)
-            : base(constants, sharedModuleRegistry, statistics, logger)
+            : base(stringTable, statistics, logger)
         {
             Name = nameof(WorkspaceDefaultSourceModuleResolver);
         }

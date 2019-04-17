@@ -235,34 +235,29 @@ export function test(args: TestArguments): TestResult {{
             out ModuleRegistry moduleRegistry,
             out FrontEndFactory frontEndFactory)
         {
-            var globalConstants = new GlobalConstants(frontEndContext.SymbolTable);
-            ambientTesting = new AmbientTesting(engineAbstraction, GetAllDiagnostics, globalConstants.KnownTypes);
-            ambientTesting.Initialize(globalConstants.Global);
+            moduleRegistry = new ModuleRegistry(frontEndContext.SymbolTable);
+            ambientTesting = new AmbientTesting(engineAbstraction, GetAllDiagnostics, moduleRegistry.PrimitiveTypes);
+            ambientTesting.Initialize(moduleRegistry.GlobalLiteral);
 
-            var ambientAssert = new AmbientAssert(globalConstants.KnownTypes);
-            ambientAssert.Initialize(globalConstants.Global);
-
-            moduleRegistry = new ModuleRegistry(globalConstants.Global);
-            var localModuleRegistry = moduleRegistry;
+            var ambientAssert = new AmbientAssert(moduleRegistry.PrimitiveTypes);
+            ambientAssert.Initialize(moduleRegistry.GlobalLiteral);
 
             workspaceFactory = new DScriptWorkspaceResolverFactory();
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.DScriptResolverKind,
-                () => new WorkspaceSourceModuleResolver(globalConstants, localModuleRegistry, frontEndStatistics));
+                () => new WorkspaceSourceModuleResolver(frontEndContext.StringTable, frontEndStatistics));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.SourceResolverKind,
-                () => new WorkspaceSourceModuleResolver(globalConstants, localModuleRegistry, frontEndStatistics));
+                () => new WorkspaceSourceModuleResolver(frontEndContext.StringTable, frontEndStatistics));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.DefaultSourceResolverKind,
-                () => new WorkspaceDefaultSourceModuleResolver(globalConstants, localModuleRegistry, frontEndStatistics));
+                () => new WorkspaceDefaultSourceModuleResolver(frontEndContext.StringTable, frontEndStatistics));
 
             // Create the controller
             frontEndFactory = new FrontEndFactory();
             frontEndFactory.SetConfigurationProcessor(new TestConfigProcessor(configuration));
             frontEndFactory.AddFrontEnd(
                 new DScriptFrontEnd(
-                    globalConstants,
-                    moduleRegistry,
                     frontEndStatistics,
                     logger: m_astLogger));
 

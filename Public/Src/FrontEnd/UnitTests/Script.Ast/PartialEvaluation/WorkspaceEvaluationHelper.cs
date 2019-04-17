@@ -131,8 +131,7 @@ namespace Test.DScript.Ast.PartialEvaluation
         public async Task<TestResult<Interpreter>> ConvertNoErrorCheckAsync(Workspace workspace, [CanBeNull] PipGraph oldPipGraph)
         {
             var nonPreludeModules = NonPreludeModules(workspace).ToArray();
-            var constants = new GlobalConstants(SymbolTable);
-            var moduleRegistry = new ModuleRegistry(constants.Global);
+            var moduleRegistry = new ModuleRegistry(SymbolTable);
 
             var configStringPath = Path.Combine(SrcRoot.ToString(PathTable), Names.ConfigDsc);
 
@@ -148,7 +147,7 @@ namespace Test.DScript.Ast.PartialEvaluation
                                     }
                                 };
             var frontEndHost = FrontEndHostController.CreateForTesting(FrontEndContext, Engine, moduleRegistry, configStringPath, FrontEndLogger);
-            var frontEnd = new DScriptFrontEnd(constants, moduleRegistry, FrontEndStatistics, AstLogger, null);
+            var frontEnd = new DScriptFrontEnd(FrontEndStatistics, AstLogger, null);
             frontEnd.InitializeFrontEnd(frontEndHost, FrontEndContext, configuration);
 
             var resolver = (DScriptSourceResolver)frontEnd.CreateResolver(KnownResolverKind.DScriptResolverKind);

@@ -11,7 +11,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Ninja.Serialization;
 using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.FrontEnd.Utilities;
@@ -70,10 +69,8 @@ namespace BuildXL.FrontEnd.Ninja
         /// <inheritdoc/>
         public NinjaWorkspaceResolver(
             StringTable stringTable,
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
             IFrontEndStatistics statistics)
-            : base(constants, sharedModuleRegistry, statistics, logger: null)
+            : base(statistics, logger: null)
         {
             Name = nameof(NinjaWorkspaceResolver);
             m_relativePathToGraphConstructionTool = RelativePath.Create(stringTable, NinjaGraphBuilderRelativePath);

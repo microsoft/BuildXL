@@ -1815,6 +1815,15 @@ If you can't update and need this feature after July 2018 please reach out to th
         private const string ScrubbingStatusPrefix = "Scrubbing files extraneous to this build.";
 
         [GeneratedEvent(
+            (ushort)EventId.ConfigUnsafeSharedOpaqueEmptyDirectoryScrubbingDisabled,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.Engine,
+            Message = "/unsafe_DisableSharedOpaqueEmptyDirectoryScrubbing: removal of empty directories within shared opaques has been disabled. This is an unsafe configuration since it may work in detriment of build correctness.")]
+        public abstract void ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing(LoggingContext context);
+
+        [GeneratedEvent(
             (int)EventId.ScrubbingStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

@@ -83,6 +83,35 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
+        public void UnsafeEmptyDirectoriesUnderSharedOpaqueAreNotScrubbedWhenDisabled()
+        {
+            // The unsafe option should be off by default
+            Assert.False(Configuration.Schedule.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing);
+
+            // Create a directory that is not part of the spec
+            var objDir = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
+            var untrackedDirectoryPath = Path.Combine(objDir, X("out/subdir/untracked/"));
+
+            var file = X("out/subdir/MyFile.txt");
+            var spec0 = ProduceFileUnderSharedOpaque(file);
+            AddModule("Module0", ("spec0.dsc", spec0), placeInRoot: true);
+
+            // When the option is disabled, the untracked directory should be removed
+            Assert.False(Directory.Exists(untrackedDirectoryPath));
+            Directory.CreateDirectory(untrackedDirectoryPath);
+            Configuration.Schedule.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
+            RunEngine(expectSuccess: true);
+            Assert.False(Directory.Exists(untrackedDirectoryPath));
+
+            // When the option is enabled, it should not.
+            Directory.CreateDirectory(untrackedDirectoryPath);
+            Configuration.Schedule.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = true;
+            RunEngine(expectSuccess: true);
+            Assert.True(Directory.Exists(untrackedDirectoryPath));
+            Configuration.Schedule.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
+        }
+
+        [Fact]
         public void OutputsUnderSharedOpaqueInSubdirAreScrubbed()
         {
             var file = X("out/subdir/MyFile.txt");

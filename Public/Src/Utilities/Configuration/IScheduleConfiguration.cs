@@ -286,5 +286,13 @@ namespace BuildXL.Utilities.Configuration
         /// Skip hash source file pips during graph creation.
         /// </summary>
         bool SkipHashSourceFile { get; }
+
+        /// <summary>
+        /// Unsafe configuration that stops the shared opaque scrubber from deleting empty directories
+        /// </summary>
+        /// <remarks>
+        /// TODO: Remove this when https://gitlab.kitware.com/cmake/cmake/issues/19162 has reached mainstream versions
+        /// </remarks>
+        bool UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing { get; }
     }
 }

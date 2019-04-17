@@ -2173,7 +2173,8 @@ namespace BuildXL.Engine
                 { "unsafe_LazySymlinkCreation", Logger.Log.ConfigUnsafeLazySymlinkCreation },
                 { "unsafe_MonitorFileAccesses", Logger.Log.ConfigUnsafeDisabledFileAccessMonitoring },
                 { "unsafe_PreserveOutputs", Logger.Log.ConfigPreserveOutputs },
-                { "unsafe_SourceFileCanBeInsideOutputDirectory", loggingContext => { } },
+                { "unsafe_DisableSharedOpaqueEmptyDirectoryScrubbing", Logger.Log.ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing },
+                { "unsafe_SourceFileCanBeInsideOutputDirectory", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
                 { "unsafe_UnexpectedFileAccessesAreErrors", Logger.Log.ConfigUnsafeUnexpectedFileAccessesAsWarnings },
             };
         }

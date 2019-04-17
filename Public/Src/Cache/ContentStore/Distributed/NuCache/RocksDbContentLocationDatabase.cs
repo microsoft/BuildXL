@@ -21,6 +21,7 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Threading;
+using RocksDbSharp;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -300,7 +301,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var keyBuffer = new List<ShortHash>();
             byte[] startValue = null;
-            
+
             const int KeysChunkSize = 100000;
             while (!token.IsCancellationRequested)
             {
@@ -338,7 +339,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
 
                     }).ThrowOnError();
-
+                
                 if (keyBuffer.Count == 0)
                 {
                     break;
@@ -357,12 +358,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             EnumerationFilter filter = null)
         {
             var keyBuffer = new List<(ShortHash key, ContentLocationEntry entry)>();
-            byte[] startValue = null;
             const int KeysChunkSize = 100000;
+            byte[] startValue = null;
             while (!token.IsCancellationRequested)
             {
                 keyBuffer.Clear();
-
+                
                 _keyValueStore.Use(
                     store =>
                     {
@@ -378,19 +379,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     if (keyBuffer.Count == 0 && ByteArrayComparer.Instance.Equals(startValue, key = iterator.Key()))
                                     {
                                         // Start value is the same as the key. Skip it to keep from double processing the start value.
+
+                                        // Set startValue to null to indicate that we potentially could have reached the end of the database.
+                                        startValue = null;
                                         return false;
                                     }
 
+                                    startValue = null;
                                     byte[] value = null;
                                     if (filter != null && filter(value = iterator.Value()))
                                     {
                                         keyBuffer.Add((DeserializeKey(key ?? iterator.Key()), Deserialize(value)));
                                     }
 
-                                    startValue = key;
-
                                     if (keyBuffer.Count == KeysChunkSize)
                                     {
+                                        // We reached the limit for a current chunk.
+                                        // Reading the iterator to get the new start value.
+                                        startValue = iterator.Key();
                                         cts.Cancel();
                                     }
 
@@ -402,14 +408,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     }).ThrowOnError();
 
-                if (keyBuffer.Count == 0)
-                {
-                    break;
-                }
-
                 foreach (var key in keyBuffer)
                 {
                     yield return key;
+                }
+
+                // Null value in startValue variable means that the database reached it's end.
+                if (startValue == null)
+                {
+                    break;
                 }
             }
         }

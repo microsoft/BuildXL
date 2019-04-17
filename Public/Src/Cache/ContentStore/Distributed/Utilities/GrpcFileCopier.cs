@@ -67,8 +67,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
         private (string host, ContentHash contentHash) ExtractHostHashFromAbsolutePath(AbsolutePath sourcePath)
         {
-            Contract.Assert(sourcePath.IsUnc);
-
             // TODO: Keep the segments in the AbsolutePath object?
             // TODO: Indexable structure?
             var segments = sourcePath.GetSegments();

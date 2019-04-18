@@ -35,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(null), Description("Identifier for the ring this service will run as")] string ringId,
             [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB,
             [DefaultValue(false)] bool useDistributedGrpc,
-            [DefaultValue(false)] bool useCompressionForCopies
+            [DefaultValue(false)] bool useCompression
             )
         {
             Initialize();
@@ -56,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.App
                 }
 
                 var arguments = CreateDistributedCacheServiceArguments(
-                    copier: useDistributedGrpc ? new GrpcFileCopier(new Interfaces.Tracing.Context(_logger), grpcPort, useCompressionForCopies) : (IAbsolutePathFileCopier)new DistributedCopier(),
+                    copier: useDistributedGrpc ? new GrpcFileCopier(new Interfaces.Tracing.Context(_logger), grpcPort, useCompression) : (IAbsolutePathFileCopier)new DistributedCopier(),
                     pathTransformer: useDistributedGrpc ? new GrpcDistributedPathTransformer() : (IAbsolutePathTransformer)new DistributedPathTransformer(),
                     host: host,
                     cacheName: cacheName,

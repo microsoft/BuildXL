@@ -147,6 +147,7 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public long MaxBlobCapacity { get; set; } = 1024 * 1024 * 1024;
 
+        #region Grpc Copier
         /// <summary>
         /// Use GRPC for file copies between CASaaS.
         /// </summary>
@@ -154,10 +155,11 @@ namespace BuildXL.Cache.Host.Configuration
         public bool IsGrpcCopierEnabled { get; set; } = false;
 
         /// <summary>
-        /// Use GZip for GRPC copies.
+        /// Whether or not GZip is enabled for GRPC copies.
         /// </summary>
         [DataMember]
-        public bool IsGZipEnabled { get; set; } = false;
+        public bool UseCompressionForCopies { get; set; } = false;
+        #endregion
 
         #region Distributed Eviction
         [DataMember]

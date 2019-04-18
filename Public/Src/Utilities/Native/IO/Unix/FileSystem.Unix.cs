@@ -953,7 +953,19 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc/>
+        public bool IsWciReparseArtifact(string path)
+        {
+            return false;
+        }
+
+        /// <inheritdoc/>
         public bool IsWciReparsePoint(string path)
+        {
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public bool IsWciTombstoneFile(string path)
         {
             return false;
         }

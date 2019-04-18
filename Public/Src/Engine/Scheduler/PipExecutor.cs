@@ -3529,13 +3529,8 @@ namespace BuildXL.Scheduler
                     FileOutputData.UpdateFileData(allOutputData, output.Path, OutputFlags.DeclaredFile);
 
                     // If the directory containing the output file was redirected, then we want to cache the content of the redirected output instead.
-                    AbsolutePath originalDirectory = output.Path.GetParent(pathTable);
-                    if (outputFilesAreRedirected && containerConfiguration.OriginalDirectories.TryGetValue(originalDirectory, out var redirectedDirectories))
+                    if (outputFilesAreRedirected && environment.ProcessInContainerManager.TryGetRedirectedDeclaredOutputFile(output.Path, containerConfiguration, out AbsolutePath redirectedOutputPath))
                     {
-                        // The original directory was an output directory, so there should always be a single redirected directory for it
-                        ExpandedAbsolutePath redirectedDirectory = redirectedDirectories.Single();
-                        AbsolutePath redirectedOutputPath = output.Path.Relocate(pathTable, originalDirectory, redirectedDirectory.Path);
-
                         var redirectedOutput = new FileArtifactWithAttributes(redirectedOutputPath, output.RewriteCount, output.FileExistence);
                         allRedirectedOutputs.Add(output.Path, redirectedOutput);
                     }
@@ -3568,7 +3563,7 @@ namespace BuildXL.Scheduler
 
                                 if (exclusiveOutputDirectoriesAreRedirected)
                                 {
-                                    PopulateRedirectedOutputsForFileInOpaque(pathTable, containerConfiguration, directoryArtifactPath, fileArtifactWithAttributes, allRedirectedOutputs);
+                                    PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, fileArtifactWithAttributes, allRedirectedOutputs);
                                 }
                             },
 
@@ -3629,7 +3624,7 @@ namespace BuildXL.Scheduler
 
                             if (sharedOutputDirectoriesAreRedirected)
                             {
-                                PopulateRedirectedOutputsForFileInOpaque(pathTable, containerConfiguration, directoryArtifactPath, fileArtifactWithAttributes, allRedirectedOutputs);
+                                PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, fileArtifactWithAttributes, allRedirectedOutputs);
                             }
                         }
 
@@ -3868,15 +3863,10 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static void PopulateRedirectedOutputsForFileInOpaque(PathTable pathTable, ContainerConfiguration containerConfiguration, AbsolutePath opaqueDirectory, FileArtifactWithAttributes fileArtifactInOpaque, Dictionary<AbsolutePath, FileArtifactWithAttributes> allRedirectedOutputs)
+        private static void PopulateRedirectedOutputsForFileInOpaque(PathTable pathTable, IPipExecutionEnvironment environment, ContainerConfiguration containerConfiguration, AbsolutePath opaqueDirectory, FileArtifactWithAttributes fileArtifactInOpaque, Dictionary<AbsolutePath, FileArtifactWithAttributes> allRedirectedOutputs)
         {
-            if (containerConfiguration.OriginalDirectories.TryGetValue(opaqueDirectory, out var redirectedDirectories))
+            if (environment.ProcessInContainerManager.TryGetRedirectedOpaqueFile(fileArtifactInOpaque.Path, opaqueDirectory, containerConfiguration, out AbsolutePath redirectedPath))
             {
-                // The original directory was an output directory, so there should always be a single redirected directory for it
-                ExpandedAbsolutePath redirectedDirectory = redirectedDirectories.Single();
-
-                // The file may be nested under the opaque, so we relocate it to the redirected directory
-                AbsolutePath redirectedPath = fileArtifactInOpaque.Path.Relocate(pathTable, opaqueDirectory, redirectedDirectory.Path);
                 var redirectedOutput = new FileArtifactWithAttributes(redirectedPath, fileArtifactInOpaque.RewriteCount, fileArtifactInOpaque.FileExistence);
                 allRedirectedOutputs.Add(fileArtifactInOpaque.Path, redirectedOutput);
             }

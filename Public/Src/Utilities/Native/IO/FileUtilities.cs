@@ -684,10 +684,22 @@ namespace BuildXL.Native.IO
             }
         }
 
+        /// <see cref="IFileSystem.IsWciReparseArtifact(string)"/>
+        public static bool IsWciReparseArtifact(string path)
+        {
+            return s_fileSystem.IsWciReparseArtifact(path);
+        }
+
         /// <see cref="IFileSystem.IsWciReparsePoint(string)"/>
         public static bool IsWciReparsePoint(string path)
         {
             return s_fileSystem.IsWciReparsePoint(path);
+        }
+
+        /// <see cref="IFileSystem.IsWciTombstoneFile(string)"/>
+        public static bool IsWciTombstoneFile(string path)
+        {
+            return s_fileSystem.IsWciTombstoneFile(path);
         }
 
         /// <see cref="IFileSystem.GetChainOfReparsePoints(SafeFileHandle, string, IList{string})"/>

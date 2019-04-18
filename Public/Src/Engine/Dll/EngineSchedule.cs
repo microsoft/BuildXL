@@ -811,7 +811,8 @@ namespace BuildXL.Engine
                     isPathInBuild: path =>
                         // Scheduler.PipGraph.IsPathInBuild is used for extra safety.
                         scheduler.PipGraph.IsPathInBuild(AbsolutePath.Create(scheduler.Context.PathTable, path)) ||
-                        !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path), 
+                        !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path) ||
+                        ShouldRemoveEmptyDirectories(configuration, path),
                     pathsToScrub: sharedOpaqueDirectories.Select(directory => directory.Path.ToString(scheduler.Context.PathTable)),
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
@@ -823,6 +824,12 @@ namespace BuildXL.Engine
                 Logger.Log.ScrubbingSharedOpaquesStarted(loggingContext);
                 scrubber.RemoveExtraneousFilesAndDirectories(scheduler.Context.CancellationToken);
             }
+        }
+
+        private static bool ShouldRemoveEmptyDirectories(IConfiguration configuration, string path)
+        {
+            // EnumerateFileSystemEntries is known to be slow, but is used anyways because of the expected use-case.
+            return configuration.Schedule.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing && Directory.Exists(path) && !Directory.EnumerateFileSystemEntries(path).Any();
         }
 
         internal static IReadOnlyList<string> GetNonScrubbablePaths(

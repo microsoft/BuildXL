@@ -531,6 +531,7 @@ namespace BuildXL.Utilities.Tracing
         CleaningDirectoryFailed = 864,
 
         ScrubbingFailedToEnumerateMissingDirectory = 865,
+        ConfigUnsafeSharedOpaqueEmptyDirectoryScrubbingDisabled = 866,
 
         // Config
         ConfigUnsafeDisabledFileAccessMonitoring = 900,

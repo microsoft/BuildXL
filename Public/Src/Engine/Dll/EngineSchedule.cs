@@ -828,6 +828,7 @@ namespace BuildXL.Engine
 
         private static bool ShouldRemoveEmptyDirectories(IConfiguration configuration, string path)
         {
+            // EnumerateFileSystemEntries is known to be slow, but is used anyways because of the expected use-case.
             return configuration.Schedule.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing && Directory.Exists(path) && !Directory.EnumerateFileSystemEntries(path).Any();
         }
 

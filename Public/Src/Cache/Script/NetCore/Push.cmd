@@ -14,8 +14,8 @@ if  %VERSION% == "" (
 
 pushd %~dp0..\..
 
-call :DoCall "%~dp0..\nuget.exe push -Source "https://mseng.pkgs.visualstudio.com/DefaultCollection/_packaging/Domino.Public.Experimental/nuget/v3/index.json" -ApiKey VSTS %~dp0ContentStoreInterfaces.%VERSION%-netcore.nupkg" "Pushing the Content Store Interfaces Nuget package to the experimental feed"
-call :DoCall "%~dp0..\nuget.exe push -Source "https://mseng.pkgs.visualstudio.com/DefaultCollection/_packaging/Domino.Public.Experimental/nuget/v3/index.json" -ApiKey VSTS %~dp0MemoizationStoreInterfaces.%VERSION%-netcore.nupkg" "Pushing the Memoization Store Interfaces Nuget package to the experimental feed"
+call :DoCall "%~dp0..\nuget.exe push -Source "https://dev.azure.com/mseng/DefaultCollection/_packaging/Domino.Public.Experimental/nuget/v3/index.json" -ApiKey VSTS %~dp0ContentStoreInterfaces.%VERSION%-netcore.nupkg" "Pushing the Content Store Interfaces Nuget package to the experimental feed"
+call :DoCall "%~dp0..\nuget.exe push -Source "https://dev.azure.com/mseng/DefaultCollection/_packaging/Domino.Public.Experimental/nuget/v3/index.json" -ApiKey VSTS %~dp0MemoizationStoreInterfaces.%VERSION%-netcore.nupkg" "Pushing the Memoization Store Interfaces Nuget package to the experimental feed"
 
 goto :eof
 

@@ -862,7 +862,7 @@ namespace BuildXL.Native.IO.Windows
             IO_REPARSE_TAG_WCIFS = 0x80000018, // The tag for a WCI reparse point
             [SuppressMessage("Microsoft.Naming", "CA1700:DoNotNameEnumValuesReserved")]
             [SuppressMessage("Microsoft.Naming", "CA1707:RemoveUnderscoresFromMemberName")]
-            IO_REPARSE_TAG_WCIFS_TOMBSTONE = 0xA000001F // The tag for a WCI tombstone file
+            IO_REPARSE_TAG_WCIFS_TOMBSTONE = 0xA000001F, // The tag for a WCI tombstone file
         }
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
@@ -3411,8 +3411,6 @@ namespace BuildXL.Native.IO.Windows
                 return false;
             }
         }
-
-
 
         [DllImport("ntdll.dll", ExactSpelling = true)]
         internal static extern NtStatus NtSetInformationFile(

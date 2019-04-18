@@ -8,7 +8,6 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
-using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.RuntimeModel;
@@ -264,20 +263,12 @@ namespace BuildXL.FrontEnd.Script
             EvaluatorConfiguration configuration,
             FileType fileType)
         {
-            Contract.Requires(instantiatedModule != null);
-
-            return new ContextTree(
-                FrontEndHost,
-                Context,
-                Logger,
-                Statistics,
-                qualifierValueCache: QualifierValueCache,
-                isBeingDebugged: IsBeingDebugged,
-                decorator: decorator,
-                module: instantiatedModule,
-                configuration: configuration,
-                evaluationScheduler: EvaluationScheduler.Default,
-                fileType: fileType);
+            return CreateContext(
+                instantiatedModule,
+                FrontEndHost.DefaultEvaluationScheduler,
+                decorator,
+                configuration,
+                fileType);
         }
 
         /// <nodoc />
@@ -512,7 +503,8 @@ namespace BuildXL.FrontEnd.Script
             IFrontEndStatistics frontEndStatistics,
             ByteContent serializedAst)
         {
-            frontEndStatistics = frontEndStatistics ?? new FrontEndStatistics();
+            Contract.Requires(frontEndStatistics != null);
+
             var parser = serializedAst.IsValid
                 ? new PublicSurfaceParser(Context.PathTable, serializedAst.Content, serializedAst.Length)
                 : parsingOptions.ConvertPathLikeLiteralsAtParseTime

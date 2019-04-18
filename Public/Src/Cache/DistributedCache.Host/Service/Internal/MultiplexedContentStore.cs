@@ -299,5 +299,43 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             return openStreamResult ?? new OpenStreamResult($"Could not find a content store which implements {nameof(IStreamStore)} in {nameof(MultiplexedContentStore)}.");
         }
+
+        public async Task<FileExistenceResult> CheckFileExistsAsync(Context context, ContentHash contentHash)
+        {
+            FileExistenceResult fileExistenceResult = null;
+
+            // Check primary content store
+            var preferredCacheStore = _drivesWithContentStore[_preferredCacheDrive];
+            if (preferredCacheStore is IStreamStore streamStore)
+            {
+                fileExistenceResult = await streamStore.CheckFileExistsAsync(context, contentHash);
+
+                if (fileExistenceResult.Succeeded)
+                {
+                    return fileExistenceResult;
+                }
+            }
+
+            foreach (var kvp in _drivesWithContentStore)
+            {
+                if (kvp.Key == _preferredCacheDrive)
+                {
+                    // Already checked the preferred cache
+                    continue;
+                }
+
+                if (kvp.Value is IStreamStore otherStreamStore)
+                {
+                    fileExistenceResult = await otherStreamStore.CheckFileExistsAsync(context, contentHash);
+
+                    if (fileExistenceResult.Succeeded)
+                    {
+                        return fileExistenceResult;
+                    }
+                }
+            }
+
+            return fileExistenceResult ?? new FileExistenceResult(FileExistenceResult.ResultCode.Error, $"Could not find a content store which implements {nameof(IStreamStore)} in {nameof(MultiplexedContentStore)}.");
+        }
     }
 }

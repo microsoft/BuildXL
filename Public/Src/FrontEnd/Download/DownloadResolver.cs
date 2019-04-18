@@ -32,6 +32,7 @@ using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 using System.ComponentModel;
 using System.Diagnostics;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 
 namespace BuildXL.FrontEnd.Download
 {
@@ -40,10 +41,8 @@ namespace BuildXL.FrontEnd.Download
     /// </summary>
     public sealed class DownloadResolver : IResolver
     {
-        private readonly ModuleRegistry m_sharedModuleRegistry;
         private readonly FrontEndHost m_frontEndHost;
         private readonly FrontEndContext m_context;
-        private readonly GlobalConstants m_constants;
         private readonly Logger m_logger;
 
         private DownloadWorkspaceResolver m_workspaceResolver;
@@ -62,8 +61,6 @@ namespace BuildXL.FrontEnd.Download
 
         /// <nodoc/>
         public DownloadResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
             Statistics statistics,
             FrontEndHost frontEndHost,
             FrontEndContext context,
@@ -73,8 +70,6 @@ namespace BuildXL.FrontEnd.Download
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
 
             Name = frontEndName;
-            m_constants = constants;
-            m_sharedModuleRegistry = sharedModuleRegistry;
             Statistics = statistics;
             m_frontEndHost = frontEndHost;
             m_context = context;
@@ -107,7 +102,7 @@ namespace BuildXL.FrontEnd.Download
         }
 
         /// <inheritdoc />
-        public Task<bool?> TryConvertModuleToEvaluationAsync([NotNull] ParsedModule module, [NotNull] IWorkspace workspace)
+        public Task<bool?> TryConvertModuleToEvaluationAsync(IModuleRegistry moduleRegistry, ParsedModule module, IWorkspace workspace)
         {
             if (!string.Equals(module.Descriptor.ResolverName, Name, StringComparison.Ordinal))
             {
@@ -126,9 +121,8 @@ namespace BuildXL.FrontEnd.Download
 
             var currentFileModule = ModuleLiteral.CreateFileModule(
                 sourceFilePath,
-                m_constants.Global,
+                moduleRegistry,
                 package,
-                m_sharedModuleRegistry,
                 sourceFile.LineMap);
 
             // Download
@@ -165,7 +159,7 @@ namespace BuildXL.FrontEnd.Download
                 currentFileModule,
                 m_context.QualifierTable.EmptyQualifierSpaceId);
 
-            m_sharedModuleRegistry.AddUninstantiatedModuleInfo(moduleInfo);
+            moduleRegistry.AddUninstantiatedModuleInfo(moduleInfo);
 
             return Task.FromResult<bool?>(true);
         }

@@ -3,18 +3,31 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 
-namespace BuildXL.FrontEnd.Workspaces.Core
+namespace BuildXL.FrontEnd.Workspaces
 {
     /// <summary>
     /// A workspace resolver has knowledge of a set of module definitions and supports a number of queries across them.
     /// </summary>
     public interface IWorkspaceModuleResolver
     {
+        /// <summary>
+        /// Initializes the workspace resolver
+        /// </summary>
+        bool TryInitialize(
+            [NotNull]FrontEndHost host,
+            [NotNull]FrontEndContext context,
+            [NotNull]IConfiguration configuration,
+            [NotNull]IResolverSettings resolverSettings,
+            [NotNull]QualifierId[] requestedQualifiers);
+
         /// <summary>
         /// If <param name="moduleDescriptor"/> is owned by this resolver, returns the ModuleDefinition with that name.
         /// </summary>

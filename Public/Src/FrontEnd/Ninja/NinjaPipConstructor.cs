@@ -2,26 +2,22 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
-using BuildXL.Pips;
-using BuildXL.Pips.Builders;
-using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
-using static BuildXL.Utilities.FormattableStringEx;
-using BuildXL.FrontEnd.Ninja.Serialization;
 using System.IO;
-using System.Collections;
+using System.Linq;
 using System.Text.RegularExpressions;
+using BuildXL.FrontEnd.Ninja.Serialization;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
-using BuildXL.Tracing;
+using BuildXL.Pips;
+using BuildXL.Pips.Builders;
+using BuildXL.Pips.Operations;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Resolvers;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Qualifier;
+using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Ninja
 {

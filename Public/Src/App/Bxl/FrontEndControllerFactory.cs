@@ -207,15 +207,14 @@ namespace BuildXL
             bool collectMemoryAsSoonAsPossible,
             IFrontEndStatistics statistics)
         {
-            var workspaceResolverFactory = new DScriptWorkspaceResolverFactory();
-
             Contract.Requires(frontEndFactory != null && !frontEndFactory.IsSealed);
+
+            var workspaceResolverFactory = new DScriptWorkspaceResolverFactory();
 
             // Statistic should be global for all front-ends, not per an instance.
             var frontEndStatistics = statistics ?? new FrontEndStatistics();
 
-            var globalConstants = new GlobalConstants(symbolTable);
-            var sharedModuleRegistry = new ModuleRegistry();
+            var sharedModuleRegistry = new ModuleRegistry(symbolTable);
 
             // Note, that the following code is absolutely critical for detecting that front-end related objects
             // are freed successfully after evaluation.
@@ -224,52 +223,31 @@ namespace BuildXL
 
             frontEndFactory.SetConfigurationProcessor(
                 new ConfigurationProcessor(
-                    globalConstants, 
-                    sharedModuleRegistry,
                     new FrontEndStatistics(), // Configuration processing is so lightweight that it won't affect overall perf statistics
                     logger: null));
 
-            var msBuildFrontEnd = new MsBuildFrontEnd(
-                globalConstants,
-                sharedModuleRegistry,
-                frontEndStatistics);
+            var msBuildFrontEnd = new MsBuildFrontEnd();
 
-            var ninjaFrontEnd = new NinjaFrontEnd(
-                globalConstants,
-                sharedModuleRegistry,
-                frontEndStatistics);
+            var ninjaFrontEnd = new NinjaFrontEnd();
 
-            var cmakeFrontEnd = new CMakeFrontEnd(
-                globalConstants,
-                sharedModuleRegistry,
-                frontEndStatistics);
+            var cmakeFrontEnd = new CMakeFrontEnd();
 
             // TODO: Workspace resolvers and frontends are registered in separate factories. Consider
             // adding a main coordinator/registry
             RegisterKnownWorkspaceResolvers(
+                symbolTable.StringTable,
                 workspaceResolverFactory, 
-                globalConstants, 
-                sharedModuleRegistry, 
-                frontEndStatistics, 
-                msBuildFrontEnd,
-                ninjaFrontEnd,
-                cmakeFrontEnd);
+                frontEndStatistics);
 
             frontEndFactory.AddFrontEnd(new DScriptFrontEnd(
-                globalConstants,
-                sharedModuleRegistry,
                 frontEndStatistics,
                 evaluationDecorator: decorator));
 
             frontEndFactory.AddFrontEnd(new NugetFrontEnd(
-                globalConstants,
-                sharedModuleRegistry,
                 frontEndStatistics,
                 evaluationDecorator: decorator));
 
-            frontEndFactory.AddFrontEnd(new DownloadFrontEnd(
-                globalConstants,
-                sharedModuleRegistry));
+            frontEndFactory.AddFrontEnd(new DownloadFrontEnd());
 
             frontEndFactory.AddFrontEnd(msBuildFrontEnd);
             frontEndFactory.AddFrontEnd(ninjaFrontEnd);
@@ -284,6 +262,7 @@ namespace BuildXL
                 frontEndFactory,
                 workspaceResolverFactory,
                 evaluationScheduler: EvaluationScheduler.Default,
+                moduleRegistry: sharedModuleRegistry,
                 frontEndStatistics: frontEndStatistics,
                 logger: BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(),
                 collector: collector, 
@@ -291,38 +270,34 @@ namespace BuildXL
         }
 
         private static void RegisterKnownWorkspaceResolvers(
+            StringTable stringTable,
             DScriptWorkspaceResolverFactory workspaceFactory,
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
-            IFrontEndStatistics statistics,
-            MsBuildFrontEnd msBuildFrontEnd,
-            NinjaFrontEnd ninjaFrontEnd,
-            CMakeFrontEnd cmakeFrontend)
+            IFrontEndStatistics statistics)
         {
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.SourceResolverKind,
-                () => new WorkspaceSourceModuleResolver(constants, sharedModuleRegistry, statistics, logger: null));
+                () => new WorkspaceSourceModuleResolver(stringTable, statistics, logger: null));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.DScriptResolverKind,
-                () => new WorkspaceSourceModuleResolver(constants, sharedModuleRegistry, statistics, logger: null));
+                () => new WorkspaceSourceModuleResolver(stringTable, statistics, logger: null));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.DefaultSourceResolverKind,
-                () => new WorkspaceDefaultSourceModuleResolver(constants, sharedModuleRegistry, statistics, logger: null));
+                () => new WorkspaceDefaultSourceModuleResolver(stringTable, statistics, logger: null));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.NugetResolverKind,
-                () => new WorkspaceNugetModuleResolver(constants, sharedModuleRegistry, statistics));
+                () => new WorkspaceNugetModuleResolver(stringTable, statistics));
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.DownloadResolverKind,
-                () => new DownloadWorkspaceResolver(constants, sharedModuleRegistry));
+                () => new DownloadWorkspaceResolver());
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.MsBuildResolverKind,
-                () => new MsBuildWorkspaceResolver(constants, sharedModuleRegistry, statistics, msBuildFrontEnd));
+                () => new MsBuildWorkspaceResolver());
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.NinjaResolverKind,
-                () => new NinjaWorkspaceResolver(constants, sharedModuleRegistry, statistics, ninjaFrontEnd));
+                () => new NinjaWorkspaceResolver());
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.CMakeResolverKind,
-                () => new CMakeWorkspaceResolver(constants, sharedModuleRegistry, statistics, cmakeFrontend, ninjaFrontEnd));
+                () => new CMakeWorkspaceResolver());
         }
     }
 }

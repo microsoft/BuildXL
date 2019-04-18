@@ -33,6 +33,7 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.RuntimeModel;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Sdk.Tracing;
@@ -211,7 +212,9 @@ namespace Test.BuildXL.FrontEnd.Core
 
             const string PrettyPrintConfigAsPackagePath = global::BuildXL.FrontEnd.Script.Constants.Names.ConfigDsc;
             var configStringPath = Path.Combine(TemporaryDirectory, PrettyPrintConfigAsPackagePath);
-            var frontEndHost = FrontEndHostController.CreateForTesting(FrontEndContext, Engine, configStringPath);
+
+            var moduleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
+            var frontEndHost = FrontEndHostController.CreateForTesting(FrontEndContext, Engine, moduleRegistry, configStringPath);
 
             var currentDirectory = specFullPath.GetParent(frontEndHost.FrontEndContext.PathTable);
             var currentRootDirectory = AbsolutePath.Create(FrontEndContext.PathTable, configStringPath).GetParent(frontEndHost.FrontEndContext.PathTable);
@@ -450,7 +453,6 @@ namespace Test.BuildXL.FrontEnd.Core
                 out IConfiguration _,
                 out AbsolutePath _,
                 out FrontEndConfiguration _,
-                out GlobalConstants _,
                 out FrontEndHostController _,
                 out var workspace);
 
@@ -521,7 +523,6 @@ namespace Test.BuildXL.FrontEnd.Core
                 out IConfiguration finalConfig,
                 out AbsolutePath specFullPath,
                 out FrontEndConfiguration frontEndConfiguration,
-                out GlobalConstants constants,
                 out FrontEndHostController frontEndHost,
                 out var workspace);
 
@@ -554,7 +555,7 @@ namespace Test.BuildXL.FrontEnd.Core
 
             // We clone module registry (i.e., serialize then deserialize evaluation AST) only to
             // ensure that evaluation AST serialization/deserialization is sound
-            CloneModuleRegistry(sharedModuleRegistry, constants);
+            CloneModuleRegistry(sharedModuleRegistry);
 
             Package packageForTest = CreatePackageFromConfig(frontEndHost, specFullPath);
 
@@ -568,7 +569,6 @@ namespace Test.BuildXL.FrontEnd.Core
                 {
                     qualifierId = ParseAndEvaluateQualifier(
                         frontEndHost,
-                        constants,
                         sharedModuleRegistry,
                         packageForTest,
                         specFullPath,
@@ -616,8 +616,6 @@ namespace Test.BuildXL.FrontEnd.Core
             // Parse evaluated expressions.
             Expression[] evalExpressions = ParseEvaluatedExpressions(
                 frontEndHost,
-                constants,
-                sharedModuleRegistry,
                 packageForTest,
                 specFullPath,
                 expressions,
@@ -626,8 +624,6 @@ namespace Test.BuildXL.FrontEnd.Core
             var result = EvaluateExpressions(
                 frontEndHost,
                 FrontEndContext,
-                constants,
-                sharedModuleRegistry,
                 module,
                 evalExpressions);
 
@@ -650,7 +646,6 @@ namespace Test.BuildXL.FrontEnd.Core
             out IConfiguration finalConfig,
             out AbsolutePath specFullPath,
             out FrontEndConfiguration frontEndConfiguration,
-            out GlobalConstants constants,
             out FrontEndHostController frontEndHost,
             out Workspace workspace)
         {
@@ -661,17 +656,15 @@ namespace Test.BuildXL.FrontEnd.Core
                 enableSpecCache: false);
 
             frontEndConfiguration = config.FrontEnd;
+            var sharedModuleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
 
-            var sharedModuleRegistry = new ModuleRegistry();
-            constants = new GlobalConstants(FrontEndContext.SymbolTable);
-
-            var workspaceFactory = CreateWorkspaceFactoryForTesting(constants, sharedModuleRegistry, ParseAndEvaluateLogger);
-            var frontEndFactory = CreateFrontEndFactoryForEvaluation(constants, sharedModuleRegistry, workspaceFactory, ParseAndEvaluateLogger);
+            var workspaceFactory = CreateWorkspaceFactoryForTesting(FrontEndContext, ParseAndEvaluateLogger);
+            var frontEndFactory = CreateFrontEndFactoryForEvaluation(workspaceFactory, ParseAndEvaluateLogger);
 
             specFullPath = string.IsNullOrEmpty(specRelativePath) ? AbsolutePath.Invalid : CreateAbsolutePathFor(testWriter, specRelativePath);
 
             // Prepare infrastructure.
-            frontEndHost = CreateFrontEndHost(config, frontEndFactory, workspaceFactory, specFullPath, out finalConfig, out workspace);
+            frontEndHost = CreateFrontEndHost(config, frontEndFactory, workspaceFactory, sharedModuleRegistry, specFullPath, out finalConfig, out workspace);
             return sharedModuleRegistry;
         }
 
@@ -750,11 +743,11 @@ namespace Test.BuildXL.FrontEnd.Core
             return config;
         }
 
-        private void CloneModuleRegistry(ModuleRegistry sharedModuleRegistry, GlobalConstants constants)
+        private void CloneModuleRegistry(ModuleRegistry sharedModuleRegistry)
         {
             using (var memoryStream = new MemoryStream())
             {
-                var serializer = new ModuleRegistrySerializer(constants.Global, PathTable);
+                var serializer = new ModuleRegistrySerializer(sharedModuleRegistry.GlobalLiteral, PathTable);
 
                 serializer.Write(memoryStream, sharedModuleRegistry);
 
@@ -810,28 +803,28 @@ namespace Test.BuildXL.FrontEnd.Core
             };
         }
 
-        protected virtual FrontEndFactory CreateFrontEndFactoryForParsingConfig(GlobalConstants constants, ModuleRegistry moduleRegistry,
+        protected virtual FrontEndFactory CreateFrontEndFactoryForParsingConfig(
             DScriptWorkspaceResolverFactory workspaceResolverFactory, Logger logger)
         {
-            return CreateFrontEndFactory(constants, moduleRegistry, workspaceResolverFactory, logger, DecoratorForParsingConfig);
+            return CreateFrontEndFactory(workspaceResolverFactory, logger, DecoratorForParsingConfig);
         }
 
-        protected virtual FrontEndFactory CreateFrontEndFactoryForEvaluation(GlobalConstants constants, ModuleRegistry moduleRegistry,
+        protected virtual FrontEndFactory CreateFrontEndFactoryForEvaluation(
              DScriptWorkspaceResolverFactory workspaceResolverFactor, Logger logger)
         {
-            return CreateFrontEndFactory(constants, moduleRegistry, workspaceResolverFactor, logger, DecoratorForEvaluation);
+            return CreateFrontEndFactory(workspaceResolverFactor, logger, DecoratorForEvaluation);
         }
 
         protected virtual IDecorator<EvaluationResult> DecoratorForParsingConfig => null;
 
         protected virtual IDecorator<EvaluationResult> DecoratorForEvaluation => null;
 
-        protected FrontEndFactory CreateFrontEndFactory(GlobalConstants constants, ModuleRegistry moduleRegistry,
+        protected FrontEndFactory CreateFrontEndFactory(
             DScriptWorkspaceResolverFactory workspaceResolverFactory, Logger logger, IDecorator<EvaluationResult> decorator)
         {
             return FrontEndFactory.CreateInstanceForTesting(
-                () => new ConfigurationProcessor(constants, moduleRegistry, new FrontEndStatistics(), logger),
-                new DScriptFrontEnd(constants, moduleRegistry, FrontEndStatistics, logger, decorator));
+                () => new ConfigurationProcessor(new FrontEndStatistics(), logger),
+                new DScriptFrontEnd(FrontEndStatistics, logger, decorator));
         }
 
         private bool TryFindNamedQualifier(FrontEndHostController frontEndHost, string qualifier, IConfiguration finalConfig, out QualifierId qualifierId)
@@ -857,8 +850,6 @@ namespace Test.BuildXL.FrontEnd.Core
         private object[] EvaluateExpressions(
             FrontEndHostController frontEndHostController,
             FrontEndContext frontEndContext,
-            GlobalConstants constants,
-            ModuleRegistry moduleRegistry,
             FileModuleLiteral module,
             Expression[] expressions)
         {
@@ -869,8 +860,6 @@ namespace Test.BuildXL.FrontEnd.Core
                 using (var contextTree = new ContextTree(
                     frontEndHostController,
                     frontEndContext,
-                    constants,
-                    moduleRegistry,
                     ParseAndEvaluateLogger,
                     Statistics,
                     new QualifierValueCache(),
@@ -897,8 +886,6 @@ namespace Test.BuildXL.FrontEnd.Core
 
         private Expression[] ParseEvaluatedExpressions(
             FrontEndHostController frontEndHostController,
-            GlobalConstants constants,
-            ModuleRegistry moduleRegistry,
             Package package,
             AbsolutePath specPath,
             string[] expressions,
@@ -907,9 +894,10 @@ namespace Test.BuildXL.FrontEnd.Core
             var frontEndHostForExpressions = FrontEndHostController.CreateForTesting(
                 frontEndHostController.FrontEndContext,
                 Engine,
+                frontEndHostController.ModuleRegistry,
                 frontEndHostController.PrimaryConfigFile.ToString(frontEndHostController.FrontEndContext.PathTable));
 
-            var frontEnd = CreateScriptFrontEndForTesting(frontEndHostForExpressions, constants, moduleRegistry, FrontEndContext);
+            var frontEnd = CreateScriptFrontEndForTesting(frontEndHostForExpressions, FrontEndContext);
 
             var results = new Expression[expressions.Length];
 
@@ -921,8 +909,7 @@ namespace Test.BuildXL.FrontEnd.Core
                     frontEndHostForExpressions,
                     FrontEndContext,
                     ParseAndEvaluateLogger,
-                    package,
-                    globals: constants.Global);
+                    package);
 
                 var expression = translator.ParseExpression(parserContext, specPath, expressions[i]);
 
@@ -934,33 +921,28 @@ namespace Test.BuildXL.FrontEnd.Core
 
         private QualifierId ParseAndEvaluateQualifier(
             FrontEndHostController frontEndHostController,
-            GlobalConstants constants,
             ModuleRegistry moduleRegistry,
             Package package,
             AbsolutePath specPath,
             string qualifier)
         {
             Contract.Requires(frontEndHostController != null);
-            Contract.Requires(constants != null);
             Contract.Requires(moduleRegistry != null);
             Contract.Requires(package != null);
             Contract.Requires(specPath.IsValid);
             Contract.Requires(!string.IsNullOrWhiteSpace(qualifier));
 
-            var expression = ParseEvaluatedExpressions(frontEndHostController, constants, moduleRegistry, package, specPath, new[] { qualifier })[0];
+            var expression = ParseEvaluatedExpressions(frontEndHostController, package, specPath, new[] { qualifier })[0];
             var dummyModule =
                 ModuleLiteral.CreateFileModule(
                     AbsolutePath.Create(frontEndHostController.FrontEndContext.PathTable, Path.Combine(TemporaryDirectory, "DummyModule")),
-                    constants.Global,
-                    package,
                     moduleRegistry,
+                    package,
                     new LineMap(new int[] { 1, 2, 3 }, backslashesAllowedInPathInterpolation: true));
             var dummyModuleInstance = dummyModule.InstantiateFileModuleLiteral(moduleRegistry, QualifierValue.CreateEmpty(FrontEndContext.QualifierTable));
             using (var contextTree = new ContextTree(
                 frontEndHostController,
                 frontEndHostController.FrontEndContext,
-                constants,
-                moduleRegistry,
                 ParseAndEvaluateLogger,
                 Statistics,
                 new QualifierValueCache(),
@@ -1008,6 +990,7 @@ namespace Test.BuildXL.FrontEnd.Core
             ICommandLineConfiguration config,
             FrontEndFactory frontEndFactory,
             DScriptWorkspaceResolverFactory workspaceFactory,
+            ModuleRegistry moduleRegistry,
             AbsolutePath fileToProcess,
             out IConfiguration finalConfig,
             out Workspace workspace,
@@ -1024,6 +1007,7 @@ namespace Test.BuildXL.FrontEnd.Core
                 frontEndFactory, 
                 workspaceFactory, 
                 EvaluationScheduler,
+                moduleRegistry,
                 new FrontEndStatistics(),
                 InitializationLogger, 
                 collector: null,
@@ -1203,16 +1187,15 @@ namespace Test.BuildXL.FrontEnd.Core
         /// Creates a workspace factory for the DScript front end for testing.
         /// Known DScript-related source resolvers are registered.
         /// </summary>
-        public static DScriptWorkspaceResolverFactory CreateWorkspaceFactoryForTesting(GlobalConstants constants,
-            ModuleRegistry moduleRegistry, Logger logger = null)
+        public static DScriptWorkspaceResolverFactory CreateWorkspaceFactoryForTesting(FrontEndContext context, Logger logger = null)
         {
             var workspaceFactory = new DScriptWorkspaceResolverFactory();
             workspaceFactory.RegisterResolver(KnownResolverKind.DScriptResolverKind,
-                () => new WorkspaceSourceModuleResolver(constants, moduleRegistry, new FrontEndStatistics(), logger));
+                () => new WorkspaceSourceModuleResolver(context.StringTable, new FrontEndStatistics(), logger));
             workspaceFactory.RegisterResolver(KnownResolverKind.SourceResolverKind,
-                () => new WorkspaceSourceModuleResolver(constants, moduleRegistry, new FrontEndStatistics(), logger));
+                () => new WorkspaceSourceModuleResolver(context.StringTable, new FrontEndStatistics(), logger));
             workspaceFactory.RegisterResolver(KnownResolverKind.DefaultSourceResolverKind,
-                () => new WorkspaceDefaultSourceModuleResolver(constants, moduleRegistry, new FrontEndStatistics(), logger));
+                () => new WorkspaceDefaultSourceModuleResolver(context.StringTable, new FrontEndStatistics(), logger));
 
             return workspaceFactory;
         }
@@ -1222,20 +1205,16 @@ namespace Test.BuildXL.FrontEnd.Core
         /// </summary>
         internal DScriptFrontEnd CreateScriptFrontEndForTesting(
             FrontEndHost frontEndHost,
-            GlobalConstants constants,
-            ModuleRegistry moduleRegistry,
             FrontEndContext context,
             Logger logger = null,
             IDScriptResolverSettings resolverSettings = null)
         {
             Contract.Requires(frontEndHost != null);
-            Contract.Requires(constants != null);
-            Contract.Requires(moduleRegistry != null);
             Contract.Requires(context != null);
 
-            var workspaceFactory = CreateWorkspaceFactoryForTesting(constants, moduleRegistry, logger);
+            var workspaceFactory = CreateWorkspaceFactoryForTesting(FrontEndContext, logger);
 
-            var frontEnd = new DScriptFrontEnd(constants, moduleRegistry, new FrontEndStatistics(), logger, evaluationDecorator: null);
+            var frontEnd = new DScriptFrontEnd(new FrontEndStatistics(), logger, evaluationDecorator: null);
             frontEnd.InitializeFrontEnd(frontEndHost, context, new ConfigurationImpl());
 
             // If there is no resolver settings, we create an empty one.

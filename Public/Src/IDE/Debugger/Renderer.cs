@@ -190,7 +190,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
             }
 
             AmbientDefinitionBase ambientDefinition;
-            if (!context.PredefinedTypes.AllAmbientDefinitions.TryGetValue(obj.GetType(), out ambientDefinition))
+            if (!((ModuleRegistry)context.FrontEndHost.ModuleRegistry).PredefinedTypes.AllAmbientDefinitions.TryGetValue(obj.GetType(), out ambientDefinition))
             {
                 return Property.Empty;
             }

@@ -21,6 +21,7 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Threading;
+using RocksDbSharp;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -31,8 +32,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public sealed class RocksDbContentLocationDatabase : ContentLocationDatabase
     {
         private readonly RocksDbContentLocationDatabaseConfiguration _configuration;
-        private readonly ObjectPool<StreamBinaryWriter> _writerPool = new ObjectPool<StreamBinaryWriter>(() => new StreamBinaryWriter(), w => w.ResetPosition());
-        private readonly ObjectPool<StreamBinaryReader> _readerPool = new ObjectPool<StreamBinaryReader>(() => new StreamBinaryReader(), r => { });
 
         private KeyValueStoreGuard _keyValueStore;
         private const string ActiveStoreSlotFileName = "activeSlot.txt";
@@ -302,8 +301,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var keyBuffer = new List<ShortHash>();
             byte[] startValue = null;
-            const int KeysChunkSize = 100000;
 
+            const int KeysChunkSize = 100000;
             while (!token.IsCancellationRequested)
             {
                 keyBuffer.Clear();
@@ -328,7 +327,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     keyBuffer.Add(DeserializeKey(key));
                                     startValue = key;
 
-                                    if (keyBuffer.Count == KeysChunkSize)
+                                    if (keyBuffer.Count == KeysChunkSize )
                                     {
                                         cts.Cancel();
                                     }
@@ -340,7 +339,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
 
                     }).ThrowOnError();
-
+                
                 if (keyBuffer.Count == 0)
                 {
                     break;
@@ -349,6 +348,75 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 foreach (var key in keyBuffer)
                 {
                     yield return key;
+                }
+            }
+        }
+
+        /// <inheritdoc />
+        public override IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeys(
+            CancellationToken token,
+            EnumerationFilter filter = null)
+        {
+            var keyBuffer = new List<(ShortHash key, ContentLocationEntry entry)>();
+            const int KeysChunkSize = 100000;
+            byte[] startValue = null;
+            while (!token.IsCancellationRequested)
+            {
+                keyBuffer.Clear();
+                
+                _keyValueStore.Use(
+                    store =>
+                    {
+                        // NOTE: Use the garbage collect procedure to collect which keys to garbage collect. This is
+                        // different than the typical use which actually collects the keys specified by the garbage collector.
+                        var cts = new CancellationTokenSource();
+                        using (var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token))
+                        {
+                            store.GarbageCollectByKeyValue(
+                                canCollect: (iterator) =>
+                                {
+                                    byte[] key = null;
+                                    if (keyBuffer.Count == 0 && ByteArrayComparer.Instance.Equals(startValue, key = iterator.Key()))
+                                    {
+                                        // Start value is the same as the key. Skip it to keep from double processing the start value.
+
+                                        // Set startValue to null to indicate that we potentially could have reached the end of the database.
+                                        startValue = null;
+                                        return false;
+                                    }
+
+                                    startValue = null;
+                                    byte[] value = null;
+                                    if (filter != null && filter(value = iterator.Value()))
+                                    {
+                                        keyBuffer.Add((DeserializeKey(key ?? iterator.Key()), Deserialize(value)));
+                                    }
+
+                                    if (keyBuffer.Count == KeysChunkSize)
+                                    {
+                                        // We reached the limit for a current chunk.
+                                        // Reading the iterator to get the new start value.
+                                        startValue = iterator.Key();
+                                        cts.Cancel();
+                                    }
+
+                                    return false;
+                                },
+                                cancellationToken: cancellation.Token,
+                                startValue: startValue);
+                        }
+
+                    }).ThrowOnError();
+
+                foreach (var key in keyBuffer)
+                {
+                    yield return key;
+                }
+
+                // Null value in startValue variable means that the database reached it's end.
+                if (startValue == null)
+                {
+                    break;
                 }
             }
         }
@@ -466,37 +534,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     return _accessor.Use(action);
                 }
-            }
-        }
-
-        private ContentLocationEntry Deserialize(byte[] bytes)
-        {
-            using (var pooledReader = _readerPool.GetInstance())
-            {
-                var reader = pooledReader.Instance;
-                return reader.Deserialize(new ArraySegment<byte>(bytes), r =>
-                {
-                    var size = r.ReadInt64Compact();
-                    var locations = MachineIdSet.Deserialize(r);
-                    var creationTimeUtc = r.ReadUnixTime();
-                    var lastAccessTimeOffset = r.ReadInt64Compact();
-                    var lastAccessTime = new UnixTime(creationTimeUtc.Value + lastAccessTimeOffset);
-                    return ContentLocationEntry.Create(locations, size, lastAccessTime, creationTimeUtc);
-                });
-            }
-        }
-
-        private byte[] Serialize(ContentLocationEntry entry)
-        {
-            using (var pooledWriter = _writerPool.GetInstance())
-            {
-                var writer = pooledWriter.Instance.Writer;
-                writer.WriteCompact(entry.ContentSize);
-                entry.Locations.Serialize(writer);
-                writer.Write(entry.CreationTimeUtc);
-                long lastAccessTimeOffset = entry.LastAccessTimeUtc.Value - entry.CreationTimeUtc.Value;
-                writer.WriteCompact(lastAccessTimeOffset);
-                return pooledWriter.Instance.Buffer.ToArray();
             }
         }
     }

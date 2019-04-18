@@ -10,16 +10,17 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
+using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -28,6 +29,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     public abstract class ContentLocationDatabase : StartupShutdownSlimBase
     {
+        private readonly ObjectPool<StreamBinaryWriter> _writerPool = new ObjectPool<StreamBinaryWriter>(() => new StreamBinaryWriter(), w => w.ResetPosition());
+        private readonly ObjectPool<StreamBinaryReader> _readerPool = new ObjectPool<StreamBinaryReader>(() => new StreamBinaryReader(), r => { });
+
         /// <nodoc />
         protected readonly IClock Clock;
 
@@ -175,6 +179,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Gets a sequence of keys.
         /// </summary>
         public abstract IEnumerable<ShortHash> EnumerateSortedKeys(CancellationToken token);
+
+        /// <summary>
+        /// Enumeration filter used by <see cref="ContentLocationDatabase.EnumerateEntriesWithSortedKeys"/> to filter out entries by raw value from a database.
+        /// </summary>
+        public delegate bool EnumerationFilter(byte[] value);
+
+        /// <summary>
+        /// Gets a sequence of keys and values sorted by keys.
+        /// </summary>
+        public abstract IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeys(
+            CancellationToken token,
+            EnumerationFilter filter = null);
 
         /// <summary>
         /// Collects entries with last access time longer then time to live.
@@ -463,6 +479,69 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             using (Counters[ContentLocationDatabaseCounters.ContentTouched].Start())
             {
                 SetMachineExistenceAndUpdateDatabase(context, hash, machine: null, existsOnMachine: false, -1, lastAccessTime: accessTime, reconciling: false);
+            }
+        }
+
+        /// <summary>
+        /// Serialize a given <paramref name="entry"/> into a byte stream.
+        /// </summary>
+        protected byte[] Serialize(ContentLocationEntry entry)
+        {
+            using (var pooledWriter = _writerPool.GetInstance())
+            {
+                var writer = pooledWriter.Instance.Writer;
+                writer.WriteCompact(entry.ContentSize);
+                entry.Locations.Serialize(writer);
+                writer.Write(entry.CreationTimeUtc);
+                long lastAccessTimeOffset = entry.LastAccessTimeUtc.Value - entry.CreationTimeUtc.Value;
+                writer.WriteCompact(lastAccessTimeOffset);
+                return pooledWriter.Instance.Buffer.ToArray();
+            }
+        }
+
+        /// <summary>
+        /// Deserialize <see cref="ContentLocationEntry"/> from an array of bytes.
+        /// </summary>
+        protected ContentLocationEntry Deserialize(byte[] bytes)
+        {
+            using (PooledObjectWrapper<StreamBinaryReader> pooledReader = _readerPool.GetInstance())
+            {
+                var reader = pooledReader.Instance;
+                return reader.Deserialize(new ArraySegment<byte>(bytes), r =>
+                                                                         {
+                                                                             var size = r.ReadInt64Compact();
+                                                                             var locations = MachineIdSet.Deserialize(r);
+                                                                             var creationTimeUtc = r.ReadUnixTime();
+                                                                             var lastAccessTimeOffset = r.ReadInt64Compact();
+                                                                             var lastAccessTime = new UnixTime(creationTimeUtc.Value + lastAccessTimeOffset);
+                                                                             return ContentLocationEntry.Create(locations, size, lastAccessTime, creationTimeUtc);
+                                                                         });
+            }
+        }
+
+        /// <summary>
+        /// Returns true a byte array deserialized into <see cref="ContentLocationEntry"/> would have <paramref name="machineId"/> index set.
+        /// </summary>
+        /// <remarks>
+        /// This is an optimization that allows the clients to "poke" inside the value stored in the database without full deserialization.
+        /// The approach is very useful in reconciliation scenarios, when the client wants to obtain content location entries for the current machine only.
+        /// </remarks>
+        public bool HasMachineId(byte[] bytes, int machineId)
+        {
+            using (var pooledObjectWrapper = _readerPool.GetInstance())
+            {
+                var pooledReader = pooledObjectWrapper.Instance;
+                return pooledReader.Deserialize(
+                    new ArraySegment<byte>(bytes),
+                    machineId,
+                    (localIndex, reader) =>
+                    {
+                        // It is very important for this lambda to be non-capturing, because it will be called
+                        // many times.
+                        // Avoiding allocations here severely affect performance during reconciliation.
+                        _ = reader.ReadInt64Compact();
+                        return MachineIdSet.HasMachineId(reader, localIndex);
+                    });
             }
         }
     }

@@ -44,11 +44,9 @@ namespace BuildXL.FrontEnd.Script
 
         /// <nodoc />
         public ConfigurationProcessor(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
             IFrontEndStatistics statistics,
             Logger logger)
-            : base(constants, sharedModuleRegistry, statistics, logger)
+            : base(statistics, logger)
         {
         }
 
@@ -190,8 +188,6 @@ namespace BuildXL.FrontEnd.Script
             return new ConfigurationConversionHelper(
                 Engine,
                 ConfigurationConversionHelper.ConfigurationKind.PrimaryConfig,
-                Constants,
-                SharedModuleRegistry,
                 Logger,
                 FrontEndHost,
                 Context,

@@ -16,5 +16,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// Writes content for a given hash to a stream.
         /// </summary>
         Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash);
+
+        /// <summary>
+        /// Checks if content exists in the cache.
+        /// </summary>
+        Task<FileExistenceResult> CheckFileExistsAsync(Context context, ContentHash contentHash);
     }
 }

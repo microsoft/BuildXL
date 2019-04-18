@@ -3,53 +3,30 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Utilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
-    /// Represents a set of machine ids that contains a content.
+    /// Represents a set of machine ids that contains a content based on a collection in memory.
     /// </summary>
-    public sealed class ArrayMachineIdSet : MachineIdSet
+    public abstract class ArrayMachineIdSetBase : MachineIdSet
     {
-        /// <nodoc />
+        /// <summary>
+        /// The threshold when array instance is used instead of an instance based on a hash set.
+        /// </summary>
+        public const int ArrayThreshold = 20;
+
+        /// <inheritdoc />
         protected override SetFormat Format => SetFormat.Array;
 
-        /// <summary>
-        /// The indices of the machine ids represented by this set
-        /// </summary>
-        private readonly HashSet<ushort> _machineIds;
-
-        /// <summary>
-        /// Returns true if a machine id set is empty.
-        /// </summary>
-        public override bool IsEmpty => Count == 0;
-
         /// <nodoc />
-        public ArrayMachineIdSet(ushort[] machineIds)
+        protected ArrayMachineIdSetBase()
         {
-            _machineIds = new HashSet<ushort>(machineIds);
         }
 
-        /// <nodoc />
-        private ArrayMachineIdSet(HashSet<ushort> machineIds)
-        {
-            _machineIds = machineIds;
-        }
-
-        /// <summary>
-        /// Returns the bit value at position index.
-        /// </summary>
-        public override bool this[int index] => _machineIds.Contains((ushort)index);
-
-        /// <summary>
-        /// Gets the number of machine locations.
-        /// </summary>
-        public override int Count => _machineIds.Count;
-
-        /// <summary>
-        /// Returns a new instance of <see cref="MachineIdSet"/> based on the given <paramref name="machines"/> and <paramref name="exists"/>.
-        /// </summary>
+        /// <inheritdoc />
         public override MachineIdSet SetExistence(IReadOnlyCollection<MachineId> machines, bool exists)
         {
             Contract.Requires(machines != null);
@@ -59,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return this;
             }
 
-            var machineIds = new HashSet<ushort>(_machineIds);
+            var machineIds = new HashSet<ushort>(EnumerateRawMachineIds());
             foreach (var machine in machines)
             {
                 if (exists)
@@ -72,26 +49,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
-            return new ArrayMachineIdSet(machineIds);
+            return machineIds.Count <= ArrayThreshold ? (MachineIdSet)new ArrayMachineIdSet(machineIds.ToArray()) : new HashSetMachineIdSet(machineIds);
         }
 
-        /// <summary>
-        /// Enumerates the bits in the machine id set
-        /// </summary>
+        /// <inheritdoc />
         public override IEnumerable<MachineId> EnumerateMachineIds()
         {
-            foreach (var machineId in _machineIds)
+            foreach (var machineId in EnumerateRawMachineIds())
             {
                 yield return new MachineId(machineId);
             }
         }
 
         /// <nodoc />
+        protected abstract IEnumerable<ushort> EnumerateRawMachineIds();
+
+        /// <inheritdoc />
         protected override void SerializeCore(BuildXLWriter writer)
         {
             // Use variable length encoding
             writer.WriteCompact(Count);
-            foreach (var machineId in _machineIds)
+            foreach (var machineId in EnumerateRawMachineIds())
             {
                 // Use variable length encoding?
                 writer.WriteCompact((int)machineId);
@@ -102,14 +80,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             // Use variable length encoding
             var count = reader.ReadInt32Compact();
-            var machineIds = new HashSet<ushort>();
+            var machineIds = new ushort[count];
 
             for (int i = 0; i < count; i++)
             {
-                machineIds.Add((ushort)reader.ReadInt32Compact());
+                machineIds[i] = (ushort)reader.ReadInt32Compact();
             }
 
-            return new ArrayMachineIdSet(machineIds);
+            // For small number of elements, it is more efficient (in terms of memory)
+            // to use a simple array and just search the id using sequential scan.
+            return count <= ArrayThreshold ? (MachineIdSet)new ArrayMachineIdSet(machineIds) : new HashSetMachineIdSet(machineIds);
+        }
+
+
+        internal static bool HasMachineIdCore(BuildXLReader reader, int index)
+        {
+            var count = reader.ReadInt32Compact();
+
+            for (int i = 0; i < count; i++)
+            {
+                var machineId = (ushort)reader.ReadInt32Compact();
+                if (machineId == index)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <inheritdoc />

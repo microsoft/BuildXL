@@ -27,6 +27,7 @@ using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Core.Incrementality;
 using BuildXL.FrontEnd.Core.Tracing;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using Newtonsoft.Json;
 using TypeScript.Net.Utilities;
@@ -119,6 +120,7 @@ namespace BuildXL.FrontEnd.Core
             FrontEndFactory frontEndFactory,
             DScriptWorkspaceResolverFactory workspaceResolverFactory,
             EvaluationScheduler evaluationScheduler,
+            IModuleRegistry moduleRegistry,
             IFrontEndStatistics frontEndStatistics,
             Logger logger,
             PerformanceCollector collector,
@@ -136,6 +138,7 @@ namespace BuildXL.FrontEnd.Core
             m_frontEndFactory = frontEndFactory;
             m_workspaceResolverFactory = workspaceResolverFactory;
             m_evaluationScheduler = evaluationScheduler;
+            ModuleRegistry = moduleRegistry;
             m_frontEndStatistics = frontEndStatistics;
             m_cycleDetectorStatistics = new CycleDetectorStatistics();
 
@@ -1040,7 +1043,8 @@ namespace BuildXL.FrontEnd.Core
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Clients should dispose the host")]
         public static FrontEndHostController CreateForTesting(
             FrontEndContext frontEndContext, 
-            FrontEndEngineAbstraction engine, 
+            FrontEndEngineAbstraction engine,
+            IModuleRegistry moduleRegistry,
             string configFilePath, 
             Logger logger = null, 
             string outputDirectory = null)
@@ -1054,6 +1058,7 @@ namespace BuildXL.FrontEnd.Core
                 frontEndFactory,
                 new DScriptWorkspaceResolverFactory(),
                 new EvaluationScheduler(degreeOfParallelism: 1, cancellationToken: frontEndContext.CancellationToken),
+                moduleRegistry,
                 new FrontEndStatistics(),
                 logger ?? Logger.CreateLogger(),
                 collector: null,
@@ -1283,7 +1288,7 @@ namespace BuildXL.FrontEnd.Core
 
                 try
                 {
-                    var task = await resolver.TryConvertModuleToEvaluationAsync(module, workspace);
+                    var task = await resolver.TryConvertModuleToEvaluationAsync(ModuleRegistry, module, workspace);
                     if (task != null)
                     {
                         return task.Value;

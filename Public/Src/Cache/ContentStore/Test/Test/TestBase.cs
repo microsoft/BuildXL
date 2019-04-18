@@ -28,7 +28,7 @@ namespace ContentStoreTest.Test
         // The file system may be null.
         protected IAbsFileSystem FileSystem => _fileSystem.Value;
 
-        protected AbsolutePath TestRootDirectoryPath => _testRootDirectory.Value.Path;
+        protected virtual AbsolutePath TestRootDirectoryPath => _testRootDirectory.Value.Path;
 
         protected readonly ILogger Logger;
 

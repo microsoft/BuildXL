@@ -491,5 +491,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             return new OpenStreamResult($"{InnerContentStore} does not implement {nameof(IStreamStore)} in {nameof(DistributedContentStore<T>)}.");
         }
+
+        /// <inheritdoc />
+        public async Task<FileExistenceResult> CheckFileExistsAsync(Context context, ContentHash contentHash)
+        {
+            if (InnerContentStore is IStreamStore innerStreamStore)
+            {
+                return await innerStreamStore.CheckFileExistsAsync(context, contentHash);
+            }
+
+            return new FileExistenceResult(FileExistenceResult.ResultCode.Error, $"{InnerContentStore} does not implement {nameof(IStreamStore)} in {nameof(DistributedContentStore<T>)}.");
+        }
     }
 }

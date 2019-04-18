@@ -1,15 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
-using System.Text;
 using BuildXL.FrontEnd.Ninja.Serialization;
 using BuildXL.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Utilities;
-using BuildXL.Pips;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Resolvers;
 
 namespace BuildXL.FrontEnd.Ninja

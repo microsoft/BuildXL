@@ -8,20 +8,19 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Core;
-using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.Workspaces;
+using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Types;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
@@ -97,8 +96,6 @@ namespace BuildXL.FrontEnd.Script
 
         /// <nodoc />
         public DScriptSourceResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
             FrontEndHost host,
             FrontEndContext context,
             IConfiguration configuration,
@@ -106,7 +103,7 @@ namespace BuildXL.FrontEnd.Script
             SourceFileProcessingQueue<bool> parseQueue,
             Logger logger = null,
             IDecorator<Values.EvaluationResult> evaluationDecorator = null)
-            : base(constants, sharedModuleRegistry, statistics, logger, host, context, configuration)
+            : base(statistics, logger, host, context, configuration)
         {
             Contract.Requires(parseQueue != null);
 
@@ -148,7 +145,7 @@ namespace BuildXL.FrontEnd.Script
         }
 
         /// <inheritdoc />
-        public async Task<bool?> TryConvertModuleToEvaluationAsync(ParsedModule module, IWorkspace workspace)
+        public async Task<bool?> TryConvertModuleToEvaluationAsync(IModuleRegistry moduleRegistry, ParsedModule module, IWorkspace workspace)
         {
             Contract.Requires(module != null);
             Contract.Assert(m_resolverState == State.ResolverInitialized);
@@ -328,7 +325,7 @@ namespace BuildXL.FrontEnd.Script
             Contract.Requires(qualifier != null);
 
             // Get an uninstantiated module.
-            if (!SharedModuleRegistry.TryGetUninstantiatedModuleInfoByPath(fullPath, out UninstantiatedModuleInfo moduleInfo))
+            if (!((ModuleRegistry)FrontEndHost.ModuleRegistry).TryGetUninstantiatedModuleInfoByPath(fullPath, out UninstantiatedModuleInfo moduleInfo))
             {
                 Logger.ReportSourceResolverFailEvaluateUnregisteredFileModule(Context.LoggingContext, Name, fullPath.ToString(Context.PathTable));
                 return CreateResult(false);

@@ -15,7 +15,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <remarks>
     /// The instance of this type is not thread-safe.
     /// </remarks>
-    internal sealed class StreamBinaryReader 
+    public sealed class StreamBinaryReader 
     {
         private readonly MemoryStream _eventReadBuffer;
         private readonly BuildXLReader _eventBufferReader;
@@ -35,6 +35,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _eventReadBuffer.Position = 0;
 
             return deserializeFunc(_eventBufferReader);
+        }
+
+        /// <nodoc />
+        public TResult Deserialize<TResult, TState>(ArraySegment<byte> data, TState state, Func<TState, BuildXLReader, TResult> deserializeFunc)
+        {
+            _eventReadBuffer.Position = 0;
+            _eventReadBuffer.Write(data.Array, data.Offset, data.Count);
+            _eventReadBuffer.Position = 0;
+
+            return deserializeFunc(state, _eventBufferReader);
         }
 
         /// <nodoc />

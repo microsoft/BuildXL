@@ -1330,7 +1330,9 @@ namespace BuildXL.Scheduler.Tracing
 #endif
 
                 // Each column is independent of the others, so they can be garbage collected in parallel
-                Parallel.ForEach(ColumnNames.ListAll, column =>
+                //Parallel.ForEach(ColumnNames.ListAll, column =>
+
+                foreach (var column in ColumnNames.ListAll)
                 {
                     var maxEntryCounterLock = new object();
                     var maxEntryCollectTime = TimeSpan.Zero;
@@ -1357,7 +1359,7 @@ namespace BuildXL.Scheduler.Tracing
                     }
 
                     Counters.AddToCounter(FingerprintStoreCounters.GarbageCollectionMaxEntryTime, maxEntryCollectTime);
-                });
+                }
             }
         }
 

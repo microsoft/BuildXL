@@ -859,7 +859,10 @@ namespace BuildXL.Native.IO.Windows
             IO_REPARSE_TAG_SYMLINK = 0xA000000C, // Used for symbolic link support. See section 2.1.2.4.
             [SuppressMessage("Microsoft.Naming", "CA1700:DoNotNameEnumValuesReserved")]
             [SuppressMessage("Microsoft.Naming", "CA1707:RemoveUnderscoresFromMemberName")]
-            IO_REPARSE_TAG_WCIFS = 0x80000018 // The tag for a WCI reparse point
+            IO_REPARSE_TAG_WCIFS = 0x80000018, // The tag for a WCI reparse point
+            [SuppressMessage("Microsoft.Naming", "CA1700:DoNotNameEnumValuesReserved")]
+            [SuppressMessage("Microsoft.Naming", "CA1707:RemoveUnderscoresFromMemberName")]
+            IO_REPARSE_TAG_WCIFS_TOMBSTONE = 0xA000001F, // The tag for a WCI tombstone file
         }
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
@@ -3370,7 +3373,27 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc/>
+        public bool IsWciReparseArtifact(string path)
+        {
+            return IsWCIReparsePointWithTag(path, DwReserved0Flag.IO_REPARSE_TAG_WCIFS, DwReserved0Flag.IO_REPARSE_TAG_WCIFS_TOMBSTONE);
+        }
+
+        /// <inheritdoc/>
         public bool IsWciReparsePoint(string path)
+        {
+            return IsWCIReparsePointWithTag(path, DwReserved0Flag.IO_REPARSE_TAG_WCIFS);
+        }
+
+        /// <inheritdoc/>
+        public bool IsWciTombstoneFile(string path)
+        {
+            return IsWCIReparsePointWithTag(path, DwReserved0Flag.IO_REPARSE_TAG_WCIFS_TOMBSTONE);
+        }
+
+        /// <summary>
+        /// Whether the given path contains any of the given tags
+        /// </summary>
+        private bool IsWCIReparsePointWithTag(string path, DwReserved0Flag tag1, DwReserved0Flag tag2 = DwReserved0Flag.IO_REPARSE_TAG_RESERVED_ZERO)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
 
@@ -3382,7 +3405,7 @@ namespace BuildXL.Native.IO.Windows
                 {
                     return
                         (findResult.DwFileAttributes & FileAttributes.ReparsePoint) != 0 &&
-                        findResult.DwReserved0 == (uint) DwReserved0Flag.IO_REPARSE_TAG_WCIFS;
+                        (findResult.DwReserved0 == (uint)tag1 || (tag2 == DwReserved0Flag.IO_REPARSE_TAG_RESERVED_ZERO || findResult.DwReserved0 == (uint)tag2));
                 }
 
                 return false;

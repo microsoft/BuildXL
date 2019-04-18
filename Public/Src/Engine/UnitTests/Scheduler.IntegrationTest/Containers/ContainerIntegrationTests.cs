@@ -176,6 +176,69 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
             XAssert.AreEqual(WellKnownTimestamps.OutputInSharedOpaqueTimestamp, FileUtilities.GetFileTimestamps(fileArtifactInOpaquePath).CreationTime);
         }
 
+        [TheoryIfSupported(requiresHeliumDriversAvailable: true)]
+        [InlineData(SealDirectoryKind.Opaque)]
+        [InlineData(SealDirectoryKind.SharedOpaque)]
+        public void TombstoneFileInOpaqueIsNotHardlinked(SealDirectoryKind sealDirectoryKind)
+        {
+            string opaqueDir = Path.Combine(ObjectRoot, "opaqueDir");
+            AbsolutePath opaqueDirPath = AbsolutePath.Create(Context.PathTable, opaqueDir);
+
+            var originalFile = CreateOutputFileArtifact(opaqueDir);
+            var renamedFile = CreateOutputFileArtifact(opaqueDir);
+
+            // We create a file and then move it. The move operation will leave a tombstone file when
+            // running under Helium
+            IEnumerable<Operation> operations =
+                new Operation[]
+                {
+                    Operation.WriteFile(originalFile, doNotInfer: true),
+                    Operation.MoveFile(originalFile, renamedFile, doNotInfer: true),
+                };
+
+            var producerBuilder = CreatePipBuilder(operations);
+            producerBuilder.AddOutputDirectory(opaqueDirPath, sealDirectoryKind);
+            producerBuilder.Options |= Process.Options.NeedsToRunInContainer;
+            producerBuilder.ContainerIsolationLevel = ContainerIsolationLevel.IsolateAllOutputs;
+            var result = SchedulePipBuilder(producerBuilder);
+
+            RunScheduler().AssertSuccess();
+
+            // In the original locations, the renamed file should be there, the original file shouldn't
+            XAssert.IsTrue(File.Exists(renamedFile.Path.ToString(Context.PathTable)));
+            XAssert.IsFalse(File.Exists(originalFile.Path.ToString(Context.PathTable)));
+        }
+
+        [FactIfSupported(requiresHeliumDriversAvailable: true)]
+        public void DeclaredTombstoneFileIsNotHardlinked()
+        {
+            var originalFile = CreateSourceFile(ObjectRoot);
+            var renamedFile = CreateSourceFile(ObjectRoot);
+
+            // We create a file and then move it. The move operation will leave a tombstone file when
+            // running under Helium
+            IEnumerable<Operation> operations =
+                new Operation[]
+                {
+                    Operation.WriteFile(originalFile, doNotInfer: true),
+                    Operation.MoveFile(originalFile, renamedFile, doNotInfer: true),
+                };
+
+            var producerBuilder = CreatePipBuilder(operations);
+            producerBuilder.Options |= Process.Options.NeedsToRunInContainer;
+            producerBuilder.ContainerIsolationLevel = ContainerIsolationLevel.IsolateAllOutputs;
+            producerBuilder.AddOutputFile(originalFile, FileExistence.Optional);
+            producerBuilder.AddOutputFile(renamedFile, FileExistence.Required);
+
+            var result = SchedulePipBuilder(producerBuilder);
+
+            RunScheduler().AssertSuccess();
+
+            // In the original locations, the renamed file should be there, the original file shouldn't
+            XAssert.IsTrue(File.Exists(renamedFile.Path.ToString(Context.PathTable)));
+            XAssert.IsFalse(File.Exists(originalFile.Path.ToString(Context.PathTable)));
+        }
+
         private void ScheduleDoubleWriteProducers(
             AbsolutePath sharedOpaqueDirPath,
             FileArtifact doubleWriteArtifact,

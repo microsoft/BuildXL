@@ -46,7 +46,7 @@ if ERRORLEVEL 1 (
 REM Pushing to nuget
 echo.
 echo Pushing BuildXL package to VSO
-"%nugetExe%" push -Source "https://dev.azure.com/mseng/DefaultCollection/_packaging/Domino.Public.Experimental/nuget/v3/index.json" -ApiKey VSTS %nupkg%
+"%nugetExe%" push -Source "https://pkgs.dev.azure.com/mseng/_packaging/Domino.Public.Experimental/nuget/v3/index.json" -ApiKey VSTS %nupkg%
 
 REM Update CoreXt Config
 echo.

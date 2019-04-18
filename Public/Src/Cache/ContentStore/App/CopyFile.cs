@@ -26,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.App
             [Required, Description("Machine to copy from")] string host,
             [Required, Description("Expected content hash")] string hashString,
             [Required, Description("Path to destination file")] string destinationPath,
-            [Description("Path to destination file"), DefaultValue(false)] bool useCompression,
+            [Description("Whether or not GZip is enabled"), DefaultValue(false)] bool useCompressionForCopies,
             [Description("File name where the GRPC port can be found when using cache service. 'CASaaS GRPC port' if not specified")] string grpcPortFileName,
             [Description("The GRPC port"), DefaultValue(0)] int grpcPort)
         {
@@ -49,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                using (var rpcClient = GrpcCopyClient.Create(host, grpcPort, useCompression))
+                using (var rpcClient = GrpcCopyClient.Create(host, grpcPort, useCompressionForCopies))
                 {
                     var finalPath = new AbsolutePath(destinationPath);
 

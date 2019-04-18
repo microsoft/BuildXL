@@ -34,8 +34,8 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(null), Description("Identifier for the stamp this service will run as")] string stampId,
             [DefaultValue(null), Description("Identifier for the ring this service will run as")] string ringId,
             [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB,
-            [DefaultValue(false)] bool useDistributedGrpc,
-            [DefaultValue(false)] bool useCompression
+            [DefaultValue(false), Description("Whether or not GRPC is used for file copies")] bool useDistributedGrpc,
+            [DefaultValue(false), Description("Whether or not GZip is used for GRPC file copies")] bool useCompressionForCopies
             )
         {
             Initialize();
@@ -56,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.App
                 }
 
                 var arguments = CreateDistributedCacheServiceArguments(
-                    copier: useDistributedGrpc ? new GrpcFileCopier(new Interfaces.Tracing.Context(_logger), grpcPort, useCompression) : (IAbsolutePathFileCopier)new DistributedCopier(),
+                    copier: useDistributedGrpc ? new GrpcFileCopier(new Interfaces.Tracing.Context(_logger), grpcPort, useCompressionForCopies) : (IAbsolutePathFileCopier)new DistributedCopier(),
                     pathTransformer: useDistributedGrpc ? new GrpcDistributedPathTransformer() : (IAbsolutePathTransformer)new DistributedPathTransformer(),
                     host: host,
                     cacheName: cacheName,

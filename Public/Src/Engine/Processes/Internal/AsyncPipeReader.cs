@@ -27,7 +27,7 @@ namespace BuildXL.Processes.Internal
 
         private readonly IAsyncFile m_file;
 
-        private int m_byteBufferSize;
+        private readonly int m_byteBufferSize;
         private readonly PooledObjectWrapper<byte[]> m_pooledByteBufferWrapper;
         private byte[] ByteBuffer => m_pooledByteBufferWrapper.Instance;
         private byte* m_byteBufferPtr;

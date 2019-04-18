@@ -78,7 +78,7 @@ namespace BuildXL.Engine.Distribution
 
             private int m_blobSequenceNumber = 0;
 
-            DistributionServices m_services;
+            private readonly DistributionServices m_services;
 
             public NotifyStream(uint workerId, IMasterClient masterClient, DistributionServices services)
             {

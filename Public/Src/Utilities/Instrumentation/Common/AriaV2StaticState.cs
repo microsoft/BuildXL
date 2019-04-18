@@ -26,7 +26,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
         private static bool s_hasBeenInitialized;
         private static readonly object s_syncRoot = new object();
-        private static TimeSpan s_defaultShutdownTimeout = TimeSpan.FromSeconds(20);
+        private static readonly TimeSpan s_defaultShutdownTimeout = TimeSpan.FromSeconds(20);
 
         private static string s_ariaTelemetryDBLocation;
 

@@ -29,8 +29,8 @@ namespace BuildXL.FrontEnd.Script.Ambients
         // This regular expression matches any string enclosed in curly braces that doesn't contain the '{' character
         private static readonly Regex s_expandPathsRegex = new Regex(@"{([^{]+)}");
 
-        private SymbolAtom m_dataSeparator;
-        private SymbolAtom m_dataContents;
+        private readonly SymbolAtom m_dataSeparator;
+        private readonly SymbolAtom m_dataContents;
         
         /// <nodoc />
         public AmbientDebug(PrimitiveTypes knownTypes)

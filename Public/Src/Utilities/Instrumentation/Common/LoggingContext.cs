@@ -119,7 +119,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// This will only be populated for the root context and should be exclusively accessed through <see cref="ErrorsLoggedById"/>.
         /// Lazy since most of the time there will be no errors.
         /// </summary>
-        private Lazy<ConcurrentBag<ushort>> m_errorsLoggedById = new Lazy<ConcurrentBag<ushort>>(() => new ConcurrentBag<ushort>());
+        private readonly Lazy<ConcurrentBag<ushort>> m_errorsLoggedById = new Lazy<ConcurrentBag<ushort>>(() => new ConcurrentBag<ushort>());
 
         /// <summary>
         /// Errors logged by event ID

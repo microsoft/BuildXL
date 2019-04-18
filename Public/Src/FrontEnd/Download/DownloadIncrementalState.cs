@@ -18,7 +18,7 @@ namespace BuildXL.FrontEnd.Download
     {
         private const string ManifestVersion = "v2";
 
-        private DownloadData m_downloadData;
+        private readonly DownloadData m_downloadData;
 
         /// <nodoc />
         public ContentHash ContentHash { get; }

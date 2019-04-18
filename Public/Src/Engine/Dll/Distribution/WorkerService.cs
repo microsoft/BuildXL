@@ -98,7 +98,7 @@ namespace BuildXL.Engine.Distribution
         private readonly ConcurrentDictionary<PipId, ExtendedPipCompletionData> m_pendingPipCompletions =
             new ConcurrentDictionary<PipId, ExtendedPipCompletionData>();
 
-        private ConcurrentBigSet<int> m_handledBuildRequests = new ConcurrentBigSet<int>();
+        private readonly ConcurrentBigSet<int> m_handledBuildRequests = new ConcurrentBigSet<int>();
 
         private TimeSpan m_lastHeartbeatTimestamp = TimeSpan.Zero;
         private Scheduler.Tracing.OperationTracker m_operationTracker;
@@ -120,21 +120,21 @@ namespace BuildXL.Engine.Distribution
         private WorkerServicePipStateManager m_workerPipStateManager;
         private readonly ushort m_port;
         private readonly int m_maxProcesses;
-        private WorkerRunnablePipObserver m_workerRunnablePipObserver;
+        private readonly WorkerRunnablePipObserver m_workerRunnablePipObserver;
         private readonly DistributionServices m_services;
         private NotifyMasterExecutionLogTarget m_notifyMasterExecutionLogTarget;
 
         private readonly Thread m_sendThread;
-        private BlockingCollection<ExtendedPipCompletionData> m_buildResults = new BlockingCollection<ExtendedPipCompletionData> ();
+        private readonly BlockingCollection<ExtendedPipCompletionData> m_buildResults = new BlockingCollection<ExtendedPipCompletionData> ();
         private readonly int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
 
-        private bool m_isGrpcEnabled;
+        private readonly bool m_isGrpcEnabled;
         private IMasterClient m_masterClient;
-        private IServer m_workerServer;
+        private readonly IServer m_workerServer;
 
 #if !DISABLE_FEATURE_BOND_RPC
         private InternalBond.BondMasterClient m_bondMasterClient;
-        private InternalBond.BondWorkerServer m_bondWorkerService;
+        private readonly InternalBond.BondWorkerServer m_bondWorkerService;
 #endif
 
         /// <summary>
@@ -822,8 +822,8 @@ namespace BuildXL.Engine.Distribution
 
         private sealed class WorkerRunnablePipObserver : RunnablePipObserver
         {
-            private WorkerService m_workerService;
-            private ConcurrentDictionary<PipId, ExecutionResult> m_processExecutionResult
+            private readonly WorkerService m_workerService;
+            private readonly ConcurrentDictionary<PipId, ExecutionResult> m_processExecutionResult
                  = new ConcurrentDictionary<PipId, ExecutionResult>();
 
             public WorkerRunnablePipObserver(WorkerService workerService)

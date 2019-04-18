@@ -49,7 +49,7 @@ namespace BuildXL.Storage
         /// </summary>
         public bool IsAnonymous => Kind.IsAnonymous();
 
-        private static Failure<string> s_notSupportedInnerFailure = OperatingSystemHelper.IsUnixOS
+        private static readonly Failure<string> s_notSupportedInnerFailure = OperatingSystemHelper.IsUnixOS
             ? null
             : new Failure<string>("Change journal in the volume is disabled or is not supported");
 

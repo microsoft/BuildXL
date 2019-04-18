@@ -98,10 +98,10 @@ namespace BuildXL.Execution.Analyzer
         public Dictionary<string, string> Roots;
         public PipId? TargetPipId;
 
-        private ConcurrentBigMap<FileArtifact, ContentHash> m_fileHashes = new ConcurrentBigMap<FileArtifact, ContentHash>();
-        private ConcurrentBigMap<FileArtifact, FileContentInfo> m_fileInfos = new ConcurrentBigMap<FileArtifact, FileContentInfo>();
-        private ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>> m_contents = new ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>>();
-        private ConcurrentBigMap<long, HashSet<AbsolutePath>> m_observedInputs = new ConcurrentBigMap<long, HashSet<AbsolutePath>>();
+        private readonly ConcurrentBigMap<FileArtifact, ContentHash> m_fileHashes = new ConcurrentBigMap<FileArtifact, ContentHash>();
+        private readonly ConcurrentBigMap<FileArtifact, FileContentInfo> m_fileInfos = new ConcurrentBigMap<FileArtifact, FileContentInfo>();
+        private readonly ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>> m_contents = new ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>>();
+        private readonly ConcurrentBigMap<long, HashSet<AbsolutePath>> m_observedInputs = new ConcurrentBigMap<long, HashSet<AbsolutePath>>();
 
         public DumpProcessAnalyzer(AnalysisInput input)
             : base(input)

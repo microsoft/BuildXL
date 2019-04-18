@@ -67,7 +67,7 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public long? PipSemistableHash;
 
-        private HashSet<PipId> m_producers = new HashSet<PipId>();
+        private readonly HashSet<PipId> m_producers = new HashSet<PipId>();
 
         public AbsolutePath SpecPath { get; private set; }
 

@@ -39,10 +39,10 @@ namespace BuildXL.FrontEnd.Download
         /// <nodoc />
         public IReadOnlyDictionary<string, DownloadData> Downloads { get; private set; }
 
-        private HashSet<ModuleDescriptor> m_descriptors;
-        private MultiValueDictionary<string, ModuleDescriptor> m_descriptorsByName;
-        private Dictionary<AbsolutePath, ModuleDescriptor> m_descriptorsBySpecPath;
-        private Dictionary<ModuleDescriptor, ModuleDefinition> m_definitions;
+        private readonly HashSet<ModuleDescriptor> m_descriptors;
+        private readonly MultiValueDictionary<string, ModuleDescriptor> m_descriptorsByName;
+        private readonly Dictionary<AbsolutePath, ModuleDescriptor> m_descriptorsBySpecPath;
+        private readonly Dictionary<ModuleDescriptor, ModuleDefinition> m_definitions;
 
         /// <nodoc/>
         public DownloadWorkspaceResolver()

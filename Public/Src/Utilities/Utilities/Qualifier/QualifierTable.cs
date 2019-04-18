@@ -427,10 +427,10 @@ namespace BuildXL.Utilities.Qualifier
             private readonly List<TItem> m_items = new List<TItem>();
             private readonly Dictionary<TItem, TId> m_itemToKeyMapping = new Dictionary<TItem, TId>();
 
-            private Func<TId, int> m_idToInt;
-            private Func<int, TId> m_intToId;
-            private Action<BuildXLWriter, TItem> m_serializeItem;
-            private Func<BuildXLReader, TItem> m_deserializeItem;
+            private readonly Func<TId, int> m_idToInt;
+            private readonly Func<int, TId> m_intToId;
+            private readonly Action<BuildXLWriter, TItem> m_serializeItem;
+            private readonly Func<BuildXLReader, TItem> m_deserializeItem;
 
             /// <nodoc />
             public BidirectionalIndexBasedMap(Func<TId, int> idToInt, Func<int, TId> intToId, Action<BuildXLWriter, TItem> serializeItem, Func<BuildXLReader, TItem> deserializeItem)

@@ -17,7 +17,7 @@ namespace BuildXL.Utilities.Collections
     /// </summary>
     public sealed class RecursiveActionBlock<TInput>
     {
-        private ActionBlock<TInput> m_actionBlock;
+        private readonly ActionBlock<TInput> m_actionBlock;
         private int m_queuedOrRunning;
         private int m_whenDoneCalled;   // Used to guard against multiple calls of WhenDone().
 

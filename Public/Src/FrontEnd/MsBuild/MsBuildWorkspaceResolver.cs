@@ -56,12 +56,12 @@ namespace BuildXL.FrontEnd.MsBuild
         /// <summary>
         /// Set of well known locations that are used to identify a candidate entry point to parse, if a specific one is not provided
         /// </summary>
-        private static HashSet<string> s_wellKnownEntryPointExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase){"proj", "sln"};
+        private readonly static HashSet<string> s_wellKnownEntryPointExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase){"proj", "sln"};
 
         /// <summary>
         /// Collection of environment variables that are allowed to the graph construction process to see (in addition to the ones specified by the user)
         /// </summary>
-        private static string[] s_environmentVariableWhitelist = new[] 
+        private readonly static string[] s_environmentVariableWhitelist = new[] 
             {
                 "ComSpec",
                 "PATH",

@@ -119,7 +119,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Dictionary of cache misses for runtime cache miss analysis.
         /// </summary>
-        private ConcurrentDictionary<PipId, PipCacheMissInfo> m_pipCacheMissesDict;
+        private readonly ConcurrentDictionary<PipId, PipCacheMissInfo> m_pipCacheMissesDict;
 
         /// <summary>
         /// A previous build's <see cref="FingerprintStore"/> that can be used for cache miss comparison.
@@ -258,9 +258,9 @@ namespace BuildXL.Scheduler.Tracing
 
         private struct CacheMissTimer : IDisposable
         {
-            private RuntimeCacheMissAnalyzer m_analyzer;
-            private PipId m_pipId;
-            CounterCollection.Stopwatch m_watch;
+            private readonly RuntimeCacheMissAnalyzer m_analyzer;
+            private readonly PipId m_pipId;
+            private readonly CounterCollection.Stopwatch m_watch;
 
             public CacheMissTimer(PipId pipId, RuntimeCacheMissAnalyzer analyzer)
             {

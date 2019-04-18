@@ -4454,7 +4454,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         private sealed class DirectoryArtifactContext : IDirectoryArtifactContext
         {
-            private IPipExecutionEnvironment m_pipExecutionEnvironment;
+            private readonly IPipExecutionEnvironment m_pipExecutionEnvironment;
 
             /// <nodoc/>
             public DirectoryArtifactContext(IPipExecutionEnvironment pipExecutionEnvironment)

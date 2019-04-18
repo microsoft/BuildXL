@@ -74,9 +74,9 @@ namespace BuildXL.Native.IO.Windows
         private struct RM_UNIQUE_PROCESS
         {
 #pragma warning disable SA1307 // Field must begin with upper-case letter
-            public int dwProcessId;
+            public readonly int dwProcessId;
 #pragma warning restore SA1307 // Field must begin with upper-case letter
-            public System.Runtime.InteropServices.ComTypes.FILETIME ProcessStartTime;
+            public readonly System.Runtime.InteropServices.ComTypes.FILETIME ProcessStartTime;
         }
 
         // https://msdn.microsoft.com/en-us/library/windows/desktop/aa373674(v=vs.85).aspx
@@ -89,16 +89,16 @@ namespace BuildXL.Native.IO.Windows
 #pragma warning restore CA1823 // Unused field
 
 #pragma warning disable SA1307 // Field must begin with upper-case letter
-            public RM_UNIQUE_PROCESS Process;
+            public readonly RM_UNIQUE_PROCESS Process;
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = CCH_RM_MAX_APP_NAME + 1)]
-            public string strAppName;
+            public readonly string strAppName;
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = CCH_RM_MAX_SVC_NAME + 1)]
-            public string strServiceShortName;
+            public readonly string strServiceShortName;
             public RM_APP_TYPE ApplicationType;
-            public uint AppStatus;
-            public uint TSSessionId;
+            public readonly uint AppStatus;
+            public readonly uint TSSessionId;
             [MarshalAs(UnmanagedType.Bool)]
-            public bool bRestartable;
+            public readonly bool bRestartable;
 #pragma warning restore SA1307 // Field must begin with upper-case letter
         }
 

@@ -140,14 +140,14 @@ namespace BuildXL.Execution.Analyzer
 
         private class WorkerAnalyzer
         {
-            private FileConsumptionAnalyzer m_analyzer;
+            private readonly FileConsumptionAnalyzer m_analyzer;
 
-            private ConcurrentBigMap<AbsolutePath, long> m_deployedFiles = new ConcurrentBigMap<AbsolutePath, long>();
-            private ConcurrentBigMap<AbsolutePath, ContentFlag> m_deployedFileFlags = new ConcurrentBigMap<AbsolutePath, ContentFlag>();
+            private readonly ConcurrentBigMap<AbsolutePath, long> m_deployedFiles = new ConcurrentBigMap<AbsolutePath, long>();
+            private readonly ConcurrentBigMap<AbsolutePath, ContentFlag> m_deployedFileFlags = new ConcurrentBigMap<AbsolutePath, ContentFlag>();
 
-            private ConcurrentBigMap<PathAtom, long> m_sizeByExtension = new ConcurrentBigMap<PathAtom, long>();
+            private readonly ConcurrentBigMap<PathAtom, long> m_sizeByExtension = new ConcurrentBigMap<PathAtom, long>();
 
-            private ActionBlockSlim<ProcessFingerprintComputationEventData> m_processingBlock;
+            private readonly ActionBlockSlim<ProcessFingerprintComputationEventData> m_processingBlock;
 
             public string Name { get; }
 

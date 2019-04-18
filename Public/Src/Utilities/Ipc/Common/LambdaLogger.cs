@@ -11,7 +11,7 @@ namespace BuildXL.Ipc.Common
     /// </summary>
     public sealed class LambdaLogger : ILogger
     {
-        private Action<LogLevel, string, object[]> m_logFunction;
+        private readonly Action<LogLevel, string, object[]> m_logFunction;
 
         /// <nodoc />
         public LambdaLogger(Action<LogLevel, string, object[]> logFunction)

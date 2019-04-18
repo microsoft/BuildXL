@@ -52,7 +52,7 @@ namespace BuildXL.FrontEnd.Ninja
         private string[] m_targets; 
  
         // AsyncLazy graph
-        private Lazy<Task<Possible<NinjaGraphWithModuleDefinition>>> m_graph;
+        private readonly Lazy<Task<Possible<NinjaGraphWithModuleDefinition>>> m_graph;
         private readonly ConcurrentDictionary<AbsolutePath, SourceFile> m_createdSourceFiles =
             new ConcurrentDictionary<AbsolutePath, SourceFile>();
 

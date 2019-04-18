@@ -336,7 +336,7 @@ namespace TypeScript.Net.Types
         /// <nodoc />
         public struct NodeEnumerator<T> : IEnumerator<T>
         {
-            private INodeArray<T> m_array;
+            private readonly INodeArray<T> m_array;
             private int m_index;
 
             /// <nodoc />

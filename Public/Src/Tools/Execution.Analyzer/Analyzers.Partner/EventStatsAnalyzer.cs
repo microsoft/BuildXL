@@ -52,7 +52,7 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public string OutputFilePath;
 
-        private WorkerEventStats[] m_workerStats = new WorkerEventStats[byte.MaxValue];
+        private readonly WorkerEventStats[] m_workerStats = new WorkerEventStats[byte.MaxValue];
 
         public EventStatsAnalyzer(AnalysisInput input)
             : base(input)
@@ -113,8 +113,8 @@ namespace BuildXL.Execution.Analyzer
 
         private class WorkerEventStats
         {
-            public long[] Counts = new long[byte.MaxValue];
-            public long[] Sizes = new long[byte.MaxValue];
+            public readonly long[] Counts = new long[byte.MaxValue];
+            public readonly long[] Sizes = new long[byte.MaxValue];
         }
     }
 }

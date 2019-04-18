@@ -77,8 +77,8 @@ namespace BuildXL.Execution.Analyzer
         private readonly TopQueue m_topUserTimePriorityQueue = new TopQueue();
         private readonly TopQueue m_topKernelTimePriorityQueue = new TopQueue();
 
-        private ConcurrentDenseIndex<Times> m_elapsedTimes = new ConcurrentDenseIndex<Times>(false);
-        private ConcurrentDenseIndex<NodeAndCriticalPath> m_criticalPaths = new ConcurrentDenseIndex<NodeAndCriticalPath>(false);
+        private readonly ConcurrentDenseIndex<Times> m_elapsedTimes = new ConcurrentDenseIndex<Times>(false);
+        private readonly ConcurrentDenseIndex<NodeAndCriticalPath> m_criticalPaths = new ConcurrentDenseIndex<NodeAndCriticalPath>(false);
 
         /// <summary>
         /// Creates an exporter which writes text to <paramref name="output" />.
@@ -269,7 +269,7 @@ namespace BuildXL.Execution.Analyzer
         private class TopQueue
         {
             private const int MaxCount = 20;
-            private PriorityQueue<StructTuple<NodeId, TimeSpan>> m_queue
+            private readonly PriorityQueue<StructTuple<NodeId, TimeSpan>> m_queue
                 = new PriorityQueue<StructTuple<NodeId, TimeSpan>>(MaxCount + 1, Comparer<StructTuple<NodeId, TimeSpan>>.Create(Compare));
             
             public IEnumerable<StructTuple<NodeId, TimeSpan>> Nodes()

@@ -27,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly ContentServer.ContentServerClient _client;
         private readonly string _host;
         private readonly int _grpcPort;
-        private bool _supportsCompression;
+        private bool _useCompression;
 
         /// <inheritdoc />
         public bool ShutdownCompleted { get; private set; }
@@ -38,24 +38,24 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
-        private GrpcCopyClient(Channel channel, bool supportsCompression)
+        private GrpcCopyClient(Channel channel, bool useCompression)
         {
             GrpcEnvironment.InitializeIfNeeded();
             _client = new ContentServer.ContentServerClient(channel);
-            _supportsCompression = supportsCompression;
+            _useCompression = useCompression;
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
-        private GrpcCopyClient(string host, int grpcPort, bool supportsCompression)
+        private GrpcCopyClient(string host, int grpcPort, bool useCompression)
         {
             GrpcEnvironment.InitializeIfNeeded();
             _channel = new Channel(host, grpcPort, ChannelCredentials.Insecure);
             _client = new ContentServer.ContentServerClient(_channel);
             _host = host;
             _grpcPort = grpcPort;
-            _supportsCompression = supportsCompression;
+            _useCompression = useCompression;
         }
 
         /// <summary>
@@ -63,11 +63,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         /// <param name="host">Name of the host for the server (e.g. 'localhost').</param>
         /// <param name="grpcPort">GRPC port on the server.</param>
-        public static GrpcCopyClient Create(string host, int grpcPort, bool supportsCompression = false)
+        public static GrpcCopyClient Create(string host, int grpcPort, bool useCompression = false)
         {
             // TODO: Add caching of GrpcCopyClient objects
             // TODO: Add case where _clientPool has exceeded some maximum count
-            return new GrpcCopyClient(host, grpcPort, supportsCompression);
+            return new GrpcCopyClient(host, grpcPort, useCompression);
         }
 
         /// <inheritdoc />
@@ -151,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     HashType = (int)hash.HashType,
                     ContentHash = hash.ToByteString(),
                     Offset = 0,
-                    Compression = _supportsCompression ? CopyCompression.Gzip : CopyCompression.None
+                    Compression = _useCompression ? CopyCompression.Gzip : CopyCompression.None
                 };
 
                 AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request);

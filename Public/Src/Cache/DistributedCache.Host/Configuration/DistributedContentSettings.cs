@@ -153,6 +153,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool IsGrpcCopierEnabled { get; set; } = false;
 
+        /// <summary>
+        /// Use GZip for GRPC copies.
+        /// </summary>
+        [DataMember]
+        public bool IsGZipEnabled { get; set; } = false;
+
         #region Distributed Eviction
         [DataMember]
         public bool IsDistributedEvictionEnabled { get; set; } = false;

@@ -291,13 +291,13 @@ namespace BuildXL
                 () => new DownloadWorkspaceResolver());
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.MsBuildResolverKind,
-                () => new MsBuildWorkspaceResolver(statistics));
+                () => new MsBuildWorkspaceResolver());
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.NinjaResolverKind,
-                () => new NinjaWorkspaceResolver(stringTable, statistics));
+                () => new NinjaWorkspaceResolver());
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.CMakeResolverKind,
-                () => new CMakeWorkspaceResolver(stringTable, statistics));
+                () => new CMakeWorkspaceResolver());
         }
     }
 }

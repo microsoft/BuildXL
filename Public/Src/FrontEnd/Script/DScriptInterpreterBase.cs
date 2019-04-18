@@ -383,7 +383,7 @@ namespace BuildXL.FrontEnd.Script
         }
 
         /// <summary>
-        /// Default DScript implementation of <see cref="IWorkspaceModuleResolver.TryParseAsync"/>.
+        /// Default DScript implementation of <see cref="BuildXL.FrontEnd.Workspaces.IWorkspaceModuleResolver.TryParseAsync"/>.
         /// </summary>
         public virtual async Task<Possible<ISourceFile>> TryParseAsync(AbsolutePath pathToParse, AbsolutePath moduleOrConfigPathPromptingParse, ParsingOptions parsingOptions = null)
         {

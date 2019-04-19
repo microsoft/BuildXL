@@ -11,7 +11,7 @@ import * as Xml from "Sdk.Xml";
  * uses the test frameworks runtest function to execute the test.
  */
 @@public
-export function test(args: TestArguments) : TestResult {
+export function test(args: TestArguments) : TestResult {   
     let testFramework = args.testFramework;
     if (!testFramework)
     {
@@ -266,6 +266,9 @@ export interface TestRunArguments {
      * Allows test runs to be tagged.
      */
     tags?: string[];
+
+    /** Optionally override to increase the weight of test pips that require more machine resources */
+    weight?: number;
 }
 
 @@public

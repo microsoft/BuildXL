@@ -19,5 +19,7 @@ namespace BasicFilesystem{
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Utilities").dll,
         ],
+        // Increase the weight of these tests since they do more I/O
+        runTestArgs: { weight: 2},
     });
 }

@@ -84,7 +84,7 @@ namespace BuildXL.Cache.ContentStore.Service
         public int RequestCallTokensPerCompletionQueue { get; set; } = DefaultRequestCallTokensPerCompletionQueue;
 
         /// <nodoc />
-        public static readonly int DefaultGrpcPort = 4236;
+        public static readonly int DefaultGrpcPort = 7089;
 
         /// <nodoc />
         public int GrpcPort { get; private set; }

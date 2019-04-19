@@ -63,6 +63,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         /// <param name="host">Name of the host for the server (e.g. 'localhost').</param>
         /// <param name="grpcPort">GRPC port on the server.</param>
+        /// <param name="useCompression">Whether or not GZip is enabled for copies.</param>
         public static GrpcCopyClient Create(string host, int grpcPort, bool useCompression = false)
         {
             // TODO: Add caching of GrpcCopyClient objects

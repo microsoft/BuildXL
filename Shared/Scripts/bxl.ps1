@@ -589,7 +589,7 @@ if ($shouldDeploy) {
 
         Mirror-Directory $deployDeployment.buildDir $deployDeployment.dir;
 
-        Log "Done. You can use the binaries with 'domino -Use $Deploy'";
+        Log "Done. You can use the binaries with 'bxl -Use $Deploy'";
     } else {
         Log-Error "Deployment cancelled since the build failed; see above."
     }

@@ -69,7 +69,7 @@ namespace BuildXL.FrontEnd.Script
         /// <summary>
         /// DScript V2 pipeline: a map of owning modules.
         /// </summary>
-        protected Dictionary<BuildXL.Utilities.ModuleId, Package> m_owningModules;
+        protected Dictionary<ModuleId, Package> m_owningModules;
 
         /// <summary>
         /// Mappings package directories to lists of packages.
@@ -79,11 +79,6 @@ namespace BuildXL.FrontEnd.Script
         /// must reside in the same directory.
         /// </remarks>
         protected ConcurrentDictionary<AbsolutePath, List<Package>> m_packageDirectories = new ConcurrentDictionary<AbsolutePath, List<Package>>();
-
-        /// <summary>
-        /// Workspace factory that are used for the parsing part of this resolver
-        /// </summary>
-        protected readonly DScriptWorkspaceResolverFactory WorkspaceFactory;
 
         private readonly SourceFileProcessingQueue<bool> m_parseQueue;
 
@@ -394,26 +389,6 @@ namespace BuildXL.FrontEnd.Script
                 TimeSpan.FromSeconds(FrontEndConfiguration.CycleDetectorStartupDelay()));
         }
 
-        /// <summary>
-        /// Evaluates a single package, and all projects that the package owns.
-        /// </summary>
-        private IReadOnlyList<Task<EvaluationResult>> EvaluatePackage(IEvaluationScheduler scheduler, Package package, QualifierValue qualifier)
-        {
-            Contract.Requires(package != null);
-            Contract.Requires(qualifier != null);
-
-            var projectsToEvaluate = GetProjectsOfPackage(package);
-            var shouldEvaluateLocalTransitive = ShouldEvaluateLocalTransitivePackage(package);
-
-            // Note that, if package does not explicitly specifies the projects that it owns, then
-            // we only evaluate the package's main file, and rely on the import/export relation to evaluate all
-            // specs in the package. Another alternative is to glob all projects in the package's cone, and
-            // evaluate those projects as well. Globbing involves IO, and can be expensive in a spinning disk.
-            // For a consideration, WDG may only have one package, and may not specifiy all projects that the package
-            // owns. Globbing the entire WDG tree will be very costly.
-            return projectsToEvaluate.Select(project => EvaluateAsync(scheduler, project, qualifier, asPackageEvaluation: shouldEvaluateLocalTransitive)).ToList();
-        }
-
         [Pure]
         private bool IsPackageConfigFile(AbsolutePath path)
         {
@@ -421,36 +396,6 @@ namespace BuildXL.FrontEnd.Script
 
             var name = path.GetName(Context.PathTable).ToString(Context.StringTable);
             return ExtensionUtilities.IsModuleConfigurationFile(name);
-        }
-
-        /// <summary>
-        /// Gets projects owned by a package.
-        /// </summary>
-        private static IReadOnlyList<AbsolutePath> GetProjectsOfPackage(Package package)
-        {
-            Contract.Requires(package != null);
-
-            var projects = new List<AbsolutePath>(1)
-            {
-                // Evaluate package's main file.
-                package.Path,
-            };
-
-            if (package.DescriptorProjects != null)
-            {
-                // If package explicitly specifies the projects that it owns, then evaluate those projects as well.
-                projects.AddRange(package.DescriptorProjects);
-            }
-
-            return projects;
-        }
-
-        private static bool ShouldEvaluateLocalTransitivePackage(Package package)
-        {
-            Contract.Requires(package != null);
-
-            // Do local transitive evaluation if only the main file of package is specified.
-            return package.DescriptorProjects == null;
         }
 
         private EvaluationResult CreateResult(bool success, ModuleLiteral module = null, ContextTree tree = null)

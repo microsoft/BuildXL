@@ -730,37 +730,6 @@ namespace Test.BuildXL.Scheduler
                 AbsolutePath.Invalid,
                 path: path,
                 enumeratePatttern: null);
-            /*
-             return new ReportedFileAccess(
-                operation,
-                process,
-                requestedAccess,
-                status,
-                explicitlyReported,
-                error,
-                usn,
-                desiredAccess,
-                shareMode,
-                creationDisposition,
-                flagsAndAttributes,
-                AbsolutePath.Invalid,
-                path,
-                enumeratePattern);
-             */
-           /* return ReportedFileAccess.Create(
-                ReportedFileOperation.CreateFile,
-                process,
-                access,
-                FileAccessStatus.Denied,
-                explicitlyReported: false,
-                error: 0,
-                usn: ReportedFileAccess.NoUsn,
-                desiredAccess: DesiredAccess.GENERIC_READ,
-                shareMode: ShareMode.FILE_SHARE_NONE,
-                creationDisposition: CreationDisposition.OPEN_ALWAYS,
-                flagsAndAttributes: FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
-                pathTable: null,
-                path: path);*/
         }
     }
 

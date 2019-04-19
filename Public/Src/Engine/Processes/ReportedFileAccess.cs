@@ -676,6 +676,9 @@ namespace BuildXL.Processes
                 status: (FileAccessStatus)reader.ReadInt32Compact(),
                 explicitlyReported: reader.ReadBoolean(),
                 error: reader.ReadUInt32(),
+                // In general if process is executed externally, e.g., in VM, the obtained USN cannot be translated to the host.
+                // However, for our low-privilege build, we are going to map the host volumes to the VM, and thus the USN
+                // can still be used.
                 usn: new Usn(reader.ReadUInt64()),
                 desiredAccess: (DesiredAccess)reader.ReadUInt32(),
                 shareMode: (ShareMode)reader.ReadUInt32(),

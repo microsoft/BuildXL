@@ -16,7 +16,6 @@ namespace SandboxedProcessExecutor {
         allowUnsafeBlocks: true,
         assemblyName: "SandboxedProcessExecutor",
         rootNamespace: "BuildXL.SandboxedProcessExecutor",
-        skipDocumentationGeneration: true,
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Utilities").dll,

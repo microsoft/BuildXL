@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Ninja.Serialization;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Ninja
 {

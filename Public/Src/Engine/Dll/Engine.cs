@@ -22,6 +22,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Distribution;
+using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Recovery;
 using BuildXL.Engine.Tracing;
 using BuildXL.Engine.Visualization;
@@ -204,7 +205,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Full string path of the temp directory used for file move-deletes
         /// </summary>
-        private string m_moveDeleteTempDirectory;
+        private readonly string m_moveDeleteTempDirectory;
 
         /// <summary>
         /// TempCleaner responsible for cleaning registered directories or files in the background.
@@ -275,10 +276,16 @@ namespace BuildXL.Engine
 
             if (configuration.Distribution.IsGrpcEnabled)
             {
-                GrpcEnvironment.InitializeIfNeeded();
+                bool grpcHandlerInliningEnabled = GrpcSettings.HandlerInliningEnabled;
+
 #if FEATURE_CORECLR
-                global::Grpc.Core.GrpcEnvironment.SetHandlerInlining(false);
+                // Handler inlining causing deadlock on the mac platform.
+                grpcHandlerInliningEnabled = false;
 #endif
+
+                GrpcEnvironment.InitializeIfNeeded(GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled);
+
+                Logger.Log.GrpcSettings(loggingContext, GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled, (int)GrpcSettings.CallTimeout.TotalMinutes, (int)GrpcSettings.InactiveTimeout.TotalMinutes);
             }
 
             Context = context;
@@ -1688,7 +1695,9 @@ namespace BuildXL.Engine
                                 success &= constructScheduleResult != ConstructScheduleResult.Failure;
                                 ValidateSuccessMatches(success, pm.LoggingContext);
 
-                                if (success && !Configuration.Schedule.DisableProcessRetryOnResourceExhaustion)
+                                var phase = Configuration.Engine.Phase;
+
+                                if (success && phase.HasFlag(EnginePhases.Schedule) && !Configuration.Schedule.DisableProcessRetryOnResourceExhaustion)
                                 {
                                     // TODO: update this once shared opaques play nicely with resource based cancellation
                                     // Resource based cancellation might lead to wrong cache entries.
@@ -1710,8 +1719,6 @@ namespace BuildXL.Engine
                                     }
                                     ValidateSuccessMatches(success, pm.LoggingContext);
                                 }
-
-                                var phase = Configuration.Engine.Phase;
 
                                 if (success && phase.HasFlag(EnginePhases.Schedule) && Configuration.Ide.IsEnabled)
                                 {
@@ -2157,6 +2164,7 @@ namespace BuildXL.Engine
                 { "unsafe_DisableCycleDetection", Logger.Log.ConfigUnsafeDisableCycleDetection },
                 { "unsafe_DisableDetours", Logger.Log.ConfigDisableDetours },
                 { "unsafe_DisableGraphPostValidation", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
+                { "unsafe_DisableSharedOpaqueEmptyDirectoryScrubbing", Logger.Log.ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing },
                 { "unsafe_ExistingDirectoryProbesAsEnumerations", Logger.Log.ConfigUnsafeExistingDirectoryProbesAsEnumerations },
                 { "unsafe_ForceSkipDeps", Logger.Log.ForceSkipDependenciesEnabled },
                 { "unsafe_IgnoreGetFinalPathNameByHandle", Logger.Log.ConfigIgnoreGetFinalPathNameByHandle },
@@ -2173,7 +2181,7 @@ namespace BuildXL.Engine
                 { "unsafe_LazySymlinkCreation", Logger.Log.ConfigUnsafeLazySymlinkCreation },
                 { "unsafe_MonitorFileAccesses", Logger.Log.ConfigUnsafeDisabledFileAccessMonitoring },
                 { "unsafe_PreserveOutputs", Logger.Log.ConfigPreserveOutputs },
-                { "unsafe_SourceFileCanBeInsideOutputDirectory", loggingContext => { } },
+                { "unsafe_SourceFileCanBeInsideOutputDirectory", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
                 { "unsafe_UnexpectedFileAccessesAreErrors", Logger.Log.ConfigUnsafeUnexpectedFileAccessesAsWarnings },
             };
         }

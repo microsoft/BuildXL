@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using BuildXL.Engine.Cache.KeyValueStores;
+using RocksDbSharp;
 
 namespace BuildXL.Engine.Cache
 {
@@ -26,6 +27,24 @@ namespace BuildXL.Engine.Cache
         /// <param name="startValue">The start value for iterating keys to garbage collect (optional)</param>
         GarbageCollectResult GarbageCollect(
             Func<byte[], bool> canCollect, 
+            string primaryColumnFamilyName = null, 
+            IEnumerable<string> additionalColumnFamilyNames = null, 
+            CancellationToken cancellationToken = default, 
+            byte[] startValue = null);
+        
+        /// <summary>
+        /// Iterates through all the keys in a column family and garbage collects.
+        /// </summary>
+        /// <param name="canCollect">Whether the key's entry can be garbage collected.</param>
+        /// <param name="primaryColumnFamilyName">The column family to use. If null, the store's default column is used.</param>
+        /// <param name="additionalColumnFamilyNames">
+        /// If provided, any keys determined to be garbage collectable will also be removed across the column families specified by this parameter.
+        /// The key removal will happen atomically across the primary and additional column families passed into this function.
+        /// </param>
+        /// <param name="cancellationToken">Cancellation token for terminating garbage collection (optional)</param>
+        /// <param name="startValue">The start value for iterating keys to garbage collect (optional)</param>
+        GarbageCollectResult GarbageCollectByKeyValue(
+            Func<Iterator, bool> canCollect, 
             string primaryColumnFamilyName = null, 
             IEnumerable<string> additionalColumnFamilyNames = null, 
             CancellationToken cancellationToken = default, 

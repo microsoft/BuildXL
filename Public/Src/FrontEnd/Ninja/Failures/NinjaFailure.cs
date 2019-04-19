@@ -1,12 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
-using TypeScript.Net.Extensions;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Ninja
@@ -24,8 +19,8 @@ namespace BuildXL.FrontEnd.Ninja
 
     internal class NinjaGraphConstructionFailure : NinjaFailure
     {
-        private string m_projectRoot;
-        private string m_moduleName;
+        private readonly string m_projectRoot;
+        private readonly string m_moduleName;
        
         /// <nodoc/>
         public NinjaGraphConstructionFailure(string moduleName, string projectRoot)

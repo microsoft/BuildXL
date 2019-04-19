@@ -17,10 +17,10 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     public class HtmlHelper
     {
-        private PathTable m_pathTable;
-        private StringTable m_stringTable;
-        private SymbolTable m_symbolTable;
-        private PipTable m_pipTable;
+        private readonly PathTable m_pathTable;
+        private readonly StringTable m_stringTable;
+        private readonly SymbolTable m_symbolTable;
+        private readonly PipTable m_pipTable;
 
         /// <nodoc />
         public HtmlHelper(PathTable pathTable, StringTable stringTable, SymbolTable symbolTable, PipTable pipTable)

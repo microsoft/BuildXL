@@ -328,7 +328,7 @@ namespace BuildXL.Scheduler.Tracing
             /// This is just for the <see cref="FingerprintStore"/> to represent the default column to when managing some state.
             /// All <see cref="KeyValueStoreAccessor"/> operations can access the default column by passing null.
             /// </remarks>
-            public static string Default = KeyValueStoreAccessor.DefaultColumnName;
+            public static readonly string Default = KeyValueStoreAccessor.DefaultColumnName;
 
             /// <summary>
             /// Column for weak fingerprints, keyed by <see cref="BuildXL.Pips.Operations.Pip.FormattedSemiStableHash"/>.
@@ -586,7 +586,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Test hooks.
         /// </summary>
-        private FingerprintStoreTestHooks m_testHooks;
+        private readonly FingerprintStoreTestHooks m_testHooks;
 
         /// <summary>
         /// Logging context.

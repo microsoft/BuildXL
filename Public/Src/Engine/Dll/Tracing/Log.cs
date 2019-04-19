@@ -1815,6 +1815,15 @@ If you can't update and need this feature after July 2018 please reach out to th
         private const string ScrubbingStatusPrefix = "Scrubbing files extraneous to this build.";
 
         [GeneratedEvent(
+            (ushort)EventId.ConfigUnsafeSharedOpaqueEmptyDirectoryScrubbingDisabled,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.Engine,
+            Message = "/unsafe_DisableSharedOpaqueEmptyDirectoryScrubbing: removal of empty directories within shared opaques has been disabled. This is an unsafe configuration since it may work in detriment of build correctness.")]
+        public abstract void ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing(LoggingContext context);
+
+        [GeneratedEvent(
             (int)EventId.ScrubbingStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
@@ -2636,6 +2645,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             Message = "Scheduler has been configured to cancel/re-run pips due to resource exhaustion. There is at least one pip that produces a shared opaque directory ('{sharedOpaquePath}'). "
                       + "Resource based cancellation and shared opaque directories are not compatible. Please use /disableProcessRetryOnResourceExhaustion+ argument to disable resource based cancellation.")]
         internal abstract void ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent(LoggingContext loggingContext, string sharedOpaquePath);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.GrpcSettings,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.Distribution,
+            Message = "Grpc settings: ThreadPoolSize {threadPoolSize}, HandlerInlining {handlerInlining}, CallTimeoutMin {callTimeoutMin}, InactiveTimeoutMin {inactiveTimeoutMin}")]
+        internal abstract void GrpcSettings(LoggingContext context, int threadPoolSize, bool handlerInlining, int callTimeoutMin, int inactiveTimeoutMin);
     }
 
     /// <summary>

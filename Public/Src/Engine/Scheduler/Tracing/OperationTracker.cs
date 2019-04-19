@@ -90,7 +90,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The operation tracker for the total active time of the <see cref="OperationTracker"/>
         /// </summary>
-        private OperationContext m_totalActiveTimeOperationTracker;
+        private readonly OperationContext m_totalActiveTimeOperationTracker;
 
         internal OperationContext DefaultOperation => m_totalActiveTimeOperationTracker;
 

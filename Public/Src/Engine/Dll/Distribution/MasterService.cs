@@ -56,7 +56,7 @@ namespace BuildXL.Engine.Distribution
         private readonly ushort m_buildServicePort;
         private readonly bool m_isGrpcEnabled;
 
-        private IServer m_masterServer;
+        private readonly IServer m_masterServer;
 
         internal readonly DistributionServices DistributionServices;
 

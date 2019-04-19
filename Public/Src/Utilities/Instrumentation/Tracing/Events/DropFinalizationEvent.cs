@@ -16,7 +16,7 @@ namespace BuildXL.Tracing.CloudBuild
     [EventData]
     public sealed class DropFinalizationEvent : DropOperationBaseEvent
     {
-        private static PropertyInfo[] s_members = typeof(DropFinalizationEvent).GetProperties();
+        private static readonly PropertyInfo[] s_members = typeof(DropFinalizationEvent).GetProperties();
 
         /// <inheritdoc />
         internal override PropertyInfo[] Members => s_members;

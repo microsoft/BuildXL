@@ -259,7 +259,7 @@ namespace BuildXL.Scheduler.Tracing
             private static readonly List<OperationKind> s_pipTypeSpecificOperations = new List<OperationKind>();
             private static readonly List<string> s_names = new List<string>();
 
-            private static object s_addOperationLock = new object();
+            private static readonly object s_addOperationLock = new object();
 
             private static readonly PipType[] s_pipTypes = EnumTraits<PipType>.EnumerateValues().ToArray();
             private static readonly string[] s_pipTypeSuffixes = s_pipTypes.Select(p => "." + p.ToString()).ToArray();

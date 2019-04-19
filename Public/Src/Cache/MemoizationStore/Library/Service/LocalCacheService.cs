@@ -48,7 +48,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
             }
 
             // TODO: specify the right storeByName argument
-            _grpcContentServer = new GrpcContentServer(logger, capabilities, this, nameByDrive, new Dictionary<string, IContentStore>());
+            _grpcContentServer = new GrpcContentServer(logger, capabilities, this, new Dictionary<string, IContentStore>());
             _grpcCacheServer = new GrpcCacheServer(logger, this);
         }
 

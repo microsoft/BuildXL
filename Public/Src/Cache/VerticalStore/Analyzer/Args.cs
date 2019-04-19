@@ -30,51 +30,51 @@ namespace BuildXL.Cache.Analyzer
         /// Json config string for the cache the user wishes
         /// to check
         /// </summary>
-        private string m_jsonString;
+        private readonly string m_jsonString;
 
         /// <summary>
         /// If true, a statistical analysis of the cache
         /// will be performed.
         /// </summary>
-        private bool m_runStatisticalAnalysis;
+        private readonly bool m_runStatisticalAnalysis;
 
         /// <summary>
         /// If true, statistical analysis will include
         /// content size for the session. This may be
         /// preposterously slow.
         /// </summary>
-        private bool m_analyzeContent;
+        private readonly bool m_analyzeContent;
 
         /// <summary>
         /// If true, a consistency check of the cache will
         /// be performed.
         /// </summary>
-        private bool m_runConsistencyCheck;
+        private readonly bool m_runConsistencyCheck;
 
         /// <summary>
         /// If true, the sizes of all input assertion lists
         /// associated with a particular weak fingerprint
         /// will be compared to find large discrepancies.
         /// </summary>
-        private bool m_findInputAssertionListAnomalies;
+        private readonly bool m_findInputAssertionListAnomalies;
 
         /// <summary>
         /// If true, every strong fingerprint found will have its input
         /// assertion list dumped.
         /// </summary>
-        private bool m_dumpInputAssertionLists;
+        private readonly bool m_dumpInputAssertionLists;
 
         /// <summary>
         /// These two regexes are used to select input lists that get dumped
         /// The lists must include *and* must not include the other.
         /// </summary>
-        private Regex m_inputAssertionListDumpMustIncludeRegex;
-        private Regex m_inputAssertionListDumpMustNotIncludeRegex;
+        private readonly Regex m_inputAssertionListDumpMustIncludeRegex;
+        private readonly Regex m_inputAssertionListDumpMustNotIncludeRegex;
 
         /// <summary>
         /// If true, dump a content breakdown for each session.
         /// </summary>
-        private bool m_runContentBreakdown;
+        private readonly bool m_runContentBreakdown;
 
         /// <summary>
         /// This string is used to filter which sessions
@@ -82,7 +82,7 @@ namespace BuildXL.Cache.Analyzer
         /// will only be included if the regex indicates
         /// a match on the name of the session.
         /// </summary>
-        private Regex m_sessionRegex;
+        private readonly Regex m_sessionRegex;
 
         /// <summary>
         /// If true, all of the content in the CAS will be
@@ -91,21 +91,21 @@ namespace BuildXL.Cache.Analyzer
         /// <remarks>
         /// This is expensive, especially over the network.
         /// </remarks>
-        private bool m_rehashCASContent;
+        private readonly bool m_rehashCASContent;
 
         /// <summary>
         /// This is where the results of the tool are
         /// written to. Default is the console. The user
         /// can specify a file to use instead.
         /// </summary>
-        private TextWriter m_outputDestination;
+        private readonly TextWriter m_outputDestination;
 
         /// <summary>
         /// If an output file is specified, this will contain the base path
         /// of the output file. Used for content breakdown analysis, which
         /// writes multiple output files.
         /// </summary>
-        private string m_outputBasePath;
+        private readonly string m_outputBasePath;
 
         /// <summary>
         /// Only applies when doing an input assertion list check.
@@ -120,7 +120,7 @@ namespace BuildXL.Cache.Analyzer
         /// it would not be considered an anomaly because 10 * 3 is NOT less
         /// than 22.
         /// </remarks>
-        private double m_inputAssertionListSizeDisparityMinimumFactor =
+        private readonly double m_inputAssertionListSizeDisparityMinimumFactor =
             InputAssertionListChecker.DefaultDisparityFactor;
 
         /// <summary>
@@ -129,20 +129,20 @@ namespace BuildXL.Cache.Analyzer
         /// value will remain null and no weak fingerprints will be output
         /// anywhere.
         /// </summary>
-        private string m_weakFingerprintOutputFilepath = null;
+        private readonly string m_weakFingerprintOutputFilepath = null;
 
         /// <summary>
         /// If the user specifies to output all weak fingerprints found, they
         /// will be put into this collection as the operations run.
         /// </summary>
-        private ConcurrentDictionary<WeakFingerprintHash, byte> m_weakFingerprintsFound;
+        private readonly ConcurrentDictionary<WeakFingerprintHash, byte> m_weakFingerprintsFound;
 
         /// <summary>
         /// If the user specifies a file to pull weak fingerprints from, they
         /// will be stored in this set. If not or if the file is empty, this
         /// set will remain empty.
         /// </summary>
-        private ISet<WeakFingerprintHash> m_inputWeakFingerprints = new HashSet<WeakFingerprintHash>();
+        private readonly ISet<WeakFingerprintHash> m_inputWeakFingerprints = new HashSet<WeakFingerprintHash>();
 
         /// <summary>
         /// This is the cache being analyzed.

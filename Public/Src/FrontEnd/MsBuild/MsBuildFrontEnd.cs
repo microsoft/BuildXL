@@ -4,22 +4,20 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Core;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
-using Logger = BuildXL.FrontEnd.Script.Tracing.Logger;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.MsBuild
 {
     /// <summary>
     /// Resolver frontend that can schedule MsBuild projects using the static graph API from MsBuild.
     /// </summary>
-    public sealed class MsBuildFrontEnd : DScriptInterpreterBase, IFrontEnd
+    public sealed class MsBuildFrontEnd : IFrontEnd
     {
+        private FrontEndContext m_context;
+        private FrontEndHost m_host;
+
         /// <summary>
         /// Used to make sure all MsBuild resolvers are configured to load the MsBuild assemblies
         /// from the same locations
@@ -27,17 +25,21 @@ namespace BuildXL.FrontEnd.MsBuild
         /// <remarks>
         /// Order matters, since that may result in different resolved assemblies
         /// </remarks>
-        private List<AbsolutePath> m_loadedMsBuildAssemblyLocations = new List<AbsolutePath>();
+        private readonly List<AbsolutePath> m_loadedMsBuildAssemblyLocations = new List<AbsolutePath>();
+
+        /// <nodoc />
+        public const string Name = MsBuildWorkspaceResolver.MsBuildResolverName;
 
         /// <nodoc/>
-        public MsBuildFrontEnd(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
-            IFrontEndStatistics statistics,
-            Logger logger = null)
-            : base(constants, sharedModuleRegistry, statistics, logger)
+        public MsBuildFrontEnd()
         {
-            Name = nameof(MsBuildFrontEnd);
+        }
+
+        /// <inheritdoc/>
+        public void InitializeFrontEnd(FrontEndHost host, FrontEndContext context, IConfiguration configuration)
+        {
+            m_host = host;
+            m_context = context;
         }
 
         /// <inheritdoc/>
@@ -46,21 +48,7 @@ namespace BuildXL.FrontEnd.MsBuild
         /// <inheritdoc/>
         public IResolver CreateResolver(string kind)
         {
-            return new MsBuildResolver(
-                Constants,
-                SharedModuleRegistry,
-                FrontEndStatistics,
-                FrontEndHost,
-                Context,
-                Configuration,
-                Logger,
-                Name);
-        }
-
-        /// <inheritdoc/>
-        public void InitializeFrontEnd(FrontEndHost host, FrontEndContext context, IConfiguration configuration)
-        {
-            InitializeInterpreter(host, context, configuration);
+            return new MsBuildResolver(m_host, m_context, Name);
         }
 
         /// <summary>

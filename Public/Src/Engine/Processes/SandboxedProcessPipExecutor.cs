@@ -2219,7 +2219,7 @@ namespace BuildXL.Processes
             Mt = 12
         }
 
-        private static Dictionary<string, SpecialProcessKind> s_specialTools = new Dictionary<string, SpecialProcessKind>(StringComparer.OrdinalIgnoreCase)
+        private static readonly Dictionary<string, SpecialProcessKind> s_specialTools = new Dictionary<string, SpecialProcessKind>(StringComparer.OrdinalIgnoreCase)
         {
             ["csc"] = SpecialProcessKind.Csc,
             ["csc.exe"] = SpecialProcessKind.Csc,
@@ -2997,14 +2997,14 @@ namespace BuildXL.Processes
                     // If outputs were redirected, they are not in their expected location but it their redirected one
                     if (fileOutputsAreRedirected)
                     {
-                        expectedOutputPath = m_processInContainerManager.GetRedirectedOutput(expectedOutput.Path, m_containerConfiguration).ToString(m_pathTable);
+                        expectedOutputPath = m_processInContainerManager.GetRedirectedDeclaredOutputFile(expectedOutput.Path, m_containerConfiguration).ToString(m_pathTable);
                     }
                     else
                     {
                         expectedOutputPath = expectedOutput.Path.ToString(m_pathTable);
                     }
 
-                    if (!FileExistsNoFollow(expectedOutputPath) &&
+                    if (!FileExistsNoFollow(expectedOutputPath, fileOutputsAreRedirected) &&
                         expectedOutput != m_pip.StandardOutput &&
                         expectedOutput != m_pip.StandardError)
                     {
@@ -3039,10 +3039,14 @@ namespace BuildXL.Processes
             return allOutputsPresent;
         }
 
-        private bool FileExistsNoFollow(string path)
+        private bool FileExistsNoFollow(string path, bool fileOutputsAreRedirected)
         {
             var maybeResult = FileUtilities.TryProbePathExistence(path, followSymlink: false);
-            return maybeResult.Succeeded && maybeResult.Result == PathExistence.ExistsAsFile;
+            var existsAsFile = maybeResult.Succeeded && maybeResult.Result == PathExistence.ExistsAsFile;
+
+            // If file outputs are not redirected, this is simply file existence. Otherwise, we have 
+            // to check that the file is not a WCI tombstone, since this means the file is not really there.
+            return existsAsFile && !(fileOutputsAreRedirected && FileUtilities.IsWciTombstoneFile(path));
         }
 
         // (lubol): TODO: Add handling of the translate paths strings. Add code here to address VSO Task# 989041.

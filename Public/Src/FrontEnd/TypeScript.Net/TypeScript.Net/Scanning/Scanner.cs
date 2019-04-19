@@ -398,7 +398,7 @@ namespace TypeScript.Net.Scanning
 
         private ScriptTarget m_languageVersion;
         private LanguageVariant m_languageVariant;
-        private bool m_preserveComments;
+        private readonly bool m_preserveComments;
 
         private ISourceFile m_sourceFile;
 

@@ -2,18 +2,18 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.Utilities.Qualifier;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
 
 namespace BuildXL.FrontEnd.Script
 {
     /// <summary>
     /// Class contains uninstantiated module literal with some additional data associated with it.
     /// </summary>
-    public sealed class UninstantiatedModuleInfo
+    public sealed class UninstantiatedModuleInfo : IUninstantiatedModuleInfo
     {
         /// <nodoc/>
         [CanBeNull]

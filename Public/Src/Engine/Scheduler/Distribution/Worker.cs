@@ -825,7 +825,7 @@ namespace BuildXL.Scheduler.Distribution
         {
             private readonly RunnablePip m_runnablePip;
             private readonly Worker m_worker;
-            private OperationContext m_operationContext;
+            private readonly OperationContext m_operationContext;
 
             /// <nodoc />
             public PipExecutionScope(RunnablePip runnablePip, Worker worker, OperationContext operationContext)

@@ -5,8 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Download.Tracing;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Configuration;
@@ -19,28 +17,20 @@ namespace BuildXL.FrontEnd.Download
     /// </summary>
     public sealed class DownloadFrontEnd : IFrontEnd
     {
-        private readonly GlobalConstants m_constants;
-        private readonly ModuleRegistry m_sharedModuleRegistry;
         private FrontEndHost m_host;
         private FrontEndContext m_context;
-        private Logger m_logger;
-        private Statistics m_statistics;
+        private readonly Logger m_logger;
+        private readonly Statistics m_statistics;
 
         /// <summary>
         /// Gets or sets the name of the front-end.
         /// </summary>
-        public string Name { get; }
+        public const string Name = KnownResolverKind.DownloadResolverKind;
 
         /// <nodoc/>
-        public DownloadFrontEnd(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
-            Logger logger = null)
+        public DownloadFrontEnd()
         {
-            Name = nameof(DownloadFrontEnd);
-            m_constants = constants;
-            m_sharedModuleRegistry = sharedModuleRegistry;
-            m_logger = logger ?? Logger.Log;
+            m_logger = Logger.Log;
             m_statistics = new Statistics();
         }
 
@@ -61,8 +51,6 @@ namespace BuildXL.FrontEnd.Download
             Contract.Requires(SupportedResolvers.Contains(kind));
 
             return new DownloadResolver(
-                m_constants,
-                m_sharedModuleRegistry,
                 m_statistics,
                 m_host,
                 m_context,

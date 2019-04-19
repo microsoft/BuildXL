@@ -16,7 +16,7 @@ namespace BuildXL.Tracing.CloudBuild
     [EventData]
     public sealed class TargetRunningEvent : CloudBuildEvent
     {
-        private static PropertyInfo[] s_members = typeof(TargetRunningEvent).GetProperties();
+        private static readonly PropertyInfo[] s_members = typeof(TargetRunningEvent).GetProperties();
 
         /// <inheritdoc />
         internal override PropertyInfo[] Members => s_members;

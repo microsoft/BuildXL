@@ -1,15 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
-using System.Text;
 using BuildXL.FrontEnd.Ninja.Serialization;
 using BuildXL.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Utilities;
-using BuildXL.Pips;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Resolvers;
 
 namespace BuildXL.FrontEnd.Ninja
@@ -18,7 +12,7 @@ namespace BuildXL.FrontEnd.Ninja
     {
         private FrontEndContext m_context;
         private FrontEndHost m_frontEndHost;
-        private NinjaPipConstructor m_pipConstructor;
+        private readonly NinjaPipConstructor m_pipConstructor;
 
         /// <nodoc/>
         public NinjaPipGraphBuilder(

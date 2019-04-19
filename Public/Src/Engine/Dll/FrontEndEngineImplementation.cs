@@ -357,7 +357,7 @@ namespace BuildXL.Engine
 
             // DScript, MSBuild, CMake, Ninja don't restrict accessing environment variables for now.
             // TODO: we need something better than hardcoding front end names here
-            if (frontEnd == "DScript" || frontEnd == "MsBuildFrontEnd" || frontEnd == "CMakeFrontEnd" || frontEnd == "NinjaFrontEnd")
+            if (frontEnd == "DScript" || frontEnd == "MsBuild" || frontEnd == "CMake" || frontEnd == "Ninja")
             {
                 // Uses of environment variable can be get-value or has-variable, and both uses must be tracked.
                 var trackedValue = m_allBuildParameters.GetOrAdd(name, key => new TrackedValue(null, true));

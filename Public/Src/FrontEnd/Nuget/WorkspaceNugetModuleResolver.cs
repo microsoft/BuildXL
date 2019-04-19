@@ -15,14 +15,13 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Nuget.Tracing;
 using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Sdk.Workspaces;
+using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
@@ -50,7 +49,7 @@ namespace BuildXL.FrontEnd.Nuget
     /// already contains DScript specs. An embedded regular source resolver
     /// is set to pick up embedded specs.
     /// </remarks>
-    public sealed class WorkspaceNugetModuleResolver : Sdk.Workspaces.IDScriptWorkspaceModuleResolver, Workspaces.Core.IWorkspaceModuleResolver
+    public sealed class WorkspaceNugetModuleResolver : IWorkspaceModuleResolver
     {
         private readonly INugetStatistics m_statistics;
         internal const string NugetResolverName = "Nuget";
@@ -93,15 +92,11 @@ namespace BuildXL.FrontEnd.Nuget
 
         /// <nodoc/>
         public WorkspaceNugetModuleResolver(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
+            StringTable stringTable,
             IFrontEndStatistics statistics)
         {
-            Contract.Requires(constants != null);
-            Contract.Requires(sharedModuleRegistry != null);
-
             m_statistics = statistics.NugetStatistics;
-            m_embeddedSpecsResolver = new WorkspaceSourceModuleResolver(constants, sharedModuleRegistry, statistics, logger: null);
+            m_embeddedSpecsResolver = new WorkspaceSourceModuleResolver(stringTable, statistics, logger: null);
 
             m_useMonoBasedNuGet = OperatingSystemHelper.IsUnixOS;
 

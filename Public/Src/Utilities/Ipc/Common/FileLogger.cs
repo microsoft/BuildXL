@@ -17,7 +17,7 @@ namespace BuildXL.Ipc.Common
         // 24K buffer size means that internally, the StreamWriter will use 48KB for a char[] array, and 73731 bytes for an encoding byte array buffer --- all buffers <85000 bytes, and therefore are not in large object heap
         private const int LogFileBufferSize = 24 * 1024;
 
-        private TextWriter m_writer;
+        private readonly TextWriter m_writer;
 
         /// <nodoc />
         public bool IsLoggingVerbose { get; }

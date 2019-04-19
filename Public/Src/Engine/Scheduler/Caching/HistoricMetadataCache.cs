@@ -158,7 +158,7 @@ namespace BuildXL.Scheduler.Cache
             }
         }
 
-        private Lazy<KeyValueStoreAccessor> m_storeAccessor;
+        private readonly Lazy<KeyValueStoreAccessor> m_storeAccessor;
 
         /// <nodoc/>
         public HistoricMetadataCache(
@@ -1123,9 +1123,9 @@ namespace BuildXL.Scheduler.Cache
 
         private struct PublishedEntry
         {
-            public StrongContentFingerprint StrongFingerprint;
+            public readonly StrongContentFingerprint StrongFingerprint;
 
-            public ContentHash PathSetHash;
+            public readonly ContentHash PathSetHash;
 
             public PublishedEntry(StrongContentFingerprint strongFingerprint, ContentHash pathSetHash)
             {

@@ -9,9 +9,9 @@ namespace BuildXL.Cache.ImplementationSupport
     /// </summary>
     public sealed class CountedMultiBytesDistribution : BaseCounters
     {
-        private SumsCounter m_filecount = new SumsCounter();
-        private SumsCounter m_skipped = new SumsCounter();
-        private SumsCounter m_unknown = new SumsCounter();
+        private readonly SumsCounter m_filecount = new SumsCounter();
+        private readonly SumsCounter m_skipped = new SumsCounter();
+        private readonly SumsCounter m_unknown = new SumsCounter();
         private SafeLong m_count = default(SafeLong);
         private readonly SumsCounter m_bytes = new SumsCounter();
         private readonly SumsCounter m_time = new SumsCounter();

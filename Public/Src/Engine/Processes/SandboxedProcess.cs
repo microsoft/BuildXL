@@ -43,10 +43,10 @@ namespace BuildXL.Processes
 
         private readonly int m_bufferSize;
 
-        private PooledObjectWrapper<MemoryStream> m_fileAccessManifestStreamWrapper;
+        private readonly PooledObjectWrapper<MemoryStream> m_fileAccessManifestStreamWrapper;
         private MemoryStream FileAccessManifestStream => m_fileAccessManifestStreamWrapper.Instance;
         private FileAccessManifest m_fileAccessManifest;
-        private ReadWriteLock m_queryJobDataLock = ReadWriteLock.Create();
+        private readonly ReadWriteLock m_queryJobDataLock = ReadWriteLock.Create();
 
         private readonly TaskSourceSlim<SandboxedProcessResult> m_resultTaskCompletionSource =
             TaskSourceSlim.Create<SandboxedProcessResult>();

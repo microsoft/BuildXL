@@ -4,34 +4,29 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Nuget
 {
     /// <summary>
     /// NuGet resolver frontend
     /// </summary>
-    public sealed class NugetFrontEnd : DScriptInterpreterBase, Sdk.IFrontEnd
+    public sealed class NugetFrontEnd : DScriptInterpreterBase, IFrontEnd
     {
         private readonly IDecorator<EvaluationResult> m_evaluationDecorator;
         private SourceFileProcessingQueue<bool> m_sourceFileProcessingQueue;
 
         /// <nodoc/>
         public NugetFrontEnd(
-            GlobalConstants constants,
-            ModuleRegistry sharedModuleRegistry,
             IFrontEndStatistics statistics,
             Logger logger = null,
             IDecorator<EvaluationResult> evaluationDecorator = null)
-            : base(constants, sharedModuleRegistry, statistics, logger)
+            : base(statistics, logger)
         {
             Name = nameof(NugetFrontEnd);
 
@@ -66,8 +61,6 @@ namespace BuildXL.FrontEnd.Nuget
             Contract.Assert(m_sourceFileProcessingQueue != null, "Initialize method should be called to initialize m_sourceFileProcessingQueue.");
 
             return new NugetResolver(
-                Constants,
-                SharedModuleRegistry,
                 FrontEndHost,
                 Context,
                 Configuration,

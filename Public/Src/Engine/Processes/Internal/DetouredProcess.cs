@@ -77,7 +77,7 @@ namespace BuildXL.Processes.Internal
         private static readonly IntPtr s_consoleWindow = Native.Processes.Windows.ProcessUtilitiesWin.GetConsoleWindow();
         private readonly ContainerConfiguration m_containerConfiguration;
 
-        private LoggingContext m_loggingContext;
+        private readonly LoggingContext m_loggingContext;
 
 #region public getters
 

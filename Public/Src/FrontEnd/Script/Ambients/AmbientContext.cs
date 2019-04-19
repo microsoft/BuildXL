@@ -41,8 +41,8 @@ namespace BuildXL.FrontEnd.Script.Ambients
         internal const string GetTemplateFunctionName = "getTemplate";
         internal const string GetCurrentHostName = "getCurrentHost";
 
-        private SymbolAtom MountNameObject;
-        private SymbolAtom MountPathObject;
+        private readonly SymbolAtom MountNameObject;
+        private readonly SymbolAtom MountPathObject;
 
         internal static string[] ConfigBlacklist =
         {

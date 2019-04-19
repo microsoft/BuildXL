@@ -37,7 +37,7 @@ namespace BuildXL.Execution.Analyzer
 
         // Variables that are unused without full telemetry
         private readonly bool m_telemetryDisabled = false;
-        private Stopwatch m_telemetryStopwatch = new Stopwatch();
+        private readonly Stopwatch m_telemetryStopwatch = new Stopwatch();
 
         public Args(string[] args)
             : base(args)

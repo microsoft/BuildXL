@@ -85,8 +85,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// </summary>
         private readonly ContentTrackerUpdater _contentTrackerUpdater;
 
-        private DistributedContentCopier<T> _distributedCopier;
-        private DistributedContentStoreSettings _settings;
+        private readonly DistributedContentCopier<T> _distributedCopier;
+        private readonly DistributedContentStoreSettings _settings;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ReadOnlyDistributedContentSession{T}"/> class.

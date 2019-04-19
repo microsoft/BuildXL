@@ -18,7 +18,7 @@ namespace BuildXL.Scheduler
     {
         private readonly ConcurrentBigSet<Entry> m_stateMap = new ConcurrentBigSet<Entry>();
         private readonly StateCount[] m_stateCounts;
-        private ReadWriteLock m_stateCountsLock = ReadWriteLock.Create();
+        private readonly ReadWriteLock m_stateCountsLock = ReadWriteLock.Create();
 
         /// <nodoc />
         protected PipStateManager(int numberOfStates)

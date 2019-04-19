@@ -28,14 +28,12 @@ namespace Test.BuildXL.FrontEnd.Nuget
     public class NugetResolverUnitTests : TemporaryStorageTestBase
     {
         private readonly FrontEndContext m_testContext;
-        private readonly GlobalConstants m_constants;
 
         public NugetResolverUnitTests(ITestOutputHelper output)
             : base(output)
         {
             var pathTable = new PathTable();
             m_testContext = FrontEndContext.CreateInstanceForTesting(pathTable: pathTable, fileSystem: new PassThroughFileSystem(pathTable));
-            m_constants = new GlobalConstants(m_testContext.SymbolTable);
         }
 
         [Fact]
@@ -244,6 +242,7 @@ $@"module({{
             return FrontEndHostController.CreateForTesting(
                m_testContext,
                new BasicFrontEndEngineAbstraction(m_testContext.PathTable, m_testContext.FileSystem),
+               new ModuleRegistry(m_testContext.SymbolTable),
                Path.Combine(TemporaryDirectory, Names.ConfigDsc),
                outputDirectory: Path.Combine(TemporaryDirectory, "out"));
         }
@@ -252,7 +251,7 @@ $@"module({{
         {
             var host = CreateFrontEndHostControllerForTesting();
 
-            var nugetResolver = new WorkspaceNugetModuleResolver(m_constants, new ModuleRegistry(), new FrontEndStatistics());
+            var nugetResolver = new WorkspaceNugetModuleResolver(m_testContext.StringTable, new FrontEndStatistics());
             nugetResolver.TryInitialize(host, m_testContext, new ConfigurationImpl(), new NugetResolverSettings(), new QualifierId[] { m_testContext.QualifierTable.EmptyQualifierId });
 
             return nugetResolver;

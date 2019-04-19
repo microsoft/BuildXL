@@ -72,7 +72,7 @@ namespace TypeScript.Net.Types
         /// <nodoc/>
         public int CurrentLinePosition { get; private set; }
 
-        private PooledObjectWrapper<StringBuilder> m_pooledBuilder;
+        private readonly PooledObjectWrapper<StringBuilder> m_pooledBuilder;
 
         /// <nodoc/>
         private StringBuilder Builder { get; }

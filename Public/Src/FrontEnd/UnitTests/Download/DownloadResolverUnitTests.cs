@@ -389,21 +389,21 @@ namespace Test.BuildXL.FrontEnd.Download
         {
             var dummyConfigFile = Path.Combine(TemporaryDirectory, m_uniqueTestFolder, "config.dsc");
 
-            var constants = new GlobalConstants(FrontEndContext.SymbolTable);
             var statistics = new Statistics();
-            var sharedModuleRegistry = new ModuleRegistry();
-            var workspaceFactory = CreateWorkspaceFactoryForTesting(constants, sharedModuleRegistry, ParseAndEvaluateLogger);
+            var moduleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
+            var workspaceFactory = CreateWorkspaceFactoryForTesting(FrontEndContext, ParseAndEvaluateLogger);
             var configuration = ConfigurationHelpers.GetDefaultForTesting(FrontEndContext.PathTable, AbsolutePath.Create(FrontEndContext.PathTable, dummyConfigFile));
             var resolverSettings = new ResolverSettings();
 
             var frontEndFactory = new FrontEndFactory();
-            frontEndFactory.AddFrontEnd(new DownloadFrontEnd(constants, sharedModuleRegistry, Logger.Log));
+            frontEndFactory.AddFrontEnd(new DownloadFrontEnd());
             frontEndFactory.TrySeal(new LoggingContext("UnitTest"));
 
             using (var host = new FrontEndHostController(
                 frontEndFactory,
                 workspaceFactory,
                 new EvaluationScheduler(degreeOfParallelism: 1),
+                moduleRegistry,
                 new FrontEndStatistics(),
                 global::BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(),
                 collector: null,
@@ -419,8 +419,6 @@ namespace Test.BuildXL.FrontEnd.Download
                 host.SetState(frontEndEngineAbstraction, new TestEnv.TestPipGraph(), configuration);
 
                 var resolver = new DownloadResolver(
-                    constants,
-                    sharedModuleRegistry,
                     statistics,
                     host,
                     FrontEndContext,
@@ -428,7 +426,7 @@ namespace Test.BuildXL.FrontEnd.Download
                     "TestFrontEnd"
                 );
 
-                var workspaceResolver = new DownloadWorkspaceResolver(constants, sharedModuleRegistry);
+                var workspaceResolver = new DownloadWorkspaceResolver();
                 workspaceResolver.UpdateDataForDownloadData(data);
                 await resolver.InitResolverAsync(resolverSettings, workspaceResolver);
 

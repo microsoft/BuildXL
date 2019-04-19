@@ -20,7 +20,7 @@ namespace BuildXL.Processes
 
         private string m_fileName;
         private long m_length;
-        private PooledObjectWrapper<StringBuilder> m_stringBuilderWrapper;
+        private readonly PooledObjectWrapper<StringBuilder> m_stringBuilderWrapper;
         private StringBuilder m_stringBuilder;
         private TextWriter m_textWriter;
         private BuildXLException m_exception;

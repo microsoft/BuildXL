@@ -36,9 +36,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         private readonly CounterCollection<RedisBlobAdapterCounters> _counters = new CounterCollection<RedisBlobAdapterCounters>();
 
-        private RedisDatabaseAdapter _redis;
-        private TimeSpan _blobExpiryTime;
-        private TimeSpan _capacityExpiryTime;
+        private readonly RedisDatabaseAdapter _redis;
+        private readonly TimeSpan _blobExpiryTime;
+        private readonly TimeSpan _capacityExpiryTime;
         private string _lastFailedReservationKey;
         private readonly long _maxCapacityPerTimeBox;
         private readonly IClock _clock;

@@ -6,12 +6,14 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.FrontEnd.Workspaces;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Sdk.FileSystem;
+using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
@@ -19,7 +21,7 @@ using ValueTask = BuildXL.Utilities.Tasks.ValueTask;
 
 namespace Test.DScript.Workspaces.Utilities
 {
-     /// <summary>
+    /// <summary>
     /// A source resolver that is configured with a <see cref="SimpleSourceResolverSettings"/>
     /// </summary>
     public sealed class SimpleWorkspaceSourceModuleResolver : IWorkspaceModuleResolver
@@ -44,6 +46,18 @@ namespace Test.DScript.Workspaces.Utilities
             m_moduleDefinitions = sourceResolverSettings.ModuleDefinitions;
             m_fileSystem = sourceResolverSettings.FileSystem;
         }
+
+        /// <inheritdoc />
+        public bool TryInitialize(
+            [NotNull] FrontEndHost host,
+            [NotNull] FrontEndContext context,
+            [NotNull] IConfiguration configuration,
+            [NotNull] IResolverSettings resolverSettings,
+            [NotNull] QualifierId[] requestedQualifiers)
+        {
+            return true;
+        }
+
 
         /// <nodoc/>
         public ValueTask<Possible<ModuleDefinition>> TryGetModuleDefinitionAsync(ModuleDescriptor moduleDescriptor)

@@ -305,7 +305,8 @@ namespace BuildXL.Scheduler
                             .Where(a => !reportedPathDependencyViolation.Contains(a.GetPath(Context.PathTable)))
                             .Select(a => getAccessViolationPath(a))
                             // skip violations for which we failed to parse the accessed path or process path
-                            .Where(a => a != null).Select(a => a.Value));
+                            .Where(a => a != null)
+                            .Select(a => a.Value));
                     }
 
                     PopulateErrorsAndWarnings(reportedDependencyViolations, errorPaths, warningPaths);
@@ -327,7 +328,7 @@ namespace BuildXL.Scheduler
                 LogErrorsAndWarnings(pip, errorPaths, warningPaths);
 
                 // The pip is safe to cache if there are no violations or all its violations do not make the pip uncacheable
-                bool pipIsSafeToCache = 
+                bool pipIsSafeToCache =
                     (reportedDependencyViolations != null ? new List<ReportedViolation>(reportedDependencyViolations) : new List<ReportedViolation>())
                     .Union(dynamicViolations)
                     .All(violation => !violation.ViolationMakesPipUncacheable);

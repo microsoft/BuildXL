@@ -86,9 +86,9 @@ namespace BuildXL.Execution.Analyzer
 
         public List<string> LogPaths = new List<string>();
 
-        private EnumCounter<FileMonitoringViolationAnalyzer.DependencyViolationType> m_violationTypeCounts = new EnumCounter<FileMonitoringViolationAnalyzer.DependencyViolationType>();
+        private readonly EnumCounter<FileMonitoringViolationAnalyzer.DependencyViolationType> m_violationTypeCounts = new EnumCounter<FileMonitoringViolationAnalyzer.DependencyViolationType>();
 
-        private Dictionary<long, PipId> m_pipsBySemistableHash = new Dictionary<long, PipId>();
+        private readonly Dictionary<long, PipId> m_pipsBySemistableHash = new Dictionary<long, PipId>();
 
         private MultiWriter m_logWriter;
         private MultiWriter m_allViolationsWriter;

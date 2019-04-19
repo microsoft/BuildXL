@@ -95,7 +95,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// <summary>
         /// PipConstruction helper
         /// </summary>
-        private Lazy<PipConstructionHelper> m_pipConstructionHelper;
+        private readonly Lazy<PipConstructionHelper> m_pipConstructionHelper;
 
         internal Context(
             ContextTree contextTree,

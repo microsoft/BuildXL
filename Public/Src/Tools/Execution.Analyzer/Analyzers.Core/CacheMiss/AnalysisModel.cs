@@ -78,7 +78,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
 
         #endregion
 
-        private NodeVisitor visitor;
+        private readonly NodeVisitor visitor;
         private PipContentFingerprinter[] m_contentFingerprinters = new PipContentFingerprinter[1];
 
         public Func<uint, FileArtifact, FileContentInfo> LookupHashFunction { get; set; }

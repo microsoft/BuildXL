@@ -42,7 +42,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Name of the current output content hashing algorithm.
         /// </summary>
-        private static string s_outputContentHashAlgorithmName = ContentHashingUtilities.HashInfo.Name;
+        private static readonly string s_outputContentHashAlgorithmName = ContentHashingUtilities.HashInfo.Name;
 
         /// <summary>
         /// Refers to a function which maps file artifacts to pip data content. This is used inject the normalized pip data into the fingerprint

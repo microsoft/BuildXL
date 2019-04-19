@@ -28,8 +28,8 @@ namespace BuildXL.Cache.VerticalAggregator
     /// </remarks>
     internal sealed class VerticalCacheAggregator : ICache
     {
-        private ICache m_localCache;
-        private ICache m_remoteCache;
+        private readonly ICache m_localCache;
+        private readonly ICache m_remoteCache;
         private readonly string m_cacheId;
         private readonly bool m_remoteIsReadOnly;
 

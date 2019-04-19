@@ -41,13 +41,13 @@ namespace BuildXL.FrontEnd.CMake.Failures
 
     internal class CMakeGenerationError : CMakeResolverFailure
     {
-        private string m_moduleName;
-        private string m_buildDirectory;
+        private readonly string m_moduleName;
+        private readonly string m_buildDirectory;
 
         public CMakeGenerationError(string moduleName, string buildDirectory)
         {
-            this.m_moduleName = moduleName;
-            this.m_buildDirectory = buildDirectory;
+            m_moduleName = moduleName;
+            m_buildDirectory = buildDirectory;
         }
 
         public override string Describe() => $"There was an issue with the trying to generate the build directory {m_buildDirectory} for module {m_moduleName}. Details were logged.";

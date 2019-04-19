@@ -80,6 +80,11 @@ namespace Test.BuildXL.Executables.TestProcess
             WriteFile,
 
             /// <summary>
+            /// Type for moving a file
+            /// </summary>
+            MoveFile,
+
+            /// <summary>
             /// Write a file conditionally based on an input file
             /// </summary>
             WriteFileIfInputEqual,
@@ -353,6 +358,9 @@ namespace Test.BuildXL.Executables.TestProcess
                     case Type.LaunchDebugger:
                         Debugger.Launch();
                         return;
+                    case Type.MoveFile:
+                        DoMoveFile();
+                        return;
                 }
             }
             catch (Exception e)
@@ -402,6 +410,14 @@ namespace Test.BuildXL.Executables.TestProcess
             return content == Environment.NewLine
                 ? new Operation(Type.AppendNewLine, path, doNotInfer: doNotInfer)
                 : new Operation(Type.WriteFile, path, content, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
+        /// Moves source to destination
+        /// </summary>
+        public static Operation MoveFile(FileArtifact source, FileArtifact destination, bool doNotInfer = false)
+        {
+            return new Operation(Type.MoveFile, source, content: null, linkPath: destination, doNotInfer: doNotInfer);
         }
 
         /// <summary>
@@ -725,6 +741,11 @@ namespace Test.BuildXL.Executables.TestProcess
             }
 
             Directory.Move(FileOrDirectoryToString(Path), FileOrDirectoryToString(LinkPath));
+        }
+
+        private void DoMoveFile()
+        {
+            File.Move(FileOrDirectoryToString(Path), FileOrDirectoryToString(LinkPath));
         }
 
         private void DoProbe()

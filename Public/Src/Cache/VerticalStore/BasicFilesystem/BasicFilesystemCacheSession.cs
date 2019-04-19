@@ -33,7 +33,7 @@ namespace BuildXL.Cache.BasicFilesystem
 
         private string m_sessionId;
 
-        private bool m_readOnly;
+        private readonly bool m_readOnly;
 
         private string m_completedFilename;
 

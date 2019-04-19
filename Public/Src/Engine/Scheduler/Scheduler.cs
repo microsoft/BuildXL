@@ -799,7 +799,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Logging context
         /// </summary>
-        private LoggingContext m_loggingContext;
+        private readonly LoggingContext m_loggingContext;
 
         #endregion
 

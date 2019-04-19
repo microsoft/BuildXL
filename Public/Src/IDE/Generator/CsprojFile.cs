@@ -23,7 +23,7 @@ namespace BuildXL.Ide.Generator
         private bool m_isTestProject;
         private bool m_isXunitTestProject;
 
-        private HashSet<string> m_projectTypeGuids = new HashSet<string>();
+        private readonly HashSet<string> m_projectTypeGuids = new HashSet<string>();
 
         internal CsprojFile(
             Context context,

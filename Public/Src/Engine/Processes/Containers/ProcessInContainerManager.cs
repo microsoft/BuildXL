@@ -72,23 +72,53 @@ namespace BuildXL.Processes.Containers
         }
 
         /// <summary>
-        /// Returns the redirected output corresponding to the given original output
+        /// Returns the redirected output corresponding to the given original declared output file
         /// </summary>
         /// <remarks>
         /// The provided original output is assumed to be part of the container configuration
         /// </remarks>
-        public AbsolutePath GetRedirectedOutput(AbsolutePath originalOutput, ContainerConfiguration containerConfiguration)
+        public AbsolutePath GetRedirectedDeclaredOutputFile(AbsolutePath originalOutput, ContainerConfiguration containerConfiguration)
+        {
+            if (!TryGetRedirectedDeclaredOutputFile(originalOutput, containerConfiguration, out var redirectedOutputFile))
+            {
+                Contract.Assert(false, $"A redirected directory for '{originalOutput.GetParent(m_pathTable).ToString(m_pathTable)}' should be present in the container configuration");
+            }
+
+            return redirectedOutputFile;
+        }
+
+        /// <summary>
+        /// Tries to return the redirected output corresponding to the given original declared output file
+        /// </summary>
+        public bool TryGetRedirectedDeclaredOutputFile(AbsolutePath originalOutput, ContainerConfiguration containerConfiguration, out AbsolutePath redirectedOutputFile)
         {
             AbsolutePath containingDirectory = originalOutput.GetParent(m_pathTable);
             if (!containerConfiguration.OriginalDirectories.TryGetValue(containingDirectory, out var redirectedDirectories))
             {
-                Contract.Assert(false, $"A redirected directory for '{containingDirectory.ToString(m_pathTable)}' should be present in the container configuration");
+                redirectedOutputFile = AbsolutePath.Invalid;
+                return false;
             }
 
             var redirectedDirectory = redirectedDirectories.Single();
-            var redirectedOutput = redirectedDirectory.Path.Combine(m_pathTable, originalOutput.GetName(m_pathTable));
+            redirectedOutputFile = redirectedDirectory.Path.Combine(m_pathTable, originalOutput.GetName(m_pathTable));
 
-            return redirectedOutput;
+            return true;
+        }
+
+        /// <summary>
+        /// Tries to return the redirected output corresponding to the given original opaque directory root and opaque output
+        /// </summary>
+        public bool TryGetRedirectedOpaqueFile(AbsolutePath originalOutput, AbsolutePath sharedOpaqueRoot, ContainerConfiguration containerConfiguration, out AbsolutePath redirectedOutputFile)
+        {
+            if (!containerConfiguration.OriginalDirectories.TryGetValue(sharedOpaqueRoot, out var redirectedDirectories))
+            {
+                redirectedOutputFile = AbsolutePath.Invalid;
+                return false;
+            }
+
+            var redirectedDirectory = redirectedDirectories.Single();
+            redirectedOutputFile = originalOutput.Relocate(m_pathTable, sharedOpaqueRoot, redirectedDirectory.Path);
+            return true;
         }
 
         /// <summary>
@@ -147,10 +177,22 @@ namespace BuildXL.Processes.Containers
             foreach (FileArtifactWithAttributes fileOutput in process.FileOutputs)
             {
                 // If the output is not there, just continue. Checking all outputs are present already happened, so this means an optional output.
-                // If the output is a WCI reparse point, continue as well. This means the output was not actually generated, but a file with that name was read.
+                // If the output is a WCI reparse point or tombstone file, continue as well. This means the output was either not actually generated (but a file with that name was read) or the file was generated and later deleted.
                 string sourcePath = GetRedirectedOutputPathForDeclaredOutput(containerConfiguration, pipExecutionContext, fileOutput.Path);
-                if (!FileUtilities.Exists(sourcePath) || FileUtilities.IsWciReparsePoint(sourcePath))
+                var sourcePathExists = FileUtilities.Exists(sourcePath);
+                if (!sourcePathExists || FileUtilities.IsWciReparseArtifact(sourcePath))
                 {
+                    // If the declared output is a WCI artifact, that means it is not a real output. If we reached this point it is because the sandbox process executor determined this output
+                    // was an optional one, and the content was actually not produced. Since when storing the process into the cache we will try to use the redirected file to retrieve its content,
+                    // make sure we remove the WCI artifact, so the file actually appears as absent
+                    // Observe this is not really needed for the case of opaque directories, since the content that gets reported is based on the existence of the file in its original location, which
+                    // is not hardlinked if the file is a WCI artifact. We could remove them in the opaque case as well, just for a matter of symetry, but since this may have perf implications, we are not
+                    // doing that right now.
+                    if (sourcePathExists)
+                    {
+                        FileUtilities.DeleteFile(sourcePath);
+                    }
+
                     continue;
                 }
 
@@ -188,12 +230,13 @@ namespace BuildXL.Processes.Containers
                     AbsolutePath redirectedDirectory = GetRedirectedDirectoryForOutputContainer(containerConfiguration, directoryOutput.Path).Path;
                     
                     // Here we don't need to check for WCI reparse points. We know those outputs are there based on what detours is saying.
+                    // However, we need to check for tombstone files: those represent deleted files in some scenarios (for example, moves), so we don't hardlink them
                     var sharedOpaqueContent = sharedDynamicWrites[directoryOutput.Path];
                     foreach (AbsolutePath sharedOpaqueFile in sharedOpaqueContent)
                     {
                         string sourcePath = sharedOpaqueFile.Relocate(m_pathTable, directoryOutput.Path, redirectedDirectory).ToString(m_pathTable);
-                        // The file may not exist because the pip could have created it but later deleted it 
-                        if (!FileUtilities.Exists(sourcePath))
+                        // The file may not exist because the pip could have created it but later deleted it, or be a tombstone file 
+                        if (!FileUtilities.Exists(sourcePath) || FileUtilities.IsWciTombstoneFile(sourcePath))
                         {
                             continue;
                         }
@@ -209,14 +252,14 @@ namespace BuildXL.Processes.Containers
                 }
                 else if (!directoryOutput.IsSharedOpaque && isolateExclusiveOpaques)
                 {
-                    // We need to enumerate to discover the content of an exclusive opaque, and also skip the potential reparse points
+                    // We need to enumerate to discover the content of an exclusive opaque, and also skip the potential reparse artifacts
                     // TODO: Enumeration will happen again when the file content manager tries to discover the content of the exclusive opaque. Consider doing this only once instead.
 
                     // An output directory should only have one redirected path
                     ExpandedAbsolutePath redirectedDirectory = containerConfiguration.OriginalDirectories[directoryOutput.Path].Single();
                     foreach (string exclusiveOpaqueFile in Directory.EnumerateFiles(redirectedDirectory.ExpandedPath, "*", SearchOption.AllDirectories))
                     {
-                        if (FileUtilities.IsWciReparsePoint(exclusiveOpaqueFile))
+                        if (FileUtilities.IsWciReparseArtifact(exclusiveOpaqueFile))
                         {
                             continue;
                         }

@@ -86,14 +86,14 @@ namespace BuildXL.Execution.Analyzer
         private readonly Pip m_pip;
         private readonly HtmlHelper m_html;
 
-        private string m_outputFilePath;
+        private readonly string m_outputFilePath;
 
-        private List<XElement> m_sections = new List<XElement>();
-        private Dictionary<ModuleId, string> m_moduleIdToFriendlyName = new Dictionary<ModuleId, string>();
-        private ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>> m_directoryContents = new ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>>();
+        private readonly List<XElement> m_sections = new List<XElement>();
+        private readonly Dictionary<ModuleId, string> m_moduleIdToFriendlyName = new Dictionary<ModuleId, string>();
+        private readonly ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>> m_directoryContents = new ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>>();
 
         private DominoInvocationEventData m_invocationData;
-        private bool m_useOriginalPaths;
+        private readonly bool m_useOriginalPaths;
 
         public DumpPipAnalyzer(AnalysisInput input, string outputFilePath, long semiStableHash, bool useOriginalPaths, bool logProgress = false)
             : base(input)

@@ -12,7 +12,7 @@ namespace BuildXL.FrontEnd.Ninja
     {
         private FrontEndContext m_context;
         private FrontEndHost m_frontEndHost;
-        private NinjaPipConstructor m_pipConstructor;
+        private readonly NinjaPipConstructor m_pipConstructor;
 
         /// <nodoc/>
         public NinjaPipGraphBuilder(

@@ -319,12 +319,31 @@ namespace BuildXL.Native.IO
 
 
         /// <summary>
+        /// Whether <paramref name="path"/> is a WCI reparse point or tombstone file
+        /// </summary>
+        /// <remarks>
+        /// Equivalent to <see cref="IsWciReparsePoint(string)"/> OR <see cref="IsWciTombstoneFile(string)"/>, but
+        /// if in need to see if any of the two conditions hold, calling this function is more efficient since
+        /// it implies opening the file stream once.
+        /// </remarks>
+        bool IsWciReparseArtifact(string path);
+
+        /// <summary>
+        /// Whether <paramref name="path"/> is a WCI tombstone file
+        /// </summary>
+        /// <remarks>
+        /// A WCI tombstone file is used to 'hide' deleted files for processes running in a container
+        /// </remarks>
+        bool IsWciTombstoneFile(string path);
+
+        /// <summary>
         /// Whether <paramref name="path"/> is a WCI reparse point
         /// </summary>
         /// <remarks>
         /// The case of WCI reparse points is handled by this specific function (as opposed to
         /// including this functionality in <see cref="TryGetReparsePointType(string)"/>) since
         /// there is a slightly increased perf cost compared to the regular file attribute check
+        /// A WCI reparse point is used to represent processes accessing virtualized files in a read-only way
         /// </remarks>
         bool IsWciReparsePoint(string path);
 

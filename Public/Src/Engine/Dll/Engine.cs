@@ -205,7 +205,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Full string path of the temp directory used for file move-deletes
         /// </summary>
-        private string m_moveDeleteTempDirectory;
+        private readonly string m_moveDeleteTempDirectory;
 
         /// <summary>
         /// TempCleaner responsible for cleaning registered directories or files in the background.

@@ -57,7 +57,7 @@ namespace BuildXL.Execution.Analyzer
         public string OutputFile;
 
         private readonly Dictionary<PipId, PipExecutionDirectoryOutputs> m_directoryOutputContent;
-        private ConcurrentBigMap<PipId, List<AbsolutePath>> m_observedInputs = new ConcurrentBigMap<PipId, List<AbsolutePath>>();
+        private readonly ConcurrentBigMap<PipId, List<AbsolutePath>> m_observedInputs = new ConcurrentBigMap<PipId, List<AbsolutePath>>();
 
         public ScheduledInputsOutputsAnalyzer(AnalysisInput input)
             : base(input)

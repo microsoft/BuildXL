@@ -16,9 +16,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     {
         private SessionData _data;
 
-        private SemaphoreSlim _sync = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _sync = new SemaphoreSlim(1, 1);
 
-        private Func<Task<ObjectResult<SessionData>>> _sessionFactory;
+        private readonly Func<Task<ObjectResult<SessionData>>> _sessionFactory;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SessionState"/> class.

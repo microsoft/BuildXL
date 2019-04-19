@@ -22,7 +22,7 @@ namespace BuildXL.Utilities.Tracing
         /// <summary>
         /// The name of the log file being read
         /// </summary>
-        private string m_logFilename;
+        private readonly string m_logFilename;
 
         /// <summary>
         /// Many of the event types depend on the read path event. This
@@ -35,7 +35,7 @@ namespace BuildXL.Utilities.Tracing
         /// absolute path is then resolved, all those events that were blocked
         /// will be signaled so they can continue deserialization.
         /// </remarks>
-        private ConcurrentDictionary<uint, ManualResetEvent> m_absolutePathsBlockingEvents = new ConcurrentDictionary<uint, ManualResetEvent>();
+        private readonly ConcurrentDictionary<uint, ManualResetEvent> m_absolutePathsBlockingEvents = new ConcurrentDictionary<uint, ManualResetEvent>();
 
         /// <summary>
         /// Constructs a new parallel binary log reader for the given file path

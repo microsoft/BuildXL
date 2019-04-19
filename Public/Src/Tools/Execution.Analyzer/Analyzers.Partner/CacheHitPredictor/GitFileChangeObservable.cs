@@ -24,7 +24,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers
         /// </summary>
         public List<ChangedPathInfo> Changes { get; }
 
-        private PathTable m_pathTable;
+        private readonly PathTable m_pathTable;
 
         /// <summary>
         /// An observable with no changes. Mainly used for testing purposes.

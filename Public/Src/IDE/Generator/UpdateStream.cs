@@ -20,7 +20,7 @@ namespace BuildXL.Ide.Generator
     public class UpdateStream : Stream
     {
         private byte[] m_readBuffer;
-        private bool m_leaveOpen;
+        private readonly bool m_leaveOpen;
 
         /// <summary>
         /// Returns true if a difference was detected while writing the stream.

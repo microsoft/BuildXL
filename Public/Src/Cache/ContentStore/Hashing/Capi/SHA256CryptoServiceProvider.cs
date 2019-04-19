@@ -19,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     [System.Security.Permissions.HostProtection(MayLeakOnAbort = true)]
     public sealed class SHA256CryptoServiceProvider : SHA256
     {
-        private CapiHashAlgorithm m_hashAlgorithm;
+        private readonly CapiHashAlgorithm m_hashAlgorithm;
 
         public SHA256CryptoServiceProvider()
         {

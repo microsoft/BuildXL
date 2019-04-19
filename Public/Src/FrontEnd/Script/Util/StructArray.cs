@@ -102,7 +102,7 @@ namespace BuildXL.FrontEnd.Script.Util
             where TArray : IReadOnlyArraySlim<T>
         {
             // Intentionally leaving this field as non-readonly to avoid defensive copy on each access.
-            private TArray m_array;
+            private readonly TArray m_array;
 
             public ReadOnlyArrayList(TArray array)
             {

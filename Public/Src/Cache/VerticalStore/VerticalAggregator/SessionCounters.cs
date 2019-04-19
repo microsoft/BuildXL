@@ -15,20 +15,20 @@ namespace BuildXL.Cache.VerticalAggregator
         // dictionary generation.  This way the counts are
         // handled in a uniform manner and extended consistently.
         #region AddOrGet
-        private TimedCounter m_addOrGet_FingerprintsAddedLocalOnly = new TimedCounter();
-        private TimedCounter m_addOrGet_FingerprintsAddedRemote = new TimedCounter();
-        private TimedCounter m_addOrGet_DeterminismRecovered = new TimedCounter();
-        private TimedCounter m_addOrGet_Failure = new TimedCounter();
+        private readonly TimedCounter m_addOrGet_FingerprintsAddedLocalOnly = new TimedCounter();
+        private readonly TimedCounter m_addOrGet_FingerprintsAddedRemote = new TimedCounter();
+        private readonly TimedCounter m_addOrGet_DeterminismRecovered = new TimedCounter();
+        private readonly TimedCounter m_addOrGet_Failure = new TimedCounter();
 
         public struct AddOrGetCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
 
             private bool m_uploadDisregarded;
             private TimedCounter m_finalCounter;
 
-            private CasCopyStats m_copyStats;
+            private readonly CasCopyStats m_copyStats;
 
             internal AddOrGetCountCollector(SessionCounters sessionCounters)
             {
@@ -105,10 +105,10 @@ namespace BuildXL.Cache.VerticalAggregator
         public struct AddToCasCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private bool m_writeThrough;
 
-            private CasCopyStats m_copyStats;
+            private readonly CasCopyStats m_copyStats;
 
             internal AddToCasCountCollector(SessionCounters sessionCounters)
             {
@@ -154,12 +154,12 @@ namespace BuildXL.Cache.VerticalAggregator
         // EnumerateStrongFingerprints is a yield-return of some
         // number of fingerprints.  This provides both number of
         // calls and the amount returned
-        private EnumerateStrongFingerprintsCounter m_enumerateStrongFingerprints = new EnumerateStrongFingerprintsCounter();
+        private readonly EnumerateStrongFingerprintsCounter m_enumerateStrongFingerprints = new EnumerateStrongFingerprintsCounter();
 
         public struct EnumerateStrongFingerprintsCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private double m_countLocal;
             private double m_countRemote;
             private long m_countSentintel;
@@ -209,17 +209,17 @@ namespace BuildXL.Cache.VerticalAggregator
 
         #region GetStream
 
-        private TimedCounter m_getStream_HitLocal = new TimedCounter();
-        private TimedCounter m_getStream_HitRemote = new TimedCounter();
-        private TimedCounter m_getStream_Miss = new TimedCounter();
-        private TimedCounter m_getStream_Fail = new TimedCounter();
+        private readonly TimedCounter m_getStream_HitLocal = new TimedCounter();
+        private readonly TimedCounter m_getStream_HitRemote = new TimedCounter();
+        private readonly TimedCounter m_getStream_Miss = new TimedCounter();
+        private readonly TimedCounter m_getStream_Fail = new TimedCounter();
 
         public struct GetStreamCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private TimedCounter m_finalCounter;
-            private CasCopyStats m_copyStats;
+            private readonly CasCopyStats m_copyStats;
 
             internal GetStreamCountCollector(SessionCounters sessionCounters)
             {
@@ -277,15 +277,15 @@ namespace BuildXL.Cache.VerticalAggregator
         #endregion GetStream
 
         #region PinToCas
-        private TimedCounter m_pinToCas_Miss = new TimedCounter();
-        private TimedCounter m_pinToCas_HitLocal = new TimedCounter();
-        private TimedCounter m_pinToCas_HitRemote = new TimedCounter();
-        private TimedCounter m_pinToCas_Fail = new TimedCounter();
+        private readonly TimedCounter m_pinToCas_Miss = new TimedCounter();
+        private readonly TimedCounter m_pinToCas_HitLocal = new TimedCounter();
+        private readonly TimedCounter m_pinToCas_HitRemote = new TimedCounter();
+        private readonly TimedCounter m_pinToCas_Fail = new TimedCounter();
 
         public struct PinToCasCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private TimedCounter m_theCounter;
 
             internal PinToCasCountCollector(SessionCounters sessionCounters)
@@ -343,17 +343,17 @@ namespace BuildXL.Cache.VerticalAggregator
         // ProduceFile has 3 cases today but one may need to be renamed
         // Today, since pin is needed before get, the "unpinned" case
         // is the same as a "cache miss" so we are calling it a miss.
-        private TimedCounter m_produceFile_HitLocal = new TimedCounter();
-        private TimedCounter m_produceFile_HitRemote = new TimedCounter();
-        private TimedCounter m_produceFile_Miss = new TimedCounter();
-        private TimedCounter m_produceFile_Fail = new TimedCounter();
+        private readonly TimedCounter m_produceFile_HitLocal = new TimedCounter();
+        private readonly TimedCounter m_produceFile_HitRemote = new TimedCounter();
+        private readonly TimedCounter m_produceFile_Miss = new TimedCounter();
+        private readonly TimedCounter m_produceFile_Fail = new TimedCounter();
 
         public struct ProduceFileCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
             private TimedCounter m_finalCounter;
-            private CasCopyStats m_copyStats;
+            private readonly CasCopyStats m_copyStats;
 
             internal ProduceFileCountCollector(SessionCounters sessionCounters)
             {
@@ -413,9 +413,9 @@ namespace BuildXL.Cache.VerticalAggregator
         #endregion ProduceFile
 
         #region Transited Files
-        private CountedMultiBytesDistribution m_filesTransitedToRemote = new CountedMultiBytesDistribution();
-        private CountedMultiBytesDistribution m_filesTransitedToRemoteDisgarded = new CountedMultiBytesDistribution();
-        private CountedMultiBytesDistribution m_filesTransitedToLocal = new CountedMultiBytesDistribution();
+        private readonly CountedMultiBytesDistribution m_filesTransitedToRemote = new CountedMultiBytesDistribution();
+        private readonly CountedMultiBytesDistribution m_filesTransitedToRemoteDisgarded = new CountedMultiBytesDistribution();
+        private readonly CountedMultiBytesDistribution m_filesTransitedToLocal = new CountedMultiBytesDistribution();
 
         /// <summary>
         /// Seperate class to track file movement
@@ -490,20 +490,20 @@ namespace BuildXL.Cache.VerticalAggregator
         #region GetCacheEntry
 
         // GetCacheEntry has two cases - one hit and one miss
-        private TimedCounter m_getCacheEntry_HitLocal = new TimedCounter();
-        private TimedCounter m_getCacheEntry_HitRemote = new TimedCounter();
-        private TimedCounter m_getCacheEntry_Miss = new TimedCounter();
-        private TimedCounter m_getCacheEntry_FingerprintsPromotedRemote = new TimedCounter();
-        private TimedCounter m_getCacheEntry_DeterminismRecovered = new TimedCounter();
-        private TimedCounter m_getCacheEntry_Failure = new TimedCounter();
+        private readonly TimedCounter m_getCacheEntry_HitLocal = new TimedCounter();
+        private readonly TimedCounter m_getCacheEntry_HitRemote = new TimedCounter();
+        private readonly TimedCounter m_getCacheEntry_Miss = new TimedCounter();
+        private readonly TimedCounter m_getCacheEntry_FingerprintsPromotedRemote = new TimedCounter();
+        private readonly TimedCounter m_getCacheEntry_DeterminismRecovered = new TimedCounter();
+        private readonly TimedCounter m_getCacheEntry_Failure = new TimedCounter();
 
         public struct GetCacheEntryCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
 
             private bool m_uploadDisregarded;
-            private CasCopyStats m_copyStats;
+            private readonly CasCopyStats m_copyStats;
 
             private TimedCounter m_endStateCounter;
 
@@ -590,12 +590,12 @@ namespace BuildXL.Cache.VerticalAggregator
 
         #region IncorporateRecords
 
-        private TimedCounter m_incorporateRecords = new TimedCounter();
+        private readonly TimedCounter m_incorporateRecords = new TimedCounter();
 
         public struct IncorporateRecordsCountCollector : IDisposable
         {
             private SessionCounters m_sessionCounters;
-            private ElapsedTimer m_elapsed;
+            private readonly ElapsedTimer m_elapsed;
 
             internal IncorporateRecordsCountCollector(SessionCounters sessionCounters)
             {

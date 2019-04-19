@@ -426,9 +426,9 @@ namespace BuildXL.Native.Processes.Windows
         public struct RTL_USER_PROCESS_PARAMETERS
         {
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
-            private byte[] Reserved1;
+            private readonly byte[] Reserved1;
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
-            private IntPtr[] Reserved2;
+            private readonly IntPtr[] Reserved2;
 
             /// <summary>
             /// Unicode string representing the image file used for this process.
@@ -454,7 +454,7 @@ namespace BuildXL.Native.Processes.Windows
         public struct PEB
         {
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
-            private byte[] Reserved;
+            private readonly byte[] Reserved;
 
             /// <summary>
             /// Indicates whether the specified process is currently being debugged.
@@ -462,9 +462,9 @@ namespace BuildXL.Native.Processes.Windows
             public byte BeingDebugged;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1)]
-            private byte[] Reserved2;
+            private readonly byte[] Reserved2;
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
-            private IntPtr[] Reserved3;
+            private readonly IntPtr[] Reserved3;
 
             /// <summary>
             /// A pointer to a PEB_LDR_DATA structure that contains information about the loaded modules for the process.
@@ -477,22 +477,22 @@ namespace BuildXL.Native.Processes.Windows
             public IntPtr ProcessParameters;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-            private IntPtr[] Reserved4;
-            private IntPtr AtlThunkSListPtr;
-            private IntPtr Reserved5;
-            private uint Reserved6;
-            private IntPtr Reserved7;
-            private uint Reserved8;
-            private uint AtlThunkSListPtr32;
+            private readonly IntPtr[] Reserved4;
+            private readonly IntPtr AtlThunkSListPtr;
+            private readonly IntPtr Reserved5;
+            private readonly uint Reserved6;
+            private readonly IntPtr Reserved7;
+            private readonly uint Reserved8;
+            private readonly uint AtlThunkSListPtr32;
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 45)]
-            private IntPtr[] Reserved9;
+            private readonly IntPtr[] Reserved9;
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 96)]
-            private byte[] Reserved10;
-            private IntPtr PostProcessInitRoutine;
+            private readonly byte[] Reserved10;
+            private readonly IntPtr PostProcessInitRoutine;
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 128)]
-            private byte[] Reserved11;
+            private readonly byte[] Reserved11;
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1)]
-            private IntPtr[] Reserved12;
+            private readonly IntPtr[] Reserved12;
             public uint SessionId;
         }
 
@@ -505,21 +505,21 @@ namespace BuildXL.Native.Processes.Windows
         [StructLayout(LayoutKind.Sequential)]
         public struct PROCESS_BASIC_INFORMATION
         {
-            private IntPtr Reserved1;
+            private readonly IntPtr Reserved1;
 
             /// <summary>
             /// Pointer to a PEB structure.
             /// </summary>
             public IntPtr PebBaseAddress;
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
-            private IntPtr[] Reserved2;
+            private readonly IntPtr[] Reserved2;
 
             /// <summary>
             /// System's unique identifier for this process.
             /// </summary>
             public ulong UniqueProcessId;
 
-            private IntPtr Reserved3;
+            private readonly IntPtr Reserved3;
         }
     }
 

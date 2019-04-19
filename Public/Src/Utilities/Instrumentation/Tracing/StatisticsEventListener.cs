@@ -22,7 +22,7 @@ namespace BuildXL.Tracing
     public sealed class StatisticsEventListener : TextWriterEventListener
     {
         private readonly LoggingContext m_loggingContext;
-        private ConcurrentDictionary<string, long> m_finalStatistics = new ConcurrentDictionary<string, long>();
+        private readonly ConcurrentDictionary<string, long> m_finalStatistics = new ConcurrentDictionary<string, long>();
 
         /// <summary>
         /// Creates a new instance configured to output to the given writer.

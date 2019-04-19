@@ -329,11 +329,5 @@ namespace BuildXL.Processes
         /// Duration of process start time in milliseconds
         /// </summary>
         public long ProcessStartTimeMs { get; set; }
-
-        /// <summary>
-        /// Dictionary of directories where the process wrote outputs, to the original directories the process
-        /// specified. This is only populated in the case the process ran inside a container, otherwise it is empty.
-        /// </summary>
-        public IReadOnlyDictionary<AbsolutePath, AbsolutePath> RemappedOutputDirectories { get; }
     }
 }

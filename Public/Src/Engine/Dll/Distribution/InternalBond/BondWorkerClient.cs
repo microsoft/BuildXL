@@ -28,7 +28,7 @@ namespace BuildXL.Engine.Distribution.InternalBond
         private BondProxyConnectionManager<WorkerProxyAdapter> m_proxyManager;
         private readonly string m_workerName;
         private LoggingContext m_loggingContext;
-        private object m_proxyManagerLock = new object();
+        private readonly object m_proxyManagerLock = new object();
 
         /// <summary>
         /// Adapter for Worker_Proxy which implements IBondProxyWithHeartbeat

@@ -37,7 +37,7 @@ namespace BuildXL.FrontEnd.Script.Values
         where TArray : IReadOnlyArraySlim<NamedValue>
     {
         // This field intentionally left as non-readonly to avoid uncesseray copies.
-        private TArray m_values;
+        private readonly TArray m_values;
 
         public ObjectLiteralSlim(TArray values, LineInfo location, AbsolutePath path)
             : base(location, path)

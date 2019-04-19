@@ -78,7 +78,7 @@ namespace BuildXL.Engine.Distribution.InternalBond
 
         private string m_serverName;
         private string m_thisMachineId;
-        private string m_thisMachineName = Environment.MachineName;
+        private readonly string m_thisMachineName = Environment.MachineName;
 
         /// <summary>
         /// The server name

@@ -2247,23 +2247,6 @@ namespace BuildXL.Engine
                 return false;
             }
 
-            if (!Configuration.FrontEnd.UseLegacyOfficeLogic())
-            {
-                // DScript V1 remnant warnings of deprecation
-                if (Configuration.Packages != null)
-                {
-                    Logger.Log.WarnToNotUsePackagesButModules(loggingContext, Configuration.Layout.PrimaryConfigFile.ToString(Context.PathTable));
-                }
-
-                // DScript warnings for orphaned projects. Unfortunately given the current implementation lots of codebases have
-                // to still set it to an empty array to function, so we'll need a multi-state deprecation.
-                if (Configuration.Projects != null && Configuration.Projects.Count() > 0)
-                {
-                    var currentImplicitModuleName = Configuration.Layout.PrimaryConfigFile.GetParent(Context.PathTable).GetName(Context.PathTable).ToString(Context.StringTable);
-                    Logger.Log.WarnToNotUseProjectsField(loggingContext, Configuration.Layout.PrimaryConfigFile.ToString(Context.PathTable), Names.ModuleConfigDsc, currentImplicitModuleName);
-                }
-            }
-
             return true;
         }
 

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
@@ -102,33 +103,18 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         ViewerMode Viewer { get; }
 
-        /// <summary>
-        /// Projects in this build organization that are not owned by any package.
-        /// </summary>
-        /// <remarks>
-        /// If this field is not specified (null), then all orphan projects (i.e., projects that do not belong
-        /// to any user-specified packages) in the cone of the configuration are owned by the configuration. (The cone
-        /// of a configuration is the directory containing the configuration file including all sub-directories underneath.)
-        /// When users evaluate or build the configuration, all orphan projects owned by the configuration are evaluated.
-        /// This field can be used to restrict the set of orphan projects that the configuration owns.
-        /// All projects mentioned in this field must be orphan and must be in the cone of the configuration.
-        /// </remarks>
-        [CanBeNull]
+        /// <nodoc />
+        [Obsolete("Projects must be placed inside a module.")]
         IReadOnlyList<AbsolutePath> Projects { get; }
 
-        /// <summary>
-        /// Packages in this build organization that are owned by the configuration.
-        /// </summary>
-        /// <remarks>
-        /// Obsolete but kept for back-compat reasons. See <see cref="Modules"/>.
-        /// </remarks>
-        [CanBeNull]
+        /// <nodoc />
+        [Obsolete("Must use modules field.")]
         IReadOnlyList<AbsolutePath> Packages { get; }
 
         /// <summary>
         /// Modules in this build organization that are owned by the configuration.
         /// </summary>
-        /// <remarks>
+        /// <remarks>CS0618
         /// If this field is not specified (null), then all modules in the cone of the configuration are owned by
         /// the configuration. (The cone of a configuration is the directory containing the configuration file including
         /// all sub-directories underneath.) When users evaluate or build the configuration, all modules owned by

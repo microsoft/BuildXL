@@ -33,9 +33,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Experiment = new ExperimentalConfiguration();
             Distribution = new DistributionConfiguration();
             Viewer = ViewerMode.Hide;
-            Projects = null; // Deliberate null, here as magic indication that none has been defined. All consumers are aware and deal with it.
-            Packages = null; // Deliberate null, here as magic indication that none has been defined. All consumers are aware and deal with it.
-            Modules = null; // Deliberate null, here as magic indication that none has been defined. All consumers are aware and deal with it.
             FrontEnd = new FrontEndConfiguration();
             CommandLineEnabledUnsafeOptions = new List<string>();
             Ide = new IdeConfiguration();
@@ -68,8 +65,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Experiment = new ExperimentalConfiguration(template.Experiment);
             Distribution = new DistributionConfiguration(template.Distribution);
             Viewer = template.Viewer;
+#pragma warning disable 0618
             Projects = template.Projects?.Select(p => pathRemapper.Remap(p)).ToList();
             Packages = template.Packages?.Select(p => pathRemapper.Remap(p)).ToList();
+#pragma warning restore 0618
             Modules = template.Modules?.Select(m => pathRemapper.Remap(m)).ToList();
             DisableDefaultSourceResolver = template.DisableDefaultSourceResolver;
             FrontEnd = new FrontEndConfiguration(template.FrontEnd, pathRemapper);
@@ -377,6 +376,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        [Obsolete("Projects must be placed inside a module.")]
         public List<AbsolutePath> Projects
         {
             get
@@ -394,11 +394,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
         private List<AbsolutePath> m_projects;
 
         /// <inhertidoc />
+        [Obsolete("Projects must be placed inside a module.")]
         IReadOnlyList<AbsolutePath> IConfiguration.Projects => Projects;
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public List<AbsolutePath> Packages
+        [Obsolete("Must use modules field.")]
+        public List<AbsolutePath> Packages 
         {
             get
             {
@@ -413,6 +415,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         }
 
         private List<AbsolutePath> m_packages;
+
+        /// <inhertidoc />
+        [Obsolete("Must use modules field.")]
+        IReadOnlyList<AbsolutePath> IConfiguration.Packages => Packages;
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
@@ -431,9 +437,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         }
 
         private IReadOnlyList<AbsolutePath> m_modules;
-
-        /// <inhertidoc />
-        IReadOnlyList<AbsolutePath> IConfiguration.Packages => Packages;
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]

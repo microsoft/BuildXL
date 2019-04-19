@@ -30,8 +30,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc />
         public DScriptResolverSettings()
         {
-            Modules = null; // Deliberate null, here as magic indication that none has been defined. All consumers are aware and deal with it.
-            Packages = null; // Deliberate null, here as magic indication that none has been defined. All consumers are aware and deal with it.
         }
 
         /// <nodoc />

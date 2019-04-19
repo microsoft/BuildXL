@@ -290,7 +290,7 @@ export function test(args: TestArguments): TestResult {{
                 new CommandLineConfiguration
                 {
                     // Have to new up the list because we have some bad semantics dealing with the list being null or not.
-                    Packages = new List<AbsolutePath>
+                    Modules = new List<AbsolutePath>
                     {
                         packageFilePath,
                     },

@@ -302,5 +302,9 @@ namespace BuildXL.Utilities.Configuration
         /// TODO: Remove this when https://gitlab.kitware.com/cmake/cmake/issues/19162 has reached mainstream versions
         /// </remarks>
         bool UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing { get; }
+
+        /// Indicates whether historic cpu information should be used to decide the weight of process pips.
+        /// </summary>
+        bool UseHistoricalCpuUsageInfo { get; }
     }
 }

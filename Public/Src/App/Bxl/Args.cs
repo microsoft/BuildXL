@@ -1026,6 +1026,9 @@ namespace BuildXL
                             "useHardlinks",
                             sign => engineConfiguration.UseHardlinks = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "useHistoricalCpuUsageInfo",
+                            sign => schedulingConfiguration.UseHistoricalCpuUsageInfo = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "useHistoricalRamUsageInfo",
                             sign => schedulingConfiguration.UseHistoricalRamUsageInfo = sign),
                         OptionHandlerFactory.CreateOption(

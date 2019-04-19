@@ -340,7 +340,7 @@ namespace BuildXL.LogGen
             return result;
         }
 
-        private static Dictionary<string, string> s_escapeCharacters = new Dictionary<string, string>()
+        private static readonly Dictionary<string, string> s_escapeCharacters = new Dictionary<string, string>()
         {
             { "\n", @"\n" },
             { "\r", @"\r" },

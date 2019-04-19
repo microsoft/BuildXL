@@ -55,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         private sealed class Session : IChunkerSession
         {
-            private static ByteArrayPool pool = new ByteArrayPool((int)MinPushBufferSize);
+            private static readonly ByteArrayPool pool = new ByteArrayPool((int)MinPushBufferSize);
             private readonly ManagedChunker _parent;
             private readonly RegressionChunking _regressionChunker;
             private readonly Action<ChunkInfo> _chunkCallback;

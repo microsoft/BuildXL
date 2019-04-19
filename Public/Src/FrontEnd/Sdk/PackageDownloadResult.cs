@@ -113,7 +113,7 @@ namespace BuildXL.FrontEnd.Sdk
     public sealed class PackageDownloadResult
     {
         // TODO: add readonly once switched to a recent compiler with readonly structs.
-        private PackageIdentity m_packageIdentity;
+        private readonly PackageIdentity m_packageIdentity;
 
         /// <nodoc />
         public string Protocol => m_packageIdentity.Protocol;

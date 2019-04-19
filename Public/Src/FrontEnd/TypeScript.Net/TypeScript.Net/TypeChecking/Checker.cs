@@ -81,7 +81,7 @@ namespace TypeScript.Net.TypeChecking
         /// If true, then the checker will keep all the computed information (like ResolvedSymbol) in external table.
         /// If false, then the checker will update a node fields in more efficient way but not suited for IDE.
         /// </summary>
-        private bool m_interactiveMode;
+        private readonly bool m_interactiveMode;
 
         private readonly TypeCheckerHost m_host;
         private readonly bool m_produceDiagnostics;

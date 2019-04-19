@@ -17,7 +17,6 @@ namespace Script {
                 importFrom("System.Collections.Immutable").pkg,
             ]),
 
-            Core.dll,
             Sdk.dll,
             TypeScript.Net.dll,
 

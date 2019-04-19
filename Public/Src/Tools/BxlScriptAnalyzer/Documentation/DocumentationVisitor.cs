@@ -15,11 +15,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Documentation
     /// <nodoc />
     public class DocumentationVisitor : DfsVisitor
     {
-        private Module m_module;
+        private readonly Module m_module;
 
-        private AbsolutePath m_path;
+        private readonly AbsolutePath m_path;
 
-        private Stack<DocNode> m_declarations = new Stack<DocNode>();
+        private readonly Stack<DocNode> m_declarations = new Stack<DocNode>();
 
         /// <summary>
         /// Constructor

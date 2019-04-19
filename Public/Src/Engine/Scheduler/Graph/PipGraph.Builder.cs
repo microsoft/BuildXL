@@ -54,13 +54,13 @@ namespace BuildXL.Scheduler.Graph
 
             private IScheduleConfiguration ScheduleConfiguration => m_configuration.Schedule;
 
-            private NodeId m_dummyHashSourceFileNode;
+            private readonly NodeId m_dummyHashSourceFileNode;
 
             private readonly IConfiguration m_configuration;
 
             private WindowsOsDefaults m_windowsOsDefaults;
             private MacOsDefaults m_macOsDefaults;
-            private object m_osDefaultLock = new object();
+            private readonly object m_osDefaultLock = new object();
 
             #region State
 

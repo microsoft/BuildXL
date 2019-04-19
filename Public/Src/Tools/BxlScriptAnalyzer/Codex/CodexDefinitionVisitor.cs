@@ -278,7 +278,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
 
         private class IdentifierVisitor : DfsVisitor
         {
-            private BitArray m_identifierByStart;
+            private readonly BitArray m_identifierByStart;
 
             public IdentifierVisitor(ISourceFile sourceFile)
             {

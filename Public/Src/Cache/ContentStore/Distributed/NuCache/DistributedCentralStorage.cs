@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private const string CacheSharedSubFolderToReplace = @"Shared\" + CacheSubFolderName;
         private const string CacheSharedSubFolder = CacheSubFolderName + @"\Shared";
 
-        private CentralStorage _fallbackStorage;
+        private readonly CentralStorage _fallbackStorage;
         private readonly ConcurrentDictionary<MachineLocation, MachineLocation> _machineLocationTranslationMap = new ConcurrentDictionary<MachineLocation, MachineLocation>();
 
         // Choosing MD5 hash type as hash type for peer to peer storage somewhat arbitrarily. However, it has the nice

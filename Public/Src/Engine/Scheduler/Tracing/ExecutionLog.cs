@@ -324,7 +324,7 @@ namespace BuildXL.Scheduler.Tracing
         private readonly bool m_closeLogFileOnDispose;
         private readonly BinaryLogger m_logFile;
         private readonly uint m_workerId = 0;
-        private IReadOnlyList<int> m_disabledEventIds;
+        private readonly IReadOnlyList<int> m_disabledEventIds;
 
         /// <summary>
         /// Performance counters.

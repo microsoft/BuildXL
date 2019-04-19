@@ -13,9 +13,9 @@ namespace BuildXL.Engine.Distribution.InternalBond
     /// </summary>
     internal sealed class BondHostLog
     {
-        private LoggingContext m_loggingContext;
-        private string m_ipAddress;
-        private int m_port;
+        private readonly LoggingContext m_loggingContext;
+        private readonly string m_ipAddress;
+        private readonly int m_port;
 
         public BondHostLog(LoggingContext loggingContext, string ipAddress, int port)
         {

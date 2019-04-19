@@ -393,7 +393,7 @@ namespace Tool.DropDaemon
             }
         }
 
-        private CounterCollection<DaemonCounter> m_counters = new CounterCollection<DaemonCounter>();
+        private readonly CounterCollection<DaemonCounter> m_counters = new CounterCollection<DaemonCounter>();
 
         private enum DaemonCounter
         {

@@ -42,7 +42,7 @@ namespace BuildXL.Processes
         private AsyncPipeReader m_injectionRequestReader;
         private bool m_stopping;
 
-        private LoggingContext m_loggingContext;
+        private readonly LoggingContext m_loggingContext;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         public ProcessTreeContext(Guid payloadGuid, SafeHandle reportPipe, ArraySegment<byte> payload, string dllNameX64, string dllNameX86, LoggingContext loggingContext)

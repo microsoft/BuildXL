@@ -58,8 +58,8 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         public readonly TimeSpan Duration;
 
-        private T m_value;
-        private Failure m_lastFailure;
+        private readonly T m_value;
+        private readonly Failure m_lastFailure;
 
         /// <summary>
         /// The value returned by the call if the call was successful

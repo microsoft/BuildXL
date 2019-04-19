@@ -21,7 +21,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers
         private const int AddScrollToTableRowCountLimit = 10;
 
         private readonly SummaryAnalyzer m_analyzer;
-        private HashSet<string> m_changesToReferenceList = new HashSet<string>();
+        private readonly HashSet<string> m_changesToReferenceList = new HashSet<string>();
 
         public SummaryAnalyzerHtmlWritter(SummaryAnalyzer analyzer)
         {

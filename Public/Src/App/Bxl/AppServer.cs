@@ -80,7 +80,7 @@ namespace BuildXL
         /// unhandled exception handler communicate the crash's exit code to the client process.
         /// </summary>
         private BinaryWriter m_writer;
-        private object m_writerLock = new object();
+        private readonly object m_writerLock = new object();
 
         /// <summary>
         /// Starting patterns for environment variables which when modified will cause a new instance of the server

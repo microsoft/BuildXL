@@ -78,8 +78,8 @@ namespace BuildXL.Engine.Distribution
         private BinaryLogReader m_executionLogBinaryReader;
         private MemoryStream m_executionLogBufferStream;
         private ExecutionLogFileReader m_executionLogReader;
-        private object m_logBlobLock = new object();
-        private object m_hashListLock = new object();
+        private readonly object m_logBlobLock = new object();
+        private readonly object m_hashListLock = new object();
 
         private int m_lastBlobSeqNumber = -1;
 

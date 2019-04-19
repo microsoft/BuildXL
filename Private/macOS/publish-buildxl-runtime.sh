@@ -6,7 +6,7 @@ readonly sandboxSrcDir="${buildxlDir}/Public/Src/Sandbox/MacOs"
 
 readonly nugetExe=${buildxlDir}/Shared/Tools/NuGet.exe
 readonly nugetTemplateDir=$MYDIR/runtime.osx-x64.BuildXL.template
-readonly nugetFeed="https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/nuget/v3/index.json"
+readonly nugetFeed="https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json"
 
 if [[ ! -d $nugetTemplateDir ]]; then
     echo "[ERROR] Expected to find nuget template folder at '$nugetTemplateDir' but no such directory exists"

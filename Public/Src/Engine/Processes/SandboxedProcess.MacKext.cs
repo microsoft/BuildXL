@@ -55,7 +55,7 @@ namespace BuildXL.Processes
 
         private bool HasProcessExitBeenReceived => m_processExitTimeNs != ulong.MaxValue;
 
-        private CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
+        private readonly CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
 
         private IKextConnection KextConnection => ProcessInfo.SandboxedKextConnection;
 

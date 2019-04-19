@@ -33,7 +33,7 @@ namespace BuildXL.Engine.Distribution.InternalBond
 
         private BondProxyConnectionManager<MasterProxyAdapter> m_proxyManager;
 
-        private BondTcpClient<BondMasterClient.MasterProxyAdapter> m_bondTcpClient;
+        private readonly BondTcpClient<BondMasterClient.MasterProxyAdapter> m_bondTcpClient;
 
 
         /// <summary>
@@ -66,9 +66,9 @@ namespace BuildXL.Engine.Distribution.InternalBond
             #endregion
         }
 
-        private LoggingContext m_loggingContext;
-        private string m_ipAddress;
-        private int m_port;
+        private readonly LoggingContext m_loggingContext;
+        private readonly string m_ipAddress;
+        private readonly int m_port;
 
         /// <summary>
         /// Class constructor

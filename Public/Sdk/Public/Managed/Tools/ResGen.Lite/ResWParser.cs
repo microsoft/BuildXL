@@ -169,28 +169,28 @@ namespace ResGen.Lite
         private class ResWNames
         {
             /// <nodoc />
-            public static XName Root = XName.Get("root");
+            public static readonly XName Root = XName.Get("root");
 
             /// <nodoc />
-            public static XName ResHeader = XName.Get("resheader");
+            public static readonly XName ResHeader = XName.Get("resheader");
 
             /// <nodoc />
-            public static XName Data = XName.Get("data");
+            public static readonly XName Data = XName.Get("data");
 
             /// <nodoc />
-            public static XName Name = XName.Get("name");
+            public static readonly XName Name = XName.Get("name");
 
             /// <nodoc />
-            public static XName Comment = XName.Get("comment");
+            public static readonly XName Comment = XName.Get("comment");
 
             /// <nodoc />
-            public static XName Value = XName.Get("value");
+            public static readonly XName Value = XName.Get("value");
 
             /// <nodoc />
-            public static XName Space = XName.Get("space", "http://www.w3.org/XML/1998/namespace");
+            public static readonly XName Space = XName.Get("space", "http://www.w3.org/XML/1998/namespace");
 
             /// <nodoc />
-            public static XName Schema = XName.Get("schema", "http://www.w3.org/2001/XMLSchema");
+            public static readonly XName Schema = XName.Get("schema", "http://www.w3.org/2001/XMLSchema");
         }
     }
 }

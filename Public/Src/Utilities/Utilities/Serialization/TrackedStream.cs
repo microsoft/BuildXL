@@ -12,7 +12,7 @@ namespace BuildXL.Utilities.Serialization
     /// </summary>
     public class TrackedStream : Stream
     {
-        private bool m_leaveOpen;
+        private readonly bool m_leaveOpen;
         private long m_position;
         private byte[] m_seekBuffer;
         private readonly byte[] m_singleByteBuffer = new byte[1];

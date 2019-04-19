@@ -152,7 +152,7 @@ namespace BuildXL
         private int m_cancellationAlreadyAttempted = 0;
         private LoggingContext m_appLoggingContext;
 
-        private CrashCollectorMacOS m_crashCollector;
+        private readonly CrashCollectorMacOS m_crashCollector;
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
@@ -1143,12 +1143,12 @@ namespace BuildXL
             private readonly List<BaseEventListener> m_listeners = new List<BaseEventListener>();
             private readonly Dictionary<AbsolutePath, TextWriterEventListener> m_listenersByPath = new Dictionary<AbsolutePath, TextWriterEventListener>();
             private bool m_disposed;
-            private bool m_displayWarningErrorTime;
+            private readonly bool m_displayWarningErrorTime;
             private TextWriterEventListener m_defaultFileListener;
             private TextWriterEventListener m_statusFileListener;
 
             private readonly WarningManager m_warningManager;
-            private EventMask m_noLogMask;
+            private readonly EventMask m_noLogMask;
 
             /// <summary>
             /// Path Translator used for logging. Note this may be disabled (null) even if subst or junctions are in effect.

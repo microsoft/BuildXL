@@ -25,7 +25,7 @@ config({
             },
                         
             repositories: {
-                "selfhost": "https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
+                "selfhost": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
             },
 
             packages: [

@@ -61,7 +61,7 @@ namespace BuildXL.Engine.Cache
         /// </summary>
         private readonly byte[] m_buffer;
 
-        private PooledObjectWrapper<StringBuilder> m_builderWrapper;
+        private readonly PooledObjectWrapper<StringBuilder> m_builderWrapper;
 
         /// <summary>
         /// Builder for FingerprintInputText

@@ -88,8 +88,8 @@ namespace BuildXL.Native.Streams
 
         private GCHandle m_lockedStateGCHandle;
         private byte[] Buffer => m_pooledBufferWrapper.Instance;
-        private PooledObjectWrapper<byte[]> m_pooledBufferWrapper;
-        private int m_bufferSize;
+        private readonly PooledObjectWrapper<byte[]> m_pooledBufferWrapper;
+        private readonly int m_bufferSize;
         private BufferState m_currentBufferState;
         private BufferLockReason m_lockReason;
         private int m_bufferFilledSize;

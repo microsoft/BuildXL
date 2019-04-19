@@ -171,6 +171,10 @@ namespace BuildXL.Native.IO
         }
 
         /// <nodoc />
-        public static IOCounters Deserialize(BinaryReader reader) => new IOCounters(IOTypeCounters.Deserialize(reader), IOTypeCounters.Deserialize(reader), IOTypeCounters.Deserialize(reader));
+        public static IOCounters Deserialize(BinaryReader reader) 
+            => new IOCounters(
+                readCounters:  IOTypeCounters.Deserialize(reader), 
+                writeCounters: IOTypeCounters.Deserialize(reader), 
+                otherCounters: IOTypeCounters.Deserialize(reader));
     }
 }

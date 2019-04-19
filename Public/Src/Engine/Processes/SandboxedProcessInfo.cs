@@ -387,9 +387,9 @@ namespace BuildXL.Processes
         /// Observer descriptor.
         /// </summary>
         /// <remarks>
-        /// This instance of <see cref="ObserverDescriptor"/> is used as a serialized version of <see cref="StandardOutputObserver"/> and <see cref="StandardErrorObserver"/>.
+        /// This instance of <see cref="SandboxObserverDescriptor"/> is used as a serialized version of <see cref="StandardOutputObserver"/> and <see cref="StandardErrorObserver"/>.
         /// </remarks>
-        public ObserverDescriptor StandardObserverDescriptor { get; set; }
+        public SandboxObserverDescriptor StandardObserverDescriptor { get; set; }
 
         #region Serialization
 
@@ -458,8 +458,9 @@ namespace BuildXL.Processes
                 string workingDirectory = reader.ReadNullableString();
                 IBuildParameters buildParameters = null;
                 var envVars = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => new KeyValuePair<string, string>(r2.ReadString(), r2.ReadString())));
-                if (envVars != null) {
-                    
+                if (envVars != null)
+                {
+
                     buildParameters = BuildParameters.GetFactory().PopulateFromDictionary(envVars.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
                 }
 
@@ -473,7 +474,7 @@ namespace BuildXL.Processes
                 string pipDescription = reader.ReadNullableString();
                 SandboxedProcessStandardFiles sandboxedProcessStandardFiles = SandboxedProcessStandardFiles.Deserialize(reader);
                 StandardInputInfo standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
-                ObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => ObserverDescriptor.Deserialize(r));
+                SandboxObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => SandboxObserverDescriptor.Deserialize(r));
 
                 FileAccessManifest fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
 
@@ -507,307 +508,6 @@ namespace BuildXL.Processes
                     StandardInputSourceInfo = standardInputSourceInfo,
                     StandardObserverDescriptor = standardObserverDescriptor
                 };
-            }
-        }
-
-        #endregion
-
-        #region Extra data structure for serialization
-
-        /// <summary>
-        /// Info about the source of standard input.
-        /// </summary>
-        public class StandardInputInfo : IEquatable<StandardInputInfo>
-        {
-            /// <summary>
-            /// File path.
-            /// </summary>
-            public string File { get; }
-
-            /// <summary>
-            /// Raw data.
-            /// </summary>
-            public string Data { get; }
-
-            private StandardInputInfo(string file, string data)
-            {
-                Contract.Requires((file != null && data == null) || (file == null && data != null));
-
-                File = file;
-                Data = data;
-            }
-
-            /// <summary>
-            /// Creates a standard input info where the source comes from a file.
-            /// </summary>
-            public static StandardInputInfo CreateForFile(string file)
-            {
-                Contract.Requires(!string.IsNullOrEmpty(file));
-
-                return new StandardInputInfo(file, null);
-            }
-
-            /// <summary>
-            /// Creates a standard input info where the source comes from raw data.
-            /// </summary>
-            public static StandardInputInfo CreateForData(string data)
-            {
-                Contract.Requires(data != null);
-
-                return new StandardInputInfo(null, data);
-            }
-
-            /// <summary>
-            /// Serializes this instance to a given <paramref name="writer"/>.
-            /// </summary>
-            public void Serialize(BuildXLWriter writer)
-            {
-                Contract.Requires(writer != null);
-
-                writer.WriteNullableString(File);
-                writer.WriteNullableString(Data);
-            }
-
-            /// <summary>
-            /// Deserializes an instance of <see cref="StandardInputInfo"/>
-            /// </summary>
-            public static StandardInputInfo Deserialize(BuildXLReader reader)
-            {
-                Contract.Requires(reader != null);
-
-                return new StandardInputInfo(reader.ReadNullableString(), reader.ReadNullableString());
-            }
-
-            /// <inheritdoc />
-            public override bool Equals(object obj)
-            {
-                return !(obj is null) && (ReferenceEquals(this, obj) || ((obj is StandardInputInfo info) && Equals(info)));
-            }
-
-            /// <summary>
-            /// Checks for equality.
-            /// </summary>
-            public bool Equals(StandardInputInfo standardInputInfo)
-            {
-                return !(standardInputInfo is null)
-                    && (ReferenceEquals(this, standardInputInfo)
-                        || (string.Equals(File, standardInputInfo.File, StringComparison.OrdinalIgnoreCase)
-                            && string.Equals(Data, standardInputInfo.Data)));
-            }
-
-            /// <summary>
-            /// Checks for equality.
-            /// </summary>
-            public static bool operator ==(StandardInputInfo info1, StandardInputInfo info2)
-            {
-                if (ReferenceEquals(info1, info2))
-                {
-                    return true;
-                }
-
-                if (info1 is null)
-                {
-                    return false;
-                }
-
-                return info1.Equals(info2);
-            }
-
-            /// <summary>
-            /// Checks for disequality.
-            /// </summary>
-            public static bool operator !=(StandardInputInfo info1, StandardInputInfo info2) => !(info1 == info2);
-
-            /// <inheritdoc />
-            public override int GetHashCode()
-            {
-                return HashCodeHelper.Combine(File != null ? File.GetHashCode() : -1, Data != null ? Data.GetHashCode() : -1);
-            }
-        }
-
-        /// <summary>
-        /// Regex descriptor.
-        /// </summary>
-        public class RegexDescriptor
-        {
-            /// <summary>
-            /// Pattern.
-            /// </summary>
-            public string Pattern { get; }
-
-            /// <summary>
-            /// Regex option.
-            /// </summary>
-            public RegexOptions Options { get; }
-
-            /// <summary>
-            /// Creates an instance of <see cref="RegexDescriptor"/>.
-            /// </summary>
-            public RegexDescriptor(string pattern, RegexOptions options)
-            {
-                Contract.Requires(pattern != null);
-
-                Pattern = pattern;
-                Options = options;
-            }
-
-            /// <summary>
-            /// Serializes this instance to a given <paramref name="writer"/>.
-            /// </summary>
-            public void Serialize(BuildXLWriter writer)
-            {
-                Contract.Requires(writer != null);
-
-                writer.Write(Pattern);
-                writer.Write((uint)Options);
-            }
-
-            /// <summary>
-            /// Deserializes an instance of <see cref="RegexDescriptor"/>.
-            /// </summary>
-            public static RegexDescriptor Deserialize(BuildXLReader reader)
-            {
-                Contract.Requires(reader != null);
-
-                return new RegexDescriptor(reader.ReadString(), (RegexOptions)reader.ReadUInt32());
-            }
-
-            /// <inheritdoc />
-            public override bool Equals(object obj)
-            {
-                return !(obj is null) && (ReferenceEquals(this, obj) || ((obj is RegexDescriptor descriptor) && Equals(descriptor)));
-            }
-
-            /// <summary>
-            /// Checks for equality.
-            /// </summary>
-            public bool Equals(RegexDescriptor descriptor)
-            {
-                return !(descriptor is null)
-                    && (ReferenceEquals(this, descriptor)
-                        || (string.Equals(Pattern, descriptor.Pattern) && Options == descriptor.Options));
-            }
-
-            /// <summary>
-            /// Checks for equality.
-            /// </summary>
-            public static bool operator ==(RegexDescriptor descriptor1, RegexDescriptor descriptor2)
-            {
-                if (ReferenceEquals(descriptor1, descriptor2))
-                {
-                    return true;
-                }
-
-                if (descriptor1 is null)
-                {
-                    return false;
-                }
-
-                return descriptor1.Equals(descriptor2);
-            }
-
-            /// <summary>
-            /// Checks for disequality.
-            /// </summary>
-            public static bool operator !=(RegexDescriptor descriptor1, RegexDescriptor descriptor2) => !(descriptor1 == descriptor2);
-
-            /// <inheritdoc />
-            public override int GetHashCode()
-            {
-                return HashCodeHelper.Combine(Pattern.GetHashCode(), (int)Options);
-            }
-        }
-
-        /// <summary>
-        /// Descriptor for observer.
-        /// </summary>
-        public class ObserverDescriptor
-        {
-            /// <summary>
-            /// Warning regex.
-            /// </summary>
-            public RegexDescriptor WarningRegex { get; set; }
-
-            /// <summary>
-            /// Logs output to console.
-            /// </summary>
-            public bool LogOutputToConsole { get; set; }
-
-            /// <summary>
-            /// Logs error to console.
-            /// </summary>
-            public bool LogErrorToConsole { get; set; }
-
-            /// <summary>
-            /// Serializes this instance to a given <paramref name="writer"/>.
-            /// </summary>
-            public void Serialize(BuildXLWriter writer)
-            {
-                Contract.Requires(writer != null);
-
-                writer.Write(WarningRegex, (w, v) => v.Serialize(w));
-                writer.Write(LogOutputToConsole);
-                writer.Write(LogErrorToConsole);
-            }
-
-            /// <summary>
-            /// Deserializes an instance of <see cref="ObserverDescriptor"/>.
-            /// </summary>
-            public static ObserverDescriptor Deserialize(BuildXLReader reader)
-            {
-                Contract.Requires(reader != null);
-
-                return new ObserverDescriptor()
-                {
-                    WarningRegex = reader.ReadNullable(r => RegexDescriptor.Deserialize(r)),
-                    LogOutputToConsole = reader.ReadBoolean(),
-                    LogErrorToConsole = reader.ReadBoolean()
-                };
-            }
-
-            /// <inheritdoc />
-            public override bool Equals(object obj)
-            {
-                return !(obj is null) && (ReferenceEquals(this, obj) || ((obj is ObserverDescriptor descriptor) && Equals(descriptor)));
-            }
-
-            /// <summary>
-            /// Checks for equality.
-            /// </summary>
-            public bool Equals(ObserverDescriptor descriptor)
-            {
-                return !(descriptor is null)
-                    && (ReferenceEquals(this, descriptor)
-                        || (LogErrorToConsole == descriptor.LogErrorToConsole && LogOutputToConsole == descriptor.LogOutputToConsole && WarningRegex == descriptor.WarningRegex));
-            }
-
-            /// <summary>
-            /// Checks for equality.
-            /// </summary>
-            public static bool operator ==(ObserverDescriptor descriptor1, ObserverDescriptor descriptor2)
-            {
-                if (ReferenceEquals(descriptor1, descriptor2))
-                {
-                    return true;
-                }
-
-                if (descriptor1 is null)
-                {
-                    return false;
-                }
-
-                return descriptor1.Equals(descriptor2);
-            }
-
-            /// <summary>
-            /// Checks for disequality.
-            /// </summary>
-            public static bool operator !=(ObserverDescriptor descriptor1, ObserverDescriptor descriptor2) => !(descriptor1 == descriptor2);
-
-            /// <inheritdoc />
-            public override int GetHashCode()
-            {
-                return HashCodeHelper.Combine(WarningRegex.GetHashCode(), LogErrorToConsole ? 1 : 0, LogOutputToConsole ? 1 : 0);
             }
         }
 

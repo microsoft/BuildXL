@@ -273,7 +273,12 @@ namespace BuildXL.Scheduler.Fingerprints
             }
 
             fingerprinter.Add("DoubleWritePolicy", (byte)process.DoubleWritePolicy);
-            fingerprinter.Add("RequiresAdmin", process.RequiresAdmin ? 1 : 0);
+
+            if (process.RequiresAdmin)
+            {
+                fingerprinter.Add("RequiresAdmin", 1);
+            }
+            
             fingerprinter.Add("NeedsToRunInContainer", process.NeedsToRunInContainer ? 1 : 0);
             fingerprinter.Add("ContainerIsolationLevel", (byte) process.ContainerIsolationLevel);
 

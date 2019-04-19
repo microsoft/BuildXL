@@ -29,7 +29,7 @@ namespace BuildXL.SandboxedProcessExecutor.Tracing
 
         [GeneratedEvent(
             (int)LogEventId.SandboxedProcessExecutorInvoked,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.SandboxedProcessExecutor,
@@ -38,7 +38,7 @@ namespace BuildXL.SandboxedProcessExecutor.Tracing
 
         [GeneratedEvent(
             (int)LogEventId.SandboxedProcessExecutorCatastrophicFailure,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.SandboxedProcessExecutor,

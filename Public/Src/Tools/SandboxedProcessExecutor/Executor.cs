@@ -24,6 +24,7 @@ namespace BuildXL.SandboxedProcessExecutor
         public readonly TrackingEventListener TrackingEventListener = new TrackingEventListener(Events.Log);
         private readonly Stopwatch m_telemetryStopwatch = new Stopwatch();
         private OutputErrorObserver m_outputErrorObserver;
+        private readonly ConsoleLogger m_logger = new ConsoleLogger();
 
         /// <summary>
         /// Creates an instance of <see cref="Executor"/>.
@@ -33,7 +34,7 @@ namespace BuildXL.SandboxedProcessExecutor
             Contract.Requires(configuration != null);
 
             m_configuration = configuration;
-    }
+        }
 
         public int Run()
         {
@@ -55,7 +56,7 @@ namespace BuildXL.SandboxedProcessExecutor
         private void HandleUnhandledFailure(Exception exception)
         {
             // Show the exception to the user
-            ConsoleError(exception.ToString());
+            m_logger.LogError(exception.ToString());
             
             // Log the exception to telemetry
             if (AriaV2StaticState.IsEnabled)
@@ -115,42 +116,46 @@ namespace BuildXL.SandboxedProcessExecutor
         private bool TryReadSandboxedProcessInfo(out SandboxedProcessInfo sandboxedProcessInfo)
         {
             sandboxedProcessInfo = null;
+            sandboxedProcessInfo = ExceptionUtilities.HandleRecoverableIOException(
+               () =>
+               {
+                   using (FileStream stream = File.OpenRead(Path.GetFullPath(m_configuration.SandboxedProcessInfoInputFile)))
+                   {
+                        // TODO: Custom DetoursEventListener?
+                        return SandboxedProcessInfo.Deserialize(stream, m_loggingContext, detoursEventListener: null);
+                   }
+               },
+               ex =>
+               {
+                   m_logger.LogError(ex.ToString());
+               });
 
-            try
-            {
-                using (FileStream stream = File.OpenRead(Path.GetFullPath(m_configuration.SandboxedProcessInfoInputFile)))
-                {
-                    // TODO: Custom DetoursEventListener?
-                    sandboxedProcessInfo = SandboxedProcessInfo.Deserialize(stream, m_loggingContext, detoursEventListener: null);
-                }
-            }
-            catch (IOException ioException)
-            {
-                ConsoleError(ioException.ToString());
-                return false;
-            }
-
-            return true;
+            return sandboxedProcessInfo != null;
         }
 
         private bool TryWriteSandboxedProcessResult(SandboxedProcessResult result)
         {
             Contract.Requires(result != null);
 
-            try
-            {
-                using (FileStream stream = File.OpenWrite(Path.GetFullPath(m_configuration.SandboxedProcessResultOutputFile)))
-                {
-                    result.Serialize(stream);
-                }
-            }
-            catch (IOException ioException)
-            {
-                ConsoleError(ioException.ToString());
-                return false;
-            }
+            bool success = false;
 
-            return true;
+            ExceptionUtilities.HandleRecoverableIOException(
+                () =>
+                {
+                    using (FileStream stream = File.OpenWrite(Path.GetFullPath(m_configuration.SandboxedProcessResultOutputFile)))
+                    {
+                        result.Serialize(stream);
+                    }
+
+                    success = true;
+                },
+                ex =>
+                {
+                    m_logger.LogError(ex.ToString());
+                    success = false;
+                });
+
+            return success;
         }
 
         private bool TryPrepareSandboxedProcess(SandboxedProcessInfo info)
@@ -170,20 +175,20 @@ namespace BuildXL.SandboxedProcessExecutor
 
                 if (!fam.SetMessageCountSemaphore(semaphoreName))
                 {
-                    ConsoleError($"Semaphore '{semaphoreName}' for counting Detours messages is already opened");
+                    m_logger.LogError($"Semaphore '{semaphoreName}' for counting Detours messages is already opened");
                     return false;
                 }
             }
 
             if (info.GetCommandLine().Length > SandboxedProcessInfo.MaxCommandLineLength)
             {
-                ConsoleError($"Process command line is longer than {SandboxedProcessInfo.MaxCommandLineLength} characters: {info.GetCommandLine().Length}");
+                m_logger.LogError($"Process command line is longer than {SandboxedProcessInfo.MaxCommandLineLength} characters: {info.GetCommandLine().Length}");
                 return false;
             }
 
-            m_outputErrorObserver = OutputErrorObserver.Create(info);
-            info.StandardOutputObserver = m_outputErrorObserver.ObserveOutput;
-            info.StandardErrorObserver = m_outputErrorObserver.ObserveError;
+            m_outputErrorObserver = OutputErrorObserver.Create(m_logger, info);
+            info.StandardOutputObserver = m_outputErrorObserver.ObserveStandardOutputForWarning;
+            info.StandardErrorObserver = m_outputErrorObserver.ObserveStandardErrorForWarning;
 
             return true;
         }
@@ -245,13 +250,15 @@ namespace BuildXL.SandboxedProcessExecutor
                 {
                     if (ex.LogEventErrorCode == NativeIOConstants.ErrorFileNotFound)
                     {
-                        ConsoleError($"Failed to start process: '{info.FileName}' not found");
+                        m_logger.LogError($"Failed to start process: '{info.FileName}' not found");
                         return null;
                     }
                     else if (ex.LogEventErrorCode == NativeIOConstants.ErrorPartialCopy && (processRelaunchCount < ProcessRelauchCountMax))
                     {
                         ++processRelaunchCount;
                         shouldRelaunchProcess = true;
+
+                        m_logger.LogInfo($"Retry to start process for {processRelaunchCount} time(s) due to the following error: {ex.LogEventErrorCode}");
 
                         // Ensure that process terminates before relaunching it.
                         if (process != null)
@@ -268,7 +275,7 @@ namespace BuildXL.SandboxedProcessExecutor
                     }
                     else
                     {
-                        ConsoleError($"Failed to start process '{info.FileName}': {ex.LogEventMessage} ({ex.LogEventErrorCode})");
+                        m_logger.LogError($"Failed to start process '{info.FileName}': {ex.LogEventMessage} ({ex.LogEventErrorCode})");
                         return null;
                     }
                 }
@@ -305,18 +312,10 @@ namespace BuildXL.SandboxedProcessExecutor
             }
             catch (BuildXLException ex)
             {
-                ConsoleError($"Unable to open standard input stream: {ex.ToString()}");
+                m_logger.LogError($"Unable to open standard input stream: {ex.ToString()}");
                 success = false;
                 return null;
             }
-        }
-
-        private void ConsoleError(string errorMessage)
-        {
-            ConsoleColor original = Console.ForegroundColor;
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.Error.WriteLine(errorMessage);
-            Console.ForegroundColor = original;
         }
     }
 }

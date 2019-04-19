@@ -109,14 +109,19 @@ namespace BuildXL.Processes
         /// <nodoc />
         public static ReportedProcess Deserialize(BuildXLReader reader)
         {
-            var reportedProcess = new ReportedProcess(reader.ReadUInt32(), reader.ReadString(), reader.ReadString());
-            reportedProcess.CreationTime = reader.ReadDateTime();
-            reportedProcess.ExitTime = reader.ReadDateTime();
-            reportedProcess.KernelTime = reader.ReadTimeSpan();
-            reportedProcess.UserTime = reader.ReadTimeSpan();
-            reportedProcess.IOCounters = IOCounters.Deserialize(reader);
-            reportedProcess.ExitCode = reader.ReadUInt32();
-            reportedProcess.ParentProcessId = reader.ReadUInt32();
+            var reportedProcess = new ReportedProcess(
+                processId: reader.ReadUInt32(), 
+                path:      reader.ReadString(), 
+                args:      reader.ReadString())
+            {
+                CreationTime    = reader.ReadDateTime(),
+                ExitTime        = reader.ReadDateTime(),
+                KernelTime      = reader.ReadTimeSpan(),
+                UserTime        = reader.ReadTimeSpan(),
+                IOCounters      = IOCounters.Deserialize(reader),
+                ExitCode        = reader.ReadUInt32(),
+                ParentProcessId = reader.ReadUInt32()
+            };
 
             return reportedProcess;
         }

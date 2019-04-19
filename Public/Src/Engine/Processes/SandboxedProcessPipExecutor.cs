@@ -59,43 +59,6 @@ namespace BuildXL.Processes
         // Compute if WCI and Bind are available on this machine
         private static readonly bool s_isIsolationSupported = ProcessUtilities.IsWciAndBindFiltersAvailable();
 
-        private readonly struct ExpandedRegexDescriptor : IEquatable<ExpandedRegexDescriptor>
-        {
-            public readonly string Pattern;
-            public readonly RegexOptions Options;
-
-            public ExpandedRegexDescriptor(StringTable stringTable, RegexDescriptor descriptor)
-            {
-                Pattern = stringTable.GetString(descriptor.Pattern);
-                Options = descriptor.Options;
-            }
-
-            public bool Equals(ExpandedRegexDescriptor other)
-            {
-                return Pattern == other.Pattern && Options == other.Options;
-            }
-
-            public override int GetHashCode()
-            {
-                return HashCodeHelper.Combine(Pattern.GetHashCode(), (int)Options);
-            }
-
-            public override bool Equals(object obj)
-            {
-                return obj is ExpandedRegexDescriptor && Equals((ExpandedRegexDescriptor)obj);
-            }
-
-            public static bool operator ==(ExpandedRegexDescriptor left, ExpandedRegexDescriptor right)
-            {
-                return left.Equals(right);
-            }
-
-            public static bool operator !=(ExpandedRegexDescriptor left, ExpandedRegexDescriptor right)
-            {
-                return !(left == right);
-            }
-        }
-
         /// <summary>
         /// The maximum number that this executor will try to launch the given process pip.
         /// </summary>
@@ -281,14 +244,14 @@ namespace BuildXL.Processes
 
             if (pip.WarningRegex.IsValid)
             {
-                var expandedDescriptor = new ExpandedRegexDescriptor(context.StringTable, pip.WarningRegex);
+                var expandedDescriptor = new ExpandedRegexDescriptor(pip.WarningRegex.Pattern.ToString(context.StringTable), pip.WarningRegex.Options);
                 m_warningRegexTask = GetRegexAsync(expandedDescriptor);
                 m_warningRegexIsDefault = RegexDescriptor.IsDefault(expandedDescriptor.Pattern, expandedDescriptor.Options);
             }
 
             if (pip.ErrorRegex.IsValid)
             {
-                var expandedDescriptor = new ExpandedRegexDescriptor(context.StringTable, pip.ErrorRegex);
+                var expandedDescriptor = new ExpandedRegexDescriptor(pip.ErrorRegex.Pattern.ToString(context.StringTable), pip.ErrorRegex.Options);
                 m_errorRegexTask = GetRegexAsync(expandedDescriptor);
             }
 
@@ -839,20 +802,19 @@ namespace BuildXL.Processes
             System.Diagnostics.Stopwatch sandboxPrepTime,
             CancellationToken cancellationToken = default)
         {
-            SandboxedProcessInfo.StandardInputInfo standardInputSource = m_pip.StandardInput.IsData
-                ? SandboxedProcessInfo.StandardInputInfo.CreateForData(m_pip.StandardInput.Data.ToString(m_context.PathTable))
+            StandardInputInfo standardInputSource = m_pip.StandardInput.IsData
+                ? StandardInputInfo.CreateForData(m_pip.StandardInput.Data.ToString(m_context.PathTable))
                 : (m_pip.StandardInput.IsFile
-                    ? SandboxedProcessInfo.StandardInputInfo.CreateForFile(m_pip.StandardInput.File.Path.ToString(m_context.PathTable))
+                    ? StandardInputInfo.CreateForFile(m_pip.StandardInput.File.Path.ToString(m_context.PathTable))
                     : null);
 
             info.StandardInputSourceInfo = standardInputSource;
 
             if (m_pip.WarningRegex.IsValid)
             {
-                var expandedDescriptor = new ExpandedRegexDescriptor(m_context.StringTable, m_pip.WarningRegex);
-                var observerDescriptor = new SandboxedProcessInfo.ObserverDescriptor
+                var observerDescriptor = new SandboxObserverDescriptor
                 {
-                    WarningRegex = new SandboxedProcessInfo.RegexDescriptor(expandedDescriptor.Pattern, expandedDescriptor.Options)
+                    WarningRegex = new ExpandedRegexDescriptor(m_pip.WarningRegex.Pattern.ToString(m_context.StringTable), m_pip.WarningRegex.Options)
                 };
 
                 info.StandardObserverDescriptor = observerDescriptor;
@@ -869,6 +831,8 @@ namespace BuildXL.Processes
                     string toolPath = Path.Combine(
                         m_layoutConfiguration.BuildEngineDirectory.ToString(m_context.PathTable),
                         ExternalToolSandboxedProcess.DefaultToolRelativePath);
+
+                    Tracing.Logger.Log.PipProcessStartExternalTool(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), toolPath);
 
                     process = await ExternalToolSandboxedProcess.StartAsync(info, toolPath);
                 }
@@ -914,6 +878,17 @@ namespace BuildXL.Processes
                     lastMessageCount = process.GetLastMessageCount() + result.LastMessageCount;
                     m_numWarnings += result.WarningCount;
                     isMessageCountSemaphoreCreated = m_fileAccessManifest.MessageCountSemaphore != null || result.MessageCountSemaphoreCreated;
+
+                    if (process is ExternalSandboxedProcess externalSandboxedProcess)
+                    {
+                        Tracing.Logger.Log.PipProcessFinishedExternalTool(
+                            m_loggingContext,
+                            m_pip.SemiStableHash,
+                            m_pip.GetDescription(m_context),
+                            externalSandboxedProcess.ExitCode ?? -1,
+                            Environment.NewLine + "StdOut:" + Environment.NewLine + externalSandboxedProcess.StdOut,
+                            Environment.NewLine + "StdErr:" + Environment.NewLine + externalSandboxedProcess.StdErr);
+                    }
                 }
                 finally
                 {

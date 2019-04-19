@@ -24,14 +24,6 @@ namespace BuildXL.SandboxedProcessExecutor
         public bool EnableTelemetry { get; set; }
 
         /// <summary>
-        /// Creates an instance of <see cref="Configuration"/>.
-        /// </summary>
-        public Configuration()
-        {
-            EnableTelemetry = true;
-        }
-
-        /// <summary>
         /// Validates configuration.
         /// </summary>
         public bool Validate(out string errorMessage)

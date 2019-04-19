@@ -11,7 +11,7 @@ using BuildXL.Utilities;
 namespace BuildXL.SandboxedProcessExecutor
 {
     /// <summary>
-    /// Warning observer.
+    /// Observer of standard output and standard error.
     /// </summary>
     internal class OutputErrorObserver
     {
@@ -23,13 +23,16 @@ namespace BuildXL.SandboxedProcessExecutor
 
         private int m_warningCount;
 
+        private readonly ConsoleLogger m_logger;
+
         /// <summary>
         /// Total number of warnings.
         /// </summary>
         public int WarningCount => Volatile.Read(ref m_warningCount);
 
-        private OutputErrorObserver(Regex warningRegex, bool isDefaultWarningRegex, bool logOutputToConsole, bool logErrorToConsole)
+        private OutputErrorObserver(ConsoleLogger logger, Regex warningRegex, bool isDefaultWarningRegex, bool logOutputToConsole, bool logErrorToConsole)
         {
+            m_logger = logger;
             m_warningRegex = warningRegex;
             m_isDefaultWarningRegex = isDefaultWarningRegex;
             m_logOutputToConsole = logOutputToConsole;
@@ -69,7 +72,7 @@ namespace BuildXL.SandboxedProcessExecutor
         /// <summary>
         /// Creates an instance of <see cref="OutputErrorObserver"/>
         /// </summary>
-        public static OutputErrorObserver Create(SandboxedProcessInfo info)
+        public static OutputErrorObserver Create(ConsoleLogger logger, SandboxedProcessInfo info)
         {
             Contract.Requires(info != null);
 
@@ -80,21 +83,21 @@ namespace BuildXL.SandboxedProcessExecutor
             bool logOutputToConsole = info.StandardObserverDescriptor == null ? false : info.StandardObserverDescriptor.LogOutputToConsole;
             bool logErrorToConsole = info.StandardObserverDescriptor == null ? false : info.StandardObserverDescriptor.LogErrorToConsole;
 
-            return new OutputErrorObserver(warningRegex, isDefaultWarningRegex, logOutputToConsole, logErrorToConsole);
+            return new OutputErrorObserver(logger, warningRegex, isDefaultWarningRegex, logOutputToConsole, logErrorToConsole);
         }
 
-        private static bool IsDefaultWarningRegex(SandboxedProcessInfo.RegexDescriptor regexDescriptor) 
+        private static bool IsDefaultWarningRegex(ExpandedRegexDescriptor regexDescriptor) 
             => string.Equals(regexDescriptor.Pattern, Warning.DefaultWarningPattern) && regexDescriptor.Options == RegexOptions.IgnoreCase;
 
-        private static Regex CreateRegex(SandboxedProcessInfo.RegexDescriptor regexDescriptor) 
+        private static Regex CreateRegex(ExpandedRegexDescriptor regexDescriptor) 
             => new Regex(
                     regexDescriptor.Pattern,
                     regexDescriptor.Options | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         /// <summary>
-        /// Observes output for warning.
+        /// Observes standard output for warning.
         /// </summary>
-        public void ObserveOutput(string outputLine)
+        public void ObserveStandardOutputForWarning(string outputLine)
         {
             if (IsWarning(outputLine))
             {
@@ -103,14 +106,14 @@ namespace BuildXL.SandboxedProcessExecutor
 
             if (m_logOutputToConsole)
             {
-                Console.Out.WriteLine(outputLine);
+                m_logger.LogInfo(outputLine);
             }
         }
 
         /// <summary>
-        /// Observes error for warning.
+        /// Observes standard error for warning.
         /// </summary>
-        public void ObserveError(string errorLine)
+        public void ObserveStandardErrorForWarning(string errorLine)
         {
             if (IsWarning(errorLine))
             {
@@ -119,7 +122,7 @@ namespace BuildXL.SandboxedProcessExecutor
 
             if (m_logErrorToConsole)
             {
-                Console.Error.WriteLine(errorLine);
+                m_logger.LogError(errorLine);
             }
         }
     }

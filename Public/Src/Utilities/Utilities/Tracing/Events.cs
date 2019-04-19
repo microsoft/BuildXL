@@ -258,7 +258,7 @@ namespace BuildXL.Utilities.Tracing
 
             public const EventTask UnitTest = (EventTask)4;
 
-            // FREE: 5;
+            public const EventTask SandboxedProcessExecutor = (EventTask)5;
 
             public const EventTask Engine = (EventTask)6;
 
@@ -294,15 +294,13 @@ namespace BuildXL.Utilities.Tracing
 
             public const EventTask ExecutionAnalyzers = (EventTask)22;
 
-            public const EventTask SandboxedProcessExecutor = (EventTask)23;
-
             /// <summary>
             /// Highest-ordinal task.
             /// </summary>
             /// <remarks>
             /// This must be updated when a task is added.
             /// </remarks>
-            public const EventTask Max = SandboxedProcessExecutor;
+            public const EventTask Max = ExecutionAnalyzers;
         }
 
         private static readonly Events s_log = new Events();

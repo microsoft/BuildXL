@@ -464,6 +464,12 @@ namespace BuildXL.Processes
             uint length = reader.ReadUInt32();
             if (length == 0)
             {
+                // TODO: Make ReadChars and WriteChars symmetric.
+                // Note that there's asymmetry between WriteChars and ReadChars.
+                // WriteChars has existed for long time and is used to serialize string to Detours.
+                // ReadChars is introduced as a way to reuse WriteChars when BuildXL has to serialize/deserialize
+                // manifest to files. We can make WriteChars and ReadChars symmetric, as well as, optimize the encoding.
+                // However, such changes entails changing Detours code.
                 return null;
             }
 
@@ -482,11 +488,16 @@ namespace BuildXL.Processes
             writer.Write((uint)timeoutInMins);
         }
 
+        private const uint ErrorDumpLocationCheckedCode = 0xABCDEF03;
+        private const uint TranslationPathStringCheckedCode = 0xABCDEF02;
+        private const uint FlagsCheckedCode = 0xF1A6B10C; // Flag block
+        private const uint PipIdCheckedCode = 0xF1A6B10E;
+
         [SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase", Justification = "Architecture strings are USASCII")]
         private static void WriteErrorDumpLocation(BinaryWriter writer, string internalDetoursErrorNotificationFile)
         {
 #if DEBUG
-            writer.Write((uint)0xABCDEF03); // "ABCDEF03"
+            writer.Write(ErrorDumpLocationCheckedCode);
 #endif
             WriteChars(writer, internalDetoursErrorNotificationFile);
         }
@@ -494,8 +505,8 @@ namespace BuildXL.Processes
         private static string ReadErrorDumpLocation(BinaryReader reader)
         {
 #if DEBUG
-            uint code = reader.ReadUInt32(); // "ABCDEF03"
-            Contract.Assert((uint)0xABCDEF03 == code);
+            uint code = reader.ReadUInt32();
+            Contract.Assert(ErrorDumpLocationCheckedCode == code);
 #endif
             return ReadChars(reader);
         }
@@ -504,7 +515,7 @@ namespace BuildXL.Processes
         private static void WriteTranslationPathStrings(BinaryWriter writer, DirectoryTranslator translatePaths)
         {
 #if DEBUG
-            writer.Write(0xABCDEF02); // "ABCDEF02"
+            writer.Write(TranslationPathStringCheckedCode);
 #endif
 
             // Write the number of translation paths.
@@ -527,7 +538,7 @@ namespace BuildXL.Processes
         {
 #if DEBUG
             uint code = reader.ReadUInt32();
-            Contract.Assert(0xABCDEF02 == code);
+            Contract.Assert(TranslationPathStringCheckedCode == code);
 #endif
 
             uint length = reader.ReadUInt32();
@@ -577,7 +588,7 @@ namespace BuildXL.Processes
         private static void WriteFlagsBlock(BinaryWriter writer, FileAccessManifestFlag flags)
         {
 #if DEBUG
-            writer.Write((uint)0xF1A6B10C); // "flag block"
+            writer.Write(FlagsCheckedCode);
 #endif
 
             writer.Write((uint)flags);
@@ -587,7 +598,7 @@ namespace BuildXL.Processes
         {
 #if DEBUG
             uint code = reader.ReadUInt32();
-            Contract.Assert((uint)0xF1A6B10C == code);
+            Contract.Assert(FlagsCheckedCode == code);
 #endif
 
             return (FileAccessManifestFlag)reader.ReadUInt32();
@@ -605,7 +616,7 @@ namespace BuildXL.Processes
         private static void WritePipId(BinaryWriter writer, long pipId)
         {
 #if DEBUG
-            writer.Write((uint)0xF1A6B10E); // "extra flags block"
+            writer.Write(PipIdCheckedCode);
             writer.Write(0); // Padding. Needed to keep the data properly aligned for the C/C++ compiler.
 #endif
             // The PipId is needed for reporting purposes on non Windows OSs. Write it here.
@@ -616,7 +627,7 @@ namespace BuildXL.Processes
         {
 #if DEBUG
             uint code = reader.ReadUInt32();
-            Contract.Assert((uint)0xF1A6B10E == code);
+            Contract.Assert(PipIdCheckedCode == code);
 
             int zero = reader.ReadInt32();
             Contract.Assert(0 == zero);
@@ -709,7 +720,14 @@ namespace BuildXL.Processes
 
         private void WriteManifestTreeBlock(BinaryWriter writer)
         {
-            m_rootNode.InternalSerialize(default(NormalizedPathString), writer);
+            if (m_sealedManifestTreeBlock != null)
+            {
+                writer.Write(m_sealedManifestTreeBlock);
+            }
+            else
+            {
+                m_rootNode.InternalSerialize(default(NormalizedPathString), writer);
+            }
         }
 
         /// <summary>
@@ -733,15 +751,7 @@ namespace BuildXL.Processes
                 WritePipId(writer, PipId);
                 WriteReportBlock(writer, setup);
                 WriteDllBlock(writer, setup);
-                if (!IsManifestTreeBlockSealed)
-                {
-                    WriteManifestTreeBlock(writer);
-                }
-                else
-                {
-                    Contract.Assert(m_sealedManifestTreeBlock != null);
-                    writer.Write(m_sealedManifestTreeBlock);
-                }
+                WriteManifestTreeBlock(writer);
 
                 return new ArraySegment<byte>(stream.GetBuffer(), 0, (int)stream.Position);
             }
@@ -763,15 +773,7 @@ namespace BuildXL.Processes
                 WriteChars(writer, m_messageCountSemaphoreName);
 
                 // The manifest tree block has to be serialized the last.
-                if (!IsManifestTreeBlockSealed)
-                {
-                    WriteManifestTreeBlock(writer);
-                }
-                else
-                {
-                    Contract.Assert(m_sealedManifestTreeBlock != null);
-                    writer.Write(m_sealedManifestTreeBlock);
-                }
+                WriteManifestTreeBlock(writer);
             }
         }
 
@@ -791,6 +793,8 @@ namespace BuildXL.Processes
                 string messageCountSemaphoreName = ReadChars(reader);
 
                 byte[] sealedManifestTreeBlock;
+
+                // TODO: Check perf. a) if this is a good buffer size, b) if the buffers should be pooled (now they are just allocated and thrown away)
                 using (MemoryStream ms = new MemoryStream(4096))
                 {
                     stream.CopyTo(ms);

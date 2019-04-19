@@ -113,16 +113,11 @@ namespace Test.BuildXL.Processes.Detours
                 var writtenFlag = fam.Flag;
                 var writtenDirectoryTranslator = fam.DirectoryTranslator;
 
-                string file = Path.GetTempFileName();
-
-                using (FileStream fileStream = File.OpenWrite(file))
+                using (var stream = new MemoryStream())
                 {
-                    fam.Serialize(fileStream);
-                }
-
-                using (FileStream fileStream = File.OpenRead(file))
-                {
-                    fam = FileAccessManifest.Deserialize(fileStream);
+                    fam.Serialize(stream);
+                    stream.Position = 0;
+                    fam = FileAccessManifest.Deserialize(stream);
                 }
 
                 XAssert.AreEqual(writtenFlag, fam.Flag);

@@ -66,10 +66,10 @@ namespace Test.BuildXL.Processes.Detours
                 SandboxKind = global::BuildXL.Utilities.Configuration.SandboxKind.Default,
                 AllowedSurvivingChildProcessNames = new[] { "conhost.exe", "mspdbsrv.exe" },
                 NestedProcessTerminationTimeout = SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
-                StandardInputSourceInfo = SandboxedProcessInfo.StandardInputInfo.CreateForData("Data"),
-                StandardObserverDescriptor = new SandboxedProcessInfo.ObserverDescriptor()
+                StandardInputSourceInfo = StandardInputInfo.CreateForData("Data"),
+                StandardObserverDescriptor = new SandboxObserverDescriptor()
                 {
-                    WarningRegex = new SandboxedProcessInfo.RegexDescriptor("*warn", System.Text.RegularExpressions.RegexOptions.Compiled)
+                    WarningRegex = new ExpandedRegexDescriptor("*warn", System.Text.RegularExpressions.RegexOptions.Compiled)
                 },
             };
 

@@ -1215,7 +1215,15 @@ namespace BuildXL
                     // profile redirection only happens on Windows
                     layoutConfiguration.RedirectedUserProfileJunctionRoot = AbsolutePath.Invalid;
                 }
-                
+
+                if (OperatingSystemHelper.IsUnixOS)
+                {
+                    // TODO: Non Windows OS doesn't support admin-required process external execution mode.
+                    if (sandboxConfiguration.AdminRequiredProcessExecutionMode != AdminRequiredProcessExecutionMode.Internal)
+                    {
+                        throw CommandLineUtilities.Error(Strings.Args_AdminRequiredProcessExecutionMode_NotSupportedOnNonWindows, sandboxConfiguration.AdminRequiredProcessExecutionMode.ToString());
+                    }
+                }
 
                 // Disable reuseEngineState (enabled by default) in case of /server- or /cacheGraph- (even if /reuseEngineState+ is passed)
                 if (configuration.Server == ServerMode.Disabled || !cacheConfiguration.CacheGraph)

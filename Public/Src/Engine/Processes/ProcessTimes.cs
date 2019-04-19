@@ -136,6 +136,11 @@ namespace BuildXL.Processes
         }
 
         /// <nodoc />
-        public static ProcessTimes Deserialize(BinaryReader reader) => new ProcessTimes(reader.ReadInt64(), reader.ReadInt64(), reader.ReadInt64(), reader.ReadInt64());
+        public static ProcessTimes Deserialize(BinaryReader reader) 
+            => new ProcessTimes(
+                creation: reader.ReadInt64(), 
+                exit:     reader.ReadInt64(), 
+                kernel:   reader.ReadInt64(), 
+                user:     reader.ReadInt64());
     }
 }

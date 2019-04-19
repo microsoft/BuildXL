@@ -652,7 +652,7 @@ namespace BuildXL.Processes
 
             if (writePath != null)
             {
-                writePath.Invoke(writer, ManifestPath);
+                writePath(writer, ManifestPath);
             }
             else
             {
@@ -681,7 +681,7 @@ namespace BuildXL.Processes
                 shareMode: (ShareMode)reader.ReadUInt32(),
                 creationDisposition: (CreationDisposition)reader.ReadUInt32(),
                 flagsAndAttributes: (FlagsAndAttributes)reader.ReadUInt32(),
-                manifestPath: readPath != null ? readPath.Invoke(reader) : reader.ReadAbsolutePath(),
+                manifestPath: readPath != null ? readPath(reader) : reader.ReadAbsolutePath(),
                 path: reader.ReadNullableString(),
                 enumeratePatttern: reader.ReadNullableString());
         }

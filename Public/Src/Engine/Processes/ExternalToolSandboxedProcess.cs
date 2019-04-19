@@ -3,14 +3,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using BuildXL.Interop;
-using BuildXL.Native.IO;
-using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Processes
 {
@@ -19,6 +16,8 @@ namespace BuildXL.Processes
     /// </summary>
     public class ExternalToolSandboxedProcess : ExternalSandboxedProcess
     {
+        private static readonly ISet<ReportedFileAccess> s_emptyFileAccessesSet = new HashSet<ReportedFileAccess>();
+
         /// <summary>
         /// Relative path to the default tool.
         /// </summary>
@@ -26,14 +25,10 @@ namespace BuildXL.Processes
 
         private readonly string m_toolPath;
 
-        private static readonly ISet<ReportedFileAccess> s_emptyFileAccessesSet = new HashSet<ReportedFileAccess>();
-
-        private readonly TaskSourceSlim<Unit> m_processExitedTcs = TaskSourceSlim.Create<Unit>();
-        private readonly TaskSourceSlim<Unit> m_stdoutFlushedTcs = TaskSourceSlim.Create<Unit>();
-        private readonly TaskSourceSlim<Unit> m_stderrFlushedTcs = TaskSourceSlim.Create<Unit>();
         private readonly StringBuilder m_output = new StringBuilder();
         private readonly StringBuilder m_error = new StringBuilder();
 
+        private AsyncProcessExecutor m_processExecutor;
         private Exception m_dumpCreationException;
 
         /// <summary>
@@ -49,46 +44,33 @@ namespace BuildXL.Processes
         private int m_processId = -1;
 
         /// <inheritdoc />
-        public override int ProcessId => m_processId != -1 ? m_processId : (m_processId = Process.Id);
+        public override int ProcessId => m_processId != -1 ? m_processId : (m_processId = Process?.Id ?? -1);
 
         /// <summary>
         /// Underlying managed <see cref="Process"/> object.
         /// </summary>
-        public Process Process { get; private set; }
+        public Process Process => m_processExecutor?.Process;
 
-        /// <summary>
-        /// Task that completes once this process dies.
-        /// </summary>
-        private Task WhenExited => m_processExitedTcs.Task;
+        /// <inheritdoc />
+        public override string StdOut => m_processExecutor?.StdOutCompleted ?? false ? m_error.ToString() : string.Empty;
+
+        /// <inheritdoc />
+        public override string StdErr => m_processExecutor?.StdErrCompleted ?? false ? m_error.ToString() : string.Empty;
+
+        /// <inheritdoc />
+        public override int? ExitCode => m_processExecutor.ExitCompleted ? Process?.ExitCode : default;
 
         /// <inheritdoc />
         public override void Dispose()
         {
-            Process?.Dispose();
+            m_processExecutor?.Dispose();
         }
 
         /// <inheritdoc />
         public override string GetAccessedFileName(ReportedFileAccess reportedFileAccess) => null;
 
         /// <inheritdoc />
-        public override ulong? GetActivePeakMemoryUsage()
-        {
-            try
-            {
-                if (Process == null || Process.HasExited)
-                {
-                    return null;
-                }
-
-                return Dispatch.GetActivePeakMemoryUsage(Process.Handle, ProcessId);
-            }
-#pragma warning disable ERP022 // Unobserved exception in generic exception handler
-            catch
-            {
-                return null;
-            }
-#pragma warning restore ERP022 // Unobserved exception in generic exception handler
-        }
+        public override ulong? GetActivePeakMemoryUsage() => m_processExecutor?.GetActivePeakMemoryUsage();
 
         /// <inheritdoc />
         public override long GetDetoursMaxHeapSize() => 0;
@@ -99,26 +81,19 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override async Task<SandboxedProcessResult> GetResultAsync()
         {
-            Contract.Requires(Process != null);
+            Contract.Requires(m_processExecutor != null);
 
-            int timeout = SandboxedProcessInfo.Timeout.HasValue
-                ? (int)SandboxedProcessInfo.Timeout.Value.TotalMilliseconds
-                : int.MaxValue;
+            await m_processExecutor.WaitForExitAsync();
 
-            var finishedTask = await Task.WhenAny(Task.Delay(timeout), WhenExited);
-
-            var timedOut = finishedTask != WhenExited;
-            if (timedOut)
+            if (m_processExecutor.TimedOut || m_processExecutor.Killed)
             {
-                await KillAsync();
+                // If timed out/killed, then sandboxed process result may have not been deserialized yet.
+                return CreateResultForFailure();
             }
-
-            await Task.WhenAll(m_stdoutFlushedTcs.Task, m_stderrFlushedTcs.Task);
 
             if (Process.ExitCode != 0)
             {
-                string[] message = new[] { "StdOut:", m_output.ToString(), "StdErr:", m_error.ToString() };
-                ThrowBuildXLException($"Process execution of '{m_toolPath}' failed with exit code {Process.ExitCode}:{Environment.NewLine}{string.Join(Environment.NewLine, message)}");
+                return CreateResultForFailure();
             }
 
             return DeserializeSandboxedProcessResultFromFile();
@@ -127,91 +102,48 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override Task KillAsync()
         {
-            Contract.Requires(Process != null);
+            Contract.Requires(m_processExecutor != null);
 
-            ProcessDumper.TryDumpProcessAndChildren(ProcessId, SandboxedProcessInfo.TimeoutDumpDirectory, out m_dumpCreationException);
+            ProcessDumper.TryDumpProcessAndChildren(ProcessId, GetOutputDirectory(), out m_dumpCreationException);
 
-            try
-            {
-                if (!Process.HasExited)
-                {
-                    Process.Kill();
-                }
-            }
-            catch (Exception e) when (e is Win32Exception || e is InvalidOperationException)
-            {
-                // thrown if the process doesn't exist (e.g., because it has already completed on its own)
-            }
-
-            m_stdoutFlushedTcs.TrySetResult(Unit.Void);
-            m_stderrFlushedTcs.TrySetResult(Unit.Void);
-
-            return WhenExited;
+            return m_processExecutor.KillAsync();
         }
 
         /// <inheritdoc />
         public override void Start()
         {
             Setup();
-
-            try
-            {
-                Process.Start();
-            }
-            catch (Win32Exception e)
-            {
-                ThrowBuildXLException($"Failed to launch process '{m_toolPath}'", e);
-            }
-
-            Process.BeginOutputReadLine();
-            Process.BeginErrorReadLine();
+            m_processExecutor.Start();
         }
 
         private string CreateArguments() => $"/sandboxedProcessInfo:{GetSandboxedProcessInfoFile()} /sandboxedProcessResult:{GetSandboxedProcessResultsFile()}";
 
-        private Process Setup()
+        private void Setup()
         {
             SerializeSandboxedProcessInfoToFile();
-            if (!FileUtilities.FileExistsNoFollow(m_toolPath))
-            {
-                ThrowBuildXLException($"Process creation failed: File '{m_toolPath}' not found");
-            }
 
-            Process = new Process();
-            Process.StartInfo = new ProcessStartInfo
+            var process = new Process
             {
-                FileName = m_toolPath,
-                Arguments = CreateArguments(),
-                WorkingDirectory = SandboxedProcessInfo.WorkingDirectory,
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = m_toolPath,
+                    Arguments = CreateArguments(),
+                    WorkingDirectory = SandboxedProcessInfo.WorkingDirectory,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                },
+
+                EnableRaisingEvents = true
             };
 
-            Process.EnableRaisingEvents = true;
-            Process.OutputDataReceived += (sender, e) => FeedOutputBuilder(m_output, m_stdoutFlushedTcs, e.Data);
-            Process.ErrorDataReceived += (sender, e) => FeedOutputBuilder(m_error, m_stderrFlushedTcs, e.Data);
-            Process.Exited += (sender, e) => m_processExitedTcs.TrySetResult(Unit.Void);
-
-            return Process;
-        }
-
-        private static void FeedOutputBuilder(StringBuilder output, TaskSourceSlim<Unit> signalCompletion, string line)
-        {
-            if (signalCompletion.Task.IsCompleted)
-            {
-                return;
-            }
-
-            if (line == null)
-            {
-                signalCompletion.TrySetResult(Unit.Void);
-            }
-            else
-            {
-                output.AppendLine(line);
-            }
+            m_processExecutor = new AsyncProcessExecutor(
+                process,
+                SandboxedProcessInfo.Timeout ?? TimeSpan.MaxValue,
+                line => m_output.AppendLine(line),
+                line => m_error.AppendLine(line),
+                SandboxedProcessInfo);
         }
 
         /// <summary>
@@ -222,6 +154,7 @@ namespace BuildXL.Processes
             return Task.Factory.StartNew(() =>
             {
                 ISandboxedProcess process = new ExternalToolSandboxedProcess(info, toolPath);
+
                 try
                 {
                     process.Start();
@@ -234,6 +167,36 @@ namespace BuildXL.Processes
 
                 return process;
             });
+        }
+
+        private SandboxedProcessResult CreateResultForFailure()
+        {
+            string output = m_output.ToString();
+            string error = m_error.ToString();
+            string hint = Path.GetFileNameWithoutExtension(m_toolPath);
+            var standardFiles = new SandboxedProcessStandardFiles(GetStdOutPath(hint), GetStdErrPath(hint));
+            var storage = new StandardFileStorage(standardFiles);
+
+            return new SandboxedProcessResult
+            {
+                ExitCode = m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
+                Killed = m_processExecutor.Killed,
+                TimedOut = m_processExecutor.TimedOut,
+                HasDetoursInjectionFailures = false,
+                StandardOutput = new SandboxedProcessOutput(output.Length, output, null, Console.OutputEncoding, storage, SandboxedProcessFile.StandardOutput, null),
+                StandardError = new SandboxedProcessOutput(error.Length, error, null, Console.OutputEncoding, storage, SandboxedProcessFile.StandardError, null),
+                HasReadWriteToReadFileAccessRequest = false,
+                AllUnexpectedFileAccesses = s_emptyFileAccessesSet,
+                FileAccesses = null,
+                DetouringStatuses = null,
+                ExplicitlyReportedFileAccesses = null,
+                Processes = null,
+                MessageProcessingFailure = null,
+                DumpCreationException = m_dumpCreationException,
+                DumpFileDirectory = GetOutputDirectory(),
+                PrimaryProcessTimes = null,
+                SurvivingChildProcesses = null,
+            };
         }
     }
 }

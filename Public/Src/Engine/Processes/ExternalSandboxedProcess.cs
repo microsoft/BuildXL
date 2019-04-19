@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Native.IO;
 using BuildXL.Utilities;
 
 namespace BuildXL.Processes
@@ -67,26 +68,47 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets the file to which sandboxed process info will be written.
         /// </summary>
-        /// <returns></returns>
-        protected string GetSandboxedProcessInfoFile()
-        {
-            string directory = Path.GetDirectoryName(SandboxedProcessInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardOutput));
-            string file = Path.Combine(directory, $"SandboxedProcessInfo-Pip{SandboxedProcessInfo.PipSemiStableHash:X16}");
-
-            return file;
-        }
+        protected string GetSandboxedProcessInfoFile() => Path.Combine(GetOutputDirectory(), $"SandboxedProcessInfo-Pip{SandboxedProcessInfo.PipSemiStableHash:X16}");
 
         /// <summary>
-        /// Gets the file to which sandboxed process result will be available.
+        /// Gets the file in which sandboxed process result will be available.
         /// </summary>
-        /// <returns></returns>
-        protected string GetSandboxedProcessResultsFile()
-        {
-            string directory = Path.GetDirectoryName(SandboxedProcessInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardOutput));
-            string file = Path.Combine(directory, $"SandboxedProcessResult-Pip{SandboxedProcessInfo.PipSemiStableHash:X16}");
+        protected string GetSandboxedProcessResultsFile() => Path.Combine(GetOutputDirectory(), $"SandboxedProcessResult-Pip{SandboxedProcessInfo.PipSemiStableHash:X16}");
 
-            return file;
-        }
+        /// <summary>
+        /// Gets the output directory for starting process externally.
+        /// </summary>
+        /// <remarks>
+        /// This output directory can be the place where BuildXL puts the serialization result of sandboxed process info and
+        /// the deserialization result of sandboxed process result. This output directory can also contain the dump of the external process
+        /// when it gets killed.
+        /// </remarks>
+        protected string GetOutputDirectory() => Path.GetDirectoryName(SandboxedProcessInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardOutput));
+
+        /// <summary>
+        /// Gets the standard output path for the external executor; not the detoured process.
+        /// </summary>
+        protected string GetStdOutPath(string hint) => Path.Combine(GetOutputDirectory(), $"{hint ?? string.Empty}-Pip{SandboxedProcessInfo.PipSemiStableHash:X16}.out");
+
+        /// <summary>
+        /// Gets the standard error path for the external executor; not the detoured process.
+        /// </summary>
+        protected string GetStdErrPath(string hint) => Path.Combine(GetOutputDirectory(), $"{hint ?? string.Empty}-Pip{SandboxedProcessInfo.PipSemiStableHash:X16}.err");
+
+        /// <summary>
+        /// Standard output for the external executor.
+        /// </summary>
+        public abstract string StdOut { get; }
+
+        /// <summary>
+        /// Standard error for the external executor.
+        /// </summary>
+        public abstract string StdErr { get; }
+
+        /// <summary>
+        /// Gets the exit code of the external executor.
+        /// </summary>
+        public abstract int? ExitCode { get; }
 
         /// <summary>
         /// Serializes sandboxed process info to file.
@@ -94,6 +116,7 @@ namespace BuildXL.Processes
         protected void SerializeSandboxedProcessInfoToFile()
         {
             string file = GetSandboxedProcessInfoFile();
+            FileUtilities.CreateDirectory(Path.GetDirectoryName(file));
 
             try
             {

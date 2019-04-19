@@ -39,7 +39,7 @@ function getLkg() {
     print_info "Getting package: $BUILDXL_LKG_NAME.$BUILDXL_LKG_VERSION"
 
     local _BUILDXL_BOOTSTRAP_OUT="$MY_DIR/Out/BootStrap"
-    $MONO_HOME/mono shared/tools/nuget.exe install -OutputDirectory "$_BUILDXL_BOOTSTRAP_OUT" -Source $BUILDXL_LKG_FEED_1 $BUILDXL_LKG_NAME -Version $BUILDXL_LKG_VERSION
+    $MONO_HOME/mono Shared/tools/nuget.exe install -OutputDirectory "$_BUILDXL_BOOTSTRAP_OUT" -Source $BUILDXL_LKG_FEED_1 $BUILDXL_LKG_NAME -Version $BUILDXL_LKG_VERSION
     export BUILDXL_BIN="$_BUILDXL_BOOTSTRAP_OUT/$BUILDXL_LKG_NAME.$BUILDXL_LKG_VERSION"
 }
 

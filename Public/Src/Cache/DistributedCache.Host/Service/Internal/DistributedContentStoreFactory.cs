@@ -24,6 +24,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.ContentStore.Utils;
+using Microsoft.Practices.TransientFaultHandling;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -377,24 +378,20 @@ namespace BuildXL.Cache.Host.Service.Internal
             if (_distributedSettings.EventHubSecretName != null &&
                 _distributedSettings.GlobalRedisSecretName != null)
             {
-                try
-                {
-                    return await _arguments.Host.RetrieveKeyVaultSecretsAsync(
-                        new List<string>(storageSecretNames)
+                var retryPolicy = CreateKeyVaultRetryPolicy();
+                return await retryPolicy.ExecuteAsync(
+                    async () =>
+                    {
+                        return await _arguments.Host.RetrieveKeyVaultSecretsAsync(
+                            new List<string>(storageSecretNames)
                             {
                                 _distributedSettings.EventHubSecretName,
                                 _distributedSettings.GlobalRedisSecretName,
                                 _distributedSettings.SecondaryGlobalRedisSecretName
                             }.Where(s => s != null).ToList(),
-                        token);
-                }
-                // In some cases, KeyVault provider may fail with HttpRequestException with an inner exception like 'The remote name could not be resolved: 'login.windows.net'.
-                // Theoretically, this should be handled by the host, but to make error handling simple and consistent (this method throws one exception type) the handling is happening here.
-                catch (Exception e) when (e.Message.Contains("The remote name could not be resolved"))
-                {
-                    errorBuilder.Append($"Unable to get key vault settings because the key vault server is unavailable. Exception: {e}. ");
-                    return null;
-                }
+                            token);
+                    },
+                    token);
             }
 
             return null;
@@ -449,6 +446,44 @@ namespace BuildXL.Cache.Host.Service.Internal
             public KeyVaultConfigurationException(string message, Exception innerException)
                 : base(message, innerException)
             {
+            }
+        }
+
+        private static RetryPolicy CreateKeyVaultRetryPolicy()
+        {
+            return new RetryPolicy(
+                new KeyVaultRetryPolicy(),
+                new ExponentialBackoff(
+                    name: "KeyVaultExponentialBackoff",
+                    retryCount: 5,
+                    minBackoff: TimeSpan.FromSeconds(10),
+                    maxBackoff: TimeSpan.FromSeconds(60),
+                    deltaBackoff: TimeSpan.FromSeconds(10),
+                    firstFastRetry: false)); // All retries are subjects to the policy, even the first one
+        }
+
+        private sealed class KeyVaultRetryPolicy : ITransientErrorDetectionStrategy
+        {
+            /// <inheritdoc />
+            public bool IsTransient(Exception ex)
+            {
+                var message = ex.Message;
+
+                if (message.Contains("The remote name could not be resolved"))
+                {
+                    // In some cases, KeyVault provider may fail with HttpRequestException with an inner exception like 'The remote name could not be resolved: 'login.windows.net'.
+                    // Theoretically, this should be handled by the host, but to make error handling simple and consistent (this method throws one exception type) the handling is happening here.
+                    // This is a recoverable error.
+                    return true;
+                }
+
+                if (message.Contains("429"))
+                {
+                    // This is a throttling response which is recoverable as well.
+                    return true;
+                }
+
+                return false;
             }
         }
     }

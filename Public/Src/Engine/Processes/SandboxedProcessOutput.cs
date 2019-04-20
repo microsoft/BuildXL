@@ -89,7 +89,14 @@ namespace BuildXL.Processes
             long length = reader.ReadInt64();
             string value = reader.ReadNullableString();
             string fileName = reader.ReadNullableString();
-            Encoding encoding = Encoding.GetEncoding(reader.ReadInt32());
+
+            int codePage = reader.ReadInt32();
+
+#if DISABLE_FEATURE_EXTENDED_ENCODING
+            Encoding encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+#else
+            Encoding encoding = Encoding.GetEncoding(codePage);
+#endif
             SandboxedProcessStandardFiles standardFiles = reader.ReadNullable(r => SandboxedProcessStandardFiles.Deserialize(r));
             ISandboxedProcessFileStorage fileStorage = null;
             if (standardFiles != null)

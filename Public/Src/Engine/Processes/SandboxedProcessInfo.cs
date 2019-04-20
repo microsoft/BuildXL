@@ -452,9 +452,9 @@ namespace BuildXL.Processes
                 string commandLine = reader.ReadNullableString();
                 bool disableConHostSharing = reader.ReadBoolean();
                 string fileName = reader.ReadNullableString();
-                Encoding standardInputEncoding = reader.ReadNullable(r => Encoding.GetEncoding(r.ReadInt32()));
-                Encoding standardOutputEncoding = reader.ReadNullable(r => Encoding.GetEncoding(r.ReadInt32()));
-                Encoding standardErrorEncoding = reader.ReadNullable(r => Encoding.GetEncoding(r.ReadInt32()));
+                Encoding standardInputEncoding = reader.ReadNullable(r => GetEncoding(r));
+                Encoding standardOutputEncoding = reader.ReadNullable(r => GetEncoding(r));
+                Encoding standardErrorEncoding = reader.ReadNullable(r => GetEncoding(r));
                 string workingDirectory = reader.ReadNullableString();
                 IBuildParameters buildParameters = null;
                 var envVars = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => new KeyValuePair<string, string>(r2.ReadString(), r2.ReadString())));
@@ -508,6 +508,18 @@ namespace BuildXL.Processes
                     StandardInputSourceInfo = standardInputSourceInfo,
                     StandardObserverDescriptor = standardObserverDescriptor
                 };
+
+                Encoding GetEncoding(BuildXLReader r)
+                {
+                    int codePage = r.ReadInt32();
+
+#if DISABLE_FEATURE_EXTENDED_ENCODING
+                    Encoding encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+#else
+                    Encoding encoding = Encoding.GetEncoding(codePage);
+#endif
+                    return encoding;
+                }
             }
         }
 

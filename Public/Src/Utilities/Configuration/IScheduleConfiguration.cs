@@ -303,6 +303,7 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         bool UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing { get; }
 
+        /// <summary>
         /// Indicates whether historic cpu information should be used to decide the weight of process pips.
         /// </summary>
         bool UseHistoricalCpuUsageInfo { get; }

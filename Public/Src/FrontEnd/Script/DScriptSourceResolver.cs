@@ -71,15 +71,6 @@ namespace BuildXL.FrontEnd.Script
         /// </summary>
         protected Dictionary<ModuleId, Package> m_owningModules;
 
-        /// <summary>
-        /// Mappings package directories to lists of packages.
-        /// </summary>
-        /// <remarks>
-        /// We allow multiple packages in a single directory, and hence the list of packages. Moreover, by construction, the packages in the same list
-        /// must reside in the same directory.
-        /// </remarks>
-        protected ConcurrentDictionary<AbsolutePath, List<Package>> m_packageDirectories = new ConcurrentDictionary<AbsolutePath, List<Package>>();
-
         private readonly SourceFileProcessingQueue<bool> m_parseQueue;
 
         private readonly IDecorator<Values.EvaluationResult> m_evaluationDecorator;
@@ -129,7 +120,6 @@ namespace BuildXL.FrontEnd.Script
                 return false;
             }
 
-            m_packageDirectories = moduleResolutionResult.PackageDirectories;
             m_packages = moduleResolutionResult.Packages;
 
             m_owningModules = moduleResolutionResult.Packages.ToDictionary(p => p.Value.ModuleId, p => p.Value);

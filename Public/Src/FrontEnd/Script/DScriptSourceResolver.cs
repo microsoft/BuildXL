@@ -89,7 +89,7 @@ namespace BuildXL.FrontEnd.Script
         // Cummulative evaluation results across evaluation calls. Only populated when a decorator is present, to pass it over when evaluation is finished.
         private readonly ConcurrentQueue<EvaluationResult> m_evaluationResults = new ConcurrentQueue<EvaluationResult>();
 
-        /// <nodoc />
+        /// <nodoc/>
         public DScriptSourceResolver(
             FrontEndHost host,
             FrontEndContext context,

@@ -164,7 +164,7 @@ export function runQTest(args: QTestArguments): Result {
         consoleOutput: consolePath,
         workingDirectory: sandboxDir,
         tempDirectory: tempDirectory,
-        weight : args.weight,
+        weight: args.weight,
         disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
         additionalTempDirectories : [sandboxDir],
         dependencies: [

@@ -1198,6 +1198,7 @@ namespace BuildXL.FrontEnd.Nuget
                         PipSemiStableHash = 0,
                         PipDescription = "NuGet FrontEnd",
                         EnvironmentVariables = GetNugetEnvironmentVariables(),
+                        Timeout = TimeSpan.FromMinutes(20), // Limit the time nuget has to download each nuget package
                     };
 
                 return await RetryOnFailure(

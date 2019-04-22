@@ -18,7 +18,7 @@ namespace BuildXL.Scheduler
     /// </remarks>
     public struct DirectoryFingerprint : IEquatable<DirectoryFingerprint>
     {
-        private ContentHash m_hash;
+        private readonly ContentHash m_hash;
 
         /// <summary>
         /// SHA-1 of all zeros to use instead of default(DirectoryFingerprint)

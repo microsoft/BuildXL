@@ -13,7 +13,7 @@ namespace App {
         winIcon: Branding.iconFile,
         projectFolder: d`.`,
         authenticatedPackageFeed: importFrom("Sdk.BuildXL").Flags.isMicrosoftInternal
-            ? "cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry"
+            ? "pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/npm/registry"
             : undefined,
     });
 }

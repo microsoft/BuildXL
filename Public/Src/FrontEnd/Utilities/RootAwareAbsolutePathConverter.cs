@@ -17,7 +17,7 @@ namespace BuildXL.FrontEnd.Utilities
     public class RootAwareAbsolutePathConverter : ReadOnlyJsonConverter<AbsolutePath>
     {
         private readonly PathTable m_pathTable;
-        private AbsolutePath m_root;
+        private readonly AbsolutePath m_root;
 
         /// <nodoc />
         public RootAwareAbsolutePathConverter(PathTable pathTable, AbsolutePath root)

@@ -58,7 +58,7 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     internal sealed class WinIdeDependencyAnalyzer : Analyzer
     {
-        private string m_outputFilePath;
+        private readonly string m_outputFilePath;
 
         public WinIdeDependencyAnalyzer(AnalysisInput input, string outputFilePath)
             : base(input)

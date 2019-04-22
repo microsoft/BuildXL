@@ -131,7 +131,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly bool m_generateWhatBuiltOutput;
         private readonly string m_outputFilterPath;
         private readonly List<string> m_rootSubdirectories;
-        private WhatBuiltOptions m_whatBuiltOptions;
+        private readonly WhatBuiltOptions m_whatBuiltOptions;
 
         public BuildStatus(AnalysisInput input, int maxDifferenceReportCount, FilterOptions filterOptions, WhatBuiltOptions whatBuiltOptions, string outputFilterPath, List<string> rootSubdirectories)
             : base(input, maxDifferenceReportCount, filterOptions)

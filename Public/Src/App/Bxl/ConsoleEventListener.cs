@@ -33,7 +33,7 @@ namespace BuildXL
     {
         private const int DefaultMaxStatusPips = 5;
 
-        private static char[] s_newLineCharArray = Environment.NewLine.ToCharArray();
+        private static readonly char[] s_newLineCharArray = Environment.NewLine.ToCharArray();
 
         private readonly IConsole m_console;
 
@@ -47,7 +47,7 @@ namespace BuildXL
         /// <summary>
         /// The full path to the logs directory
         /// </summary>
-        private string m_logsDirectory;
+        private readonly string m_logsDirectory;
 
         /// <summary>
         /// Creates a new instance with optional colorization.

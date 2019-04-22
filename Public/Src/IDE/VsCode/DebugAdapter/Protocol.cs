@@ -29,7 +29,7 @@ namespace VSCode.DebugAdapter
 
         private static readonly JsonSerializerSettings s_jsonSettings = CreateSerializerSettings();
 
-        private ByteBuffer m_rawData;
+        private readonly ByteBuffer m_rawData;
         private Stream m_outputStream;
         private int m_bodyLength;
         private int m_sequenceNumber;

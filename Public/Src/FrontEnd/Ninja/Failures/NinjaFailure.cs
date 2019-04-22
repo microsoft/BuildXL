@@ -19,8 +19,8 @@ namespace BuildXL.FrontEnd.Ninja
 
     internal class NinjaGraphConstructionFailure : NinjaFailure
     {
-        private string m_projectRoot;
-        private string m_moduleName;
+        private readonly string m_projectRoot;
+        private readonly string m_moduleName;
        
         /// <nodoc/>
         public NinjaGraphConstructionFailure(string moduleName, string projectRoot)

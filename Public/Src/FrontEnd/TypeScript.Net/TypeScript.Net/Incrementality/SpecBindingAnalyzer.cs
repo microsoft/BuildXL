@@ -115,7 +115,7 @@ namespace TypeScript.Net.Incrementality
         private readonly BuildXLWriter m_declaredSymbolsWriter;
 
         // The stack of lexical scopes required for the full name computation of the symbol.
-        private NameTracker m_currentLocationStack = new NameTracker(NameTracker.DefaultCapacity);
+        private readonly NameTracker m_currentLocationStack = new NameTracker(NameTracker.DefaultCapacity);
 
         /// <summary>
         /// Set of symbols referenced by the file.

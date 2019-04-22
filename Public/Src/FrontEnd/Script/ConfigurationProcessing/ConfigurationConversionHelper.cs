@@ -7,13 +7,12 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.FrontEnd.Core;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.RuntimeModel;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -349,7 +348,7 @@ namespace BuildXL.FrontEnd.Script
 
         private async Task<Workspace> TypeCheckWorkspaceAsync(Workspace workspace)
         {
-            var frontEndStatistics = new FrontEndStatistics(); // don't pollute global statistics with this
+            var frontEndStatistics = new NullFrontEndStatistics(); // don't pollute global statistics with this
             var semanticWorkspaceProvider = new SemanticWorkspaceProvider(frontEndStatistics, WorkspaceConfiguration);
             workspace = await semanticWorkspaceProvider.ComputeSemanticWorkspaceAsync(Context.PathTable, workspace);
 

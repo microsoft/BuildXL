@@ -356,7 +356,7 @@ namespace BuildXL.Execution.Analyzer
         internal List<(ProcessPipSummary pipSummary1, ProcessPipSummary pipSummary2)> PipSummaryTrackedProcessPips =
             new List<(ProcessPipSummary pipSummary1, ProcessPipSummary pipSummary2)>();
 
-        private FilterOptions m_filterOptions;
+        private readonly FilterOptions m_filterOptions;
         private PipContentFingerprinter m_contentFingerprinter;
         private long m_uncacheablePipCount;
 

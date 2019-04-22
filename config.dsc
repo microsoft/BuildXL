@@ -46,7 +46,7 @@ config({
 
             repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                 ? {
-                    "BuildXL.Selfhost": "https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
+                    "BuildXL.Selfhost": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
                     "BuildXL.Selfhost.MyGet": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost.MyGet/nuget/v3/index.json",
                   }
                 : {

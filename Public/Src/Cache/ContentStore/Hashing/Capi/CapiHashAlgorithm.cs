@@ -22,8 +22,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </summary>
     internal sealed class CapiHashAlgorithm : IDisposable
     {
-        private CapiNative.AlgorithmId m_algorithmId;
-        private SafeCspHandle m_cspHandle;
+        private readonly CapiNative.AlgorithmId m_algorithmId;
+        private readonly SafeCspHandle m_cspHandle;
         private SafeCapiHashHandle m_hashHandle;
         
         /*

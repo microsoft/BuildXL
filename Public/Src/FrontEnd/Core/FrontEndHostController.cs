@@ -149,6 +149,7 @@ namespace BuildXL.FrontEnd.Core
             // So it's always on, since there could be cycles during configuration parsing when using importFrom
             // After configuration interpretation, we check the associated flag and disable it if needed.
             CycleDetector = new CycleDetector(m_cycleDetectorStatistics);
+            DefaultEvaluationScheduler = EvaluationScheduler.Default;
         }
 
         /// <summary>
@@ -165,6 +166,7 @@ namespace BuildXL.FrontEnd.Core
             Engine = engine;
             FrontEndArtifactManager = CreateFrontEndArtifactManager();
             PipGraph = pipGraph;
+            
             // TODO: The EngineBasedFileSystem should be replaced with a tracking file system that wraps the passed in filesystem
             // so that the speccache, engine caching/tracking all work for the real and for the fake filesystem.s
             if (FrontEndContext.FileSystem is PassThroughFileSystem)

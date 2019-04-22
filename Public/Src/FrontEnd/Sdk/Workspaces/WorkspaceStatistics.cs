@@ -260,7 +260,7 @@ namespace BuildXL.FrontEnd.Workspaces
                 () => new System.Diagnostics.Stopwatch(),
                 sw => { sw.Reset(); return sw; });
 
-            private PooledObjectWrapper<System.Diagnostics.Stopwatch> m_stopwatch;
+            private readonly PooledObjectWrapper<System.Diagnostics.Stopwatch> m_stopwatch;
             private readonly Counter m_counter;
             private readonly string m_path;
 

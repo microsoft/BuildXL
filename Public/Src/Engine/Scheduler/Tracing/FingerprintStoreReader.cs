@@ -27,7 +27,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Directory for outputting individual pip information.
         /// </summary>
-        private string m_outputDirectory;
+        private readonly string m_outputDirectory;
 
         /// <summary>
         /// Version of the store opened.
@@ -106,9 +106,9 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public class PipRecordingSession : IDisposable
         {
-            private FingerprintStoreEntry m_entry;
+            private readonly FingerprintStoreEntry m_entry;
 
-            private FingerprintStore m_store;
+            private readonly FingerprintStore m_store;
 
             /// <summary>
             /// The formatted semi stable hash of the pip during the build that logged <see cref="m_store"/>.

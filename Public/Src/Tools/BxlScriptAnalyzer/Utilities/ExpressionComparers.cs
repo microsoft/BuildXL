@@ -65,7 +65,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Utilities
             }
         }
 
-        private static CompareHelper[] s_compareHelpers = CreateCompareHelpers();
+        private static readonly CompareHelper[] s_compareHelpers = CreateCompareHelpers();
 
         /// <summary>
         /// Do a quick lookup for sorting information for the given SyntaxKind of the Node.

@@ -95,6 +95,9 @@ namespace BuildXL.FrontEnd.Sdk
         /// </summary>
         public IPipGraph PipGraph { get; protected set; }
 
+        /// <nodoc />
+        public IEvaluationScheduler DefaultEvaluationScheduler { get; protected set; }
+
         /// <summary>
         /// Gets a unique folder in the object root with the given attempted friendly name.
         /// </summary>

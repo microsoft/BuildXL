@@ -93,13 +93,13 @@ namespace BuildXL.Execution.Analyzer
 
     internal class DependencyAnalyzerOutputWriter
     {
-        private string m_outputFilePath;
-        CachedGraph m_cachedGraph;
-        uint m_graphVersion;
-        IReadOnlyCollection<AbsolutePath> m_files;
-        [CanBeNull] IReadOnlyCollection<AbsolutePath> m_dirs;
-        IReadOnlyList<DependencyAnalyzerPip> m_pips;
-        IReadOnlyDictionary<string, string> m_pathMappings;
+        private readonly string m_outputFilePath;
+        private readonly CachedGraph m_cachedGraph;
+        private readonly uint m_graphVersion;
+        private readonly IReadOnlyCollection<AbsolutePath> m_files;
+        [CanBeNull] private readonly IReadOnlyCollection<AbsolutePath> m_dirs;
+        private readonly IReadOnlyList<DependencyAnalyzerPip> m_pips;
+        private readonly IReadOnlyDictionary<string, string> m_pathMappings;
 
         bool IncludeDirs => m_dirs != null;
 

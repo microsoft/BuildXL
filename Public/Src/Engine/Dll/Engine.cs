@@ -205,7 +205,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Full string path of the temp directory used for file move-deletes
         /// </summary>
-        private string m_moveDeleteTempDirectory;
+        private readonly string m_moveDeleteTempDirectory;
 
         /// <summary>
         /// TempCleaner responsible for cleaning registered directories or files in the background.
@@ -2164,6 +2164,7 @@ namespace BuildXL.Engine
                 { "unsafe_DisableCycleDetection", Logger.Log.ConfigUnsafeDisableCycleDetection },
                 { "unsafe_DisableDetours", Logger.Log.ConfigDisableDetours },
                 { "unsafe_DisableGraphPostValidation", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
+                { "unsafe_DisableSharedOpaqueEmptyDirectoryScrubbing", Logger.Log.ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing },
                 { "unsafe_ExistingDirectoryProbesAsEnumerations", Logger.Log.ConfigUnsafeExistingDirectoryProbesAsEnumerations },
                 { "unsafe_ForceSkipDeps", Logger.Log.ForceSkipDependenciesEnabled },
                 { "unsafe_IgnoreGetFinalPathNameByHandle", Logger.Log.ConfigIgnoreGetFinalPathNameByHandle },
@@ -2180,7 +2181,7 @@ namespace BuildXL.Engine
                 { "unsafe_LazySymlinkCreation", Logger.Log.ConfigUnsafeLazySymlinkCreation },
                 { "unsafe_MonitorFileAccesses", Logger.Log.ConfigUnsafeDisabledFileAccessMonitoring },
                 { "unsafe_PreserveOutputs", Logger.Log.ConfigPreserveOutputs },
-                { "unsafe_SourceFileCanBeInsideOutputDirectory", loggingContext => { } },
+                { "unsafe_SourceFileCanBeInsideOutputDirectory", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
                 { "unsafe_UnexpectedFileAccessesAreErrors", Logger.Log.ConfigUnsafeUnexpectedFileAccessesAsWarnings },
             };
         }

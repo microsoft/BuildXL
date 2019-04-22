@@ -16,8 +16,8 @@ namespace BuildXL.Engine.Distribution.InternalBond
     /// </summary>
     public sealed class BondMasterServer : Master_Service, IServer
     {
-        private LoggingContext m_loggingContext;
-        private MasterService m_masterService;
+        private readonly LoggingContext m_loggingContext;
+        private readonly MasterService m_masterService;
         private BondTcpHost m_server;
 
         /// <summary>

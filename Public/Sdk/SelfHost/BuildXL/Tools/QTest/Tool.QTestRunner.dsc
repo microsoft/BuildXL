@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
-const root = d`.`;
+const root = Environment.hasVariable("[Sdk.BuildXL]qtestDeploymentPath") ? d`${Environment.getFileValue("[Sdk.BuildXL]qtestDeploymentPath")}` : d`.`;
 
 @@public
 export const qTestTool: Transformer.ToolDefinition = {
@@ -17,6 +17,7 @@ export const qTestTool: Transformer.ToolDefinition = {
         d`${Context.getMount("LocalAppData").path}`
     ]),
     dependsOnWindowsDirectories: true,
+    dependsOnAppDataDirectory: true,
     prepareTempDirectory: true,
 };
 const defaultArgs: QTestArguments = {

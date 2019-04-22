@@ -16,7 +16,7 @@ namespace BuildXL.Utilities
     {
         private readonly CancellationTokenSource m_cancellationTokenSource;
         private int m_started = 0;
-        private Thread m_thread;
+        private readonly Thread m_thread;
 
         /// <summary>
         /// Creates an instance of <see cref="CancellableTimedAction"/>.

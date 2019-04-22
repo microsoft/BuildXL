@@ -30,7 +30,7 @@ namespace BuildXL.Engine.Recovery
         private const string CorruptedMemosDbMarkerFileName = "CorruptedMemosDbMarker";
         private const string CacheRootPathFieldInConfig = "CacheRootPath";
         private const int MaxCorruptedMemos = 5;
-        private Possible<string> m_mayBeCacheRoot;
+        private readonly Possible<string> m_mayBeCacheRoot;
 
         /// <summary>
         /// Creates an instance of <see cref="CorruptedMemosDbRecovery"/>.

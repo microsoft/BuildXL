@@ -114,8 +114,8 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     public sealed class CosineDumpPip : Analyzer
     {
-        private string OutputFilePath;
-        private DumpPipFilters Filters;
+        private readonly string OutputFilePath;
+        private readonly DumpPipFilters Filters;
 
         public CosineDumpPip(AnalysisInput input, string outputFilePath, DumpPipFilters filters)
             : base(input)

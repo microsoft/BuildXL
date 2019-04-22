@@ -12,7 +12,7 @@ const qTestContents = importFrom("CB.QTest").Contents.all;
 @@public
 export const qTestTool: Transformer.ToolDefinition = {
     exe: qTestContents.getFile(r`tools/DBS.QTest.exe`),
-    description: "CloudBuild QTest",
+    description: "SelfHost Dev Build QTest",
     runtimeDirectoryDependencies: [
         qTestContents
     ],
@@ -141,7 +141,7 @@ function runTest(args : TestRunArguments) : File[] {
         qTestTimeoutSec: 540,
         useVsTest150:true,
         vstestSettingsFile: f`test.runsettings`,
-        qTestTool: qTestTool,
+        qTestTool: Environment.hasVariable("[Sdk.BuildXL]qtestDeploymentPath") ? undefined : qTestTool,
         qTestLogs: logDir,
         tags: args.tags,
     });

@@ -502,13 +502,13 @@ namespace BuildXL.Engine.Cache.Serialization
             /// <summary>
             /// The <see cref="ChangeList{T}.ChangeListValue"/>s that represent nodes removed or added at this particular position in the tree.
             /// </summary>
-            public List<ChangeList<JsonNode>.ChangeListValue> ChangedNodes;
+            public readonly List<ChangeList<JsonNode>.ChangeListValue> ChangedNodes;
 
             /// <summary>
             /// The children of this node. The name of a child node is encapsulated in the key.
             /// This means that the root of a tree will be nameless.
             /// </summary>
-            public Dictionary<string, PrintNode> Children;
+            public readonly Dictionary<string, PrintNode> Children;
 
             /// <summary>
             /// Constructor.
@@ -527,18 +527,18 @@ namespace BuildXL.Engine.Cache.Serialization
                 /// <summary>
                 /// The node being printed.
                 /// </summary>
-                public PrintNode PrintNode;
+                public readonly PrintNode PrintNode;
 
                 /// <summary>
                 /// How many level deeps in the tree the node is, where 0 is top-level node
                 /// that gets printed.
                 /// </summary>
-                public int Level;
+                public readonly int Level;
 
                 /// <summary>
                 /// The name of the node being printed.
                 /// </summary>
-                public string Name;
+                public readonly string Name;
 
                 /// <summary>
                 /// Constructor.

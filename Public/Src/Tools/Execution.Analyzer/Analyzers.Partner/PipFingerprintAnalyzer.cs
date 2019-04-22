@@ -75,7 +75,7 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// FingerprintStore directory location;
         /// </summary>
-        private string m_storeLocation;
+        private readonly string m_storeLocation;
 
         /// <summary>
         /// FingerprintStore reader.

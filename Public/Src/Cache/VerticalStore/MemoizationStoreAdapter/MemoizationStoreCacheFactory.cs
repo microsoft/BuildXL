@@ -2,17 +2,18 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Cache.Interfaces;
-using BuildXL.Cache.ContentStore.Logging;
+using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.SQLite;
 using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Utilities;
+using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
-using BuildXL.Cache.MemoizationStoreAdapter;
+using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
@@ -61,7 +62,13 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         ///          "CacheRootPath":"{15}",
         ///          "SingleInstanceTimeoutInSeconds":"{16}",
         ///          "ApplyDenyWriteAttributesOnContent":"{17}",
-        ///     }
+        ///     },
+        ///     "CreateContentServer":{18},
+        ///     "EmptyFileHashShortcutEnabled":{19},
+        ///     "CheckLocalFiles":{20},
+        ///     "CacheName":"{21}",
+        ///     "GrpcPort":{22},
+        ///     "ScenarioName":"{23}",
         /// }
         /// </remarks>
         public sealed class Config : CasConfig
@@ -121,6 +128,57 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             [DefaultValue(0)]
             public uint LogFlushIntervalSeconds { get; set; }
 
+            /// <summary>
+            /// The cache will create a content server, enabling communcation via GRPC.
+            /// </summary>
+            [DefaultValue(false)]
+            public bool CreateContentServer { get; set; }
+
+            /// <summary>
+            /// Whether the shortcuts for streaming, placing, and pinning the empty file are used.
+            /// </summary>
+            [DefaultValue(false)]
+            public bool EmptyFileHashShortcutEnabled { get; set; }
+
+            /// <summary>
+            /// Whether to check for file existence before pinning.
+            /// </summary>
+            [DefaultValue(false)]
+            public bool CheckLocalFiles { get; set; }
+
+            /// <summary>
+            /// Name of one of the named caches owned by CASaaS.
+            /// </summary>
+            [DefaultValue(null)]
+            public string CacheName { get; set; }
+
+            /// <summary>
+            /// The GRPC port to use.
+            /// </summary>
+            [DefaultValue(0)]
+            public int GrpcPort { get; set; }
+
+            /// <summary>
+            /// Name of the custom scenario that the CAS connects to.
+            /// allows multiple CAS services to coexist in a machine
+            /// since this factors into the cache root and the event that
+            /// identifies a particular CAS instance.
+            /// </summary>
+            [DefaultValue(null)]
+            public string ScenarioName { get; set; }
+
+            /// <summary>
+            /// The stamp identifier for this service instance.
+            /// </summary>
+            [DefaultValue(null)]
+            public string StampId { get; set; }
+
+            /// <summary>
+            /// The ring identifier for this service instance.
+            /// </summary>
+            [DefaultValue(null)]
+            public string RingId { get; set; }
+
             /// <nodoc />
             public Config()
             {
@@ -146,7 +204,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <summary>
             /// Max size of the cache in MB.
             /// </summary>
-            public uint MaxCacheSizeInMB { get; set; }
+            public int MaxCacheSizeInMB { get; set; }
 
             /// <summary>
             /// Percentage of disk free space to maintain - zero/negative to disable this quota.
@@ -325,7 +383,17 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 logger,
                 cacheRoot,
                 memoConfig,
-                configurationModel);
+                configurationModel: configurationModel,
+                clock: null,
+                checkLocalFiles: config.CheckLocalFiles,
+                emptyFileHashShortcutEnabled: config.EmptyFileHashShortcutEnabled,
+                createServer: config.CreateContentServer,
+                grpcPort: config.GrpcPort,
+                maxQuotaMB: config.MaxCacheSizeInMB,
+                cacheName: config.CacheName,
+                stampId: config.StampId,
+                ringId: config.RingId,
+                scenarioName: config.ScenarioName);
         }
 
         private static LocalCache CreateLocalCacheWithStreamPathCas(Config config, DisposeLogger logger)

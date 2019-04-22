@@ -32,18 +32,25 @@ namespace BuildXL.Cache.ContentStore.App
             [Description("GRPC port on the target machine"), DefaultValue(ServiceConfiguration.GrpcDisabledPort)] int grpcPort,
             [Description("Name of the memory mapped file used to share GRPC port. 'CASaaS GRPC port' if not specified.")] string grpcPortFileName)
         {
-            Initialize();
-
-            if (grpcPort == 0)
+            try
             {
-                grpcPort = Helpers.GetGrpcPortFromFile(_logger, grpcPortFileName);
+                Initialize();
+
+                if (grpcPort == 0)
+                {
+                    grpcPort = Helpers.GetGrpcPortFromFile(_logger, grpcPortFileName);
+                }
+
+                var _channel = new Channel(host, grpcPort, ChannelCredentials.Insecure);
+                var _client = new ContentServer.ContentServerClient(_channel);
+                var helloResponse = _client.Hello(new HelloRequest(), new CallOptions(deadline: DateTime.UtcNow + TimeSpan.FromSeconds(2)));
+
+                _logger.Always("Hello response {0}: {1}", helloResponse.Success ? "succeeded" : "failed", helloResponse.ToString());
             }
-
-            var _channel = new Channel(host, grpcPort, ChannelCredentials.Insecure);
-            var _client = new ContentServer.ContentServerClient(_channel);
-            var helloResponse = _client.Hello(new HelloRequest(), new CallOptions(deadline: DateTime.UtcNow + TimeSpan.FromSeconds(2)));
-
-            _logger.Always($"Hello response {(helloResponse.Success ? "succeeded" : "failed")}: {helloResponse.ToString()}");
+            catch (Exception e)
+            {
+                _logger.Always(e.ToString());
+            }
         }
     }
 }

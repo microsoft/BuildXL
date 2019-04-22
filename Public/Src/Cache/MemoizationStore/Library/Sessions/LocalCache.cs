@@ -2,16 +2,18 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Sessions;
-using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.Host.Service.Internal;
+using BuildXL.Cache.MemoizationStore.Stores;
 
 namespace BuildXL.Cache.MemoizationStore.Sessions
 {
@@ -35,7 +37,14 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ConfigurationModel configurationModel = null,
             IClock clock = null,
             bool checkLocalFiles = true,
-            bool emptyFileHashShortcutEnabled = false)
+            bool emptyFileHashShortcutEnabled = false,
+            bool createServer = false,
+            int grpcPort = 0,
+            int maxQuotaMB = 0,
+            string cacheName = null,
+            string stampId = null,
+            string ringId = null,
+            string scenarioName = null)
             : this(
                   logger,
                   rootPath,
@@ -43,8 +52,14 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                   clock ?? SystemClock.Instance,
                   configurationModel,
                   memoConfig,
-                  checkLocalFiles,
-                  emptyFileHashShortcutEnabled)
+                  new ContentStoreSettings() { CheckFiles = checkLocalFiles, UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled },
+                  createServer: createServer,
+                  grpcPort: grpcPort,
+                  maxQuotaMB: maxQuotaMB,
+                  cacheName: cacheName,
+                  stampId: stampId,
+                  ringId: ringId,
+                  scenarioName: scenarioName)
         {
         }
 
@@ -109,15 +124,34 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             IClock clock,
             ConfigurationModel configurationModel,
             SQLiteMemoizationStoreConfiguration memoConfig,
-            bool checkLocalFiles,
-            bool emptyFileHashShortcutEnabled)
+            ContentStoreSettings contentStoreSettings,
+            bool createServer,
+            int grpcPort = 0,
+            int maxQuotaMB = 0,
+            string cacheName = null,
+            string stampId = null,
+            string ringId = null,
+            string scenarioName = null)
             : base(
-                () => new FileSystemContentStore(
-                    fileSystem, 
-                    clock,
-                    rootPath,
-                    configurationModel,
-                    settings: new ContentStoreSettings() { CheckFiles = checkLocalFiles, UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled }),
+                () => createServer
+                    ? (IContentStore)new DualServerClientContentStore( // TODO: Finish this!
+                        fileSystem,
+                        logger,
+                        new GrpcFileCopier(new Context(logger), grpcPort),
+                        new GrpcDistributedPathTransformer(),
+                        maxQuotaMB,
+                        cacheName,
+                        grpcPort,
+                        stampId,
+                        ringId,
+                        scenarioName,
+                        rootPath)
+                    : new FileSystemContentStore(
+                        fileSystem, 
+                        clock,
+                        rootPath,
+                        configurationModel: configurationModel,
+                        settings: contentStoreSettings),
                 () => new SQLiteMemoizationStore(
                     logger,
                     clock ?? SystemClock.Instance,

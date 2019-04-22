@@ -44,9 +44,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                 // check that the stamp has the capabilities required by the named cache.
                 if (kvp.Value.RequiredCapabilities != null && kvp.Value.RequiredCapabilities.Count > 0)
                 {
-                    string missingCaps = String.Join(",", kvp.Value.RequiredCapabilities
+                    string missingCaps = string.Join(",", kvp.Value.RequiredCapabilities
                         .Where(cap => !hostCapabilities.Contains(cap, StringComparer.OrdinalIgnoreCase)));
-                    if (!String.IsNullOrEmpty(missingCaps))
+                    if (!string.IsNullOrEmpty(missingCaps))
                     {
                         logger.Debug(
                             "Named cache '{0}' was discarded since environment lacks required capabilities: {1}.",

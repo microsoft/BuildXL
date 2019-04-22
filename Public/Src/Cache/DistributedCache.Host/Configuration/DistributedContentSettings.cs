@@ -31,11 +31,12 @@ namespace BuildXL.Cache.Host.Configuration
             };
         }
 
-        public static DistributedContentSettings CreateEnabled(IDictionary<string, string> connectionSecretNameMap)
+        public static DistributedContentSettings CreateEnabled(IDictionary<string, string> connectionSecretNameMap, bool isGrpcCopierEnabled = false)
         {
             return new DistributedContentSettings(connectionSecretNameMap)
             {
-                IsDistributedContentEnabled = true
+                IsDistributedContentEnabled = true,
+                IsGrpcCopierEnabled = isGrpcCopierEnabled
             };
         }
 

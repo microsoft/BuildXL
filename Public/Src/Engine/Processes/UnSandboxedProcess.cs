@@ -301,16 +301,24 @@ namespace BuildXL.Processes
         {
             Contract.Requires(Process == null);
 
+#if !PLATFORM_OSX
             if (!FileUtilities.FileExistsNoFollow(ProcessInfo.FileName))
             {
-                ThrowCouldNotStartProcess(I($"File '{ProcessInfo.FileName}' not found"), new Win32Exception(0x2));
+                ThrowFileDoesNotExist();
+            }
+#else
+            var mode = GetFilePermissionsForFilePath(ProcessInfo.FileName, followSymlink: false);
+            if (mode < 0)
+            {
+                ThrowFileDoesNotExist();
             }
 
-#if PLATFORM_OSX
-            // TODO: TASK 1488150
-            // When targeting macOS, we make sure the 'execute bit' has been set on the binary about to be started,
-            // especially running on VSTS VMs currently has issues around file permission preservance
-            SetFilePermissionsForFilePath(ProcessInfo.FileName, FilePermissions.S_IRWXU);
+            var filePermissions = checked((FilePermissions)mode);
+            FilePermissions exePermission = FilePermissions.S_IXUSR;
+            if (!filePermissions.HasFlag(exePermission))
+            {
+                SetFilePermissionsForFilePath(ProcessInfo.FileName, exePermission);
+            }
 #endif
 
             Process = new Process();
@@ -342,6 +350,11 @@ namespace BuildXL.Processes
             Process.Exited             += (sender, e) => m_processExitedTcs.TrySetResult(Unit.Void);
 
             return Process;
+
+            void ThrowFileDoesNotExist()
+            {
+                ThrowCouldNotStartProcess(I($"File '{ProcessInfo.FileName}' not found"), new Win32Exception(0x2));
+            }
         }
 
         internal virtual void FeedStdOut(SandboxedProcessOutputBuilder b, TaskSourceSlim<Unit> tsc, string line)

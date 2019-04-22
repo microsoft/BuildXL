@@ -557,6 +557,9 @@ namespace BuildXL.Utilities
 
                 bufferNum++;
 
+                // Make sure we don't overflow the buffer we're indexing into
+                Contract.Assert(bufferNum < NumByteBuffers, $"Exceeded the number of ByteBuffers allowed in this StringTable: {bufferNum} >= {NumByteBuffers}");
+
                 lock (m_byteBuffers)
                 {
                     if (m_byteBuffers[bufferNum] != null)
@@ -584,9 +587,6 @@ namespace BuildXL.Utilities
                     break;
                 }
             }
-
-            // Make sure we don't overflow the buffer we're indexing into
-            Contract.Assert(bufferNum <= NumByteBuffers, "Exceeded the number of ByteBuffers allowed in this StringTable");
 
 #if DebugStringTable
             var stringId = new StringId((bufferNum << BytesPerBufferBits) + byteIndex, m_debugIndex);

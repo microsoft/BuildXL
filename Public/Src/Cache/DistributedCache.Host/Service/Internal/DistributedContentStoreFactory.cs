@@ -378,7 +378,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             if (_distributedSettings.EventHubSecretName != null &&
                 _distributedSettings.GlobalRedisSecretName != null)
             {
-                var retryPolicy = CreateKeyVaultRetryPolicy();
+                var retryPolicy = CreateKeyVaultRetryPolicy(_distributedSettings);
                 return await retryPolicy.ExecuteAsync(
                     async () =>
                     {
@@ -449,16 +449,16 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private static RetryPolicy CreateKeyVaultRetryPolicy()
+        private static RetryPolicy CreateKeyVaultRetryPolicy(DistributedContentSettings settings)
         {
             return new RetryPolicy(
                 new KeyVaultRetryPolicy(),
                 new ExponentialBackoff(
                     name: "KeyVaultExponentialBackoff",
-                    retryCount: 5,
-                    minBackoff: TimeSpan.FromSeconds(10),
-                    maxBackoff: TimeSpan.FromSeconds(60),
-                    deltaBackoff: TimeSpan.FromSeconds(10),
+                    retryCount: settings.KeyVaultRetryCount,
+                    minBackoff: TimeSpan.FromSeconds(settings.KeyVaultMinBackoffSeconds),
+                    maxBackoff: TimeSpan.FromSeconds(settings.KeyVaultMaxBackoffSeconds),
+                    deltaBackoff: TimeSpan.FromSeconds(settings.KeyVaultDeltaBackoffSeconds),
                     firstFastRetry: false)); // All retries are subjects to the policy, even the first one
         }
 
@@ -476,7 +476,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     // This is a recoverable error.
                     return true;
                 }
-
+                
                 if (message.Contains("429"))
                 {
                     // This is a throttling response which is recoverable as well.

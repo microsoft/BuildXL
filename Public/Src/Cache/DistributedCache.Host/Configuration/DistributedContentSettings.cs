@@ -262,8 +262,21 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int? ContentLocationDatabaseEntryTimeToLiveMinutes { get; set; }
 
+        // Key Vault Settings
         [DataMember]
         public string KeyVaultSettingsString { get; set; }
+
+        [DataMember]
+        public int KeyVaultRetryCount { get; set; } = 5;
+
+        [DataMember]
+        public int KeyVaultMinBackoffSeconds { get; set; } = 10;
+
+        [DataMember]
+        public int KeyVaultMaxBackoffSeconds { get; set; } = 60;
+
+        [DataMember]
+        public int KeyVaultDeltaBackoffSeconds { get; set; } = 10;
 
         [DataMember]
         public string EventHubSecretName { get; set; }

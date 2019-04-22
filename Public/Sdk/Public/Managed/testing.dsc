@@ -11,7 +11,7 @@ import * as Xml from "Sdk.Xml";
  * uses the test frameworks runtest function to execute the test.
  */
 @@public
-export function test(args: TestArguments) : TestResult {   
+export function test(args: TestArguments) : TestResult {
     let testFramework = args.testFramework;
     if (!testFramework)
     {

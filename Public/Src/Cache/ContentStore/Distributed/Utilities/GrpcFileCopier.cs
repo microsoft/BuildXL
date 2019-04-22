@@ -24,14 +24,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         private const int DefaultGrpcPort = 7089;
         private readonly Context _context;
         private int _grpcPort;
+        private bool _useCompression;
 
         /// <summary>
         /// Constructor for <see cref="GrpcFileCopier"/>.
         /// </summary>
-        public GrpcFileCopier(Context context, int grpcPort)
+        public GrpcFileCopier(Context context, int grpcPort, bool useCompression = false)
         {
             _context = context;
             _grpcPort = grpcPort;
+            _useCompression = useCompression;
         }
 
         /// <inheritdoc />
@@ -57,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
-            using (var client = GrpcCopyClient.Create(host, _grpcPort))
+            using (var client = GrpcCopyClient.Create(host, _grpcPort, _useCompression))
             {
                 copyFileResult = await client.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken);
             }
@@ -98,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
-            using (var client = GrpcCopyClient.Create(host, _grpcPort))
+            using (var client = GrpcCopyClient.Create(host, _grpcPort, _useCompression))
             {
                 copyFileResult = await client.CopyToAsync(_context, contentHash, destinationStream, cancellationToken);
             }

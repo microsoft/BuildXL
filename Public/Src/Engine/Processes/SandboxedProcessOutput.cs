@@ -71,7 +71,7 @@ namespace BuildXL.Processes
             writer.Write(m_length);
             writer.WriteNullableString(m_value);
             writer.WriteNullableString(m_fileName);
-            writer.Write(m_encoding.CodePage);
+            writer.Write(m_encoding);
             writer.Write(m_fileStorage, (w, v) => SandboxedProcessStandardFiles.From(v).Serialize(w));
             writer.WriteCompact((uint)m_file);
             writer.Write(m_exception, (w, v) =>
@@ -89,14 +89,7 @@ namespace BuildXL.Processes
             long length = reader.ReadInt64();
             string value = reader.ReadNullableString();
             string fileName = reader.ReadNullableString();
-
-            int codePage = reader.ReadInt32();
-
-#if DISABLE_FEATURE_EXTENDED_ENCODING
-            Encoding encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-#else
-            Encoding encoding = Encoding.GetEncoding(codePage);
-#endif
+            Encoding encoding = reader.ReadEncoding();
             SandboxedProcessStandardFiles standardFiles = reader.ReadNullable(r => SandboxedProcessStandardFiles.Deserialize(r));
             ISandboxedProcessFileStorage fileStorage = null;
             if (standardFiles != null)

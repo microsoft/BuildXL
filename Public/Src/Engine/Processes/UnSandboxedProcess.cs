@@ -186,12 +186,16 @@ namespace BuildXL.Processes
         {
             Contract.Requires(Started);
 
-            await m_processExecutor.WaitForExitAsync();
+            SandboxedProcessReports reports = null;
 
-            LogProcessState("Waiting for reports to be received");
-            var reports = await GetReportsAsync();
-            m_reportsReceivedTime = DateTime.UtcNow;
-            reports?.Freeze();
+            await m_processExecutor.WaitForExitAsync(
+                async () => 
+                {
+                    LogProcessState("Waiting for reports to be received");
+                    reports = await GetReportsAsync();
+                    m_reportsReceivedTime = DateTime.UtcNow;
+                    reports?.Freeze();
+                });
 
             var reportFileAccesses = ProcessInfo.FileAccessManifest?.ReportFileAccesses == true;
             var fileAccesses = reportFileAccesses ? (reports?.FileAccesses ?? s_emptyFileAccessesSet) : null;

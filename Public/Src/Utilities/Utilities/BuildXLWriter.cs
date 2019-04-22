@@ -398,6 +398,17 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Writes an encoding.
+        /// </summary>
+        public void Write(Encoding value)
+        {
+            Contract.Requires(value != null);
+            Start<Encoding>();
+            Write(value.CodePage);
+            End();
+        }
+
+        /// <summary>
         /// Writes a Token
         /// </summary>
         public void Write(Token token)

@@ -402,9 +402,9 @@ namespace BuildXL.Processes
                 writer.WriteNullableString(m_commandLine);
                 writer.Write(DisableConHostSharing);
                 writer.WriteNullableString(FileName);
-                writer.Write(StandardInputEncoding, (w, v) => w.Write(v.CodePage));
-                writer.Write(StandardOutputEncoding, (w, v) => w.Write(v.CodePage));
-                writer.Write(StandardErrorEncoding, (w, v) => w.Write(v.CodePage));
+                writer.Write(StandardInputEncoding, (w, v) => w.Write(v));
+                writer.Write(StandardOutputEncoding, (w, v) => w.Write(v));
+                writer.Write(StandardErrorEncoding, (w, v) => w.Write(v));
                 writer.WriteNullableString(WorkingDirectory);
                 writer.Write(
                     EnvironmentVariables,
@@ -452,9 +452,9 @@ namespace BuildXL.Processes
                 string commandLine = reader.ReadNullableString();
                 bool disableConHostSharing = reader.ReadBoolean();
                 string fileName = reader.ReadNullableString();
-                Encoding standardInputEncoding = reader.ReadNullable(r => GetEncoding(r));
-                Encoding standardOutputEncoding = reader.ReadNullable(r => GetEncoding(r));
-                Encoding standardErrorEncoding = reader.ReadNullable(r => GetEncoding(r));
+                Encoding standardInputEncoding = reader.ReadNullable(r => r.ReadEncoding());
+                Encoding standardOutputEncoding = reader.ReadNullable(r => r.ReadEncoding());
+                Encoding standardErrorEncoding = reader.ReadNullable(r => r.ReadEncoding());
                 string workingDirectory = reader.ReadNullableString();
                 IBuildParameters buildParameters = null;
                 var envVars = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => new KeyValuePair<string, string>(r2.ReadString(), r2.ReadString())));
@@ -508,18 +508,6 @@ namespace BuildXL.Processes
                     StandardInputSourceInfo = standardInputSourceInfo,
                     StandardObserverDescriptor = standardObserverDescriptor
                 };
-
-                Encoding GetEncoding(BuildXLReader r)
-                {
-                    int codePage = r.ReadInt32();
-
-#if DISABLE_FEATURE_EXTENDED_ENCODING
-                    Encoding encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-#else
-                    Encoding encoding = Encoding.GetEncoding(codePage);
-#endif
-                    return encoding;
-                }
             }
         }
 

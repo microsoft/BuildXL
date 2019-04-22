@@ -5,6 +5,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Native.IO;
@@ -140,7 +141,7 @@ namespace BuildXL.Processes
         /// </summary>
         public void Start()
         {
-            if (!FileUtilities.FileExistsNoFollow(Process.StartInfo.FileName))
+            if (!File.Exists(Process.StartInfo.FileName))
             {
                 ThrowBuildXLException($"Process creation failed: File '{Process.StartInfo.FileName}' not found");
             }
@@ -162,7 +163,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Waits for process to exit or to get killed due to timed out.
         /// </summary>
-        public async Task WaitForExitAsync()
+        public async Task WaitForExitAsync(Func<Task> getSandboxedProcessReports = null)
         {
             var finishedTask = await Task.WhenAny(Task.Delay(m_timeout), WhenExited);
             ExitTime = DateTime.UtcNow;
@@ -172,6 +173,11 @@ namespace BuildXL.Processes
             {
                 TimedOut = true;
                 await KillAsync();
+            }
+
+            if (getSandboxedProcessReports != null)
+            {
+                await getSandboxedProcessReports();
             }
 
             await Task.WhenAll(m_stdoutFlushedTcs.Task, m_stderrFlushedTcs.Task);

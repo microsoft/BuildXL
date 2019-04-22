@@ -149,9 +149,8 @@ namespace BuildXL.Processes
             catch (IOException ioException)
             {
                 ThrowBuildXLException($"Failed to deserialize sandboxed process result '{file}'", ioException);
+                return null;
             }
-
-            return null;
         }
     }
 }

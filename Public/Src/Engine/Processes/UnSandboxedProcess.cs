@@ -301,10 +301,20 @@ namespace BuildXL.Processes
         {
             Contract.Requires(Process == null);
 
-            if (!FileUtilities.FileExistsNoFollow(ProcessInfo.FileName))
+            var mode = GetFilePermissionsForFilePath(ProcessInfo.FileName, followSymlink: false);
+            if (mode < 0)
             {
                 ThrowCouldNotStartProcess(I($"File '{ProcessInfo.FileName}' not found"), new Win32Exception(0x2));
             }
+
+#if PLATFORM_OSX
+            var filePermissions = checked((FilePermissions)mode);
+            FilePermissions exePermission = FilePermissions.S_IXUSR;
+            if (!filePermissions.HasFlag(exePermission))
+            {
+                SetFilePermissionsForFilePath(ProcessInfo.FileName, exePermission);
+            }
+#endif
 
             Process = new Process();
             Process.StartInfo = new ProcessStartInfo

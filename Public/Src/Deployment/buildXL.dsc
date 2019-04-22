@@ -8,6 +8,9 @@ namespace BuildXL {
 
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
+    const genVSEnvVar = "[Sdk.BuildXL]GenerateVSSolution";
+    const genVSSolution = Environment.hasVariable(genVSEnvVar) && Environment.getBooleanValue(genVSEnvVar) === true;
+
     /**
      * The main deployment definition
      */
@@ -35,14 +38,16 @@ namespace BuildXL {
                             importFrom("BuildXL.Explorer").App.app.appFolder
                         ]
                     },
-                    {
-                        subfolder: r`bxp-server`,
-                        contents: [
-                            importFrom("BuildXL.Explorer").Server.withQualifier(
-                                Object.merge<BuildXLSdk.NetCoreAppQualifier>(qualifier, {targetFramework: "netcoreapp2.2"})
-                            ).exe
-                        ]
-                    },
+                    ...(genVSSolution
+                        ? []
+                        : [ {
+                                subfolder: r`bxp-server`,
+                                    contents: [
+                                    importFrom("BuildXL.Explorer").Server.withQualifier(
+                                        Object.merge<BuildXLSdk.NetCoreAppQualifier>(qualifier, {targetFramework: "netcoreapp2.2"})
+                                    ).exe
+                                ]
+                            } ] ),
                     {
                         subfolder: r`MsBuildGraphBuilder`,
                         contents: qualifier.targetFramework === "netcoreapp2.2" ? [] : [

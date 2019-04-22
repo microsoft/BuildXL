@@ -140,7 +140,7 @@ namespace BuildXL.Processes
 
             m_processExecutor = new AsyncProcessExecutor(
                 process,
-                SandboxedProcessInfo.Timeout ?? TimeSpan.MaxValue,
+                TimeSpan.FromMilliseconds(-1), // Timeout should only be applied to the process that the external tool executes.
                 line => m_output.AppendLine(line),
                 line => m_error.AppendLine(line),
                 SandboxedProcessInfo);
@@ -187,15 +187,15 @@ namespace BuildXL.Processes
                 StandardError = new SandboxedProcessOutput(error.Length, error, null, Console.OutputEncoding, storage, SandboxedProcessFile.StandardError, null),
                 HasReadWriteToReadFileAccessRequest = false,
                 AllUnexpectedFileAccesses = s_emptyFileAccessesSet,
-                FileAccesses = null,
-                DetouringStatuses = null,
-                ExplicitlyReportedFileAccesses = null,
-                Processes = null,
+                FileAccesses = s_emptyFileAccessesSet,
+                DetouringStatuses = new ProcessDetouringStatusData[0],
+                ExplicitlyReportedFileAccesses = s_emptyFileAccessesSet,
+                Processes = new ReportedProcess[0],
                 MessageProcessingFailure = null,
                 DumpCreationException = m_dumpCreationException,
                 DumpFileDirectory = GetOutputDirectory(),
-                PrimaryProcessTimes = null,
-                SurvivingChildProcesses = null,
+                PrimaryProcessTimes = new ProcessTimes(0, 0, 0, 0),
+                SurvivingChildProcesses = new ReportedProcess[0],
             };
         }
     }

@@ -168,8 +168,8 @@ namespace Transformer {
             /** Set outputs to remain writable */
             keepOutputsWritable?: boolean;
 
-            /** Whether this process requires admin privilege */
-            requiresAdmin?: boolean;
+            /** Privilege level requires by this process to execute. */
+            privilegeLevel?: "standard" | "admin";
 
             /** Whether this process should run in an isolated container (i.e. filesystem isolation)
              * When running in a container, the isolation level can be controlled by 'containerIsolationLevel' field.

@@ -26,10 +26,10 @@ namespace BuildXL.Scheduler
         /// Process weight
         /// </summary>
         /// <remarks>
-        /// If process weight is defined as greater than 1 in the specs, use it. 
+        /// If process weight is defined as greater than the minimum weight in the specs, use it. 
         /// Otherwise, use the weight based on historic cpu usage.
         /// </remarks>
-        public int Weight => Process.Weight > 1 ? Process.Weight : m_weightBasedOnHistoricCpuUsage;
+        public int Weight => Process.Weight > Process.MinWeight ? Process.Weight : m_weightBasedOnHistoricCpuUsage;
 
         /// <nodoc/>
         public RunnableFromCacheResult CacheResult { get; private set; }
@@ -76,7 +76,7 @@ namespace BuildXL.Scheduler
             else
             {
                 // If cpu usage is less than 100%, just use the lowest possible weight.
-                m_weightBasedOnHistoricCpuUsage = 1;
+                m_weightBasedOnHistoricCpuUsage = Process.MinWeight;
             }
         }
 

@@ -17,6 +17,11 @@ namespace BuildXL.Pips.Operations
     public sealed partial class Process : Pip
     {
         /// <summary>
+        /// Minimum process weight
+        /// </summary>
+        public const int MinWeight = 1;
+
+        /// <summary>
         /// Maximum allowed timeout
         /// </summary>
         public static readonly TimeSpan MaxTimeout = int.MaxValue.MillisecondsToTimeSpan();
@@ -439,7 +444,7 @@ namespace BuildXL.Pips.Operations
             ProcessAbsentPathProbeInUndeclaredOpaquesMode = absentPathProbeMode;
             DoubleWritePolicy = doubleWritePolicy;
             ContainerIsolationLevel = containerIsolationLevel;
-            Weight = weight.HasValue && weight.Value > 0 ? weight.Value : 1;
+            Weight = weight.HasValue && weight.Value > 0 ? weight.Value : MinWeight;
         }
 
         /// <summary>

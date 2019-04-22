@@ -65,7 +65,6 @@ namespace BuildXL.FrontEnd.Script
 
             foreach (var package in maybePackages.Result)
             {
-                m_packageDirectories[package.Path.GetParent(Context.PathTable)] = new List<Package> { package };
                 m_packages[package.Id] = package;
                 m_owningModules[package.ModuleId] = package;
             }

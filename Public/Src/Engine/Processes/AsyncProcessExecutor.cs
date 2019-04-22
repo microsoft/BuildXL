@@ -5,12 +5,13 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Interop;
-using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
+#if PLATFORM_OSX
+using static BuildXL.Interop.MacOS.IO;
+#endif
 
 namespace BuildXL.Processes
 {
@@ -141,10 +142,27 @@ namespace BuildXL.Processes
         /// </summary>
         public void Start()
         {
-            if (!File.Exists(Process.StartInfo.FileName))
+
+
+#if !PLATFORM_OSX
+            if (!System.IO.File.Exists(Process.StartInfo.FileName))
             {
                 ThrowBuildXLException($"Process creation failed: File '{Process.StartInfo.FileName}' not found");
             }
+#else
+            var mode = GetFilePermissionsForFilePath(Process.StartInfo.FileName, followSymlink: false);
+            if (mode < 0)
+            {
+                ThrowBuildXLException($"Process creation failed: File '{Process.StartInfo.FileName}' not found");
+            }
+
+            var filePermissions = checked((FilePermissions)mode);
+            FilePermissions exePermission = FilePermissions.S_IXUSR;
+            if (!filePermissions.HasFlag(exePermission))
+            {
+                SetFilePermissionsForFilePath(Process.StartInfo.FileName, exePermission);
+            }
+#endif
 
             try
             {

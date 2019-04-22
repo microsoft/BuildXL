@@ -11,7 +11,6 @@ using BuildXL.Interop;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using System.Linq;
-using static BuildXL.Interop.MacOS.IO;
 using JetBrains.Annotations;
 #if FEATURE_SAFE_PROCESS_HANDLE
 using Microsoft.Win32.SafeHandles;
@@ -249,13 +248,6 @@ namespace BuildXL.Processes
         protected void CreateAndSetUpProcess()
         {
             Contract.Requires(Process == null);
-
-#if PLATFORM_OSX
-            // TODO: TASK 1488150
-            // When targeting macOS, we make sure the 'execute bit' has been set on the binary about to be started,
-            // especially running on VSTS VMs currently has issues around file permission preservance
-            SetFilePermissionsForFilePath(ProcessInfo.FileName, FilePermissions.S_IRWXU);
-#endif
 
             var process = new Process
             {

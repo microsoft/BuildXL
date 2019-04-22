@@ -312,5 +312,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing { get; set; }
+
+        /// <inheritdoc />
+        public bool UseHistoricalCpuUsageInfo { get; set; }
     }
 }

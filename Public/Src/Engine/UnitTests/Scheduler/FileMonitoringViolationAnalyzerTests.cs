@@ -658,6 +658,36 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
+        [Fact]
+        public void InvalidAccessedPathExcludedFromAnalysis()
+        {
+            BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
+            var graph = new QueryablePipDependencyGraph(context);
+            var analyzer = new TestFileMonitoringViolationAnalyzer(LoggingContext, context, graph);
+
+            var declaredOuput = CreateAbsolutePath(context, X("/X/out/declared"));           
+
+            var process = graph.AddProcess(declaredOuput);
+
+            var result = analyzer.AnalyzePipViolations(
+                process,
+                new[]
+                {
+                    CreateViolationForInvalidPath(RequestedAccess.Read, X("c/invalid:name_1.txt"))
+                },
+                new[]
+                {
+                    CreateViolationForInvalidPath(RequestedAccess.Read, X("c/invalid:name_2.txt"))
+                },
+                exclusiveOpaqueDirectoryContent: null,
+                sharedOpaqueDirectoryWriteAccesses: null,
+                allowedUndeclaredReads: null,
+                absentPathProbesUnderOutputDirectories: null
+            );
+            
+            XAssert.IsTrue(result.IsViolationClean);
+        }
+
         private static AbsolutePath CreateAbsolutePath(BuildXLContext context, string path)
         {
             return AbsolutePath.Create(context.PathTable, path);
@@ -680,6 +710,26 @@ namespace Test.BuildXL.Scheduler
                 creationDisposition: CreationDisposition.OPEN_ALWAYS,
                 flagsAndAttributes: FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                 path: path);
+        }
+
+        private ReportedFileAccess CreateViolationForInvalidPath(RequestedAccess access, string path)
+        {
+            var process = new ReportedProcess(1, ReportedExecutablePath);
+
+            return new ReportedFileAccess(ReportedFileOperation.CreateFile,
+                process,
+                access,
+                FileAccessStatus.Denied,
+                explicitlyReported: false,
+                error: 0,
+                usn: ReportedFileAccess.NoUsn,
+                desiredAccess: DesiredAccess.GENERIC_READ,
+                shareMode: ShareMode.FILE_SHARE_NONE,
+                creationDisposition: CreationDisposition.OPEN_ALWAYS,
+                flagsAndAttributes: FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
+                AbsolutePath.Invalid,
+                path: path,
+                enumeratePatttern: null);
         }
     }
 

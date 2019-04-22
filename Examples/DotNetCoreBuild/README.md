@@ -5,7 +5,7 @@ Simple "HelloWorld"-type examples for building with BuildXL on the Mac.
   * Download the latest BuildXL DotnetCore binaries
     * NuGet feed:
 ```
-    https://1essharedassets.visualstudio.com/1esPkgs/_packaging?_a=feed&feed=BuildXL%40release
+    https://dev.azure.com/1esSharedAssets/1esPkgs/_packaging?_a=feed&feed=BuildXL%40release
 ```
   * set `BUILDXL_BIN` environment variable to point to a BuildXL .NET Core deployment, e.g.,
 ```bash

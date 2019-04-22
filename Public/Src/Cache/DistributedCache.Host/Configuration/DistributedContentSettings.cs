@@ -147,11 +147,19 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public long MaxBlobCapacity { get; set; } = 1024 * 1024 * 1024;
 
+        #region Grpc Copier
         /// <summary>
         /// Use GRPC for file copies between CASaaS.
         /// </summary>
         [DataMember]
         public bool IsGrpcCopierEnabled { get; set; } = false;
+
+        /// <summary>
+        /// Whether or not GZip is enabled for GRPC copies.
+        /// </summary>
+        [DataMember]
+        public bool UseCompressionForCopies { get; set; } = false;
+        #endregion
 
         #region Distributed Eviction
         [DataMember]
@@ -262,8 +270,21 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int? ContentLocationDatabaseEntryTimeToLiveMinutes { get; set; }
 
+        // Key Vault Settings
         [DataMember]
         public string KeyVaultSettingsString { get; set; }
+
+        [DataMember]
+        public int KeyVaultRetryCount { get; set; } = 5;
+
+        [DataMember]
+        public int KeyVaultMinBackoffSeconds { get; set; } = 10;
+
+        [DataMember]
+        public int KeyVaultMaxBackoffSeconds { get; set; } = 60;
+
+        [DataMember]
+        public int KeyVaultDeltaBackoffSeconds { get; set; } = 10;
 
         [DataMember]
         public string EventHubSecretName { get; set; }

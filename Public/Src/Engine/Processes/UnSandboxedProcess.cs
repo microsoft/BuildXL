@@ -301,13 +301,18 @@ namespace BuildXL.Processes
         {
             Contract.Requires(Process == null);
 
+#if !PLATFORM_OSX
+            if (!FileUtilities.FileExistsNoFollow(ProcessInfo.FileName))
+            {
+                ThrowFileDoesNotExist();
+            }
+#else
             var mode = GetFilePermissionsForFilePath(ProcessInfo.FileName, followSymlink: false);
             if (mode < 0)
             {
-                ThrowCouldNotStartProcess(I($"File '{ProcessInfo.FileName}' not found"), new Win32Exception(0x2));
+                ThrowFileDoesNotExist();
             }
 
-#if PLATFORM_OSX
             var filePermissions = checked((FilePermissions)mode);
             FilePermissions exePermission = FilePermissions.S_IXUSR;
             if (!filePermissions.HasFlag(exePermission))
@@ -345,6 +350,11 @@ namespace BuildXL.Processes
             Process.Exited             += (sender, e) => m_processExitedTcs.TrySetResult(Unit.Void);
 
             return Process;
+
+            void ThrowFileDoesNotExist()
+            {
+                ThrowCouldNotStartProcess(I($"File '{ProcessInfo.FileName}' not found"), new Win32Exception(0x2));
+            }
         }
 
         internal virtual void FeedStdOut(SandboxedProcessOutputBuilder b, TaskSourceSlim<Unit> tsc, string line)

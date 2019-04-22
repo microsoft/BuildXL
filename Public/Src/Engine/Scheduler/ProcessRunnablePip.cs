@@ -21,6 +21,16 @@ namespace BuildXL.Scheduler
         /// <nodoc/>
         public Process Process => (Process)Pip;
 
+       
+        /// <summary>
+        /// Process weight
+        /// </summary>
+        /// <remarks>
+        /// If process weight is defined as greater than the minimum weight in the specs, use it. 
+        /// Otherwise, use the weight based on historic cpu usage.
+        /// </remarks>
+        public int Weight => Process.Weight > Process.MinWeight ? Process.Weight : m_weightBasedOnHistoricCpuUsage;
+
         /// <nodoc/>
         public RunnableFromCacheResult CacheResult { get; private set; }
 
@@ -47,15 +57,27 @@ namespace BuildXL.Scheduler
         /// </summary>
         public CacheableProcess CacheableProcess { get; private set; }
 
+        private readonly int m_weightBasedOnHistoricCpuUsage;
+
         internal ProcessRunnablePip(
             LoggingContext phaseLoggingContext,
             PipId pipId,
             int priority,
             Func<RunnablePip, Task> executionFunc,
             IPipExecutionEnvironment environment,
+            ushort cpuUsageInPercents = 0,
             Pip pip = null)
             : base(phaseLoggingContext, pipId, PipType.Process, priority, executionFunc, environment, pip)
         {
+            if (cpuUsageInPercents > 100)
+            {
+                m_weightBasedOnHistoricCpuUsage = (int)Math.Ceiling(cpuUsageInPercents / 100.0);
+            }
+            else
+            {
+                // If cpu usage is less than 100%, just use the lowest possible weight.
+                m_weightBasedOnHistoricCpuUsage = Process.MinWeight;
+            }
         }
 
         /// <nodoc/>

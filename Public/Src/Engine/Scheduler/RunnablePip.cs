@@ -410,12 +410,13 @@ namespace BuildXL.Scheduler
             PipId pipId,
             PipType type,
             int priority,
-            Func<RunnablePip, Task> executionFunc)
+            Func<RunnablePip, Task> executionFunc,
+            ushort cpuUsageInPercent)
         {
             switch (type)
             {
                 case PipType.Process:
-                    return new ProcessRunnablePip(loggingContext, pipId, priority, executionFunc, environment);
+                    return new ProcessRunnablePip(loggingContext, pipId, priority, executionFunc, environment, cpuUsageInPercent);
                 default:
                     return new RunnablePip(loggingContext, pipId, type, priority, executionFunc, environment);
             }
@@ -434,7 +435,7 @@ namespace BuildXL.Scheduler
             switch (pip.PipType)
             {
                 case PipType.Process:
-                    return new ProcessRunnablePip(loggingContext, pip.PipId, priority, executionFunc, environment, pip);
+                    return new ProcessRunnablePip(loggingContext, pip.PipId, priority, executionFunc, environment, pip: pip);
                 default:
                     return new RunnablePip(loggingContext, pip.PipId, pip.PipType, priority, executionFunc, environment, pip);
             }

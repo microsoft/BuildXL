@@ -425,7 +425,7 @@ namespace BuildXL.Scheduler.Distribution
             var processRunnablePip = runnablePip as ProcessRunnablePip;
             // If a process has a weight higher than the total number of process slots, still allow it to run as long as there are no other
             // processes running (the number of acquired slots is 0)
-            if (AcquiredProcessSlots != 0 && AcquiredProcessSlots + processRunnablePip.Process.Weight > (EffectiveTotalProcessSlots * loadFactor))
+            if (AcquiredProcessSlots != 0 && AcquiredProcessSlots + processRunnablePip.Weight > (EffectiveTotalProcessSlots * loadFactor))
             {
                 limitingResource = WorkerResource.AvailableProcessSlots;
                 return false;
@@ -434,7 +434,7 @@ namespace BuildXL.Scheduler.Distribution
             StringId limitingResourceName = StringId.Invalid;
             if (processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip), out limitingResourceName))
             {
-                Interlocked.Add(ref m_acquiredProcessSlots, processRunnablePip.Process.Weight);
+                Interlocked.Add(ref m_acquiredProcessSlots, processRunnablePip.Weight);
                 OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
                 runnablePip.AcquiredResourceWorker = this;
                 limitingResource = null;
@@ -512,7 +512,7 @@ namespace BuildXL.Scheduler.Distribution
             {
                 Contract.Assert(processRunnablePip.Resources.HasValue);
 
-                Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Process.Weight);
+                Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Weight);
 
                 var resources = processRunnablePip.Resources.Value;
                 m_workerSemaphores.ReleaseResources(resources);

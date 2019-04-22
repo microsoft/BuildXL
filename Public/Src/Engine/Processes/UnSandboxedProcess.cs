@@ -306,13 +306,6 @@ namespace BuildXL.Processes
                 ThrowCouldNotStartProcess(I($"File '{ProcessInfo.FileName}' not found"), new Win32Exception(0x2));
             }
 
-#if PLATFORM_OSX
-            // TODO: TASK 1488150
-            // When targeting macOS, we make sure the 'execute bit' has been set on the binary about to be started,
-            // especially running on VSTS VMs currently has issues around file permission preservance
-            SetFilePermissionsForFilePath(ProcessInfo.FileName, FilePermissions.S_IXUSR);
-#endif
-
             Process = new Process();
             Process.StartInfo = new ProcessStartInfo
             {

@@ -9,21 +9,20 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
+using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Build.Definition;
+using Microsoft.Build.Evaluation;
 using Microsoft.Build.Exceptions;
 using Microsoft.Build.Execution;
-using Microsoft.Build.Evaluation;
 using Microsoft.Build.Experimental.Graph;
 using Microsoft.Build.Prediction;
-using BuildXL.FrontEnd.MsBuild.Serialization;
 using Newtonsoft.Json;
-
 using ProjectGraphWithPredictionsResult = BuildXL.FrontEnd.MsBuild.Serialization.ProjectGraphWithPredictionsResult<string>;
 using ProjectGraphWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectGraphWithPredictions<string>;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<string>;
-using System.Reflection;
 
 namespace MsBuildGraphBuilderTool
 {

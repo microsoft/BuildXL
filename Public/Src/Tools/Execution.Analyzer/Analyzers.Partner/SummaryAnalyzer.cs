@@ -11,9 +11,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-#if !DISABLE_FEATURE_HTMLWRITER
-using System.Web.UI;
-#endif
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Execution.Analyzer.Analyzers;
 using BuildXL.Pips;
@@ -26,6 +23,9 @@ using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+#if !DISABLE_FEATURE_HTMLWRITER
+using System.Web.UI;
+#endif
 
 namespace BuildXL.Execution.Analyzer
 {

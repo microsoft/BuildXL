@@ -3,17 +3,17 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
-using BuildXL.Scheduler.Tracing;
-using BuildXL.Storage;
-using BuildXL.ToolSupport;
-using BuildXL.Utilities;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Tracing;
+using BuildXL.Storage;
+using BuildXL.ToolSupport;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using Newtonsoft.Json;
 

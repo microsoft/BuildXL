@@ -5,8 +5,8 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Analyzer.Tracing;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
+using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 

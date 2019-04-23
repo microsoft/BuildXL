@@ -6,10 +6,10 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.FrontEnd.Script.Analyzer.Utilities;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Workspaces.Core;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers

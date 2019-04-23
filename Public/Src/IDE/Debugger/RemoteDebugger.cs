@@ -3,11 +3,10 @@
 
 using System;
 using System.Net.Sockets;
+using BuildXL.FrontEnd.Script.Debugger.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.FrontEnd.Script.Debugger.Tracing;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;
 

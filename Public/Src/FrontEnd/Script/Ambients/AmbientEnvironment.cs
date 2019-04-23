@@ -5,11 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.FormattableStringEx;
 using Type = System.Type;
 

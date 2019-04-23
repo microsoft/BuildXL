@@ -4,9 +4,8 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Expressions;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Declarations

@@ -3,7 +3,6 @@
 
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.FrontEnd.Script.Util;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 

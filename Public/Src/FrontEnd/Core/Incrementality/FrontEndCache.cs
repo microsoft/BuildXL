@@ -3,12 +3,12 @@
 
 using System.Diagnostics;
 using System.IO;
+using BuildXL.FrontEnd.Core.Tracing;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Core.Tracing;
-using BuildXL.FrontEnd.Sdk;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Core.Incrementality

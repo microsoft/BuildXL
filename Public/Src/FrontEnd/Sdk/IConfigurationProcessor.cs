@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.Utilities;
-using JetBrains.Annotations;
-using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Sdk.Workspaces;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
+using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Sdk
 {

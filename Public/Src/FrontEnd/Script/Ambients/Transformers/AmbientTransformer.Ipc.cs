@@ -3,6 +3,9 @@
 
 using System.Collections.Generic;
 using System.Globalization;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Types;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
@@ -11,9 +14,6 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.FrontEnd.Script.Types;
-using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers

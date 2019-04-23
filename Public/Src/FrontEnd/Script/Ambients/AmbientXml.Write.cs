@@ -6,13 +6,13 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
-using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Ambients.Exceptions;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Runtime;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Pips.Operations;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Ambients
 {

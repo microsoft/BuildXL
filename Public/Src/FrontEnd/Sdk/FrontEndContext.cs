@@ -4,11 +4,11 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
+using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
-using BuildXL.FrontEnd.Sdk.FileSystem;
 
 namespace BuildXL.FrontEnd.Sdk
 {

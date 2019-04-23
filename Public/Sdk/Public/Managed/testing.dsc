@@ -266,6 +266,9 @@ export interface TestRunArguments {
      * Allows test runs to be tagged.
      */
     tags?: string[];
+
+    /** Optionally override to increase the weight of test pips that require more machine resources */
+    weight?: number;
 }
 
 @@public

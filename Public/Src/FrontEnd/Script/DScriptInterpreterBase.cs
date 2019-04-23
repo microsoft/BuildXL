@@ -15,6 +15,7 @@ using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
@@ -26,9 +27,7 @@ using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
 using ConversionException = BuildXL.FrontEnd.Script.Util.ConversionException;
-using IFileSystem = global::BuildXL.FrontEnd.Sdk.FileSystem.IFileSystem;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
-
 
 namespace BuildXL.FrontEnd.Script
 {

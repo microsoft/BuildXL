@@ -4,13 +4,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Text;
-using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Ambients.Transformers;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Pips.Operations;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 {

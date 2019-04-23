@@ -7,11 +7,10 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.Workspaces;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Workspaces.Core

@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Pips.Operations;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 {

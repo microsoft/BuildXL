@@ -3,9 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Script.Ambients
 {

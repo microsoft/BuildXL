@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Ambients.Transformers;
 using BuildXL.FrontEnd.Script.Values;
 

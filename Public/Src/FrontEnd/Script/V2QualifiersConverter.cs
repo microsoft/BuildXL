@@ -5,11 +5,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.FrontEnd.Workspaces;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Qualifier;
-using BuildXL.FrontEnd.Workspaces;
-using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
 using QualifierSpaceDeclaration = System.Collections.Generic.Dictionary<string, System.Collections.Generic.IReadOnlyList<string>>;
 

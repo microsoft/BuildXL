@@ -1,16 +1,15 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
 using System.Linq;
-using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.Pips.Builders;
-using BuildXL.FrontEnd.Script.Expressions;
-using System.Collections.Generic;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 {

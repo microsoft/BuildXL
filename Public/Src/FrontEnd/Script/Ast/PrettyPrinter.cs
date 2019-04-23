@@ -7,18 +7,16 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Declarations;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Expressions.CompositeExpressions;
 using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Statements;
 using BuildXL.FrontEnd.Script.Types;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Util;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script
 {

@@ -3,8 +3,8 @@
 
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Script.Util;
+using BuildXL.FrontEnd.Workspaces;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules

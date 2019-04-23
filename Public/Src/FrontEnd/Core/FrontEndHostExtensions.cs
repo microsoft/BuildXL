@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Workspaces.Core;
 
 namespace BuildXL.FrontEnd.Core
 {

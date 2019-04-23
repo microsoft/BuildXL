@@ -11,6 +11,7 @@ using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Failures;
 using BuildXL.FrontEnd.Script.Tracing;
+using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces;
@@ -25,9 +26,6 @@ using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
-using ConfigurationConverter = BuildXL.FrontEnd.Script.Util.ConfigurationConverter;
-using ConversionException = BuildXL.FrontEnd.Script.Util.ConversionException;
-using Names = BuildXL.FrontEnd.Script.Constants.Names;
 
 namespace BuildXL.FrontEnd.Script
 {

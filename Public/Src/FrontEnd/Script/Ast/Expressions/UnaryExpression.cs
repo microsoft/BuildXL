@@ -3,12 +3,11 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.FrontEnd.Script;
-using BuildXL.Utilities;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Runtime;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

@@ -3,9 +3,9 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Native.IO;
 using System.IO;
 
@@ -261,7 +261,7 @@ namespace BuildXL.Pips
         /// <summary>
         /// Deserialize process performance data
         /// </summary>
-        public new static ProcessPipExecutionPerformance Deserialize(BuildXLReader reader)
+        public static new ProcessPipExecutionPerformance Deserialize(BuildXLReader reader)
         {
             PipExecutionLevel level;
             DateTime executionStart;

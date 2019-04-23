@@ -4,9 +4,9 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Ambients
 {

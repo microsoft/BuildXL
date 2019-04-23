@@ -7,12 +7,12 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Sdk;
+using BuildXL.Utilities.Instrumentation.Common;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
 
 namespace BuildXL.FrontEnd.MsBuild

@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.FrontEnd.Script.Expressions.CompositeExpressions;
-using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Declarations;
+using BuildXL.FrontEnd.Script.Expressions;
+using BuildXL.FrontEnd.Script.Expressions.CompositeExpressions;
 using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Statements;
 using BuildXL.FrontEnd.Script.Types;

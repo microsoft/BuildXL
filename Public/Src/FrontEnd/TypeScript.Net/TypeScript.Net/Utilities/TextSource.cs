@@ -3,7 +3,6 @@
 
 using System;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Scanning;
 

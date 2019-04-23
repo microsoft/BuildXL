@@ -5,11 +5,9 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Literals;
-using BuildXL.FrontEnd.Script.RuntimeModel;
-using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 {

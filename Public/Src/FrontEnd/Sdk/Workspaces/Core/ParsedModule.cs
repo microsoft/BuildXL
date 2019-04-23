@@ -7,7 +7,6 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Sdk.Workspaces;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
 

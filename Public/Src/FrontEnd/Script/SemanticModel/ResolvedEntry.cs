@@ -6,15 +6,13 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Literals;
-
-using LineInfo = TypeScript.Net.Utilities.LineInfo;
-
+using BuildXL.Utilities;
+using BuildXL.Utilities.Qualifier;
 using static BuildXL.Utilities.FormattableStringEx;
+using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Values
 {

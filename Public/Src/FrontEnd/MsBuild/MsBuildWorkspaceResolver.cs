@@ -12,7 +12,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.MsBuild.Serialization;
-using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces;
@@ -24,9 +23,8 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using Newtonsoft.Json;
 using TypeScript.Net.DScript;
+using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
-using ISourceFile = TypeScript.Net.Types.ISourceFile;
-using SourceFile = TypeScript.Net.Types.SourceFile;
 
 namespace BuildXL.FrontEnd.MsBuild
 {
@@ -56,12 +54,12 @@ namespace BuildXL.FrontEnd.MsBuild
         /// <summary>
         /// Set of well known locations that are used to identify a candidate entry point to parse, if a specific one is not provided
         /// </summary>
-        private readonly static HashSet<string> s_wellKnownEntryPointExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase){"proj", "sln"};
+        private static readonly HashSet<string> s_wellKnownEntryPointExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase){"proj", "sln"};
 
         /// <summary>
         /// Collection of environment variables that are allowed to the graph construction process to see (in addition to the ones specified by the user)
         /// </summary>
-        private readonly static string[] s_environmentVariableWhitelist = new[] 
+        private static readonly string[] s_environmentVariableWhitelist = new[] 
             {
                 "ComSpec",
                 "PATH",
@@ -101,7 +99,7 @@ namespace BuildXL.FrontEnd.MsBuild
             Name = nameof(MsBuildWorkspaceResolver);
         }
 
-        /// <inheritdoc cref="DScriptInterpreterBase"/>
+        /// <inheritdoc cref="Script.DScriptInterpreterBase"/>
         public Task<Possible<ISourceFile>> TryParseAsync(
             AbsolutePath pathToParse,
             AbsolutePath moduleOrConfigPathPromptingParse,

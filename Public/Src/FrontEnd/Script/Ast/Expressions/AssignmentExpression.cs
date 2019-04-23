@@ -3,16 +3,14 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.FrontEnd.Script;
-using BuildXL.Utilities;
-using JetBrains.Annotations;
 using BuildXL.FrontEnd.Script.Core;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities;
+using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
-using SyntaxKind = TypeScript.Net.Types.SyntaxKind;
 
 namespace BuildXL.FrontEnd.Script.Expressions
 {

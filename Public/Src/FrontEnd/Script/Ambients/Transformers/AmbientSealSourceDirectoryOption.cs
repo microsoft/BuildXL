@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using BuildXL.FrontEnd.Script.Ambients;
 using BuildXL.FrontEnd.Script.Values;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers

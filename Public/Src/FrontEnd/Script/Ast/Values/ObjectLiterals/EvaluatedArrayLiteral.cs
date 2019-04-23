@@ -3,11 +3,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Threading;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Literals;
+using BuildXL.Utilities;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Values

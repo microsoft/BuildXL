@@ -23,8 +23,6 @@ using Newtonsoft.Json;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
-using ISourceFile = TypeScript.Net.Types.ISourceFile;
-using SourceFile = TypeScript.Net.Types.SourceFile;
 
 namespace BuildXL.FrontEnd.Ninja
 {

@@ -4,11 +4,10 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Ambients

@@ -4,11 +4,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.FrontEnd.Workspaces.Core;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Sdk;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Core.Incrementality

@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.FrontEnd.Download.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
@@ -16,8 +17,6 @@ using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
-using Logger = BuildXL.FrontEnd.Download.Tracing.Logger;
-using SourceFile = TypeScript.Net.Types.SourceFile;
 using ValueTask = BuildXL.Utilities.Tasks.ValueTask;
 
 namespace BuildXL.FrontEnd.Download

@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
@@ -15,7 +16,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
-using Logger = BuildXL.FrontEnd.Script.Tracing.Logger;
 
 namespace BuildXL.FrontEnd.Script
 {

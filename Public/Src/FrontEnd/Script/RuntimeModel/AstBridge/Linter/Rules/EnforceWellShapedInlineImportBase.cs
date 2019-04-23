@@ -4,7 +4,6 @@
 using System.Diagnostics.ContractsLight;
 using JetBrains.Annotations;
 using TypeScript.Net.Parsing;
-using TypeScript.Net.Reformatter;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules

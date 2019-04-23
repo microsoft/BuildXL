@@ -165,7 +165,7 @@ export function runQTest(args: QTestArguments): Result {
         consoleOutput: consolePath,
         workingDirectory: sandboxDir,
         tempDirectory: tempDirectory,
-        // TODO - hook this up for Heisenbug queues (runs tests a bunch under qtest process)
+        weight: args.weight,
         disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
         additionalTempDirectories : [sandboxDir],
         dependencies: [
@@ -259,6 +259,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestAdditionalOptions?: string;
     /** Path to runsettings file that will be passed on to vstest.console.exe. */
     vstestSettingsFile?: File;
+    /** Optionally override to increase the weight of test pips that require more machine resources */
+    weight?: number;
 }
 /**
  * Test results from a vstest.console.exe run

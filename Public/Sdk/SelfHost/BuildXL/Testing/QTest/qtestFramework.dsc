@@ -144,6 +144,7 @@ function runTest(args : TestRunArguments) : File[] {
         qTestTool: Environment.hasVariable("[Sdk.BuildXL]qtestDeploymentPath") ? undefined : qTestTool,
         qTestLogs: logDir,
         tags: args.tags,
+        weight: args.weight,
     });
 
     return [

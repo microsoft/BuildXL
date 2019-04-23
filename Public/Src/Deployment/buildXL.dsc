@@ -35,7 +35,7 @@ namespace BuildXL {
                             importFrom("BuildXL.Explorer").App.app.appFolder
                         ]
                     },
-                    ...(BuildXLSdk.genVSSolution
+                    ...(BuildXLSdk.Flags.genVSSolution
                         ? []
                         : [ {
                                 subfolder: r`bxp-server`,

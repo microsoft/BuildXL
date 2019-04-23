@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -20,7 +19,7 @@ namespace BuildXL.Interop.MacOS
 
         /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        public static unsafe extern int NormalizePathAndReturnHash(byte[] pPath, byte* buffer, int bufferLength);
+        public static extern unsafe int NormalizePathAndReturnHash(byte[] pPath, byte* buffer, int bufferLength);
 
         /// <nodoc />
         [StructLayout(LayoutKind.Sequential)]

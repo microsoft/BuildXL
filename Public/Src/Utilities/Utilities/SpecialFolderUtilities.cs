@@ -3,9 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
-using SpecialFolder = System.Environment.SpecialFolder;
-using SpecialFolderOption = System.Environment.SpecialFolderOption;
 
 namespace BuildXL.Utilities
 {
@@ -30,7 +27,7 @@ namespace BuildXL.Utilities
         /// <param name="option">Specifies options to use for accessing a special folder.</param>
         /// <returns>The path to the specified system special folder, if that folder physically exists
         /// on your computer; otherwise, an empty string ("")</returns>
-        public static string GetFolderPath(SpecialFolder folder, SpecialFolderOption option = SpecialFolderOption.None)
+        public static string GetFolderPath(Environment.SpecialFolder folder, Environment.SpecialFolderOption option = Environment.SpecialFolderOption.None)
         {
             // check if there is profile redirect
             if (s_envVars != null)
@@ -38,22 +35,22 @@ namespace BuildXL.Utilities
                 string envVar = null;
                 switch (folder)
                 {
-                    case SpecialFolder.InternetCache:
+                    case Environment.SpecialFolder.InternetCache:
                         envVar = "INTERNETCACHE";
                         break;
-                    case SpecialFolder.History:
+                    case Environment.SpecialFolder.History:
                         envVar = "INTERNETHISTORY";
                         break;
-                    case SpecialFolder.ApplicationData:
+                    case Environment.SpecialFolder.ApplicationData:
                         envVar = "APPDATA";
                         break;
-                    case SpecialFolder.LocalApplicationData:
+                    case Environment.SpecialFolder.LocalApplicationData:
                         envVar = "LOCALAPPDATA";
                         break;
-                    case SpecialFolder.UserProfile:
+                    case Environment.SpecialFolder.UserProfile:
                         envVar = "USERPROFILE";
                         break;
-                    case SpecialFolder.Cookies:
+                    case Environment.SpecialFolder.Cookies:
                         envVar = "INETCOOKIES";
                         break;
                 }

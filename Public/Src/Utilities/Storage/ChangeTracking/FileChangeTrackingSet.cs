@@ -15,15 +15,13 @@ using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Storage.ChangeJournalService.Protocol;
-using BuildXL.Tracing;
+using BuildXL.Storage.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.FormattableStringEx;
-using FileUtilities = BuildXL.Native.IO.FileUtilities;
-using Logger = BuildXL.Storage.Tracing.Logger;
 
 namespace BuildXL.Storage.ChangeTracking
 {

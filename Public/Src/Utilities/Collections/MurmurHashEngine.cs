@@ -248,7 +248,7 @@ namespace BuildXL.Utilities
             }
         }
 
-        unsafe internal static ulong GetUInt64(this byte[] data, int pos)
+        internal static unsafe ulong GetUInt64(this byte[] data, int pos)
         {
             // we only read aligned longs, so a simple casting is enough
             fixed (byte* pbyte = &data[pos])

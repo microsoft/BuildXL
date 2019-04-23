@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Reflection;

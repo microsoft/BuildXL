@@ -8,7 +8,6 @@ using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.FormattableStringEx;
-using FileSystemWin = BuildXL.Native.IO.Windows.FileSystemWin;
 
 namespace BuildXL.Native.Streams.Windows
 {

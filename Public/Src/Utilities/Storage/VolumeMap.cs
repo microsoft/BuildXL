@@ -11,9 +11,7 @@ using BuildXL.Native.IO.Windows;
 using BuildXL.Storage.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
-using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 namespace BuildXL.Storage
 {

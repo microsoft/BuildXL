@@ -3,9 +3,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
+using BuildXL.Execution.Analyzer.Model;
 using BuildXL.Pips;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
@@ -13,7 +13,6 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Execution.Analyzer.Model;
 
 namespace BuildXL.Execution.Analyzer
 {

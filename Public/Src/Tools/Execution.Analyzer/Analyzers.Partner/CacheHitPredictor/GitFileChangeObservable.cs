@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using BuildXL.Storage.ChangeJournalService.Protocol;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;

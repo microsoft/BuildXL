@@ -4,9 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
+using BuildXL.FrontEnd.Workspaces.Core;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
 

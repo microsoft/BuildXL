@@ -4,7 +4,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using Newtonsoft.Json;
 

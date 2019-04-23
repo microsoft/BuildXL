@@ -2,9 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using BuildXL.Ide.Generator;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration.Mutable;
 
 namespace BuildXL.Execution.Analyzer

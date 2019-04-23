@@ -9,10 +9,8 @@ using System.IO;
 using System.Linq;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
-using TypeScript.Net.DScript;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
-using CancellationToken = System.Threading.CancellationToken;
 using ISymbol = TypeScript.Net.Types.ISymbol;
 
 namespace TypeScript.Net.DScript

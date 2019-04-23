@@ -4,11 +4,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Execution.Analyzer.Analyzers.ExportDgml;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.ToolSupport;
-using BuildXL.Execution.Analyzer.Analyzers.ExportDgml;
 
 namespace BuildXL.Execution.Analyzer
 {

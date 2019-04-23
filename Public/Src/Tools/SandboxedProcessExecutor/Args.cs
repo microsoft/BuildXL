@@ -77,7 +77,6 @@ namespace BuildXL.SandboxedProcessExecutor
             writer.WriteLine("");
             writer.WriteLine("/sandboxedProcessInfo:<file>   -- Sandboxed process info input file [short: /i]");
             writer.WriteLine("/sandboxedProcessResult:<file> -- Sandboxed process result output file [short: /r]");
-            writer.WriteLine("/sandboxedProcessResult:<file> -- Sandboxed process result output file [short: /r]");
             writer.WriteLine("/enableTelemetry[+/-]          -- Enable telemetry [default: false]");
             writer.WriteLine("/help                          -- Print help message and exit [short: /?]");
         }

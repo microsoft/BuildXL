@@ -8,9 +8,6 @@ namespace BuildXL {
 
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
-    const genVSEnvVar = "[Sdk.BuildXL]GenerateVSSolution";
-    const genVSSolution = Environment.hasVariable(genVSEnvVar) && Environment.getBooleanValue(genVSEnvVar) === true;
-
     /**
      * The main deployment definition
      */
@@ -38,7 +35,7 @@ namespace BuildXL {
                             importFrom("BuildXL.Explorer").App.app.appFolder
                         ]
                     },
-                    ...(genVSSolution
+                    ...(BuildXLSdk.genVSSolution
                         ? []
                         : [ {
                                 subfolder: r`bxp-server`,

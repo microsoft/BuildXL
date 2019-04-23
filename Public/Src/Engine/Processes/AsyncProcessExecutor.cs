@@ -57,7 +57,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Checks if process exit is completed.
         /// </summary>
-        public bool ExitCompleted => m_processExitedTcs.Task.IsCompleted;
+        public bool ExitCompleted => WhenExited.IsCompleted;
 
         /// <summary>
         /// Checks if standard out flush is completed.
@@ -142,8 +142,6 @@ namespace BuildXL.Processes
         /// </summary>
         public void Start()
         {
-
-
 #if !PLATFORM_OSX
             if (!System.IO.File.Exists(Process.StartInfo.FileName))
             {
@@ -181,7 +179,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Waits for process to exit or to get killed due to timed out.
         /// </summary>
-        public async Task WaitForExitAsync(Func<Task> getSandboxedProcessReports = null)
+        public async Task WaitForExitAsync(Func<Task> getProcessReport = null)
         {
             var finishedTask = await Task.WhenAny(Task.Delay(m_timeout), WhenExited);
             ExitTime = DateTime.UtcNow;
@@ -193,9 +191,9 @@ namespace BuildXL.Processes
                 await KillAsync();
             }
 
-            if (getSandboxedProcessReports != null)
+            if (getProcessReport != null)
             {
-                await getSandboxedProcessReports();
+                await getProcessReport();
             }
 
             await Task.WhenAll(m_stdoutFlushedTcs.Task, m_stderrFlushedTcs.Task);

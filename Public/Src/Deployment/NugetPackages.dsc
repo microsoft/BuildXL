@@ -115,15 +115,12 @@ namespace NugetPackages {
         }).deployment
     });
 
-    const genVSEnvVar = "[Sdk.BuildXL]GenerateVSSolution";
-    const genVSSolution = Environment.hasVariable(genVSEnvVar) && Environment.getBooleanValue(genVSEnvVar) === true;
-
     @@public
     export const deployment : Deployment.Definition = {
         contents: [
             ...addIfLazy(Context.getCurrentHost().os === "win", () => [
                 net472,
-                ...(genVSSolution ? [] : [net461, winX64])
+                ...(BuildXLSdk.genVSSolution ? [] : [net461, winX64])
             ]),
             osxX64,
             sdks,

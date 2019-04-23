@@ -43,6 +43,12 @@ const brandingDefines = [
     { key: "MainExecutableName", value: Branding.mainExecutableName},
 ];
 
+const genVSEnvVar = envVarNamePrefix + "GenerateVSSolution";
+
+@@public
+export const genVSSolution = Environment.hasVariable(genVSEnvVar) && Environment.getBooleanValue(genVSEnvVar) === true;
+
+
 @@public
 export interface Arguments extends Managed.Arguments {
     cscArgs?: Csc.Arguments;

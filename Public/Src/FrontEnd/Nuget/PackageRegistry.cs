@@ -5,13 +5,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Nuget.Tracing;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.FrontEnd.Nuget
 {

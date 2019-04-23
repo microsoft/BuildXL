@@ -4,14 +4,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Ambients.Set;
+using BuildXL.FrontEnd.Script.Literals;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.FrontEnd.Script.Ambients.Set;
-using BuildXL.FrontEnd.Script.Literals;
-using BuildXL.FrontEnd.Script.Values;
-using Closure = BuildXL.FrontEnd.Script.Values.Closure;
 using DsMap = BuildXL.FrontEnd.Script.Ambients.Map.OrderedMap;
 using DsSet = BuildXL.FrontEnd.Script.Ambients.Set.OrderedSet;
 

@@ -4,18 +4,15 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.FrontEnd.Workspaces;
-using JetBrains.Annotations;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Workspaces;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.Incrementality
 {
-    using SyntaxKind = TypeScript.Net.Types.SyntaxKind;
-
     /// <summary>
     /// A visitor that can generate a public-only representation of a source file
     /// </summary>
@@ -108,25 +105,25 @@ namespace BuildXL.FrontEnd.Script.Incrementality
             }
 
             // descend into ParenthesizedType
-            if (type.Kind == SyntaxKind.ParenthesizedType)
+            if (type.Kind == TypeScript.Net.Types.SyntaxKind.ParenthesizedType)
             {
                 return IsTypeAccessible(type.Cast<IParenthesizedTypeNode>().Type);
             }
 
             // an array type is accessible iff its element type is accessible
-            if (type.Kind == SyntaxKind.ArrayType)
+            if (type.Kind == TypeScript.Net.Types.SyntaxKind.ArrayType)
             {
                 return IsTypeAccessible(type.Cast<IArrayTypeNode>().ElementType);
             }
 
             // a union type is accessible iff all its types are accessible
-            if (type.Kind == SyntaxKind.UnionType)
+            if (type.Kind == TypeScript.Net.Types.SyntaxKind.UnionType)
             {
                 return type.Cast<IUnionOrIntersectionTypeNode>().Types.All(t => IsTypeAccessible(t));
             }
 
             // a function type is accessible iff its return type and its type parameters are accessible
-            if (type.Kind == SyntaxKind.FunctionType)
+            if (type.Kind == TypeScript.Net.Types.SyntaxKind.FunctionType)
             {
                 var fnType = type.Cast<IFunctionOrConstructorTypeNode>();
                 var fnParameters = fnType.Parameters ?? NodeArray.Empty<IParameterDeclaration>();
@@ -136,13 +133,13 @@ namespace BuildXL.FrontEnd.Script.Incrementality
             }
 
             // a type literal is accessible iff all its members are accessible
-            if (type.Kind == SyntaxKind.TypeLiteral)
+            if (type.Kind == TypeScript.Net.Types.SyntaxKind.TypeLiteral)
             {
                 return type.Cast<ITypeLiteralNode>().Members.All(m => IsMemberAccessible(m));
 
                 bool IsMemberAccessible(ITypeElement e)
                 {
-                    var memberTypes = e.Kind == SyntaxKind.PropertySignature
+                    var memberTypes = e.Kind == TypeScript.Net.Types.SyntaxKind.PropertySignature
                         ? new[] { e.Cast<IPropertySignature>().Type }
                         : null; // handle other kinds if needed
                     return memberTypes != null && memberTypes.All(t => IsTypeAccessible(t));
@@ -210,8 +207,8 @@ namespace BuildXL.FrontEnd.Script.Incrementality
             if (
                 // Need to explude export declarations here because
                 // they add position decorators manually.
-                (declarationStatement != null && declarationStatement.Kind != SyntaxKind.ExportDeclaration)
-                || node.Kind == SyntaxKind.EnumMember)
+                (declarationStatement != null && declarationStatement.Kind != TypeScript.Net.Types.SyntaxKind.ExportDeclaration)
+                || node.Kind == TypeScript.Net.Types.SyntaxKind.EnumMember)
             {
                 AppendPositionDecorator(node);
             }
@@ -514,12 +511,12 @@ namespace BuildXL.FrontEnd.Script.Incrementality
                 return false;
             }
 
-            var result = (statement.Kind == SyntaxKind.ModuleDeclaration) || // Modules are automatically exported in DScript
-                   (statement.Kind == SyntaxKind.ImportDeclaration) || // Import and
-                   (statement.Kind == SyntaxKind.ExportDeclaration) || // export declarations are always kept to make references work
-                   (statement.Kind == SyntaxKind.InterfaceDeclaration) || // Interfaces,
-                   (statement.Kind == SyntaxKind.TypeAliasDeclaration) || // Types,
-                   (statement.Kind == SyntaxKind.EnumDeclaration) || // and Enums are kept regardless visibility so we don't need to analyze type-related declarations. TODO: this can be optimized
+            var result = (statement.Kind == TypeScript.Net.Types.SyntaxKind.ModuleDeclaration) || // Modules are automatically exported in DScript
+                   (statement.Kind == TypeScript.Net.Types.SyntaxKind.ImportDeclaration) || // Import and
+                   (statement.Kind == TypeScript.Net.Types.SyntaxKind.ExportDeclaration) || // export declarations are always kept to make references work
+                   (statement.Kind == TypeScript.Net.Types.SyntaxKind.InterfaceDeclaration) || // Interfaces,
+                   (statement.Kind == TypeScript.Net.Types.SyntaxKind.TypeAliasDeclaration) || // Types,
+                   (statement.Kind == TypeScript.Net.Types.SyntaxKind.EnumDeclaration) || // and Enums are kept regardless visibility so we don't need to analyze type-related declarations. TODO: this can be optimized
                    (statement.Flags & NodeFlags.Export) != NodeFlags.None;   // anything else that is explicitly exported
 
             if (result)

@@ -3,8 +3,8 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel
 {

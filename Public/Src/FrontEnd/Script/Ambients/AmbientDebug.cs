@@ -3,21 +3,17 @@
 
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
+using BuildXL.FrontEnd.Script.Ambients.Transformers;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Types;
+using BuildXL.FrontEnd.Script.Util;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Util;
-using BuildXL.FrontEnd.Script.Ambients.Transformers;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
-using BuildXL.FrontEnd.Script.Types;
-using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
-using LineInfo = TypeScript.Net.Utilities.LineInfo;
-using BuildXL.Pips.Builders;
 
 namespace BuildXL.FrontEnd.Script.Ambients
 {

@@ -7,7 +7,6 @@ using System.Runtime.CompilerServices;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 using TypeScript.Net.Api;
-using TypeScript.Net.Core;
 using TypeScript.Net.Reformatter;
 using static BuildXL.Utilities.FormattableStringEx;
 

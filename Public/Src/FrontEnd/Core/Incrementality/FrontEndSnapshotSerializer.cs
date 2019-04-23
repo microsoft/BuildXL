@@ -2,10 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Sdk;
 using TypeScript.Net.Incrementality;
 
 namespace BuildXL.FrontEnd.Core.Incrementality

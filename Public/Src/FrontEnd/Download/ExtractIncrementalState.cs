@@ -4,17 +4,17 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.FrontEnd.Download.Tracing;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Sdk;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using BuildXL.FrontEnd.Download.Tracing;
 
 namespace BuildXL.FrontEnd.Download
 {

@@ -4,8 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Values
 {

@@ -4,10 +4,9 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
-using IFileSystem = BuildXL.FrontEnd.Sdk.FileSystem.IFileSystem;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
 {

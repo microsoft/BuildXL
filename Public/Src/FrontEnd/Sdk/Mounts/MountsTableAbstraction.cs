@@ -3,8 +3,8 @@
 
 using System.Collections.Generic;
 using BuildXL.Utilities;
-using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
+using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Sdk
 {

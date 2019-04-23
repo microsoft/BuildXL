@@ -5,11 +5,11 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Constants;
-using JetBrains.Annotations;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using JetBrains.Annotations;
 using TypeScript.Net.Types;
 using SymbolTable = BuildXL.Utilities.SymbolTable;
 

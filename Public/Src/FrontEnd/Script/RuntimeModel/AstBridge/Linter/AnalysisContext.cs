@@ -3,11 +3,11 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.FrontEnd.Script.Tracing;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
 

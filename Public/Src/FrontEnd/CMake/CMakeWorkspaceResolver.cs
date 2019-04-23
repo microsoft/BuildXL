@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 using BuildXL.FrontEnd.CMake.Failures;
 using BuildXL.FrontEnd.CMake.Serialization;
 using BuildXL.FrontEnd.Ninja;
-using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces;
@@ -28,9 +27,8 @@ using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
 using Newtonsoft.Json;
 using TypeScript.Net.DScript;
+using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
-using ISourceFile = TypeScript.Net.Types.ISourceFile;
-using SourceFile = TypeScript.Net.Types.SourceFile;
 
 namespace BuildXL.FrontEnd.CMake
 {
@@ -79,7 +77,7 @@ namespace BuildXL.FrontEnd.CMake
             m_embeddedResolverSettings = new Lazy<NinjaResolverSettings>(CreateEmbeddedResolverSettings);
         }
 
-        /// <inheritdoc cref="DScriptInterpreterBase" />
+        /// <inheritdoc cref="Script.DScriptInterpreterBase" />
         public Task<Possible<ISourceFile>> TryParseAsync(
             AbsolutePath pathToParse,
             AbsolutePath moduleOrConfigPathPromptingParse,

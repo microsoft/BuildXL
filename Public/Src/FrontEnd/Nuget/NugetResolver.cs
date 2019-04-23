@@ -4,7 +4,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Tracing;

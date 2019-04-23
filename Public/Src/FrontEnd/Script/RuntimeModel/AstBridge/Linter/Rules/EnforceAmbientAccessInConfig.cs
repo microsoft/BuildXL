@@ -3,9 +3,9 @@
 
 using System;
 using System.Collections.Generic;
-using JetBrains.Annotations;
 using BuildXL.FrontEnd.Script.Ambients;
 using BuildXL.FrontEnd.Script.Ambients.Transformers;
+using JetBrains.Annotations;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules

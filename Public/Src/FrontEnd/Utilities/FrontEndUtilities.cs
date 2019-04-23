@@ -4,16 +4,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
-using BuildXL.Pips.Builders;
-using BuildXL.Utilities.Configuration.Resolvers;
 
 namespace BuildXL.FrontEnd.Utilities
 {

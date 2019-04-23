@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.FrontEnd.Script.Constants;
 
 #pragma warning disable 1591 // Missing Xml comment
 #pragma warning disable CA1823 // Unused field

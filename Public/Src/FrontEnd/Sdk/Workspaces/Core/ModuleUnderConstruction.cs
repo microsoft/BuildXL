@@ -8,9 +8,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
-using BuildXL.Utilities.Configuration;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 

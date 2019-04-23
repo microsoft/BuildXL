@@ -4,10 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Workspaces;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
 {

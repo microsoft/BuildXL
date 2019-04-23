@@ -3,9 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using System.Threading;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Tracing;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;

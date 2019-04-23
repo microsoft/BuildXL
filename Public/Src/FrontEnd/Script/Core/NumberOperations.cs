@@ -3,9 +3,9 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.FrontEnd.Script.Core
 {

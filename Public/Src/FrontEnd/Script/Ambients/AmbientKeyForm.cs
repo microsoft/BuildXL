@@ -4,16 +4,14 @@
 using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Ambients.Exceptions;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Ambients
 {

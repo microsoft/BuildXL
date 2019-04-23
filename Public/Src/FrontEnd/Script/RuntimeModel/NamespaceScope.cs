@@ -3,15 +3,13 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
+using BuildXL.Utilities;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel
 {
-    using SyntaxKind = TypeScript.Net.Types.SyntaxKind;
-    
     /// <summary>
     ///     Scope for namespace-level values or top level file values.
     /// </summary>
@@ -121,7 +119,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel
             {
                 var symbol = kvp.Value;
                 var declaration = symbol.DeclarationList.First();
-                if (declaration.Kind != SyntaxKind.VariableDeclaration)
+                if (declaration.Kind != TypeScript.Net.Types.SyntaxKind.VariableDeclaration)
                 {
                     // There is no top-level parameters, so variables are the only values that
                     // could be added into the storage.

@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Script;
 using VSCode.DebugProtocol;
 
 #pragma warning disable SA1649 // File name must match first type name

@@ -7,9 +7,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Sdk;
 using TypeScript.Net.Incrementality;
 using TypeScript.Net.Types;
 

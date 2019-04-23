@@ -5,9 +5,9 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Types;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script
 {

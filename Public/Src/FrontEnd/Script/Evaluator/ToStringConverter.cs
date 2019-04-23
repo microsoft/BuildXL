@@ -3,13 +3,12 @@
 
 using System.Collections.Generic;
 using System.Globalization;
-using BuildXL.Pips;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Ambients.Map;
 using BuildXL.FrontEnd.Script.Ambients.Set;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Pips;
+using BuildXL.Utilities;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
 

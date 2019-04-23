@@ -134,5 +134,10 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         /// <returns>True if the file was materialize by the host. Failure if host supports materializing the file and failed during materialization.</returns>
         Task<Possible<ContentMaterializationOrigin>> TryMaterializeFileAsync(FileArtifact artifact, OperationContext operationContext);
+
+        /// <summary>
+        /// Checks if a file is ever rewritten.
+        /// </summary>
+        bool IsFileRewritten(in FileArtifact fileArtifact);
     }
 }

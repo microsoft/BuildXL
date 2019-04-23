@@ -440,6 +440,12 @@ namespace Test.BuildXL.Scheduler.Utils
         }
 
         /// <inheritdoc />
+        public bool IsFileRewritten(in FileArtifact fileArtifact)
+        {
+            return false;
+        }
+
+        /// <inheritdoc />
         public void ReportContent(FileArtifact artifact, in FileMaterializationInfo hash, PipOutputOrigin origin)
         {
             if (!artifact.IsOutputFile)

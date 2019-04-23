@@ -62,16 +62,27 @@ function runMultipleQTests(args: TestRunArguments) : File[]
     ];
 }
 
-function runTest(args : TestRunArguments) : File[] {
-
-    if (args.limitGroups && args.limitGroups.length > 1) {
-        Contract.fail("Multiple limitGroups should be broken down in runMultipleQTests() before calling this function.");
-    }
-
+function runTest(args : TestRunArguments) : File[] {  
+    const testMethod = Environment.getStringValue("[UnitTest]Filter.testMethod");
+    const testClass  = Environment.getStringValue("[UnitTest]Filter.testClass");
+     
+    let additionalOptions = undefined;
+    let filterArgs = [];
     let rootTestAdapterPath = importFrom("xunit.runner.visualstudio").Contents.all;
     let testAdapterPath =  d`${rootTestAdapterPath}/build/_common`;
-
-    if (args.parallelGroups && args.parallelGroups.length > 0) {
+    
+    // when testmethod or testclass ignore limitGroups and skipGroups arguments
+    if (testMethod || testClass) {
+        // vstest doesn't support a class filter for xunit runner. 
+        // reuse the FullyQualifiedName to filter the testClass, which is not an exactly match. 
+        // if a class's FullyQualifiedName contains another class's FullyQualifiedName, both classes' test cases will be run.
+        // user can add "." at the end of the testclass to get the exact match.
+        let methodAndClassfilterArgs = [
+            ...(testMethod ? ["FullyQualifiedName="+testMethod,] : []),
+            ...(testClass ? ["FullyQualifiedName="+testClass,] : []),
+        ];
+        filterArgs = [methodAndClassfilterArgs.join("|")];
+    } else if (args.parallelGroups && args.parallelGroups.length > 0) {
 
         if ((args.limitGroups && args.limitGroups.length > 0) 
             || (args.skipGroups && args.skipGroups.length > 0)) {
@@ -81,36 +92,17 @@ function runTest(args : TestRunArguments) : File[] {
         return runMultipleQTests(args);
     }
 
-    let additionalOptions = undefined;
-    let filterArgs = [];
-    const testMethod = Environment.getStringValue("[UnitTest]Filter.testMethod");
-    const testClass  = Environment.getStringValue("[UnitTest]Filter.testClass");
-    
-    // when specified testmethod and testclass should has higher priority then the limitGroups and skipGroups arguments
-    if (testMethod || testClass) {
-        // vstest doesn't support a class filter for xunit runner. 
-        // reuse the FullyQualifiedName to filter the testClass, which is not an exactly match. 
-        // if a class's FullyQualifiedName contains another class's FullyQualifiedName, both classes' test cases will be run.
-        // user can add "." at the end of the testclass to get the exact match.
-        filterArgs = [
-            ...filterArgs,
-            ...(testMethod ? [`FullyQualifiedName=${testMethod}`] : []),
-            ...(testClass ? [`FullyQualifiedName~${testClass}`] : [])
-        ];
-
-        additionalOptions = `/testcaseFilter:"${filterArgs.join("|")}"`;
-    } 
-    else if ((args.limitGroups && args.limitGroups.length > 0) || 
-        (args.skipGroups && args.skipGroups.length > 0)) {
-        if (args.limitGroups) {
+    if (args.limitGroups) {
             filterArgs = filterArgs.concat(args.limitGroups.map(testGroup => "(TestCategory=" + testGroup + "|Category=" + testGroup + ")"));
-        }
+    }
 
-        if (args.skipGroups) {
+    if (args.skipGroups) {
             filterArgs = filterArgs.concat(args.skipGroups.map(testGroup => "(TestCategory!=" + testGroup + "&Category!=" + testGroup + ")"));
-        }  
-        additionalOptions = "/testcaseFilter:\"" + filterArgs.join("&") + "\"";      
-    } 
+    }       
+
+    if(filterArgs.length > 0){
+        additionalOptions = `/testcaseFilter:"${filterArgs.join("&")}"`;      
+    }
 
     // We use the log directory only when BuildXL is run in CloudBuild.
     // Although BuildXL can create a junction (or directory symlink) to the log directory, but

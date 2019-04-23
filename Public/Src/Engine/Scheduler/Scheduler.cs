@@ -5307,6 +5307,14 @@ namespace BuildXL.Scheduler
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        bool IFileContentManagerHost.IsFileRewritten(in FileArtifact artifact)
+        {
+            Contract.Requires(artifact.IsValid);
+
+            return IsFileRewritten(artifact);
+        }
+
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         void IFileContentManagerHost.ReportContent(FileArtifact artifact, in FileMaterializationInfo trackedFileContentInfo, PipOutputOrigin origin)
         {
             // NOTE: Artifacts may be materialized as absent path so we need to check here

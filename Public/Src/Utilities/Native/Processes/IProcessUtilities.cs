@@ -5,10 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using BuildXL.Utilities;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
-using BuildXL.Utilities;
-
 #if FEATURE_SAFE_PROCESS_HANDLE
 using ProcessHandle = System.Runtime.InteropServices.SafeHandle;
 using ProcessPtr = Microsoft.Win32.SafeHandles.SafeProcessHandle;

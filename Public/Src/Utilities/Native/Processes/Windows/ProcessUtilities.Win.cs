@@ -9,11 +9,10 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
+using BuildXL.Interop.Windows;
 using BuildXL.Interop;
 using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
-using BuildXL.Interop.Windows;
-
 #if FEATURE_SAFE_PROCESS_HANDLE
 using ProcessHandle = System.Runtime.InteropServices.SafeHandle;
 using ProcessPtr = Microsoft.Win32.SafeHandles.SafeProcessHandle;
@@ -274,7 +273,7 @@ namespace BuildXL.Native.Processes.Windows
         }
 
         [DllImport(ExternDll.BuildXLNatives64, EntryPoint = "NormalizeAndHashPath", CharSet = CharSet.Unicode)]
-        private unsafe static extern int ExternNormalizeAndHashPath(
+        private static extern unsafe int ExternNormalizeAndHashPath(
             [MarshalAs(UnmanagedType.LPWStr)] string path,
             byte* buffer, int bufferLength);
 

@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using BuildXL.Interop;
+using BuildXL.Utilities.Collections;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Dispatch;
 using static BuildXL.Interop.MacOS.Memory;

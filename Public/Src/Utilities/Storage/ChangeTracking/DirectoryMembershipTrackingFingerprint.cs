@@ -175,7 +175,7 @@ namespace BuildXL.Storage.ChangeTracking
             /// <summary>
             /// Computes the hash for a given <paramref name="name"/> and <paramref name="attributes"/>.
             /// </summary>
-            private unsafe static MurmurHash3 HashFileNameAndAttributes(string name, FileAttributes attributes)
+            private static unsafe MurmurHash3 HashFileNameAndAttributes(string name, FileAttributes attributes)
             {
                 string caseNormalized = name.ToUpperInvariant();
                 uint encodedLength = (uint)Encoding.Unicode.GetMaxByteCount(caseNormalized.Length);

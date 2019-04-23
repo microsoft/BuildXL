@@ -13,7 +13,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
-using System.Security.AccessControl;
 using System.Text;
 using System.Text.RegularExpressions;
 using BuildXL.Native.IO.Windows;

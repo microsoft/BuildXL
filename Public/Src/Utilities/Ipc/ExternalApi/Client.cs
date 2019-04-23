@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Ipc.Interfaces;
-using BuildXL.Storage;
 using BuildXL.Utilities;
 
 namespace BuildXL.Ipc.ExternalApi

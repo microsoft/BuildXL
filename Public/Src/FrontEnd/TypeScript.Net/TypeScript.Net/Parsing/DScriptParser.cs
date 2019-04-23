@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.Utilities;
 using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;

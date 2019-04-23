@@ -2,11 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using BuildXL.FrontEnd.Script.Util;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Util;
 using TypeScript.Net.Types;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

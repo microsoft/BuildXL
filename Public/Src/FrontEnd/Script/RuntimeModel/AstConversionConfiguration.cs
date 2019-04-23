@@ -3,8 +3,8 @@
 
 using System.Collections.Generic;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
+using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
 {

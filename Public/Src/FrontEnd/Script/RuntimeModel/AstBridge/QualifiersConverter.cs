@@ -4,7 +4,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Qualifier;
-using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
 using QualifierSpaceDeclaration = System.Collections.Generic.Dictionary<string, System.Collections.Generic.IReadOnlyList<string>>;
 

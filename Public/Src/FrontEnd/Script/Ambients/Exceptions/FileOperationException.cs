@@ -3,9 +3,9 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
 using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 

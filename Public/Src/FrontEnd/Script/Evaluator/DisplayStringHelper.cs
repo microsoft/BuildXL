@@ -9,7 +9,6 @@ using System.Linq;
 using BuildXL.FrontEnd.Script.Ambients.Map;
 using BuildXL.FrontEnd.Script.Ambients.Set;
 using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities;

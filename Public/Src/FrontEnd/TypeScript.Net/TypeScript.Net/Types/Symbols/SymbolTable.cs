@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
-using TypeScript.Net.Extensions;
 
 namespace TypeScript.Net.Types
 {

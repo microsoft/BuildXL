@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 using BuildXL.Engine.Cache;
 using BuildXL.Pips;
 using BuildXL.Utilities;
-using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
+using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Sdk
 {

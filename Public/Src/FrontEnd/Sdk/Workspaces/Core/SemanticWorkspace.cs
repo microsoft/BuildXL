@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Workspaces.Core

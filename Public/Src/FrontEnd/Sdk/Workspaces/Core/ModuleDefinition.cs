@@ -5,12 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.FrontEnd.Script.Constants;
-using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Sdk.Workspaces;
+using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
 {

@@ -8,11 +8,11 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
+using BuildXL.FrontEnd.Nuget.Tracing;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Nuget.Tracing;
-using BuildXL.FrontEnd.Sdk;
 using NuGet.Versioning;
 using Moniker = BuildXL.Utilities.PathAtom;
 

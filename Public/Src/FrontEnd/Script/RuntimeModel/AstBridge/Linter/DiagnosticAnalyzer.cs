@@ -5,13 +5,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules;
+using BuildXL.FrontEnd.Script.Tracing;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.FrontEnd.Script.Tracing;
-using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 

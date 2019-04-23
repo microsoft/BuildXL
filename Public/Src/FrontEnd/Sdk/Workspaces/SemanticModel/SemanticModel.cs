@@ -4,8 +4,8 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.Utilities;
 using JetBrains.Annotations;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Types;

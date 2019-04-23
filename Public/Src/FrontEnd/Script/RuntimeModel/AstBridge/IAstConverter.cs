@@ -3,8 +3,8 @@
 
 using System;
 using System.Runtime.Serialization;
-using JetBrains.Annotations;
 using BuildXL.FrontEnd.Script.Declarations;
+using JetBrains.Annotations;
 using TypeScript.Net;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Types;

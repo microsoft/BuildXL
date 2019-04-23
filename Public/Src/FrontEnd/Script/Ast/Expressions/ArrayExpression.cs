@@ -4,8 +4,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Types;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;

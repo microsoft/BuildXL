@@ -4,12 +4,12 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
+using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script
 {

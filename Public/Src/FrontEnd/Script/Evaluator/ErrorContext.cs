@@ -4,7 +4,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script;
 
 namespace BuildXL.FrontEnd.Script.Evaluator
 {

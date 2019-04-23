@@ -4,9 +4,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Sdk.Tracing;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.FrontEnd.Sdk
 {

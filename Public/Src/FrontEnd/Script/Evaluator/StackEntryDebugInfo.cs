@@ -4,10 +4,10 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Script.Values;
 
 #pragma warning disable SA1649 // File name must match first type name
 

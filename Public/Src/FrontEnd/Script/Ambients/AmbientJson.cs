@@ -4,17 +4,16 @@
 using System;
 using System.Globalization;
 using System.IO;
-using System.Security.Cryptography;
 using System.Text;
-using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Ambients.Exceptions;
-using BuildXL.FrontEnd.Script.Runtime;
 using BuildXL.FrontEnd.Script.Ambients.Map;
 using BuildXL.FrontEnd.Script.Ambients.Set;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Runtime;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Pips.Operations;
+using BuildXL.Utilities;
 using Newtonsoft.Json;
 
 namespace BuildXL.FrontEnd.Script.Ambients

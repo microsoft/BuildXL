@@ -4,11 +4,9 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.FrontEnd.Script;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Types;
+using BuildXL.Utilities;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
-using SyntaxKind = TypeScript.Net.Types.SyntaxKind;
 
 namespace BuildXL.FrontEnd.Script.Expressions
 {

@@ -6,8 +6,8 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
+using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 
 namespace BuildXL.FrontEnd.Workspaces.Core

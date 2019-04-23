@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Reflection;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Util
 {

@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Values;
 using TypeScript.Net.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Types

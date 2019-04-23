@@ -3,9 +3,9 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;

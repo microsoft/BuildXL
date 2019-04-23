@@ -8,9 +8,9 @@ using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities.Collections;
 using BuildXL.FrontEnd.Script.Ambients.Set;
 using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Map
 {

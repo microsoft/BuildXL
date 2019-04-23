@@ -3,10 +3,9 @@
 
 using System;
 using System.Collections.Generic;
-using JetBrains.Annotations;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
-using TypeScript.Net.Extensions;
+using BuildXL.FrontEnd.Script.Values;
+using JetBrains.Annotations;
 using TypeScript.Net.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Statements

@@ -5,7 +5,6 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Text.RegularExpressions;
 using JetBrains.Annotations;
-using TypeScript.Net.Extensions;
 
 namespace TypeScript.Net.Types
 {

@@ -4,16 +4,14 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
-using BuildXL.FrontEnd.Script.Ambients;
-using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
-using BuildXL.FrontEnd.Script.Evaluator;
-using LineInfo = TypeScript.Net.Utilities.LineInfo;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.FormattableStringEx;
+using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Values
 {
@@ -73,7 +71,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <summary>
         /// Creates an array literal from the stream.
         /// </summary>
-        public new static ArrayLiteral Create(DeserializationContext context, LineInfo location)
+        public static new ArrayLiteral Create(DeserializationContext context, LineInfo location)
         {
             var reader = context.Reader;
 

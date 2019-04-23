@@ -4,9 +4,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Sdk;
 
 namespace BuildXL.FrontEnd.Script
 {

@@ -4,12 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Ambients
 {

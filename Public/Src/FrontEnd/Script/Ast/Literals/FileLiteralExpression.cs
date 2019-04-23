@@ -2,13 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.FrontEnd.Script.Expressions;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Script.Types;
+using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Util;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

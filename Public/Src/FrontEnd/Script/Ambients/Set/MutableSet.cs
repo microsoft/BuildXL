@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
-using BuildXL.Utilities.Collections;
 using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities.Collections;
 using InternalSet = System.Collections.Generic.HashSet<BuildXL.FrontEnd.Script.Ambients.Set.TaggedEntry>;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Set

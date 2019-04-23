@@ -5,11 +5,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
-using SyntaxKind = TypeScript.Net.Types.SyntaxKind;
 
 namespace BuildXL.FrontEnd.Script.Statements
 {

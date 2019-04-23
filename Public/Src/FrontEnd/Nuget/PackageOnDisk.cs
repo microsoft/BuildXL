@@ -3,10 +3,10 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Nuget
 {

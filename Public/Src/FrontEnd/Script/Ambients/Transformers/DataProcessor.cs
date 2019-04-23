@@ -4,10 +4,10 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 {

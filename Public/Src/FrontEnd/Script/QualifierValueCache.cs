@@ -3,9 +3,9 @@
 
 using System.Diagnostics.ContractsLight;
 using System.Threading;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Script.Values;
 
 namespace BuildXL.FrontEnd.Script
 {

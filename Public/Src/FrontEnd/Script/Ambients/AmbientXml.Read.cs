@@ -5,12 +5,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Xml;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Ambients.Exceptions;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.Ambients

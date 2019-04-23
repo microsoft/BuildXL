@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Workspaces;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Script.Util;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules

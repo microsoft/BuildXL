@@ -109,7 +109,6 @@ namespace BuildXL.Engine.Cache.Serialization
                 sb.AppendLine();
                 return sb.ToString();
             }
-
         }
     }
 
@@ -124,7 +123,7 @@ namespace BuildXL.Engine.Cache.Serialization
         /// <returns>
         /// The root node of the tree built.
         /// </returns>
-        public static JsonNode BuildTree(string json)
+        public static JsonNode Deserialize(string json)
         {
             var reader = new JsonTextReader(new StringReader(json));
             var parentStack = new Stack<JsonNode>();
@@ -160,6 +159,68 @@ namespace BuildXL.Engine.Cache.Serialization
             }
 
             return currentNode;
+        }
+
+        /// <summary>
+        /// Given the root <see cref="JsonNode"/> a <see cref="JsonTree"/>, converts the tree into a valid JSON string.
+        /// </summary>
+        /// <remarks>
+        /// This function is recursive to allow re-using <see cref="JsonFingerprinter"/> helper functions for nested objects instead of having to re-build the JSON string from scratch.
+        /// The max nested depth for JSON representation of fingerprints is relatively low (~5 stacks), so stack memory should be trivial.
+        /// </remarks>
+        public static string Serialize(JsonNode root)
+        {
+            return JsonFingerprinter.CreateJsonString(wr =>
+            {
+                // If the root is being used to just point to a bunch of child nodes, skip printing it
+                if (string.IsNullOrEmpty(root.Name))
+                {
+                    for (var it = root.Children.Last; it != null; it = it.Previous)
+                    {
+                        BuildStringHelper(it.Value, wr);
+                    }
+                }
+                else
+                {
+                    BuildStringHelper(root, wr);
+                }
+            },
+            Formatting.Indented);
+        }
+
+        private static void BuildStringHelper(JsonNode root, IFingerprinter wr)
+        {
+            if (root.Children.Count == 1 && root.Values.Count == 0)
+            {
+                wr.AddNested(root.Name, nestedWr =>
+                {
+                    BuildStringHelper(root.Children.First.Value, nestedWr);
+                });
+            }
+            else if (root.Children.Count == 0 && root.Values.Count == 1)
+            {
+                wr.Add(root.Name, root.Values[0]);
+            }
+            else
+            {
+                // Adding a collection is typically used to add a homogeneous collection of objects.
+                // In this case, the values of the node and the children of the node both need to be added within the same nested collection.
+                // To get around this without adding two collections associated with the same node, use just the current root node as the collection and
+                // manually add the node's values and node's children.
+                wr.AddCollection<JsonNode, IEnumerable<JsonNode>>(root.Name, new JsonNode[] { root }, (collectionWriter, n) =>
+                {
+                    foreach (var value in n.Values)
+                    {
+                        collectionWriter.Add(value);
+                    }
+
+                    for (var it = n.Children.Last; it != null; it = it.Previous)
+                    {
+                        BuildStringHelper(it.Value, collectionWriter);
+                    }
+                });
+            }
+
         }
 
         /// <summary>
@@ -337,56 +398,6 @@ namespace BuildXL.Engine.Cache.Serialization
             EmancipateBranch(root);
             newParent.Children.AddLast(root);
             root.Parent = newParent;
-        }
-
-        /// <summary>
-        /// Prints a tree.
-        /// </summary>
-        public static string PrintTree(JsonNode root)
-        {
-            using (var sbPool = Pools.GetStringBuilder())
-            {
-                var sb = sbPool.Instance;
-
-                var search = new Stack<(JsonNode n, int d)>();
-
-                // If the root is being used to just point to a bunch of child nodes, skip printing it
-                if (root.Name == null)
-                {
-                    foreach (var child in root.Children)
-                    {
-                        search.Push((child, 0));
-                    }
-                }
-                else
-                {
-                    search.Push((root, 0));
-                }
-
-                var indentPrefix = "";
-                while (search.Count != 0)
-                {
-                    var (n, d) = search.Pop();
-
-                    indentPrefix = new string('\t', d);
-
-                    sb.AppendLine(string.Format("{0}[{1}]", indentPrefix, n.Name));
-
-                    foreach (var val in n.Values)
-                    {
-                        // Add appropriate indents for multi-line values
-                        var print = val.Replace(Environment.NewLine, Environment.NewLine + "\t" + indentPrefix);
-                        sb.AppendLine(string.Format("\t{0}\"{1}\"", indentPrefix, print));
-                    }
-
-                    foreach (var child in n.Children)
-                    {
-                        search.Push((child, d + 1));
-                    }
-                }
-
-                return sb.ToString();
-            }
         }
 
         /// <summary>

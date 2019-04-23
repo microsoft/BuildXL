@@ -2,10 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.IO;
-using Newtonsoft.Json;
 using System.Collections.Generic;
 using System;
 using BuildXL.Utilities;
+using JsonDiffPatchDotNet;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace BuildXL.Engine.Cache.Serialization
 {
@@ -261,8 +263,12 @@ namespace BuildXL.Engine.Cache.Serialization
         /// </returns>
         public static string PrintTreeDiff(JsonNode rootA, JsonNode rootB)
         {
-            var changeList = DiffTrees(rootA, rootB);
-            return PrintTreeChangeList(changeList);
+            var jsonA = Serialize(rootA);
+            var jsonB = Serialize(rootB);
+
+            var jdp = new JsonDiffPatch();
+            var diff = jdp.Diff(JToken.Parse(jsonA), JToken.Parse(jsonB));
+            return diff.ToString();
         }
 
         /// <summary>

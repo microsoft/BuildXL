@@ -1,13 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
-using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Utilities.Instrumentation.Common;
 using Grpc.Core;
 using Grpc.Core.Interceptors;

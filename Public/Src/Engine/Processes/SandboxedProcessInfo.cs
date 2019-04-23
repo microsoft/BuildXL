@@ -7,10 +7,11 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using BuildXL.Native.Processes;
+using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.BuildParameters;
 
 namespace BuildXL.Processes

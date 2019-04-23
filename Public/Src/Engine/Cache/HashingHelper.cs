@@ -4,12 +4,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Security.Cryptography;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Storage;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities;
 
 namespace BuildXL.Engine.Cache
 {

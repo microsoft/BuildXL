@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;

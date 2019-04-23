@@ -7,14 +7,14 @@ using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
+using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Engine.Tracing;
 using BuildXL.Pips;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Engine.Distribution.OpenBond;
+using BuildXL.Utilities.Instrumentation.Common;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else

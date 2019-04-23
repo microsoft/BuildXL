@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.Engine.Tracing;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Engine.Tracing;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Engine.Recovery
 {

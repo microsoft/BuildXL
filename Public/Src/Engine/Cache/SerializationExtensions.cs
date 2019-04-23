@@ -4,9 +4,9 @@
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Storage;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 namespace BuildXL.Engine.Cache
 {

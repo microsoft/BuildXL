@@ -4,8 +4,8 @@
 using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Utilities;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities;
 
 namespace BuildXL.Engine.Cache
 {

@@ -8,10 +8,8 @@ using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
 using Grpc.Core;
 
 namespace BuildXL.Engine.Distribution.Grpc

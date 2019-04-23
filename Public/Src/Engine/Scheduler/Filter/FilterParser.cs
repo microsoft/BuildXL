@@ -162,7 +162,7 @@ namespace BuildXL.Scheduler.Filter
             return ParseBinary();
         }
 
-        private readonly static FilterOperator[] s_filterOperatorsPrecedenceOrder = new[]
+        private static readonly FilterOperator[] s_filterOperatorsPrecedenceOrder = new[]
         {
             FilterOperator.And,
             FilterOperator.Or

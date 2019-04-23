@@ -4,12 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
-
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else

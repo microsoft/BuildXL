@@ -11,7 +11,6 @@ using System.Text;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Native.IO;
-using BuildXL.Native.IO.Windows;
 using BuildXL.Pips;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Fingerprints;

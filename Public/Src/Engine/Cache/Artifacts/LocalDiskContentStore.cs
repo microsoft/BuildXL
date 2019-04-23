@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -15,13 +14,12 @@ using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.FormattableStringEx;
-using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 namespace BuildXL.Engine.Cache.Artifacts
 {

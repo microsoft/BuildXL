@@ -4,10 +4,10 @@
 using System;
 using BuildXL.Engine.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
-using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Engine.Recovery
 {

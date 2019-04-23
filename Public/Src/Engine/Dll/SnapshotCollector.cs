@@ -15,11 +15,10 @@ using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
-
 using static BuildXL.Utilities.FormattableStringEx;
 using ProcessNativeMethods = BuildXL.Native.Processes.ProcessUtilities;
 

@@ -10,13 +10,13 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-#if !DISABLE_FEATURE_SYSTEM_MANAGEMENT
-using System.Management;
-#endif
 using System.Runtime.InteropServices;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes.Windows;
 using BuildXL.Utilities;
+#if !DISABLE_FEATURE_SYSTEM_MANAGEMENT
+using System.Management;
+#endif
 
 namespace BuildXL.Processes
 {

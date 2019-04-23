@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.IO;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using BuildXL.Utilities;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!

@@ -17,10 +17,10 @@ using BuildXL.Pips.Operations;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Threading;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Tracing
@@ -29,7 +29,7 @@ namespace BuildXL.Scheduler.Tracing
     /// Tracks operations associated with pip execution
     ///
     /// At a high level, operations start from a root operation (via <see cref="OperationContext"/>
-    /// returned by <see cref="StartOperation(OperationKind, PipId, PipType, LoggingContext, Action{OperationKind, TimeSpan})"/>). An operation may start be started from the context
+    /// returned by <see cref="StartOperation(OperationKind, PipId, PipType, LoggingContext, Action{OperationKind,TimeSpan})"/>). An operation may start be started from the context
     /// either as a nested operation or a new operation thread. Nested operations are awaited by the current
     /// <see cref="OperationThread.ActiveOperation"/> and become the new <see cref="OperationThread.ActiveOperation"/>
     /// for the duration of their scope. A new operation thread represents an operation

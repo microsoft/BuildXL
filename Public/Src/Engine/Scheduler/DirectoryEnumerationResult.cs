@@ -1,13 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.Native.IO;
-using BuildXL.Utilities;
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
+using BuildXL.Native.IO;
+using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler
 {

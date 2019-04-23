@@ -9,8 +9,8 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler.Artifacts
 {

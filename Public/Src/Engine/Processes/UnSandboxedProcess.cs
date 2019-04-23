@@ -6,20 +6,21 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
-using System.Threading.Tasks;
-using BuildXL.Utilities.Tasks;
-using BuildXL.Interop;
-using BuildXL.Utilities;
-using System.IO;
-using static BuildXL.Utilities.FormattableStringEx;
 using System.Linq;
+using System.Threading.Tasks;
+using BuildXL.Interop;
 using BuildXL.Native.IO;
-using static BuildXL.Interop.MacOS.IO;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
+using static BuildXL.Utilities.FormattableStringEx;
 #if FEATURE_SAFE_PROCESS_HANDLE
 using Microsoft.Win32.SafeHandles;
 #else
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
+#endif
+#if PLATFORM_OSX
+using static BuildXL.Interop.MacOS.IO;
 #endif
 
 namespace BuildXL.Processes

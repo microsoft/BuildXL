@@ -9,10 +9,10 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
+using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Interop.MacOS;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Processes

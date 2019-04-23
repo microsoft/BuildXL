@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Scheduler.WorkDispatcher
 {

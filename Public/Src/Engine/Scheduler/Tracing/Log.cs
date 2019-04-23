@@ -4,12 +4,12 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using BuildXL.Pips.Operations;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
-using BuildXL.Pips.Operations;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else

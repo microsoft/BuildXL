@@ -17,6 +17,9 @@ using Microsoft.Win32.SafeHandles;
 #else
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif
+#if PLATFORM_OSX
+using static BuildXL.Interop.MacOS.IO;
+#endif
 
 namespace BuildXL.Processes
 {
@@ -248,6 +251,21 @@ namespace BuildXL.Processes
         protected void CreateAndSetUpProcess()
         {
             Contract.Requires(Process == null);
+
+#if PLATFORM_OSX
+            var mode = GetFilePermissionsForFilePath(ProcessInfo.FileName, followSymlink: false);
+            if (mode < 0)
+            {
+                ThrowBuildXLException($"Process creation failed: File '{ProcessInfo.FileName}' not found");
+            }
+
+            var filePermissions = checked((FilePermissions)mode);
+            FilePermissions exePermission = FilePermissions.S_IXUSR;
+            if (!filePermissions.HasFlag(exePermission))
+            {
+                SetFilePermissionsForFilePath(ProcessInfo.FileName, exePermission);
+            }
+#endif
 
             var process = new Process
             {

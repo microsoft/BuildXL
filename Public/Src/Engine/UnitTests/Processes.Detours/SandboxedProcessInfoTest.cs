@@ -74,20 +74,15 @@ namespace Test.BuildXL.Processes.Detours
             };
 
             // Serialize and deserialize.
-            string file = Path.GetTempFileName();
-
-            using (FileStream fileStream = File.OpenWrite(file))
-            {
-                info.Serialize(fileStream);
-            }
-
             SandboxedProcessInfo readInfo = null;
 
-            using (FileStream fileStream = File.OpenRead(file))
+            using (var stream = new MemoryStream())
             {
+                info.Serialize(stream);
+                stream.Position = 0;
                 readInfo = SandboxedProcessInfo.Deserialize(
-                    fileStream, 
-                    new global::BuildXL.Utilities.Instrumentation.Common.LoggingContext("Test"), 
+                    stream,
+                    new global::BuildXL.Utilities.Instrumentation.Common.LoggingContext("Test"),
                     null);
             }
 

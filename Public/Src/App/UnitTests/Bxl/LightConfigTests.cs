@@ -53,7 +53,7 @@ namespace Test.BuildXL
             bool lightConfigSuccess = LightConfig.TryParse(args, out lightConfig);
 
             XAssert.AreEqual(passParse, fullConfigSuccess);
-            XAssert.AreNotEqual(passParse, lightConfigSuccess);
+            XAssert.AreEqual(passParse, lightConfigSuccess);
 
             if (passParse)
             {

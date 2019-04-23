@@ -15,7 +15,7 @@ namespace BuildXL.Pips
         /// <summary>
         /// The default expander which does has semantic path information
         /// </summary>
-        public new static readonly SemanticPathExpander Default = new SemanticPathExpander();
+        public static new readonly SemanticPathExpander Default = new SemanticPathExpander();
 
         /// <summary>
         /// Gets the semantic path information for the given path in the context of the given pip.

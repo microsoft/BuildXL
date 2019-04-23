@@ -10,7 +10,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -458,7 +457,7 @@ namespace BuildXL.Pips
         /// Get pip process options without the need to hydrate the pip
         /// </summary>
         /// <remarks>
-        /// <paramref name="pipId"/> must refer to <see cref="Process"/>. Use <see cref="GetPipType(PipId)"/> to check.
+        /// <paramref name="pipId"/> must refer to <see cref="Operations.Process"/>. Use <see cref="GetPipType(PipId)"/> to check.
         /// </remarks>
         public Operations.Process.Options GetProcessOptions(PipId pipId)
         {

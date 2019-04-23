@@ -19,8 +19,8 @@ namespace Test.BuildXL.Engine.Cache
             string jsonA = "{\"Dependencies\":[{\"a\":\"valueA\"},{\"b\":\"valueB\"}]}";
             string jsonB = "{\"Dependencies\":[{\"b\":\"valueB\"},{\"a\":\"valueA\"}]}";
 
-            var treeA = JsonTree.BuildTree(jsonA);
-            var treeB = JsonTree.BuildTree(jsonB);
+            var treeA = JsonTree.Deserialize(jsonA);
+            var treeB = JsonTree.Deserialize(jsonB);
 
             var changeList = JsonTree.DiffTrees(treeA, treeB);
             // The change list must detect either "a" or "b" as having moved positions
@@ -39,8 +39,8 @@ namespace Test.BuildXL.Engine.Cache
             string jsonA = "{\"Object\":[{\"WeakFingerprint\":\"097ED1ED5703816B8F286410076E658260D029BC\"},{\"StrongFingerprint\":\"C926945B5824E1CC7C512D66FB3B8FE869B71936\"}]}";
             string jsonB = "{\"Object\":[{\"WeakFingerprint\":\"097ED1ED5703816B8F286410076E658260D029BC\"},{\"StrongFingerprint\":\"DefinitelyNotTheSameFingerprint\"}]}";
 
-            var treeA = JsonTree.BuildTree(jsonA);
-            var treeB = JsonTree.BuildTree(jsonB);
+            var treeA = JsonTree.Deserialize(jsonA);
+            var treeB = JsonTree.Deserialize(jsonB);
 
             var changeList = JsonTree.DiffTrees(treeA, treeB);
             AssertUnchanged("WeakFingerprint", changeList);
@@ -55,8 +55,8 @@ namespace Test.BuildXL.Engine.Cache
             string jsonB = "{\"Object\":[{\"PathSet\":\"VSO0:890000000000000000000000000000000000000000000000000000000000000000\"}," +
                 "{\"ObservedInputs\":[{\"P\":\"\"},{\"P\":\"\"},{\"P\":\"CHANGEDVALUE\"},{\"P\":\"\"},{\"P\":\"\"},{\"P\":\"\"},{\"E\":\"VSO0:4D939FB1E1CE7586909F84F4FEFB0F385B31DD586FF97FC14874BCDB4B2A801400\"}]}]}";
 
-            var treeA = JsonTree.BuildTree(jsonA);
-            var treeB = JsonTree.BuildTree(jsonB);
+            var treeA = JsonTree.Deserialize(jsonA);
+            var treeB = JsonTree.Deserialize(jsonB);
 
             var changeList = JsonTree.DiffTrees(treeA, treeB);
             AssertChanged("P", changeList);
@@ -96,8 +96,8 @@ namespace Test.BuildXL.Engine.Cache
                 "{\"Environment\":[]},{\"WarningTimeout\":\"-1\"},{\"AddedTimeout\":\"-1\"},{\"WarningRegex.Pattern\":\"^\\\\s*((((((\\\\d+>)?[a-zA-Z]?:[^:]*)|([^:]*))):)|())(()|([^:]*? ))warning( \\\\s*([^: ]*))?\\\\s*:.*$\"},{\"WarningRegex.Options\":\"1\"}," +
                 "{\"ErrorRegex.Pattern\":\".*\"},{\"ErrorRegex.Options\":\"1\"},{\"SuccessExitCodes\":[]}]}";
 
-            var treeA = JsonTree.BuildTree(jsonA);
-            var treeB = JsonTree.BuildTree(jsonB);
+            var treeA = JsonTree.Deserialize(jsonA);
+            var treeB = JsonTree.Deserialize(jsonB);
 
             var changeList = JsonTree.DiffTrees(treeA, treeB);
             AssertUnchanged("Outputs", changeList);

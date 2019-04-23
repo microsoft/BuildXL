@@ -119,10 +119,10 @@ namespace BuildXL.Execution.Analyzer
             using (var pipSession = m_storeReader.StartPipRecordingSession(PipFormattedSemistableHash))
             {
                 m_writer.WriteLine("WEAKFINGERPRINT:");
-                m_writer.WriteLine(JsonTree.PrintTree(pipSession.GetWeakFingerprintTree()));
+                m_writer.WriteLine(JsonTree.Serialize(pipSession.GetWeakFingerprintTree()));
                 m_writer.WriteLine();
                 m_writer.WriteLine("STRONGFINGERPRINT:");
-                m_writer.WriteLine(JsonTree.PrintTree(pipSession.GetStrongFingerprintTree()));
+                m_writer.WriteLine(JsonTree.Serialize(pipSession.GetStrongFingerprintTree()));
             }
 
             m_writer.Flush();

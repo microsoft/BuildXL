@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 
 namespace BuildXL.Processes
 {
@@ -124,5 +125,22 @@ namespace BuildXL.Processes
         /// Total time between creation and exit.
         /// </summary>
         public TimeSpan TotalWallClockTime => StartTimeUtc < ExitTimeUtc ? ExitTimeUtc - StartTimeUtc : TimeSpan.Zero;
+
+        /// <nodoc />
+        public void Serialize(BinaryWriter writer)
+        {
+            writer.Write(m_create);
+            writer.Write(m_exit);
+            writer.Write(m_kernel);
+            writer.Write(m_user);
+        }
+
+        /// <nodoc />
+        public static ProcessTimes Deserialize(BinaryReader reader) 
+            => new ProcessTimes(
+                creation: reader.ReadInt64(), 
+                exit:     reader.ReadInt64(), 
+                kernel:   reader.ReadInt64(), 
+                user:     reader.ReadInt64());
     }
 }

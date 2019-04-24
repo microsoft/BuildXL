@@ -131,6 +131,13 @@ namespace Flags {
     */
     @@public
     export const isQTestEnabled = isMicrosoftInternal && Environment.getFlag("[Sdk.BuildXL]useQTest");
+
+    /** 
+     * Whether we are generating VS solution. 
+     * We are using this flag to filter out some deployment items that can cause race in the generated VS project files.
+     */
+    @@public
+    export const genVSSolution = Environment.getFlag("[Sdk.BuildXL]GenerateVSSolution");
 }
 
 @@public

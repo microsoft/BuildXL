@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
@@ -619,6 +620,72 @@ namespace BuildXL.Processes
                 AbsolutePath.Invalid,
                 path,
                 enumeratePattern);
+        }
+
+        /// <nodoc />
+        public void Serialize(
+            BuildXLWriter writer,
+            Dictionary<ReportedProcess, int> processMap,
+            Action<BuildXLWriter, AbsolutePath> writePath)
+        {
+            writer.Write((byte)Operation);
+
+            if (processMap != null && processMap.TryGetValue(Process, out int index))
+            {
+                writer.WriteCompact(index);
+            }
+            else
+            {
+                Process.Serialize(writer);
+            }
+
+            writer.WriteCompact((int)RequestedAccess);
+            writer.WriteCompact((int)Status);
+            writer.Write(ExplicitlyReported);
+            writer.Write(Error);
+            writer.Write(Usn.Value);
+            writer.Write((uint)DesiredAccess);
+            writer.Write((uint)ShareMode);
+            writer.Write((uint)CreationDisposition);
+            writer.Write((uint)FlagsAndAttributes);
+
+            if (writePath != null)
+            {
+                writePath(writer, ManifestPath);
+            }
+            else
+            {
+                writer.Write(ManifestPath);
+            }
+
+            writer.WriteNullableString(Path);
+            writer.WriteNullableString(EnumeratePattern);
+        }
+
+        /// <nodoc />
+        public static ReportedFileAccess Deserialize(
+            BuildXLReader reader, 
+            IReadOnlyList<ReportedProcess> processes, 
+            Func<BuildXLReader, AbsolutePath> readPath)
+        {
+            return new ReportedFileAccess(
+                operation: (ReportedFileOperation)reader.ReadByte(),
+                process: processes != null ? processes[reader.ReadInt32Compact()] : ReportedProcess.Deserialize(reader),
+                requestedAccess: (RequestedAccess)reader.ReadInt32Compact(),
+                status: (FileAccessStatus)reader.ReadInt32Compact(),
+                explicitlyReported: reader.ReadBoolean(),
+                error: reader.ReadUInt32(),
+                // In general if process is executed externally, e.g., in VM, the obtained USN cannot be translated to the host.
+                // However, for our low-privilege build, we are going to map the host volumes to the VM, and thus the USN
+                // can still be used.
+                usn: new Usn(reader.ReadUInt64()),
+                desiredAccess: (DesiredAccess)reader.ReadUInt32(),
+                shareMode: (ShareMode)reader.ReadUInt32(),
+                creationDisposition: (CreationDisposition)reader.ReadUInt32(),
+                flagsAndAttributes: (FlagsAndAttributes)reader.ReadUInt32(),
+                manifestPath: readPath != null ? readPath(reader) : reader.ReadAbsolutePath(),
+                path: reader.ReadNullableString(),
+                enumeratePatttern: reader.ReadNullableString());
         }
 
         /// <inherit />

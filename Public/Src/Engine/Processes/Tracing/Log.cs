@@ -882,5 +882,23 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Events.Tasks.PipExecutor,
             Message = Events.PipPrefix + "Process was specified to run in a container, but this capability is not available on this machine.")]
         public abstract void PipSpecifiedToRunInContainerButIsolationIsNotSupported(LoggingContext context, long pipSemiStableHash, string pipDescription);
+
+        [GeneratedEvent(
+            (int) EventId.PipProcessStartExternalTool,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "Process execution via external tool '{tool}' starts")]
+        public abstract void PipProcessStartExternalTool(LoggingContext context, long pipSemiStableHash, string pipDescription, string tool);
+
+        [GeneratedEvent(
+            (int)EventId.PipProcessFinishedExternalTool,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "Process execution via external tool finished with the tool's exit code {exitCode}:{stdOut}{stdErr}")]
+        public abstract void PipProcessFinishedExternalTool(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
     }
 }

@@ -30,6 +30,21 @@ namespace BuildXL.Processes
         private readonly Node m_rootNode;
 
         /// <summary>
+        /// File access manifest flags.
+        /// </summary>
+        private FileAccessManifestFlag m_fileAccessManifestFlag;
+
+        /// <summary>
+        /// Name of semaphore for message count.
+        /// </summary>
+        private string m_messageCountSemaphoreName;
+
+        /// <summary>
+        /// Sealed manifest tree.
+        /// </summary>
+        private byte[] m_sealedManifestTreeBlock;
+
+        /// <summary>
         /// Creates an empty instance.
         /// </summary>
         public FileAccessManifest(PathTable pathTable, DirectoryTranslator translateDirectories = null)
@@ -62,7 +77,6 @@ namespace BuildXL.Processes
             LogProcessData = false;
             IgnoreGetFinalPathNameByHandle = true;
             LogProcessDetouringStatus = false;
-            AllowInternalDetoursErrorNotificationFile = false;
             HardExitOnErrorInDetours = false;
             CheckDetoursMessageCount = false;
             InternalDetoursErrorNotificationFile = string.Empty;
@@ -71,11 +85,39 @@ namespace BuildXL.Processes
             EnforceAccessPoliciesOnDirectoryCreation = false;
         }
 
+        private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;
+
+        /// <summary>
+        /// Gets file access manifest flag.
+        /// </summary>
+        internal FileAccessManifestFlag Flag => m_fileAccessManifestFlag;
+
+        private void SetFlag(FileAccessManifestFlag flag, bool value)
+        {
+            if (value)
+            {
+                m_fileAccessManifestFlag |= flag;
+            }
+            else
+            {
+                m_fileAccessManifestFlag &= ~flag;
+            }
+        }
+
+        /// <summary>
+        /// Flag indicating if the manifest tree block is sealed.
+        /// </summary>
+        public bool IsManifestTreeBlockSealed => m_sealedManifestTreeBlock != null;
+
         /// <summary>
         /// If true, then the detoured file access functions will write diagnostic messages
         /// to stderr when access to files is prevented.
         /// </summary>
-        public bool EnableDiagnosticMessages { get; set; }
+        public bool EnableDiagnosticMessages
+        {
+            get => GetFlag(FileAccessManifestFlag.DiagnosticMessagesEnabled);
+            set => SetFlag(FileAccessManifestFlag.DiagnosticMessagesEnabled, value);
+        }
 
         /// <summary>
         /// If true, then detoured file access functions will treat invalid file access as an
@@ -83,136 +125,250 @@ namespace BuildXL.Processes
         /// If false, then detoured file access functions will treat invalid file access as a
         /// warning, but will still allow the file access to occur.
         /// </summary>
-        public bool FailUnexpectedFileAccesses { get; set; }
+        public bool FailUnexpectedFileAccesses
+        {
+            get => GetFlag(FileAccessManifestFlag.FailUnexpectedFileAccesses);
+            set => SetFlag(FileAccessManifestFlag.FailUnexpectedFileAccesses, value);
+        }
 
         /// <summary>
         /// If true, the detoured process won't be downgrading CreateDirectory call to read-only probe
         /// in cases when the directory already exists.
         /// </summary>
-        public bool EnforceAccessPoliciesOnDirectoryCreation { get; set; }
+        public bool EnforceAccessPoliciesOnDirectoryCreation
+        {
+            get => GetFlag(FileAccessManifestFlag.EnforceAccessPoliciesOnDirectoryCreation);
+            set => SetFlag(FileAccessManifestFlag.EnforceAccessPoliciesOnDirectoryCreation, value);
+        }
 
         /// <summary>
         /// If true, then the detoured process will execute the Win32 DebugBreak() function
         /// when the process attempts to access a file that is outside of its permitted scope.
         /// </summary>
-        public bool BreakOnUnexpectedAccess { get; set; }
+        public bool BreakOnUnexpectedAccess
+        {
+            get => GetFlag(FileAccessManifestFlag.BreakOnAccessDenied);
+            set => SetFlag(FileAccessManifestFlag.BreakOnAccessDenied, value);
+        }
 
         /// <summary>
         /// If true, then all file accesses will be recorded
         /// </summary>
-        public bool ReportFileAccesses { get; set; }
+        public bool ReportFileAccesses
+        {
+            get => GetFlag(FileAccessManifestFlag.ReportFileAccesses);
+            set => SetFlag(FileAccessManifestFlag.ReportFileAccesses, value);
+        }
 
         /// <summary>
         /// If true, then all unexpected file accesses will be recorded
         /// </summary>
-        public bool ReportUnexpectedFileAccesses { get; set; }
+        public bool ReportUnexpectedFileAccesses
+        {
+            get => GetFlag(FileAccessManifestFlag.ReportUnexpectedFileAccesses);
+            set => SetFlag(FileAccessManifestFlag.ReportUnexpectedFileAccesses, value);
+        }
 
         /// <summary>
         /// If true, then nested processes will be monitored just like the main process
         /// </summary>
-        public bool MonitorChildProcesses { get; set; }
+        public bool MonitorChildProcesses
+        {
+            get => GetFlag(FileAccessManifestFlag.MonitorChildProcesses);
+            set => SetFlag(FileAccessManifestFlag.MonitorChildProcesses, value);
+        }
 
         /// <summary>
         /// Monitor files opened for read by NtCreateFile
         /// TODO: This should be a temporary hack until we fix all places broken by the NtCreateFile monitoring
         /// </summary>
-        public bool MonitorNtCreateFile { get; set; }
+        public bool MonitorNtCreateFile
+        {
+            get => GetFlag(FileAccessManifestFlag.MonitorNtCreateFile);
+            set => SetFlag(FileAccessManifestFlag.MonitorNtCreateFile, value);
+        }
 
         /// <summary>
         /// Monitor files opened for read by ZwCreateOpenQueryFile
         /// </summary>
-        public bool MonitorZwCreateOpenQueryFile { get; set; }
+        public bool MonitorZwCreateOpenQueryFile
+        {
+            get => GetFlag(FileAccessManifestFlag.MonitorZwCreateOpenQueryFile);
+            set => SetFlag(FileAccessManifestFlag.MonitorZwCreateOpenQueryFile, value);
+        }
 
         /// <summary>
         /// If true, force read only for requested read-write access so long as the tool is allowed to read.
         /// </summary>
-        public bool ForceReadOnlyForRequestedReadWrite { get; set; }
+        public bool ForceReadOnlyForRequestedReadWrite
+        {
+            get => GetFlag(FileAccessManifestFlag.ForceReadOnlyForRequestedReadWrite);
+            set => SetFlag(FileAccessManifestFlag.ForceReadOnlyForRequestedReadWrite, value);
+        }
 
         /// <summary>
         /// If true, allows detouring the ZwRenameFileInformation API.
         /// </summary>
-        public bool IgnoreZwRenameFileInformation { get; set; }
+        public bool IgnoreZwRenameFileInformation
+        {
+            get => GetFlag(FileAccessManifestFlag.IgnoreZwRenameFileInformation);
+            set => SetFlag(FileAccessManifestFlag.IgnoreZwRenameFileInformation, value);
+        }
 
         /// <summary>
         /// If true, allows detouring the ZwOtherFileInformation API.
         /// </summary>
-        public bool IgnoreZwOtherFileInformation { get; set; }
+        public bool IgnoreZwOtherFileInformation
+        {
+            get => GetFlag(FileAccessManifestFlag.IgnoreZwOtherFileInformation);
+            set => SetFlag(FileAccessManifestFlag.IgnoreZwOtherFileInformation, value);
+        }
 
         /// <summary>
         /// If true, allows following symlinks for Non CreateFile APIs.
         /// </summary>
-        public bool IgnoreNonCreateFileReparsePoints { get; set; }
+        public bool IgnoreNonCreateFileReparsePoints
+        {
+            get => GetFlag(FileAccessManifestFlag.IgnoreNonCreateFileReparsePoints);
+            set => SetFlag(FileAccessManifestFlag.IgnoreNonCreateFileReparsePoints, value);
+        }
 
         /// <summary>
         /// If true, allows detouring the SetFileInformationByHandle API.
         /// </summary>
-        public bool IgnoreSetFileInformationByHandle { get; set; }
+        public bool IgnoreSetFileInformationByHandle
+        {
+            get => GetFlag(FileAccessManifestFlag.IgnoreSetFileInformationByHandle);
+            set => SetFlag(FileAccessManifestFlag.IgnoreSetFileInformationByHandle, value);
+        }
 
         /// <summary>
         /// If true, allows following reparse points without enforcing any file access rules.
         /// </summary>
-        public bool IgnoreReparsePoints { get; set; }
+        public bool IgnoreReparsePoints
+        {
+            get => GetFlag(FileAccessManifestFlag.IgnoreReparsePoints);
+            set => SetFlag(FileAccessManifestFlag.IgnoreReparsePoints, value);
+        }
 
         /// <summary>
         /// If true, allows enforcing file access rules for preloaded (statically) loaded Dlls.
         /// </summary>
-        public bool IgnorePreloadedDlls { get; set; }
+        public bool IgnorePreloadedDlls
+        {
+            get => GetFlag(FileAccessManifestFlag.IgnorePreloadedDlls);
+            set => SetFlag(FileAccessManifestFlag.IgnorePreloadedDlls, value);
+        }
 
         /// <summary>
         /// If true, disables detouring any file access APIs, which will lead to incorrect builds.
         /// </summary>
-        public bool DisableDetours { get; set; }
+        public bool DisableDetours
+        {
+            get => GetFlag(FileAccessManifestFlag.DisableDetours);
+            set => SetFlag(FileAccessManifestFlag.DisableDetours, value);
+        }
 
         /// <summary>
         /// If true, ignore certain files that are accessed as a side-effect of code coverage collection
         /// </summary>
-        public bool IgnoreCodeCoverage { get; set; }
+        public bool IgnoreCodeCoverage
+        {
+            get => GetFlag(FileAccessManifestFlag.IgnoreCodeCoverage);
+            set => SetFlag(FileAccessManifestFlag.IgnoreCodeCoverage, value);
+        }
 
         /// <summary>
         /// If true, the command line arguments of all processes (including child processes) launched by the pip will be reported
         /// </summary>
-        public bool ReportProcessArgs { get; set; }
+        public bool ReportProcessArgs
+        {
+            get => GetFlag(FileAccessManifestFlag.ReportProcessArgs);
+            set => SetFlag(FileAccessManifestFlag.ReportProcessArgs, value);
+        }
 
         /// <summary>
         /// If true, all file reads will get a consistent timestamp. When false, actual timestamps will be allowed to flow
         /// through, as long as they are newer than the static <see cref="WellKnownTimestamps.NewInputTimestamp"/> used for enforcing rewrite order.
         /// </summary>
-        public bool NormalizeReadTimestamps { get; set; }
+        public bool NormalizeReadTimestamps
+        {
+            get => GetFlag(FileAccessManifestFlag.NormalizeReadTimestamps);
+            set => SetFlag(FileAccessManifestFlag.NormalizeReadTimestamps, value);
+        }
 
         /// <summary>
         /// Whether BuildXL will use larger NtClose preallocated list.
         /// </summary>
-        public bool UseLargeNtClosePreallocatedList { get; set; }
+        public bool UseLargeNtClosePreallocatedList
+        {
+            get => GetFlag(FileAccessManifestFlag.UseLargeNtClosePreallocatedList);
+            set => SetFlag(FileAccessManifestFlag.UseLargeNtClosePreallocatedList, value);
+        }
 
         /// <summary>
         /// Whether BuildXL will use extra thread to drain NtClose handle List or clean the cache directly.
         /// </summary>
-        public bool UseExtraThreadToDrainNtClose { get; set; }
+        public bool UseExtraThreadToDrainNtClose
+        {
+            get => GetFlag(FileAccessManifestFlag.UseExtraThreadToDrainNtClose);
+            set => SetFlag(FileAccessManifestFlag.UseExtraThreadToDrainNtClose, value);
+        }
 
         /// <summary>
         /// Determines whether BuildXL will collect proccess execution data, kernel/user mode time and IO counts.
         /// </summary>
-        public bool LogProcessData { get; set; }
+        public bool LogProcessData
+        {
+            get => GetFlag(FileAccessManifestFlag.LogProcessData);
+            set => SetFlag(FileAccessManifestFlag.LogProcessData, value);
+        }
 
         /// <summary>
         /// If true, don't detour the GetFinalPathNameByHandle API.
         /// </summary>
-        public bool IgnoreGetFinalPathNameByHandle { get; set; }
+        public bool IgnoreGetFinalPathNameByHandle
+        {
+            get => GetFlag(FileAccessManifestFlag.IgnoreGetFinalPathNameByHandle);
+            set => SetFlag(FileAccessManifestFlag.IgnoreGetFinalPathNameByHandle, value);
+        }
 
         /// <summary>
         /// If true it enables logging of Detouring status.
         /// </summary>
-        public bool LogProcessDetouringStatus { get; set; }
+        public bool LogProcessDetouringStatus
+        {
+            get => GetFlag(FileAccessManifestFlag.LogProcessDetouringStatus);
+            set => SetFlag(FileAccessManifestFlag.LogProcessDetouringStatus, value);
+        }
 
         /// <summary>
         /// If true it enables hard exiting on error with special exit code.
         /// </summary>
-        public bool HardExitOnErrorInDetours { get; set; }
+        public bool HardExitOnErrorInDetours
+        {
+            get => GetFlag(FileAccessManifestFlag.HardExitOnErrorInDetours);
+            set => SetFlag(FileAccessManifestFlag.HardExitOnErrorInDetours, value);
+        }
 
         /// <summary>
         /// If true it enables logging of Detouring status.
         /// </summary>
-        public bool CheckDetoursMessageCount { get; set; }
+        public bool CheckDetoursMessageCount
+        {
+            get => GetFlag(FileAccessManifestFlag.CheckDetoursMessageCount);
+            set => SetFlag(FileAccessManifestFlag.CheckDetoursMessageCount, value);
+        }
+
+        /// <summary>
+        /// True whan the sandbox is integrated in QBuild. False otherwise.
+        /// </summary>
+        /// <remarks>Note: this is only an option that is set programmatically. Not controlled by a command line option.</remarks>
+        public bool QBuildIntegrated
+        {
+            get => GetFlag(FileAccessManifestFlag.QBuildIntegrated);
+            set => SetFlag(FileAccessManifestFlag.QBuildIntegrated, value);
+        }
 
         /// <summary>
         /// A location for a file where Detours to log failure messages.
@@ -220,25 +376,14 @@ namespace BuildXL.Processes
         public string InternalDetoursErrorNotificationFile { get; set; }
 
         /// <summary>
-        /// If true it enables logging of Detouring internal errors to an external file.
-        /// </summary>
-        public bool AllowInternalDetoursErrorNotificationFile { get; set; }
-
-        /// <summary>
         /// The semaphore that keeps count to the sent and received messages.
         /// </summary>
-        public System.Threading.Semaphore MessageCountSemaphore { get; set; }
+        public System.Threading.Semaphore MessageCountSemaphore { get; private set; }
 
         /// <summary>
         /// Directory translator.
         /// </summary>
         public DirectoryTranslator DirectoryTranslator { get; }
-
-        /// <summary>
-        /// True whan the sandbox is integrated in QBuild. False otherwise.
-        /// </summary>
-        /// <remarks>Note: this is only an option that is set programmatically. Not controlled by a command line option.</remarks>
-        public bool QBuildIntegrated { get; set; }
 
         /// <summary>
         /// The pip's unique id.
@@ -247,10 +392,42 @@ namespace BuildXL.Processes
         public long PipId { get; set; }
 
         /// <summary>
+        /// Sets message count semaphore.
+        /// </summary>
+        public bool SetMessageCountSemaphore(string semaphoreName)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(semaphoreName));
+
+            UnsetMessageCountSemaphore();
+            m_messageCountSemaphoreName = semaphoreName;
+            MessageCountSemaphore = new System.Threading.Semaphore(0, int.MaxValue, semaphoreName, out bool newlyCreated);
+
+            return newlyCreated;
+        }
+
+        /// <summary>
+        /// Unset message count semaphore.
+        /// </summary>
+        public void UnsetMessageCountSemaphore()
+        {
+            if (MessageCountSemaphore == null)
+            {
+                Contract.Assert(m_messageCountSemaphoreName == null);
+                return;
+            }
+
+            MessageCountSemaphore.Dispose();
+            MessageCountSemaphore = null;
+            m_messageCountSemaphoreName = null;
+        }
+
+        /// <summary>
         /// Adds a policy to an entire scope
         /// </summary>
         public void AddScope(AbsolutePath path, FileAccessPolicy mask, FileAccessPolicy values)
         {
+            Contract.Requires(!IsManifestTreeBlockSealed);
+
             if (!path.IsValid)
             {
                 // Note that AbsolutePath.Invalid is allowable (representing the root scope).
@@ -266,6 +443,7 @@ namespace BuildXL.Processes
         /// </summary>
         public void AddPath(AbsolutePath path, FileAccessPolicy mask, FileAccessPolicy values, Usn? expectedUsn = null)
         {
+            Contract.Requires(!IsManifestTreeBlockSealed);
             Contract.Requires(path != AbsolutePath.Invalid);
 
             m_rootNode.AddNodeWithScope(this, path, new FileAccessScope(mask, values), expectedUsn ?? ReportedFileAccess.NoUsn);
@@ -281,26 +459,63 @@ namespace BuildXL.Processes
             }
         }
 
+        private static string ReadChars(BinaryReader reader)
+        {
+            uint length = reader.ReadUInt32();
+            if (length == 0)
+            {
+                // TODO: Make ReadChars and WriteChars symmetric.
+                // Note that there's asymmetry between WriteChars and ReadChars.
+                // WriteChars has existed for long time and is used to serialize string to Detours.
+                // ReadChars is introduced as a way to reuse WriteChars when BuildXL has to serialize/deserialize
+                // manifest to files. We can make WriteChars and ReadChars symmetric, as well as, optimize the encoding.
+                // However, such changes entails changing Detours code.
+                return null;
+            }
+
+            char[] chars = new char[length];
+
+            for (int i = 0; i < chars.Length; ++i)
+            {
+                chars[i] = reader.ReadChar();
+            }
+
+            return new string(chars);
+        }
+
         private static void WriteInjectionTimeoutBlock(BinaryWriter writer, uint timeoutInMins)
         {
             writer.Write((uint)timeoutInMins);
         }
 
+        private const uint ErrorDumpLocationCheckedCode = 0xABCDEF03;
+        private const uint TranslationPathStringCheckedCode = 0xABCDEF02;
+        private const uint FlagsCheckedCode = 0xF1A6B10C; // Flag block
+        private const uint PipIdCheckedCode = 0xF1A6B10E;
+
         [SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase", Justification = "Architecture strings are USASCII")]
-        private static void WriteErrorDumpLocation(
-            BinaryWriter writer, string internalDetoursErrorNotificationFile)
+        private static void WriteErrorDumpLocation(BinaryWriter writer, string internalDetoursErrorNotificationFile)
         {
 #if DEBUG
-            writer.Write((uint)0xABCDEF03); // "ABCDEF03"
+            writer.Write(ErrorDumpLocationCheckedCode);
 #endif
             WriteChars(writer, internalDetoursErrorNotificationFile);
+        }
+
+        private static string ReadErrorDumpLocation(BinaryReader reader)
+        {
+#if DEBUG
+            uint code = reader.ReadUInt32();
+            Contract.Assert(ErrorDumpLocationCheckedCode == code);
+#endif
+            return ReadChars(reader);
         }
 
         [SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase", Justification = "Architecture strings are USASCII")]
         private static void WriteTranslationPathStrings(BinaryWriter writer, DirectoryTranslator translatePaths)
         {
 #if DEBUG
-            writer.Write(0xABCDEF02); // "ABCDEF02"
+            writer.Write(TranslationPathStringCheckedCode);
 #endif
 
             // Write the number of translation paths.
@@ -317,6 +532,34 @@ namespace BuildXL.Processes
                     WriteChars(writer, translation.TargetPath);
                 }
             }
+        }
+
+        private static DirectoryTranslator ReadTranslationPathStrings(BinaryReader reader)
+        {
+#if DEBUG
+            uint code = reader.ReadUInt32();
+            Contract.Assert(TranslationPathStringCheckedCode == code);
+#endif
+
+            uint length = reader.ReadUInt32();
+
+            if (length == 0)
+            {
+                return null;
+            }
+
+            DirectoryTranslator directoryTranslator = new DirectoryTranslator();
+
+            for (int i = 0; i < length; ++i)
+            {
+                string source = ReadChars(reader);
+                string target = ReadChars(reader);
+                directoryTranslator.AddTranslation(source, target);
+            }
+
+            directoryTranslator.Seal();
+
+            return directoryTranslator;
         }
 
         [SuppressMessage("Microsoft.Naming", "CA2204:LiteralsShouldBeSpelledCorrectly")]
@@ -342,43 +585,23 @@ namespace BuildXL.Processes
 #endif
         }
 
-        private void WriteFlagsBlock(BinaryWriter writer)
+        private static void WriteFlagsBlock(BinaryWriter writer, FileAccessManifestFlag flags)
         {
 #if DEBUG
-            writer.Write((uint)0xF1A6B10C); // "flag block"
+            writer.Write(FlagsCheckedCode);
 #endif
 
-            FileAccessManifestFlag flags =
-                (FailUnexpectedFileAccesses ? FileAccessManifestFlag.FailUnexpectedFileAccesses : 0)
-                | (BreakOnUnexpectedAccess ? FileAccessManifestFlag.BreakOnAccessDenied : 0)
-                | (EnableDiagnosticMessages ? FileAccessManifestFlag.DiagnosticMessagesEnabled : 0)
-                | (ReportFileAccesses ? FileAccessManifestFlag.ReportFileAccesses : 0)
-                | (ReportUnexpectedFileAccesses ? FileAccessManifestFlag.ReportUnexpectedFileAccesses : 0)
-                | (MonitorChildProcesses ? FileAccessManifestFlag.MonitorChildProcesses : 0)
-                | (MonitorNtCreateFile ? FileAccessManifestFlag.MonitorNtCreateFile : 0)
-                | (MonitorZwCreateOpenQueryFile ? FileAccessManifestFlag.MonitorZwCreateOpenQueryFile : 0)
-                | (IgnoreCodeCoverage ? FileAccessManifestFlag.IgnoreCodeCoverage : 0)
-                | (ReportProcessArgs ? FileAccessManifestFlag.ReportProcessArgs : 0)
-                | (ForceReadOnlyForRequestedReadWrite ? FileAccessManifestFlag.ForceReadOnlyForRequestedReadWrite : 0)
-                | (IgnoreReparsePoints ? FileAccessManifestFlag.IgnoreReparsePoints : 0)
-                | (IgnorePreloadedDlls ? FileAccessManifestFlag.IgnorePreloadedDlls : 0)
-                | (NormalizeReadTimestamps ? FileAccessManifestFlag.NormalizeReadTimestamps : 0)
-                | (IgnoreZwRenameFileInformation ? FileAccessManifestFlag.IgnoreZwRenameFileInformation : 0)
-                | (IgnoreZwOtherFileInformation ? FileAccessManifestFlag.IgnoreZwOtherFileInformation : 0)
-                | (IgnoreNonCreateFileReparsePoints ? FileAccessManifestFlag.IgnoreNonCreateFileReparsePoints : 0)
-                | (IgnoreSetFileInformationByHandle ? FileAccessManifestFlag.IgnoreSetFileInformationByHandle : 0)
-                | (UseLargeNtClosePreallocatedList ? FileAccessManifestFlag.UseLargeNtClosePreallocatedList : 0)
-                | (UseExtraThreadToDrainNtClose ? FileAccessManifestFlag.UseExtraThreadToDrainNtClose : 0)
-                | (DisableDetours ? FileAccessManifestFlag.DisableDetours : 0)
-                | (LogProcessData ? FileAccessManifestFlag.LogProcessData : 0)
-                | (IgnoreGetFinalPathNameByHandle ? FileAccessManifestFlag.IgnoreGetFinalPathNameByHandle : 0)
-                | (LogProcessDetouringStatus ? FileAccessManifestFlag.LogProcessDetouringStatus : 0)
-                | (HardExitOnErrorInDetours ? FileAccessManifestFlag.HardExitOnErrorInDetours : 0)
-                | (CheckDetoursMessageCount ? FileAccessManifestFlag.CheckDetoursMessageCount : 0)
-                | (QBuildIntegrated ? FileAccessManifestFlag.QBuildIntegrated : 0)
-                | (EnforceAccessPoliciesOnDirectoryCreation ? FileAccessManifestFlag.EnforceAccessPoliciesOnDirectoryCreation : 0);
-
             writer.Write((uint)flags);
+        }
+
+        private static FileAccessManifestFlag ReadFlagsBlock(BinaryReader reader)
+        {
+#if DEBUG
+            uint code = reader.ReadUInt32();
+            Contract.Assert(FlagsCheckedCode == code);
+#endif
+
+            return (FileAccessManifestFlag)reader.ReadUInt32();
         }
 
         // Allow for future expansions with 64 more flags (in case they become needed))
@@ -393,11 +616,23 @@ namespace BuildXL.Processes
         private static void WritePipId(BinaryWriter writer, long pipId)
         {
 #if DEBUG
-            writer.Write((uint)0xF1A6B10E); // "extra flags block"
+            writer.Write(PipIdCheckedCode);
             writer.Write(0); // Padding. Needed to keep the data properly aligned for the C/C++ compiler.
 #endif
             // The PipId is needed for reporting purposes on non Windows OSs. Write it here.
             writer.Write(pipId);
+        }
+
+        private static long ReadPipId(BinaryReader reader)
+        {
+#if DEBUG
+            uint code = reader.ReadUInt32();
+            Contract.Assert(PipIdCheckedCode == code);
+
+            int zero = reader.ReadInt32();
+            Contract.Assert(0 == zero);
+#endif
+            return reader.ReadInt64();
         }
 
         private static void WriteReportBlock(BinaryWriter writer, FileAccessSetup setup)
@@ -485,7 +720,14 @@ namespace BuildXL.Processes
 
         private void WriteManifestTreeBlock(BinaryWriter writer)
         {
-            m_rootNode.InternalSerialize(default(NormalizedPathString), writer);
+            if (m_sealedManifestTreeBlock != null)
+            {
+                writer.Write(m_sealedManifestTreeBlock);
+            }
+            else
+            {
+                m_rootNode.InternalSerialize(default(NormalizedPathString), writer);
+            }
         }
 
         /// <summary>
@@ -504,7 +746,7 @@ namespace BuildXL.Processes
                 WriteInjectionTimeoutBlock(writer, timeoutMins);
                 WriteTranslationPathStrings(writer, DirectoryTranslator);
                 WriteErrorDumpLocation(writer, InternalDetoursErrorNotificationFile);
-                WriteFlagsBlock(writer);
+                WriteFlagsBlock(writer, m_fileAccessManifestFlag);
                 WriteExtraFlagsBlock(writer, FileAccessManifestExtraFlag.None);
                 WritePipId(writer, PipId);
                 WriteReportBlock(writer, setup);
@@ -512,6 +754,61 @@ namespace BuildXL.Processes
                 WriteManifestTreeBlock(writer);
 
                 return new ArraySegment<byte>(stream.GetBuffer(), 0, (int)stream.Position);
+            }
+        }
+
+        /// <summary>
+        /// Serializes this manifest.
+        /// </summary>
+        public void Serialize(Stream stream)
+        {
+            Contract.Requires(stream != null);
+
+            using (var writer = new BinaryWriter(stream, Encoding.Unicode, true))
+            {
+                WriteTranslationPathStrings(writer, DirectoryTranslator);
+                WriteErrorDumpLocation(writer, InternalDetoursErrorNotificationFile);
+                WriteFlagsBlock(writer, m_fileAccessManifestFlag);
+                WritePipId(writer, PipId);
+                WriteChars(writer, m_messageCountSemaphoreName);
+
+                // The manifest tree block has to be serialized the last.
+                WriteManifestTreeBlock(writer);
+            }
+        }
+
+        /// <summary>
+        /// Deserialize an instance of <see cref="FileAccessManifest"/> from stream.
+        /// </summary>
+        public static FileAccessManifest Deserialize(Stream stream)
+        {
+            Contract.Requires(stream != null);
+
+            using (var reader = new BinaryReader(stream, Encoding.Unicode, true))
+            {
+                DirectoryTranslator directoryTranslator = ReadTranslationPathStrings(reader);
+                string internalDetoursErrorNotificationFile = ReadErrorDumpLocation(reader);
+                FileAccessManifestFlag fileAccessManifestFlag = ReadFlagsBlock(reader);
+                long pipId = ReadPipId(reader);
+                string messageCountSemaphoreName = ReadChars(reader);
+
+                byte[] sealedManifestTreeBlock;
+
+                // TODO: Check perf. a) if this is a good buffer size, b) if the buffers should be pooled (now they are just allocated and thrown away)
+                using (MemoryStream ms = new MemoryStream(4096))
+                {
+                    stream.CopyTo(ms);
+                    sealedManifestTreeBlock = ms.ToArray();
+                }
+
+                return new FileAccessManifest(new PathTable(), directoryTranslator)
+                {
+                    InternalDetoursErrorNotificationFile = internalDetoursErrorNotificationFile,
+                    PipId = pipId,
+                    m_fileAccessManifestFlag = fileAccessManifestFlag,
+                    m_sealedManifestTreeBlock = sealedManifestTreeBlock,
+                    m_messageCountSemaphoreName = messageCountSemaphoreName
+                };
             }
         }
 
@@ -524,6 +821,12 @@ namespace BuildXL.Processes
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
         public byte[] GetManifestTreeBytes()
         {
+            if (IsManifestTreeBlockSealed)
+            {
+                Contract.Assert(m_sealedManifestTreeBlock != null);
+                return m_sealedManifestTreeBlock;
+            }
+
             // start with 4 KB of memory (one page), which will expand as necessary
             // stream will be disposed by the BinaryWriter when it goes out of scope
             using (var stream = new MemoryStream(4096))
@@ -548,7 +851,7 @@ namespace BuildXL.Processes
 
         // Keep this in sync with the C++ version declared in DataTypes.h
         [Flags]
-        private enum FileAccessManifestFlag
+        internal enum FileAccessManifestFlag
         {
             None = 0,
             BreakOnAccessDenied = 0x1,

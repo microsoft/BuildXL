@@ -120,8 +120,7 @@ namespace NugetPackages {
         contents: [
             ...addIfLazy(Context.getCurrentHost().os === "win", () => [
                 net472,
-                net461,
-                winX64
+                ...(BuildXLSdk.Flags.genVSSolution ? [] : [net461, winX64])
             ]),
             osxX64,
             sdks,

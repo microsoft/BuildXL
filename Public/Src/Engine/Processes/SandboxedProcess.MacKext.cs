@@ -329,7 +329,7 @@ namespace BuildXL.Processes
             Process.StandardInput.Close();
         }
 
-        internal override void FeedStdErr(SandboxedProcessOutputBuilder builder, TaskSourceSlim<Unit> tsc, string line)
+        internal override void FeedStdErr(SandboxedProcessOutputBuilder builder, string line)
         {
             if (line == null) // designates EOF
             {
@@ -337,17 +337,17 @@ namespace BuildXL.Processes
                 m_cpuTimes = ExtractCpuTimes(m_lastStdErrLine, out string unprocessedFragment);
 
                 // feed whatever wasn't consumed
-                FeedOutputBuilder(builder, tsc, unprocessedFragment);
+                FeedOutputBuilder(builder, unprocessedFragment);
 
                 // feed EOF
-                FeedOutputBuilder(builder, tsc, null);
+                FeedOutputBuilder(builder, null);
             }
             else
             {
                 // feed previous line (if any)
                 if (m_lastStdErrLine != null)
                 {
-                    FeedOutputBuilder(builder, tsc, m_lastStdErrLine);
+                    FeedOutputBuilder(builder, m_lastStdErrLine);
                 }
 
                 // update previous line

@@ -621,7 +621,7 @@ namespace BuildXL.Scheduler
                             fingerprint: m_weakFingerprint?.Hash ?? FingerprintUtilities.ZeroFingerprint,
                             processExecutionTime: wallClockTime,
                             fileMonitoringViolations: ConvertFileMonitoringViolationCounters(m_unsealedState.UnexpectedFileAccessCounters.Value),
-                            ioCounters: ConvertIOCounters(jobAccounting.IO),
+                            ioCounters: jobAccounting.IO,
                             userTime: jobAccounting.UserTime,
                             kernelTime: jobAccounting.KernelTime,
                             peakMemoryUsage: jobAccounting.PeakMemoryUsage,
@@ -651,19 +651,6 @@ namespace BuildXL.Scheduler
                 .ToDictionary(kvp => kvp.Item1.Path, kvp => (IReadOnlyCollection<AbsolutePath>) kvp.Item2.SelectArray(fileArtifact => fileArtifact.Path));
 
             return new ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>(sharedDynamicAccesses);
-        }
-
-        private static IOTypeCounters ConvertIOCounters(JobObject.IOTypeCounters counters)
-        {
-            return new IOTypeCounters(operationCount: counters.OperationCount, transferCount: counters.TransferCount);
-        }
-
-        private static IOCounters ConvertIOCounters(JobObject.IOCounters counters)
-        {
-            return new IOCounters(
-                readCounters: ConvertIOCounters(counters.ReadCounters),
-                writeCounters: ConvertIOCounters(counters.WriteCounters),
-                otherCounters: ConvertIOCounters(counters.OtherCounters));
         }
 
         private static FileMonitoringViolationCounters ConvertFileMonitoringViolationCounters(UnexpectedFileAccessCounters counters)

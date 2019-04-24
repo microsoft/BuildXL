@@ -90,6 +90,11 @@ namespace BuildXL.Pips.Operations
             /// Windows only, has no effect on other operating systems.
             /// </remarks>
             DependsOnWindowsProgramData = 1 << 10,
+
+            /// <summary>
+            /// Whether this process requires admin privilege.
+            /// </summary>
+            RequiresAdmin = 1 << 11
         }
     }
 }

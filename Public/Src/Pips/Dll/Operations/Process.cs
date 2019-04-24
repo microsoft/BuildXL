@@ -564,6 +564,12 @@ namespace BuildXL.Pips.Operations
         public bool OutputsMustRemainWritable => (ProcessOptions & Options.OutputsMustRemainWritable) != 0;
 
         /// <summary>
+        /// Whether this process requires admin privilege
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public bool RequiresAdmin => (ProcessOptions & Options.RequiresAdmin) != 0;
+
+        /// <summary>
         /// Indicates the process may run without deleting prior outputs from a previous run.
         /// </summary>
         public bool AllowPreserveOutputs => (ProcessOptions & Options.AllowPreserveOutputs) != 0;

@@ -84,73 +84,6 @@ namespace BuildXL.Processes
         #region Accounting types
 
         /// <summary>
-        /// Contains I/O accounting information for a process or a job object, for a particular type of IO (e.g. read or write).
-        /// These counters include all operations performed by all processes ever associated with the job.
-        /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
-        public struct IOTypeCounters
-        {
-            /// <summary>
-            /// Number of operations performed (independent of size).
-            /// </summary>
-            public ulong OperationCount;
-
-            /// <summary>
-            /// Total bytes transferred (regardless of the number of operations used to transfer them).
-            /// </summary>
-            public ulong TransferCount;
-        }
-
-        /// <summary>
-        /// Contains I/O accounting information for a process or a job object.
-        /// These counters include all operations performed by all processes ever associated with the job.
-        /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
-        public struct IOCounters
-        {
-            /// <summary>
-            /// Counters for read operations.
-            /// </summary>
-            public IOTypeCounters ReadCounters;
-
-            /// <summary>
-            /// Counters for write operations.
-            /// </summary>
-            public IOTypeCounters WriteCounters;
-
-            /// <summary>
-            /// Counters for other operations (not classified as either read or write).
-            /// </summary>
-            public IOTypeCounters OtherCounters;
-
-            internal IOCounters(IO_COUNTERS nativeCounters)
-            {
-                ReadCounters.OperationCount = nativeCounters.ReadOperationCount;
-                ReadCounters.TransferCount = nativeCounters.ReadTransferCount;
-
-                WriteCounters.OperationCount = nativeCounters.WriteOperationCount;
-                WriteCounters.TransferCount = nativeCounters.WriteTransferCount;
-
-                OtherCounters.OperationCount = nativeCounters.OtherOperationCount;
-                OtherCounters.TransferCount = nativeCounters.OtherTransferCount;
-            }
-
-            /// <summary>
-            /// Computes the aggregate I/O performed (sum of the read, write, and other counters).
-            /// </summary>
-            [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-            [Pure]
-            public IOTypeCounters GetAggregateIO()
-            {
-                return new IOTypeCounters()
-                       {
-                           OperationCount = ReadCounters.OperationCount + WriteCounters.OperationCount + OtherCounters.OperationCount,
-                           TransferCount = ReadCounters.TransferCount + WriteCounters.TransferCount + OtherCounters.TransferCount,
-                       };
-            }
-        }
-
-        /// <summary>
         /// Accounting information for resources used by the job so far.
         /// </summary>
         /// <remarks>
@@ -184,6 +117,29 @@ namespace BuildXL.Processes
             /// Number of processes started within or added to the job. This includes both running and already-terminated processes, if any.
             /// </summary>
             public uint NumberOfProcesses;
+
+            /// <nodoc />
+            public void Serialize(BuildXLWriter writer)
+            {
+                IO.Serialize(writer);
+                writer.Write(UserTime);
+                writer.Write(KernelTime);
+                writer.Write(PeakMemoryUsage);
+                writer.Write(NumberOfProcesses);
+            }
+
+            /// <nodoc />
+            public static AccountingInformation Deserialize(BuildXLReader reader)
+            {
+                return new AccountingInformation()
+                {
+                    IO = IOCounters.Deserialize(reader),
+                    UserTime = reader.ReadTimeSpan(),
+                    KernelTime = reader.ReadTimeSpan(),
+                    PeakMemoryUsage = reader.ReadUInt64(),
+                    NumberOfProcesses = reader.ReadUInt32()
+                };
+            }
         }
 
         #endregion

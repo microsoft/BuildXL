@@ -135,7 +135,7 @@ namespace BuildXL.Processes
             TimeSpan kernelTime,
             TimeSpan userTime,
             uint exitCode,
-            BuildXL.Pips.IOCounters ioCounters,
+            Native.IO.IOCounters ioCounters,
             uint parentProcessId);
 
         /// <summary>

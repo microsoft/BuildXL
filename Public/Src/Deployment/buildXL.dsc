@@ -35,14 +35,16 @@ namespace BuildXL {
                             importFrom("BuildXL.Explorer").App.app.appFolder
                         ]
                     },
-                    {
-                        subfolder: r`bxp-server`,
-                        contents: [
-                            importFrom("BuildXL.Explorer").Server.withQualifier(
-                                Object.merge<BuildXLSdk.NetCoreAppQualifier>(qualifier, {targetFramework: "netcoreapp2.2"})
-                            ).exe
-                        ]
-                    },
+                    ...(BuildXLSdk.Flags.genVSSolution
+                        ? []
+                        : [ {
+                                subfolder: r`bxp-server`,
+                                    contents: [
+                                    importFrom("BuildXL.Explorer").Server.withQualifier(
+                                        Object.merge<BuildXLSdk.NetCoreAppQualifier>(qualifier, {targetFramework: "netcoreapp2.2"})
+                                    ).exe
+                                ]
+                            } ] ),
                     {
                         subfolder: r`MsBuildGraphBuilder`,
                         contents: qualifier.targetFramework === "netcoreapp2.2" ? [] : [
@@ -64,7 +66,12 @@ namespace BuildXL {
                             importFrom("BuildXL.Tools").CMakeRunner.exe,
                         ]
                     },
-                    
+                    {
+                        subfolder: r`SandboxedProcessExecutor`,
+                        contents: [
+                            importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
+                        ]
+                    },
                 ]
             }])
         ]

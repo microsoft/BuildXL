@@ -5,24 +5,23 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Sessions;
-using BuildXL.Cache.ContentStore.Timers;
 using BuildXL.Cache.ContentStore.Extensions;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using ContentStore.Grpc; // Can't rename ProtoBuf
+using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.Timers;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
+using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
-using HelloRequest = ContentStore.Grpc.HelloRequest;
-using HelloResponse = ContentStore.Grpc.HelloResponse;
-using System.Threading;
+// Can't rename ProtoBuf
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {

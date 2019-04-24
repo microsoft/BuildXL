@@ -8,7 +8,7 @@ using System.Threading;
 namespace BuildXL.Cache.ContentStore.Utils
 {
     /// <nodoc />
-    sealed public class ProcessUtility
+    public sealed class ProcessUtility
     {
         private readonly Process _process;
         private readonly bool _createNoWindow;

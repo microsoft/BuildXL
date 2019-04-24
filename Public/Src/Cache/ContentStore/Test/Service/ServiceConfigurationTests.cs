@@ -32,7 +32,7 @@ namespace ContentStoreTest.Service
         private const uint GracefulShutdownSeconds = 44;
         private const int GrpcPort = 779;
         private const string GrpcPortFileName = "MyTest";
-        private readonly int? BufferSizeForCopies = 1000;
+        private readonly int? _bufferSizeForCopies = 1000;
 
         private static readonly AbsolutePath ValidDataRootPath = new AbsolutePath(PathGeneratorUtilities.GetAbsolutePath(DriveLetter, ValidDataRoot));
 
@@ -62,9 +62,10 @@ namespace ContentStoreTest.Service
             {
                 var configuration = stream.DeserializeFromJSON<ServiceConfiguration>();
                 configuration.NamedCacheRoots.Should().BeEquivalentTo(NamedRoots);
-                configuration.MaxConnections.Should().Be(77);
-                configuration.GracefulShutdownSeconds.Should().Be(44);
-                configuration.GrpcPortFileName.Should().Be("MyTest");
+                configuration.MaxConnections.Should().Be(MaxConnections);
+                configuration.GracefulShutdownSeconds.Should().Be(GracefulShutdownSeconds);
+                configuration.GrpcPortFileName.Should().Be(GrpcPortFileName);
+                configuration.BufferSizeForGrpcCopies.Should().Be(_bufferSizeForCopies);
             }
         }
 

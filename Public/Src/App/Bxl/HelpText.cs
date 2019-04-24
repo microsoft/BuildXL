@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Reflection;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;

@@ -4,8 +4,6 @@
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Native.IO;
-using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {

@@ -10,8 +10,8 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
-using Microsoft.Practices.TransientFaultHandling;
 using CLAP;
+using Microsoft.Practices.TransientFaultHandling;
 
 namespace BuildXL.Cache.ContentStore.App
 {

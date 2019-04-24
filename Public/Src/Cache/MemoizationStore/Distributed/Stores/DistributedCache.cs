@@ -6,17 +6,17 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Tracing;
-using BuildXL.Cache.MemoizationStore.Distributed.Metadata;
-using BuildXL.Cache.MemoizationStore.Distributed.Sessions;
-using BuildXL.Cache.MemoizationStore.Tracing;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Cache.MemoizationStore.Distributed.Metadata;
+using BuildXL.Cache.MemoizationStore.Distributed.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Cache.MemoizationStore.Tracing;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 {

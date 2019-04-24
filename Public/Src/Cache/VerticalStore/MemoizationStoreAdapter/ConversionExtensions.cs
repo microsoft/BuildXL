@@ -4,15 +4,14 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-
+using BuildXL.Storage;
+using BuildXL.Utilities;
 using CacheDeterminism = BuildXL.Cache.MemoizationStore.Interfaces.Sessions.CacheDeterminism;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter

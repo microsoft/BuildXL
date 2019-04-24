@@ -3,9 +3,9 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Distributed.Redis.Credentials;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.MemoizationStore.Distributed.Metadata.Tracing;
 using BuildXL.Cache.MemoizationStore.Distributed.Utils;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Metadata
 {

@@ -1,8 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-
-// We can't rename the Protobuff namespace so we'll have to keep these old global namespaces around.
 namespace ContentStore.Grpc
 {
     /// <summary>

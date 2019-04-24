@@ -5,10 +5,9 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Cache.ContentStore.Extensions;
-using BuildXL.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities;
 
 namespace BuildXL.Cache.ContentStore.FileSystem
 {

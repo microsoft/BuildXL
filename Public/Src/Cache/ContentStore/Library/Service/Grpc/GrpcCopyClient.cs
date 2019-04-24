@@ -12,8 +12,9 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using ContentStore.Grpc; // Can't rename ProtoBuf
+using ContentStore.Grpc;
 using Grpc.Core;
+// Can't rename ProtoBuf
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {

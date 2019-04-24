@@ -3,9 +3,9 @@
 
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.Exceptions;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using CLAP;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 // ReSharper disable once UnusedMember.Global
 namespace BuildXL.Cache.ContentStore.App

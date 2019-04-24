@@ -4,8 +4,8 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 #pragma warning disable 649 // Field is never assigned
 

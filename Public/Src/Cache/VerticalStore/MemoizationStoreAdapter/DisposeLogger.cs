@@ -3,8 +3,8 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Logging;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {

@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.Host.Configuration;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {

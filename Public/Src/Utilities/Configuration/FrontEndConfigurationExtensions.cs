@@ -3,7 +3,6 @@
 
 using System;
 using System.Linq;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration.Mutable;
 
 namespace BuildXL.Utilities.Configuration

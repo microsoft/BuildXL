@@ -12,9 +12,9 @@ using Bond.Protocols;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine.Cache.Artifacts

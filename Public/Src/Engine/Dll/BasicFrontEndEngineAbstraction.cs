@@ -3,11 +3,10 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Engine
 {

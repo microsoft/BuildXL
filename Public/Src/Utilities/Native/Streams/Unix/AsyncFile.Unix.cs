@@ -6,9 +6,8 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
 using BuildXL.Native.IO;
-using BuildXL.Native.IO.Unix;
+using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Native.IO.Unix.FileSystemUnix;
 

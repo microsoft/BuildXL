@@ -5,7 +5,6 @@ using System;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Scheduler.Fingerprints
 {

@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.FrontEnd.Workspaces.Core;
 using VSCode.DebugProtocol;
 
 namespace BuildXL.FrontEnd.Script.Debugger

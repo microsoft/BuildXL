@@ -5,7 +5,6 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Cache.BuildCacheAdapter;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStoreAdapter;
 using BuildXL.Utilities;

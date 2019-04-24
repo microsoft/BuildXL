@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 #if !DISABLE_FEATURE_BOND_RPC
 
 using System;
@@ -13,11 +12,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Engine.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Bond;
-using BuildXL.Utilities.Configuration;
 using Void = Microsoft.Bond.Void;
 
 namespace BuildXL.Engine.Distribution.InternalBond

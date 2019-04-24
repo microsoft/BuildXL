@@ -6,7 +6,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
-using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
@@ -23,7 +22,7 @@ namespace BuildXL.Scheduler
         protected readonly LoggingContext LoggingContext;
 
         /// <summary>
-        /// Mappings from categories to <see cref="CounterCollection{PipCountersByGroup}"/>.
+        /// Mappings from categories to <see cref="CounterCollection{TEnum}"/>.
         /// </summary>
         protected readonly ConcurrentDictionary<Category, CounterCollection<PipCountersByGroup>> CountersByGroup = new ConcurrentDictionary<Category, CounterCollection<PipCountersByGroup>>();
 

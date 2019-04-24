@@ -5,16 +5,16 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Cache.Interfaces;
-using BuildXL.Cache.MemoizationStoreAdapter;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Utilities;
+using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Distributed.Metadata;
 using BuildXL.Cache.MemoizationStore.Distributed.Sessions;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Vsts;
+using BuildXL.Cache.MemoizationStoreAdapter;
+using BuildXL.Utilities;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 [module: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812:AvoidUninstantiatedInternalClasses",

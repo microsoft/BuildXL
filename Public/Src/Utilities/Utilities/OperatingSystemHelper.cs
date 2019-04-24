@@ -2,14 +2,15 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
-#if FEATURE_CORECLR
-using System.Xml.Linq;
-#endif
 using Microsoft.Win32;
 using static BuildXL.Interop.Windows.Memory;
+
+#if FEATURE_CORECLR
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Xml.Linq;
+#endif
 
 namespace BuildXL.Utilities
 {

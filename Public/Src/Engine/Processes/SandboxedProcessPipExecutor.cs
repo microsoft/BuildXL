@@ -20,11 +20,10 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.BuildParameters;
-using SpecialFolder = System.Environment.SpecialFolder;
 
 namespace BuildXL.Processes
 {
@@ -39,16 +38,16 @@ namespace BuildXL.Processes
         public const int MaxConsoleLength = 2048; // around 30 lines
 
         private static readonly string s_appDataLocalMicrosoftClrPrefix =
-            Path.Combine(SpecialFolderUtilities.GetFolderPath(SpecialFolder.LocalApplicationData), "Microsoft", "CLR");
+            Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "CLR");
 
         private static readonly string s_nvidiaProgramDataPrefix =
-            Path.Combine(SpecialFolderUtilities.GetFolderPath(SpecialFolder.CommonApplicationData), "NVIDIA Corporation");
+            Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "NVIDIA Corporation");
 
         private static readonly string s_nvidiaProgramFilesPrefix =
-            Path.Combine(SpecialFolderUtilities.GetFolderPath(SpecialFolder.ProgramFiles), "NVIDIA Corporation");
+            Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "NVIDIA Corporation");
 
         private static readonly string s_forefrontTmgClientProgramFilesX86Prefix =
-            Path.Combine(SpecialFolderUtilities.GetFolderPath(SpecialFolder.ProgramFilesX86), "Forefront TMG Client");
+            Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Forefront TMG Client");
 
         private static readonly string s_userProfilePath =
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify);

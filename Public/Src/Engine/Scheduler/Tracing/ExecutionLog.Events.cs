@@ -13,6 +13,7 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using System.Linq;

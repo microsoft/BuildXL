@@ -5,15 +5,14 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Vsts;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.Vsts;
 using BuildXL.Storage;
-
 #if !FEATURE_CORECLR
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 #else

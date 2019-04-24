@@ -6,10 +6,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
-using BuildXL.Engine.Distribution;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using Google.Protobuf;
 using static BuildXL.Engine.Distribution.DistributionHelpers;
 
 namespace BuildXL.Engine.Distribution.Grpc

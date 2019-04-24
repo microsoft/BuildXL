@@ -5,7 +5,6 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Cache.InMemory;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
 

@@ -14,7 +14,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
-
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Graph

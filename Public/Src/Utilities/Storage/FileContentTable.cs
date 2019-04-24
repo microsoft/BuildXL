@@ -13,7 +13,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
-using BuildXL.Native.IO.Windows;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.FileContentTableAccessor;
 using BuildXL.Utilities;
@@ -21,7 +20,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
-using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 namespace BuildXL.Storage
 {

@@ -9,14 +9,14 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Storage;
-using BuildXL.Utilities;
+using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Storage;
+using BuildXL.Utilities;
 using ICacheSession = BuildXL.Cache.Interfaces.ICacheSession;
 using StrongFingerprint = BuildXL.Cache.Interfaces.StrongFingerprint;
 

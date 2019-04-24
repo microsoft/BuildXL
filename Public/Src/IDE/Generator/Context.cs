@@ -7,8 +7,8 @@ using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Qualifier;
 
 namespace BuildXL.Ide.Generator
 {

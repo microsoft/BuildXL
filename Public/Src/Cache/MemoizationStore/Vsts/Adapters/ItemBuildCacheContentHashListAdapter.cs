@@ -6,11 +6,11 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Vsts;
-using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 using Microsoft.VisualStudio.Services.WebApi;
 
 namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters

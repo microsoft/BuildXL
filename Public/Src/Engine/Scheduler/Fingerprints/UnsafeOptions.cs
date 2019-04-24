@@ -4,8 +4,8 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities;
-using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
+using JetBrains.Annotations;
 
 namespace BuildXL.Scheduler.Fingerprints
 {

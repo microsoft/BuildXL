@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using BuildXL.Utilities.Collections;
+
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else

@@ -13,9 +13,9 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
-using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Scheduler
 {

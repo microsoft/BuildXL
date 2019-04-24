@@ -5,12 +5,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 
@@ -51,7 +50,7 @@ namespace BuildXL.Cache.BasicFilesystem
         // The number of cache disconnects that already happened before the session has started
         private readonly int m_cacheDisconnectCountAtSessionStart;
 
-        static internal Possible<BasicFilesystemCacheSession, BasicFilesystemCacheSessionFailure> TryCreateBasicFilesystemCacheSession(BasicFilesystemCache cache, bool readOnly, string sessionRoot = null, string sessionId = null)
+        internal static Possible<BasicFilesystemCacheSession, BasicFilesystemCacheSessionFailure> TryCreateBasicFilesystemCacheSession(BasicFilesystemCache cache, bool readOnly, string sessionRoot = null, string sessionId = null)
         {
             // Sessions with an ID are never read-only
             if (!string.IsNullOrEmpty(sessionId))

@@ -6,7 +6,6 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
-using BuildXL.Native.IO.Windows;
 using BuildXL.Storage.FileContentTableAccessor;
 
 namespace BuildXL.Storage.Diagnostics

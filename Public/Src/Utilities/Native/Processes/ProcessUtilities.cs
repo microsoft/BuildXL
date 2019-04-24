@@ -6,11 +6,8 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using BuildXL.Utilities;
-using SafeWaitHandle = Microsoft.Win32.SafeHandles.SafeWaitHandle;
-using SafeFileHandle = Microsoft.Win32.SafeHandles.SafeFileHandle;
-
-#if FEATURE_SAFE_PROCESS_HANDLE
 using Microsoft.Win32.SafeHandles;
+#if FEATURE_SAFE_PROCESS_HANDLE
 using ProcessHandle = System.Runtime.InteropServices.SafeHandle;
 using ProcessPtr = Microsoft.Win32.SafeHandles.SafeProcessHandle;
 #else

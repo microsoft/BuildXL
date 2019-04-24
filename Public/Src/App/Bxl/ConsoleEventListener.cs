@@ -9,20 +9,18 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
-using System.Threading;
+using BuildXL.Visualization.Models;
 using Strings = bxl.Strings;
-
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
 using System.Diagnostics.Tracing;
 #endif
-
-using BuildXL.Visualization.Models;
 
 namespace BuildXL
 {

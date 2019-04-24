@@ -17,9 +17,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
-using IMount = BuildXL.Utilities.Configuration.IMount;
-using SpecialFolder = System.Environment.SpecialFolder;
-using SpecialFolderOption = System.Environment.SpecialFolderOption;
 using MacPaths = BuildXL.Interop.MacOS.IO;
 
 namespace BuildXL.Engine
@@ -119,14 +116,14 @@ namespace BuildXL.Engine
             }
 
             // Cross Plat supported MountPoints
-            table.AddStaticSystemMount("ProgramData", SpecialFolder.CommonApplicationData);
-            table.AddStaticSystemMount("ProgramFiles", SpecialFolder.ProgramFiles, trackSourceFileChanges: true);
-            table.AddStaticSystemMount("System", SpecialFolder.System);
+            table.AddStaticSystemMount("ProgramData", Environment.SpecialFolder.CommonApplicationData);
+            table.AddStaticSystemMount("ProgramFiles", Environment.SpecialFolder.ProgramFiles, trackSourceFileChanges: true);
+            table.AddStaticSystemMount("System", Environment.SpecialFolder.System);
             if (!layout.RedirectedUserProfileJunctionRoot.IsValid)
             {
-                table.AddStaticSystemMount("UserProfile", SpecialFolder.UserProfile);
-                table.AddStaticSystemMount("AppData", SpecialFolder.ApplicationData, allowCreateDirectory : true);
-                table.AddStaticSystemMount("LocalAppData", SpecialFolder.LocalApplicationData, allowCreateDirectory: true);
+                table.AddStaticSystemMount("UserProfile", Environment.SpecialFolder.UserProfile);
+                table.AddStaticSystemMount("AppData", Environment.SpecialFolder.ApplicationData, allowCreateDirectory : true);
+                table.AddStaticSystemMount("LocalAppData", Environment.SpecialFolder.LocalApplicationData, allowCreateDirectory: true);
             }
             else
             {
@@ -140,16 +137,16 @@ namespace BuildXL.Engine
             if (!OperatingSystemHelper.IsUnixOS)
             {
                 // Add system mounts that are Windows Only
-                table.AddStaticSystemMount("Windows", SpecialFolder.Windows);
-                table.AddStaticSystemMount("ProgramFilesX86", SpecialFolder.ProgramFilesX86, trackSourceFileChanges: true);
-                table.AddStaticSystemMount("CommonProgramFiles", SpecialFolder.CommonProgramFiles, trackSourceFileChanges: true);
-                table.AddStaticSystemMount("CommonProgramFilesX86", SpecialFolder.CommonProgramFilesX86, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("Windows", Environment.SpecialFolder.Windows);
+                table.AddStaticSystemMount("ProgramFilesX86", Environment.SpecialFolder.ProgramFilesX86, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("CommonProgramFiles", Environment.SpecialFolder.CommonProgramFiles, trackSourceFileChanges: true);
+                table.AddStaticSystemMount("CommonProgramFilesX86", Environment.SpecialFolder.CommonProgramFilesX86, trackSourceFileChanges: true);
                 
                 if (!layout.RedirectedUserProfileJunctionRoot.IsValid)
                 {
-                    table.AddStaticSystemMount("InternetCache", SpecialFolder.InternetCache);
-                    table.AddStaticSystemMount("InternetHistory", SpecialFolder.History);
-                    table.AddStaticSystemMount("INetCookies", SpecialFolder.Cookies, allowCreateDirectory: true);
+                    table.AddStaticSystemMount("InternetCache", Environment.SpecialFolder.InternetCache);
+                    table.AddStaticSystemMount("InternetHistory", Environment.SpecialFolder.History);
+                    table.AddStaticSystemMount("INetCookies", Environment.SpecialFolder.Cookies, allowCreateDirectory: true);
                     table.AddStaticSystemMount("LocalLow", FileUtilities.KnownFolderLocalLow);
                 }
                 else
@@ -337,7 +334,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Adds a system mount that is statically defined at the start of the build.
         /// </summary>
-        private void AddStaticSystemMount(string name, SpecialFolder specialFolder, bool allowCreateDirectory = false, bool trackSourceFileChanges = false)
+        private void AddStaticSystemMount(string name, Environment.SpecialFolder specialFolder, bool allowCreateDirectory = false, bool trackSourceFileChanges = false)
         {
             string folder = null;
 
@@ -346,7 +343,7 @@ namespace BuildXL.Engine
                 // Don't verify the path for the sake of performance and also because if the path is verified and doesn't
                 // exist, an empty string will be returned. We want to unconditionally create the mount whether the backing
                 // path exists or not.
-                folder = SpecialFolderUtilities.GetFolderPath(specialFolder, SpecialFolderOption.DoNotVerify);
+                folder = SpecialFolderUtilities.GetFolderPath(specialFolder, Environment.SpecialFolderOption.DoNotVerify);
             }
             catch (ArgumentException)
             {

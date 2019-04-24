@@ -3,7 +3,6 @@
 
 using System;
 using System.Runtime.CompilerServices;
-
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else

@@ -49,7 +49,7 @@ namespace ContentStoreTest.Service
             NamedRoots["name2"].Path.Should().Be(OperatingSystemHelper.IsUnixOS ? "/path2" : @"C:\path2");
 
             var configuration = new ServiceConfiguration(
-                NamedRoots, ValidDataRootPath, MaxConnections, GracefulShutdownSeconds, GrpcPort, GrpcPortFileName, BufferSizeForCopies);
+                NamedRoots, ValidDataRootPath, MaxConnections, GracefulShutdownSeconds, GrpcPort, GrpcPortFileName, _bufferSizeForCopies);
 
             var json = configuration.SerializeToJSON();
             json.Should().Be(GoodJson);

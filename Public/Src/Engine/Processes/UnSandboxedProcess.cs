@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.ComponentModel;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
@@ -258,7 +259,7 @@ namespace BuildXL.Processes
             var mode = GetFilePermissionsForFilePath(ProcessInfo.FileName, followSymlink: false);
             if (mode < 0)
             {
-                ThrowBuildXLException($"Process creation failed: File '{ProcessInfo.FileName}' not found");
+                ThrowBuildXLException($"Process creation failed: File '{ProcessInfo.FileName}' not found", new Win32Exception(0x2));
             }
 
             var filePermissions = checked((FilePermissions)mode);

@@ -141,7 +141,7 @@ namespace BuildXL.Processes
         {
             if (!System.IO.File.Exists(Process.StartInfo.FileName))
             {
-                ThrowBuildXLException($"Process creation failed: File '{Process.StartInfo.FileName}' not found");
+                ThrowBuildXLException($"Process creation failed: File '{Process.StartInfo.FileName}' not found", new Win32Exception(0x2));
             }
 
             try

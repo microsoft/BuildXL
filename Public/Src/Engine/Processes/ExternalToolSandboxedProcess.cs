@@ -141,9 +141,17 @@ namespace BuildXL.Processes
             m_processExecutor = new AsyncProcessExecutor(
                 process,
                 TimeSpan.FromMilliseconds(-1), // Timeout should only be applied to the process that the external tool executes.
-                line => m_output.AppendLine(line),
-                line => m_error.AppendLine(line),
+                line => AppendLineIfNotNull(m_output, line),
+                line => AppendLineIfNotNull(m_error, line),
                 SandboxedProcessInfo);
+        }
+
+        private void AppendLineIfNotNull(StringBuilder sb, string line)
+        {
+            if (line != null)
+            {
+                sb.AppendLine(line);
+            }
         }
 
         /// <summary>

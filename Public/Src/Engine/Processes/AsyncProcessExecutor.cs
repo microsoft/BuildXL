@@ -226,13 +226,11 @@ namespace BuildXL.Processes
                 return;
             }
 
+            eat(line);
+
             if (line == null)
             {
                 signalCompletion.TrySetResult(Unit.Void);
-            }
-            else
-            {
-                eat(line);
             }
         }
     }

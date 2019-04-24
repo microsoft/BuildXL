@@ -135,18 +135,21 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public virtual void Dispose()
         {
+            var startTime = m_processExecutor?.StartTime ?? DateTime.UtcNow;
+            var exitTime = m_processExecutor?.ExitTime ?? DateTime.UtcNow;
+
             var lifetime = DateTime.UtcNow - m_processExecutor.StartTime;
             var cpuTimes = GetCpuTimes();
             LogProcessState(
                 $"Process Times: " +
-                $"started = {m_processExecutor.StartTime}, " +
-                $"exited = {m_processExecutor.ExitTime} (since start = {ToSeconds(m_processExecutor.ExitTime - m_processExecutor.StartTime)}s), " +
-                $"received reports = {m_reportsReceivedTime} (since start = {ToSeconds(m_reportsReceivedTime - m_processExecutor.StartTime)}s), " +
+                $"started = {startTime}, " +
+                $"exited = {exitTime} (since start = {ToSeconds(exitTime - startTime)}s), " +
+                $"received reports = {m_reportsReceivedTime} (since start = {ToSeconds(m_reportsReceivedTime - startTime)}s), " +
                 $"life time = {ToSeconds(lifetime)}s, " +
                 $"user time = {ToSeconds(cpuTimes.User)}s, " +
                 $"system time = {ToSeconds(cpuTimes.System)}s");
             SandboxedProcessFactory.Counters.AddToCounter(SandboxedProcessFactory.SandboxedProcessCounters.SandboxedProcessLifeTimeMs, (long)lifetime.TotalMilliseconds);
-            Process?.Dispose();
+            m_processExecutor?.Dispose();
 
             string ToSeconds(TimeSpan ts)
             {
@@ -296,16 +299,16 @@ namespace BuildXL.Processes
             m_processExecutor = new AsyncProcessExecutor(
                 process,
                 ProcessInfo.Timeout ?? TimeSpan.FromMinutes(10),
-                line => m_output.AppendLine(line),
-                line => m_error.AppendLine(line),
+                line => FeedStdOut(m_output, line),
+                line => FeedStdErr(m_error, line),
                 ProcessInfo);
         }
 
-        internal virtual void FeedStdOut(SandboxedProcessOutputBuilder b, TaskSourceSlim<Unit> tsc, string line)
-            => FeedOutputBuilder(b, tsc, line);
+        internal virtual void FeedStdOut(SandboxedProcessOutputBuilder b, string line)
+            => FeedOutputBuilder(b, line);
 
-        internal virtual void FeedStdErr(SandboxedProcessOutputBuilder b, TaskSourceSlim<Unit> tsc, string line)
-            => FeedOutputBuilder(b, tsc, line);
+        internal virtual void FeedStdErr(SandboxedProcessOutputBuilder b, string line)
+            => FeedOutputBuilder(b, line);
 
         /// <summary>
         /// Throws a <see cref="BuildXLException"/> with pip hash and description prefixed to a supplied <paramref name="reason"/>.
@@ -361,19 +364,7 @@ namespace BuildXL.Processes
         /// </summary>
         internal virtual Task<SandboxedProcessReports> GetReportsAsync() => Task.FromResult<SandboxedProcessReports>(null);
 
-        internal static void FeedOutputBuilder(SandboxedProcessOutputBuilder output, TaskSourceSlim<Unit> signalCompletion, string line)
-        {
-            if (signalCompletion.Task.IsCompleted)
-            {
-                return;
-            }
-
-            output.AppendLine(line);
-            if (line == null)
-            {
-                signalCompletion.TrySetResult(Unit.Void);
-            }
-        }
+        internal static void FeedOutputBuilder(SandboxedProcessOutputBuilder output, string line) => output.AppendLine(line);
 
         /// <nodoc/>
         [NotNull]

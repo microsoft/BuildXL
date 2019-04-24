@@ -15,7 +15,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 using System.Linq;
 
 #pragma warning disable SA1649 // File name must match first type name

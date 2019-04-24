@@ -8,10 +8,8 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Interop;
-using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
-using System.Linq;
 using JetBrains.Annotations;
 #if FEATURE_SAFE_PROCESS_HANDLE
 using Microsoft.Win32.SafeHandles;

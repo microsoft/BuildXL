@@ -3,11 +3,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Utilities.Collections;
-using System.Diagnostics.ContractsLight;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Ide.Generator

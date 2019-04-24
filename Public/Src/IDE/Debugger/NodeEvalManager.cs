@@ -6,12 +6,11 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Statements;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;
 

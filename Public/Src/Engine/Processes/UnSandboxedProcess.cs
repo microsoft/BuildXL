@@ -137,7 +137,7 @@ namespace BuildXL.Processes
             var startTime = m_processExecutor?.StartTime ?? DateTime.UtcNow;
             var exitTime = m_processExecutor?.ExitTime ?? DateTime.UtcNow;
 
-            var lifetime = DateTime.UtcNow - m_processExecutor.StartTime;
+            var lifetime = DateTime.UtcNow - startTime;
             var cpuTimes = GetCpuTimes();
             LogProcessState(
                 $"Process Times: " +

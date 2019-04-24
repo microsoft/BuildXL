@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using CLAP;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 
 // ReSharper disable once UnusedMember.Global
 namespace BuildXL.Cache.MemoizationStore.App

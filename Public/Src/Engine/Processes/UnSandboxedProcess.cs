@@ -364,7 +364,13 @@ namespace BuildXL.Processes
         /// </summary>
         internal virtual Task<SandboxedProcessReports> GetReportsAsync() => Task.FromResult<SandboxedProcessReports>(null);
 
-        internal static void FeedOutputBuilder(SandboxedProcessOutputBuilder output, string line) => output.AppendLine(line);
+        internal static void FeedOutputBuilder(SandboxedProcessOutputBuilder output, string line)
+        {
+            if (line != null)
+            {
+                output.AppendLine(line);
+            }
+        }
 
         /// <nodoc/>
         [NotNull]

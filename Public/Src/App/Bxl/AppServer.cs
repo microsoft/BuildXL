@@ -16,17 +16,15 @@ using System.Runtime;
 using System.Security.Principal;
 using System.Text;
 using System.Threading;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.App.Tracing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine;
-using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Utilities.Configuration;
-using Strings =bxl.Strings;
+using Strings = bxl.Strings;
 
 namespace BuildXL
 {

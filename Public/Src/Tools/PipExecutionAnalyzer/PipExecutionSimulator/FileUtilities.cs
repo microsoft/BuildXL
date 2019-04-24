@@ -168,7 +168,7 @@ namespace BuildXL.Storage
                         throw;
                     }
                 },
-                ex => { throw new BuildXLException(string.Format(CultureInfo.InvariantCulture, "Failed to open path '{0}' with mode='{fileMode}', access='{fileAccess}', share='{fileShare}'", path), ex); });
+                ex => { throw new BuildXLException(string.Format(CultureInfo.InvariantCulture, "Failed to open path '{0}'", path), ex); });
         }
     }
 }

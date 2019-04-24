@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB,
             [DefaultValue(false), Description("Whether or not GRPC is used for file copies")] bool useDistributedGrpc,
             [DefaultValue(false), Description("Whether or not GZip is used for GRPC file copies")] bool useCompressionForCopies,
-            [DefaultValue(null)] int? bufferSizeForGrpcCopies
+            [DefaultValue(null), Description("Buffer size for streaming GRPC copies")] int? bufferSizeForGrpcCopies
             )
         {
             Initialize();

@@ -26,7 +26,7 @@ namespace ContentStoreTest.Service
         private static readonly string Path2 = "path2";
 
         private static readonly string GoodJson =
-            $@"{{""BufferSizeForGrpcCopies"":1000"", ""DataRootPath"":""{FilePrefixJson}{ValidDataRoot}"",""GracefulShutdownSeconds"":44,""GrpcPort"":779,""GrpcPortFileName"":""MyTest"",""MaxConnections"":77,""NamedCacheRoots"":{{""name1"":""{FilePrefixJson}{Path1}"",""name2"":""{FilePrefixJson}{Path2}""}}}}";
+            $@"{{""BufferSizeForGrpcCopies"":1000,""DataRootPath"":""{FilePrefixJson}{ValidDataRoot}"",""GracefulShutdownSeconds"":44,""GrpcPort"":779,""GrpcPortFileName"":""MyTest"",""MaxConnections"":77,""NamedCacheRoots"":{{""name1"":""{FilePrefixJson}{Path1}"",""name2"":""{FilePrefixJson}{Path2}""}}}}";
 
         private const uint MaxConnections = 77;
         private const uint GracefulShutdownSeconds = 44;

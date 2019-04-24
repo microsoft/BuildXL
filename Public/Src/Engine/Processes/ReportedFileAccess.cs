@@ -8,7 +8,6 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using BuildXL.Native.IO;
-using BuildXL.Native.IO.Windows;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;

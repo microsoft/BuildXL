@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics.ContractsLight;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using ContentHashLookup = BuildXL.Pips.Operations.PipFragmentRenderer.ContentHashLookup;
 
 namespace BuildXL.Scheduler.Fingerprints
 {
@@ -26,7 +26,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </remarks>
         public PipContentFingerprinter(
             PathTable pathTable,
-            ContentHashLookup contentHashLookup,
+            PipFragmentRenderer.ContentHashLookup contentHashLookup,
             ExtraFingerprintSalts? extraFingerprintSalts = null,
             PathExpander pathExpander = null,
             PipDataLookup pipDataLookup = null)

@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using BuildXL.Pips;
-using BuildXL.Tracing;
 
 namespace BuildXL.Scheduler.Filter
 {

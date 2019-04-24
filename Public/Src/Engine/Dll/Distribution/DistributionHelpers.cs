@@ -8,19 +8,12 @@ using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Google.Protobuf;
-using Grpc.Core;
-using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine.Distribution
 {

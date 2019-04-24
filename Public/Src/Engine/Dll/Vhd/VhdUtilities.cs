@@ -6,7 +6,6 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
-using BuildXL.Utilities;
 
 namespace BuildXL.Engine
 {

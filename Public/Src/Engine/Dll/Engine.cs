@@ -51,7 +51,6 @@ using Microsoft.Win32.SafeHandles;
 using static BuildXL.Scheduler.ExecutionSampler;
 using static BuildXL.Utilities.BuildParameters;
 using static BuildXL.Utilities.FormattableStringEx;
-using FileUtilities = BuildXL.Native.IO.FileUtilities;
 using IOneBuildModuleConfiguration = BuildXL.Utilities.Configuration.IModuleConfiguration;
 using Logger = BuildXL.Engine.Tracing.Logger;
 

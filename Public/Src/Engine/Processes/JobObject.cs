@@ -12,11 +12,9 @@ using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Processes;
-using BuildXL.Native.Processes.Windows;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
-using SafeIOCompletionPortHandle = BuildXL.Native.IO.Windows.SafeIOCompletionPortHandle;
 #if !FEATURE_SAFE_PROCESS_HANDLE
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif

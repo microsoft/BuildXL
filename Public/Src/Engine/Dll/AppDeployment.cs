@@ -11,12 +11,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
+using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 namespace BuildXL.Engine
 {

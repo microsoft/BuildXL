@@ -2,12 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Diagnostics.ContractsLight;
 using BuildXL.Native.IO;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
-using System.Collections.Generic;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Utilities;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 

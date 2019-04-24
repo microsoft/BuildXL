@@ -2,11 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Native.IO;
-using BuildXL.Utilities;
 
 namespace BuildXL.Processes
 {

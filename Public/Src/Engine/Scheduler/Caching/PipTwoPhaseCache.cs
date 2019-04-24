@@ -16,11 +16,10 @@ using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Collections;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Cache

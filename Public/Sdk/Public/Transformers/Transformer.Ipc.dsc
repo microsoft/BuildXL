@@ -42,7 +42,7 @@ namespace Transformer {
          * moniker) just before the files are needed.  This makes sense for pips that expect that often
          * times they will not have to access the actual files on disk.  
          */
-        lazilyMaterializedDependencies?: Input[];        
+        lazilyMaterializedDependencies?: Input[];
 
         /**
          * Whether this pip must execute on the master node in a distributed build.  Defaults to false.

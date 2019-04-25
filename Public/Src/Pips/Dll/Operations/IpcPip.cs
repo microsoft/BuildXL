@@ -185,7 +185,7 @@ namespace BuildXL.Pips.Operations
         }
 
         internal static IpcPip InternalDeserialize(PipReader reader)
-        {            
+        {
             bool hasProvenance = reader.ReadBoolean();
             return new IpcPip(
                 ipcInfo: IpcClientInfo.Deserialize(reader),

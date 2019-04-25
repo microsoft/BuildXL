@@ -1981,7 +1981,7 @@ namespace BuildXL.Native.IO.Windows
                 },
                 ex =>
                 {
-                    throw new BuildXLException(I($"Failed to open path '{path}'"), ex);
+                    throw new BuildXLException(I($"Failed to open path '{path}' with mode='{fileMode}', access='{fileAccess}', share='{fileShare}'"), ex);
                 });
         }
 

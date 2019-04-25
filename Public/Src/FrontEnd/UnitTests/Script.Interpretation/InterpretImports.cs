@@ -104,8 +104,7 @@ module({{
             AssertCannotBuildWorkspace(spec1, "No resolver was found that owns module");
         }
 
-        // TODO: Enable this test for Mac as well. Bug #1333905.
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void InterpretImportFileWithAbsolutePath()
         {
             string absolutePathToSpec1 = Path.Combine(RelativeSourceRoot, "spec1.dsc");

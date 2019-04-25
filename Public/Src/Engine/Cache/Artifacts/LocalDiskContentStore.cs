@@ -973,7 +973,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                         }
 
                         Tracing.Logger.Log.RetryTryOpenAndTrackPathAsync(m_loggingContext, path.ExpandedPath);
-                        return new Possible<TrackedFileContentInfo, Failure>(new Failure<string>($"TryOpenAndTrackPathAsync() failed to establish identity and track file: {path.ExpandedPath}"));
+                        return new Failure<string>($"TryOpenAndTrackPathAsync() failed to establish identity and track file: {path.ExpandedPath}");
                     },
                     logExceptions: true
                 );

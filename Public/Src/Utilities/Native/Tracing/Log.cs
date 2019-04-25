@@ -31,7 +31,7 @@ namespace BuildXL.Native.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Events.Tasks.Storage,
             Keywords = (int)Events.Keywords.UserMessage,
-            Message = "FileUtilities: Directory delete for '{path}' failed. An error will be thrown.")]
+            Message = "Directory delete for '{path}' failed. An error will be thrown.")]
         public abstract void FileUtilitiesDirectoryDeleteFailed(LoggingContext context, string path);
 
         [GeneratedEvent(
@@ -40,7 +40,7 @@ namespace BuildXL.Native.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Events.Tasks.Storage,
             Keywords = (int)Events.Keywords.UserMessage,
-            Message = "FileUtilities: '{path}'. {description}")]
+            Message = "Diagnostic for '{path}': {description}")]
         public abstract void FileUtilitiesDiagnostic(LoggingContext context, string path, string description);
 
         [GeneratedEvent(
@@ -49,7 +49,6 @@ namespace BuildXL.Native.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Events.Tasks.Storage,
             Keywords = (int)Events.Keywords.UserMessage,
-
             // TODO: demote this to a diagnostics level once we sort out our file deletion woes as well as materialization failure (FailIfExist)
             // Keywords = (int)((Events.Keywords.UserMessage) | Events.Keywords.Diagnostics),
             Message = "Retry attempt failed with exception. {exception}")]
@@ -94,8 +93,8 @@ namespace BuildXL.Native.Tracing
         [GeneratedEvent(
             (int)EventId.StorageTryOpenOrCreateFileFailure,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.Diagnostics,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.Storage,
             Message = "Creating a file handle for path {0} (disposition 0x{1:X8}) failed with HRESULT 0x{2:X8}")]
         public abstract void StorageTryOpenOrCreateFileFailure(LoggingContext context, string path, int creationDisposition, int hresult);

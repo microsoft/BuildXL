@@ -562,6 +562,7 @@ namespace BuildXL.App.Tracing
             Message = "ServerDeploymentDirectory hash mismatch: {ShortProductName} AppServer hash, {0} != ServerDeploymentDirectory hash, {1}. Re-running {ShortProductName} will fix the issue.")]
         public abstract void ServerDeploymentDirectoryHashMismatch(LoggingContext context, string hashInMemory, string hashInFile);
 
+        // CODESYNC: if you rename this method, update AriaV2.EventCountMethodName as well
         [GeneratedEvent(
             (ushort)EventId.EventCount,
             EventGenerators = EventGenerators.TelemetryOnly,

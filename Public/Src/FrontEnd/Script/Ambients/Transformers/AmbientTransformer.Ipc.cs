@@ -159,17 +159,23 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // skip materialization for files
-            FileArtifact[] skipMaterializationFiles = CollectionUtilities.EmptyArray<FileArtifact>();
+            FileOrDirectoryArtifact[] skipMaterializationArtifacts = CollectionUtilities.EmptyArray<FileOrDirectoryArtifact>();
             ArrayLiteral skipMaterializationLiteral = Converter.ExtractArrayLiteral(obj, m_ipcSendLazilyMaterializedDependencies, allowUndefined: true);
             if (skipMaterializationLiteral != null)
             {
-                skipMaterializationFiles = new FileArtifact[skipMaterializationLiteral.Length];
+                skipMaterializationArtifacts = new FileOrDirectoryArtifact[skipMaterializationLiteral.Length];
                 for (int i = 0; i < skipMaterializationLiteral.Length; i++)
                 {
-                    skipMaterializationFiles[i] = Converter.ExpectFile(
+                    Converter.ExpectFileOrStaticDirectory(
                         skipMaterializationLiteral[i],
-                        strict: true,
+                        out var fileArtifact,
+                        out var staticDirectory,
                         context: new ConversionContext(pos: i, objectCtx: skipMaterializationLiteral));
+
+                    // either fileArtifact or staticDirectory is valid at this point (otherwise, ExpectFileOrStaticDirectory would have thrown an exception) 
+                    skipMaterializationArtifacts[i] = fileArtifact.IsValid
+                        ? FileOrDirectoryArtifact.Create(fileArtifact)
+                        : FileOrDirectoryArtifact.Create(staticDirectory.Root);
                 }
             }
 
@@ -186,7 +192,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 servicePipDependencies: servicePipId != null ? ReadOnlyArray<PipId>.From(new[] { servicePipId.Value }) : ReadOnlyArray<PipId>.Empty,
                 fileDependencies: fileDependencies,
                 directoryDependencies : directoryDependencies,
-                skipMaterializationFor: ReadOnlyArray<FileArtifact>.FromWithoutCopy(skipMaterializationFiles),
+                skipMaterializationFor: ReadOnlyArray<FileOrDirectoryArtifact>.FromWithoutCopy(skipMaterializationArtifacts),
                 isServiceFinalization: isServiceFinalization,
                 mustRunOnMaster: mustRunOnMaster,
                 tags: tags,

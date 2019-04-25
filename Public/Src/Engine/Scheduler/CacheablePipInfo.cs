@@ -88,17 +88,26 @@ namespace BuildXL.Scheduler
         /// </summary>
         public static CacheablePipInfo GetIpcCacheInfo(IpcPip pip, PipExecutionContext context, bool omitLazilyMaterializedDependencies)
         {
-            var dependencies = omitLazilyMaterializedDependencies && pip.LazilyMaterializedDependencies.Any()
-                ? ReadOnlyArray<FileArtifact>.From(pip.FileDependencies.Except(pip.LazilyMaterializedDependencies))
+            var fileDependencies = omitLazilyMaterializedDependencies && pip.LazilyMaterializedDependencies.Any(a => a.IsFile)
+                ? ReadOnlyArray<FileArtifact>.From(
+                    pip.FileDependencies.Except(
+                        pip.LazilyMaterializedDependencies.Where(a => a.IsFile).Select(a => a.FileArtifact)))
                 : pip.FileDependencies;
+            
+            var directoryDependencies = omitLazilyMaterializedDependencies && pip.LazilyMaterializedDependencies.Any(a => a.IsDirectory)
+                ? ReadOnlyArray<DirectoryArtifact>.From(
+                    pip.DirectoryDependencies.Except(
+                        pip.LazilyMaterializedDependencies.Where(a => a.IsDirectory).Select(a => a.DirectoryArtifact)))
+                : pip.DirectoryDependencies;
+
             return new CacheablePipInfo(
                 pip: pip,
                 context: context,
                 allowPreserveOutputs: false,
                 outputs: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(pip.OutputFile.WithAttributes()),
-                dependencies: dependencies,
+                dependencies: fileDependencies,
                 directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
-                directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty);
+                directoryDependencies: directoryDependencies);
         }
     }
 }

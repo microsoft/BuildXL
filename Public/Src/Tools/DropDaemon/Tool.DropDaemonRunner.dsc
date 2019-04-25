@@ -278,7 +278,10 @@ export namespace DropDaemonRunner {
                     ...directoryMessageBody,
                     
                 ],
-                lazilyMaterializedDependencies: fileInfos.map(fi => fi.file),
+                lazilyMaterializedDependencies: [
+                    ...fileInfos.map(fi => fi.file),
+                    ...directoryInfos.map(di => di.directory)
+                ],
             })
         );
     }

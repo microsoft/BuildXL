@@ -129,5 +129,14 @@ namespace BuildXL.Engine.Cache.Tracing
             EventTask = (ushort)Events.Tasks.Storage,
             Message = "Retry on loading and deserializing metadata: Succeeded: {succeeded} | Retry count: {retryCount}")]
         internal abstract void RetryOnLoadingAndDeserializingMetadata(LoggingContext loggingContext, bool succeeded, int retryCount);
+
+        [GeneratedEvent(
+            (int)EventId.RetryTryOpenAndTrackPathAsync,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.Storage,
+            Message = "The path '{0}' could not be opened for identity creation and tracking, retrying with a slight backoff.")]
+        public abstract void RetryTryOpenAndTrackPathAsync(LoggingContext context, string path);
     }
 }

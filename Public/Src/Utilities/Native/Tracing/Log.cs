@@ -94,7 +94,7 @@ namespace BuildXL.Native.Tracing
         [GeneratedEvent(
             (int)EventId.StorageTryOpenOrCreateFileFailure,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Warning,
             Keywords = (int)Events.Keywords.Diagnostics,
             EventTask = (int)Events.Tasks.Storage,
             Message = "Creating a file handle for path {0} (disposition 0x{1:X8}) failed with HRESULT 0x{2:X8}")]
@@ -117,7 +117,7 @@ namespace BuildXL.Native.Tracing
             EventTask = (int)Events.Tasks.Storage,
             Message = "Found volume {0} (serial: {1:X16})")]
         public abstract void StorageFoundVolume(LoggingContext context, string volumeGuidPath, ulong serial);
-        
+
         [GeneratedEvent(
             (int)EventId.StorageTryOpenFileByIdFailure,
             EventGenerators = EventGenerators.LocalOnly,

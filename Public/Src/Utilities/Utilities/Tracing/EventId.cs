@@ -505,6 +505,7 @@ namespace BuildXL.Utilities.Tracing
         RetryOnLoadingAndDeserializingMetadata = 746,
         // was IncorrectExistsAsFileThroughPathMappings = 747,
         TimeoutOpeningFileForHashing = 748,
+        RetryTryOpenAndTrackPathAsync = 749,
 
         // Additional Process Isolation
         PipProcessIgnoringPathWithWildcardsFileAccess = 800,

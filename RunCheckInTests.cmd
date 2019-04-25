@@ -124,10 +124,10 @@ endlocal && exit /b 0
     set start=!time!
     set stepName=Building using BuildXL
     if "!MINIMAL_LAB!" == "1" (
-        set options=-Use RunCheckinTests %BUILDXL_ARGS% /f:output='%ENLISTMENTROOT%\Out\Bin\*'oroutput='%ENLISTMENTROOT%\Public\Src\Cache\Out\Bin\*' /q:ReleaseNet472 /q:ReleaseDotNetCore /q:ReleaseNet461 /q:ReleaseDotNetCoreMac /TraceInfo:RunCheckinTests=NewBitsMinimal
+        set options=-Use RunCheckinTests %BUILDXL_ARGS% /f:output='%ENLISTMENTROOT%\Out\Bin\*'oroutput='%ENLISTMENTROOT%\Public\Src\Cache\Out\Bin\*' /q:ReleaseNet472 /q:ReleaseDotNetCore /q:ReleaseDotNetCoreMac /TraceInfo:RunCheckinTests=NewBitsMinimal
     ) else (
         REM WARNING: Cache only runs tests for the Debug qualifiers! Please do not remove Debug qualifiers from this step.
-        set options=-Use RunCheckinTests -All %BUILDXL_ARGS% /q:DebugNet472 /q:ReleaseNet472 /q:DebugNet461 /q:ReleaseNet461 /q:DebugDotNetCore /q:ReleaseDotNetCore /q:DebugDotNetCoreMac /q:ReleaseDotNetCoreMac /TraceInfo:RunCheckinTests=NewBits
+        set options=-Use RunCheckinTests -All %BUILDXL_ARGS% /q:DebugNet472 /q:ReleaseNet472 /q:DebugDotNetCore /q:ReleaseDotNetCore /q:DebugDotNetCoreMac /q:ReleaseDotNetCoreMac /TraceInfo:RunCheckinTests=NewBits
     )
     call :StatusMessage !stepName!
         call :RunBxl !options!
@@ -137,15 +137,6 @@ endlocal && exit /b 0
     exit /b 0
 
 :PartB
-    if "!MINIMAL_LAB!" == "0" (
-        set start=!time!
-        set stepName=Building using BuildXL for .NET451
-        call :StatusMessage !stepName!
-            call :RunBxl -Use RunCheckinTests -All %BUILDXL_ARGS% /q:DebugNet451 /TraceInfo:RunCheckinTests=OldBits451
-            if !ERRORLEVEL! NEQ 0 (exit /b 1)
-        call :RecordStep "!stepName!" !start!
-    )
-
     set start=!time!
     set stepName=Running BuildXL on the CoreCLR with a minimal end to end scenario
     call :StatusMessage !stepName!

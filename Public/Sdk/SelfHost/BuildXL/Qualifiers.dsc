@@ -9,7 +9,7 @@ export declare const qualifier : AllSupportedQualifiers;
 @@public
 export interface FullFrameworkQualifier extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net461" | "net472";
+    targetFramework: "net472";
     targetRuntime: "win-x64"
 }
 
@@ -19,7 +19,7 @@ export interface FullFrameworkQualifier extends Qualifier {
 @@public
 export interface DefaultQualifier extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net461" | "net472" | "netcoreapp2.2";
+    targetFramework: "net472" | "netcoreapp2.2";
     targetRuntime: "win-x64" | "osx-x64";
 }
 
@@ -33,6 +33,17 @@ export interface DefaultQualifierWithNet451 extends Qualifier {
     targetRuntime: "win-x64" | "osx-x64";
 }
 
+
+/**
+ * Qualifier for projects that support DotNetCore
+ */
+@@public
+export interface DefaultQualifierWithNet461 extends Qualifier {
+    configuration: "debug" | "release";
+    targetFramework: "net461" | "net472" | "netcoreapp2.2";
+    targetRuntime: "win-x64" | "osx-x64";
+}
+
 /**
  * Qualifier for projects that support DotNetCore
  */
@@ -42,18 +53,6 @@ export interface DefaultQualifierWithNet451AndNetStandard20 extends Qualifier {
     targetFramework: "net451" | "net461" | "net472" | "netcoreapp2.2" | "netstandard2.0";
     targetRuntime: "win-x64" | "osx-x64";
 }
-
-/**
- * This qualifier should become the default when BuildXL gets ported to Net472
- * In the meantime, it is only used by some cherry-picked projects
- */
-@@public
-export interface DefaultQualifierWithNet451AndNet472 extends Qualifier {
-    configuration: "debug" | "release";
-    targetFramework: "net451" | "net461" | "net472" | "netcoreapp2.2";
-    targetRuntime: "win-x64" | "osx-x64";
-}
-
 
 export interface AllSupportedQualifiers extends Qualifier {
     configuration: "debug" | "release";
@@ -86,17 +85,6 @@ export const LatestFullFrameworkQualifier : FullFrameworkQualifier = {
     targetFramework: "net472",
     targetRuntime: "win-x64"
 };
-
-/**
- * Converst the qualifier to the latest supported qualifier.
- */
-@@public
-export const LatestQualifier : DefaultQualifier = {
-    configuration: qualifier.configuration,
-    targetFramework: isDotNetCoreBuild ? "netcoreapp2.2" : "net461",
-    targetRuntime: qualifier.targetRuntime
-};
-
 
 /**
  * Converst the qualifier to the latest supported qualifier.

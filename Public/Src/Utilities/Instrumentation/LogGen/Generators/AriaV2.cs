@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using BuildXL.Utilities;
 using Microsoft.CodeAnalysis;
 
 namespace BuildXL.LogGen.Generators
@@ -23,9 +22,19 @@ namespace BuildXL.LogGen.Generators
             m_codeGenerator.Ln("if ({0}.AriaV2StaticState.IsEnabled)", GlobalInstrumentationNamespaceCommon);
             using (m_codeGenerator.Br)
             {
-                var tableName = OperatingSystemHelper.IsUnixOS && site.Method.Name == EventCountMethodName
-                    ? site.Method.Name + "MacOS"
-                    : site.Method.Name;
+                // The current EventCount table has columns whose names start with a digit; 
+                // the AriaV2 static library for macOS doesn't seem to support this.
+                //
+                // To avoid having to alter the exiting EventCount table(and breaking existing queries),
+                // when running on macOS, use a different(new) table, namely EventCountMacOS, and prefix 
+                // its column names with a constant (e.g., "e").
+                var tableName = site.Method.Name;
+#if PLATFORM_OSX
+                if (site.Method.Name == EventCountMethodName)
+                {
+                    tableName = tableName + "MacOS";
+                }
+#endif
 
                 m_codeGenerator.Lns("var eventData = new {0}.AriaEvent(\"{1}\", \"{2}\", \"{3}\")", GlobalInstrumentationNamespaceCommon, tableName, m_targetFramework, m_targetRuntime);
 

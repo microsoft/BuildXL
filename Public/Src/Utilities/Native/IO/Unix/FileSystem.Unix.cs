@@ -879,7 +879,7 @@ namespace BuildXL.Native.IO.Unix
         {
             try
             {
-                var maxPathLength = NativeIOConstants.MaxPath + 1;
+                var maxPathLength = MaxDirectoryPathLength();
                 var sb = new StringBuilder(maxPathLength);
                 long numCharactersWritten = SafeReadLink(sourcePath, sb, maxPathLength);
                 if (numCharactersWritten >= 0 && numCharactersWritten <= maxPathLength)

@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.Utilities.Tracing;
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.ToolSupport
 {

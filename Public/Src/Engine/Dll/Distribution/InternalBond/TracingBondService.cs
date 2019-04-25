@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 #if !DISABLE_FEATURE_BOND_RPC
 
 using System.Diagnostics;
@@ -81,7 +80,7 @@ namespace BuildXL.Engine.Distribution.InternalBond
             return new ServiceFunctionRegistration<RpcMessageBase, Microsoft.Bond.Void>(functionName);
         }
 
-        private new static Request<TFrom, TTo> GenerateRequest<TFrom, TTo>(TransportAsyncResult msg, IBondTransportServer server)
+        private static new Request<TFrom, TTo> GenerateRequest<TFrom, TTo>(TransportAsyncResult msg, IBondTransportServer server)
             where TFrom : Microsoft.Bond.IBondSerializable, new()
             where TTo : Microsoft.Bond.IBondSerializable, new()
         {

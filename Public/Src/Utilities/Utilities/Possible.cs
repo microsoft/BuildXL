@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace BuildXL.Utilities

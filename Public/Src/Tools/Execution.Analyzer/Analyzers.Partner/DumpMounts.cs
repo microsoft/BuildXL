@@ -4,7 +4,6 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Engine;
 using BuildXL.ToolSupport;
 using Newtonsoft.Json;
 

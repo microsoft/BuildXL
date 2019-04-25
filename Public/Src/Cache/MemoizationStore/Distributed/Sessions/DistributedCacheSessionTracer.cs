@@ -2,12 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using BuildXL.Cache.ContentStore.Stats;
-using BuildXL.Cache.MemoizationStore.Distributed.Metadata.Tracing;
-using BuildXL.Cache.MemoizationStore.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Stats;
+using BuildXL.Cache.MemoizationStore.Distributed.Metadata.Tracing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Cache.MemoizationStore.Tracing;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
 {

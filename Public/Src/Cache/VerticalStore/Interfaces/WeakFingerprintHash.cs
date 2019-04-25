@@ -3,9 +3,9 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else

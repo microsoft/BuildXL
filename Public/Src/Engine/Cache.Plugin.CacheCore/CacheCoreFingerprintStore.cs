@@ -4,8 +4,8 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.Interfaces;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Storage;

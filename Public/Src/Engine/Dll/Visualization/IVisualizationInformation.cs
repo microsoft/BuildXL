@@ -2,12 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using BuildXL.Pips;
-using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Qualifier;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Engine.Visualization
 {

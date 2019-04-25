@@ -7,16 +7,16 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
-using BuildXL.Storage;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Scheduler.Fingerprints;
+using BuildXL.Storage;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Engine
 {

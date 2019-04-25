@@ -4,14 +4,8 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Threading.Tasks;
-using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Serialization;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Configuration;
 using static BuildXL.Scheduler.Tracing.FingerprintStoreReader;
-using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Tracing
 {

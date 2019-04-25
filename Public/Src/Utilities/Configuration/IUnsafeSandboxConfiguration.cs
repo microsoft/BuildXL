@@ -3,8 +3,6 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Utilities;
-using JetBrains.Annotations;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -117,7 +115,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Defaults that are consider "safe".
         /// </summary>
-        public readonly static IUnsafeSandboxConfiguration SafeDefaults = Mutable.UnsafeSandboxConfiguration.SafeOptions;
+        public static readonly IUnsafeSandboxConfiguration SafeDefaults = Mutable.UnsafeSandboxConfiguration.SafeOptions;
 
         /// <summary>
         /// Returns whether sandboxing is disabled.

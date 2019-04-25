@@ -9,6 +9,7 @@ using System.Linq;
 using BuildXL.Execution.Analyzer.Analyzers.CacheMiss;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
@@ -18,7 +19,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
 using StringPair = System.Collections.Generic.KeyValuePair<string, string>;
-using BuildXL.Scheduler;
 
 namespace BuildXL.Execution.Analyzer
 {

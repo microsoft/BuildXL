@@ -8,7 +8,6 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
 
 namespace BuildXL.Scheduler.Fingerprints

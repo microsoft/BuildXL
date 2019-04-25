@@ -10,7 +10,6 @@ using BuildXL.Storage.ChangeJournalService.Protocol;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.FormattableStringEx;
-using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 namespace BuildXL.Storage.ChangeJournalService
 {

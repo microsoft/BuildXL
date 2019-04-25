@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -5304,6 +5303,14 @@ namespace BuildXL.Scheduler
             }
 
             return PipGraph.IsPreservedOutputArtifact(artifact);
+        }
+
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        bool IFileContentManagerHost.IsFileRewritten(in FileArtifact artifact)
+        {
+            Contract.Requires(artifact.IsValid);
+
+            return IsFileRewritten(artifact);
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

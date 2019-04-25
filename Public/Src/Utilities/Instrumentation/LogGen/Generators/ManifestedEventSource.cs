@@ -8,7 +8,6 @@ using System.Diagnostics.Tracing;
 using System.Linq;
 using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.CodeAnalysis;
-
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.LogGen.Generators

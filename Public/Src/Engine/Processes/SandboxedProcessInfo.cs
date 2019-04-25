@@ -7,11 +7,14 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using BuildXL.Native.Processes;
+using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.BuildParameters;
+using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace BuildXL.Processes
 {
@@ -79,9 +82,9 @@ namespace BuildXL.Processes
             bool disableConHostSharing,
             bool testRetries = false,
             LoggingContext loggingContext = null,
-            IDetoursEventListener detourseEventListener = null,
+            IDetoursEventListener detoursEventListener = null,
             IKextConnection sandboxedKextConnection = null)
-            : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detourseEventListener, sandboxedKextConnection)
+            : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxedKextConnection)
         {
         }
 
@@ -364,5 +367,151 @@ namespace BuildXL.Processes
         /// Notify this delegate once process id becomes available.
         /// </summary>
         public Action<int> ProcessIdListener { get; set; }
+
+        /// <summary>
+        /// Standard output and error for sandboxed process.
+        /// </summary>
+        /// <remarks>
+        /// This instance of <see cref="SandboxedProcessStandardFiles"/> is used as an alternative to <see cref="FileStorage"/>.
+        /// </remarks>
+        public SandboxedProcessStandardFiles SandboxedProcessStandardFiles { get; set; }
+
+        /// <summary>
+        /// Info about the source of standard input.
+        /// </summary>
+        /// <remarks>
+        /// This instance of <see cref="StandardInputInfo"/> is used as a serialized version of <see cref="StandardInputReader"/>.
+        /// </remarks>
+        public StandardInputInfo StandardInputSourceInfo { get; set; }
+
+        /// <summary>
+        /// Observer descriptor.
+        /// </summary>
+        /// <remarks>
+        /// This instance of <see cref="SandboxObserverDescriptor"/> is used as a serialized version of <see cref="StandardOutputObserver"/> and <see cref="StandardErrorObserver"/>.
+        /// </remarks>
+        public SandboxObserverDescriptor StandardObserverDescriptor { get; set; }
+
+        #region Serialization
+
+        /// <nodoc />
+        public void Serialize(Stream stream)
+        {
+            using (var writer = new BuildXLWriter(false, stream, true, true))
+            {
+                writer.WriteNullableString(m_arguments);
+                writer.WriteNullableString(m_commandLine);
+                writer.Write(DisableConHostSharing);
+                writer.WriteNullableString(FileName);
+                writer.Write(StandardInputEncoding, (w, v) => w.Write(v));
+                writer.Write(StandardOutputEncoding, (w, v) => w.Write(v));
+                writer.Write(StandardErrorEncoding, (w, v) => w.Write(v));
+                writer.WriteNullableString(WorkingDirectory);
+                writer.Write(
+                    EnvironmentVariables,
+                    (w, v) => w.WriteReadOnlyList(
+                        v.ToDictionary().ToList(),
+                        (w2, kvp) =>
+                        {
+                            w2.Write(kvp.Key);
+                            w2.Write(kvp.Value);
+                        }));
+                writer.Write(
+                    AllowedSurvivingChildProcessNames,
+                    (w, v) => w.WriteReadOnlyList(v, (w2, v2) => w2.Write(v2)));
+                writer.Write(MaxLengthInMemory);
+                writer.Write(Timeout, (w, v) => w.Write(v));
+                writer.Write(NestedProcessTerminationTimeout);
+                writer.Write(PipSemiStableHash);
+                writer.WriteNullableString(TimeoutDumpDirectory);
+                writer.Write((byte)SandboxKind);
+                writer.WriteNullableString(PipDescription);
+
+                if (SandboxedProcessStandardFiles == null)
+                {
+                    SandboxedProcessStandardFiles.From(FileStorage).Serialize(writer);
+                }
+                else
+                {
+                    SandboxedProcessStandardFiles.Serialize(writer);
+                }
+
+                writer.Write(StandardInputSourceInfo, (w, v) => v.Serialize(w));
+                writer.Write(StandardObserverDescriptor, (w, v) => v.Serialize(w));
+
+                // File access manifest should be serialize the last.
+                writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
+            }
+        }
+
+        /// <nodoc />
+        public static SandboxedProcessInfo Deserialize(Stream stream, LoggingContext loggingContext, IDetoursEventListener detoursEventListener)
+        {
+            using (var reader = new BuildXLReader(false, stream, true))
+            {
+                string arguments = reader.ReadNullableString();
+                string commandLine = reader.ReadNullableString();
+                bool disableConHostSharing = reader.ReadBoolean();
+                string fileName = reader.ReadNullableString();
+                Encoding standardInputEncoding = reader.ReadNullable(r => r.ReadEncoding());
+                Encoding standardOutputEncoding = reader.ReadNullable(r => r.ReadEncoding());
+                Encoding standardErrorEncoding = reader.ReadNullable(r => r.ReadEncoding());
+                string workingDirectory = reader.ReadNullableString();
+                IBuildParameters buildParameters = null;
+                var envVars = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => new KeyValuePair<string, string>(r2.ReadString(), r2.ReadString())));
+                if (envVars != null)
+                {
+
+                    buildParameters = BuildParameters.GetFactory().PopulateFromDictionary(envVars.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+                }
+
+                string[] allowedSurvivingChildNames = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => r2.ReadString()))?.ToArray();
+                int maxLengthInMemory = reader.ReadInt32();
+                TimeSpan? timeout = reader.ReadNullableStruct(r => r.ReadTimeSpan());
+                TimeSpan nestedProcessTerminationTimeout = reader.ReadTimeSpan();
+                long pipSemiStableHash = reader.ReadInt64();
+                string timeoutDumpDirectory = reader.ReadNullableString();
+                SandboxKind sandboxKind = (SandboxKind)reader.ReadByte();
+                string pipDescription = reader.ReadNullableString();
+                SandboxedProcessStandardFiles sandboxedProcessStandardFiles = SandboxedProcessStandardFiles.Deserialize(reader);
+                StandardInputInfo standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
+                SandboxObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => SandboxObserverDescriptor.Deserialize(r));
+
+                FileAccessManifest fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
+
+                return new SandboxedProcessInfo(
+                    new PathTable(),
+                    new StandardFileStorage(sandboxedProcessStandardFiles),
+                    fileName,
+                    fam,
+                    disableConHostSharing,
+                    // TODO: serialize/deserialize container configuration.
+                    containerConfiguration: ContainerConfiguration.DisabledIsolation,
+                    loggingContext: loggingContext,
+                    detoursEventListener: detoursEventListener)
+                {
+                    m_arguments = arguments,
+                    m_commandLine = commandLine,
+                    StandardInputEncoding = standardInputEncoding,
+                    StandardOutputEncoding = standardOutputEncoding,
+                    StandardErrorEncoding = standardErrorEncoding,
+                    WorkingDirectory = workingDirectory,
+                    EnvironmentVariables = buildParameters,
+                    AllowedSurvivingChildProcessNames = allowedSurvivingChildNames,
+                    MaxLengthInMemory = maxLengthInMemory,
+                    Timeout = timeout,
+                    NestedProcessTerminationTimeout = nestedProcessTerminationTimeout,
+                    PipSemiStableHash = pipSemiStableHash,
+                    TimeoutDumpDirectory = timeoutDumpDirectory,
+                    SandboxKind = sandboxKind,
+                    PipDescription = pipDescription,
+                    SandboxedProcessStandardFiles = sandboxedProcessStandardFiles,
+                    StandardInputSourceInfo = standardInputSourceInfo,
+                    StandardObserverDescriptor = standardObserverDescriptor
+                };
+            }
+        }
+
+        #endregion
     }
 }

@@ -5,7 +5,6 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {

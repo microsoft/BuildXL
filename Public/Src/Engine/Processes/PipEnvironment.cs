@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -8,7 +9,6 @@ using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.BuildParameters;
-using SpecialFolder = System.Environment.SpecialFolder;
 
 namespace BuildXL.Processes
 {
@@ -22,7 +22,7 @@ namespace BuildXL.Processes
         /// </summary>
         public static readonly string RestrictedTemp =
             Path.Combine(
-                SpecialFolderUtilities.GetFolderPath(OperatingSystemHelper.IsUnixOS ? SpecialFolder.UserProfile : SpecialFolder.LocalApplicationData),
+                SpecialFolderUtilities.GetFolderPath(OperatingSystemHelper.IsUnixOS ? Environment.SpecialFolder.UserProfile : Environment.SpecialFolder.LocalApplicationData),
                 "Microsoft",
                 "BuildXL",
                 "RestrictedTemp");
@@ -54,7 +54,7 @@ namespace BuildXL.Processes
                 string.Join(
                     ";",
                     SpecialFolderUtilities.SystemDirectory,
-                    SpecialFolderUtilities.GetFolderPath(SpecialFolder.Windows),
+                    SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows),
                     Path.Combine(SpecialFolderUtilities.SystemDirectory, "wbem"));
             var pathExt = ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC";
 

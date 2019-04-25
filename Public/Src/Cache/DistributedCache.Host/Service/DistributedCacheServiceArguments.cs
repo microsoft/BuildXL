@@ -1,15 +1,11 @@
-﻿// --------------------------------------------------------------------
-//  
-// Copyright (c) Microsoft Corporation.  All rights reserved.
-//  
-// --------------------------------------------------------------------
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Logging;
-using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.Host.Configuration;
 
 namespace BuildXL.Cache.Host.Service
 {

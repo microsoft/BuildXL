@@ -8,9 +8,9 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Constants;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Ide.Generator

@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Threading.Tasks;
-using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 
 namespace BuildXL.Cache.MemoizationStore.Vsts
 {

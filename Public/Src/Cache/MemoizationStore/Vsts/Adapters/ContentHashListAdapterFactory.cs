@@ -3,9 +3,9 @@
 
 using System;
 using System.Threading.Tasks;
-using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 
 namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
 {

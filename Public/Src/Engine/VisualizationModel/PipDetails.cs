@@ -11,7 +11,6 @@ using System.Linq;
 using BuildXL.Engine.Visualization;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
-using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using Newtonsoft.Json;

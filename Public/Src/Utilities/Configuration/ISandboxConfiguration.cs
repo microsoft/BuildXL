@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.Utilities;
-
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
@@ -209,5 +207,10 @@ namespace BuildXL.Utilities.Configuration
         /// Container-related configuration
         /// </summary>
         ISandboxContainerConfiguration ContainerConfiguration { get; }
+
+        /// <summary>
+        /// Execution mode for processes that require admin privilege.
+        /// </summary>
+        AdminRequiredProcessExecutionMode AdminRequiredProcessExecutionMode { get; }
     }
 }

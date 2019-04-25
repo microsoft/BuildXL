@@ -5,7 +5,6 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Threading;
-using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Utilities.Collections
 {

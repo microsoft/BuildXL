@@ -3,13 +3,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using Newtonsoft.Json;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Utilities;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using System.IO;
 using System.Diagnostics.ContractsLight;
+using System.IO;
+using System.Text;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities;
+using Newtonsoft.Json;
 
 namespace BuildXL.Engine.Cache
 {

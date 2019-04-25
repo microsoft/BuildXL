@@ -6,9 +6,9 @@ using System.Diagnostics.ContractsLight;
 using System.Security.Cryptography;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 #pragma warning disable SA1649 // File name must match first type name
 

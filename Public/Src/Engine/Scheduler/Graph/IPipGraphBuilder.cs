@@ -1,12 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
-using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler.Graph
 {

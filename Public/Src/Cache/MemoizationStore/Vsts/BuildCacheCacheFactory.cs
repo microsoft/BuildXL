@@ -4,12 +4,12 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Cache.ContentStore.Vsts;
-using BuildXL.Cache.MemoizationStore.Vsts.Http;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
+using BuildXL.Cache.MemoizationStore.Vsts.Http;
 
 namespace BuildXL.Cache.MemoizationStore.Vsts
 {

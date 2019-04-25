@@ -1,4 +1,8 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System;
+using System.Collections.Generic;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 #pragma warning disable SA1000
@@ -35,9 +39,6 @@
 
 namespace BuildXL.Cache.ContentStore.Hashing.Chunking
 {
-    using System;
-    using System.CodeDom.Compiler;
-    using System.Collections.Generic;
     using BYTE = System.Byte;
     using DWORD = System.UInt32;
     using HashValueT = System.UInt64;

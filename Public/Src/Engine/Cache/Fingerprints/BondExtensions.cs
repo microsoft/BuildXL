@@ -7,13 +7,13 @@ using System.Threading.Tasks;
 using Bond.IO.Unsafe;
 using Bond.Protocols;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Serialization;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Engine.Cache.Fingerprints
 {

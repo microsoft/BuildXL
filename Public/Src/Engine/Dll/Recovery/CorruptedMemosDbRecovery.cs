@@ -9,9 +9,9 @@ using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
-using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine.Recovery

@@ -11,12 +11,12 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
+using BuildXL.Interop.MacOS;
 using static BuildXL.Interop.MacOS.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -329,7 +329,7 @@ namespace BuildXL.Processes
             Process.StandardInput.Close();
         }
 
-        internal override void FeedStdErr(SandboxedProcessOutputBuilder builder, TaskSourceSlim<Unit> tsc, string line)
+        internal override void FeedStdErr(SandboxedProcessOutputBuilder builder, string line)
         {
             if (line == null) // designates EOF
             {
@@ -337,17 +337,17 @@ namespace BuildXL.Processes
                 m_cpuTimes = ExtractCpuTimes(m_lastStdErrLine, out string unprocessedFragment);
 
                 // feed whatever wasn't consumed
-                FeedOutputBuilder(builder, tsc, unprocessedFragment);
+                FeedOutputBuilder(builder, unprocessedFragment);
 
                 // feed EOF
-                FeedOutputBuilder(builder, tsc, null);
+                FeedOutputBuilder(builder, null);
             }
             else
             {
                 // feed previous line (if any)
                 if (m_lastStdErrLine != null)
                 {
-                    FeedOutputBuilder(builder, tsc, m_lastStdErrLine);
+                    FeedOutputBuilder(builder, m_lastStdErrLine);
                 }
 
                 // update previous line

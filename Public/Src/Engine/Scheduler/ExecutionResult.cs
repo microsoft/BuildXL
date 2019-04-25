@@ -7,6 +7,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
 using BuildXL.Processes;
@@ -15,7 +16,6 @@ using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
@@ -621,7 +621,7 @@ namespace BuildXL.Scheduler
                             fingerprint: m_weakFingerprint?.Hash ?? FingerprintUtilities.ZeroFingerprint,
                             processExecutionTime: wallClockTime,
                             fileMonitoringViolations: ConvertFileMonitoringViolationCounters(m_unsealedState.UnexpectedFileAccessCounters.Value),
-                            ioCounters: ConvertIOCounters(jobAccounting.IO),
+                            ioCounters: jobAccounting.IO,
                             userTime: jobAccounting.UserTime,
                             kernelTime: jobAccounting.KernelTime,
                             peakMemoryUsage: jobAccounting.PeakMemoryUsage,
@@ -651,19 +651,6 @@ namespace BuildXL.Scheduler
                 .ToDictionary(kvp => kvp.Item1.Path, kvp => (IReadOnlyCollection<AbsolutePath>) kvp.Item2.SelectArray(fileArtifact => fileArtifact.Path));
 
             return new ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>(sharedDynamicAccesses);
-        }
-
-        private static IOTypeCounters ConvertIOCounters(JobObject.IOTypeCounters counters)
-        {
-            return new IOTypeCounters(operationCount: counters.OperationCount, transferCount: counters.TransferCount);
-        }
-
-        private static IOCounters ConvertIOCounters(JobObject.IOCounters counters)
-        {
-            return new IOCounters(
-                readCounters: ConvertIOCounters(counters.ReadCounters),
-                writeCounters: ConvertIOCounters(counters.WriteCounters),
-                otherCounters: ConvertIOCounters(counters.OtherCounters));
         }
 
         private static FileMonitoringViolationCounters ConvertFileMonitoringViolationCounters(UnexpectedFileAccessCounters counters)

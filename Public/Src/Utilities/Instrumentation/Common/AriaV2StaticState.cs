@@ -3,11 +3,15 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-#if FEATURE_ARIA_TELEMETRY 
+
+#if PLATFORM_OSX
+using System.IO;
+#endif
+
+#if FEATURE_ARIA_TELEMETRY
 #if !FEATURE_CORECLR
 using Microsoft.Applications.Telemetry;
 using Microsoft.Applications.Telemetry.Desktop;
@@ -30,12 +34,12 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
         private static string s_ariaTelemetryDBLocation;
 
-#if FEATURE_ARIA_TELEMETRY 
+#if FEATURE_ARIA_TELEMETRY
 #if FEATURE_CORECLR
-    #if PLATFORM_OSX
+#if PLATFORM_OSX
         internal static IntPtr s_AriaLogger;
         private static readonly string s_ariaTelemetryDBName = "Aria.db";
-    #endif
+#endif
 #endif
 #endif
 
@@ -69,7 +73,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
                 // Initialization may only happen once per application lifetime so we need some static state to enforce this
                 if (!s_hasBeenInitialized)
                 {
-#if FEATURE_ARIA_TELEMETRY 
+#if FEATURE_ARIA_TELEMETRY
 #if !FEATURE_CORECLR
                     LogConfiguration configuration = new LogConfiguration()
                     {
@@ -81,7 +85,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
                     LogManager.Initialize(tenantToken, configuration);
 #else
-    #if PLATFORM_OSX
+#if PLATFORM_OSX
                     Contract.Requires(s_ariaTelemetryDBLocation != null);
                     if (s_ariaTelemetryDBLocation.Length > 0 && !Directory.Exists(s_ariaTelemetryDBLocation))
                     {
@@ -91,7 +95,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
                     // s_ariaTelemetryDBLocation is defaulting to an empty string when not passed when enabling telemetry, in that case
                     // this causes the DB to be created in the current working directory of the process
                     s_AriaLogger = AriaMacOS.CreateAriaLogger(tenantToken, System.IO.Path.Combine(s_ariaTelemetryDBLocation, s_ariaTelemetryDBName));
-    #endif
+#endif
 #endif
 #endif
                     s_hasBeenInitialized = true;
@@ -126,14 +130,14 @@ namespace BuildXL.Utilities.Instrumentation.Common
                     {
                         try
                         {
-#if FEATURE_ARIA_TELEMETRY 
+#if FEATURE_ARIA_TELEMETRY
 #if !FEATURE_CORECLR
                             LogManager.FlushAndTearDown();
 #else
-    #if PLATFORM_OSX
+#if PLATFORM_OSX
                             AriaMacOS.DisposeAriaLogger(s_AriaLogger);
                             s_AriaLogger = IntPtr.Zero;
-    #endif
+#endif
 #endif
 #endif
                             shutDownResult = ShutDownResult.Success;

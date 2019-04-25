@@ -4,8 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Text;
 using System.Linq;
+using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;

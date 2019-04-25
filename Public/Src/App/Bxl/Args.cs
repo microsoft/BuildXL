@@ -13,8 +13,8 @@ using BuildXL.Pips.Operations;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;
@@ -203,6 +203,9 @@ namespace BuildXL
                             "additionalConfigFile",
                             "ac",
                             opt => ParsePathOption(opt, pathTable, startupConfiguration.AdditionalConfigFiles)),
+                        OptionHandlerFactory.CreateOption(
+                            "adminRequiredProcessExecutionMode",
+                            opt => sandboxConfiguration.AdminRequiredProcessExecutionMode = CommandLineUtilities.ParseEnumOption<AdminRequiredProcessExecutionMode>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
                             "allowFetchingCachedGraphFromContentCache",
                             sign => cacheConfiguration.AllowFetchingCachedGraphFromContentCache = sign),
@@ -1215,7 +1218,15 @@ namespace BuildXL
                     // profile redirection only happens on Windows
                     layoutConfiguration.RedirectedUserProfileJunctionRoot = AbsolutePath.Invalid;
                 }
-                
+
+                if (OperatingSystemHelper.IsUnixOS)
+                {
+                    // TODO: Non Windows OS doesn't support admin-required process external execution mode.
+                    if (sandboxConfiguration.AdminRequiredProcessExecutionMode != AdminRequiredProcessExecutionMode.Internal)
+                    {
+                        throw CommandLineUtilities.Error(Strings.Args_AdminRequiredProcessExecutionMode_NotSupportedOnNonWindows, sandboxConfiguration.AdminRequiredProcessExecutionMode.ToString());
+                    }
+                }
 
                 // Disable reuseEngineState (enabled by default) in case of /server- or /cacheGraph- (even if /reuseEngineState+ is passed)
                 if (configuration.Server == ServerMode.Disabled || !cacheConfiguration.CacheGraph)

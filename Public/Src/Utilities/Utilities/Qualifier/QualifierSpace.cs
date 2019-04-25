@@ -7,8 +7,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using static BuildXL.Utilities.Collections.CollectionUtilities;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -137,7 +137,7 @@ namespace BuildXL.Utilities.Qualifier
         /// <summary>
         /// Empty qualifier space.
         /// </summary>
-        public static readonly QualifierSpace Empty = new QualifierSpace(EmptyArray<StringId>(), EmptyArray<StringId>(), EmptyArray<StringId[]>());
+        public static readonly QualifierSpace Empty = new QualifierSpace(CollectionUtilities.EmptyArray<StringId>(), CollectionUtilities.EmptyArray<StringId>(), CollectionUtilities.EmptyArray<StringId[]>());
 
         /// <summary>
         /// Internal constructor.

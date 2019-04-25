@@ -4,11 +4,10 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;
 using VSThread = VSCode.DebugAdapter.Thread;

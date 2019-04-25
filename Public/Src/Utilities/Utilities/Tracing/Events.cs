@@ -258,7 +258,7 @@ namespace BuildXL.Utilities.Tracing
 
             public const EventTask UnitTest = (EventTask)4;
 
-            // FREE: 5;
+            public const EventTask SandboxedProcessExecutor = (EventTask)5;
 
             public const EventTask Engine = (EventTask)6;
 

@@ -5,11 +5,11 @@ using System;
 using System.IO;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Analyzer.Codex;
-using Codex.Analysis.External;
-using BuildXL.ToolSupport;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.ToolSupport;
+using BuildXL.Utilities;
+using Codex.Analysis.External;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers

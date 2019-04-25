@@ -3,11 +3,11 @@
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Utilities;
 using BuildXL.Native.IO;
 using BuildXL.Native.Streams;
 using BuildXL.Native.Streams.Unix;
 using BuildXL.Native.Streams.Windows;
+using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Storage

@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
-using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
+using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.CLI.Utils;
 using static BuildXL.Utilities.FormattableStringEx;
 

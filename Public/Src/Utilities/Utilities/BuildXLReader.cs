@@ -458,6 +458,21 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Reads an <see cref="Encoding"/>.
+        /// </summary>
+        public Encoding ReadEncoding()
+        {
+            Start<Encoding>();
+            int codePage = ReadInt32();
+
+#if DISABLE_FEATURE_EXTENDED_ENCODING
+            return new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+#else
+            return Encoding.GetEncoding(codePage);
+#endif
+        }
+
+        /// <summary>
         /// Reads a Nullable struct
         /// </summary>
         public T? ReadNullableStruct<T>(Func<BuildXLReader, T> reader)

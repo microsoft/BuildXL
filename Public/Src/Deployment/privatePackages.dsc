@@ -14,7 +14,7 @@ namespace PrivatePackages {
     };
 
     const net451Qualifier : BuildXLSdk.DefaultQualifierWithNet451 = { configuration: qualifier.configuration, targetFramework: "net451", targetRuntime: "win-x64" };
-    const net461Qualifier : BuildXLSdk.DefaultQualifier = { configuration: qualifier.configuration, targetFramework: "net461", targetRuntime: "win-x64" };
+    const net461Qualifier : BuildXLSdk.DefaultQualifierWithNet461 = { configuration: qualifier.configuration, targetFramework: "net461", targetRuntime: "win-x64" };
     const net472Qualifier : BuildXLSdk.DefaultQualifier = { configuration: qualifier.configuration, targetFramework: "net472", targetRuntime: "win-x64" };
 
     const cloudBuildlibrary = NugetPackages.pack({
@@ -24,7 +24,7 @@ namespace PrivatePackages {
                 {
                     subfolder: r`lib/${net461Qualifier.targetFramework}`,
                     contents: [
-                        importFrom("BuildXL.Engine").withQualifier(net461Qualifier).Processes.dll.runtime,
+                        importFrom("BuildXL.Engine").Processes.withQualifier(net461Qualifier).dll.runtime,
                         importFrom("BuildXL.Pips").withQualifier(net461Qualifier).dll.runtime,
                         importFrom("BuildXL.Utilities.Instrumentation").withQualifier(net461Qualifier).Common.dll.runtime,
                         importFrom("BuildXL.Utilities.Instrumentation").withQualifier(net461Qualifier).Tracing.dll.runtime,

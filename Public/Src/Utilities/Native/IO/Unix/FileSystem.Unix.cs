@@ -13,7 +13,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
-using System.Security.AccessControl;
 using System.Text;
 using System.Text.RegularExpressions;
 using BuildXL.Native.IO.Windows;
@@ -651,7 +650,7 @@ namespace BuildXL.Native.IO.Unix
                 },
                 ex =>
                 {
-                    throw new BuildXLException(I($"Failed to open path '{path}'"), ex);
+                    throw new BuildXLException(I($"Failed to open path '{path}' with mode='{fileMode}', access='{fileAccess}', share='{fileShare}'"), ex);
                 });
         }
 

@@ -10,7 +10,6 @@ using System.IO;
 using System.Linq;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
-using BuildXL.Execution.Analyzer;
 
 namespace BuildXL.Execution.Analyzer.Analyzers
 {

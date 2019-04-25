@@ -6,11 +6,11 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Synchronization;
 using CLAP;
-using BuildXL.Cache.ContentStore.Hashing;
 
 // ReSharper disable once UnusedMember.Global
 namespace BuildXL.Cache.ContentStore.App

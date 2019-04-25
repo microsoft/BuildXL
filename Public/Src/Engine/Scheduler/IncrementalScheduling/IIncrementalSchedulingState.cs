@@ -8,8 +8,8 @@ using BuildXL.Native.IO;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler.IncrementalScheduling
 {

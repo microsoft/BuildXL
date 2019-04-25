@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips;

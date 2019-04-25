@@ -18,13 +18,12 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
 using PinRequest = ContentStore.Grpc.PinRequest;
-using BuildXL.Cache.ContentStore.FileSystem;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -38,19 +37,22 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly Dictionary<string, IContentStore> _contentStoreByCacheName;
         private readonly ISessionHandler<IContentSession> _sessionHandler;
         private readonly ContentServerAdapter _adapter;
+        private readonly int _bufferSize;
 
         /// <nodoc />
         public GrpcContentServer(
             ILogger logger,
             Capabilities serviceCapabilities,
             ISessionHandler<IContentSession> sessionHandler,
-            Dictionary<string, IContentStore> storesByName)
+            Dictionary<string, IContentStore> storesByName,
+            int? bufferSize = null)
         {
             _logger = logger;
             _serviceCapabilities = serviceCapabilities;
             _sessionHandler = sessionHandler;
             _adapter = new ContentServerAdapter(this);
             _contentStoreByCacheName = storesByName;
+            _bufferSize = bufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
         }
 
         /// <nodoc />
@@ -246,12 +248,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             Debug.Assert(result.Stream != null);
                             long size = result.Stream.Length;
                             headers.Add("FileSize", size.ToString());
-                            if ((request.Compression == CopyCompression.Gzip) && (size > ContentStore.Grpc.CopyConstants.DefaultBufferSize))
+                            if ((request.Compression == CopyCompression.Gzip) && (size > _bufferSize))
                             {
                                 compression = CopyCompression.Gzip;
                             }
                             headers.Add("Compression", compression.ToString());
-                            headers.Add("ChunkSize", ContentStore.Grpc.CopyConstants.DefaultBufferSize.ToString());
+                            headers.Add("ChunkSize", _bufferSize.ToString());
                             break;
                         default:
                             throw new NotImplementedException();
@@ -265,7 +267,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     {
                         _logger.Debug($"Streaming file through GRPC with GZip {(compression == CopyCompression.Gzip ? "on" : "off")}");
 
-                        byte[] buffer = new byte[ContentStore.Grpc.CopyConstants.DefaultBufferSize];
+                        byte[] buffer = new byte[_bufferSize];
                         switch (compression)
                         {
                             case CopyCompression.None:

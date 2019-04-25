@@ -22,7 +22,6 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Stores.DistributedContentStoreSettings;
-using TaskExtensions = BuildXL.Cache.ContentStore.Interfaces.Extensions.TaskExtensions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {

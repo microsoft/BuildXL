@@ -2,10 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using BuildXL.FrontEnd.Script.Analyzer.Tracing;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.Analyzer

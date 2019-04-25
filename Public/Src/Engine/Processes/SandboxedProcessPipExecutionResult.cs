@@ -155,6 +155,27 @@ namespace BuildXL.Processes
                 containerConfiguration: containerConfiguration);
         }
 
+        internal static SandboxedProcessPipExecutionResult MismatchedMessageCountFailure(SandboxedProcessPipExecutionResult result)
+            => new SandboxedProcessPipExecutionResult(
+                   SandboxedProcessPipExecutionStatus.MismatchedMessageCount,
+                   result.ObservedFileAccesses,
+                   result.SharedDynamicDirectoryWriteAccesses,
+                   result.EncodedStandardOutput,
+                   result.EncodedStandardError,
+                   result.NumberOfWarnings,
+                   result.UnexpectedFileAccesses,
+                   result.PrimaryProcessTimes,
+                   result.JobAccountingInformation,
+                   result.NumberOfProcessLaunchRetries,
+                   result.ExitCode,
+                   result.SandboxPrepMs,
+                   result.ProcessSandboxedProcessResultMs,
+                   result.ProcessStartTimeMs,
+                   result.AllReportedFileAccesses,
+                   result.DetouringStatuses,
+                   result.MaxDetoursHeapSizeInBytes,
+                   result.ContainerConfiguration);
+
         /// <summary>
         /// Indicates if the pip succeeded.
         /// </summary>

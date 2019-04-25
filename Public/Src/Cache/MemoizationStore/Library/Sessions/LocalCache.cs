@@ -3,15 +3,15 @@
 
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Sessions;
-using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.MemoizationStore.Stores;
 
 namespace BuildXL.Cache.MemoizationStore.Sessions
 {

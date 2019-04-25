@@ -19,7 +19,6 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
-using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
@@ -31,9 +30,9 @@ using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
@@ -136,7 +135,7 @@ namespace BuildXL.Scheduler
             var pipInfo = new PipInfo(pip, context);
             var pipDescription = pipInfo.Description;
 
-            bool shouldStoreOutputToCache = environment.Configuration.Schedule.StoreOutputsToCache;
+            
 
             string destination = pip.Destination.Path.ToString(pathTable);
             string source = pip.Source.Path.ToString(pathTable);
@@ -199,6 +198,8 @@ namespace BuildXL.Scheduler
                     {
                         Contract.Assume(sourceContentInfo.Hash != WellKnownContentHashes.UntrackedFile);
                     }
+
+                    bool shouldStoreOutputToCache = environment.Configuration.Schedule.StoreOutputsToCache || IsRewriteOutputFile(environment, pip.Destination);
 
                     // If the file is symlink and the chain is valid, the final target is a source file
                     // (otherwise, we would not have passed symlink chain validation).
@@ -766,7 +767,9 @@ namespace BuildXL.Scheduler
                             fileWritten,
                             "WriteAllBytes only returns false when the predicate parameter (not supplied) fails. Otherwise it should throw a BuildXLException and be handled below.");
 
-                        var possiblyStored = environment.Configuration.Schedule.StoreOutputsToCache
+                        bool shouldStoreOutputsToCache = environment.Configuration.Schedule.StoreOutputsToCache || IsRewriteOutputFile(environment, destinationFile);
+
+                        var possiblyStored = shouldStoreOutputsToCache
                             ? await environment.LocalDiskContentStore.TryStoreAsync(
                                 environment.Cache.ArtifactContentCache,
                                 GetFileRealizationMode(environment),

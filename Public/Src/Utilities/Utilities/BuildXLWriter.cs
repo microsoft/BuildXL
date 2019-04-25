@@ -393,7 +393,18 @@ namespace BuildXL.Utilities
         public void Write(DateTime value)
         {
             Start<DateTime>();
-            this.Write(value.ToBinary());
+            Write(value.ToBinary());
+            End();
+        }
+
+        /// <summary>
+        /// Writes an encoding.
+        /// </summary>
+        public void Write(Encoding value)
+        {
+            Contract.Requires(value != null);
+            Start<Encoding>();
+            Write(value.CodePage);
             End();
         }
 

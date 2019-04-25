@@ -5,9 +5,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
-using CLAP;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using CLAP;
 
 // ReSharper disable once UnusedMember.Global
 namespace BuildXL.Cache.ContentStore.App

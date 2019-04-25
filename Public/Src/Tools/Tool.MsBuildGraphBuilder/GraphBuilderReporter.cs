@@ -9,7 +9,6 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Pipes;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 

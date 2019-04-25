@@ -8,10 +8,10 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Tracing;
 using CLAP;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 
 // ReSharper disable UnusedMember.Global
 namespace BuildXL.Cache.MemoizationStore.VstsApp

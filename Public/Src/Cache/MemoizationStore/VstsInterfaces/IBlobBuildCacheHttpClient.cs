@@ -3,8 +3,8 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
-using BuildXL.Cache.MemoizationStore.VstsInterfaces.Blob;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Cache.MemoizationStore.VstsInterfaces.Blob;
 
 namespace BuildXL.Cache.MemoizationStore.VstsInterfaces
 {

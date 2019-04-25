@@ -3,8 +3,8 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {

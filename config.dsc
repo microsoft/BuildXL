@@ -504,16 +504,6 @@ config({
                 targetFramework: "net472",
                 targetRuntime: "win-x64",
             },
-            DebugNet451: {
-                configuration: "debug",
-                targetFramework: "net451",
-                targetRuntime: "win-x64",
-            },
-            DebugNet461: {
-                configuration: "debug",
-                targetFramework: "net461",
-                targetRuntime: "win-x64",
-            },
             DebugNet472: {
                 configuration: "debug",
                 targetFramework: "net472",
@@ -534,16 +524,6 @@ config({
             Release: {
                 configuration: "release",
                 targetFramework: "net472",
-                targetRuntime: "win-x64",
-            },
-            ReleaseNet451: {
-                configuration: "release",
-                targetFramework: "net451",
-                targetRuntime: "win-x64",
-            },
-            ReleaseNet461: {
-                configuration: "release",
-                targetFramework: "net461",
                 targetRuntime: "win-x64",
             },
             ReleaseNet472: {

@@ -25,7 +25,7 @@ namespace TestProcess {
                     contents: [
                         $.withQualifier({
                             configuration: qualifier.configuration,
-                            targetFramework: "net461",
+                            targetFramework: "net472",
                             targetRuntime: "win-x64"
                         }).testProcessExe
                     ]

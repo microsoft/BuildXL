@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
@@ -172,7 +173,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                         out var staticDirectory,
                         context: new ConversionContext(pos: i, objectCtx: skipMaterializationLiteral));
 
-                    // either fileArtifact or staticDirectory is valid at this point (otherwise, ExpectFileOrStaticDirectory would have thrown an exception) 
+                    Contract.Assert(fileArtifact.IsValid ^ staticDirectory != null);
+
                     skipMaterializationArtifacts[i] = fileArtifact.IsValid
                         ? FileOrDirectoryArtifact.Create(fileArtifact)
                         : FileOrDirectoryArtifact.Create(staticDirectory.Root);

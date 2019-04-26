@@ -519,6 +519,27 @@ namespace BuildXL.Processes
                         report.RequestedAccess = (uint)RequestedAccess.Probe;
                     }
                 }
+                // special handling for directory rename:
+                //   - scenario: a pip writes a bunch of files into a directory (e.g., 'out.tmp') and then renames that directory (e.g., to 'out')
+                //   - up to this point we know about the writes into the 'out.tmp' directory
+                //   - once 'out.tmp' is renamed to 'out', we need to explicitly update all previously reported paths under 'out.tmp'
+                //       - since we cannot rewrite the past and directly mutate previously reported paths, we simply enumerate
+                //         the content of the renamed directory and report all the files in there as writes
+                //       - (this is exactly how this is done on Windows, except that it's implemented in the Detours layer)
+                else if (report.Operation == FileOperation.OpKAuthMoveDest && FileUtilities.DirectoryExistsNoFollow(reportPath))
+                {
+                    FileUtilities.EnumerateFiles(
+                        directoryPath: reportPath,
+                        recursive: true,
+                        pattern: "*",
+                        (dir, fileName, attrs, length) =>
+                        {
+                            AccessReport reportClone = report;
+                            reportClone.Operation = FileOperation.OpKAuthWriteFile;
+                            reportClone.Path = Path.Combine(dir, fileName);
+                            ReportFileAccess(ref reportClone);
+                        });
+                }
 
                 // our sandbox kernel extension currently doesn't detect file existence, so do it here instead
                 if (report.Error == 0 && !pathExists)

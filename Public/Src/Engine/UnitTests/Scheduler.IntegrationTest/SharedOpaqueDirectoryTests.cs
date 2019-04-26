@@ -7,6 +7,8 @@ using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
+using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
@@ -18,7 +20,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = BuildXL.Scheduler.Tracing.LogEventId;
-using BuildXL.Processes;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -1201,6 +1202,64 @@ namespace IntegrationTest.BuildXL.Scheduler
                         SharedOpaqueOutputHelper.IsSharedOpaqueOutput(expandedPath),
                         "File: " + expandedPath);
                 }
+            }
+        }
+
+        [Fact]
+        public void TestOutputReportingForRenameDirectory()
+        {
+            const string NestedDirSrc   = "nested-tmp";
+            const string NestedDirDest  = "nested";
+            const string FileNameInSrc  = "file-in-src";
+            const string FileNameInDest = "file-in-dest";
+
+            AbsolutePath sodPath = CreateUniqueObjPath("sod-mov");
+            string sod = ToString(sodPath);
+
+            var sodPipBuilder = CreatePipBuilder(new[]
+            {
+                OpCreateDir(NestedDirSrc),
+                OpWriteFile(NestedDirSrc, FileNameInSrc),
+                OpMoveDir(NestedDirSrc, NestedDirDest),
+                OpWriteFile(NestedDirDest, FileNameInDest)
+            });
+            sodPipBuilder.AddOutputDirectory(sodPath, SealDirectoryKind.SharedOpaque);
+            var process = SchedulePipBuilder(sodPipBuilder).Process;
+
+            var result = RunScheduler().AssertSuccess();
+
+            var expectedOutputs = new[]
+            {
+                X($"{sod}/{NestedDirDest}/{FileNameInSrc}"),
+                X($"{sod}/{NestedDirDest}/{FileNameInDest}"),
+            };
+
+            foreach (var path in expectedOutputs)
+            {
+                XAssert.IsTrue(
+                    SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path),
+                    $"Path '{path}' does not have magic shared opaque output timestamp");
+            }
+
+            Operation OpCreateDir(string nestedDirName)
+            {
+                return Operation.CreateDir(SodDir(nestedDirName), doNotInfer: true);
+            }
+
+            Operation OpWriteFile(string nestedDirName, string fileName)
+            {
+                var file = FileArtifact.CreateOutputFile(SodDir(nestedDirName).Path.Combine(Context.PathTable, fileName));
+                return Operation.WriteFile(file, doNotInfer: true);
+            }
+
+            Operation OpMoveDir(string srcDir, string destDir)
+            {
+                return Operation.MoveDir(srcPath: SodDir(srcDir), destPath: SodDir(destDir));
+            }
+
+            DirectoryArtifact SodDir(string nestedDirName)
+            {
+                return OutputDirectory.Create(sodPath.Combine(Context.PathTable, nestedDirName));
             }
         }
 

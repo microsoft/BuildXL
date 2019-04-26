@@ -68,6 +68,25 @@ export const writeHardLinkInSharedOpaqueDirectoryIsAllowed = !Context.isWindowsO
     linkFileIntoDirectory(f`module.config.dsc`, sod, true);
 })();
 
+@@public
+export const moveDirectoryInsideSOD = !Context.isWindowsOS() && (() => {
+    const sodPath = Context.getNewOutputDirectory("sod-mov");
+    const sod = Artifact.sharedOpaqueOutput(sodPath);
+    const nestedDirTmpName = "nested-dir-tmp";
+    const nestedDirFinalName = "nested-dir";
+    Bash.runBashCommand("move-dir", [
+        Cmd.args([ "cd", sod ]),
+        Cmd.rawArgument(" && "),
+        Cmd.args([ Artifact.input(f`/bin/mkdir`), nestedDirTmpName ]),
+        Cmd.rawArgument(" && "),
+        Cmd.args([ Artifact.input(f`/usr/bin/touch`), `${nestedDirTmpName}/file-before.txt` ]),
+        Cmd.rawArgument(" && "),
+        Cmd.args([ Artifact.input(f`/bin/mv`), nestedDirTmpName, nestedDirFinalName ]),
+        Cmd.rawArgument(" && "),
+        Cmd.args([ Artifact.input(f`/usr/bin/touch`), `${nestedDirFinalName}/file-after.txt` ]),
+    ], true);
+})();
+
 // =============================================================================
 // Seal directory examples
 // =============================================================================
@@ -123,7 +142,7 @@ function linkFileIntoDirectory(srcFile: File, outDir: Artifact, symbolic?: boole
  */
 function writeFileToDir(outFile: string | Path, outDir: Artifact, hint?: string): OpaqueDirectory {
     const fileArgValue = typeof(outFile) === "string"
-        ? `${outFile}-$(date +%Y-%m-%d_%H-%M).txt`
+        ? `${outFile}.txt`
         : Artifact.output(outFile as Path);
 
     // Execute:
@@ -143,7 +162,7 @@ function createDirectory(outDir: Artifact) {
         Cmd.argument(Artifact.input(f`/bin/mkdir`)),
         Cmd.argument("-p"),
         Cmd.argument(outDir)
-    ], true);
+    ], false);
 }
 
 function listDirectories(dirs: OpaqueDirectory[]): DerivedFile {

@@ -54,6 +54,18 @@ function run_build_and_check_stuff {
     else
         print_info $(if [[ $expectFullyCachedStatus == $FULLY_CACHED ]]; then echo "Verified build fully cached"; else echo "Verified build NOT fully cached"; fi)
     fi
+
+    # check that all files in all shared opaque directories (whose name is 'sod*') have the magic timestamp for 'Btime'
+    local sodFilesFile="$MY_DIR/sod-files.txt"
+    find "$MY_DIR/out/objects" -type d -name 'sod*' -exec find {} -type f -o -type l \; > "$sodFilesFile"
+    local sodFilesTimestamps=$(cat "$sodFilesFile" | xargs stat -t "%F" -f "%SB" | sort | uniq)
+    if [[ $sodFilesTimestamps != "2003-03-02" ]]; then
+        print_error "Some files in the some shared output directories don't have the magic timestamp (2003-03-02) for Btime"
+        cat "$sodFilesFile" | xargs stat -t "%F" -f "Btime: %SB, path: %N"
+        rm -f "$sodFilesFile"
+        return 4
+    fi
+    rm -f "$sodFilesFile"
 }
 
 function print_header {

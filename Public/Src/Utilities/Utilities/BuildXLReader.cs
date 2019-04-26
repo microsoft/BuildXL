@@ -336,6 +336,20 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Reads FileOrDirectoryArtifact
+        /// </summary>        
+        public FileOrDirectoryArtifact ReadFileOrDirectoryArtifact()
+        {
+            Start<FileOrDirectoryArtifact>();
+            var isFileArtifact = ReadBoolean();
+            var value = isFileArtifact
+                ? FileOrDirectoryArtifact.Create(ReadFileArtifact())
+                : FileOrDirectoryArtifact.Create(ReadDirectoryArtifact());
+            End();
+            return value;
+        }
+
+        /// <summary>
         /// Reads a ReadOnlyArray
         /// </summary>
         public ReadOnlyArray<T> ReadReadOnlyArray<T>(Func<BuildXLReader, T> reader)

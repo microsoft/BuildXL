@@ -2809,6 +2809,8 @@ If you can't update and need this feature after July 2018 please reach out to th
                         return "Graph fingerprint changed from previous run.";
                     case GraphCacheMissReason.EnvironmentVariableChanged:
                         return "First environment variable changed from previous run: " + MissDescription;
+                    case GraphCacheMissReason.MountChanged:
+                        return "A mount definition has changed from previous run: " + MissDescription;
                     case GraphCacheMissReason.SpecFileChanges:
                         return "First file changed from previous run: " + MissDescription;
                     case GraphCacheMissReason.DirectoryChanged:
@@ -2834,7 +2836,7 @@ If you can't update and need this feature after July 2018 please reach out to th
                     case GraphCacheMissReason.CacheFailure:
                         return "Cache failure";
                     default:
-                        Contract.Assume(MissReason == GraphCacheMissReason.NoMiss, "Unexpected value for MissReason");
+                        Contract.Assume(MissReason == GraphCacheMissReason.NoMiss, "Unexpected value for MissReason: " + MissReason);
                         return "No Miss";
                 }
             }

@@ -539,6 +539,11 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
             return Generate(directory.Path, "d");
         }
 
+        private IExpression Generate(FileOrDirectoryArtifact artifact)
+        {
+            return Generate(artifact.Path, artifact.IsFile ? "f" : "d");
+        }
+
         private IExpression Generate(AbsolutePath path)
         {
             return Generate(path, "p");

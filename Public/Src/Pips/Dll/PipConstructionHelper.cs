@@ -371,7 +371,7 @@ namespace BuildXL.Pips
             ReadOnlyArray<PipId> servicePipDependencies,
             ReadOnlyArray<FileArtifact> fileDependencies,
             ReadOnlyArray<DirectoryArtifact> directoryDependencies,
-            ReadOnlyArray<FileArtifact> skipMaterializationFor,
+            ReadOnlyArray<FileOrDirectoryArtifact> skipMaterializationFor,
             bool isServiceFinalization,
             bool mustRunOnMaster,
             string[] tags,

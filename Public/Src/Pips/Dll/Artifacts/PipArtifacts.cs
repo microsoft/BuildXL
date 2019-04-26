@@ -178,7 +178,7 @@ namespace BuildXL.Pips.Artifacts
                         overrideLazyInputAction = overrideLazyInputAction ?? inputAction;
                         foreach (var input in ipcPip.LazilyMaterializedDependencies)
                         {
-                            if (!overrideLazyInputAction(FileOrDirectoryArtifact.Create(input)))
+                            if (!overrideLazyInputAction(input))
                             {
                                 return false;
                             }

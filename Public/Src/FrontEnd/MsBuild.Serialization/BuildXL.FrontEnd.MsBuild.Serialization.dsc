@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace MsBuild.Serialization {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet451AndNet472;
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
     
     @@public
     export const dll = BuildXLSdk.library({

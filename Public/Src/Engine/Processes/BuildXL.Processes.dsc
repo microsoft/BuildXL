@@ -3,6 +3,8 @@
 
 import * as Managed from "Sdk.Managed";
 namespace Processes {
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet461;
+
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Processes",
@@ -11,8 +13,8 @@ namespace Processes {
         generateLogs: true,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.System.IO.Compression.dll,
-                NetFx.System.Management.dll
+                BuildXLSdk.NetFx.System.IO.Compression.dll,
+                BuildXLSdk.NetFx.System.Management.dll
             ),
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             importFrom("BuildXL.Pips").dll,

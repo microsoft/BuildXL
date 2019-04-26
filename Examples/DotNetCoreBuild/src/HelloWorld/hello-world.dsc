@@ -23,7 +23,7 @@ export const writeFilePipOutput = (() => {
 
 @@public
 export const scriptWithChildProcesses = (() => {
-    if (Context.isWindowsOS()) return undefined;
+    if (!Bash.isMacOS) return undefined;
 
     const outDir = Context.getNewOutputDirectory("script");
     const outFile = outDir.combine("script-out.txt");
@@ -58,7 +58,7 @@ export const boo = printToFileViaPip(Environment.hasVariable(helloWorldMsgVarNam
 
 @@public
 export const cp = (() => {
-    if (Context.isWindowsOS()) return undefined;
+    if (!Bash.isMacOS) return undefined;
 
     const outDir = Context.getNewOutputDirectory("dest");
     const outFile = outDir.combine("newfile.txt");

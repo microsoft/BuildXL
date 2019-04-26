@@ -9,7 +9,7 @@ import {Cmd, Artifact, Transformer} from "Sdk.Transformers";
 // =============================================================================
 
 @@public
-export const writeArbitraryFileIntoExclusiveOpaqueDirectoryIsAllowed = !Context.isWindowsOS() && (() => {
+export const writeArbitraryFileIntoExclusiveOpaqueDirectoryIsAllowed = Bash.isMacOS && (() => {
     const outDir = Context.getNewOutputDirectory("od");
     const od1Path = d`${outDir}/od1`;
     const od2Path = d`${outDir}/od2`;
@@ -23,7 +23,7 @@ export const writeArbitraryFileIntoExclusiveOpaqueDirectoryIsAllowed = !Context.
 // =============================================================================
 
 @@public
-export const explicitOutputsByDifferentPipsAreAllowedInSharedOpaqueDirectory = !Context.isWindowsOS() && (() => {
+export const explicitOutputsByDifferentPipsAreAllowedInSharedOpaqueDirectory = isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
     writeFileToDir(p`${sodPath}/explicit1.txt`, sod);
@@ -31,7 +31,7 @@ export const explicitOutputsByDifferentPipsAreAllowedInSharedOpaqueDirectory = !
 })();
 
 @@public
-export const twoPipsWritingArbitraryFilesIntoSharedOpaqueDirectoryIsAllowed = !Context.isWindowsOS() && (() => {
+export const twoPipsWritingArbitraryFilesIntoSharedOpaqueDirectoryIsAllowed = isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod-mix");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
     writeFileToDir("arbitrary1", sod);
@@ -42,7 +42,7 @@ export const twoPipsWritingArbitraryFilesIntoSharedOpaqueDirectoryIsAllowed = !C
 })();
 
 @@public
-export const directoryDoubleWriteIsAllowedUnderASharedOpaque = !Context.isWindowsOS() && (() => {
+export const directoryDoubleWriteIsAllowedUnderASharedOpaque = isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
     createDirectory(sod);
@@ -50,7 +50,7 @@ export const directoryDoubleWriteIsAllowedUnderASharedOpaque = !Context.isWindow
 })();
 
 @@public
-export const writeHardLinkInSharedOpaqueDirectoryIsAllowed = !Context.isWindowsOS() && (() => {
+export const writeHardLinkInSharedOpaqueDirectoryIsAllowed = isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod-with-links");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
 
@@ -69,7 +69,7 @@ export const writeHardLinkInSharedOpaqueDirectoryIsAllowed = !Context.isWindowsO
 })();
 
 @@public
-export const moveDirectoryInsideSOD = !Context.isWindowsOS() && (() => {
+export const moveDirectoryInsideSOD = isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod-mov");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
     const nestedDirTmpName = "nested-dir-tmp";
@@ -176,7 +176,7 @@ function listDirectories(dirs: OpaqueDirectory[]): DerivedFile {
 }
 
 function readFileFromDirectory(hint: string, dir: SourceDirectory | StaticDirectory, fileName: string): Transformer.ExecuteResult {
-    if (Context.isWindowsOS()) return undefined;
+    if (!isMacOS) return undefined;
 
     // Execute:
     //   cd <dir> && /bin/cat <fileName>

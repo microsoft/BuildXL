@@ -20,6 +20,9 @@ readonly GRAPH_NOT_RELOADED=1
 readonly FULLY_CACHED=0
 readonly NOT_FULLY_CACHED=1
 
+# this is the magic timestamp ("2003-03-03 3:03:03") translated to UTC Epoch seconds
+readonly magicTimestamp=$(date -j -u -f "%Y-%m-%d %H:%M:%S" "2003-03-03 3:03:03" +%s)
+
 function run_build_and_check_stuff {
     local expectGraphReloadedStatus=$1
     shift
@@ -58,10 +61,10 @@ function run_build_and_check_stuff {
     # check that all files in all shared opaque directories (whose name is 'sod*') have the magic timestamp for 'Btime'
     local sodFilesFile="$MY_DIR/sod-files.txt"
     find "$MY_DIR/out/objects" -type d -name 'sod*' -exec find {} -type f -o -type l \; > "$sodFilesFile"
-    local sodFilesTimestamps=$(cat "$sodFilesFile" | xargs stat -t "%F" -f "%SB" | sort | uniq)
-    if [[ $sodFilesTimestamps != "2003-03-02" ]]; then
-        print_error "Some files in the some shared output directories don't have the magic timestamp (2003-03-02) for Btime"
-        cat "$sodFilesFile" | xargs stat -t "%F" -f "Btime: %SB, path: %N"
+    local sodFilesTimestamps=$(cat "$sodFilesFile" | xargs stat -t "%s" -f "%SB" | sort | uniq)
+    if [[ $sodFilesTimestamps != $magicTimestamp ]]; then
+        print_error "Some files in the some shared output directories don't have the magic timestamp ('2003-03-03 3:03:03', i.e., $magicTimestamp) for Btime"
+        cat "$sodFilesFile" | xargs stat -t "%s" -f "Btime: %SB, path: %N"
         rm -f "$sodFilesFile"
         return 4
     fi

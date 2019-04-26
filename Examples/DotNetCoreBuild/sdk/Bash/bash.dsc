@@ -4,6 +4,9 @@
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 
 @@public
+export const isMacOS = Context.getCurrentHost().os === "macOS";
+
+@@public
 export const untrackedSystemScopes = [
     d`/usr`,
     d`/private`,

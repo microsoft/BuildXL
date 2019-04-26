@@ -11,6 +11,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -282,7 +283,9 @@ namespace BuildXL.Cache.ContentStore.Service
                     var stats = await GetStatsAsync(store, context);
                     if (stats.Succeeded)
                     {
-                        foreach (var counter in stats.CounterSet.ToDictionaryIntegral())
+                        var counters = stats.CounterSet.ToDictionaryIntegral();
+                        FillTrackingStreamStatistics(counters);
+                        foreach (var counter in counters)
                         {
                             var key = $"{name}.{counter.Key}";
                             var value = counter.Value;
@@ -304,6 +307,14 @@ namespace BuildXL.Cache.ContentStore.Service
             {
                 Volatile.Write(ref _loggingIncrementalStats, 0);
             }
+        }
+
+        private static void FillTrackingStreamStatistics(IDictionary<string, long> statistics)
+        {
+            // This method fills up counters for tracking memory leaks with file streams.
+            statistics[$"{nameof(TrackingFileStream)}.{nameof(TrackingFileStream.Constructed)}"] = Interlocked.Read(ref TrackingFileStream.Constructed);
+            statistics[$"{nameof(TrackingFileStream)}.{nameof(TrackingFileStream.ProperlyClosed)}"] = Interlocked.Read(ref TrackingFileStream.ProperlyClosed);
+            statistics[$"{nameof(TrackingFileStream)}.{nameof(TrackingFileStream.Leaked)}"] = TrackingFileStream.Leaked;
         }
 
         private async Task CheckForExpiredSessionsAsync(Context context)

@@ -469,12 +469,12 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
                 SafeFileHandle handle;
 
-                void OpenHandle()
+                void openHandle()
                 {
                     handle = NativeMethods.CreateFile(path.Path, access, share, IntPtr.Zero, mode, options, IntPtr.Zero);
                 }
 
-                OpenHandle();
+                openHandle();
 
                 int lastError = Marshal.GetLastWin32Error();
                 if (handle.IsInvalid && mode == FileMode.Create)
@@ -490,7 +490,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                             }
                             
                             DeleteFile(path);
-                            OpenHandle();
+                            openHandle();
                             break;
                     }
                 }
@@ -517,8 +517,10 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 var needToDisposeHandle = true;
                 try
                 {
-                    var stream = new FileStream(handle, accessMode, bufferSize, isAsync: true);
+                    // Returning a special tracking stream that tracks improper resource de-allocations.
+                    var stream = new TrackingFileStream(handle, accessMode, bufferSize, isAsync: true, path.ToString());
                     needToDisposeHandle = false;
+                    
                     return stream;
                 }
                 finally

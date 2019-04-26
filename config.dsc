@@ -136,7 +136,7 @@ config({
 
                 // RocksDb
                 { id: "RocksDbSharp", version: "5.8.0-b20181023.3", alias: "RocksDbSharpSigned" },
-                { id: "RocksDbNative", version: "5.14.3-b20181023.3" },
+                { id: "RocksDbNative", version: "6.0.1-b20190426.3" },
 
                 // Event hubs
                 { id: "Microsoft.Azure.Amqp", version: "2.3.5" },

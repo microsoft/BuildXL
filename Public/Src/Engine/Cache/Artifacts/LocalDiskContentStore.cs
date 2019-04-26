@@ -197,7 +197,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
                     if (!possibleMaterialization.Succeeded)
                     {
-                        return possibleMaterialization.Failure.Annotate("Try materialize file from cache failed.");
+                        return possibleMaterialization.Failure.Annotate("Try materialize file from cache failed");
                     }
                 }
                 else
@@ -925,7 +925,6 @@ namespace BuildXL.Engine.Cache.Artifacts
                 return possibleEnsureFileName.Failure;
             }
 
-
             // TODO:58494: We shouldn't need to open a new handle here. In fact, that is a race, and why there isn't a RecordContentHashAsync taking a path.
             // Somebody could change the file since we finished copying from the cache. The cache should instead be enlightened to use the file content table.
             return Helpers.RetryOnFailure(
@@ -972,7 +971,6 @@ namespace BuildXL.Engine.Cache.Artifacts
                             return new Possible<TrackedFileContentInfo, Failure>(attempt.Result);
                         }
 
-                        Tracing.Logger.Log.RetryTryOpenAndTrackPathAsync(m_loggingContext, path.ExpandedPath);
                         return new Failure<string>($"TryOpenAndTrackPathAsync() failed to establish identity and track file: {path.ExpandedPath}");
                     },
                     logExceptions: true

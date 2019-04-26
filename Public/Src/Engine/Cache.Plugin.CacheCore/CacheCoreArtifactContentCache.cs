@@ -216,7 +216,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                 //     .Then(r => fileForCacheToDelete.IsValid ? fileForCacheToDelete.TryDelete() : r);
                 //
                 // However, this deletion masks a possibly serious underlying issue because we expect
-                // both fileToDelete and fileForCacheToDelete point to the same object file. 
+                // both fileToDelete and fileForCacheToDelete point to the same object file.
 
             if (!mayBeDelete.Succeeded)
             {
@@ -232,14 +232,27 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             if (!maybePlaced.Succeeded && maybePlaced.Failure.DescribeIncludingInnerFailures().Contains("File exists at destination"))
             {
                 string diagnostic = await fileToDelete.GetDiagnosticsAsync();
-                diagnostic = fileForCacheToDelete.IsValid 
-                    ? diagnostic + Environment.NewLine + (await fileForCacheToDelete.GetDiagnosticsAsync()) 
+                diagnostic = fileForCacheToDelete.IsValid
+                    ? diagnostic + Environment.NewLine + (await fileForCacheToDelete.GetDiagnosticsAsync())
                     : diagnostic;
 
                 return maybePlaced.Failure.Annotate(diagnostic);
             }
 
-            return maybePlaced.Then(p => Unit.Void);
+            return maybePlaced.Then(p => {
+                // TODO:58494: Occasionally we see odd behavior where materialization seems to succeed, but the file is not present in the file system
+                //             layer. This check tries to see if the file exits after successful materialization and fails if it doesn't.
+                if (!FileUtilities.FileExistsNoFollow(pathForCache))
+                {
+                    return new Failure<string>(string.Format(
+                                CultureInfo.InvariantCulture,
+                                "The file '{0}' with content hash '{1}' was materialzed successfully, but can't be found on disk",
+                                pathForCache,
+                                contentHash));
+                }
+
+                return new Possible<Unit, Failure>(Unit.Void);
+            });
         }
 
         /// <inheritdoc />
@@ -298,14 +311,14 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
 
             Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(nameof(TryStoreAsync));
             Possible<CasHash, Failure> maybeStored = await maybeOpen.ThenAsync(
-                async cache => 
-                { 
+                async cache =>
+                {
                     var result = await Helpers.RetryOnFailureAsync(
-                        async lastAttempt => 
-                        { 
+                        async lastAttempt =>
+                        {
                             return await cache.AddToCasAsync(expandedPath, GetFileStateForRealizationMode(fileRealizationModes));
                         });
-                    return result; 
+                    return result;
                 });
 
             return maybeStored.Then<ContentHash>(c => c.ToContentHash());
@@ -318,7 +331,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         {
             Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(nameof(TryStoreAsync));
             Possible<CasHash, Failure> maybeStored = await maybeOpen.ThenAsync(
-                async cache => 
+                async cache =>
                 {
                     var result = await Helpers.RetryOnFailureAsync(
                         async lastAttempt =>

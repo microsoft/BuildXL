@@ -12,8 +12,6 @@ using Microsoft.Diagnostics.Tracing;
 using System.Diagnostics.Tracing;
 #endif
 
-using static BuildXL.Utilities.FormattableStringEx;
-
 namespace BuildXL.Utilities.Tracing
 {
     /// <summary>
@@ -312,16 +310,13 @@ namespace BuildXL.Utilities.Tracing
         /// <summary>
         /// Returns a dictionary of the number of times each event was encountered.
         /// </summary>
-        /// <remarks>
-        /// On non-Windows OS-es: keys in the returned dictionary must start with a
-        /// letter because they are used as column names in telemetry tables.
-        /// </remarks>
+        /// <returns></returns>
         public Dictionary<string, int> ToEventCountDictionary()
         {
             Dictionary<string, int> d = new Dictionary<string, int>();
             foreach (var entry in CountsPerEvent)
             {
-                d.Add(I($"{entry.Key}"), entry.Value);
+                d.Add(entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
             }
 
             return d;

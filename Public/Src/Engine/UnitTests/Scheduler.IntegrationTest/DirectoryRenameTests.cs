@@ -56,21 +56,21 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             Operation OpCreateDir(string nestedDirName)
             {
-                return Operation.CreateDir(SodDir(nestedDirName), doNotInfer: true);
+                return Operation.CreateDir(OutDir(nestedDirName), doNotInfer: true);
             }
 
             Operation OpWriteFile(string nestedDirName, string fileName)
             {
-                var file = FileArtifact.CreateOutputFile(SodDir(nestedDirName).Path.Combine(Context.PathTable, fileName));
+                var file = FileArtifact.CreateOutputFile(OutDir(nestedDirName).Path.Combine(Context.PathTable, fileName));
                 return Operation.WriteFile(file, doNotInfer: true);
             }
 
             Operation OpMoveDir(string srcDir, string destDir)
             {
-                return Operation.MoveDir(srcPath: SodDir(srcDir), destPath: SodDir(destDir));
+                return Operation.MoveDir(srcPath: OutDir(srcDir), destPath: OutDir(destDir));
             }
 
-            DirectoryArtifact SodDir(string nestedDirName)
+            DirectoryArtifact OutDir(string nestedDirName)
             {
                 return OutputDirectory.Create(rootDir.Combine(Context.PathTable, nestedDirName));
             }

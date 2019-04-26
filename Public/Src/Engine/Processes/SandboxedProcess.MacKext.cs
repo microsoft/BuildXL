@@ -540,7 +540,6 @@ namespace BuildXL.Processes
                             reportClone.Operation = FileOperation.OpKAuthWriteFile;
                             reportClone.Path = Path.Combine(dir, fileName);
                             ReportFileAccess(ref reportClone);
-                            LogProcessState("Kext report generated: " + AccessReportToString(reportClone));
                         });
                 }
 

@@ -15,28 +15,12 @@ namespace BuildXL.LogGen.Generators
         private const string GlobalInstrumentationNamespaceCommon = "global::BuildXL.Utilities.Instrumentation.Common";
         private const string GlobalTracing = "global::BuildXL.Tracing";
 
-        private const string EventCountMethodName = "EventCount";
-
         public override void GenerateLogMethodBody(LoggingSite site, Func<string> getMessageExpression)
         {
             m_codeGenerator.Ln("if ({0}.AriaV2StaticState.IsEnabled)", GlobalInstrumentationNamespaceCommon);
             using (m_codeGenerator.Br)
             {
-                // The current EventCount table has columns whose names start with a digit; 
-                // the AriaV2 static library for macOS doesn't seem to support this.
-                //
-                // To avoid having to alter the exiting EventCount table(and breaking existing queries),
-                // when running on macOS, use a different(new) table, namely EventCountMacOS, and prefix 
-                // its column names with a constant (e.g., "e").
-                var tableName = site.Method.Name;
-#if PLATFORM_OSX
-                if (site.Method.Name == EventCountMethodName)
-                {
-                    tableName = tableName + "MacOS";
-                }
-#endif
-
-                m_codeGenerator.Lns("var eventData = new {0}.AriaEvent(\"{1}\", \"{2}\", \"{3}\")", GlobalInstrumentationNamespaceCommon, tableName, m_targetFramework, m_targetRuntime);
+                m_codeGenerator.Lns("var eventData = new {0}.AriaEvent(\"{1}\", \"{2}\", \"{3}\")", GlobalInstrumentationNamespaceCommon, site.Method.Name, m_targetFramework, m_targetRuntime);
 
                 // Save context fields that all events save
                 m_codeGenerator.Lns("eventData.SetProperty(\"Environment\", {0}.Session.Environment)", site.LoggingContextParameterName);
@@ -110,14 +94,13 @@ namespace BuildXL.LogGen.Generators
                     m_codeGenerator.Ln("foreach (var item in {0})", item.Address);
                     using (m_codeGenerator.Br)
                     {
-                        m_codeGenerator.Ln("var scrubbedPropertyName = {0}.AriaV2StaticState.ScrubEventProperty(item.Key);", GlobalInstrumentationNamespaceCommon);
                         if (value.Type.SpecialType == SpecialType.System_String)
                         {
-                            m_codeGenerator.Ln("eventData.SetProperty(scrubbedPropertyName, item.Value);");
+                            m_codeGenerator.Ln("eventData.SetProperty({0}.AriaV2StaticState.ScrubEventProperty(item.Key), item.Value);", GlobalInstrumentationNamespaceCommon);
                         }
                         else
                         {
-                            m_codeGenerator.Ln("eventData.SetProperty(scrubbedPropertyName, (long)item.Value);");
+                            m_codeGenerator.Ln("eventData.SetProperty({0}.AriaV2StaticState.ScrubEventProperty(item.Key), (long)item.Value);", GlobalInstrumentationNamespaceCommon);
                         }
                     }
 

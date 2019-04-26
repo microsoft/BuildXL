@@ -309,10 +309,6 @@ namespace BuildXL.Utilities.Tracing
             Interlocked.Increment(ref m_numAlways);
         }
 
-        private static readonly string s_eventDictionaryKeyPrefix = OperatingSystemHelper.IsUnixOS
-            ? "e"
-            : string.Empty;
-
         /// <summary>
         /// Returns a dictionary of the number of times each event was encountered.
         /// </summary>
@@ -325,7 +321,7 @@ namespace BuildXL.Utilities.Tracing
             Dictionary<string, int> d = new Dictionary<string, int>();
             foreach (var entry in CountsPerEvent)
             {
-                d.Add(I($"{s_eventDictionaryKeyPrefix}{entry.Key}"), entry.Value);
+                d.Add(I($"{entry.Key}"), entry.Value);
             }
 
             return d;

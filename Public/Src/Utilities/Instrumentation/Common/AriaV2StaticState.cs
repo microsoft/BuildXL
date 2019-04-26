@@ -199,6 +199,14 @@ namespace BuildXL.Utilities.Instrumentation.Common
                 }
             }
 
+            Contract.Assert(sb.Length > 0, "property name must be greater than 0");
+
+            // property name must not start with a digit
+            if (sb[0] >= '0' && sb[0] <= '9')
+            {
+                sb.Insert(0, "_");
+            }
+
             return sb.ToString();
         }
 

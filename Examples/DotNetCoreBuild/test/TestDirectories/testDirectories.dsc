@@ -23,7 +23,7 @@ export const writeArbitraryFileIntoExclusiveOpaqueDirectoryIsAllowed = Bash.isMa
 // =============================================================================
 
 @@public
-export const explicitOutputsByDifferentPipsAreAllowedInSharedOpaqueDirectory = isMacOS && (() => {
+export const explicitOutputsByDifferentPipsAreAllowedInSharedOpaqueDirectory = Bash.isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
     writeFileToDir(p`${sodPath}/explicit1.txt`, sod);
@@ -31,7 +31,7 @@ export const explicitOutputsByDifferentPipsAreAllowedInSharedOpaqueDirectory = i
 })();
 
 @@public
-export const twoPipsWritingArbitraryFilesIntoSharedOpaqueDirectoryIsAllowed = isMacOS && (() => {
+export const twoPipsWritingArbitraryFilesIntoSharedOpaqueDirectoryIsAllowed = Bash.isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod-mix");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
     writeFileToDir("arbitrary1", sod);
@@ -42,7 +42,7 @@ export const twoPipsWritingArbitraryFilesIntoSharedOpaqueDirectoryIsAllowed = is
 })();
 
 @@public
-export const directoryDoubleWriteIsAllowedUnderASharedOpaque = isMacOS && (() => {
+export const directoryDoubleWriteIsAllowedUnderASharedOpaque = Bash.isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
     createDirectory(sod);
@@ -50,7 +50,7 @@ export const directoryDoubleWriteIsAllowedUnderASharedOpaque = isMacOS && (() =>
 })();
 
 @@public
-export const writeHardLinkInSharedOpaqueDirectoryIsAllowed = isMacOS && (() => {
+export const writeHardLinkInSharedOpaqueDirectoryIsAllowed = Bash.isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod-with-links");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
 
@@ -69,7 +69,7 @@ export const writeHardLinkInSharedOpaqueDirectoryIsAllowed = isMacOS && (() => {
 })();
 
 @@public
-export const moveDirectoryInsideSOD = isMacOS && (() => {
+export const moveDirectoryInsideSOD = Bash.isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod-mov");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
     const nestedDirTmpName = "nested-dir-tmp";
@@ -176,7 +176,7 @@ function listDirectories(dirs: OpaqueDirectory[]): DerivedFile {
 }
 
 function readFileFromDirectory(hint: string, dir: SourceDirectory | StaticDirectory, fileName: string): Transformer.ExecuteResult {
-    if (!isMacOS) return undefined;
+    if (!Bash.isMacOS) return undefined;
 
     // Execute:
     //   cd <dir> && /bin/cat <fileName>

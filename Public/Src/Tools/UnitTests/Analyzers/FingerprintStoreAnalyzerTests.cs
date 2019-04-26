@@ -263,8 +263,6 @@ namespace Test.Tool.Analyzers
                 PipCacheMissType.MissForDescriptorsDueToWeakFingerprints,
                 ArtifactToPrint(srcA));
 
-            //XAssert.Fail(result.FileOutput);
-
             // Don't analyze downstream pip misses
             XAssert.IsFalse(result.FileOutput.Contains(pipB.FormattedSemiStableHash));
 

@@ -204,7 +204,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
             // property name must not start with a digit
             if (sb[0] >= '0' && sb[0] <= '9')
             {
-                sb.Insert(0, "_");
+                sb.Insert(0, "e_");
             }
 
             return sb.ToString();

@@ -526,7 +526,9 @@ namespace BuildXL.Processes
                 //       - since we cannot rewrite the past and directly mutate previously reported paths, we simply enumerate
                 //         the content of the renamed directory and report all the files in there as writes
                 //       - (this is exactly how this is done on Windows, except that it's implemented in the Detours layer)
-                else if (report.Operation == FileOperation.OpKAuthMoveDest && FileUtilities.DirectoryExistsNoFollow(reportPath))
+                else if (report.Operation == FileOperation.OpKAuthMoveDest &&
+                         report.Status == (uint)FileAccessStatus.Allowed &&
+                         FileUtilities.DirectoryExistsNoFollow(reportPath))
                 {
                     FileUtilities.EnumerateFiles(
                         directoryPath: reportPath,
@@ -538,6 +540,7 @@ namespace BuildXL.Processes
                             reportClone.Operation = FileOperation.OpKAuthWriteFile;
                             reportClone.Path = Path.Combine(dir, fileName);
                             ReportFileAccess(ref reportClone);
+                            LogProcessState("Kext report generated: " + AccessReportToString(reportClone));
                         });
                 }
 

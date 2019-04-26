@@ -90,43 +90,25 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertSharedOpaqueOputputsInNestedDestDirectory(rootDirPath);
         }
 
-        [Fact]
-        public void TestRenameUntrackedDirectoryToSharedOpaqueDirectory()
+        [Theory]
+        [InlineData(SealDirectoryKind.SharedOpaque)]
+        [InlineData(SealDirectoryKind.Opaque)]
+        public void TestRenameUntrackedDirectoryToOpaqueDirectory(SealDirectoryKind dirKind)
         {
             AbsolutePath rootDirPath = CreateUniqueObjPath("untracked-mov-sod");
 
             var pipBuilder = CreateMoveDirectoryProcessBuilder(rootDirPath);
             pipBuilder.AddUntrackedDirectoryScope(Combine(rootDirPath, NestedDirSrc));
-            pipBuilder.AddOutputDirectory(Combine(rootDirPath, NestedDirDest), SealDirectoryKind.SharedOpaque);
+            pipBuilder.AddOutputDirectory(Combine(rootDirPath, NestedDirDest), dirKind);
 
             SchedulePipBuilder(pipBuilder);
 
             RunScheduler().AssertSuccess();
-            AssertSharedOpaqueOputputsInNestedDestDirectory(rootDirPath);
-        }
 
-        [Fact]
-        public void TestExplicitOutputsAndRenameUntrackedDirectory()
-        {
-            AbsolutePath rootDirPath = CreateUniqueObjPath("untracked-mov-sod");
-
-            string root = ToString(rootDirPath);
-            var expectedOutputs = new[]
+            if (dirKind == SealDirectoryKind.SharedOpaque)
             {
-                X($"{root}/{NestedDirDest}/{FileNameInSrc}"),
-                X($"{root}/{NestedDirDest}/{FileNameInDest}"),
-            };
-
-            var pipBuilder = CreateMoveDirectoryProcessBuilder(rootDirPath);
-            pipBuilder.AddUntrackedDirectoryScope(Combine(rootDirPath, NestedDirSrc));
-            foreach (var outPath in expectedOutputs)
-            {
-                pipBuilder.AddOutputFile(FileArtifact.CreateOutputFile(AbsolutePath.Create(Context.PathTable, outPath)));
+                AssertSharedOpaqueOputputsInNestedDestDirectory(rootDirPath);
             }
-
-            SchedulePipBuilder(pipBuilder);
-
-            RunScheduler().AssertSuccess();
         }
 
         private void AssertSharedOpaqueOputputsInNestedDestDirectory(AbsolutePath rootDirPath)

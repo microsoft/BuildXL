@@ -474,6 +474,15 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageCacheContentPinned(LoggingContext loggingContext, string casEntry, string cacheId);
 
         [GeneratedEvent(
+            (int)EventId.FileMaterializationMismatchFileExistenceResult,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.PipExecutor,
+            Message = "File existence check on '{0}' results in '{1}', but cache decided it as '{2}'")]
+        public abstract void FileMaterializationMismatchFileExistenceResult(LoggingContext loggingContext, string path, string message, string cacheExistence);
+
+        [GeneratedEvent(
             (int)EventId.StorageKnownUsnHit,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

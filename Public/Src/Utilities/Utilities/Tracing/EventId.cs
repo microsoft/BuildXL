@@ -495,7 +495,7 @@ namespace BuildXL.Utilities.Tracing
         MaterializeFilePipProducerNotFound = 739,
 
         StoreSymlinkWarning = 740,
-        // was StoreWarnDueToUnableToDetermineReparsePoint = 741,
+        FileMaterializationMismatchFileExistenceResult = 741,
 
         SerializingToPipFingerprintEntryResultInCorruptedData = 742,
         DeserializingCorruptedPipFingerprintEntry = 743,

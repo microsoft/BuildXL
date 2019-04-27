@@ -1527,7 +1527,7 @@ namespace BuildXL
             /// </summary>
             public void LogEventSummary(LoggingContext loggingContext)
             {
-                Logger.Log.EventCount(loggingContext, TrackingEventListener.ToEventCountDictionary());
+                Logger.Log.EventCounts(loggingContext, TrackingEventListener.ToEventCountDictionary());
             }
 
             private void WriteErrorToConsole(string format, params object[] args)

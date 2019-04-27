@@ -567,7 +567,7 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Verbose,
             Message = "N/A")]
-        public abstract void EventCount(LoggingContext context, IDictionary<string, int> entryMatches);
+        public abstract void EventCounts(LoggingContext context, IDictionary<string, int> entryMatches);
 
         [GeneratedEvent(
             (ushort)EventId.FailedToEnumerateLogDirsForCleanup,

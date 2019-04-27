@@ -35,6 +35,7 @@ namespace Cache {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("JsonDiffPatch.Net").pkg,
             importFrom("Newtonsoft.Json").pkg,
         ],
     });

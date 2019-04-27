@@ -479,7 +479,7 @@ namespace BuildXL.Storage.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (ushort)Events.Tasks.PipExecutor,
-            Message = "File existence check on '{0}' results in '{1}', but cache decided it as '{2}'")]
+            Message = "File existence check on '{path}' results in '{message}', but cache decided it as '{cacheExistence}'")]
         public abstract void FileMaterializationMismatchFileExistenceResult(LoggingContext loggingContext, string path, string message, string cacheExistence);
 
         [GeneratedEvent(

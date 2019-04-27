@@ -140,21 +140,61 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             {
                 Contract.Requires(IsValid);
 
-                if (FileUtilities.FileExistsNoFollow(Path))
+                var maybeExistence = FileUtilities.TryProbePathExistence(Path, followSymlink: false);
+                PathExistence pathExistence = PathExistence.Nonexistent;
+
+                if (maybeExistence.Succeeded)
+                {
+                    pathExistence = maybeExistence.Result;
+                }
+                else
+                {
+                    if (File.Exists(Path))
+                    {
+                        pathExistence = PathExistence.ExistsAsFile;
+                    }
+                    else if (Directory.Exists(Path))
+                    {
+                        pathExistence = PathExistence.ExistsAsDirectory;
+                    }
+
+                    BuildXL.Storage.Tracing.Logger.Log.FileMaterializationMismatchFileExistenceResult(
+                        Events.StaticContext, 
+                        Path, 
+                        maybeExistence.Failure.Describe(), 
+                        pathExistence.ToString());
+                }
+
+                if (pathExistence == PathExistence.ExistsAsFile)
                 {
                     m_fileInfoPriorDeletion = new FileInfo(Path);
                 }
 
                 m_deletionTime = DateTime.UtcNow;
 
-                var deleteResult = FileUtilities.TryDeletePathIfExists(Path);
-
-                if (!deleteResult.Succeeded)
+                switch (pathExistence)
                 {
-                    return deleteResult.Failure.Annotate(I($"Failed to delete '{Path}'"));
+                    case PathExistence.ExistsAsFile:
+                        {
+                            var deleteFileResult = FileUtilities.TryDeleteFile(Path);
+
+                            if (!deleteFileResult.Succeeded)
+                            {
+                                return deleteFileResult.Failure.Annotate(I($"Failed to delete file '{Path}'"));
+                            }
+
+                            break;
+                        }
+                    case PathExistence.ExistsAsDirectory:
+                        {
+                            FileUtilities.DeleteDirectoryContents(Path, deleteRootDirectory: true);
+                            break;
+                        }
+                    default:
+                        break;
                 }
 
-                return deleteResult;
+                return Unit.Void;
             }
 
             public async Task<string> GetDiagnosticsAsync()

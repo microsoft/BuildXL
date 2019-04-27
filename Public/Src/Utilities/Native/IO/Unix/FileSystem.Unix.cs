@@ -872,9 +872,14 @@ namespace BuildXL.Native.IO.Unix
         /// <inheritdoc />
         public Possible<string> TryGetReparsePointTarget(SafeFileHandle handle, string sourcePath)
         {
+            return TryGetReparsePointTarget(sourcePath);
+        }
+
+        internal Possible<string> TryGetReparsePointTarget(string sourcePath)
+        {
             try
             {
-                var maxPathLength = BuildXL.Native.IO.NativeIOConstants.MaxPath + 1;
+                var maxPathLength = MaxDirectoryPathLength();
                 var sb = new StringBuilder(maxPathLength);
                 long numCharactersWritten = SafeReadLink(sourcePath, sb, maxPathLength);
                 if (numCharactersWritten >= 0 && numCharactersWritten <= maxPathLength)

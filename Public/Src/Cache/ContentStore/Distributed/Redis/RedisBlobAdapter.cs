@@ -3,13 +3,12 @@
 
 using System;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
@@ -36,9 +35,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         private readonly CounterCollection<RedisBlobAdapterCounters> _counters = new CounterCollection<RedisBlobAdapterCounters>();
 
-        private RedisDatabaseAdapter _redis;
-        private TimeSpan _blobExpiryTime;
-        private TimeSpan _capacityExpiryTime;
+        private readonly RedisDatabaseAdapter _redis;
+        private readonly TimeSpan _blobExpiryTime;
+        private readonly TimeSpan _capacityExpiryTime;
         private string _lastFailedReservationKey;
         private readonly long _maxCapacityPerTimeBox;
         private readonly IClock _clock;

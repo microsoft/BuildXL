@@ -1,4 +1,7 @@
-﻿using System;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System;
 using System.IO;
 using BuildXL.Engine.Cache.Serialization;
 using BuildXL.Scheduler.Tracing;
@@ -75,7 +78,7 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// FingerprintStore directory location;
         /// </summary>
-        private string m_storeLocation;
+        private readonly string m_storeLocation;
 
         /// <summary>
         /// FingerprintStore reader.
@@ -119,10 +122,10 @@ namespace BuildXL.Execution.Analyzer
             using (var pipSession = m_storeReader.StartPipRecordingSession(PipFormattedSemistableHash))
             {
                 m_writer.WriteLine("WEAKFINGERPRINT:");
-                m_writer.WriteLine(JsonTree.PrintTree(pipSession.GetWeakFingerprintTree()));
+                m_writer.WriteLine(JsonTree.Serialize(pipSession.GetWeakFingerprintTree()));
                 m_writer.WriteLine();
                 m_writer.WriteLine("STRONGFINGERPRINT:");
-                m_writer.WriteLine(JsonTree.PrintTree(pipSession.GetStrongFingerprintTree()));
+                m_writer.WriteLine(JsonTree.Serialize(pipSession.GetStrongFingerprintTree()));
             }
 
             m_writer.Flush();

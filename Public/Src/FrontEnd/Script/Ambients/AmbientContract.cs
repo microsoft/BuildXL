@@ -3,13 +3,10 @@
 
 using System;
 using System.Globalization;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Script.Util;
-using BuildXL.FrontEnd.Script.Types;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
-using LineInfo = TypeScript.Net.Utilities.LineInfo;
+using BuildXL.FrontEnd.Script.Types;
+using BuildXL.FrontEnd.Script.Util;
+using BuildXL.FrontEnd.Script.Values;
 
 namespace BuildXL.FrontEnd.Script.Ambients
 {

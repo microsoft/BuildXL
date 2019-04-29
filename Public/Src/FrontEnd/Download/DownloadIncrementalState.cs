@@ -6,8 +6,8 @@ using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.FrontEnd.Download.Tracing;
-using BuildXL.Native.IO;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Native.IO;
 
 namespace BuildXL.FrontEnd.Download
 {
@@ -18,7 +18,7 @@ namespace BuildXL.FrontEnd.Download
     {
         private const string ManifestVersion = "v2";
 
-        private DownloadData m_downloadData;
+        private readonly DownloadData m_downloadData;
 
         /// <nodoc />
         public ContentHash ContentHash { get; }

@@ -3,19 +3,10 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Threading;
-using BuildXL.Cache.ContentStore.Exceptions;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Service.Grpc;
-using Microsoft.Practices.TransientFaultHandling;
 using CLAP;
-using BuildXL.Cache.ContentStore.Sessions;
-using Grpc.Core;
 using ContentStore.Grpc;
-using System.Linq;
+using Grpc.Core;
 
 namespace BuildXL.Cache.ContentStore.App
 {

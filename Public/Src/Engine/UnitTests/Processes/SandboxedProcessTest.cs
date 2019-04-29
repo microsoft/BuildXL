@@ -158,7 +158,7 @@ namespace Test.BuildXL.Processes
                     MessageHandlingFlags.ProcessDetoursStatusNotify);
 
                 var result = await RunEchoProcess(myListener);
-                
+
                 XAssert.AreEqual(0, myListener.DebugMessageCount);
                 XAssert.AreEqual(numFilePathAccesses, CleanFileAccesses(myListener.FileAccesses).Count());
                 XAssert.AreEqual(numProcesses, myListener.ProcessMessageCount);
@@ -335,8 +335,8 @@ namespace Test.BuildXL.Processes
                     // If process is not killed, then there are surviving children that are not allowed.
                     XAssert.IsTrue(
                         survivorProcessNames.IsProperSupersetOf(allowedSurvivingChildProcessNames),
-                        "Survivors: {0}, Allowed survivors: {1}", 
-                        survivorNamesJoined, 
+                        "Survivors: {0}, Allowed survivors: {1}",
+                        survivorNamesJoined,
                         string.Join(" ; ", allowedSurvivingChildProcessNames.Select(n => n.ToString(Context.StringTable))));
                 }
             }
@@ -1067,10 +1067,11 @@ namespace Test.BuildXL.Processes
                 return;
             }
 
-            XAssert.Fail("Expected BuildXLException due to process creation failure"); 
+            XAssert.Fail("Expected BuildXLException due to process creation failure");
         }
 
-        [Fact]
+        // TODO 1519677: Fix this bug on Mojave macOS
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task TempAccessesAreUnexpectedByDefault()
         {
             var outFile = CreateOutputFileArtifact(root: TemporaryDirectory, prefix: "not.allowed");
@@ -1192,7 +1193,7 @@ namespace Test.BuildXL.Processes
                         PipSemiStableHash = 0,
                         PipDescription = "SandboxedProcessTest",
                         Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
-                       
+
                     };
 
                 info.FileAccessManifest.IgnorePreloadedDlls = false;

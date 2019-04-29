@@ -12,10 +12,10 @@ using BuildXL.Processes;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
-using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
@@ -277,7 +277,7 @@ namespace BuildXL.Scheduler
                 // For violation analysis results
                 if (reportedDependencyViolations != null)
                 {
-                    Func<ReportedFileAccess, AccessViolationPath> getAccessViolationPath =
+                    Func<ReportedFileAccess, AccessViolationPath?> getAccessViolationPath =
                         a =>
                         {
                             if (TryGetAccessedAndProcessPaths(pip, a, out var path, out var processPath))
@@ -285,9 +285,8 @@ namespace BuildXL.Scheduler
                                 return new AccessViolationPath(path, a.IsWriteViolation, processPath);
                             }
 
-                            // If we fail to get one of the AbsolutePaths, return a dummy element.
                             // The failure to parse the accessed path has already been logged in TryParseAbsolutePath.
-                            return new AccessViolationPath(path, false, processPath);
+                            return null;
                         };
 
                     if (violations.Count != reportedDependencyViolations.Length)
@@ -299,7 +298,15 @@ namespace BuildXL.Scheduler
                         // The paths whose access is RequestedAccess.None or whose paths cannot be parsed are not analyzed for dependency violations.
                         // Because we were originally logging a warning (dx09) or error (dx14) for those paths, we wanted to keep the same behavior.
                         var reportedPathDependencyViolation = new HashSet<string>(reportedDependencyViolations.Select(v => v.Path.ToString(Context.PathTable)), StringComparer.OrdinalIgnoreCase);
-                        errorOrWarningPaths.UnionWith(violations.Where(a => !reportedPathDependencyViolation.Contains(a.GetPath(Context.PathTable))).Select(a => getAccessViolationPath(a)));
+
+                        errorOrWarningPaths.UnionWith(
+                            violations
+                            // only violations that have not been reported yet
+                            .Where(a => !reportedPathDependencyViolation.Contains(a.GetPath(Context.PathTable)))
+                            .Select(a => getAccessViolationPath(a))
+                            // skip violations for which we failed to parse the accessed path or process path
+                            .Where(a => a != null)
+                            .Select(a => a.Value));
                     }
 
                     PopulateErrorsAndWarnings(reportedDependencyViolations, errorPaths, warningPaths);
@@ -321,7 +328,7 @@ namespace BuildXL.Scheduler
                 LogErrorsAndWarnings(pip, errorPaths, warningPaths);
 
                 // The pip is safe to cache if there are no violations or all its violations do not make the pip uncacheable
-                bool pipIsSafeToCache = 
+                bool pipIsSafeToCache =
                     (reportedDependencyViolations != null ? new List<ReportedViolation>(reportedDependencyViolations) : new List<ReportedViolation>())
                     .Union(dynamicViolations)
                     .All(violation => !violation.ViolationMakesPipUncacheable);

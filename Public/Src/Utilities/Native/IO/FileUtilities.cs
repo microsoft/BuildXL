@@ -6,11 +6,11 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Security.AccessControl;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO.Windows;
-using BuildXL.Native.Streams;
-using System.Security.AccessControl;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -138,9 +138,14 @@ namespace BuildXL.Native.IO
             return s_fileSystem.TryRemoveDirectory(path, out hr);
         }
 
-        /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool}, ITempDirectoryCleaner)"/>
-        public static void DeleteDirectoryContents(string path, bool deleteRootDirectory = false, Func<string, bool> shouldDelete = null, ITempDirectoryCleaner tempDirectoryCleaner = null) =>
-            s_fileUtilities.DeleteDirectoryContents(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner);
+        /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool}, ITempDirectoryCleaner, CancellationToken?)"/>
+        public static void DeleteDirectoryContents(
+            string path, 
+            bool deleteRootDirectory = false, 
+            Func<string, bool> shouldDelete = null, 
+            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            CancellationToken? cancellationToken = default) =>
+            s_fileUtilities.DeleteDirectoryContents(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, cancellationToken);
 
         /// <see cref="IFileSystem.EnumerateDirectoryEntries(string, bool, Action{string, string, FileAttributes}, bool)"/>
         public static EnumerateDirectoryResult EnumerateDirectoryEntries(
@@ -684,10 +689,22 @@ namespace BuildXL.Native.IO
             }
         }
 
+        /// <see cref="IFileSystem.IsWciReparseArtifact(string)"/>
+        public static bool IsWciReparseArtifact(string path)
+        {
+            return s_fileSystem.IsWciReparseArtifact(path);
+        }
+
         /// <see cref="IFileSystem.IsWciReparsePoint(string)"/>
         public static bool IsWciReparsePoint(string path)
         {
             return s_fileSystem.IsWciReparsePoint(path);
+        }
+
+        /// <see cref="IFileSystem.IsWciTombstoneFile(string)"/>
+        public static bool IsWciTombstoneFile(string path)
+        {
+            return s_fileSystem.IsWciTombstoneFile(path);
         }
 
         /// <see cref="IFileSystem.GetChainOfReparsePoints(SafeFileHandle, string, IList{string})"/>

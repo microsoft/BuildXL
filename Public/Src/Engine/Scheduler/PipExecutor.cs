@@ -19,7 +19,6 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
-using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
@@ -31,9 +30,9 @@ using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
@@ -136,7 +135,7 @@ namespace BuildXL.Scheduler
             var pipInfo = new PipInfo(pip, context);
             var pipDescription = pipInfo.Description;
 
-            bool shouldStoreOutputToCache = environment.Configuration.Schedule.StoreOutputsToCache;
+            
 
             string destination = pip.Destination.Path.ToString(pathTable);
             string source = pip.Source.Path.ToString(pathTable);
@@ -199,6 +198,8 @@ namespace BuildXL.Scheduler
                     {
                         Contract.Assume(sourceContentInfo.Hash != WellKnownContentHashes.UntrackedFile);
                     }
+
+                    bool shouldStoreOutputToCache = environment.Configuration.Schedule.StoreOutputsToCache || IsRewriteOutputFile(environment, pip.Destination);
 
                     // If the file is symlink and the chain is valid, the final target is a source file
                     // (otherwise, we would not have passed symlink chain validation).
@@ -766,7 +767,9 @@ namespace BuildXL.Scheduler
                             fileWritten,
                             "WriteAllBytes only returns false when the predicate parameter (not supplied) fails. Otherwise it should throw a BuildXLException and be handled below.");
 
-                        var possiblyStored = environment.Configuration.Schedule.StoreOutputsToCache
+                        bool shouldStoreOutputsToCache = environment.Configuration.Schedule.StoreOutputsToCache || IsRewriteOutputFile(environment, destinationFile);
+
+                        var possiblyStored = shouldStoreOutputsToCache
                             ? await environment.LocalDiskContentStore.TryStoreAsync(
                                 environment.Cache.ArtifactContentCache,
                                 GetFileRealizationMode(environment),
@@ -3529,13 +3532,8 @@ namespace BuildXL.Scheduler
                     FileOutputData.UpdateFileData(allOutputData, output.Path, OutputFlags.DeclaredFile);
 
                     // If the directory containing the output file was redirected, then we want to cache the content of the redirected output instead.
-                    AbsolutePath originalDirectory = output.Path.GetParent(pathTable);
-                    if (outputFilesAreRedirected && containerConfiguration.OriginalDirectories.TryGetValue(originalDirectory, out var redirectedDirectories))
+                    if (outputFilesAreRedirected && environment.ProcessInContainerManager.TryGetRedirectedDeclaredOutputFile(output.Path, containerConfiguration, out AbsolutePath redirectedOutputPath))
                     {
-                        // The original directory was an output directory, so there should always be a single redirected directory for it
-                        ExpandedAbsolutePath redirectedDirectory = redirectedDirectories.Single();
-                        AbsolutePath redirectedOutputPath = output.Path.Relocate(pathTable, originalDirectory, redirectedDirectory.Path);
-
                         var redirectedOutput = new FileArtifactWithAttributes(redirectedOutputPath, output.RewriteCount, output.FileExistence);
                         allRedirectedOutputs.Add(output.Path, redirectedOutput);
                     }
@@ -3568,7 +3566,7 @@ namespace BuildXL.Scheduler
 
                                 if (exclusiveOutputDirectoriesAreRedirected)
                                 {
-                                    PopulateRedirectedOutputsForFileInOpaque(pathTable, containerConfiguration, directoryArtifactPath, fileArtifactWithAttributes, allRedirectedOutputs);
+                                    PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, fileArtifactWithAttributes, allRedirectedOutputs);
                                 }
                             },
 
@@ -3629,7 +3627,7 @@ namespace BuildXL.Scheduler
 
                             if (sharedOutputDirectoriesAreRedirected)
                             {
-                                PopulateRedirectedOutputsForFileInOpaque(pathTable, containerConfiguration, directoryArtifactPath, fileArtifactWithAttributes, allRedirectedOutputs);
+                                PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, fileArtifactWithAttributes, allRedirectedOutputs);
                             }
                         }
 
@@ -3868,15 +3866,10 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static void PopulateRedirectedOutputsForFileInOpaque(PathTable pathTable, ContainerConfiguration containerConfiguration, AbsolutePath opaqueDirectory, FileArtifactWithAttributes fileArtifactInOpaque, Dictionary<AbsolutePath, FileArtifactWithAttributes> allRedirectedOutputs)
+        private static void PopulateRedirectedOutputsForFileInOpaque(PathTable pathTable, IPipExecutionEnvironment environment, ContainerConfiguration containerConfiguration, AbsolutePath opaqueDirectory, FileArtifactWithAttributes fileArtifactInOpaque, Dictionary<AbsolutePath, FileArtifactWithAttributes> allRedirectedOutputs)
         {
-            if (containerConfiguration.OriginalDirectories.TryGetValue(opaqueDirectory, out var redirectedDirectories))
+            if (environment.ProcessInContainerManager.TryGetRedirectedOpaqueFile(fileArtifactInOpaque.Path, opaqueDirectory, containerConfiguration, out AbsolutePath redirectedPath))
             {
-                // The original directory was an output directory, so there should always be a single redirected directory for it
-                ExpandedAbsolutePath redirectedDirectory = redirectedDirectories.Single();
-
-                // The file may be nested under the opaque, so we relocate it to the redirected directory
-                AbsolutePath redirectedPath = fileArtifactInOpaque.Path.Relocate(pathTable, opaqueDirectory, redirectedDirectory.Path);
                 var redirectedOutput = new FileArtifactWithAttributes(redirectedPath, fileArtifactInOpaque.RewriteCount, fileArtifactInOpaque.FileExistence);
                 allRedirectedOutputs.Add(fileArtifactInOpaque.Path, redirectedOutput);
             }
@@ -4454,7 +4447,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         private sealed class DirectoryArtifactContext : IDirectoryArtifactContext
         {
-            private IPipExecutionEnvironment m_pipExecutionEnvironment;
+            private readonly IPipExecutionEnvironment m_pipExecutionEnvironment;
 
             /// <nodoc/>
             public DirectoryArtifactContext(IPipExecutionEnvironment pipExecutionEnvironment)

@@ -6,13 +6,13 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Types;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.FrontEnd.Script.Types;
-using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Sdk;
 using static BuildXL.Utilities.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
@@ -41,8 +41,8 @@ namespace BuildXL.FrontEnd.Script.Ambients
         internal const string GetTemplateFunctionName = "getTemplate";
         internal const string GetCurrentHostName = "getCurrentHost";
 
-        private SymbolAtom MountNameObject;
-        private SymbolAtom MountPathObject;
+        private readonly SymbolAtom MountNameObject;
+        private readonly SymbolAtom MountPathObject;
 
         internal static string[] ConfigBlacklist =
         {

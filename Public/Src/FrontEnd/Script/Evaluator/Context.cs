@@ -5,16 +5,14 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using BuildXL.Pips;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Evaluator;
-using JetBrains.Annotations;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Pips;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
+using JetBrains.Annotations;
 using Closure = BuildXL.FrontEnd.Script.Values.Closure;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
@@ -95,7 +93,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// <summary>
         /// PipConstruction helper
         /// </summary>
-        private Lazy<PipConstructionHelper> m_pipConstructionHelper;
+        private readonly Lazy<PipConstructionHelper> m_pipConstructionHelper;
 
         internal Context(
             ContextTree contextTree,

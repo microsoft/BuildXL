@@ -1,9 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Expressions;
-using LineInfo = TypeScript.Net.Utilities.LineInfo;
+using TypeScript.Net.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Declarations
 {

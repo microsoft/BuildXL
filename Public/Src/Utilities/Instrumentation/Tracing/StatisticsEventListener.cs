@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 #if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using System.Diagnostics.Tracing;
 #endif
@@ -22,7 +21,7 @@ namespace BuildXL.Tracing
     public sealed class StatisticsEventListener : TextWriterEventListener
     {
         private readonly LoggingContext m_loggingContext;
-        private ConcurrentDictionary<string, long> m_finalStatistics = new ConcurrentDictionary<string, long>();
+        private readonly ConcurrentDictionary<string, long> m_finalStatistics = new ConcurrentDictionary<string, long>();
 
         /// <summary>
         /// Creates a new instance configured to output to the given writer.

@@ -3,12 +3,12 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Pips;
-using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Ambients.Map;
 using BuildXL.FrontEnd.Script.Ambients.Set;
 using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Pips;
+using BuildXL.Pips.Operations;
+using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.Runtime

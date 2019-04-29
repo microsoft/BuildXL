@@ -6,8 +6,8 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler.IncrementalScheduling
 {

@@ -27,7 +27,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Directory for outputting individual pip information.
         /// </summary>
-        private string m_outputDirectory;
+        private readonly string m_outputDirectory;
 
         /// <summary>
         /// Version of the store opened.
@@ -106,9 +106,9 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public class PipRecordingSession : IDisposable
         {
-            private FingerprintStoreEntry m_entry;
+            private readonly FingerprintStoreEntry m_entry;
 
-            private FingerprintStore m_store;
+            private readonly FingerprintStore m_store;
 
             /// <summary>
             /// The formatted semi stable hash of the pip during the build that logged <see cref="m_store"/>.
@@ -174,7 +174,7 @@ namespace BuildXL.Scheduler.Tracing
             /// </summary>
             public JsonNode GetWeakFingerprintTree()
             {
-                return JsonTree.BuildTree(m_entry.WeakFingerprintToInputs.Value);
+                return JsonTree.Deserialize(m_entry.WeakFingerprintToInputs.Value);
             }
 
             /// <summary>
@@ -183,8 +183,8 @@ namespace BuildXL.Scheduler.Tracing
             public JsonNode GetStrongFingerprintTree()
             {
                 var strongEntry = m_entry.StrongFingerprintEntry;
-                var strongFingerprintTree = JsonTree.BuildTree(strongEntry.StrongFingerprintToInputs.Value);
-                var pathSetTree = JsonTree.BuildTree(strongEntry.PathSetHashToInputs.Value);
+                var strongFingerprintTree = JsonTree.Deserialize(strongEntry.StrongFingerprintToInputs.Value);
+                var pathSetTree = JsonTree.Deserialize(strongEntry.PathSetHashToInputs.Value);
 
                 return MergeStrongFingerprintAndPathSetTrees(strongFingerprintTree, pathSetTree);
             }
@@ -371,7 +371,7 @@ namespace BuildXL.Scheduler.Tracing
                 {
                     WriteToPipFile(PrettyFormatJsonField(new KeyValuePair<string, string>(directoryFingerprint, inputs)).ToString());
 
-                    var directoryMembershipTree = JsonTree.BuildTree(inputs);
+                    var directoryMembershipTree = JsonTree.Deserialize(inputs);
                     for (var it = directoryMembershipTree.Children.First; it != null; it = it.Next)
                     {
                         JsonTree.ReparentBranch(it.Value, pathSetNode);

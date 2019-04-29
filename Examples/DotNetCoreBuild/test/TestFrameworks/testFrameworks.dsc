@@ -46,7 +46,7 @@ function produceFramework(out: Directory) {
 }
 
 @@public
-export const test1 = !Context.isWindowsOS() && (() => {
+export const test1 = Bash.isMacOS && (() => {
     const outDir = Context.getNewOutputDirectory("test-frameworks");
     const frameworkRootDir = produceFramework(outDir);
 

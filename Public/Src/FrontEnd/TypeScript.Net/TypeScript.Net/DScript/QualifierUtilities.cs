@@ -4,8 +4,8 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.Utilities;
 using TypeScript.Net.Types;
 using static TypeScript.Net.Extensions.NodeArrayExtensions;
 

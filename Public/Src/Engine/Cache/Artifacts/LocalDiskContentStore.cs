@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -15,13 +14,12 @@ using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.FormattableStringEx;
-using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 namespace BuildXL.Engine.Cache.Artifacts
 {
@@ -109,7 +107,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             using (Counters.StartStopwatch(LocalDiskContentStoreCounter.TryMaterializeTime))
             {
                 ExpandedAbsolutePath expandedPath = Expand(path);
-                
+
                 // Note we have to establish existence or TryGetKnownContentHashAsync would throw.
                 if (FileUtilities.FileExistsNoFollow(expandedPath.ExpandedPath))
                 {
@@ -158,8 +156,8 @@ namespace BuildXL.Engine.Cache.Artifacts
                                             handle,
                                             expandedPath,
                                             existingDestinationIdentityAndHash,
-                                            reparsePointInfo: reparsePointInfo ?? (symlinkTarget.IsValid 
-                                                ? ReparsePointInfo.Create(ReparsePointType.SymLink, symlinkTarget.ToString(m_pathTable)) 
+                                            reparsePointInfo: reparsePointInfo ?? (symlinkTarget.IsValid
+                                                ? ReparsePointInfo.Create(ReparsePointType.SymLink, symlinkTarget.ToString(m_pathTable))
                                                 : (ReparsePointInfo?)null))
                                         : TrackedFileContentInfo.CreateUntracked(existingDestinationIdentityAndHash.FileContentInfo);
 
@@ -178,8 +176,8 @@ namespace BuildXL.Engine.Cache.Artifacts
                     else
                     {
                         Tracing.Logger.Log.FailedOpenHandleToGetKnownHashDuringMaterialization(
-                            m_loggingContext, 
-                            expandedPath.ExpandedPath, 
+                            m_loggingContext,
+                            expandedPath.ExpandedPath,
                             openResult.CreateFailureForError().DescribeIncludingInnerFailures());
                     }
                 }
@@ -199,7 +197,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
                     if (!possibleMaterialization.Succeeded)
                     {
-                        return possibleMaterialization.Failure.Annotate("Try materialize file from cache failed.");
+                        return possibleMaterialization.Failure.Annotate("Try materialize file from cache failed");
                     }
                 }
                 else
@@ -209,7 +207,6 @@ namespace BuildXL.Engine.Cache.Artifacts
                         : CreateSymlinkIfNotExistsOrTargetMismatch(expandedPath.Path, reparsePointInfo.Value.GetReparsePointTarget());
                 }
 
-                // TODO:58494: We shouldn't need to open a new handle here. In fact, that is a race, and why there isn't a FileContentTable.RecordContentHashAsync taking a path.
                 Possible<TrackedFileContentInfo, Failure> possibleTrackedFile = await possibleMaterialization
                     .ThenAsync(p => TryOpenAndTrackPathAsync(
                         expandedPath,
@@ -437,12 +434,12 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// Then, modify i. Run another build. The journal scanning will detect changes on i, but none on o. Thus, the only invalidated mapping is the mapping from i
         /// to its file id. Now, this method is called again, but it will get the known content hash through the mapping from paths to <see cref="FileIdAndVolumeId"/>,
         /// which by-passing the USN check. Thus, the obtained known content hash is the old one.
-        /// 
+        ///
         /// When <paramref name="createHandleWithSequentialScan"/> is true, then a handle for <paramref name="fileArtifact"/> is opened with <see cref="FileFlagsAndAttributes.FileFlagSequentialScan"/>.
-        /// According to MSDN (https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx#caching_behavior), specifying the <see cref="FileFlagsAndAttributes.FileFlagSequentialScan"/> 
-        /// flag can increase performance for applications that read large files using sequential access, which sounds perfect for hashing the file. 
+        /// According to MSDN (https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx#caching_behavior), specifying the <see cref="FileFlagsAndAttributes.FileFlagSequentialScan"/>
+        /// flag can increase performance for applications that read large files using sequential access, which sounds perfect for hashing the file.
         /// Performance gains can be even more noticeable for applications that read large files mostly sequentially, but occasionally skip forward over small ranges of bytes.
-        /// However, the OS uses <see cref="FileFlagsAndAttributes.FileFlagSequentialScan"/> as a hint for dropping other files from the standby (filesystem cache). 
+        /// However, the OS uses <see cref="FileFlagsAndAttributes.FileFlagSequentialScan"/> as a hint for dropping other files from the standby (filesystem cache).
         /// Thus, a workable strategy would be, when BuildXL hashes files, it will set the flag when no other pips consume the output file.
         /// </remarks>
         public async Task<Possible<ContentDiscoveryResult, Failure>> TryDiscoverAsync(
@@ -707,11 +704,11 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// Attempts to store content as found at the specified path to the given <paramref name="cache"/>.
         /// This operation may fail due to I/O-related issues, such as lack of permissions to the destination.
         /// The stored file is tracked for changes and added to the file content table.
-        /// 
+        ///
         /// Caller can also specify whether the file to store is a symlink using <paramref name="isSymlink"/>.
         /// If <paramref name="isSymlink"/> is left unspecified, then this method will try to check if the file is a symlink.
-        /// If the file is a symlink, then this method will log a warning because storing symlink to cache makes builds behave unexpectedly, 
-        /// e.g., cache replays symlinks as concrete files, pip may not rebuild if symlink target is modified, pip may fail if symlink target 
+        /// If the file is a symlink, then this method will log a warning because storing symlink to cache makes builds behave unexpectedly,
+        /// e.g., cache replays symlinks as concrete files, pip may not rebuild if symlink target is modified, pip may fail if symlink target
         /// is nonexistent, etc.
         /// </summary>
         public async Task<Possible<TrackedFileContentInfo>> TryStoreAsync(
@@ -928,50 +925,56 @@ namespace BuildXL.Engine.Cache.Artifacts
                 return possibleEnsureFileName.Failure;
             }
 
-            try
-            {
-                // TODO:58494: We shouldn't need to open a new handle here. In fact, that is a race, and why there isn't a RecordContentHashAsync taking a path.
-                // Somebody could change the file since we finished copying from the cache. The cache should instead be enlightened to use the file content table.
-                return FileUtilities.UsingFileHandleAndFileLength(
-                    path.ExpandedPath,
-                    FileDesiredAccess.GenericRead,
-                    FileShare.Read | FileShare.Delete,
-                    FileMode.Open,
-                    FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint,
-                    (handle, length) =>
+            // TODO:58494: We shouldn't need to open a new handle here. In fact, that is a race, and why there isn't a RecordContentHashAsync taking a path.
+            // Somebody could change the file since we finished copying from the cache. The cache should instead be enlightened to use the file content table.
+            return Helpers.RetryOnFailure(
+                    lastAttempt =>
                     {
-                        VersionedFileIdentityAndContentInfo? identityAndContentInfo = default;
+                        var attempt = FileUtilities.UsingFileHandleAndFileLength(
+                            path.ExpandedPath,
+                            FileDesiredAccess.GenericRead,
+                            FileShare.Read | FileShare.Delete,
+                            FileMode.Open,
+                            FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                            (handle, length) =>
+                            {
+                                VersionedFileIdentityAndContentInfo? identityAndContentInfo = default;
 
-                        if (recordPathInFileContentTable)
+                                if (recordPathInFileContentTable)
+                                {
+                                    // strict: is disabled since we instead flush in TryFlushAndHashFile
+                                    var identity = m_fileContentTable.RecordContentHash(
+                                            path.ExpandedPath,
+                                            handle,
+                                            hash,
+                                            length,
+                                            strict: false);
+                                    identityAndContentInfo = new VersionedFileIdentityAndContentInfo(identity, new FileContentInfo(hash, length));
+                                }
+
+                                if (!trackPath)
+                                {
+                                    // We are not interested in tracking the file (perhaps because it has been tracked, see our handling of copy-file pip),
+                                    // but we need the file length, and potentially need to ensure that the file name casing match.
+                                    return new TrackedFileContentInfo(new FileContentInfo(hash, length), FileChangeTrackingSubscription.Invalid, fileName);
+                                }
+
+                                Contract.Assert(recordPathInFileContentTable && identityAndContentInfo.HasValue);
+
+                                // Note that the identity kind may be Anonymous if we couldn't establish an identity for the target file;
+                                // in that case we still need to call TrackChangesToFile to ensure the tracker latches to disabled.
+                                return TrackChangesToFile(handle, path, identityAndContentInfo.Value, knownFileName: fileName);
+                            });
+
+                        if (attempt.Succeeded)
                         {
-                            // strict: is disabled since we instead flush in TryFlushAndHashFile
-                            var identity = m_fileContentTable.RecordContentHash(
-                                    path.ExpandedPath,
-                                    handle,
-                                    hash,
-                                    length,
-                                    strict: false);
-                            identityAndContentInfo = new VersionedFileIdentityAndContentInfo(identity, new FileContentInfo(hash, length));
+                            return new Possible<TrackedFileContentInfo, Failure>(attempt.Result);
                         }
 
-                        if (!trackPath)
-                        {
-                            // We are not interested in tracking the file (perhaps because it has been tracked, see our handling of copy-file pip),
-                            // but we need the file length, and potentially need to ensure that the file name casing match.
-                            return new TrackedFileContentInfo(new FileContentInfo(hash, length), FileChangeTrackingSubscription.Invalid, fileName);
-                        }
-
-                        Contract.Assert(recordPathInFileContentTable && identityAndContentInfo.HasValue);
-
-                        // Note that the identity kind may be Anonymous if we couldn't establish an identity for the target file;
-                        // in that case we still need to call TrackChangesToFile to ensure the tracker latches to disabled.
-                        return TrackChangesToFile(handle, path, identityAndContentInfo.Value, knownFileName: fileName);
-                    });
-            }
-            catch (BuildXLException ex)
-            {
-                return new RecoverableExceptionFailure(ex);
-            }
+                        return new Failure<string>($"TryOpenAndTrackPathAsync() failed to establish identity and track file: {path.ExpandedPath}");
+                    },
+                    logExceptions: true
+                );
         }
 
         private Possible<TrackedFileContentInfo> TrackChangesToFile(

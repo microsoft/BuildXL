@@ -22,16 +22,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     public class GrpcFileCopier : IAbsolutePathFileCopier
     {
         private const int DefaultGrpcPort = 7089;
-        private Context _context;
+        private readonly Context _context;
         private int _grpcPort;
+        private bool _useCompression;
 
         /// <summary>
         /// Constructor for <see cref="GrpcFileCopier"/>.
         /// </summary>
-        public GrpcFileCopier(Context context, int grpcPort)
+        public GrpcFileCopier(Context context, int grpcPort, bool useCompression = false)
         {
             _context = context;
             _grpcPort = grpcPort;
+            _useCompression = useCompression;
         }
 
         /// <inheritdoc />
@@ -57,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
-            using (var client = GrpcCopyClient.Create(host, _grpcPort))
+            using (var client = GrpcCopyClient.Create(host, _grpcPort, _useCompression))
             {
                 copyFileResult = await client.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken);
             }
@@ -67,8 +69,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
         private (string host, ContentHash contentHash) ExtractHostHashFromAbsolutePath(AbsolutePath sourcePath)
         {
-            Contract.Assert(sourcePath.IsUnc);
-
             // TODO: Keep the segments in the AbsolutePath object?
             // TODO: Indexable structure?
             var segments = sourcePath.GetSegments();
@@ -100,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
-            using (var client = GrpcCopyClient.Create(host, _grpcPort))
+            using (var client = GrpcCopyClient.Create(host, _grpcPort, _useCompression))
             {
                 copyFileResult = await client.CopyToAsync(_context, contentHash, destinationStream, cancellationToken);
             }

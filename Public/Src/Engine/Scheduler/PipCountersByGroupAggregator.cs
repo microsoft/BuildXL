@@ -5,8 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler
 {

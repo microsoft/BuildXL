@@ -7,7 +7,6 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
-
 using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
@@ -324,7 +323,7 @@ namespace BuildXL.Scheduler.Tracing
         private readonly bool m_closeLogFileOnDispose;
         private readonly BinaryLogger m_logFile;
         private readonly uint m_workerId = 0;
-        private IReadOnlyList<int> m_disabledEventIds;
+        private readonly IReadOnlyList<int> m_disabledEventIds;
 
         /// <summary>
         /// Performance counters.

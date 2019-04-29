@@ -6,10 +6,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.Interfaces;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 

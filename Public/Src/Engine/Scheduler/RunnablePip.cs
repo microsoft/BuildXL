@@ -10,9 +10,10 @@ using BuildXL.Scheduler.Distribution;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Native.IO;
 
 namespace BuildXL.Scheduler
 {
@@ -410,12 +411,13 @@ namespace BuildXL.Scheduler
             PipId pipId,
             PipType type,
             int priority,
-            Func<RunnablePip, Task> executionFunc)
+            Func<RunnablePip, Task> executionFunc,
+            ushort cpuUsageInPercent)
         {
             switch (type)
             {
                 case PipType.Process:
-                    return new ProcessRunnablePip(loggingContext, pipId, priority, executionFunc, environment);
+                    return new ProcessRunnablePip(loggingContext, pipId, priority, executionFunc, environment, cpuUsageInPercent);
                 default:
                     return new RunnablePip(loggingContext, pipId, type, priority, executionFunc, environment);
             }
@@ -434,7 +436,7 @@ namespace BuildXL.Scheduler
             switch (pip.PipType)
             {
                 case PipType.Process:
-                    return new ProcessRunnablePip(loggingContext, pip.PipId, priority, executionFunc, environment, pip);
+                    return new ProcessRunnablePip(loggingContext, pip.PipId, priority, executionFunc, environment, pip: pip);
                 default:
                     return new RunnablePip(loggingContext, pip.PipId, pip.PipType, priority, executionFunc, environment, pip);
             }

@@ -8,11 +8,11 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
+using BuildXL.FrontEnd.Nuget.Tracing;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Nuget.Tracing;
-using BuildXL.FrontEnd.Sdk;
 using NuGet.Versioning;
 using Moniker = BuildXL.Utilities.PathAtom;
 
@@ -533,7 +533,7 @@ namespace BuildXL.FrontEnd.Nuget
                 if (group.Attribute("targetFramework") != null && NugetFrameworkMonikers.TargetFrameworkNameToMoniker.TryGetValue(group.Attribute("targetFramework").Value, out Moniker targetFramework))
                 {
                     // If there is at least one valid dependency for a known framework, then the package is defined as managed
-                    IsManagedPackage = true;
+                    IsManagedPackage = group.Elements().Any();
                     TargetFrameworkWithFallbacks.Add(targetFramework);
 
                     // TODO:Nuget: Clean this up once we got end to end TFM support inside our Nuget toolchain, this is needed to not break backwards compatibility

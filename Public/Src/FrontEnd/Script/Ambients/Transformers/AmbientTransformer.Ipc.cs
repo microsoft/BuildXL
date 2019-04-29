@@ -2,7 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Globalization;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Types;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
@@ -11,9 +15,6 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.FrontEnd.Script.Types;
-using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
@@ -159,17 +160,24 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // skip materialization for files
-            FileArtifact[] skipMaterializationFiles = CollectionUtilities.EmptyArray<FileArtifact>();
+            FileOrDirectoryArtifact[] skipMaterializationArtifacts = CollectionUtilities.EmptyArray<FileOrDirectoryArtifact>();
             ArrayLiteral skipMaterializationLiteral = Converter.ExtractArrayLiteral(obj, m_ipcSendLazilyMaterializedDependencies, allowUndefined: true);
             if (skipMaterializationLiteral != null)
             {
-                skipMaterializationFiles = new FileArtifact[skipMaterializationLiteral.Length];
+                skipMaterializationArtifacts = new FileOrDirectoryArtifact[skipMaterializationLiteral.Length];
                 for (int i = 0; i < skipMaterializationLiteral.Length; i++)
                 {
-                    skipMaterializationFiles[i] = Converter.ExpectFile(
+                    Converter.ExpectFileOrStaticDirectory(
                         skipMaterializationLiteral[i],
-                        strict: true,
+                        out var fileArtifact,
+                        out var staticDirectory,
                         context: new ConversionContext(pos: i, objectCtx: skipMaterializationLiteral));
+
+                    Contract.Assert(fileArtifact.IsValid ^ staticDirectory != null);
+
+                    skipMaterializationArtifacts[i] = fileArtifact.IsValid
+                        ? FileOrDirectoryArtifact.Create(fileArtifact)
+                        : FileOrDirectoryArtifact.Create(staticDirectory.Root);
                 }
             }
 
@@ -186,7 +194,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 servicePipDependencies: servicePipId != null ? ReadOnlyArray<PipId>.From(new[] { servicePipId.Value }) : ReadOnlyArray<PipId>.Empty,
                 fileDependencies: fileDependencies,
                 directoryDependencies : directoryDependencies,
-                skipMaterializationFor: ReadOnlyArray<FileArtifact>.FromWithoutCopy(skipMaterializationFiles),
+                skipMaterializationFor: ReadOnlyArray<FileOrDirectoryArtifact>.FromWithoutCopy(skipMaterializationArtifacts),
                 isServiceFinalization: isServiceFinalization,
                 mustRunOnMaster: mustRunOnMaster,
                 tags: tags,

@@ -5,8 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Expressions;
+using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 

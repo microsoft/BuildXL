@@ -25,7 +25,7 @@ namespace BuildXL.FrontEnd.MsBuild
         /// <remarks>
         /// Order matters, since that may result in different resolved assemblies
         /// </remarks>
-        private List<AbsolutePath> m_loadedMsBuildAssemblyLocations = new List<AbsolutePath>();
+        private readonly List<AbsolutePath> m_loadedMsBuildAssemblyLocations = new List<AbsolutePath>();
 
         /// <nodoc />
         public const string Name = MsBuildWorkspaceResolver.MsBuildResolverName;

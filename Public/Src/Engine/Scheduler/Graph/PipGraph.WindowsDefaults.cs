@@ -1,5 +1,7 @@
-﻿using System;
-using System.IO;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -42,7 +44,7 @@ namespace BuildXL.Scheduler.Graph
             /// <summary>
             /// Augments the processBuilder with the OS dependencies
             /// </summary>
-            public void ProcessDefaults(ProcessBuilder processBuilder)
+            public bool ProcessDefaults(ProcessBuilder processBuilder)
             {
                 if ((processBuilder.Options & Process.Options.DependsOnCurrentOs) != 0)
                 {
@@ -62,6 +64,8 @@ namespace BuildXL.Scheduler.Graph
                 {
                     processBuilder.AddUntrackedDirectoryScope(m_commonApplicationDataPath);
                 }
+
+                return true;
             }
 
             private static DirectoryArtifact GetSpecialFolder(PathTable pathTable, Environment.SpecialFolder specialFolder, params string[] subFolders)

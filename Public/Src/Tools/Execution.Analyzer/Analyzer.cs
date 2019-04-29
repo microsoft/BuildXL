@@ -3,18 +3,17 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using BuildXL.Engine;
+using BuildXL.Execution.Analyzer.Model;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Execution.Analyzer.Model;
 
 namespace BuildXL.Execution.Analyzer
 {

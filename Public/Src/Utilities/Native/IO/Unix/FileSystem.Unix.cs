@@ -13,7 +13,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
-using System.Security.AccessControl;
 using System.Text;
 using System.Text.RegularExpressions;
 using BuildXL.Native.IO.Windows;
@@ -551,7 +550,6 @@ namespace BuildXL.Native.IO.Unix
             try
             {
                 var mayBeExistence = TryProbePathExistence(path, openSymlink);
-
                 handle = Open(path, CreateOpenFlags(desiredAccess, shareMode, fileMode, openSymlink), CreateFilePermissions(desiredAccess));
 
                 if (handle.IsInvalid)
@@ -651,7 +649,7 @@ namespace BuildXL.Native.IO.Unix
                 },
                 ex =>
                 {
-                    throw new BuildXLException(I($"Failed to open path '{path}'"), ex);
+                    throw new BuildXLException(I($"Failed to open path '{path}' with mode='{fileMode}', access='{fileAccess}', share='{fileShare}'"), ex);
                 });
         }
 
@@ -659,7 +657,7 @@ namespace BuildXL.Native.IO.Unix
         public unsafe bool TryPosixDelete(string pathToDelete, out OpenFileResult openFileResult) => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public int MaxDirectoryPathLength() => 1024; // TODO: don't hardcode
+        public int MaxDirectoryPathLength() => NativeIOConstants.MaxPath;
 
         /// <inheritdoc />
         public CreateHardLinkStatus TryCreateHardLink(string link, string linkTarget)
@@ -873,9 +871,14 @@ namespace BuildXL.Native.IO.Unix
         /// <inheritdoc />
         public Possible<string> TryGetReparsePointTarget(SafeFileHandle handle, string sourcePath)
         {
+            return TryGetReparsePointTarget(sourcePath);
+        }
+
+        internal Possible<string> TryGetReparsePointTarget(string sourcePath)
+        {
             try
             {
-                var maxPathLength = BuildXL.Native.IO.NativeIOConstants.MaxPath + 1;
+                var maxPathLength = MaxDirectoryPathLength();
                 var sb = new StringBuilder(maxPathLength);
                 long numCharactersWritten = SafeReadLink(sourcePath, sb, maxPathLength);
                 if (numCharactersWritten >= 0 && numCharactersWritten <= maxPathLength)
@@ -953,7 +956,19 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc/>
+        public bool IsWciReparseArtifact(string path)
+        {
+            return false;
+        }
+
+        /// <inheritdoc/>
         public bool IsWciReparsePoint(string path)
+        {
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public bool IsWciTombstoneFile(string path)
         {
             return false;
         }
@@ -1177,35 +1192,24 @@ namespace BuildXL.Native.IO.Unix
         /// </summary>
         public int GetFilePermission(string path, bool followSymlink = false, bool throwOnFailure = true)
         {
-            int result = GetFilePermissionsForFilePath(path, followSymlink);
-            if (result < 0 && throwOnFailure)
+            var statBuffer = new StatBuffer();
+
+            unsafe
             {
-                throw new BuildXLException(I($"Failed to get permission of '{path}' - error: {Marshal.GetLastWin32Error()}"));
+               if (StatFile(path, followSymlink, ref statBuffer) != 0)
+               {
+                   if (throwOnFailure)
+                   {
+                       throw new BuildXLException(I($"Failed to stat file '{path}' to get its permission - error: {Marshal.GetLastWin32Error()}"));
+                   }
+                   else
+                   {
+                       return -1;
+                   }
+               }
+
+               return unchecked((int)statBuffer.Mode);
             }
-
-            return result;
-
-            // TODO: Replacing GetFilePermissionsForFilePath with StatFile below is preferable, but tests failed saying that
-            //       "StatFile" entry point cannot be found. This requires further investigation.
-
-            //var statBuffer = new StatBuffer();
-            //
-            //unsafe
-            //{
-            //    if (StatFile(path, followSymlink, ref statBuffer) != 0)
-            //    {
-            //        if (throwOnFailure)
-            //        {
-            //            throw new BuildXLException(I($"Failed to stat file '{path}' to get its permission - error: {Marshal.GetLastWin32Error()}"));
-            //        }
-            //        else
-            //        {
-            //            return -1;
-            //        }
-            //    }
-            //
-            //    return unchecked((int)statBuffer.Mode);
-            //}
         }
 
         /// <summary>

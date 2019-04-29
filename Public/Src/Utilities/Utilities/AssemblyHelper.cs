@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -16,7 +15,7 @@ namespace BuildXL.Utilities
     /// </summary>
     public static class AssemblyHelper
     {
-        private static ConcurrentDictionary<string, string> s_assemblyLocationCache = new ConcurrentDictionary<string, string>();
+        private static readonly ConcurrentDictionary<string, string> s_assemblyLocationCache = new ConcurrentDictionary<string, string>();
 
         /// <summary>
         /// Returns the location of a given assembly trying several strategies to obtain the correct path

@@ -220,13 +220,13 @@ export interface DropRunner {
      * Preferred method is to use addArtifactsToDrop.
      * If used, directoryContentFilter must specify a .Net-style case-insensitive regex.
      */
-    addDirectoriesToDrop: (createResult: DropCreateResult, args: DropOperationArguments, directories: DirectoryInfo[], directoryContentFilter? : string) => Result;
+    addDirectoriesToDrop: (createResult: DropCreateResult, args: DropOperationArguments, directories: DirectoryInfo[]) => Result;
 
     /** 
      * Adds artifacts to drop.
      * If used, directoryContentFilter must specify a .Net-style case-insensitive regex.
      */
-    addArtifactsToDrop: (createResult: DropCreateResult, args: DropOperationArguments, artifacts: DropArtifactInfo[], directoryContentFilter? : string) => Result;
+    addArtifactsToDrop: (createResult: DropCreateResult, args: DropOperationArguments, artifacts: DropArtifactInfo[]) => Result;
 
     // ------------------------------- for legacy type conversion --------------------------
 

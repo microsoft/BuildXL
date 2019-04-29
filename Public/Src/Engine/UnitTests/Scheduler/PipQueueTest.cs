@@ -141,7 +141,7 @@ namespace Test.BuildXL.Scheduler
                             var contentHash = ContentHashingUtilities.HashString(contents.ToString(pathTable));
                             executionEnvironment.AddExpectedWrite(writeFile, destinationArtifact, contentHash);
 
-                            var runnable = RunnablePip.Create(loggingContext, executionEnvironment, pipId, pipTable.GetPipType(pipId), 0, taskFactory);
+                            var runnable = RunnablePip.Create(loggingContext, executionEnvironment, pipId, pipTable.GetPipType(pipId), 0, taskFactory, 0);
                             runnable.Start(new OperationTracker(loggingContext), loggingContext);
                             runnable.SetDispatcherKind(DispatcherKind.IO);
                             phase1PipQueue.Enqueue(runnable);
@@ -252,7 +252,7 @@ namespace Test.BuildXL.Scheduler
                                                     callback(pipId, task);
                                                 };
 
-                                            var runnable = RunnablePip.Create(loggingContext, executionEnvironment, pipId, pipTable.GetPipType(pipId), 0, taskFactoryWithCallback);
+                                            var runnable = RunnablePip.Create(loggingContext, executionEnvironment, pipId, pipTable.GetPipType(pipId), 0, taskFactoryWithCallback, 0);
                                             runnable.Start(new OperationTracker(loggingContext), loggingContext);
                                             runnable.SetDispatcherKind(queueKind);
                                             phase2PipQueue.Enqueue(runnable);
@@ -437,6 +437,12 @@ namespace Test.BuildXL.Scheduler
             }
 
             public bool IsPreservedOutputArtifact(in FileOrDirectoryArtifact fileArtifact)
+            {
+                return false;
+            }
+
+            /// <inheritdoc />
+            public bool IsFileRewritten(in FileArtifact fileArtifact)
             {
                 return false;
             }

@@ -17,10 +17,10 @@ using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Scheduler.Distribution
 {
@@ -48,7 +48,7 @@ namespace BuildXL.Scheduler.Distribution
 
         private readonly ObjectPool<PipSetupCosts> m_pipSetupCostPool;
 
-        private SemaphoreSlim m_chooseWorkerMutex = TaskUtilities.CreateMutex();
+        private readonly SemaphoreSlim m_chooseWorkerMutex = TaskUtilities.CreateMutex();
 
         private RunnablePip m_lastIterationBlockedPip;
 
@@ -254,7 +254,7 @@ namespace BuildXL.Scheduler.Distribution
         private class PipSetupCosts
         {
             public readonly WorkerSetupCost[] WorkerSetupCosts;
-            private ChooseWorkerCpu m_context;
+            private readonly ChooseWorkerCpu m_context;
             private readonly HashSet<ContentHash> m_visitedHashes = new HashSet<ContentHash>();
 
             public PipSetupCosts(ChooseWorkerCpu context)

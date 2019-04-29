@@ -2,11 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Script.Constants;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Script.Expressions;
 using TypeScript.Net.Types;
 using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;

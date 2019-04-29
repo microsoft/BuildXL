@@ -6,9 +6,8 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Threading;
 using BuildXL.Utilities.Tracing;
 

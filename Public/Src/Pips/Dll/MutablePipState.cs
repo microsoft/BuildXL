@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;

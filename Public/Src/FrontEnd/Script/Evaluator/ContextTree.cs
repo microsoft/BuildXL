@@ -6,17 +6,12 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
-using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Ambients.Transformers;
-using BuildXL.FrontEnd.Script.Evaluator;
-using JetBrains.Annotations;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.FrontEnd.Script.Ambients.Transformers;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.Evaluation;
+using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script.Evaluator
 {

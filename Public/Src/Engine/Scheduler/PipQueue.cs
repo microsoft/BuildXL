@@ -10,8 +10,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler
 {
@@ -129,7 +129,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private IScheduleConfiguration m_config;
+        private readonly IScheduleConfiguration m_config;
 
         /// <summary>
         /// Creates instance

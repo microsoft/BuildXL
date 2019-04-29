@@ -1,14 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using BuildXL.Cache.ContentStore.Stats;
 using BuildXL.Cache.ContentStore.Tracing;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 
 // disable 'Missing XML comment for publicly visible type' warnings.
 #pragma warning disable 1591

@@ -6,23 +6,23 @@ using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.App.Tracing;
 using BuildXL.FrontEnd.CMake;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
-using BuildXL.FrontEnd.Script.Evaluator.Profiling;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Download;
+using BuildXL.FrontEnd.MsBuild;
+using BuildXL.FrontEnd.Ninja;
+using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Debugger;
 using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Nuget;
-using BuildXL.FrontEnd.MsBuild;
+using BuildXL.FrontEnd.Script.Evaluator.Profiling;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 using VSCode.DebugProtocol;
-using BuildXL.FrontEnd.Ninja;
 
 namespace BuildXL
 {
@@ -291,13 +291,13 @@ namespace BuildXL
                 () => new DownloadWorkspaceResolver());
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.MsBuildResolverKind,
-                () => new MsBuildWorkspaceResolver(statistics));
+                () => new MsBuildWorkspaceResolver());
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.NinjaResolverKind,
-                () => new NinjaWorkspaceResolver(stringTable, statistics));
+                () => new NinjaWorkspaceResolver());
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.CMakeResolverKind,
-                () => new CMakeWorkspaceResolver(stringTable, statistics));
+                () => new CMakeWorkspaceResolver());
         }
     }
 }

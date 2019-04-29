@@ -3,16 +3,14 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.RuntimeModel
 {
-    using SyntaxKind = TypeScript.Net.Types.SyntaxKind;
-    
     /// <summary>
     /// Scope for local variables.
     /// </summary>
@@ -146,7 +144,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel
             {
                 var symbol = kvp.Value;
                 var declaration = symbol.DeclarationList.First();
-                if (declaration.Kind != SyntaxKind.VariableDeclaration && declaration.Kind != SyntaxKind.Parameter)
+                if (declaration.Kind != TypeScript.Net.Types.SyntaxKind.VariableDeclaration && declaration.Kind != TypeScript.Net.Types.SyntaxKind.Parameter)
                 {
                     // Need to register only variable declarations!
                     continue;

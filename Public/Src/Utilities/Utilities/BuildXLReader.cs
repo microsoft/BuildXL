@@ -336,6 +336,20 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Reads FileOrDirectoryArtifact
+        /// </summary>        
+        public FileOrDirectoryArtifact ReadFileOrDirectoryArtifact()
+        {
+            Start<FileOrDirectoryArtifact>();
+            var isFileArtifact = ReadBoolean();
+            var value = isFileArtifact
+                ? FileOrDirectoryArtifact.Create(ReadFileArtifact())
+                : FileOrDirectoryArtifact.Create(ReadDirectoryArtifact());
+            End();
+            return value;
+        }
+
+        /// <summary>
         /// Reads a ReadOnlyArray
         /// </summary>
         public ReadOnlyArray<T> ReadReadOnlyArray<T>(Func<BuildXLReader, T> reader)
@@ -455,6 +469,21 @@ namespace BuildXL.Utilities
             var value = DateTime.FromBinary(ReadInt64());
             End();
             return value;
+        }
+
+        /// <summary>
+        /// Reads an <see cref="Encoding"/>.
+        /// </summary>
+        public Encoding ReadEncoding()
+        {
+            Start<Encoding>();
+            int codePage = ReadInt32();
+
+#if DISABLE_FEATURE_EXTENDED_ENCODING
+            return new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+#else
+            return Encoding.GetEncoding(codePage);
+#endif
         }
 
         /// <summary>

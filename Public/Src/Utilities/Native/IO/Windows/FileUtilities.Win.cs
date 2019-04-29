@@ -14,7 +14,6 @@ using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Native.Processes;
 using BuildXL.Native.Streams.Windows;
 using BuildXL.Native.Tracing;
 using BuildXL.Utilities;
@@ -116,7 +115,8 @@ namespace BuildXL.Native.IO.Windows
             string path,
             bool deleteRootDirectory = false,
             Func<string, bool> shouldDelete = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            CancellationToken? cancellationToken = default)
         {
             var maybeExistence = s_fileSystem.TryProbePathExistence(path, followSymlink: true);
 
@@ -129,7 +129,8 @@ namespace BuildXL.Native.IO.Windows
                 NormalizeDirectoryPath(path),
                 deleteRootDirectory: deleteRootDirectory,
                 shouldDelete: shouldDelete,
-                tempDirectoryCleaner: tempDirectoryCleaner);
+                tempDirectoryCleaner: tempDirectoryCleaner,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -146,6 +147,7 @@ namespace BuildXL.Native.IO.Windows
         /// <param name="deleteRootDirectory">If false, only the contents of the root directory will be deleted</param>
         /// <param name="shouldDelete">a function which returns true if file should be deleted and false otherwise.</param>
         /// <param name="tempDirectoryCleaner">provides and cleans a temp directory for move-deletes</param>
+        /// <param name="cancellationToken">provides cancellation capability</param>
         /// <returns>
         /// How many entries remain in the directory, the count is not recursive. This function could be successful with a count greater than one because of <paramref name="shouldDelete"/>
         /// </returns>
@@ -154,7 +156,8 @@ namespace BuildXL.Native.IO.Windows
             string directoryPath,
             bool deleteRootDirectory,
             Func<string, bool> shouldDelete = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            CancellationToken? cancellationToken = default)
         {
             var defaultDeleteCheck = new Func<string, bool>(p => true);
             shouldDelete = shouldDelete ?? defaultDeleteCheck;
@@ -170,6 +173,8 @@ namespace BuildXL.Native.IO.Windows
                     directoryPath,
                     (name, attr) =>
                     {
+                        cancellationToken?.ThrowIfCancellationRequested();
+
                         string childPath = Path.Combine(directoryPath, name);
                         if ((attr & FileAttributes.Directory) != 0)
                         {
@@ -177,7 +182,8 @@ namespace BuildXL.Native.IO.Windows
                                 childPath,
                                 deleteRootDirectory: true,
                                 shouldDelete: shouldDelete,
-                                tempDirectoryCleaner: tempDirectoryCleaner);
+                                tempDirectoryCleaner: tempDirectoryCleaner,
+                                cancellationToken: cancellationToken);
                             if (subDirectoryEntryCount > 0)
                             {
                                 remainingChildCount++;

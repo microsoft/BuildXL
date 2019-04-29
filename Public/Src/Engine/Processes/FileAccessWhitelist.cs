@@ -11,10 +11,9 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Qualifier;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Processes
 {

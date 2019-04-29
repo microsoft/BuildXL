@@ -1,14 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
+#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
+using Microsoft.Diagnostics.Tracing;
+#endif
 using System.Collections.Generic;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#endif
 #if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using System.Diagnostics.Tracing;
 #endif
@@ -473,6 +472,15 @@ namespace BuildXL.Storage.Tracing
             EventTask = (ushort)Events.Tasks.PipExecutor,
             Message = "Pinned a CAS entry {casEntry} to cache {cacheId}")]
         public abstract void StorageCacheContentPinned(LoggingContext loggingContext, string casEntry, string cacheId);
+
+        [GeneratedEvent(
+            (int)EventId.FileMaterializationMismatchFileExistenceResult,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.PipExecutor,
+            Message = "File existence check on '{path}' results in '{message}', but cache decided it as '{cacheExistence}'")]
+        public abstract void FileMaterializationMismatchFileExistenceResult(LoggingContext loggingContext, string path, string message, string cacheExistence);
 
         [GeneratedEvent(
             (int)EventId.StorageKnownUsnHit,

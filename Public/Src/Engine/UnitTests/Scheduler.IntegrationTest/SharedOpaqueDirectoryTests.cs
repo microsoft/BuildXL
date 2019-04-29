@@ -7,6 +7,7 @@ using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
@@ -18,7 +19,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = BuildXL.Scheduler.Tracing.LogEventId;
-using BuildXL.Processes;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {

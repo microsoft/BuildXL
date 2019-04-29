@@ -9,6 +9,7 @@ using System.Linq;
 using BuildXL.Execution.Analyzer.Analyzers.CacheMiss;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
@@ -18,7 +19,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
 using StringPair = System.Collections.Generic.KeyValuePair<string, string>;
-using BuildXL.Scheduler;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -166,7 +166,7 @@ namespace BuildXL.Execution.Analyzer
             private readonly AnalysisModel m_oldModel;
             private readonly ConversionModel m_conversionModel;
 
-            private Dictionary<PipId, PipCacheMissType> m_pipMissTypeMap = new Dictionary<PipId, PipCacheMissType>();
+            private readonly Dictionary<PipId, PipCacheMissType> m_pipMissTypeMap = new Dictionary<PipId, PipCacheMissType>();
             
             /// <summary>
             /// Counts the number of passes over the later build's execution log.
@@ -174,10 +174,10 @@ namespace BuildXL.Execution.Analyzer
             /// </summary>
             private uint m_logPassCount = 0;
 
-            private Dictionary<PipId, bool> m_isHitMap = new Dictionary<PipId, bool>();
+            private readonly Dictionary<PipId, bool> m_isHitMap = new Dictionary<PipId, bool>();
             private bool m_hasWrittenMessageForPip;
 
-            private CacheMissAnalyzer m_analyzer;
+            private readonly CacheMissAnalyzer m_analyzer;
             private PipId m_currentOldPip;
             private PipId m_currentPip;
             private Process m_currentProcess;
@@ -189,8 +189,8 @@ namespace BuildXL.Execution.Analyzer
             private bool m_isDistributed = false;
             private string[] m_workers = new string[] { "Local" };
 
-            private string m_newOutputDirectory;
-            private string m_oldOutputDirectory;
+            private readonly string m_newOutputDirectory;
+            private readonly string m_oldOutputDirectory;
 
             private TextWriter m_oldPipWriter;
 

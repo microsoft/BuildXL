@@ -13,8 +13,9 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Tracing;
+using System.Linq;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -914,7 +915,9 @@ namespace BuildXL.Scheduler.Tracing
                 ReportedFileAccesses,
                 WhitelistedReportedFileAccesses,
                 ReportedProcesses);
-            ProcessDetouringStatusData.Serialize(writer, ProcessDetouringStatuses);
+            writer.Write(
+                ProcessDetouringStatuses, 
+                (w, v) => w.WriteReadOnlyList(v.ToList(), (w2, v2) => v2.Serialize(w2)));
         }
 
         /// <inheritdoc />
@@ -929,7 +932,7 @@ namespace BuildXL.Scheduler.Tracing
                 out reportedFileAccesses,
                 out whitelistedReportedFileAccesses,
                 out reportedProcesses);
-            ProcessDetouringStatuses = ProcessDetouringStatusData.Deserialize(reader);
+            ProcessDetouringStatuses = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => ProcessDetouringStatusData.Deserialize(r2)));
             ReportedProcesses = reportedProcesses;
             ReportedFileAccesses = reportedFileAccesses;
             WhitelistedReportedFileAccesses = whitelistedReportedFileAccesses;

@@ -12,7 +12,6 @@ using BuildXL.FrontEnd.Script.Util;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
-using TypeScript.Net.Extensions;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Values

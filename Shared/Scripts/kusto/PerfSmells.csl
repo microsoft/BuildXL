@@ -6,28 +6,29 @@ dominoInvocationProcessed
 | where OfficeBuildType == "product"
 | where Customer == "Office"
  | join kind= leftouter (
-   eventcount | project SessionId , toint(['14001']),
-   toint(['14002']),
-   toint(['14003']), 
-   toint(['14004']),
-   toint(['14005']),
-   toint(['14006']), 
-   toint(['14007']),
-   toint(['14008']), 
-   toint(['14009']), 
-   toint(['14010']), 
-   toint(['14011'])  
+   eventcounts | project SessionId , 
+   toint(e_14001),
+   toint(e_14002),
+   toint(e_14003), 
+   toint(e_14004),
+   toint(e_14005),
+   toint(e_14006), 
+   toint(e_14007),
+   toint(e_14008), 
+   toint(e_14009), 
+   toint(e_14010), 
+   toint(e_14011)  
 ) on SessionId 
 | summarize sessions = count(), 
-ProcessPipsUncacheable = sum(['14001']),
-NoCriticalPathTableHits = sum(['14002']),
-NoSourceFilesUnchanged = sum(['14003']),
-ServerModeDisabled = sum(['14004']),
-GraphCacheCheckJournalDisabled = sum(['14005']),
-SlowCacheInitialization = sum(['14006']),
-LowMemory = sum(['14007']),
-ExportFingerprintsEnabled = sum(['14008']),
-ExportGraphEnabled = sum(['14009']),
-BuildHasPerfSmells = sum(['14010']),
-LogProcessesEnabled = sum(['14011'])
+ProcessPipsUncacheable = sum(e_14001),
+NoCriticalPathTableHits = sum(e_14002),
+NoSourceFilesUnchanged = sum(e_14003),
+ServerModeDisabled = sum(e_14004),
+GraphCacheCheckJournalDisabled = sum(e_14005),
+SlowCacheInitialization = sum(e_14006),
+LowMemory = sum(e_14007),
+ExportFingerprintsEnabled = sum(e_14008),
+ExportGraphEnabled = sum(e_14009),
+BuildHasPerfSmells = sum(e_14010),
+LogProcessesEnabled = sum(e_14011)
 by Customer, Infra, Role 

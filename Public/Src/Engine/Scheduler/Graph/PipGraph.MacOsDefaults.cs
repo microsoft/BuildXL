@@ -1,5 +1,8 @@
-﻿using System;
-using System.IO;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System;
+using System.Linq;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -16,8 +19,20 @@ namespace BuildXL.Scheduler.Graph
             private static readonly SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> s_emptySealContents
                 = CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance);
 
+            private class DefaultSourceSealDirectories
+            {
+                public readonly bool IsValid;
+                public readonly DirectoryArtifact[] Directories;
+
+                public DefaultSourceSealDirectories(DirectoryArtifact[] dirs)
+                {
+                    IsValid     = dirs.All(d => d.IsValid);
+                    Directories = dirs;
+                }
+            }
+
             private readonly PipProvenance m_provenance;
-            private readonly DirectoryArtifact[] m_inputDirectories;
+            private readonly Lazy<DefaultSourceSealDirectories> m_lazySourceSealDirectories;
             private readonly FileArtifact[] m_untrackedFiles;
             private readonly DirectoryArtifact[] m_untrackedDirectories;
 
@@ -34,8 +49,9 @@ namespace BuildXL.Scheduler.Graph
                     PipData.Invalid);
 
                 // Sealed Source inputs
-                m_inputDirectories =
-                    new[]
+                // (using Lazy so that these directories are sealed and added to the graph only if explicitly requested by a process)
+                m_lazySourceSealDirectories = Lazy.Create(() =>
+                    new DefaultSourceSealDirectories(new[]
                     {
                         GetSourceSeal(pathTable, pipGraph, MacPaths.Applications),
                         GetSourceSeal(pathTable, pipGraph, MacPaths.Library),
@@ -43,7 +59,7 @@ namespace BuildXL.Scheduler.Graph
                         GetSourceSeal(pathTable, pipGraph, MacPaths.UsrBin),
                         GetSourceSeal(pathTable, pipGraph, MacPaths.UsrInclude),
                         GetSourceSeal(pathTable, pipGraph, MacPaths.UsrLib),
-                    };
+                    }));
 
                 m_untrackedFiles =
                     new[]
@@ -78,11 +94,17 @@ namespace BuildXL.Scheduler.Graph
             /// <summary>
             /// Augments the processBuilder with the OS dependencies
             /// </summary>
-            public void ProcessDefaults(ProcessBuilder processBuilder)
+            public bool ProcessDefaults(ProcessBuilder processBuilder)
             {
                 if ((processBuilder.Options & Process.Options.DependsOnCurrentOs) != 0)
                 {
-                    foreach (var inputDirectory in m_inputDirectories)
+                    var defaultSourceSealDirs = m_lazySourceSealDirectories.Value;
+                    if (!defaultSourceSealDirs.IsValid)
+                    {
+                        return false;
+                    }
+
+                    foreach (var inputDirectory in defaultSourceSealDirs.Directories)
                     {
                         processBuilder.AddInputDirectory(inputDirectory);
                     }
@@ -97,6 +119,8 @@ namespace BuildXL.Scheduler.Graph
                         processBuilder.AddUntrackedDirectoryScope(untrackedDirectory);
                     }
                 }
+
+                return true;
             }
 
             private DirectoryArtifact GetSourceSeal(PathTable pathTable, PipGraph.Builder pipGraph, string path)

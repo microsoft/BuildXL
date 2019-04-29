@@ -7,13 +7,11 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Reflection;
 using BuildXL.Utilities;
+using static BuildXL.Utilities.FormattableStringEx;
+
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
 #endif
-
-using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Tracing.CloudBuild
 {

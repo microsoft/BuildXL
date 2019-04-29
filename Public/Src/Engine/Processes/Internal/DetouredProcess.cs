@@ -11,7 +11,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
-using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Processes;
 using BuildXL.Native.Streams;
 using BuildXL.Pips.Operations;
@@ -21,9 +20,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Diagnostics;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
-
 #if FEATURE_SAFE_PROCESS_HANDLE
 using SafeProcessHandle = Microsoft.Win32.SafeHandles.SafeProcessHandle;
 #else
@@ -77,7 +74,7 @@ namespace BuildXL.Processes.Internal
         private static readonly IntPtr s_consoleWindow = Native.Processes.Windows.ProcessUtilitiesWin.GetConsoleWindow();
         private readonly ContainerConfiguration m_containerConfiguration;
 
-        private LoggingContext m_loggingContext;
+        private readonly LoggingContext m_loggingContext;
 
 #region public getters
 

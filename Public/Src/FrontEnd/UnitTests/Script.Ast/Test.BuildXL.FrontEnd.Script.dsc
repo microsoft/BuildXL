@@ -15,7 +15,6 @@ namespace Script {
 
     @@public
     export const dll = BuildXLSdk.test({
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         assemblyName: "Test.BuildXL.FrontEnd.Script",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {

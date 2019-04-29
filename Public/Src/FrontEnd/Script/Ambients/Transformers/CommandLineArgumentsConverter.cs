@@ -3,10 +3,10 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 {

@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 #if !FEATURE_SAFE_PROCESS_HANDLE
 using System;
 using System.ComponentModel;
@@ -8,8 +7,8 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Win32.SafeHandles;
 using BuildXL.Utilities.Tasks;
+using Microsoft.Win32.SafeHandles;
 
 #pragma warning disable 1591
 
@@ -26,10 +25,10 @@ namespace VSTS_Import
         private static readonly Task CompletedTask = Task.FromResult(0);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        internal static unsafe extern int ReadFile(SafeFileHandle handle, byte* bytes, int numBytesToRead, IntPtr numBytesRead_mustBeZero, NativeOverlapped* overlapped);
+        internal static extern unsafe int ReadFile(SafeFileHandle handle, byte* bytes, int numBytesToRead, IntPtr numBytesRead_mustBeZero, NativeOverlapped* overlapped);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        internal static unsafe extern int WriteFile(SafeFileHandle handle, byte* bytes, int numBytesToWrite, IntPtr numBytesWritten_mustBeZero, NativeOverlapped* lpOverlapped);
+        internal static extern unsafe int WriteFile(SafeFileHandle handle, byte* bytes, int numBytesToWrite, IntPtr numBytesWritten_mustBeZero, NativeOverlapped* lpOverlapped);
 
         [Flags]
         private enum EMethod : uint
@@ -82,7 +81,7 @@ namespace VSTS_Import
             public bool CompletedSynchronously { get { throw new NotSupportedException(); } }
         }
 
-        private unsafe static void CompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pOverlap)
+        private static unsafe void CompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pOverlap)
         {
             try
             {

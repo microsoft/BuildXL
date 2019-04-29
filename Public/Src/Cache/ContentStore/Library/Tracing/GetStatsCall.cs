@@ -3,9 +3,9 @@
 
 using System;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 namespace BuildXL.Cache.ContentStore.Tracing
 {

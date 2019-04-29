@@ -8,9 +8,9 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
@@ -1815,6 +1815,15 @@ If you can't update and need this feature after July 2018 please reach out to th
         private const string ScrubbingStatusPrefix = "Scrubbing files extraneous to this build.";
 
         [GeneratedEvent(
+            (ushort)EventId.ConfigUnsafeSharedOpaqueEmptyDirectoryScrubbingDisabled,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.Engine,
+            Message = "/unsafe_DisableSharedOpaqueEmptyDirectoryScrubbing: removal of empty directories within shared opaques has been disabled. This is an unsafe configuration since it may work in detriment of build correctness.")]
+        public abstract void ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing(LoggingContext context);
+
+        [GeneratedEvent(
             (int)EventId.ScrubbingStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
@@ -2800,6 +2809,8 @@ If you can't update and need this feature after July 2018 please reach out to th
                         return "Graph fingerprint changed from previous run.";
                     case GraphCacheMissReason.EnvironmentVariableChanged:
                         return "First environment variable changed from previous run: " + MissDescription;
+                    case GraphCacheMissReason.MountChanged:
+                        return "A mount definition has changed from previous run: " + MissDescription;
                     case GraphCacheMissReason.SpecFileChanges:
                         return "First file changed from previous run: " + MissDescription;
                     case GraphCacheMissReason.DirectoryChanged:
@@ -2825,7 +2836,7 @@ If you can't update and need this feature after July 2018 please reach out to th
                     case GraphCacheMissReason.CacheFailure:
                         return "Cache failure";
                     default:
-                        Contract.Assume(MissReason == GraphCacheMissReason.NoMiss, "Unexpected value for MissReason");
+                        Contract.Assume(MissReason == GraphCacheMissReason.NoMiss, "Unexpected value for MissReason: " + MissReason);
                         return "No Miss";
                 }
             }

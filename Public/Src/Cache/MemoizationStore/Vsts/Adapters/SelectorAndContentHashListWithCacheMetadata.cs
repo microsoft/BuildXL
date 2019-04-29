@@ -1,9 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System.Diagnostics.ContractsLight;
-using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 
 namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
 {

@@ -8,7 +8,6 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
-using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.RuntimeModel;
@@ -16,6 +15,7 @@ using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
@@ -27,9 +27,7 @@ using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
 using ConversionException = BuildXL.FrontEnd.Script.Util.ConversionException;
-using IFileSystem = global::BuildXL.FrontEnd.Sdk.FileSystem.IFileSystem;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
-
 
 namespace BuildXL.FrontEnd.Script
 {
@@ -264,20 +262,12 @@ namespace BuildXL.FrontEnd.Script
             EvaluatorConfiguration configuration,
             FileType fileType)
         {
-            Contract.Requires(instantiatedModule != null);
-
-            return new ContextTree(
-                FrontEndHost,
-                Context,
-                Logger,
-                Statistics,
-                qualifierValueCache: QualifierValueCache,
-                isBeingDebugged: IsBeingDebugged,
-                decorator: decorator,
-                module: instantiatedModule,
-                configuration: configuration,
-                evaluationScheduler: EvaluationScheduler.Default,
-                fileType: fileType);
+            return CreateContext(
+                instantiatedModule,
+                FrontEndHost.DefaultEvaluationScheduler,
+                decorator,
+                configuration,
+                fileType);
         }
 
         /// <nodoc />
@@ -383,7 +373,7 @@ namespace BuildXL.FrontEnd.Script
         }
 
         /// <summary>
-        /// Default DScript implementation of <see cref="IWorkspaceModuleResolver.TryParseAsync"/>.
+        /// Default DScript implementation of <see cref="BuildXL.FrontEnd.Workspaces.IWorkspaceModuleResolver.TryParseAsync"/>.
         /// </summary>
         public virtual async Task<Possible<ISourceFile>> TryParseAsync(AbsolutePath pathToParse, AbsolutePath moduleOrConfigPathPromptingParse, ParsingOptions parsingOptions = null)
         {
@@ -512,7 +502,8 @@ namespace BuildXL.FrontEnd.Script
             IFrontEndStatistics frontEndStatistics,
             ByteContent serializedAst)
         {
-            frontEndStatistics = frontEndStatistics ?? new FrontEndStatistics();
+            Contract.Requires(frontEndStatistics != null);
+
             var parser = serializedAst.IsValid
                 ? new PublicSurfaceParser(Context.PathTable, serializedAst.Content, serializedAst.Length)
                 : parsingOptions.ConvertPathLikeLiteralsAtParseTime

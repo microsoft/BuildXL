@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -152,7 +151,7 @@ namespace BuildXL
         private int m_cancellationAlreadyAttempted = 0;
         private LoggingContext m_appLoggingContext;
 
-        private CrashCollectorMacOS m_crashCollector;
+        private readonly CrashCollectorMacOS m_crashCollector;
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
@@ -1096,8 +1095,10 @@ namespace BuildXL
                     global::BuildXL.Engine.ETWLogger.Log,
                     global::BuildXL.Scheduler.ETWLogger.Log,
                     global::BuildXL.Tracing.ETWLogger.Log,
+                    global::BuildXL.Native.ETWLogger.Log,
                     global::BuildXL.Storage.ETWLogger.Log,
                     global::BuildXL.Processes.ETWLogger.Log,
+                    global::BuildXL.FrontEnd.Sdk.ETWLogger.Log,
                     global::BuildXL.FrontEnd.Core.ETWLogger.Log,
                     global::BuildXL.FrontEnd.Download.ETWLogger.Log,
                     global::BuildXL.FrontEnd.Script.ETWLogger.Log,
@@ -1143,12 +1144,12 @@ namespace BuildXL
             private readonly List<BaseEventListener> m_listeners = new List<BaseEventListener>();
             private readonly Dictionary<AbsolutePath, TextWriterEventListener> m_listenersByPath = new Dictionary<AbsolutePath, TextWriterEventListener>();
             private bool m_disposed;
-            private bool m_displayWarningErrorTime;
+            private readonly bool m_displayWarningErrorTime;
             private TextWriterEventListener m_defaultFileListener;
             private TextWriterEventListener m_statusFileListener;
 
             private readonly WarningManager m_warningManager;
-            private EventMask m_noLogMask;
+            private readonly EventMask m_noLogMask;
 
             /// <summary>
             /// Path Translator used for logging. Note this may be disabled (null) even if subst or junctions are in effect.
@@ -1528,7 +1529,7 @@ namespace BuildXL
             /// </summary>
             public void LogEventSummary(LoggingContext loggingContext)
             {
-                Logger.Log.EventCount(loggingContext, TrackingEventListener.ToEventCountDictionary());
+                Logger.Log.EventCounts(loggingContext, TrackingEventListener.ToEventCountDictionary());
             }
 
             private void WriteErrorToConsole(string format, params object[] args)

@@ -14,7 +14,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
-
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Graph
@@ -493,9 +492,9 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public void ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
+        public bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
         {
-            m_builder.ApplyCurrentOsDefaults(processBuilder);
+            return m_builder.ApplyCurrentOsDefaults(processBuilder);
         }
     }
 }

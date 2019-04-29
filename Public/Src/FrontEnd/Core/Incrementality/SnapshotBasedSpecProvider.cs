@@ -3,8 +3,8 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Core.Incrementality
 {

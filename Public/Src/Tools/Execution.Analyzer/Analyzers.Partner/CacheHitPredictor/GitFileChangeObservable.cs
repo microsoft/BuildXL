@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using BuildXL.Storage.ChangeJournalService.Protocol;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
@@ -24,7 +23,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers
         /// </summary>
         public List<ChangedPathInfo> Changes { get; }
 
-        private PathTable m_pathTable;
+        private readonly PathTable m_pathTable;
 
         /// <summary>
         /// An observable with no changes. Mainly used for testing purposes.

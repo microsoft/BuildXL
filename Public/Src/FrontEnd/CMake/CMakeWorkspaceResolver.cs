@@ -13,11 +13,9 @@ using System.Threading.Tasks;
 using BuildXL.FrontEnd.CMake.Failures;
 using BuildXL.FrontEnd.CMake.Serialization;
 using BuildXL.FrontEnd.Ninja;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.FrontEnd.Utilities;
+using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
@@ -29,18 +27,24 @@ using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
 using Newtonsoft.Json;
 using TypeScript.Net.DScript;
+using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
-using ISourceFile = TypeScript.Net.Types.ISourceFile;
-using SourceFile = TypeScript.Net.Types.SourceFile;
 
 namespace BuildXL.FrontEnd.CMake
 {
     /// <summary>
     /// Workspace resolver using a custom JSON generator from CMake specs
     /// </summary>
-    public class CMakeWorkspaceResolver : DScriptInterpreterBase, IDScriptWorkspaceModuleResolver, Workspaces.Core.IWorkspaceModuleResolver
+    public class CMakeWorkspaceResolver : IWorkspaceModuleResolver
     {
         internal const string CMakeResolverName = "CMake";
+
+        /// <inheritdoc />
+        public string Name { get; }
+
+        private FrontEndContext m_context;
+        private FrontEndHost m_host;
+        private IConfiguration m_configuration;
 
         private ICMakeResolverSettings m_resolverSettings;
 
@@ -57,7 +61,7 @@ namespace BuildXL.FrontEnd.CMake
         /// Keep in sync with the BuildXL deployment spec that places the tool (\Public\Src\Deployment\buildXL.dsc)
         /// </summary>
         private const string CMakeRunnerRelativePath = @"tools\CMakeRunner\CMakeRunner.exe";
-        private readonly RelativePath m_relativePathToCMakeRunner;
+        private AbsolutePath m_pathToTool;
 
         internal readonly NinjaWorkspaceResolver EmbeddedNinjaWorkspaceResolver;
         private readonly Lazy<NinjaResolverSettings> m_embeddedResolverSettings;
@@ -66,19 +70,15 @@ namespace BuildXL.FrontEnd.CMake
         internal Possible<NinjaGraphWithModuleDefinition> ComputedGraph => EmbeddedNinjaWorkspaceResolver.ComputedGraph;
 
         /// <inheritdoc/>
-        public CMakeWorkspaceResolver(
-            StringTable stringTable,
-            IFrontEndStatistics statistics)
-            : base(statistics, logger: null)
+        public CMakeWorkspaceResolver()
         {
             Name = nameof(CMakeWorkspaceResolver);
-            m_relativePathToCMakeRunner = RelativePath.Create(stringTable, CMakeRunnerRelativePath);
-            EmbeddedNinjaWorkspaceResolver = new NinjaWorkspaceResolver(stringTable, statistics);
+            EmbeddedNinjaWorkspaceResolver = new NinjaWorkspaceResolver();
             m_embeddedResolverSettings = new Lazy<NinjaResolverSettings>(CreateEmbeddedResolverSettings);
         }
 
-        /// <inheritdoc cref="DScriptInterpreterBase" />
-        public override Task<Possible<ISourceFile>> TryParseAsync(
+        /// <inheritdoc cref="Script.DScriptInterpreterBase" />
+        public Task<Possible<ISourceFile>> TryParseAsync(
             AbsolutePath pathToParse,
             AbsolutePath moduleOrConfigPathPromptingParse,
             ParsingOptions parsingOptions = null)
@@ -98,7 +98,7 @@ namespace BuildXL.FrontEnd.CMake
 
             // This is the interop point to advertise values to other DScript specs
             // For now we just return an empty SourceFile
-            sourceFile = SourceFile.Create(path.ToString(Context.PathTable));
+            sourceFile = SourceFile.Create(path.ToString(m_context.PathTable));
 
             // We need the binder to recurse
             sourceFile.ExternalModuleIndicator = sourceFile;
@@ -158,9 +158,9 @@ namespace BuildXL.FrontEnd.CMake
             }
 
             return (m_ninjaWorkspaceResolverInitialized = EmbeddedNinjaWorkspaceResolver.TryInitialize(
-                FrontEndHost,
-                Context,
-                Configuration,
+                m_host,
+                m_context,
+                m_configuration,
                 m_embeddedResolverSettings.Value,
                 m_requestedQualifiers));
         }
@@ -168,11 +168,11 @@ namespace BuildXL.FrontEnd.CMake
         private async Task<Possible<Unit>> GenerateBuildDirectoryAsync()
         {
             Contract.Assert(m_buildDirectory.IsValid);
-            AbsolutePath outputDirectory = FrontEndHost.GetFolderForFrontEnd(CMakeFrontEnd.Name);
-            AbsolutePath argumentsFile = outputDirectory.Combine(Context.PathTable, Guid.NewGuid().ToString());
+            AbsolutePath outputDirectory = m_host.GetFolderForFrontEnd(CMakeFrontEnd.Name);
+            AbsolutePath argumentsFile = outputDirectory.Combine(m_context.PathTable, Guid.NewGuid().ToString());
             if (!TryRetrieveCMakeSearchLocations(out IEnumerable<AbsolutePath> searchLocations))
             {
-                return new CMakeGenerationError(m_resolverSettings.ModuleName, m_buildDirectory.ToString(Context.PathTable));
+                return new CMakeGenerationError(m_resolverSettings.ModuleName, m_buildDirectory.ToString(m_context.PathTable));
             }
 
             SandboxedProcessResult result = await ExecuteCMakeRunner(argumentsFile, searchLocations);
@@ -180,64 +180,63 @@ namespace BuildXL.FrontEnd.CMake
             string standardError = result.StandardError.CreateReader().ReadToEndAsync().GetAwaiter().GetResult();
             if (result.ExitCode != 0)
             {
-                if (!Context.CancellationToken.IsCancellationRequested)
+                if (!m_context.CancellationToken.IsCancellationRequested)
                 {
 
                     Tracing.Logger.Log.CMakeRunnerInternalError(
-                        Context.LoggingContext,
-                        m_resolverSettings.Location(Context.PathTable),
+                        m_context.LoggingContext,
+                        m_resolverSettings.Location(m_context.PathTable),
                         standardError);
                 }
 
-                return new CMakeGenerationError(m_resolverSettings.ModuleName, m_buildDirectory.ToString(Context.PathTable));
+                return new CMakeGenerationError(m_resolverSettings.ModuleName, m_buildDirectory.ToString(m_context.PathTable));
             }
 
-            FrontEndUtilities.TrackToolFileAccesses(Engine, Context, CMakeFrontEnd.Name, result.AllUnexpectedFileAccesses, outputDirectory);
+            FrontEndUtilities.TrackToolFileAccesses(m_host.Engine, m_context, CMakeFrontEnd.Name, result.AllUnexpectedFileAccesses, outputDirectory);
             return Possible.Create(Unit.Void);
         }
 
         private Task<SandboxedProcessResult> ExecuteCMakeRunner(AbsolutePath argumentsFile, IEnumerable<AbsolutePath> searchLocations)
         {
-            AbsolutePath pathToTool = Configuration.Layout.BuildEngineDirectory.Combine(Context.PathTable, m_relativePathToCMakeRunner);
-            string rootString = ProjectRoot.ToString(Context.PathTable);
+            string rootString = ProjectRoot.ToString(m_context.PathTable);
 
-            AbsolutePath outputDirectory = argumentsFile.GetParent(Context.PathTable);
-            FileUtilities.CreateDirectory(outputDirectory.ToString(Context.PathTable)); // Ensure it exists
+            AbsolutePath outputDirectory = argumentsFile.GetParent(m_context.PathTable);
+            FileUtilities.CreateDirectory(outputDirectory.ToString(m_context.PathTable)); // Ensure it exists
             SerializeToolArguments(argumentsFile, searchLocations);
 
             void CleanUpOnResult()
             {
                 try
                 {
-                    FileUtilities.DeleteFile(argumentsFile.ToString(Context.PathTable));
+                    FileUtilities.DeleteFile(argumentsFile.ToString(m_context.PathTable));
                 }
                 catch (BuildXLException e)
                 {
                     Tracing.Logger.Log.CouldNotDeleteToolArgumentsFile(
-                        Context.LoggingContext,
-                        m_resolverSettings.Location(Context.PathTable),
-                        argumentsFile.ToString(Context.PathTable),
+                        m_context.LoggingContext,
+                        m_resolverSettings.Location(m_context.PathTable),
+                        argumentsFile.ToString(m_context.PathTable),
                         e.Message);
                 }
             }
 
-            var environment = FrontEndUtilities.GetEngineEnvironment(Engine, CMakeFrontEnd.Name);
+            var environment = FrontEndUtilities.GetEngineEnvironment(m_host.Engine, CMakeFrontEnd.Name);
 
             // TODO: This manual configuration is temporary. Remove after the cloud builders have the correct configuration
-            var pathToManuallyDroppedTools = Configuration.Layout.BuildEngineDirectory.Combine(Context.PathTable, RelativePath.Create(Context.StringTable, @"tools\CmakeNinjaPipEnvironment"));
-            if (FileUtilities.Exists(pathToManuallyDroppedTools.ToString(Context.PathTable)))
+            var pathToManuallyDroppedTools = m_configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, @"tools\CmakeNinjaPipEnvironment"));
+            if (FileUtilities.Exists(pathToManuallyDroppedTools.ToString(m_context.PathTable)))
             {
-                environment = SpecialCloudConfiguration.OverrideEnvironmentForCloud(environment, pathToManuallyDroppedTools, Context);
+                environment = SpecialCloudConfiguration.OverrideEnvironmentForCloud(environment, pathToManuallyDroppedTools, m_context);
             }
 
             var buildParameters = BuildParameters.GetFactory().PopulateFromDictionary(new ReadOnlyDictionary<string, string>(environment));
 
             return FrontEndUtilities.RunSandboxedToolAsync(
-                Context,
-                pathToTool.ToString(Context.PathTable),
-                buildStorageDirectory: outputDirectory.ToString(Context.PathTable),
-                fileAccessManifest: GenerateFileAccessManifest(pathToTool.GetParent(Context.PathTable)),
-                arguments: I($@"""{argumentsFile.ToString(Context.PathTable)}"""),
+                m_context,
+                m_pathToTool.ToString(m_context.PathTable),
+                buildStorageDirectory: outputDirectory.ToString(m_context.PathTable),
+                fileAccessManifest: GenerateFileAccessManifest(m_pathToTool.GetParent(m_context.PathTable)),
+                arguments: I($@"""{argumentsFile.ToString(m_context.PathTable)}"""),
                 workingDirectory: rootString,
                 description: "CMakeRunner",
                 buildParameters,
@@ -248,9 +247,9 @@ namespace BuildXL.FrontEnd.CMake
         {
             var arguments = new CMakeRunnerArguments()
             {
-                ProjectRoot = ProjectRoot.ToString(Context.PathTable),
-                BuildDirectory = m_buildDirectory.ToString(Context.PathTable),
-                CMakeSearchLocations = searchLocations.Select(l => l.ToString(Context.PathTable)),
+                ProjectRoot = ProjectRoot.ToString(m_context.PathTable),
+                BuildDirectory = m_buildDirectory.ToString(m_context.PathTable),
+                CMakeSearchLocations = searchLocations.Select(l => l.ToString(m_context.PathTable)),
                 CacheEntries = m_resolverSettings.CacheEntries
                 // TODO: Output file
             };
@@ -262,7 +261,7 @@ namespace BuildXL.FrontEnd.CMake
                 NullValueHandling = NullValueHandling.Include,
             });
 
-            using (var sw = new StreamWriter(argumentsFile.ToString(Context.PathTable)))
+            using (var sw = new StreamWriter(argumentsFile.ToString(m_context.PathTable)))
             using (var writer = new JsonTextWriter(sw))
             {
                 serializer.Serialize(writer, arguments);
@@ -276,9 +275,9 @@ namespace BuildXL.FrontEnd.CMake
         private bool TryRetrieveCMakeSearchLocations(out IEnumerable<AbsolutePath> searchLocations)
         {
             // TODO: This manual configuration is temporary. Remove after the cloud builders have the correct configuration
-            var pathTable = Context.PathTable;
+            var pathTable = m_context.PathTable;
             IReadOnlyList<AbsolutePath> cmakeSearchLocations = m_resolverSettings.CMakeSearchLocations?.SelectList(directoryLocation => directoryLocation.Path);
-            var pathToManuallyDroppedTools = Configuration.Layout.BuildEngineDirectory.Combine(pathTable, RelativePath.Create(Context.StringTable, @"tools\CmakeNinjaPipEnvironment"));
+            var pathToManuallyDroppedTools = m_configuration.Layout.BuildEngineDirectory.Combine(pathTable, RelativePath.Create(m_context.StringTable, @"tools\CmakeNinjaPipEnvironment"));
             if (FileUtilities.Exists(pathToManuallyDroppedTools.ToString(pathTable)))
             {
                 var cloudCmakeSearchLocations = new[] { pathToManuallyDroppedTools.Combine(pathTable, "cmake").Combine(pathTable, "bin") };
@@ -295,12 +294,12 @@ namespace BuildXL.FrontEnd.CMake
 
             return FrontEndUtilities.TryRetrieveExecutableSearchLocations(
                 CMakeFrontEnd.Name,
-                Context,
-                Engine,
+                m_context,
+                m_host.Engine,
                 cmakeSearchLocations,
                 out searchLocations,
-                () => Tracing.Logger.Log.NoSearchLocationsSpecified(Context.LoggingContext, m_resolverSettings.Location(Context.PathTable)),
-                paths => Tracing.Logger.Log.CannotParseBuildParameterPath(Context.LoggingContext, m_resolverSettings.Location(Context.PathTable), paths)
+                () => Tracing.Logger.Log.NoSearchLocationsSpecified(m_context.LoggingContext, m_resolverSettings.Location(m_context.PathTable)),
+                paths => Tracing.Logger.Log.CannotParseBuildParameterPath(m_context.LoggingContext, m_resolverSettings.Location(m_context.PathTable), paths)
             );
         }
 
@@ -352,13 +351,20 @@ namespace BuildXL.FrontEnd.CMake
             return CollectionUtilities.EmptyArray<ISourceFile>();
         }
 
-        /// <inheritdoc cref="IDScriptWorkspaceModuleResolver" />
+        /// <inheritdoc />
         public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings, [NotNull] QualifierId[] requestedQualifiers)
         {
-            InitializeInterpreter(host, context, configuration);
+            m_host = host;
+            m_context = context;
+            m_configuration = configuration;
             m_resolverSettings = resolverSettings as ICMakeResolverSettings;
+
             Contract.Assert(m_resolverSettings != null);
-            m_buildDirectory = Configuration.Layout.OutputDirectory.Combine(Context.PathTable, m_resolverSettings.BuildDirectory);
+
+            var relativePathToCMakeRunner = RelativePath.Create(context.StringTable, CMakeRunnerRelativePath);
+            m_pathToTool = configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, relativePathToCMakeRunner);
+
+            m_buildDirectory = m_configuration.Layout.OutputDirectory.Combine(m_context.PathTable, m_resolverSettings.BuildDirectory);
             m_requestedQualifiers = requestedQualifiers;
 
             return true;
@@ -368,15 +374,15 @@ namespace BuildXL.FrontEnd.CMake
         private FileAccessManifest GenerateFileAccessManifest(AbsolutePath toolDirectory)
         {
             // Get base FileAccessManifest
-            var fileAccessManifest = FrontEndUtilities.GenerateToolFileAccessManifest(Context, toolDirectory);
+            var fileAccessManifest = FrontEndUtilities.GenerateToolFileAccessManifest(m_context, toolDirectory);
 
             fileAccessManifest.AddScope(
-                AbsolutePath.Create(Context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)),
+                AbsolutePath.Create(m_context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)),
                 FileAccessPolicy.MaskAll,
                 FileAccessPolicy.AllowAllButSymlinkCreation);
 
             fileAccessManifest.AddScope(
-                m_resolverSettings.ProjectRoot.Combine(Context.PathTable, ".git"),
+                m_resolverSettings.ProjectRoot.Combine(m_context.PathTable, ".git"),
                 FileAccessPolicy.MaskAll,
                 FileAccessPolicy.AllowAllButSymlinkCreation);
             

@@ -5,9 +5,8 @@ using System.Collections.Generic;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-
 #if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using System.Diagnostics.Tracing;
+
 #endif
 
 #pragma warning disable 1591
@@ -16,7 +15,7 @@ namespace BuildXL.Execution.Analyzer.Tracing
 {
     /// <summary>
     /// Logging for bxlanalyzer.exe.
-    /// The count of local events will be captured in the final <see cref="ExecutionAnalyzerEventCount(LoggingContext, IDictionary{string, int})"/> event which will be sent to telemetry.
+    /// The count of local events will be captured in the final <see cref="ExecutionAnalyzerEventCount(LoggingContext, IDictionary{string,int})"/> event which will be sent to telemetry.
     /// There are no log files for execution analyzers, so messages for events with <see cref="EventGenerators.LocalOnly"/> will be lost. 
     /// </summary>
     [EventKeywordsType(typeof(Events.Keywords))]

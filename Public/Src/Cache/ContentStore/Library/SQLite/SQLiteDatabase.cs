@@ -12,15 +12,15 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Tracing;
-using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.ContentStore.SQLite
 {

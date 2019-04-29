@@ -4,9 +4,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Sdk;
 
 namespace BuildXL.FrontEnd.Script
 {
@@ -18,16 +18,6 @@ namespace BuildXL.FrontEnd.Script
     /// </remarks>
     public readonly struct ModuleResolutionResult : IEquatable<ModuleResolutionResult>
     {
-        /// <summary>
-        /// Mappings package directories to lists of packages.
-        /// </summary>
-        /// <remarks>
-        /// We allow multiple packages in a single directory, and hence the list of packages. Moreover, by construction, the packages in the same list
-        /// must reside in the same directory.
-        /// </remarks>
-        [NotNull]
-        public ConcurrentDictionary<AbsolutePath, List<Package>> PackageDirectories { get; }
-
         /// <summary>
         /// Mappings from package id's to package locations and descriuptors.
         /// </summary>
@@ -43,9 +33,8 @@ namespace BuildXL.FrontEnd.Script
         /// <nodoc/>
         public bool Succeeded { get; }
 
-        private ModuleResolutionResult(ConcurrentDictionary<AbsolutePath, List<Package>> packageDirectories, ConcurrentDictionary<PackageId, Package> packages, Package configAsPackage, bool success)
+        private ModuleResolutionResult(ConcurrentDictionary<PackageId, Package> packages, Package configAsPackage, bool success)
         {
-            PackageDirectories = packageDirectories;
             Packages = packages;
             ConfigAsPackage = configAsPackage;
             Succeeded = success;
@@ -58,7 +47,6 @@ namespace BuildXL.FrontEnd.Script
         {
             return
                 new ModuleResolutionResult(
-                    packageDirectories: new ConcurrentDictionary<AbsolutePath, List<Package>>(),
                     packages: new ConcurrentDictionary<PackageId, Package>(), configAsPackage: null, success: false);
         }
 
@@ -70,7 +58,7 @@ namespace BuildXL.FrontEnd.Script
             [NotNull] ConcurrentDictionary<PackageId, Package> packages,
             [CanBeNull] Package configAsPackage)
         {
-            return new ModuleResolutionResult(packageDirectories: packageDirectories, packages: packages, configAsPackage: configAsPackage, success: true);
+            return new ModuleResolutionResult(packages: packages, configAsPackage: configAsPackage, success: true);
         }
 
         /// <inheritdoc/>
@@ -87,7 +75,7 @@ namespace BuildXL.FrontEnd.Script
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(Packages.GetHashCode(), PackageDirectories.GetHashCode(), ConfigAsPackage?.GetHashCode() ?? 0);
+            return HashCodeHelper.Combine(Packages.GetHashCode(), ConfigAsPackage?.GetHashCode() ?? 0);
         }
 
         /// <inheritdoc/>
@@ -95,8 +83,7 @@ namespace BuildXL.FrontEnd.Script
         {
             return Succeeded == other.Succeeded &&
                    ReferenceEquals(ConfigAsPackage, other.ConfigAsPackage) &&
-                   ReferenceEquals(Packages, other.Packages) &&
-                   ReferenceEquals(PackageDirectories, other.PackageDirectories);
+                   ReferenceEquals(Packages, other.Packages);
         }
 
         /// <nodoc/>

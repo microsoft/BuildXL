@@ -39,8 +39,10 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(null), Description("Identifier for the stamp this service will run as")] string stampId,
             [DefaultValue(null), Description("Identifier for the ring this service will run as")] string ringId,
             [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB,
-            [DefaultValue(false)] bool useDistributedGrpc,
-            [DefaultValue(false)] bool debug
+            [DefaultValue(false)] bool debug,
+            [DefaultValue(false), Description("Whether or not GRPC is used for file copies")] bool useDistributedGrpc,
+            [DefaultValue(false), Description("Whether or not GZip is used for GRPC file copies")] bool useCompressionForCopies,
+            [DefaultValue(null), Description("Buffer size for streaming GRPC copies")] int? bufferSizeForGrpcCopies
             )
         {
             Initialize();
@@ -68,7 +70,7 @@ namespace BuildXL.Cache.ContentStore.App
                 }
 
                 var arguments = CreateDistributedCacheServiceArguments(
-                    copier: useDistributedGrpc ? new GrpcFileCopier(new Interfaces.Tracing.Context(_logger), grpcPort) : (IAbsolutePathFileCopier)new DistributedCopier(),
+                    copier: useDistributedGrpc ? new GrpcFileCopier(new Interfaces.Tracing.Context(_logger), grpcPort, useCompressionForCopies) : (IAbsolutePathFileCopier)new DistributedCopier(),
                     pathTransformer: useDistributedGrpc ? new GrpcDistributedPathTransformer() : (IAbsolutePathTransformer)new DistributedPathTransformer(),
                     dcs: dcs,
                     host: host,
@@ -77,7 +79,8 @@ namespace BuildXL.Cache.ContentStore.App
                     grpcPort: (uint)grpcPort,
                     maxSizeQuotaMB: maxSizeQuotaMB,
                     dataRootPath: dataRootPath,
-                    ct: cancellationTokenSource.Token);
+                    ct: cancellationTokenSource.Token,
+                    bufferSizeForGrpcCopies: bufferSizeForGrpcCopies);
 
                 DistributedCacheServiceFacade.RunAsync(arguments).GetAwaiter().GetResult();
             }

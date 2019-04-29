@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
-using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Values;
 using TypeScript.Net.Utilities;

@@ -4,18 +4,15 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
@@ -42,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private const string CacheSharedSubFolderToReplace = @"Shared\" + CacheSubFolderName;
         private const string CacheSharedSubFolder = CacheSubFolderName + @"\Shared";
 
-        private CentralStorage _fallbackStorage;
+        private readonly CentralStorage _fallbackStorage;
         private readonly ConcurrentDictionary<MachineLocation, MachineLocation> _machineLocationTranslationMap = new ConcurrentDictionary<MachineLocation, MachineLocation>();
 
         // Choosing MD5 hash type as hash type for peer to peer storage somewhat arbitrarily. However, it has the nice

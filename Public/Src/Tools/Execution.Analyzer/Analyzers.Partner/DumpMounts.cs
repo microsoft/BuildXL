@@ -4,7 +4,6 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Engine;
 using BuildXL.ToolSupport;
 using Newtonsoft.Json;
 
@@ -47,7 +46,7 @@ namespace BuildXL.Execution.Analyzer
 
     internal class DumpMountsAnalyzer : Analyzer
     {
-        private string m_outputFilePath;
+        private readonly string m_outputFilePath;
 
         public DumpMountsAnalyzer(AnalysisInput input, string outputFilePath) : base(input)
         {

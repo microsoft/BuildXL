@@ -4,10 +4,10 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.Exceptions;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using CLAP;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using Microsoft.Practices.TransientFaultHandling;
 
 namespace BuildXL.Cache.ContentStore.App

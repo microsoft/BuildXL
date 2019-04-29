@@ -2,16 +2,15 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using ContentHashLookup = BuildXL.Pips.Operations.PipFragmentRenderer.ContentHashLookup;
-using static BuildXL.Utilities.FormattableStringEx;
 using BuildXL.Utilities.Collections;
-using System.Collections.Generic;
+using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Fingerprints
 {
@@ -42,7 +41,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Name of the current output content hashing algorithm.
         /// </summary>
-        private static string s_outputContentHashAlgorithmName = ContentHashingUtilities.HashInfo.Name;
+        private static readonly string s_outputContentHashAlgorithmName = ContentHashingUtilities.HashInfo.Name;
 
         /// <summary>
         /// Refers to a function which maps file artifacts to pip data content. This is used inject the normalized pip data into the fingerprint
@@ -51,7 +50,7 @@ namespace BuildXL.Scheduler.Fingerprints
         public delegate PipData PipDataLookup(FileArtifact artifact);
 
         private readonly PathTable m_pathTable;
-        private readonly ContentHashLookup m_contentHashLookup;
+        private readonly PipFragmentRenderer.ContentHashLookup m_contentHashLookup;
         private readonly PipDataLookup m_pipDataLookup;
         private ExtraFingerprintSalts m_extraFingerprintSalts;
         private readonly ExpandedPathFileArtifactComparer m_expandedPathFileArtifactComparer;
@@ -88,7 +87,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </summary>
         protected PipFingerprinter(
             PathTable pathTable,
-            ContentHashLookup contentHashLookup = null,
+            PipFragmentRenderer.ContentHashLookup contentHashLookup = null,
             ExtraFingerprintSalts? extraFingerprintSalts = null,
             PathExpander pathExpander = null,
             PipDataLookup pipDataLookup = null)
@@ -96,7 +95,7 @@ namespace BuildXL.Scheduler.Fingerprints
             Contract.Requires(pathTable != null);
 
             m_pathTable = pathTable;
-            m_contentHashLookup = contentHashLookup ?? new ContentHashLookup(file => FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.ZeroHash));
+            m_contentHashLookup = contentHashLookup ?? new PipFragmentRenderer.ContentHashLookup(file => FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.ZeroHash));
             m_extraFingerprintSalts = extraFingerprintSalts ?? ExtraFingerprintSalts.Default();
             m_pipDataLookup = pipDataLookup ?? new PipDataLookup(file => PipData.Invalid);
             PathExpander = pathExpander ?? PathExpander.Default;
@@ -106,7 +105,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Returns the content hash lookup function used by this fingerprinter.
         /// </summary>
-        public ContentHashLookup ContentHashLookupFunction => (file) => m_contentHashLookup(file);
+        public PipFragmentRenderer.ContentHashLookup ContentHashLookupFunction => (file) => m_contentHashLookup(file);
 
         /// <summary>
         /// Computes the weak fingerprint of a pip. This accounts for all statically declared inputs including
@@ -273,6 +272,12 @@ namespace BuildXL.Scheduler.Fingerprints
             }
 
             fingerprinter.Add("DoubleWritePolicy", (byte)process.DoubleWritePolicy);
+
+            if (process.RequiresAdmin)
+            {
+                fingerprinter.Add("RequiresAdmin", 1);
+            }
+            
             fingerprinter.Add("NeedsToRunInContainer", process.NeedsToRunInContainer ? 1 : 0);
             fingerprinter.Add("ContainerIsolationLevel", (byte) process.ContainerIsolationLevel);
 

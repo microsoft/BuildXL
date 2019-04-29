@@ -3,10 +3,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.FrontEnd.Script.Constants;
 using JetBrains.Annotations;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Parsing;
@@ -115,7 +114,7 @@ namespace TypeScript.Net.Incrementality
         private readonly BuildXLWriter m_declaredSymbolsWriter;
 
         // The stack of lexical scopes required for the full name computation of the symbol.
-        private NameTracker m_currentLocationStack = new NameTracker(NameTracker.DefaultCapacity);
+        private readonly NameTracker m_currentLocationStack = new NameTracker(NameTracker.DefaultCapacity);
 
         /// <summary>
         /// Set of symbols referenced by the file.

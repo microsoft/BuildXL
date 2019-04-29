@@ -5,15 +5,14 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities.Instrumentation.Common;
 using VSCode.DebugProtocol;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
-using System.Diagnostics.Tracing;
+
 #endif
 
 #pragma warning disable SA1649 // File name must match first type name

@@ -6,7 +6,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -25,10 +24,10 @@ using BuildXL.Storage.ChangeTracking;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 
@@ -2302,7 +2301,7 @@ namespace BuildXL.Scheduler.Artifacts
                                             materializingOutputs,
                                             fileArtifact,
                                             contentHash,
-                                            fileArtifact.Path);
+                                            fileArtifact);
 
                                     // Try to be conservative here due to distributed builds (e.g., the files may not exist on other machines).
                                     isAvailable = possiblyStored.Succeeded;
@@ -2360,7 +2359,7 @@ namespace BuildXL.Scheduler.Artifacts
                                                 materializingOutputs,
                                                 otherFile,
                                                 contentHash,
-                                                fileArtifact.Path);
+                                                fileArtifact);
 
                                         isAvailable = possiblyStored.Succeeded;
                                     }
@@ -2492,16 +2491,16 @@ namespace BuildXL.Scheduler.Artifacts
             bool materializingOutputs,
             FileArtifact fileArtifact,
             ContentHash hash,
-            AbsolutePath targetPath)
+            FileArtifact targetFile)
         {
-            if (!Configuration.Schedule.StoreOutputsToCache)
+            if (!Configuration.Schedule.StoreOutputsToCache && !m_host.IsFileRewritten(targetFile))
             {
                 return new Failure<string>("Storing content to cache is not allowed");
             }
 
             using (operationContext.StartOperation(OperationCounter.FileContentManagerRestoreContentInCache))
             {
-                FileRealizationMode fileRealizationMode = GetFileRealizationModeForCacheRestore(pip, materializingOutputs, fileArtifact, targetPath);
+                FileRealizationMode fileRealizationMode = GetFileRealizationModeForCacheRestore(pip, materializingOutputs, fileArtifact, targetFile.Path);
                 bool shouldReTrack = fileRealizationMode != FileRealizationMode.Copy;
 
                 var possiblyStored = await LocalDiskContentStore.TryStoreAsync(

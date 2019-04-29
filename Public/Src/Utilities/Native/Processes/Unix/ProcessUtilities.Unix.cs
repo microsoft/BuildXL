@@ -6,11 +6,11 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.InteropServices;
 using System.Text;
-using JetBrains.Annotations;
-using Microsoft.Win32.SafeHandles;
 using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using JetBrains.Annotations;
+using Microsoft.Win32.SafeHandles;
 
 #if FEATURE_SAFE_PROCESS_HANDLE
 using ProcessHandle = System.Runtime.InteropServices.SafeHandle;

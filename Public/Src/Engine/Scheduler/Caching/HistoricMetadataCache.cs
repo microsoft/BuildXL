@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
@@ -23,10 +24,9 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Cache
@@ -158,7 +158,7 @@ namespace BuildXL.Scheduler.Cache
             }
         }
 
-        private Lazy<KeyValueStoreAccessor> m_storeAccessor;
+        private readonly Lazy<KeyValueStoreAccessor> m_storeAccessor;
 
         /// <nodoc/>
         public HistoricMetadataCache(
@@ -1123,9 +1123,9 @@ namespace BuildXL.Scheduler.Cache
 
         private struct PublishedEntry
         {
-            public StrongContentFingerprint StrongFingerprint;
+            public readonly StrongContentFingerprint StrongFingerprint;
 
-            public ContentHash PathSetHash;
+            public readonly ContentHash PathSetHash;
 
             public PublishedEntry(StrongContentFingerprint strongFingerprint, ContentHash pathSetHash)
             {

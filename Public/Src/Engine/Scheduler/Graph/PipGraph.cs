@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
-using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Filter;
 using BuildXL.Tracing;

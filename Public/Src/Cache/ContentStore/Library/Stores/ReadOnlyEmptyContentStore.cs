@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -58,11 +61,11 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         /// <inheritdoc />
         protected override Task<PinResult> PinCoreAsync(OperationContext operationContext, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
-            => Task.FromResult(new PinResult(PinResult.ResultCode.ContentNotFound));
+            => Task.FromResult(PinResult.ContentNotFound);
 
         /// <inheritdoc />
         protected override Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
-            => Task.FromResult(contentHashes.Select((hash, i) => Task.FromResult(new PinResult(PinResult.ContentNotFound).WithIndex(i))));
+            => Task.FromResult(contentHashes.Select((hash, i) => Task.FromResult(PinResult.ContentNotFound.WithIndex(i))));
 
         /// <inheritdoc />
         protected override Task<PlaceFileResult> PlaceFileCoreAsync(OperationContext operationContext, ContentHash contentHash, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)

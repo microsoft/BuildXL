@@ -12,12 +12,13 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
-using ContentStore.Grpc; // Can't rename ProtoBuf
-using Grpc.Core;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Service;
+using ContentStore.Grpc;
+using Grpc.Core;
+// Can't rename ProtoBuf
 
 namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
 {

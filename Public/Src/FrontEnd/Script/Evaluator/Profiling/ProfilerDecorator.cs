@@ -6,11 +6,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Evaluator.Profiling

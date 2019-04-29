@@ -3,9 +3,11 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Native.IO;
+using System.IO;
 
 namespace BuildXL.Pips
 {
@@ -259,7 +261,7 @@ namespace BuildXL.Pips
         /// <summary>
         /// Deserialize process performance data
         /// </summary>
-        public new static ProcessPipExecutionPerformance Deserialize(BuildXLReader reader)
+        public static new ProcessPipExecutionPerformance Deserialize(BuildXLReader reader)
         {
             PipExecutionLevel level;
             DateTime executionStart;
@@ -276,7 +278,7 @@ namespace BuildXL.Pips
 
             writer.Write(ProcessExecutionTime);
             WriteFileMonitoringViolationCounters(writer, FileMonitoringViolations);
-            WriteIOCounters(writer, IO);
+            IO.Serialize(writer);
             writer.Write(UserTime);
             writer.Write(KernelTime);
             writer.Write(PeakMemoryUsage);
@@ -289,7 +291,7 @@ namespace BuildXL.Pips
 
             TimeSpan processExecutionTime = reader.ReadTimeSpan();
             FileMonitoringViolationCounters fileMonitoringViolations = ReadFileMonitoringViolationCounters(reader);
-            IOCounters ioCounters = ReadIOCounters(reader);
+            IOCounters ioCounters = IOCounters.Deserialize(reader);
             TimeSpan userTime = reader.ReadTimeSpan();
             TimeSpan kernelTime = reader.ReadTimeSpan();
             ulong peakMemoryUsage = reader.ReadUInt64();
@@ -323,160 +325,6 @@ namespace BuildXL.Pips
             writer.WriteCompact((int)counters.NumFileAccessViolationsNotWhitelisted);
             writer.WriteCompact((int)counters.NumFileAccessesWhitelistedButNotCacheable);
             writer.WriteCompact((int)counters.NumFileAccessesWhitelistedAndCacheable);
-        }
-
-        private static IOCounters ReadIOCounters(BuildXLReader reader)
-        {
-            return new IOCounters(
-                readCounters: ReadIOTypeCounters(reader),
-                writeCounters: ReadIOTypeCounters(reader),
-                otherCounters: ReadIOTypeCounters(reader));
-        }
-
-        private static void WriteIOCounters(BuildXLWriter writer, in IOCounters ioCounters)
-        {
-            WriteIOTypeCounters(writer, ioCounters.ReadCounters);
-            WriteIOTypeCounters(writer, ioCounters.WriteCounters);
-            WriteIOTypeCounters(writer, ioCounters.OtherCounters);
-        }
-
-        private static IOTypeCounters ReadIOTypeCounters(BuildXLReader reader)
-        {
-            return new IOTypeCounters(
-                 operationCount: reader.ReadUInt64(),
-                 transferCount: reader.ReadUInt64());
-        }
-
-        private static void WriteIOTypeCounters(BuildXLWriter writer, in IOTypeCounters ioTypeCounters)
-        {
-            writer.Write(ioTypeCounters.OperationCount);
-            writer.Write(ioTypeCounters.TransferCount);
-        }
-    }
-
-    /// <summary>
-    /// Contains I/O accounting information for a process or process tree for a particular type of IO (e.g. read or write).
-    /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
-    public readonly struct IOTypeCounters : IEquatable<IOTypeCounters>
-    {
-        /// <summary>
-        /// Number of operations performed (independent of size).
-        /// </summary>
-        public readonly ulong OperationCount;
-
-        /// <summary>
-        /// Total bytes transferred (regardless of the number of operations used to transfer them).
-        /// </summary>
-        public readonly ulong TransferCount;
-
-        /// <inheritdoc/>
-        public bool Equals(IOTypeCounters other)
-        {
-            return (OperationCount == other.OperationCount) && (TransferCount == other.TransferCount);
-        }
-
-        /// <nodoc />
-        public static bool operator !=(IOTypeCounters t1, IOTypeCounters t2)
-        {
-            return !t1.Equals(t2);
-        }
-
-        /// <nodoc />
-        public static bool operator ==(IOTypeCounters t1, IOTypeCounters t2)
-        {
-            return t1.Equals(t2);
-        }
-
-        /// <inheritdoc/>
-        public override bool Equals(object obj)
-        {
-            return (obj is IOTypeCounters) ? Equals((IOTypeCounters)obj) : false;
-        }
-
-        /// <inheritdoc/>
-        public override int GetHashCode()
-        {
-            return HashCodeHelper.Combine(OperationCount.GetHashCode(), TransferCount.GetHashCode());
-        }
-
-        /// <nodoc />
-        public IOTypeCounters(ulong operationCount, ulong transferCount)
-        {
-            OperationCount = operationCount;
-            TransferCount = transferCount;
-        }
-    }
-
-    /// <summary>
-    /// Contains I/O accounting information for a process or process tree.
-    /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
-    public readonly struct IOCounters : IEquatable<IOCounters>
-    {
-        /// <summary>
-        /// Counters for read operations.
-        /// </summary>
-        public readonly IOTypeCounters ReadCounters;
-
-        /// <summary>
-        /// Counters for write operations.
-        /// </summary>
-        public readonly IOTypeCounters WriteCounters;
-
-        /// <summary>
-        /// Counters for other operations (not classified as either read or write).
-        /// </summary>
-        public readonly IOTypeCounters OtherCounters;
-
-        /// <inheritdoc/>
-        public bool Equals(IOCounters other)
-        {
-            return (ReadCounters == other.ReadCounters) && (WriteCounters == other.WriteCounters) && (OtherCounters == other.OtherCounters);
-        }
-
-        /// <nodoc/>
-        public static bool operator !=(IOCounters t1, IOCounters t2)
-        {
-            return !t1.Equals(t2);
-        }
-
-        /// <nodoc/>
-        public static bool operator ==(IOCounters t1, IOCounters t2)
-        {
-            return t1.Equals(t2);
-        }
-
-        /// <inheritdoc/>
-        public override bool Equals(object obj)
-        {
-            return (obj is IOCounters) ? Equals((IOCounters)obj) : false;
-        }
-
-        /// <inheritdoc/>
-        public override int GetHashCode()
-        {
-            return HashCodeHelper.Combine(ReadCounters.GetHashCode(), WriteCounters.GetHashCode(), OtherCounters.GetHashCode());
-        }
-
-        /// <nodoc />
-        public IOCounters(IOTypeCounters readCounters, IOTypeCounters writeCounters, IOTypeCounters otherCounters)
-        {
-            ReadCounters = readCounters;
-            WriteCounters = writeCounters;
-            OtherCounters = otherCounters;
-        }
-
-        /// <summary>
-        /// Computes the aggregate I/O performed (sum of the read, write, and other counters).
-        /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        [Pure]
-        public IOTypeCounters GetAggregateIO()
-        {
-            return new IOTypeCounters(
-                operationCount: ReadCounters.OperationCount + WriteCounters.OperationCount + OtherCounters.OperationCount,
-                transferCount: ReadCounters.TransferCount + WriteCounters.TransferCount + OtherCounters.TransferCount);
         }
     }
 

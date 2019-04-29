@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
@@ -33,12 +34,10 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Cache.ContentStore.Hashing;
+using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Engine.Tracing.Logger;
 using SchedulerLogger = BuildXL.Scheduler.Tracing.Logger;
-using System.Threading;
-using JetBrains.Annotations;
 
 namespace BuildXL.Engine
 {
@@ -811,7 +810,8 @@ namespace BuildXL.Engine
                     isPathInBuild: path =>
                         // Scheduler.PipGraph.IsPathInBuild is used for extra safety.
                         scheduler.PipGraph.IsPathInBuild(AbsolutePath.Create(scheduler.Context.PathTable, path)) ||
-                        !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path), 
+                        !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path) ||
+                        ShouldRemoveEmptyDirectories(configuration, path),
                     pathsToScrub: sharedOpaqueDirectories.Select(directory => directory.Path.ToString(scheduler.Context.PathTable)),
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
@@ -823,6 +823,12 @@ namespace BuildXL.Engine
                 Logger.Log.ScrubbingSharedOpaquesStarted(loggingContext);
                 scrubber.RemoveExtraneousFilesAndDirectories(scheduler.Context.CancellationToken);
             }
+        }
+
+        private static bool ShouldRemoveEmptyDirectories(IConfiguration configuration, string path)
+        {
+            // EnumerateFileSystemEntries is known to be slow, but is used anyways because of the expected use-case.
+            return configuration.Schedule.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing && Directory.Exists(path) && !Directory.EnumerateFileSystemEntries(path).Any();
         }
 
         internal static IReadOnlyList<string> GetNonScrubbablePaths(

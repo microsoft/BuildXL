@@ -3,11 +3,10 @@
 
 using System;
 using BuildXL.Engine.Cache;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Scheduler;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.FrontEnd.Sdk;
 
 namespace BuildXL.Engine
 {

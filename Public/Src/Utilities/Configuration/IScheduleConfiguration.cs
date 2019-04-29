@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
-using BuildXL.Utilities;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -286,5 +285,26 @@ namespace BuildXL.Utilities.Configuration
         /// Skip hash source file pips during graph creation.
         /// </summary>
         bool SkipHashSourceFile { get; }
+
+        /// <summary>
+        /// Unsafe configuration that stops the shared opaque scrubber from deleting empty directories
+        /// </summary>
+        /// <remarks>
+        /// The reason this flag is unsafe is because not deleting empty directories may introduce 
+        /// nondeterminism to a build; shared opaques should be wiped-clean of non-build files before 
+        /// engine execution.
+        /// 
+        /// For example, if ./a is a shared opaque, ./a/b is an undeclared empty directory, and some.exe 
+        /// fails if ./a/b does not exist, then this flag will allow some.exe to execute successfully 
+        /// even though it normally would not.
+        /// 
+        /// TODO: Remove this when https://gitlab.kitware.com/cmake/cmake/issues/19162 has reached mainstream versions
+        /// </remarks>
+        bool UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing { get; }
+
+        /// <summary>
+        /// Indicates whether historic cpu information should be used to decide the weight of process pips.
+        /// </summary>
+        bool UseHistoricalCpuUsageInfo { get; }
     }
 }

@@ -1,9 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
@@ -140,7 +138,6 @@ namespace BuildXL.Pips
         /// <summary>
         /// Allows the graph to set defaults for the current process;
         /// </summary>
-        /// <param name="processBuilder"></param>
-        void ApplyCurrentOsDefaults(ProcessBuilder processBuilder);
+        bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder);
     }
 }

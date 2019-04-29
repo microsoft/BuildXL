@@ -2,13 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Reflection;
+using BuildXL.Utilities.Configuration;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
 using System.Diagnostics.Tracing;
 #endif
-
-using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Tracing.CloudBuild
 {
@@ -19,7 +18,7 @@ namespace BuildXL.Tracing.CloudBuild
     [EventData]
     public sealed class DominoCompletedEvent : CloudBuildEvent
     {
-        private static PropertyInfo[] s_members = typeof(DominoCompletedEvent).GetProperties();
+        private static readonly PropertyInfo[] s_members = typeof(DominoCompletedEvent).GetProperties();
 
         /// <inheritdoc />
         internal override PropertyInfo[] Members => s_members;

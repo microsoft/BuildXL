@@ -9,10 +9,10 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.Redis.Credentials;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Distributed.Redis.Credentials;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -454,7 +454,7 @@ namespace BuildXL.Cache.ContentStore.App
         }
 
         internal DistributedCacheServiceArguments CreateDistributedCacheServiceArguments(
-            IAbsolutePathFileCopier copier, IAbsolutePathTransformer pathTransformer, DistributedContentSettings dcs, HostInfo host, string cacheName, string cacheRootPath, uint grpcPort, int maxSizeQuotaMB, string dataRootPath, CancellationToken ct)
+            IAbsolutePathFileCopier copier, IAbsolutePathTransformer pathTransformer, DistributedContentSettings dcs, HostInfo host, string cacheName, string cacheRootPath, uint grpcPort, int maxSizeQuotaMB, string dataRootPath, CancellationToken ct, int? bufferSizeForGrpcCopies = null)
         {
             var distributedCacheServiceHost = new EnvironmentVariableHost();
 
@@ -465,7 +465,7 @@ namespace BuildXL.Cache.ContentStore.App
                 grpcPort: grpcPort,
                 grpcPortFileName: _scenario);
             localCasSettings.PreferredCacheDrive = Path.GetPathRoot(cacheRootPath);
-            localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario);
+            localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies);
 
             var redisConnectionString = Environment.GetEnvironmentVariable(EnvironmentConnectionStringProvider.RedisConnectionStringEnvironmentVariable);
 

@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Reflection;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -750,6 +749,11 @@ namespace BuildXL
             hw.WriteOption(
                 "/useFileContentTable[+|-]",
                 Strings.HelpText_DisplayHelp_UseFileContentTable,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/adminRequiredProcessExecutionMode:<mode>",
+                Strings.HelpText_DisplayHelp_AdminRequiredProcessExecutionMode,
                 HelpLevel.Verbose);
             #endregion
 

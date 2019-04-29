@@ -13,9 +13,9 @@ using BuildXL.App.Tracing;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Configuration;
 using Strings = bxl.Strings;
 
 namespace BuildXL

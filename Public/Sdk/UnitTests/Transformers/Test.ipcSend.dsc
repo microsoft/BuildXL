@@ -37,12 +37,14 @@ namespace Sdk.Tests {
             serviceFinalizationCmds: [ finalizationCmd ]
         });
 
+        const staticDirectory = Transformer.sealDirectory({root: d`src/dir`, files: [f`src/dir/file.txt`]});
+
         Transformer.ipcSend({
             moniker: moniker,
             connectRetryDelayMillis: 1000,
             maxConnectRetries: 2,
             fileDependencies: [ f`src/ipc-src.txt` ],
-            lazilyMaterializedDependencies: [ f`src/ipc-src.txt` ],
+            lazilyMaterializedDependencies: [ f`src/ipc-src.txt`, staticDirectory ],
             messageBody: [],
             outputFile: p`out/stdout1.txt`,
             targetService: servicePip.serviceId,

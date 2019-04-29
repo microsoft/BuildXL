@@ -59,8 +59,8 @@ namespace BuildXL.Execution.Analyzer
     {
         // The inputs which control the analyzer
         private readonly string m_outputDirectoryPath;
-        private AnalysisInput m_firstGraphAnalysisInput;
-        private AnalysisInput m_secondGraphAnalysisInput;
+        private readonly AnalysisInput m_firstGraphAnalysisInput;
+        private readonly AnalysisInput m_secondGraphAnalysisInput;
 
         public GraphDiffAnalyzer(AnalysisInput firstGraphAnalysisInput, AnalysisInput secondGraphAnalysisInput, string outputDirectoryPath) : base(secondGraphAnalysisInput)
         {
@@ -381,24 +381,24 @@ namespace BuildXL.Execution.Analyzer
     {
         private Pip m_pip;
 
-        private HashSet<string> m_inputFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private HashSet<string> m_outputFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private HashSet<string> m_opaqueInputDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private HashSet<string> m_opaqueOutputDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private string m_executable = null;
-        private string m_stdInFile = null;
-        private string m_stdInData = null;
-        private HashSet<KeyValuePair<string, string>> m_envVars = new HashSet<KeyValuePair<string, string>>();
-        private string m_workingDir = null;
-        private string m_uniqueOutputDir = null;
-        private string m_tempDir = null;
-        private string m_arguments = null;
-        private HashSet<SealDirectoryStrings> m_sealDirectoryInputs = new HashSet<SealDirectoryStrings>(); // no opaques here
-        private HashSet<string> m_tags = new HashSet<string>();
-        private HashSet<string> m_untrackedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private HashSet<string> m_untrackedScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private string m_writeFileContents = null;
-        private WriteFileEncoding m_writeFileEncoding = 0;
+        private readonly HashSet<string> m_inputFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> m_outputFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> m_opaqueInputDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> m_opaqueOutputDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly string m_executable = null;
+        private readonly string m_stdInFile = null;
+        private readonly string m_stdInData = null;
+        private readonly HashSet<KeyValuePair<string, string>> m_envVars = new HashSet<KeyValuePair<string, string>>();
+        private readonly string m_workingDir = null;
+        private readonly string m_uniqueOutputDir = null;
+        private readonly string m_tempDir = null;
+        private readonly string m_arguments = null;
+        private readonly HashSet<SealDirectoryStrings> m_sealDirectoryInputs = new HashSet<SealDirectoryStrings>(); // no opaques here
+        private readonly HashSet<string> m_tags = new HashSet<string>();
+        private readonly HashSet<string> m_untrackedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> m_untrackedScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly string m_writeFileContents = null;
+        private readonly WriteFileEncoding m_writeFileEncoding = 0;
 
         public static PipStrings CreatePipStrings(Pip pip, CachedGraph cachedGraph)
         {
@@ -682,10 +682,10 @@ namespace BuildXL.Execution.Analyzer
 
     internal class SealDirectoryStrings
     {
-        private string m_directoryRoot;
-        private HashSet<string> m_patterns = new HashSet<string>();
-        private HashSet<string> m_contents = new HashSet<string>();
-        private bool m_recursive;
+        private readonly string m_directoryRoot;
+        private readonly HashSet<string> m_patterns = new HashSet<string>();
+        private readonly HashSet<string> m_contents = new HashSet<string>();
+        private readonly bool m_recursive;
 
         public SealDirectoryStrings(SealDirectory sealDirectory, CachedGraph cachedGraph)
         {
@@ -759,11 +759,11 @@ namespace BuildXL.Execution.Analyzer
     internal class GraphDiffPipDumper
     {
         private string m_diffDirectoryPath;
-        private AnalysisInput m_firstAnalysisInput;
-        private AnalysisInput m_secondAnalysisInput;
+        private readonly AnalysisInput m_firstAnalysisInput;
+        private readonly AnalysisInput m_secondAnalysisInput;
 
-        private string m_firstDiffDirectoryPath;
-        private string m_secondDiffDirectoryPath;
+        private readonly string m_firstDiffDirectoryPath;
+        private readonly string m_secondDiffDirectoryPath;
 
         public GraphDiffPipDumper(string diffDirectoryPath, AnalysisInput firstAnalysisInput, AnalysisInput secondAnalysisInput)
         {
@@ -813,7 +813,7 @@ namespace BuildXL.Execution.Analyzer
 
     internal class GraphDiffSummaryWriter : IDisposable
     {
-        private JsonTextWriter m_writer;
+        private readonly JsonTextWriter m_writer;
 
         public GraphDiffSummaryWriter(string outputFilePath)
         {

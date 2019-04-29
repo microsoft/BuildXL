@@ -14,21 +14,20 @@ using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Artifacts;
+using BuildXL.Scheduler.FileSystem;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
-using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
 namespace BuildXL.Scheduler.Fingerprints
 {
-    using BuildXL.Pips.Operations;
-    using FileSystem;
     using DirectoryMemberEntry = ValueTuple<AbsolutePath, string>;
 
     /// <summary>
@@ -1513,10 +1512,10 @@ namespace BuildXL.Scheduler.Fingerprints
             () => new PipFileSystemView(),
             state => state.Clear());
 
-        private static ConcurrentBigSet<AbsolutePath> RegexFilterPaths = new ConcurrentBigSet<AbsolutePath>();
-        private static ConcurrentBigSet<AbsolutePath> UnionFilterPaths = new ConcurrentBigSet<AbsolutePath>();
-        private static ConcurrentBigSet<AbsolutePath> AllowAllFilterPaths = new ConcurrentBigSet<AbsolutePath>();
-        private static ConcurrentBigSet<AbsolutePath> SearchPathFilterPaths = new ConcurrentBigSet<AbsolutePath>();
+        private static readonly ConcurrentBigSet<AbsolutePath> RegexFilterPaths = new ConcurrentBigSet<AbsolutePath>();
+        private static readonly ConcurrentBigSet<AbsolutePath> UnionFilterPaths = new ConcurrentBigSet<AbsolutePath>();
+        private static readonly ConcurrentBigSet<AbsolutePath> AllowAllFilterPaths = new ConcurrentBigSet<AbsolutePath>();
+        private static readonly ConcurrentBigSet<AbsolutePath> SearchPathFilterPaths = new ConcurrentBigSet<AbsolutePath>();
 
         private FileSystemView FileSystemView => m_env.State.FileSystemView;
 

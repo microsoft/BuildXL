@@ -5,10 +5,8 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using BuildXL.Native.IO;
-using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Processes;
 using Microsoft.Win32.SafeHandles;
-using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 namespace BuildXL.Processes.Internal
 {

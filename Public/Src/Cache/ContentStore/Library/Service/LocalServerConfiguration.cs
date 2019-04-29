@@ -14,11 +14,12 @@ namespace BuildXL.Cache.ContentStore.Service
     public sealed class LocalServerConfiguration
     {
         /// <nodoc />
-        public LocalServerConfiguration(AbsolutePath dataRootPath, IReadOnlyDictionary<string, AbsolutePath> namedCacheRoots, int grpcPort)
+        public LocalServerConfiguration(AbsolutePath dataRootPath, IReadOnlyDictionary<string, AbsolutePath> namedCacheRoots, int grpcPort, int? bufferSizeForGrpcCopies = null)
         {
             DataRootPath = dataRootPath;
             NamedCacheRoots = namedCacheRoots;
             GrpcPort = grpcPort;
+            BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
         }
 
         /// <nodoc />
@@ -40,6 +41,7 @@ namespace BuildXL.Cache.ContentStore.Service
             NamedCacheRoots = serviceConfiguration.NamedCacheRoots;
             GrpcPort = (int)serviceConfiguration.GrpcPort;
             GrpcPortFileName = serviceConfiguration.GrpcPortFileName;
+            BufferSizeForGrpcCopies = serviceConfiguration.BufferSizeForGrpcCopies;
             return this;
         }
 
@@ -84,10 +86,13 @@ namespace BuildXL.Cache.ContentStore.Service
         public int RequestCallTokensPerCompletionQueue { get; set; } = DefaultRequestCallTokensPerCompletionQueue;
 
         /// <nodoc />
-        public static readonly int DefaultGrpcPort = 4236;
+        public static readonly int DefaultGrpcPort = 7089;
 
         /// <nodoc />
         public int GrpcPort { get; private set; }
+
+        /// <nodoc />
+        public int? BufferSizeForGrpcCopies { get; private set; }
 
         /// <nodoc />
         public static readonly string DefaultFileName = "CASaaS GRPC port";
@@ -118,6 +123,7 @@ namespace BuildXL.Cache.ContentStore.Service
             sb.Append($", DataRootPath={DataRootPath}");
             sb.Append($", GrpcPort={GrpcPort}");
             sb.Append($", GrpcPortFileName={GrpcPortFileName}");
+            sb.Append($", BufferSizeForGrpcCopies={BufferSizeForGrpcCopies}");
 
             return sb.ToString();
         }

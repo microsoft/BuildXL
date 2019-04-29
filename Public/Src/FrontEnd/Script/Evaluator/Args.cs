@@ -2,10 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.FrontEnd.Script.Values;
 using DsMap = BuildXL.FrontEnd.Script.Ambients.Map.OrderedMap;
 using DsSet = BuildXL.FrontEnd.Script.Ambients.Set.OrderedSet;
 

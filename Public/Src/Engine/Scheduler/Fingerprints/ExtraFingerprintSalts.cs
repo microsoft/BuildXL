@@ -5,11 +5,10 @@ using System;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
-using BuildXL.Engine.Cache;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Engine.Cache;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler.Fingerprints
 {
@@ -20,7 +19,7 @@ namespace BuildXL.Scheduler.Fingerprints
     public struct ExtraFingerprintSalts : IEquatable<ExtraFingerprintSalts>
     {
         // For non-Unix platforms, this is an arbitrary fixed value
-        private static string s_requiredKextVersionNumber = OperatingSystemHelper.IsUnixOS ?
+        private static readonly string s_requiredKextVersionNumber = OperatingSystemHelper.IsUnixOS ?
                             Processes.KextConnection.RequiredKextVersionNumber :
                             "0";
 

@@ -22,7 +22,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Nodes that matched the build filter.
         /// </summary>
-        private HashSet<NodeId> m_explicitlyScheduledProcessNodes;
+        private readonly HashSet<NodeId> m_explicitlyScheduledProcessNodes;
 
         /// <summary>
         /// Counters for process pips that match the build filter, defined as explicitly scheduled.

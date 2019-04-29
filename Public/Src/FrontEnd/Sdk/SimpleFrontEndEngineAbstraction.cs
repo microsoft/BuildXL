@@ -11,11 +11,11 @@ using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
-using IFileSystem = global::BuildXL.FrontEnd.Sdk.FileSystem.IFileSystem;
+using IFileSystem = BuildXL.FrontEnd.Sdk.FileSystem.IFileSystem;
 
 namespace BuildXL.FrontEnd.Sdk
 {

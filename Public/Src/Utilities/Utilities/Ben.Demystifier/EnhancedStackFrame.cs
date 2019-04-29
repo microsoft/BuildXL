@@ -8,9 +8,9 @@ namespace System.Diagnostics
     /// <nodoc />
     public class EnhancedStackFrame : StackFrame
     {
-        private string _fileName;
-        private int _lineNumber;
-        private int _colNumber;
+        private readonly string _fileName;
+        private readonly int _lineNumber;
+        private readonly int _colNumber;
 
         /// <nodoc />
         public StackFrame StackFrame { get; }

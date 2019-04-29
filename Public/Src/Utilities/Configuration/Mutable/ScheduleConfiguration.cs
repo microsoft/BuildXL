@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {
@@ -70,6 +69,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TelemetryTagPrefix = null;
 
             SkipHashSourceFile = false;
+
+            UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
         }
 
         /// <nodoc />
@@ -131,6 +132,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MasterCpuMultiplier = template.MasterCpuMultiplier;
             MasterCacheLookupMultiplier = template.MasterCacheLookupMultiplier;
             SkipHashSourceFile = template.SkipHashSourceFile;
+
+            UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = template.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing;
         }
 
         /// <inheritdoc />
@@ -305,5 +308,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool SkipHashSourceFile { get; set; }
+
+        /// <inheritdoc />
+        public bool UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing { get; set; }
+
+        /// <inheritdoc />
+        public bool UseHistoricalCpuUsageInfo { get; set; }
     }
 }

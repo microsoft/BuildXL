@@ -8,10 +8,10 @@ using System.Threading;
 namespace BuildXL.Cache.ContentStore.Utils
 {
     /// <nodoc />
-    sealed public class ProcessUtility
+    public sealed class ProcessUtility
     {
-        private Process _process;
-        private bool _createNoWindow;
+        private readonly Process _process;
+        private readonly bool _createNoWindow;
         private readonly StringBuilder _outputString = new StringBuilder();
         private readonly StringBuilder _errorString = new StringBuilder();
         private readonly AutoResetEvent _outputWaitHandle = new AutoResetEvent(false);

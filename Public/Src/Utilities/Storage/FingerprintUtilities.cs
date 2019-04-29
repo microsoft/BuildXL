@@ -7,8 +7,8 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Utilities;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities;
 
 namespace BuildXL.Storage
 {
@@ -25,7 +25,7 @@ namespace BuildXL.Storage
         /// One common way of using it is to call CreateContentHasher each time the hashing is required. Unfortunately, this creates an internal object pool
         /// by itself that causes a lots of allocations (that supposedly should be avoided all together).
         /// </remarks>
-        private static ObjectPool<SHA1Managed> s_hashers = new ObjectPool<SHA1Managed>(() => new SHA1Managed(), hasher => { return hasher; });
+        private static readonly ObjectPool<SHA1Managed> s_hashers = new ObjectPool<SHA1Managed>(() => new SHA1Managed(), hasher => { return hasher; });
 
         private const string UnexpectedLengthContractViolationMessage = "Created Fingerprint is of length different from 'FingerprintLength'";
 

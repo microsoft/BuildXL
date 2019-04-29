@@ -1,4 +1,5 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -55,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         private sealed class Session : IChunkerSession
         {
-            private static ByteArrayPool pool = new ByteArrayPool((int)MinPushBufferSize);
+            private static readonly ByteArrayPool pool = new ByteArrayPool((int)MinPushBufferSize);
             private readonly ManagedChunker _parent;
             private readonly RegressionChunking _regressionChunker;
             private readonly Action<ChunkInfo> _chunkCallback;

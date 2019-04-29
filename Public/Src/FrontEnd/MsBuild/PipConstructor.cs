@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
-using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
@@ -514,7 +513,7 @@ namespace BuildXL.FrontEnd.MsBuild
             return true;
         }
 
-        private bool TryAddMsBuildArguments(ProjectWithPredictions<AbsolutePath> project, PipDataBuilder pipDataBuilder, AbsolutePath logDirectory, AbsolutePath outputResultCacheFile, out string failureDetail)
+        private bool TryAddMsBuildArguments(ProjectWithPredictions project, PipDataBuilder pipDataBuilder, AbsolutePath logDirectory, AbsolutePath outputResultCacheFile, out string failureDetail)
         {
             // Common arguments to all MsBuildExe invocations
             pipDataBuilder.AddRange(s_commonArgumentsToMsBuildExe.Select(argument => PipDataAtom.FromString(argument)));

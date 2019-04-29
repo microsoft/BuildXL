@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -799,7 +798,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Logging context
         /// </summary>
-        private LoggingContext m_loggingContext;
+        private readonly LoggingContext m_loggingContext;
 
         #endregion
 
@@ -2713,7 +2712,18 @@ namespace BuildXL.Scheduler
             // Offload the execution of the pip to one of the queues in the PipQueue.
             // If it is a meta or SealDirectory pip and the PipQueue has started draining, then the execution will be inlined here!
             // Because it is not worth to enqueue the fast operations such as the execution of meta and SealDirectory pips.
-            var runnablePip = RunnablePip.Create(m_executePhaseLoggingContext, this, pipId, pipType, priority ?? GetPipPriority(pipId), m_executePipFunc);
+
+            ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo ? RunningTimeTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents : (ushort)0;
+
+            var runnablePip = RunnablePip.Create(
+                m_executePhaseLoggingContext, 
+                this, 
+                pipId, 
+                pipType, 
+                priority ?? GetPipPriority(pipId), 
+                m_executePipFunc,
+                cpuUsageInPercent);
+
             runnablePip.SetObserver(observer);
             if (IsDistributedWorker)
             {
@@ -3393,10 +3403,10 @@ namespace BuildXL.Scheduler
                     {
                         MarkPipStartExecuting();
 
-                        if (processRunnable.Process.Weight > 1)
+                        if (processRunnable.Weight > 1)
                         {
                             // Only log for pips with non-standard process weights
-                            Logger.Log.ProcessPipProcessWeight(loggingContext, processRunnable.Description, processRunnable.Process.Weight);
+                            Logger.Log.ProcessPipProcessWeight(loggingContext, processRunnable.Description, processRunnable.Weight);
                         }
 
                         processRunnable.Executed = true;
@@ -5293,6 +5303,14 @@ namespace BuildXL.Scheduler
             }
 
             return PipGraph.IsPreservedOutputArtifact(artifact);
+        }
+
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        bool IFileContentManagerHost.IsFileRewritten(in FileArtifact artifact)
+        {
+            Contract.Requires(artifact.IsValid);
+
+            return IsFileRewritten(artifact);
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

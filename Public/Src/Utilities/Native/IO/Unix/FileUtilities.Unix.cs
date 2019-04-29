@@ -8,6 +8,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
@@ -44,16 +45,18 @@ namespace BuildXL.Native.IO.Unix
             string path,
             bool deleteRootDirectory = false,
             Func<string, bool> shouldDelete = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            CancellationToken? cancellationToken = default)
         {
-            DeleteDirectoryContentsInternal(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner);
+            DeleteDirectoryContentsInternal(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, cancellationToken);
         }
 
         private int DeleteDirectoryContentsInternal(
             string path,
             bool deleteRootDirectory,
             Func<string, bool> shouldDelete,
-            ITempDirectoryCleaner tempDirectoryCleaner)
+            ITempDirectoryCleaner tempDirectoryCleaner,
+            CancellationToken? cancellationToken)
         {
             int remainingChildCount = 0;
 
@@ -68,6 +71,8 @@ namespace BuildXL.Native.IO.Unix
                 path,
                 (name, attributes) =>
                 {
+                    cancellationToken?.ThrowIfCancellationRequested();
+
                     var isDirectory = FileUtilities.IsDirectoryNoFollow(attributes);
                     string childPath = Path.Combine(path, name);
 
@@ -77,7 +82,8 @@ namespace BuildXL.Native.IO.Unix
                             childPath,
                             deleteRootDirectory: true,
                             shouldDelete: shouldDelete,
-                            tempDirectoryCleaner: tempDirectoryCleaner);
+                            tempDirectoryCleaner: tempDirectoryCleaner,
+                            cancellationToken: cancellationToken);
 
                         if (subDirectoryCount > 0)
                         {
@@ -484,21 +490,18 @@ namespace BuildXL.Native.IO.Unix
 
             if (!openResult.Succeeded)
             {
-                openResult.CreateFailureForError().Throw();
+                openResult
+                    .CreateFailureForError()
+                    .Annotate($"{nameof(s_fileSystem.TryCreateOrOpenFile)} failed in {nameof(UsingFileHandleAndFileLength)}")
+                    .Throw();
             }
 
             using (handle)
             {
                 Contract.Assert(handle != null && !handle.IsInvalid);
-                var maybeTarget = FileUtilities.TryGetReparsePointTarget(handle, path);
-                if (maybeTarget.Succeeded)
-                {
-                    return handleStream(handle, maybeTarget.Result.Length);
-                }
-                else
-                {
-                    return handleStream(handle, new FileInfo(path).Length);
-                }
+                var maybeTarget = s_fileSystem.TryGetReparsePointTarget(path);
+                var length = maybeTarget.Succeeded ? maybeTarget.Result.Length : new FileInfo(path).Length;
+                return handleStream(handle, length);
             }
         }
 

@@ -14,7 +14,7 @@ using static BuildXL.Utilities.FormattableStringEx;
 namespace BuildXL.Engine.Cache.Artifacts
 {
     /// <summary>
-    /// Artifact content cache wrapper which elides calls to <see cref="TryLoadAvailableContentAsync(IReadOnlyList{ContentHash})"/> to prevent duplicate calls
+    /// Artifact content cache wrapper which elides calls to <see cref="TryLoadAvailableContentAsync(System.Collections.Generic.IReadOnlyList{BuildXL.Cache.ContentStore.Hashing.ContentHash})"/> to prevent duplicate calls
     /// for the same hash to the inner cache.
     /// NOTE: Concurrent requests for the same hash may not be elided.
     /// </summary>

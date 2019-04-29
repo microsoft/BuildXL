@@ -3,11 +3,9 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Values;
-
+using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
-
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Literals

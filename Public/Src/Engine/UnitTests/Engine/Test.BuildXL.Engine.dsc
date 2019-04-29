@@ -22,7 +22,7 @@ namespace Engine {
         },
     ];
 
-    const microsoftNetCompilerSpec = f`${Context.getMount("FrontEnd").path}/Nuget/specs/Microsoft.Net.Compilers/2.10.0/module.config.bm`;
+    const microsoftNetCompilerSpec = f`${Context.getMount("FrontEnd").path}/Nuget/specs/Microsoft.Net.Compilers/3.0.0/module.config.bm`;
 
     @@public
     export const categoriesToRunInParallel = [

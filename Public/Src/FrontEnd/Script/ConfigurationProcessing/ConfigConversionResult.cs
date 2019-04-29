@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.RuntimeModel;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script
 {

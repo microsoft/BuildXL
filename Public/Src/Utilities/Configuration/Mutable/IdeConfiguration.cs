@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Utilities;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {

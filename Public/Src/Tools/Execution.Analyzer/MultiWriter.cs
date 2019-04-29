@@ -10,7 +10,7 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     internal sealed class MultiWriter
     {
-        private TextWriter[] m_writers;
+        private readonly TextWriter[] m_writers;
 
         public MultiWriter(params TextWriter[] writers)
         {

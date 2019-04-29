@@ -6,12 +6,12 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.FrontEnd.Script.Analyzer.Tracing;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.FrontEnd.Sdk;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 

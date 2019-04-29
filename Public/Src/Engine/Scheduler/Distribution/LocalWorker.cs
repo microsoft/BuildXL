@@ -3,7 +3,6 @@
 
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;

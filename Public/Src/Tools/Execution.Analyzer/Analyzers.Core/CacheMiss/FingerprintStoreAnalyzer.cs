@@ -120,7 +120,7 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// Analysis model based on the new build.
         /// </summary>
-        private AnalysisModel m_model;
+        private readonly AnalysisModel m_model;
 
         /// <summary>
         /// Analysis file writer.
@@ -133,11 +133,11 @@ namespace BuildXL.Execution.Analyzer
 
         private FingerprintStoreReader m_newCacheLookupReader;
 
-        private string m_oldStoreLocation;
+        private readonly string m_oldStoreLocation;
 
-        private string m_newStoreLocation;
+        private readonly string m_newStoreLocation;
 
-        private string m_newCacheLookupStoreLocation;
+        private readonly string m_newCacheLookupStoreLocation;
 
         /// <summary>
         /// Constructor.

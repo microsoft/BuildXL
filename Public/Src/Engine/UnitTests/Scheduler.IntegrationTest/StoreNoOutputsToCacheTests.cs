@@ -181,6 +181,64 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void RewriteCopyFileTarget()
+        {
+            const string Content = "Test";
+            var copySource = CreateSourceFile();
+            var copyTarget = CreateOutputFileArtifact();
+
+            File.WriteAllText(ArtifactToString(copySource), Content);
+            var copy = CreateAndScheduleCopyFile(copySource, copyTarget);
+
+            var rewrittenCopyTarget = copyTarget.CreateNextWrittenVersion();
+
+            var processAndOutputs = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(copyTarget),
+                Operation.WriteFile(rewrittenCopyTarget, Content)
+            });
+
+            RunScheduler().AssertSuccess();
+
+            XAssert.IsTrue(FileExistsOnDisk(rewrittenCopyTarget));
+            XAssert.IsTrue(FileContentExistsInArtifactCache(rewrittenCopyTarget));
+            XAssert.IsTrue(ContentExistsInArtifactCache(Content));
+
+            FileUtilities.DeleteFile(ArtifactToString(rewrittenCopyTarget));
+
+            RunScheduler().AssertCacheHit(processAndOutputs.Process.PipId);
+            XAssert.IsTrue(FileExistsOnDisk(rewrittenCopyTarget));
+        }
+
+        [Fact]
+        public void RewriteWriteFileTarget()
+        {
+            const string Content = "Test";
+
+            var writeTarget = CreateOutputFileArtifact();
+            var write = CreateAndScheduleWriteFile(writeTarget, string.Empty, new[] { Content });
+
+            var rewrittenWriteTarget = writeTarget.CreateNextWrittenVersion();
+
+            var processAndOutputs = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(writeTarget),
+                Operation.WriteFile(rewrittenWriteTarget, Content)
+            });
+
+            RunScheduler().AssertSuccess();
+
+            XAssert.IsTrue(FileExistsOnDisk(rewrittenWriteTarget));
+            XAssert.IsTrue(FileContentExistsInArtifactCache(rewrittenWriteTarget));
+            XAssert.IsTrue(ContentExistsInArtifactCache(Content));
+
+            FileUtilities.DeleteFile(ArtifactToString(rewrittenWriteTarget));
+
+            RunScheduler().AssertCacheHit(processAndOutputs.Process.PipId);
+            XAssert.IsTrue(FileExistsOnDisk(rewrittenWriteTarget));
+        }
+
+        [Fact]
         public void CacheHitTest()
         {
             // Momentarily store outputs to cache.

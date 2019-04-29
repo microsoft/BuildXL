@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Threading;
 using BuildXL.Utilities.Tracing;
@@ -39,7 +38,7 @@ namespace BuildXL.Tracing
         /// <summary>
         /// Counters for events. Only counters for logged events are actually created
         /// </summary>
-        private EventCounter[] m_counters = new EventCounter[ushort.MaxValue];
+        private readonly EventCounter[] m_counters = new EventCounter[ushort.MaxValue];
 
         /// <summary>
         /// Queue of log actions and associated counters
@@ -50,7 +49,7 @@ namespace BuildXL.Tracing
         /// Lock used when completing async logging so that all async log operations are guaranteed to
         /// be flushed to log queue. Subsequent operations will be logged synchronously
         /// </summary>
-        private ReadWriteLock m_lock = ReadWriteLock.Create();
+        private readonly ReadWriteLock m_lock = ReadWriteLock.Create();
 
         /// <summary>
         /// Enqueues a log action for async logging
@@ -205,10 +204,10 @@ namespace BuildXL.Tracing
                 return new MeasureScope(this);
             }
 
-            public struct MeasureScope : IDisposable
+            public readonly struct MeasureScope : IDisposable
             {
-                private EventCounter m_counter;
-                private TimeSpan m_startTime;
+                private readonly EventCounter m_counter;
+                private readonly TimeSpan m_startTime;
 
                 public MeasureScope(EventCounter counter)
                 {

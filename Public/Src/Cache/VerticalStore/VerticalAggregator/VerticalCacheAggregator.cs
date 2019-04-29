@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
@@ -28,8 +27,8 @@ namespace BuildXL.Cache.VerticalAggregator
     /// </remarks>
     internal sealed class VerticalCacheAggregator : ICache
     {
-        private ICache m_localCache;
-        private ICache m_remoteCache;
+        private readonly ICache m_localCache;
+        private readonly ICache m_remoteCache;
         private readonly string m_cacheId;
         private readonly bool m_remoteIsReadOnly;
 

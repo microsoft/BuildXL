@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
 using JetBrains.Annotations;
 using TypeScript.Net.Core;
 using TypeScript.Net.Diagnostics;

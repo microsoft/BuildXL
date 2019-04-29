@@ -21,7 +21,7 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<PipId> servicePipDependencies,
             ReadOnlyArray<FileArtifact> fileDependencies,
             ReadOnlyArray<DirectoryArtifact> directoryDependencies,
-            ReadOnlyArray<FileArtifact> skipMaterializationFor,
+            ReadOnlyArray<FileOrDirectoryArtifact> skipMaterializationFor,
             ReadOnlyArray<StringId> tags,
             bool isServiceFinalization,
             bool mustRunOnMaster,
@@ -81,15 +81,15 @@ namespace BuildXL.Pips.Operations
         public ReadOnlyArray<DirectoryArtifact> DirectoryDependencies { get; }
 
         /// <summary>
-        /// Files not to materialize eagerly.
+        /// Artifacts (files and/or directories) not to materialize eagerly.
         /// </summary>
         /// <remarks>
-        /// IPC pips may want to use this option when they will explicitly request file materialization
+        /// IPC pips may want to use this option when they will explicitly request file/directory materialization
         /// from BuildXL, via a BuildXL service identified by the Transformer.getIpcServerMoniker()
-        /// moniker, just before the files are needed.This makes sense for pips that expect that often
+        /// moniker, just before the files are needed. This makes sense for pips that expect that often
         /// times they will not have to access the actual files on disk.
         /// </remarks>
-        public ReadOnlyArray<FileArtifact> LazilyMaterializedDependencies { get; }
+        public ReadOnlyArray<FileOrDirectoryArtifact> LazilyMaterializedDependencies { get; }
 
         /// <summary>
         /// Output file where the response from the server will be written.
@@ -118,7 +118,7 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<PipId>? servicePipDependencies = null,
             ReadOnlyArray<FileArtifact>? fileDependencies = null,
             ReadOnlyArray<DirectoryArtifact>? directoryDependencies = null,
-            ReadOnlyArray<FileArtifact>? lazilyMaterializedDependencies = null,
+            ReadOnlyArray<FileOrDirectoryArtifact>? lazilyMaterializedDependencies = null,
             ReadOnlyArray<StringId>? tags = null,
             bool? isServiceFinalization = null,
             bool? mustRunOnMaster = null,
@@ -170,7 +170,7 @@ namespace BuildXL.Pips.Operations
                 servicePipDependencies: ToReadOnlyArray(servicePipDependencies),
                 fileDependencies: ToReadOnlyArray(fileDependencies),
                 directoryDependencies: ToReadOnlyArray(directoryDependencies),
-                skipMaterializationFor: ReadOnlyArray<FileArtifact>.Empty,
+                skipMaterializationFor: ReadOnlyArray<FileOrDirectoryArtifact>.Empty,
                 tags: ToReadOnlyArray(tags),
                 isServiceFinalization: isServiceFinalization,
                 mustRunOnMaster: mustRunOnMaster,
@@ -194,7 +194,7 @@ namespace BuildXL.Pips.Operations
                 servicePipDependencies: reader.ReadReadOnlyArray(reader1 => ((PipReader)reader1).ReadPipId()),
                 fileDependencies: reader.ReadReadOnlyArray(reader1 => reader1.ReadFileArtifact()),
                 directoryDependencies: reader.ReadReadOnlyArray(reader1 => reader1.ReadDirectoryArtifact()),
-                skipMaterializationFor: reader.ReadReadOnlyArray(reader1 => reader1.ReadFileArtifact()),
+                skipMaterializationFor: reader.ReadReadOnlyArray(reader1 => reader1.ReadFileOrDirectoryArtifact()),
                 tags: reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId()),
                 isServiceFinalization: reader.ReadBoolean(),
                 mustRunOnMaster: reader.ReadBoolean(),

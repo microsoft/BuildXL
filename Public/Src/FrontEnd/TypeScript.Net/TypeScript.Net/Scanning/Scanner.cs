@@ -5,15 +5,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using System.Globalization;
 using System.Linq;
 using System.Numerics;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.Utilities;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
-using static BuildXL.Utilities.FormattableStringEx;
 using static TypeScript.Net.Core.CoreUtilities;
 
 namespace TypeScript.Net.Scanning
@@ -398,7 +396,7 @@ namespace TypeScript.Net.Scanning
 
         private ScriptTarget m_languageVersion;
         private LanguageVariant m_languageVariant;
-        private bool m_preserveComments;
+        private readonly bool m_preserveComments;
 
         private ISourceFile m_sourceFile;
 

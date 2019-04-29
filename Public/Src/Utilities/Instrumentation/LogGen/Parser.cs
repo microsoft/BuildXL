@@ -8,11 +8,11 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.LogGen.Generators;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using BuildXL.Utilities.Collections;
 using Diagnostic = Microsoft.CodeAnalysis.Diagnostic;
 using EventGenerators = BuildXL.Utilities.Instrumentation.Common.Generators;
 
@@ -340,7 +340,7 @@ namespace BuildXL.LogGen
             return result;
         }
 
-        private static Dictionary<string, string> s_escapeCharacters = new Dictionary<string, string>()
+        private static readonly Dictionary<string, string> s_escapeCharacters = new Dictionary<string, string>()
         {
             { "\n", @"\n" },
             { "\r", @"\r" },

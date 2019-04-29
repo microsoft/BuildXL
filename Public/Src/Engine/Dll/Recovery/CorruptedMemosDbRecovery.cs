@@ -9,9 +9,9 @@ using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
-using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine.Recovery
@@ -30,7 +30,7 @@ namespace BuildXL.Engine.Recovery
         private const string CorruptedMemosDbMarkerFileName = "CorruptedMemosDbMarker";
         private const string CacheRootPathFieldInConfig = "CacheRootPath";
         private const int MaxCorruptedMemos = 5;
-        private Possible<string> m_mayBeCacheRoot;
+        private readonly Possible<string> m_mayBeCacheRoot;
 
         /// <summary>
         /// Creates an instance of <see cref="CorruptedMemosDbRecovery"/>.

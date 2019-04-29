@@ -9,8 +9,8 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler.Artifacts
 {
@@ -134,5 +134,10 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         /// <returns>True if the file was materialize by the host. Failure if host supports materializing the file and failed during materialization.</returns>
         Task<Possible<ContentMaterializationOrigin>> TryMaterializeFileAsync(FileArtifact artifact, OperationContext operationContext);
+
+        /// <summary>
+        /// Checks if a file is ever rewritten.
+        /// </summary>
+        bool IsFileRewritten(in FileArtifact fileArtifact);
     }
 }

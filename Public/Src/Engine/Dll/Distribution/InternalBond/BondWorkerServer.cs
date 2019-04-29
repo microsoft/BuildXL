@@ -1,13 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 #if !DISABLE_FEATURE_BOND_RPC
 
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using BondTransport;
 using BuildXL.Utilities.Instrumentation.Common;
-using Void = Microsoft.Bond.Void;
+using Microsoft.Bond;
 
 namespace BuildXL.Engine.Distribution.InternalBond
 {
@@ -16,10 +15,10 @@ namespace BuildXL.Engine.Distribution.InternalBond
     /// </summary>
     public sealed class BondWorkerServer : Worker_Service, IServer
     {
-        private WorkerService m_workerService;
+        private readonly WorkerService m_workerService;
         private BondTcpHost m_server;
         private readonly TracingBondService m_tracingBondService;
-        private int m_port;
+        private readonly int m_port;
         private LoggingContext m_loggingContext;
 
         /// <summary>

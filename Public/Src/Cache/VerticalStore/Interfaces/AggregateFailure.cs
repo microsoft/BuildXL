@@ -13,7 +13,7 @@ namespace BuildXL.Cache.Interfaces
     /// </summary>
     public class AggregateFailure : CacheBaseFailure
     {
-        private List<Failure> m_failures;
+        private readonly List<Failure> m_failures;
 
         /// <nodoc/>
         public AggregateFailure(params Failure[] failures)

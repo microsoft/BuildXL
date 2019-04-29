@@ -13,6 +13,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -24,7 +25,10 @@ namespace Test.BuildXL.Processes
     public sealed class ContainerSandboxExecutorIntegrationTests : XunitBuildXLTest
     {
         public ContainerSandboxExecutorIntegrationTests(ITestOutputHelper output)
-            : base(output) { }
+            : base(output)
+        {
+            RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+        }
 
         /// <summary>
         /// Verifies that after the sandboxed process executor is done running an in-container pip,
@@ -146,7 +150,44 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        private static Task<SandboxedProcessPipExecutionResult> RunProcess(BuildXLContext context, Process pip)
+        [FactIfSupported(requiresHeliumDriversAvailable: true)]
+        public async Task TombstoneFileDoesNotRepresentARequiredOutput()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true))
+            {
+                var pathTable = context.PathTable;
+
+                var outputFile = tempFiles.GetUniqueFileName();
+                var outputFilePath = AbsolutePath.Create(pathTable, outputFile);
+
+                var renamedFile = $"{outputFile}.renamed";
+                var renamedFilePath = AbsolutePath.Create(pathTable, renamedFile);
+
+                // Arguments to create an output file that gets immediately renamed.
+                // However, both files are marked as required, even though the original one 
+                // is not there after the rename happens
+                var arguments = $"echo hi > {outputFile} && move {outputFile} {renamedFile}";
+                var outputs = ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                    new[]
+                    {
+                        FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(outputFilePath), FileExistence.Required),
+                        FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(renamedFilePath), FileExistence.Required)
+                    });
+
+                var pip = CreateConsoleProcessInContainer(context, tempFiles, pathTable, arguments, outputs, CollectionUtilities.EmptyArray<DirectoryArtifact>().ToReadOnlyArray());
+                // the move command under the console seems to have some issue with the detours policy
+                // This is orthogonal to the test, and we don't care about detours at this point
+                var pipExecutionResult = await RunProcess(context, pip, failUnexpectedFileAccesses: false);
+
+                // The redirected output is created as a tombstone file, but the sandboxed pip executor should report it as an absent file
+                AssertErrorEventLogged(EventId.PipProcessMissingExpectedOutputOnCleanExit);
+                AssertErrorEventLogged(EventId.PipProcessExpectedMissingOutputs);
+            }
+        }
+
+        private static Task<SandboxedProcessPipExecutionResult> RunProcess(BuildXLContext context, Process pip, bool failUnexpectedFileAccesses = true)
         {
             var loggingContext = CreateLoggingContextForTest();
 
@@ -154,7 +195,7 @@ namespace Test.BuildXL.Processes
                             context,
                             loggingContext,
                             pip,
-                            new SandboxConfiguration(),
+                            new SandboxConfiguration { FailUnexpectedFileAccesses = failUnexpectedFileAccesses },
                             layoutConfig: null,
                             loggingConfig: null,
                             rootMappings: new Dictionary<string, string>(),

@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Tracing;
@@ -60,7 +59,7 @@ namespace BuildXL.Engine.Distribution
             return (sender, traceId);
         }
 
-        public async override Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest request, ServerCallContext context, UnaryServerMethod<TRequest, TResponse> continuation)
+        public override async Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest request, ServerCallContext context, UnaryServerMethod<TRequest, TResponse> continuation)
         {
             (string, string) tuple = InterceptCallContext(context);
             var watch = Stopwatch.StartNew();
@@ -69,7 +68,7 @@ namespace BuildXL.Engine.Distribution
             return result;
         }
 
-        public async override Task<TResponse> ClientStreamingServerHandler<TRequest, TResponse>(IAsyncStreamReader<TRequest> requestStream, ServerCallContext context, ClientStreamingServerMethod<TRequest, TResponse> continuation)
+        public override async Task<TResponse> ClientStreamingServerHandler<TRequest, TResponse>(IAsyncStreamReader<TRequest> requestStream, ServerCallContext context, ClientStreamingServerMethod<TRequest, TResponse> continuation)
         {
             (string, string) tuple = InterceptCallContext(context);
             var watch = Stopwatch.StartNew();
@@ -78,7 +77,7 @@ namespace BuildXL.Engine.Distribution
             return result;
         }
 
-        public async override Task ServerStreamingServerHandler<TRequest, TResponse>(TRequest request, IServerStreamWriter<TResponse> responseStream, ServerCallContext context, ServerStreamingServerMethod<TRequest, TResponse> continuation)
+        public override async Task ServerStreamingServerHandler<TRequest, TResponse>(TRequest request, IServerStreamWriter<TResponse> responseStream, ServerCallContext context, ServerStreamingServerMethod<TRequest, TResponse> continuation)
         {
             (string, string) tuple = InterceptCallContext(context);
             var watch = Stopwatch.StartNew();
@@ -86,7 +85,7 @@ namespace BuildXL.Engine.Distribution
             Logger.Log.GrpcTrace(m_loggingContext, string.Format(RespondedLogFormat, tuple.Item1, tuple.Item2, watch.ElapsedMilliseconds));
         }
 
-        public async override Task DuplexStreamingServerHandler<TRequest, TResponse>(IAsyncStreamReader<TRequest> requestStream, IServerStreamWriter<TResponse> responseStream, ServerCallContext context, DuplexStreamingServerMethod<TRequest, TResponse> continuation)
+        public override async Task DuplexStreamingServerHandler<TRequest, TResponse>(IAsyncStreamReader<TRequest> requestStream, IServerStreamWriter<TResponse> responseStream, ServerCallContext context, DuplexStreamingServerMethod<TRequest, TResponse> continuation)
         {
             (string, string) tuple = InterceptCallContext(context);
             var watch = Stopwatch.StartNew();

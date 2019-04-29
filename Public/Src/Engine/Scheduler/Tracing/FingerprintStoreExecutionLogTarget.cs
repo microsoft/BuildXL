@@ -3,26 +3,26 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using KVP = System.Collections.Generic.KeyValuePair<string, string>;
 using PipKVP = System.Collections.Generic.KeyValuePair<string, BuildXL.Scheduler.Tracing.FingerprintStore.PipFingerprintKeys>;
-using System.Collections.Generic;
-using BuildXL.Native.IO;
-using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Scheduler.Tracing
 {

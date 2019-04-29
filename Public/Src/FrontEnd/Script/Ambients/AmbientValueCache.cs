@@ -1,19 +1,19 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script.Types;
-using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.Engine.Cache;
-using BuildXL.FrontEnd.Script.Runtime;
-using BuildXL.FrontEnd.Script.Ambients.Map;
-using BuildXL.FrontEnd.Script.Ambients.Set;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Pips;
+using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Script.Ambients.Exceptions;
+using BuildXL.FrontEnd.Script.Ambients.Map;
+using BuildXL.FrontEnd.Script.Ambients.Set;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Runtime;
+using BuildXL.FrontEnd.Script.Types;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Pips;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Ambients
 {

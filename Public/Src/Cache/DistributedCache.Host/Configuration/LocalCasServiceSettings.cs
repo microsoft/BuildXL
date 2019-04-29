@@ -29,7 +29,8 @@ namespace BuildXL.Cache.Host.Configuration
             uint maxPipeListeners = DefaultMaxPipeListeners,
             string scenarioName = null,
             uint grpcPort = 0,
-            string grpcPortFileName = null
+            string grpcPortFileName = null,
+            int? bufferSizeForGrpcCopies = null
             )
         {
             DefaultSingleInstanceTimeoutSec = defaultSingleInstanceTimeoutSec;
@@ -38,6 +39,7 @@ namespace BuildXL.Cache.Host.Configuration
             ScenarioName = scenarioName;
             GrpcPort = grpcPort;
             GrpcPortFileName = grpcPortFileName;
+            BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
         }
 
         /// <summary>
@@ -91,5 +93,11 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public int? UnusedSessionHeartbeatTimeoutMinutes { get; set; } = null;
+
+        /// <summary>
+        /// Gets the buffer size used during streaming for GRPC copies.
+        /// </summary>
+        [DataMember]
+        public int? BufferSizeForGrpcCopies { get; set; } = null;
     }
 }

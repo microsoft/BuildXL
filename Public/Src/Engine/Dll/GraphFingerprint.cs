@@ -3,12 +3,12 @@
 
 using System;
 using System.IO;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Tracing;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.FrontEnd.Sdk;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine

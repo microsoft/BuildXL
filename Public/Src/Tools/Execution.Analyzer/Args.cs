@@ -8,13 +8,13 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 using HelpLevel = BuildXL.ToolSupport.HelpLevel;
-using BuildXL.Storage;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -37,7 +37,7 @@ namespace BuildXL.Execution.Analyzer
 
         // Variables that are unused without full telemetry
         private readonly bool m_telemetryDisabled = false;
-        private Stopwatch m_telemetryStopwatch = new Stopwatch();
+        private readonly Stopwatch m_telemetryStopwatch = new Stopwatch();
 
         public Args(string[] args)
             : base(args)

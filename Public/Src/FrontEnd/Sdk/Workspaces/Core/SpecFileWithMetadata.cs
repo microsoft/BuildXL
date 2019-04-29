@@ -8,7 +8,6 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 using TypeScript.Net.Types;
-
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Workspaces.Core

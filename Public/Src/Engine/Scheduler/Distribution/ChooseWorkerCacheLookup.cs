@@ -7,8 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.WorkDispatcher;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler.Distribution
 {

@@ -4,14 +4,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Util;
+using BuildXL.FrontEnd.Sdk.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Util;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Sdk.Tracing;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Values

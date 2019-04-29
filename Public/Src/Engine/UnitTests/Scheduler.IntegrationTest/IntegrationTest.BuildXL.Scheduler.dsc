@@ -54,7 +54,18 @@ namespace Scheduler.IntegrationTest {
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
         ],
         runtimeContent: [
-            importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition
+            importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition,
+            {
+                subfolder: a`tools`,
+                contents: [
+                    {
+                        subfolder: a`SandboxedProcessExecutor`,
+                        contents: [
+                            importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe
+                        ]
+                    }
+                ]
+            }
         ],
     });
 }

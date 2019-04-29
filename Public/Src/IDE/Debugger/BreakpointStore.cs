@@ -8,9 +8,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;
 

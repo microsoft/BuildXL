@@ -97,7 +97,9 @@ namespace BuildXL.Utilities.Tracing
         PipTableStats = 75,
         PipWriterStats = 76,
         PipIpcFailedDueToInvalidInput = 77,
-        // Free = 78,
+        
+        PipProcessStartExternalTool = 78,
+        PipProcessFinishedExternalTool = 79,
         // Free = 79,
         // Free = 80,
         // Free = 81,
@@ -493,7 +495,7 @@ namespace BuildXL.Utilities.Tracing
         MaterializeFilePipProducerNotFound = 739,
 
         StoreSymlinkWarning = 740,
-        // was StoreWarnDueToUnableToDetermineReparsePoint = 741,
+        FileMaterializationMismatchFileExistenceResult = 741,
 
         SerializingToPipFingerprintEntryResultInCorruptedData = 742,
         DeserializingCorruptedPipFingerprintEntry = 743,
@@ -531,6 +533,7 @@ namespace BuildXL.Utilities.Tracing
         CleaningDirectoryFailed = 864,
 
         ScrubbingFailedToEnumerateMissingDirectory = 865,
+        ConfigUnsafeSharedOpaqueEmptyDirectoryScrubbingDisabled = 866,
 
         // Config
         ConfigUnsafeDisabledFileAccessMonitoring = 900,

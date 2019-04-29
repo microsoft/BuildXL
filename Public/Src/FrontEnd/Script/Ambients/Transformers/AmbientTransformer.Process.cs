@@ -8,17 +8,16 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Types;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.FrontEnd.Script.Ambients.Transformers;
 using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Script.Types;
-using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
 using static BuildXL.Utilities.FormattableStringEx;
 using Type = System.Type;
 
@@ -50,6 +49,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         {
             ["doubleWritesAreErrors"] = DoubleWritePolicy.DoubleWritesAreErrors,
             ["unsafeFirstDoubleWriteWins"] = DoubleWritePolicy.UnsafeFirstDoubleWriteWins,
+        };
+
+        private static readonly Dictionary<string, bool> s_privilegeLevel = new Dictionary<string, bool>(StringComparer.Ordinal)
+        {
+            ["standard"] = false,
+            ["admin"]    = true,
         };
 
         // these values must be kept in sync with the ones defined on the BuildXL Script side
@@ -90,6 +95,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeDoubleWritePolicy;
         private SymbolAtom m_executeAllowUndeclaredSourceReads;
         private SymbolAtom m_executeKeepOutputsWritable;
+        private SymbolAtom m_privilegeLevel;
         private SymbolAtom m_disableCacheLookup;
         private SymbolAtom m_executeWarningRegex;
         private SymbolAtom m_executeErrorRegex;
@@ -222,6 +228,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeAbsentPathProbeInUndeclaredOpaqueMode = Symbol("absentPathProbeInUndeclaredOpaquesMode");
 
             m_executeKeepOutputsWritable = Symbol("keepOutputsWritable");
+            m_privilegeLevel = Symbol("privilegeLevel");
             m_disableCacheLookup = Symbol("disableCacheLookup");
             m_executeTags = Symbol("tags");
             m_executeServiceShutdownCmd = Symbol("serviceShutdownCmd");
@@ -488,6 +495,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (keepOutputsWritable == true)
             {
                 processBuilder.Options |= Process.Options.OutputsMustRemainWritable;
+            }
+
+            // Set outputs to remain writable.
+            var privilegeLevel = Converter.ExtractStringLiteral(obj, m_privilegeLevel, s_privilegeLevel.Keys, allowUndefined: true);
+            if (privilegeLevel != null && s_privilegeLevel.TryGetValue(privilegeLevel, out bool level) && level)
+            {
+                processBuilder.Options |= Process.Options.RequiresAdmin;
             }
 
             var absentPathProbeMode = Converter.ExtractStringLiteral(obj, m_executeAbsentPathProbeInUndeclaredOpaqueMode, s_absentPathProbeModes.Keys, allowUndefined: true);

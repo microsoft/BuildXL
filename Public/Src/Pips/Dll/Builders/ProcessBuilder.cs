@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -620,8 +619,7 @@ namespace BuildXL.Pips.Builders
                 doubleWritePolicy: DoubleWritePolicy,
                 containerIsolationLevel: ContainerIsolationLevel,
                 absentPathProbeMode: AbsentPathProbeUnderOpaquesMode,
-                weight: Weight
-            );
+                weight: Weight);
 
             return true;
         }

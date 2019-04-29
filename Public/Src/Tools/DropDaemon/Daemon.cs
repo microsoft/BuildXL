@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -11,9 +10,7 @@ using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
-using BuildXL.Tracing;
 using BuildXL.Tracing.CloudBuild;
-using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
@@ -393,7 +390,7 @@ namespace Tool.DropDaemon
             }
         }
 
-        private CounterCollection<DaemonCounter> m_counters = new CounterCollection<DaemonCounter>();
+        private readonly CounterCollection<DaemonCounter> m_counters = new CounterCollection<DaemonCounter>();
 
         private enum DaemonCounter
         {

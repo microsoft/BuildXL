@@ -37,7 +37,7 @@ namespace BuildXL.Scheduler.Graph
         private readonly ReadWriteLock[] m_locks;
         private MutableGraphState m_state = MutableGraphState.Mutating;
 
-        private ReadWriteLock m_globalLock = ReadWriteLock.Create();
+        private readonly ReadWriteLock m_globalLock = ReadWriteLock.Create();
         private int m_modificationsSinceLastNodeHeightComputation;
 
         /// <summary>

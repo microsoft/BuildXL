@@ -5,11 +5,11 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Core.Tracing;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.FrontEnd.Core.Incrementality
 {

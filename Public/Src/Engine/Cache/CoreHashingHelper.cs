@@ -6,9 +6,9 @@ using System.Diagnostics.ContractsLight;
 using System.Security.Cryptography;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -61,7 +61,7 @@ namespace BuildXL.Engine.Cache
         /// </summary>
         private readonly byte[] m_buffer;
 
-        private PooledObjectWrapper<StringBuilder> m_builderWrapper;
+        private readonly PooledObjectWrapper<StringBuilder> m_builderWrapper;
 
         /// <summary>
         /// Builder for FingerprintInputText

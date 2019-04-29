@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 #if !DISABLE_FEATURE_BOND_RPC
 
 using System.Globalization;
@@ -13,9 +12,9 @@ namespace BuildXL.Engine.Distribution.InternalBond
     /// </summary>
     internal sealed class BondHostLog
     {
-        private LoggingContext m_loggingContext;
-        private string m_ipAddress;
-        private int m_port;
+        private readonly LoggingContext m_loggingContext;
+        private readonly string m_ipAddress;
+        private readonly int m_port;
 
         public BondHostLog(LoggingContext loggingContext, string ipAddress, int port)
         {

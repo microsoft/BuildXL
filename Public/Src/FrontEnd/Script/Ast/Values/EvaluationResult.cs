@@ -5,8 +5,8 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
-using JetBrains.Annotations;
 using BuildXL.FrontEnd.Script.Literals;
+using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script.Values
 {

@@ -4,8 +4,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Core

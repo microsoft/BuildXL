@@ -24,7 +24,7 @@ namespace BuildXL.Scheduler.Debugging
         private static readonly WeakReference<PipRuntimeInfo[]> s_runtimeInfos = new WeakReference<PipRuntimeInfo[]>(null);
         private readonly WeakReference<IReadonlyDirectedGraph> m_weakGraph = new WeakReference<IReadonlyDirectedGraph>(null);
 
-        private NodeId m_node;
+        private readonly NodeId m_node;
 
         private IReadonlyDirectedGraph Graph
         {

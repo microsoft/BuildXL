@@ -5,9 +5,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Script.Evaluator;
 
 namespace BuildXL.FrontEnd.Script.Values
 {

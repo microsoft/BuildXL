@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Services.Common;
-
 #if !FEATURE_CORECLR
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 #else

@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.Serialization;
-using BuildXL.Cache.ContentStore.VstsInterfaces;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.VstsInterfaces;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using Newtonsoft.Json;
 

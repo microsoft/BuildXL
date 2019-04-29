@@ -258,7 +258,7 @@ namespace BuildXL.Utilities.Tracing
 
             public const EventTask UnitTest = (EventTask)4;
 
-            // FREE: 5;
+            public const EventTask SandboxedProcessExecutor = (EventTask)5;
 
             public const EventTask Engine = (EventTask)6;
 
@@ -331,11 +331,11 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public bool HasDiagnosticsArgument { get; set; }
 
-        private object m_syncLock = new object();
+        private readonly object m_syncLock = new object();
 
-        private HashSet<BaseEventListener> m_listeners = new HashSet<BaseEventListener>();
+        private readonly HashSet<BaseEventListener> m_listeners = new HashSet<BaseEventListener>();
 
-        private HashSet<EventSource> m_mergedEventSources = new HashSet<EventSource>();
+        private readonly HashSet<EventSource> m_mergedEventSources = new HashSet<EventSource>();
 
         /// <summary>
         /// Gets the current set of merged event sources

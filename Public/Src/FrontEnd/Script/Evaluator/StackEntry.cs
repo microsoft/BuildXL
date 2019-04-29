@@ -2,13 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Script.Expressions;
+using BuildXL.FrontEnd.Script.Util;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.FrontEnd.Script.Util;
 using JetBrains.Annotations;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Expressions;
-using BuildXL.FrontEnd.Script.Values;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Evaluator

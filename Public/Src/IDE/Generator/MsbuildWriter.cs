@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -11,11 +12,10 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Xml.Linq;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.Collections.CollectionUtilities;
-using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Ide.Generator
 {

@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 #if !DISABLE_FEATURE_HTMLWRITER
 using System;
 using System.Collections.Concurrent;
@@ -12,7 +11,6 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Execution.Analyzer;
 
 namespace BuildXL.Execution.Analyzer.Analyzers
 {
@@ -21,7 +19,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers
         private const int AddScrollToTableRowCountLimit = 10;
 
         private readonly SummaryAnalyzer m_analyzer;
-        private HashSet<string> m_changesToReferenceList = new HashSet<string>();
+        private readonly HashSet<string> m_changesToReferenceList = new HashSet<string>();
 
         public SummaryAnalyzerHtmlWritter(SummaryAnalyzer analyzer)
         {

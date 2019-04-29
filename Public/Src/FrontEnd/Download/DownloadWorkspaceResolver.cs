@@ -7,10 +7,9 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Download.Tracing;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.Workspaces;
+using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -18,8 +17,6 @@ using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
-using Logger = BuildXL.FrontEnd.Download.Tracing.Logger;
-using SourceFile = TypeScript.Net.Types.SourceFile;
 using ValueTask = BuildXL.Utilities.Tasks.ValueTask;
 
 namespace BuildXL.FrontEnd.Download
@@ -27,7 +24,7 @@ namespace BuildXL.FrontEnd.Download
     /// <summary>
     /// A workspace module resolver that can download and extract archives.
     /// </summary>
-    public sealed class DownloadWorkspaceResolver : IDScriptWorkspaceModuleResolver, IWorkspaceModuleResolver
+    public sealed class DownloadWorkspaceResolver : IWorkspaceModuleResolver
     {
         /// <inheritdoc />
         public string Kind => "Download";
@@ -41,10 +38,10 @@ namespace BuildXL.FrontEnd.Download
         /// <nodoc />
         public IReadOnlyDictionary<string, DownloadData> Downloads { get; private set; }
 
-        private HashSet<ModuleDescriptor> m_descriptors;
-        private MultiValueDictionary<string, ModuleDescriptor> m_descriptorsByName;
-        private Dictionary<AbsolutePath, ModuleDescriptor> m_descriptorsBySpecPath;
-        private Dictionary<ModuleDescriptor, ModuleDefinition> m_definitions;
+        private readonly HashSet<ModuleDescriptor> m_descriptors;
+        private readonly MultiValueDictionary<string, ModuleDescriptor> m_descriptorsByName;
+        private readonly Dictionary<AbsolutePath, ModuleDescriptor> m_descriptorsBySpecPath;
+        private readonly Dictionary<ModuleDescriptor, ModuleDefinition> m_definitions;
 
         /// <nodoc/>
         public DownloadWorkspaceResolver()

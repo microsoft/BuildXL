@@ -4,10 +4,9 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Debugger
 {

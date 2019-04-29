@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Analyzer.Utilities;
-using Codex.Analysis.External;
 using BuildXL.FrontEnd.Workspaces;
+using Codex.Analysis.External;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 using TypeScript.Net.Types.Nodes;
@@ -278,7 +278,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
 
         private class IdentifierVisitor : DfsVisitor
         {
-            private BitArray m_identifierByStart;
+            private readonly BitArray m_identifierByStart;
 
             public IdentifierVisitor(ISourceFile sourceFile)
             {

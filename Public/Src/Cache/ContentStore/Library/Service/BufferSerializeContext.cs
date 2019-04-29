@@ -5,8 +5,8 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Text;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 
 namespace BuildXL.Cache.ContentStore.Service
 {

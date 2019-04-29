@@ -7,13 +7,14 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Failures;
 using BuildXL.FrontEnd.Script.Tracing;
+using BuildXL.FrontEnd.Script.Util;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Workspaces.Core.Failures;
 using BuildXL.Utilities;
@@ -25,9 +26,6 @@ using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
-using ConfigurationConverter = BuildXL.FrontEnd.Script.Util.ConfigurationConverter;
-using ConversionException = BuildXL.FrontEnd.Script.Util.ConversionException;
-using Names = BuildXL.FrontEnd.Script.Constants.Names;
 
 namespace BuildXL.FrontEnd.Script
 {
@@ -50,7 +48,7 @@ namespace BuildXL.FrontEnd.Script
     /// - It implements IDScriptWorkspaceModuleResolver, so it respects the structures defined in the Workspace project
     /// - It returns a ModuleResolutionResult when ResolveModuleAsyncIfNeeded() is called from the source front end.
     /// We should consider removing the package interpreting logic from IResolver, which will remove the dependency between a workspace resolver and an IResolver
-    public class WorkspaceSourceModuleResolver : DScriptInterpreterBase, Sdk.Workspaces.IDScriptWorkspaceModuleResolver, Workspaces.Core.IWorkspaceModuleResolver
+    public class WorkspaceSourceModuleResolver : DScriptInterpreterBase, IWorkspaceModuleResolver
     {
         private IDScriptResolverSettings m_resolverSettings;
 

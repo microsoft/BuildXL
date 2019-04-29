@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
@@ -12,7 +10,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Qualifier;
 using JetBrains.Annotations;
 
 namespace BuildXL.Pips
@@ -349,7 +346,15 @@ namespace BuildXL.Pips
         /// <nodoc />
         public bool TryAddProcess(ProcessBuilder processBuilder, out ProcessOutputs processOutputs, out Process pip)
         {
-            PipGraph?.ApplyCurrentOsDefaults(processBuilder);
+            // Applying defaults can fail if, for example, a source sealed directory cannot be 
+            // created because it is not under a mount.  That error must be propagated, because
+            // otherwise an error will be logged but the evaluation will succeed.
+            if (PipGraph?.ApplyCurrentOsDefaults(processBuilder) == false)
+            {
+                pip = null;
+                processOutputs = null;
+                return false;
+            }
 
             if (!processBuilder.TryFinish(this, out pip, out processOutputs))
             {
@@ -374,7 +379,7 @@ namespace BuildXL.Pips
             ReadOnlyArray<PipId> servicePipDependencies,
             ReadOnlyArray<FileArtifact> fileDependencies,
             ReadOnlyArray<DirectoryArtifact> directoryDependencies,
-            ReadOnlyArray<FileArtifact> skipMaterializationFor,
+            ReadOnlyArray<FileOrDirectoryArtifact> skipMaterializationFor,
             bool isServiceFinalization,
             bool mustRunOnMaster,
             string[] tags,

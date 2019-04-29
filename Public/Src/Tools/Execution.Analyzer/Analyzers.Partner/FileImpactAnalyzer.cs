@@ -4,12 +4,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Execution.Analyzer;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
@@ -215,33 +213,33 @@ namespace BuildXL.Execution.Analyzer
 
         private readonly StreamWriter m_criticalPathWriter;
 
-        private ConcurrentDenseIndex<Times> m_elapsedTimes = new ConcurrentDenseIndex<Times>(false);
-        private ConcurrentDenseIndex<IEnumerable<ObservedInput>> m_fingerprintComputations = new ConcurrentDenseIndex<IEnumerable<ObservedInput>>(false);
-        private HashSet<NodeId> m_nodesWithObservedInputs = new HashSet<NodeId>();
-        private bool m_computeImpactForAllFiles;
-        private bool m_computeImpactfulFilesByNumberOfTimesChanged;
-        private bool m_simulateBuildHistory;
-        private string m_srcRootMount;
-        private string m_nugetMachineInstallRootMount;
-        private string m_changesFile;
+        private readonly ConcurrentDenseIndex<Times> m_elapsedTimes = new ConcurrentDenseIndex<Times>(false);
+        private readonly ConcurrentDenseIndex<IEnumerable<ObservedInput>> m_fingerprintComputations = new ConcurrentDenseIndex<IEnumerable<ObservedInput>>(false);
+        private readonly HashSet<NodeId> m_nodesWithObservedInputs = new HashSet<NodeId>();
+        private readonly bool m_computeImpactForAllFiles;
+        private readonly bool m_computeImpactfulFilesByNumberOfTimesChanged;
+        private readonly bool m_simulateBuildHistory;
+        private readonly string m_srcRootMount;
+        private readonly string m_nugetMachineInstallRootMount;
+        private readonly string m_changesFile;
 
         // Single file to determine impact for
-        private string m_fileToDetermineImpactFor;
+        private readonly string m_fileToDetermineImpactFor;
 
         // Single package to determine impact for
-        private string m_packageToDetermineImpactFor;
+        private readonly string m_packageToDetermineImpactFor;
 
         // File containing list of files to determine impact for.
-        private string m_filesListFile;
+        private readonly string m_filesListFile;
 
         // File containing list of packages to determine impact for.
-        private string m_packagesListFile;
+        private readonly string m_packagesListFile;
 
         /// <summary>
         /// File containing list of [semistable hash change 1 id change 2 id etc]
         /// WHere change 1 and change 2 are changes that affected the pip, and the ids can be arbitrary numbers.
         /// </summary>
-        private string m_pipToListOfAffectingChangesFile;
+        private readonly string m_pipToListOfAffectingChangesFile;
 
         /// <summary>
         /// Creates an exporter which writes text to <paramref name="output" />.

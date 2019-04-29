@@ -9,7 +9,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml.Linq;
-using BuildXL.Execution.Analyzer;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
@@ -69,12 +68,12 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     internal sealed class PerfSummary : Analyzer
     {
-        private string m_outputFilePath;
-        private string m_statsFile;
+        private readonly string m_outputFilePath;
+        private readonly string m_statsFile;
 
         private readonly HtmlHelper m_html;
 
-        private Dictionary<PipId, PipExecutionPerformance> m_pipExecutionPerf = new Dictionary<PipId, PipExecutionPerformance>();
+        private readonly Dictionary<PipId, PipExecutionPerformance> m_pipExecutionPerf = new Dictionary<PipId, PipExecutionPerformance>();
         private DateTime m_firstPip = DateTime.MaxValue;
 
         internal PerfSummary(AnalysisInput input, string outputFilePath, string statsFile)
@@ -450,7 +449,7 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     public class BuildXLStats
     {
-        private Dictionary<string, long> m_stats;
+        private readonly Dictionary<string, long> m_stats;
 
         /// <nodoc />
         private BuildXLStats(Dictionary<string, long> stats)

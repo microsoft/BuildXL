@@ -3,8 +3,8 @@
 
 using System;
 using BuildXL.Pips.Operations;
-using static BuildXL.Pips.Operations.PipDataBuilder;
 using BuildXL.Utilities;
+using static BuildXL.Pips.Operations.PipDataBuilder;
 
 namespace BuildXL.Pips.Builders
 {

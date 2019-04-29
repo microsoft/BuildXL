@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Evaluator;
-using LineInfo = TypeScript.Net.Utilities.LineInfo;
+using BuildXL.Utilities.Instrumentation.Common;
+using TypeScript.Net.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Util
 {

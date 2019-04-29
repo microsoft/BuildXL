@@ -9,6 +9,8 @@ export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
 namespace DetoursCrossBitTests
 {
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+
     @@public
     export const x64 = Processes.TestPrograms.DetoursCrossBitTests.withQualifier({
         configuration: qualifier.configuration,

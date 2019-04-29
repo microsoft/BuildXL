@@ -16,10 +16,10 @@ using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 using KVP = System.Collections.Generic.KeyValuePair<string, string>;
 using PipKVP = System.Collections.Generic.KeyValuePair<string, BuildXL.Scheduler.Tracing.FingerprintStore.PipFingerprintKeys>;
 
@@ -328,7 +328,7 @@ namespace BuildXL.Scheduler.Tracing
             /// This is just for the <see cref="FingerprintStore"/> to represent the default column to when managing some state.
             /// All <see cref="KeyValueStoreAccessor"/> operations can access the default column by passing null.
             /// </remarks>
-            public static string Default = KeyValueStoreAccessor.DefaultColumnName;
+            public static readonly string Default = KeyValueStoreAccessor.DefaultColumnName;
 
             /// <summary>
             /// Column for weak fingerprints, keyed by <see cref="BuildXL.Pips.Operations.Pip.FormattedSemiStableHash"/>.
@@ -498,7 +498,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             /// <summary>
             /// Map from { column family name : set of entries tracked, identified by entry key }.
-            /// <see cref="ConcurrentDictionary{TKey, TValue}"/> with true always as the value is used as
+            /// <see cref="ConcurrentDictionary{TKey,TValue}"/> with true always as the value is used as
             /// the set of entries tracked since there is no concurrent HashSet. 
             /// </summary>
             /// <remarks>
@@ -586,7 +586,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Test hooks.
         /// </summary>
-        private FingerprintStoreTestHooks m_testHooks;
+        private readonly FingerprintStoreTestHooks m_testHooks;
 
         /// <summary>
         /// Logging context.

@@ -28,7 +28,7 @@ namespace BuildXL.Tracing
         public static CloudBuildEventSource Log => s_log;
 
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
-        private static CloudBuildEventSource s_log = new CloudBuildEventSource("CloudBuildDominoIntegration");
+        private static readonly CloudBuildEventSource s_log = new CloudBuildEventSource("CloudBuildDominoIntegration");
 
         /// <summary>
         /// Logging Instantiation for tests
@@ -40,7 +40,7 @@ namespace BuildXL.Tracing
         public static CloudBuildEventSource TestLog => s_testLog;
 
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
-        private static CloudBuildEventSource s_testLog = new CloudBuildEventSource("CloudBuildDominoIntegration_TEST");
+        private static readonly CloudBuildEventSource s_testLog = new CloudBuildEventSource("CloudBuildDominoIntegration_TEST");
 
         /// <nodoc/>
         public void DominoInvocationEvent(DominoInvocationEvent eventObj)

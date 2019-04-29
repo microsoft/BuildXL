@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
 using JetBrains.Annotations;

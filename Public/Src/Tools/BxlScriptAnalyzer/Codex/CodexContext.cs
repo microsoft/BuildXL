@@ -4,12 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Codex.Analysis.External;
-using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
+using Codex.Analysis.External;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
-using ISymbol = TypeScript.Net.Types.ISymbol;
 
 namespace BuildXL.FrontEnd.Script.Analyzer.Codex
 {

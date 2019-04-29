@@ -8,10 +8,8 @@ using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
 using Grpc.Core;
 
 namespace BuildXL.Engine.Distribution.Grpc
@@ -25,8 +23,8 @@ namespace BuildXL.Engine.Distribution.Grpc
         public static ChannelOption[] DefaultChannelOptions = new ChannelOption[] { new ChannelOption(ChannelOptions.MaxSendMessageLength, -1), new ChannelOption(ChannelOptions.MaxReceiveMessageLength, -1) };
 
         internal readonly Channel Channel;
-        private LoggingContext m_loggingContext;
-        private string m_buildId;
+        private readonly LoggingContext m_loggingContext;
+        private readonly string m_buildId;
 
         private string GenerateLog(string traceId, string status, uint numTry, string description)
         {

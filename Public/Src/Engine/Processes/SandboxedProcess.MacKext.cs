@@ -11,12 +11,12 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
+using BuildXL.Interop.MacOS;
 using static BuildXL.Interop.MacOS.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -55,7 +55,7 @@ namespace BuildXL.Processes
 
         private bool HasProcessExitBeenReceived => m_processExitTimeNs != ulong.MaxValue;
 
-        private CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
+        private readonly CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
 
         private IKextConnection KextConnection => ProcessInfo.SandboxedKextConnection;
 
@@ -329,7 +329,7 @@ namespace BuildXL.Processes
             Process.StandardInput.Close();
         }
 
-        internal override void FeedStdErr(SandboxedProcessOutputBuilder builder, TaskSourceSlim<Unit> tsc, string line)
+        internal override void FeedStdErr(SandboxedProcessOutputBuilder builder, string line)
         {
             if (line == null) // designates EOF
             {
@@ -337,17 +337,17 @@ namespace BuildXL.Processes
                 m_cpuTimes = ExtractCpuTimes(m_lastStdErrLine, out string unprocessedFragment);
 
                 // feed whatever wasn't consumed
-                FeedOutputBuilder(builder, tsc, unprocessedFragment);
+                FeedOutputBuilder(builder, unprocessedFragment);
 
                 // feed EOF
-                FeedOutputBuilder(builder, tsc, null);
+                FeedOutputBuilder(builder, null);
             }
             else
             {
                 // feed previous line (if any)
                 if (m_lastStdErrLine != null)
                 {
-                    FeedOutputBuilder(builder, tsc, m_lastStdErrLine);
+                    FeedOutputBuilder(builder, m_lastStdErrLine);
                 }
 
                 // update previous line
@@ -518,6 +518,29 @@ namespace BuildXL.Processes
                     {
                         report.RequestedAccess = (uint)RequestedAccess.Probe;
                     }
+                }
+                // special handling for directory rename:
+                //   - scenario: a pip writes a bunch of files into a directory (e.g., 'out.tmp') and then renames that directory (e.g., to 'out')
+                //   - up to this point we know about the writes into the 'out.tmp' directory
+                //   - once 'out.tmp' is renamed to 'out', we need to explicitly update all previously reported paths under 'out.tmp'
+                //       - since we cannot rewrite the past and directly mutate previously reported paths, we simply enumerate
+                //         the content of the renamed directory and report all the files in there as writes
+                //       - (this is exactly how this is done on Windows, except that it's implemented in the Detours layer)
+                else if (report.Operation == FileOperation.OpKAuthMoveDest &&
+                         report.Status == (uint)FileAccessStatus.Allowed &&
+                         FileUtilities.DirectoryExistsNoFollow(reportPath))
+                {
+                    FileUtilities.EnumerateFiles(
+                        directoryPath: reportPath,
+                        recursive: true,
+                        pattern: "*",
+                        (dir, fileName, attrs, length) =>
+                        {
+                            AccessReport reportClone = report;
+                            reportClone.Operation = FileOperation.OpKAuthWriteFile;
+                            reportClone.Path = Path.Combine(dir, fileName);
+                            ReportFileAccess(ref reportClone);
+                        });
                 }
 
                 // our sandbox kernel extension currently doesn't detect file existence, so do it here instead

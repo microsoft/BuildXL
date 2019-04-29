@@ -24,7 +24,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
-using Process = BuildXL.Pips.Operations.Process;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
@@ -54,13 +53,13 @@ namespace BuildXL.Scheduler.Graph
 
             private IScheduleConfiguration ScheduleConfiguration => m_configuration.Schedule;
 
-            private NodeId m_dummyHashSourceFileNode;
+            private readonly NodeId m_dummyHashSourceFileNode;
 
             private readonly IConfiguration m_configuration;
 
             private WindowsOsDefaults m_windowsOsDefaults;
             private MacOsDefaults m_macOsDefaults;
-            private object m_osDefaultLock = new object();
+            private readonly object m_osDefaultLock = new object();
 
             #region State
 
@@ -295,7 +294,7 @@ namespace BuildXL.Scheduler.Graph
             }
 
             /// <inheritdoc />
-            public void ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
+            public bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
             {
                 if (OperatingSystemHelper.IsUnixOS)
                 {
@@ -310,7 +309,7 @@ namespace BuildXL.Scheduler.Graph
                         }
                     }
 
-                    m_macOsDefaults.ProcessDefaults(processBuilder);
+                    return m_macOsDefaults.ProcessDefaults(processBuilder);
                 }
                 else
                 {
@@ -325,7 +324,7 @@ namespace BuildXL.Scheduler.Graph
                         }
                     }
 
-                    m_windowsOsDefaults.ProcessDefaults(processBuilder);
+                    return m_windowsOsDefaults.ProcessDefaults(processBuilder);
                 }
             }
 

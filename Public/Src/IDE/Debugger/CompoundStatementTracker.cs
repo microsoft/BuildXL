@@ -5,10 +5,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Expressions;
 using BuildXL.FrontEnd.Script.Statements;
-using BuildXL.FrontEnd.Script.Evaluator;
 
 namespace BuildXL.FrontEnd.Script.Debugger
 {
@@ -25,7 +24,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
     /// </remarks>
     public sealed class CompoundStatementTracker : INodeTracker
     {
-        private Stack m_stack;
+        private readonly Stack m_stack;
 
         /// <nodoc/>
         public CompoundStatementTracker()
@@ -119,7 +118,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
 
     internal sealed class ForStatementAdapter : ICompoundStatementAdapter
     {
-        private ForStatement m_forStatement;
+        private readonly ForStatement m_forStatement;
 
         public Node Node => m_forStatement;
 
@@ -148,7 +147,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
 
     internal sealed class ForOfStatementAdapter : ICompoundStatementAdapter
     {
-        private ForOfStatement m_forOfStatement;
+        private readonly ForOfStatement m_forOfStatement;
         private bool m_firstTime;
 
         public Node Node => m_forOfStatement;
@@ -178,8 +177,8 @@ namespace BuildXL.FrontEnd.Script.Debugger
 
     internal sealed class SwitchStatementAdapter : ICompoundStatementAdapter
     {
-        private SwitchStatement m_switchStatement;
-        private ISet<Node> m_caseExpressionNodes;
+        private readonly SwitchStatement m_switchStatement;
+        private readonly ISet<Node> m_caseExpressionNodes;
 
         public Node Node => m_switchStatement;
 

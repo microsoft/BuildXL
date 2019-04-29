@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities;
@@ -107,12 +108,14 @@ namespace Test.BuildXL.Processes.Detours
         /// This test exercises the ability of the manifest to tolerate trailing
         /// backslashes for directory leaves.
         /// </summary>
-        [Fact]
-        public void TestTrailingSeparatorsManifestTest()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestTrailingSeparatorsManifestTest(bool serializeManifest)
         {
             var pt = new PathTable();
             var fam =
-                new FileAccessManifest(pt)
+                new FileAccessManifest(pt, CreateDirectoryTranslator())
                 {
                     FailUnexpectedFileAccesses = false,
                     IgnoreCodeCoverage = false,
@@ -131,7 +134,7 @@ namespace Test.BuildXL.Processes.Detours
             vac.AddScopeCheck(@"C:\Windows\System32", sys32, FileAccessPolicy.AllowReadAlways);
             vac.AddScopeCheck(@"C:\Windows\System32\", sys32, FileAccessPolicy.AllowReadAlways);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            ValidationDataCreator.TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
         /// <summary>
@@ -139,12 +142,14 @@ namespace Test.BuildXL.Processes.Detours
         /// completely disjoint paths and scopes. Also tests case-insensitive matching
         /// by using lower and upper case in paths to find. No paths added have trailing '\\'.
         /// </summary>
-        [Fact]
-        public void SimpleRecordManifestTest()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void SimpleRecordManifestTest(bool serializeManifest)
         {
             var pt = new PathTable();
             var fam =
-                new FileAccessManifest(pt)
+                new FileAccessManifest(pt, CreateDirectoryTranslator())
                 {
                     FailUnexpectedFileAccesses = false,
                     IgnoreCodeCoverage = false,
@@ -177,15 +182,17 @@ namespace Test.BuildXL.Processes.Detours
                 windows,
                 FileAccessPolicy.Deny);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            ValidationDataCreator.TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
-        [Fact]
-        public void TestLinkExeManifestExample()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestLinkExeManifestExample(bool serializeManifest)
         {
             var pt = new PathTable();
             var fam =
-                new FileAccessManifest(pt)
+                new FileAccessManifest(pt, CreateDirectoryTranslator())
                 {
                     FailUnexpectedFileAccesses = false,
                     IgnoreCodeCoverage = false,
@@ -214,15 +221,17 @@ namespace Test.BuildXL.Processes.Detours
             vac.AddPath(@"E:\dev\BuildXL\Out\Objects\Debug-X64\Detours-lib\cl_3\modules.obj", FileAccessPolicy.AllowReadAlways);
             vac.AddPath(@"E:\dev\BuildXL\Out\Objects\Debug-X64\Detours-lib\Link\Detours.lib", FileAccessPolicy.AllowReadAlways);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            ValidationDataCreator.TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
-        [Fact]
-        public void TestStyleCopCmdExeManifestExample()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestStyleCopCmdExeManifestExample(bool serializeManifest)
         {
             var pt = new PathTable();
             var fam =
-                new FileAccessManifest(pt)
+                new FileAccessManifest(pt, CreateDirectoryTranslator())
                 {
                     FailUnexpectedFileAccesses = false,
                     IgnoreCodeCoverage = false,
@@ -283,15 +292,17 @@ namespace Test.BuildXL.Processes.Detours
             vac.AddPath(@"E:\dev\BuildXL\src\BuildXL.Processes\SandboxedProcessResult.cs", FileAccessPolicy.AllowReadAlways);
             vac.AddPath(@"E:\dev\BuildXL\src\BuildXL.Processes\SandboxedProcessTimes.cs", FileAccessPolicy.AllowReadAlways);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            ValidationDataCreator.TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
-        [Fact]
-        public void TestCscExeTestRunnerGenManifestExample()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestCscExeTestRunnerGenManifestExample(bool serializeManifest)
         {
             var pt = new PathTable();
             var fam =
-                new FileAccessManifest(pt)
+                new FileAccessManifest(pt, CreateDirectoryTranslator())
                 {
                     FailUnexpectedFileAccesses = false,
                     IgnoreCodeCoverage = false,
@@ -332,15 +343,17 @@ namespace Test.BuildXL.Processes.Detours
             vac.AddPath(@"E:\dev\BuildXL\src\Test.BuildXLRunnerGen\Properties\AssemblyInfo.cs", FileAccessPolicy.AllowReadAlways);
             vac.AddPath(@"E:\dev\BuildXL\src\Test.BuildXLRunnerGen\SymbolTableBuilderTests.cs", FileAccessPolicy.AllowReadAlways);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            ValidationDataCreator.TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
-        [Fact]
-        public void TestGenManifestExample()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestGenManifestExample(bool serializeManifest)
         {
             var pt = new PathTable();
             var fam =
-                new FileAccessManifest(pt)
+                new FileAccessManifest(pt, CreateDirectoryTranslator())
                 {
                     FailUnexpectedFileAccesses = false,
                     IgnoreCodeCoverage = false,
@@ -530,7 +543,7 @@ namespace Test.BuildXL.Processes.Detours
             vac.AddPath(@"E:\dev\BuildXL\src\BuildXL.Transformers\Values\IVersion.cs", FileAccessPolicy.AllowReadAlways);
             vac.AddPath(@"E:\dev\BuildXL\src\BuildXL.Transformers\Values\StaticDirectory.cs", FileAccessPolicy.AllowReadAlways);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            ValidationDataCreator.TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
         /// <summary>
@@ -538,7 +551,7 @@ namespace Test.BuildXL.Processes.Detours
         /// which has 1 project and 100 C# files. (Access pattern made by csc.exe.)
         /// This is intended to be a stress test.
         /// </summary>
-        private void TestSolutionMockupManifestTest(int numFiles)
+        private void TestSolutionMockupManifestTest(int numFiles, bool serializeManifest = false)
         {
             var pt = new PathTable();
             var fam =
@@ -577,13 +590,15 @@ namespace Test.BuildXL.Processes.Detours
 
             vac.AddScope(@"E:\dev\BuildXL\TestSolution\Project0\Properties\AssemblyInfo.cs", FileAccessPolicy.AllowReadAlways);
 
-            TestManifestRetrieval(vac.DataItems, fam);
+            ValidationDataCreator.TestManifestRetrieval(vac.DataItems, fam, serializeManifest);
         }
 
-        [Fact]
-        public void TestSolution100()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestSolution100(bool serializeManifest)
         {
-            TestSolutionMockupManifestTest(100);
+            TestSolutionMockupManifestTest(100, serializeManifest);
         }
 
         [Fact]
@@ -604,144 +619,14 @@ namespace Test.BuildXL.Processes.Detours
             TestSolutionMockupManifestTest(10000);
         }
 
-        private static void TestManifestRetrieval(IEnumerable<ValidationData> validationData, FileAccessManifest fam)
+        private DirectoryTranslator CreateDirectoryTranslator()
         {
-            foreach (var line in fam.Describe())
-            {
-                Console.WriteLine(line);
-            }
+            var translator = new DirectoryTranslator();
+            translator.AddTranslation(@"E:\", @"C:\");
+            translator.AddTranslation(@"D:\el\io", @"D:\sh\io");
 
-            byte[] manifestTreeBytes = fam.GetManifestTreeBytes();
-
-            foreach (ValidationData dataItem in validationData)
-            {
-                uint nodePolicy;
-                uint conePolicy;
-                uint pathId;
-                Usn expectedUsn;
-
-                bool success =
-                    global::BuildXL.Native.Processes.Windows.ProcessUtilitiesWin.FindFileAccessPolicyInTree(
-                        manifestTreeBytes,
-                        dataItem.Path,
-                        new UIntPtr((uint)dataItem.Path.Length),
-                        out conePolicy,
-                        out nodePolicy,
-                        out pathId,
-                        out expectedUsn);
-
-                XAssert.IsTrue(success, "Unable to find path in manifest");
-                XAssert.AreEqual(
-                    unchecked((uint)dataItem.PathId),
-                    pathId,
-                    "PathId for '{0}' did not match", dataItem.Path);
-
-                if (dataItem.NodePolicy.HasValue)
-                {
-                    XAssert.AreEqual(
-                        unchecked((uint)dataItem.NodePolicy.Value),
-                        nodePolicy,
-                        "Policy for '{0}' did not match", dataItem.Path);
-                }
-
-                if (dataItem.ConePolicy.HasValue)
-                {
-                    XAssert.AreEqual(
-                        unchecked((uint)dataItem.ConePolicy.Value),
-                        conePolicy,
-                        "Policy for '{0}' did not match", dataItem.Path);
-                }
-
-                XAssert.AreEqual(
-                    dataItem.ExpectedUsn,
-                    expectedUsn,
-                    "Usn for '{0}' did not match", dataItem.Path);
-            }
-        }
-
-        private struct ValidationData
-        {
-            public string Path { get; set; }
-
-            public FileAccessPolicy? NodePolicy { get; set; }
-
-            public FileAccessPolicy? ConePolicy { get; set; }
-
-            public int PathId { get; set; }
-
-            public Usn ExpectedUsn { get; set; }
-        }
-
-        private class ValidationDataCreator
-        {
-            private readonly FileAccessManifest m_manifest;
-            private readonly PathTable m_pathTable;
-
-            public List<ValidationData> DataItems { get; private set; }
-
-            public ValidationDataCreator(FileAccessManifest manifest, PathTable pathTable)
-            {
-                m_manifest = manifest;
-                m_pathTable = pathTable;
-                DataItems = new List<ValidationData>();
-            }
-
-            public AbsolutePath AddScope(
-                string path,
-                FileAccessPolicy values,
-                FileAccessPolicy mask = FileAccessPolicy.Deny,
-                FileAccessPolicy basePolicy = FileAccessPolicy.Deny)
-            {
-                AbsolutePath scopeAbsolutePath = AbsolutePath.Create(m_pathTable, path);
-                var dataItem =
-                    new ValidationData
-                    {
-                        Path = path,
-                        PathId = scopeAbsolutePath.Value.Value,
-                        NodePolicy = (basePolicy & mask) | values,
-                        ConePolicy = null,
-                        ExpectedUsn = ReportedFileAccess.NoUsn
-                    };
-
-                DataItems.Add(dataItem);
-                m_manifest.AddScope(scopeAbsolutePath, mask, values);
-
-                return scopeAbsolutePath;
-            }
-
-            public void AddPath(
-                string path,
-                FileAccessPolicy policy,
-                FileAccessPolicy? expectedEffectivePolicy = null,
-                Usn? expectedUsn = null)
-            {
-                AbsolutePath absolutePath = AbsolutePath.Create(m_pathTable, path);
-                var dataItem =
-                    new ValidationData
-                    {
-                        Path = path,
-                        PathId = absolutePath.Value.Value,
-                        ConePolicy = null,
-                        NodePolicy = expectedEffectivePolicy ?? policy,
-                        ExpectedUsn = expectedUsn ?? ReportedFileAccess.NoUsn
-                    };
-
-                DataItems.Add(dataItem);
-                m_manifest.AddPath(absolutePath, values: policy, mask: FileAccessPolicy.MaskNothing, expectedUsn: expectedUsn);
-            }
-
-            public void AddScopeCheck(string path, AbsolutePath scopePath, FileAccessPolicy policy)
-            {
-                DataItems.Add(
-                    new ValidationData
-                    {
-                        Path = path,
-                        PathId = scopePath.Value.Value,
-                        ConePolicy = policy,
-                        NodePolicy = null,
-                        ExpectedUsn = ReportedFileAccess.NoUsn
-                    });
-            }
+            translator.Seal();
+            return translator;
         }
     }
 }

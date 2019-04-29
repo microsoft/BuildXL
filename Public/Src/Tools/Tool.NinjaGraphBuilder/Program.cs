@@ -4,9 +4,9 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using Newtonsoft.Json;
 using BuildXL.FrontEnd.Ninja.Serialization;
 using BuildXL.ToolSupport;
+using Newtonsoft.Json;
 using static BuildXL.Utilities.AssemblyHelper;
 using static System.Reflection.Assembly;
 

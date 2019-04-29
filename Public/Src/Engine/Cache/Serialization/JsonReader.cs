@@ -11,7 +11,7 @@ namespace BuildXL.Engine.Cache.Serialization
     /// </summary>
     public class JsonReader
     {
-        private JsonTextReader m_reader;
+        private readonly JsonTextReader m_reader;
 
         /// <summary>
         /// Constructor

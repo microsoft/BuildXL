@@ -6,12 +6,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.Host.Configuration;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -90,6 +90,8 @@ namespace BuildXL.Cache.Host.Service.Internal
         private static LocalServerConfiguration CreateLocalContentServerConfiguration(LocalCasServiceSettings localCasServiceSettings, ServiceConfiguration serviceConfiguration)
         {
             serviceConfiguration.GrpcPort = localCasServiceSettings.GrpcPort;
+            serviceConfiguration.BufferSizeForGrpcCopies = localCasServiceSettings.BufferSizeForGrpcCopies;
+
             var localContentServerConfiguration = new LocalServerConfiguration(serviceConfiguration);
 
             if (localCasServiceSettings.UnusedSessionTimeoutMinutes.HasValue)
@@ -138,7 +140,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 localCasSettings.ServiceSettings.MaxPipeListeners,
                 localCasSettings.ServiceSettings.GracefulShutdownSeconds,
                 (int)localCasSettings.ServiceSettings.GrpcPort,
-                grpcPortFileName: localCasSettings.ServiceSettings.GrpcPortFileName);
+                grpcPortFileName: localCasSettings.ServiceSettings.GrpcPortFileName,
+                bufferSizeForGrpcCopies: localCasSettings.ServiceSettings.BufferSizeForGrpcCopies);
         }
 
         private static void WriteContentStoreConfigFile(string cacheSizeQuotaString, AbsolutePath rootPath, IAbsFileSystem fileSystem)

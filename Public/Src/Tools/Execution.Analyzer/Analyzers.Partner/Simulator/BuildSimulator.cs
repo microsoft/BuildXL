@@ -65,7 +65,7 @@ namespace BuildXL.Execution.Analyzer
         public bool[] IncludedExecutionSteps = new bool[EnumTraits<PipExecutionStep>.MaxValue + 1];
         private static string resultsFormat;
 
-        private PipExecutionData m_executionData = new PipExecutionData();
+        private readonly PipExecutionData m_executionData = new PipExecutionData();
 
         public BuildSimulatorAnalyzer(AnalysisInput input)
             : base(input)

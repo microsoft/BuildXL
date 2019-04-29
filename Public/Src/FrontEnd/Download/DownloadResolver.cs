@@ -4,6 +4,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -13,26 +15,24 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.FrontEnd.Download.Tracing;
 using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Declarations;
-using BuildXL.Native.IO;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using ICSharpCode.SharpZipLib.Core;
 using ICSharpCode.SharpZipLib.GZip;
 using ICSharpCode.SharpZipLib.Tar;
 using ICSharpCode.SharpZipLib.Zip;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
-using System.ComponentModel;
-using System.Diagnostics;
-using BuildXL.FrontEnd.Sdk.Evaluation;
 
 namespace BuildXL.FrontEnd.Download
 {

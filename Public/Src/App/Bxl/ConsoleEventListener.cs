@@ -9,20 +9,18 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
-using System.Threading;
+using BuildXL.Visualization.Models;
 using Strings = bxl.Strings;
-
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
 using System.Diagnostics.Tracing;
 #endif
-
-using BuildXL.Visualization.Models;
 
 namespace BuildXL
 {
@@ -33,7 +31,7 @@ namespace BuildXL
     {
         private const int DefaultMaxStatusPips = 5;
 
-        private static char[] s_newLineCharArray = Environment.NewLine.ToCharArray();
+        private static readonly char[] s_newLineCharArray = Environment.NewLine.ToCharArray();
 
         private readonly IConsole m_console;
 
@@ -47,7 +45,7 @@ namespace BuildXL
         /// <summary>
         /// The full path to the logs directory
         /// </summary>
-        private string m_logsDirectory;
+        private readonly string m_logsDirectory;
 
         /// <summary>
         /// Creates a new instance with optional colorization.

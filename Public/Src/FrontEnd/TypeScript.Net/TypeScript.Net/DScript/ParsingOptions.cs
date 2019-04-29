@@ -1,9 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-// TODO: Remove old namespace after migrating OSGTools
-// https://microsoft.visualstudio.com/_git/OSGTools?path=%2Fsrc%2FMicrosoft%2FInternal%2FWindows%2FTools%2FModularBuild%2FNative2Pbxproj%2FExe%2FModels%2FTypescriptParser.cs&version=GBmaster
-// to new namespace, and change ParsingOptions back to sealed.
 namespace TypeScript.Net.BuildXLScript
 {
     /// <summary>

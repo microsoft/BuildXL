@@ -4,10 +4,10 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Script.Debugger.Tracing;
 using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.FrontEnd.Script.Debugger
 {

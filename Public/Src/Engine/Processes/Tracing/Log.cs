@@ -5,12 +5,6 @@ using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-
-#else
-using System.Diagnostics.Tracing;
-#endif
-
 #pragma warning disable 1591
 
 namespace BuildXL.Processes.Tracing
@@ -413,7 +407,7 @@ namespace BuildXL.Processes.Tracing
             (int)EventId.LogDetoursMaxHeapSize,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Diagnostics),
             EventTask = (int)Events.Tasks.PipExecutor,
             Message = Events.PipPrefix + "Maximum detours heap size for process in the pip is {maxDetoursHeapSizeInBytes} bytes. The processName '{processName}'. The processId is: {processId}. The manifestSize in bytes is: {manifestSizeInBytes}. The finalDetoursHeapSize in bytes is: {finalDetoursHeapSizeInBytes}. The allocatedPoolEntries is: {allocatedPoolEntries}. The maxHandleMapEntries is: {maxHandleMapEntries}. The handleMapEntries is: {handleMapEntries}.")]
         public abstract void LogDetoursMaxHeapSize(
@@ -888,5 +882,23 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Events.Tasks.PipExecutor,
             Message = Events.PipPrefix + "Process was specified to run in a container, but this capability is not available on this machine.")]
         public abstract void PipSpecifiedToRunInContainerButIsolationIsNotSupported(LoggingContext context, long pipSemiStableHash, string pipDescription);
+
+        [GeneratedEvent(
+            (int) EventId.PipProcessStartExternalTool,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "Process execution via external tool '{tool}' starts")]
+        public abstract void PipProcessStartExternalTool(LoggingContext context, long pipSemiStableHash, string pipDescription, string tool);
+
+        [GeneratedEvent(
+            (int)EventId.PipProcessFinishedExternalTool,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "Process execution via external tool finished with the tool's exit code {exitCode}:{stdOut}{stdErr}")]
+        public abstract void PipProcessFinishedExternalTool(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
     }
 }

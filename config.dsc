@@ -74,7 +74,7 @@ config({
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
 
                 // Roslyn
-                { id: "Microsoft.Net.Compilers", version: "2.10.0" },
+                { id: "Microsoft.Net.Compilers", version: "3.0.0" },
                 { id: "Microsoft.NETCore.Compilers", version: "2.10.0" },
                 { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0" },

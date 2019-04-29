@@ -137,7 +137,7 @@ function runTest(args : TestRunArguments) : File[] {
         qTestLogs: logDir,
         tags: args.tags,
         weight: args.weight,
-        qCodeCoverageEnumType: Environment.hasVariable("[Sdk.BuildXL]QCodeCoverageEnumType") ? f`${Environment.getStringValue("[Sdk.BuildXL]QCodeCoverageEnumType")}` : "None",
+        qCodeCoverageEnumType: Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? f`${Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")}` : "None",
         zipSandbox : Environment.hasVariable("[Sdk.BuildXL]zipSandbox"),
     });
 

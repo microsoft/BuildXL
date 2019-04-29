@@ -388,8 +388,9 @@ namespace Test.BuildXL.TestUtilities
             }
 
             /// <inheritdoc />
-            public void ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
+            public bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
             {
+                return true;
             }
         }
 

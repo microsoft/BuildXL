@@ -256,7 +256,7 @@ namespace Test.BuildXL.FingerprintStore
         /// 2. A cache hit will still refresh the age of an entry. With incremental scheduling disabled,
         /// a pip must be completely removed from the build to be garbage collected.
         /// </summary>
-        [Fact(Skip = "Bug 1513463")]
+        [Fact]
         public void VerifyGarbageCollectWorks()
         {
             var testHooks = new SchedulerTestHooks()

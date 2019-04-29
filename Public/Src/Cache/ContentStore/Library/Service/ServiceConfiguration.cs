@@ -55,7 +55,8 @@ namespace BuildXL.Cache.ContentStore.Service
             uint maxConnections,
             uint gracefulShutdownSeconds,
             int grpcPort,
-            string grpcPortFileName = null)
+            string grpcPortFileName = null,
+            int? bufferSizeForGrpcCopies = null)
         {
             Contract.Requires(namedCacheRoots != null);
 
@@ -65,6 +66,7 @@ namespace BuildXL.Cache.ContentStore.Service
             GracefulShutdownSeconds = gracefulShutdownSeconds;
             GrpcPort = (uint)grpcPort;
             GrpcPortFileName = grpcPortFileName;
+            BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             Initialize();
         }
 
@@ -77,7 +79,8 @@ namespace BuildXL.Cache.ContentStore.Service
             uint maxConnections,
             uint gracefulShutdownSeconds,
             int grpcPort,
-            string grpcPortFileName = null)
+            string grpcPortFileName = null,
+            int? bufferSizeForGrpcCopies = null)
             : this(namedCacheRootsRaw.ToDictionary(x => x.Key, v => new AbsolutePath(v.Value)), dataRootPath, maxConnections, gracefulShutdownSeconds, grpcPort, grpcPortFileName)
         {
             Contract.Requires(dataRootPath != null);
@@ -117,6 +120,12 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         [DataMember]
         public string GrpcPortFileName { get; private set; }
+
+        /// <summary>
+        /// Gets the buffer size used during streaming for GRPC copies.
+        /// </summary>
+        [DataMember]
+        public int? BufferSizeForGrpcCopies { get; set; }
 
         /// <summary>
         ///     Gets the named cache roots.
@@ -253,6 +262,7 @@ namespace BuildXL.Cache.ContentStore.Service
             sb.AppendFormat(", GracefulShutdownSeconds={0}", GracefulShutdownSeconds);
             sb.AppendFormat(", GrpcPort={0}", GrpcPort);
             sb.AppendFormat(", GrcpPortFileName={0}", GrpcPortFileName);
+            sb.AppendFormat(", BufferSizeForGrpcCopies={0}", BufferSizeForGrpcCopies);
 
             return sb.ToString();
         }

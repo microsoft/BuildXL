@@ -538,6 +538,12 @@ namespace BuildXL.Processes
                 return false;
             }
 
+            // Special case seen with vstest.console.exe
+            if (string.IsNullOrEmpty(path))
+            {
+                return true;
+            }
+
             // If there is a listener registered and notifications allowed, notify over the interface.
             if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.FileAccessNotify) != 0)
             {
@@ -554,18 +560,12 @@ namespace BuildXL.Processes
                     shareMode,
                     creationDisposition,
                     flagsAndAttributes,
-                    path == null ? manifestPath.ToString(m_pathTable) : path,
+                    path,
                     processArgs);
             }
 
             // If there is a listener registered that disables the collection of data in the collections, just exit.
             if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.FileAccessCollect) == 0)
-            {
-                return true;
-            }
-
-            // Special case seen with vstest.console.exe
-            if (path.Length == 0)
             {
                 return true;
             }
@@ -700,7 +700,7 @@ namespace BuildXL.Processes
                 string line,
                 out uint processId,
                 out string processName,
-                out Pips.IOCounters ioCounters,
+                out IOCounters ioCounters,
                 out DateTime creationDateTime,
                 out DateTime exitDateTime,
                 out TimeSpan kernelTime,
@@ -793,10 +793,10 @@ namespace BuildXL.Processes
                     fileTime += userLowDateTime;
                     userTime = TimeSpan.FromTicks(fileTime);
 
-                    ioCounters = new BuildXL.Pips.IOCounters(
-                        new BuildXL.Pips.IOTypeCounters(readOperationCount, readTransferCount),
-                        new BuildXL.Pips.IOTypeCounters(writeOperationCount, writeTransferCount),
-                        new BuildXL.Pips.IOTypeCounters(otherOperationCount, otherTransferCount));
+                    ioCounters = new IOCounters(
+                        new IOTypeCounters(readOperationCount, readTransferCount),
+                        new IOTypeCounters(writeOperationCount, writeTransferCount),
+                        new IOTypeCounters(otherOperationCount, otherTransferCount));
                     return true;
                 }
 

@@ -289,6 +289,24 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Writes a FileOrDirectoryArtifact
+        /// </summary>
+        public void Write(FileOrDirectoryArtifact value)
+        {
+            Start<FileOrDirectoryArtifact>();
+            Write(value.IsFile);
+            if (value.IsFile)
+            {
+                Write(value.FileArtifact);
+            }
+            else
+            {
+                Write(value.DirectoryArtifact);
+            }
+            End();
+        }
+
+        /// <summary>
         /// Writes a ReadOnlyArray
         /// </summary>
         public void Write<T>(ReadOnlyArray<T> value, Action<BuildXLWriter, T> writer)
@@ -393,7 +411,18 @@ namespace BuildXL.Utilities
         public void Write(DateTime value)
         {
             Start<DateTime>();
-            this.Write(value.ToBinary());
+            Write(value.ToBinary());
+            End();
+        }
+
+        /// <summary>
+        /// Writes an encoding.
+        /// </summary>
+        public void Write(Encoding value)
+        {
+            Contract.Requires(value != null);
+            Start<Encoding>();
+            Write(value.CodePage);
             End();
         }
 

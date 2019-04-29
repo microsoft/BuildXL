@@ -997,7 +997,13 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_RunInContainerAndAllowDoubleWrites" xml:space="preserve">
     <value>Configures the default for all scheduled pips to run in a container with output isolation, allowing double writes to occur. Individual pips can override this setting. This is an unsafe option.</value>
   </data>
+  <data name="HelpText_DisplayHelp_AdminRequiredProcessExecutionMode" xml:space="preserve">
+    <value>Mode for running processes that required admin privilege. Allowed values are 'Internal' (BuildXL starts the process as an immediate child process), 'ExternalTool' (BuildXL starts a sandboxed process executor tool as a child process, and in turn the tool starts the admin-required process as its child process), 'ExternalVM' (BuildXL sends command to VM to execute a sandboxed process executor tool in VM, and in turn the tool starts the admin-required process as its child process) . For Internal and ExternalTool, the process will be run with the same elevation level as BuildXL. For ExternalVM, the process will be run with the elevation level in the VM. Defaults to 'Internal'.</value>
+  </data>
   <data name="HelpText_DisplayHelp_AdditionalConfigFile" xml:space="preserve">
     <value>Additional configuration files that can contain module definitions (short form: /ac)</value>
+  </data>
+  <data name="Args_AdminRequiredProcessExecutionMode_NotSupportedOnNonWindows" xml:space="preserve">
+    <value>Admin-required process execution mode '{0}' is not supported on non-Windows OS</value>
   </data>
 </root>

@@ -58,43 +58,6 @@ namespace BuildXL.Processes
         // Compute if WCI and Bind are available on this machine
         private static readonly bool s_isIsolationSupported = ProcessUtilities.IsWciAndBindFiltersAvailable();
 
-        private readonly struct ExpandedRegexDescriptor : IEquatable<ExpandedRegexDescriptor>
-        {
-            public readonly string Pattern;
-            public readonly RegexOptions Options;
-
-            public ExpandedRegexDescriptor(StringTable stringTable, RegexDescriptor descriptor)
-            {
-                Pattern = stringTable.GetString(descriptor.Pattern);
-                Options = descriptor.Options;
-            }
-
-            public bool Equals(ExpandedRegexDescriptor other)
-            {
-                return Pattern == other.Pattern && Options == other.Options;
-            }
-
-            public override int GetHashCode()
-            {
-                return HashCodeHelper.Combine(Pattern.GetHashCode(), (int)Options);
-            }
-
-            public override bool Equals(object obj)
-            {
-                return obj is ExpandedRegexDescriptor && Equals((ExpandedRegexDescriptor)obj);
-            }
-
-            public static bool operator ==(ExpandedRegexDescriptor left, ExpandedRegexDescriptor right)
-            {
-                return left.Equals(right);
-            }
-
-            public static bool operator !=(ExpandedRegexDescriptor left, ExpandedRegexDescriptor right)
-            {
-                return !(left == right);
-            }
-        }
-
         /// <summary>
         /// The maximum number that this executor will try to launch the given process pip.
         /// </summary>
@@ -280,14 +243,14 @@ namespace BuildXL.Processes
 
             if (pip.WarningRegex.IsValid)
             {
-                var expandedDescriptor = new ExpandedRegexDescriptor(context.StringTable, pip.WarningRegex);
+                var expandedDescriptor = new ExpandedRegexDescriptor(pip.WarningRegex.Pattern.ToString(context.StringTable), pip.WarningRegex.Options);
                 m_warningRegexTask = GetRegexAsync(expandedDescriptor);
                 m_warningRegexIsDefault = RegexDescriptor.IsDefault(expandedDescriptor.Pattern, expandedDescriptor.Options);
             }
 
             if (pip.ErrorRegex.IsValid)
             {
-                var expandedDescriptor = new ExpandedRegexDescriptor(context.StringTable, pip.ErrorRegex);
+                var expandedDescriptor = new ExpandedRegexDescriptor(pip.ErrorRegex.Pattern.ToString(context.StringTable), pip.ErrorRegex.Options);
                 m_errorRegexTask = GetRegexAsync(expandedDescriptor);
             }
 
@@ -606,7 +569,7 @@ namespace BuildXL.Processes
         {
             try
             {
-                System.Diagnostics.Stopwatch sandboxPrepTime = System.Diagnostics.Stopwatch.StartNew();
+                var sandboxPrepTime = System.Diagnostics.Stopwatch.StartNew();
                 var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(m_pip, m_pipDataRenderer);
 
                 if (!PrepareWorkingDirectory())
@@ -651,191 +614,44 @@ namespace BuildXL.Processes
 
                     string executable = m_pip.Executable.Path.ToString(m_pathTable);
                     string arguments = m_pip.Arguments.ToString(m_pipDataRenderer);
-
-                    Action<string> observer = m_warningRegexTask == null ? null : (Action<string>)Observe;
-
                     m_timeout = GetEffectiveTimeout(m_pip.Timeout, m_sandboxConfig.DefaultTimeout, m_sandboxConfig.TimeoutMultiplier);
 
-                    using (Stream standardInputStream = TryOpenStandardInputStream(out bool openStandardInputStreamSuccess))
+                    SandboxedProcessInfo info = new SandboxedProcessInfo(
+                        m_pathTable,
+                        this,
+                        executable,
+                        m_fileAccessManifest,
+                        m_disableConHostSharing,
+                        m_containerConfiguration,
+                        m_pip.TestRetries,
+                        m_loggingContext,
+                        sandboxedKextConnection: sandboxedKextConnection)
                     {
-                        if (!openStandardInputStreamSuccess)
-                        {
-                            return SandboxedProcessPipExecutionResult.PreparationFailure();
-                        }
+                        Arguments = arguments,
+                        WorkingDirectory = m_workingDirectory,
+                        RootMappings = m_rootMappings,
+                        EnvironmentVariables = environmentVariables,
+                        Timeout = m_timeout,
+                        PipSemiStableHash = m_pip.SemiStableHash,
+                        PipDescription = m_pip.GetDescription(m_context),
+                        ProcessIdListener = m_processIdListener,
+                        TimeoutDumpDirectory = ComputePipTimeoutDumpDirectory(m_sandboxConfig, m_pip, m_pathTable),
+                        SandboxKind = m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind,
+                        AllowedSurvivingChildProcessNames = m_pip.AllowedSurvivingChildProcessNames.Select(n => n.ToString(m_pathTable.StringTable)).ToArray(),
+                        NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
+                    };
 
-                        using (StreamReader standardInputReader = standardInputStream == null ? null : new StreamReader(standardInputStream, CharUtilities.Utf8NoBomNoThrow))
-                        {
-                            var info =
-                                new SandboxedProcessInfo(
-                                    m_pathTable,
-                                    this,
-                                    executable,
-                                    m_fileAccessManifest,
-                                    m_disableConHostSharing,
-                                    m_containerConfiguration,
-                                    m_pip.TestRetries,
-                                    m_loggingContext,
-                                    sandboxedKextConnection: sandboxedKextConnection)
-                                {
-                                    Arguments = arguments,
-                                    WorkingDirectory = m_workingDirectory,
-                                    StandardInputReader = standardInputReader,
-                                    StandardInputEncoding = standardInputReader?.CurrentEncoding,
-
-                                    // MaxLengthInMemory, TODO: We could let the Process Pip configure this
-                                    // BufferSize, TODO: We could let the Process Pip configure this
-                                    StandardErrorObserver = observer,
-                                    StandardOutputObserver = observer,
-                                    RootMappings = m_rootMappings,
-                                    EnvironmentVariables = environmentVariables,
-                                    Timeout = m_timeout,
-                                    PipSemiStableHash = m_pip.SemiStableHash,
-                                    PipDescription = m_pip.GetDescription(m_context),
-                                    ProcessIdListener = m_processIdListener,
-                                    TimeoutDumpDirectory = ComputePipTimeoutDumpDirectory(m_sandboxConfig, m_pip, m_pathTable),
-                                    SandboxKind = m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind,
-                                    AllowedSurvivingChildProcessNames = m_pip.AllowedSurvivingChildProcessNames.Select(n => n.ToString(m_pathTable.StringTable)).ToArray(),
-                                    NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
-                                };
-
-                            if (info.GetCommandLine().Length > SandboxedProcessInfo.MaxCommandLineLength)
-                            {
-                                LogCommandLineTooLong(info);
-                                return SandboxedProcessPipExecutionResult.PreparationFailure();
-                            }
-
-                            if (!await TryInitializeWarningRegexAsync())
-                            {
-                                return SandboxedProcessPipExecutionResult.PreparationFailure();
-                            }
-
-                            sandboxPrepTime.Stop();
-                            ISandboxedProcess process = null;
-
-                            // Sometimes the injection of Detours fails with error ERROR_PARTIAL_COPY (0x12b)
-                            // This is random failure, not consistent at all and it seems to be in the lower levels of
-                            // Detours. If we get such error attempt running the process up to RetryStartCount times
-                            // before bailing out and reporting an error.
-                            int processLaunchRetryCount = 0;
-                            long maxDetoursHeapSize = 0L;
-                            bool shouldRelaunchProcess = true;
-
-                            while (shouldRelaunchProcess)
-                            {
-                                try
-                                {
-                                    shouldRelaunchProcess = false;
-
-                                    // If the process should be run in a container, we (verbose) log the remapping information
-                                    if (m_containerConfiguration.IsIsolationEnabled)
-                                    {
-                                        // If the process was specified to run in a container but isolation is not supported, then we bail out
-                                        // before even trying to run the process
-                                        if (!s_isIsolationSupported)
-                                        {
-                                            Tracing.Logger.Log.PipSpecifiedToRunInContainerButIsolationIsNotSupported(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
-                                            return SandboxedProcessPipExecutionResult.PreparationFailure(processLaunchRetryCount, (int)EventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported, maxDetoursHeapSize: maxDetoursHeapSize);
-                                        }
-
-                                        Tracing.Logger.Log.PipInContainerStarting(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), m_containerConfiguration.ToDisplayString());
-                                    }
-
-                                    process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: false);
-
-                                    // If the process started in a container, the setup of it is ready at this point, so we (verbose) log it
-                                    if (m_containerConfiguration.IsIsolationEnabled)
-                                    {
-                                        Tracing.Logger.Log.PipInContainerStarted(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
-                                    }
-                                }
-                                catch (BuildXLException ex)
-                                {
-                                    if (ex.LogEventErrorCode == NativeIOConstants.ErrorFileNotFound)
-                                    {
-                                        LocationData location = m_pip.Provenance.Token;
-                                        string specFile = location.Path.ToString(m_pathTable);
-
-                                        Tracing.Logger.Log.PipProcessStartFailed(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), 2,
-                                            string.Format(CultureInfo.InvariantCulture, "File '{0}' was not found on disk. The tool is referred in '{1}({2})'.", executable, specFile, location.Position));
-                                    }
-                                    else if (ex.LogEventErrorCode == NativeIOConstants.ErrorPartialCopy && (processLaunchRetryCount < ProcessLaunchRetryCountMax))
-                                    {
-                                        processLaunchRetryCount++;
-                                        shouldRelaunchProcess = true;
-                                        Tracing.Logger.Log.RetryStartPipDueToErrorPartialCopyDuringDetours(
-                                            m_loggingContext,
-                                            m_pip.SemiStableHash,
-                                            m_pip.GetDescription(m_context),
-                                            ex.LogEventErrorCode,
-                                            processLaunchRetryCount);
-
-                                        // We are about to retry a process execution.
-                                        // Make sure we wait for the process to end. This way the reporting messages get flushed.
-                                        if (process != null)
-                                        {
-                                            maxDetoursHeapSize = process.GetDetoursMaxHeapSize();
-
-                                            try
-                                            {
-                                                await process.GetResultAsync();
-                                            }
-                                            finally
-                                            {
-                                                process.Dispose();
-                                            }
-                                        }
-
-                                        continue;
-                                    }
-                                    else
-                                    {
-                                        // not all start failures map to Win32 error code, so we have a message here too
-                                        Tracing.Logger.Log.PipProcessStartFailed(
-                                            m_loggingContext,
-                                            m_pip.SemiStableHash,
-                                            m_pip.GetDescription(m_context),
-                                            ex.LogEventErrorCode,
-                                            ex.LogEventMessage);
-                                    }
-
-                                    return SandboxedProcessPipExecutionResult.PreparationFailure(processLaunchRetryCount, ex.LogEventErrorCode, maxDetoursHeapSize: maxDetoursHeapSize);
-                                }
-                            }
-
-                            using (var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_context.CancellationToken))
-                            {
-                                var cancellationTokenRegistration = cancellationTokenSource.Token.Register(() => process.KillAsync());
-
-                                SandboxedProcessResult result;
-
-                                int lastMessageCount;
-
-                                try
-                                {
-                                    m_activeProcess = process;
-                                    result = await process.GetResultAsync();
-                                    lastMessageCount = process.GetLastMessageCount();
-                                }
-                                finally
-                                {
-                                    m_activeProcess = null;
-                                    cancellationTokenRegistration.Dispose();
-                                    process.Dispose();
-                                }
-
-                                result.NumberOfProcessLaunchRetries = processLaunchRetryCount;
-                                SandboxedProcessPipExecutionResult executionResult =
-                                    await
-                                        ProcessSandboxedProcessResultAsync(
-                                            m_loggingContext,
-                                            result,
-                                            sandboxPrepTime.ElapsedMilliseconds,
-                                            cancellationTokenSource.Token,
-                                            process.GetDetoursMaxHeapSize(),
-                                            allInputPathsUnderSharedOpaques);
-                                return ValidateDetoursCommunication(executionResult, lastMessageCount);
-                            }
-                        }
+                    if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal
+                        || !m_pip.RequiresAdmin
+                        || m_processIdListener != null
+                        || m_containerConfiguration.IsIsolationEnabled
+                        || OperatingSystemHelper.IsUnixOS)
+                    {
+                        return await RunInternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+                    }
+                    else
+                    {
+                        return await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
                     }
                 }
             }
@@ -843,19 +659,267 @@ namespace BuildXL.Processes
             {
                 Contract.Assert(m_fileAccessManifest != null);
 
-                // Always dispose the semaphore.
-                if (m_fileAccessManifest.MessageCountSemaphore != null)
+                m_fileAccessManifest.UnsetMessageCountSemaphore();
+            }
+        }
+
+        private async Task<SandboxedProcessPipExecutionResult> RunInternalAsync(
+            SandboxedProcessInfo info,
+            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
+            System.Diagnostics.Stopwatch sandboxPrepTime,
+            CancellationToken cancellationToken = default)
+        {
+            using (Stream standardInputStream = TryOpenStandardInputStream(out bool openStandardInputStreamSuccess))
+            {
+                if (!openStandardInputStreamSuccess)
                 {
-                    m_fileAccessManifest.MessageCountSemaphore.Dispose();
-                    m_fileAccessManifest.MessageCountSemaphore = null;
+                    return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
+
+                using (StreamReader standardInputReader = standardInputStream == null ? null : new StreamReader(standardInputStream, CharUtilities.Utf8NoBomNoThrow))
+                {
+                    info.StandardInputReader = standardInputReader;
+                    info.StandardInputEncoding = standardInputReader?.CurrentEncoding;
+
+                    Action<string> observer = m_warningRegexTask == null ? null : (Action<string>)Observe;
+
+                    info.StandardOutputObserver = observer;
+                    info.StandardErrorObserver = observer;
+
+                    if (info.GetCommandLine().Length > SandboxedProcessInfo.MaxCommandLineLength)
+                    {
+                        LogCommandLineTooLong(info);
+                        return SandboxedProcessPipExecutionResult.PreparationFailure();
+                    }
+
+                    if (!await TryInitializeWarningRegexAsync())
+                    {
+                        return SandboxedProcessPipExecutionResult.PreparationFailure();
+                    }
+
+                    sandboxPrepTime.Stop();
+                    ISandboxedProcess process = null;
+
+                    // Sometimes the injection of Detours fails with error ERROR_PARTIAL_COPY (0x12b)
+                    // This is random failure, not consistent at all and it seems to be in the lower levels of
+                    // Detours. If we get such error attempt running the process up to RetryStartCount times
+                    // before bailing out and reporting an error.
+                    int processLaunchRetryCount = 0;
+                    long maxDetoursHeapSize = 0L;
+                    bool shouldRelaunchProcess = true;
+
+                    while (shouldRelaunchProcess)
+                    {
+                        try
+                        {
+                            shouldRelaunchProcess = false;
+
+                            // If the process should be run in a container, we (verbose) log the remapping information
+                            if (m_containerConfiguration.IsIsolationEnabled)
+                            {
+                                // If the process was specified to run in a container but isolation is not supported, then we bail out
+                                // before even trying to run the process
+                                if (!s_isIsolationSupported)
+                                {
+                                    Tracing.Logger.Log.PipSpecifiedToRunInContainerButIsolationIsNotSupported(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
+                                    return SandboxedProcessPipExecutionResult.PreparationFailure(processLaunchRetryCount, (int)EventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported, maxDetoursHeapSize: maxDetoursHeapSize);
+                                }
+
+                                Tracing.Logger.Log.PipInContainerStarting(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), m_containerConfiguration.ToDisplayString());
+                            }
+
+                            process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: false);
+
+                            // If the process started in a container, the setup of it is ready at this point, so we (verbose) log it
+                            if (m_containerConfiguration.IsIsolationEnabled)
+                            {
+                                Tracing.Logger.Log.PipInContainerStarted(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
+                            }
+                        }
+                        catch (BuildXLException ex)
+                        {
+                            if (ex.LogEventErrorCode == NativeIOConstants.ErrorFileNotFound)
+                            {
+                                LocationData location = m_pip.Provenance.Token;
+                                string specFile = location.Path.ToString(m_pathTable);
+
+                                Tracing.Logger.Log.PipProcessStartFailed(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), 2,
+                                    string.Format(CultureInfo.InvariantCulture, "File '{0}' was not found on disk. The tool is referred in '{1}({2})'.", info.FileName, specFile, location.Position));
+                            }
+                            else if (ex.LogEventErrorCode == NativeIOConstants.ErrorPartialCopy && (processLaunchRetryCount < ProcessLaunchRetryCountMax))
+                            {
+                                processLaunchRetryCount++;
+                                shouldRelaunchProcess = true;
+                                Tracing.Logger.Log.RetryStartPipDueToErrorPartialCopyDuringDetours(
+                                    m_loggingContext,
+                                    m_pip.SemiStableHash,
+                                    m_pip.GetDescription(m_context),
+                                    ex.LogEventErrorCode,
+                                    processLaunchRetryCount);
+
+                                // We are about to retry a process execution.
+                                // Make sure we wait for the process to end. This way the reporting messages get flushed.
+                                if (process != null)
+                                {
+                                    maxDetoursHeapSize = process.GetDetoursMaxHeapSize();
+
+                                    try
+                                    {
+                                        await process.GetResultAsync();
+                                    }
+                                    finally
+                                    {
+                                        process.Dispose();
+                                    }
+                                }
+
+                                continue;
+                            }
+                            else
+                            {
+                                // not all start failures map to Win32 error code, so we have a message here too
+                                Tracing.Logger.Log.PipProcessStartFailed(
+                                    m_loggingContext,
+                                    m_pip.SemiStableHash,
+                                    m_pip.GetDescription(m_context),
+                                    ex.LogEventErrorCode,
+                                    ex.LogEventMessage);
+                            }
+
+                            return SandboxedProcessPipExecutionResult.PreparationFailure(processLaunchRetryCount, ex.LogEventErrorCode, maxDetoursHeapSize: maxDetoursHeapSize);
+                        }
+                    }
+
+                    return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+                }
+            }
+        }
+
+        private async Task<SandboxedProcessPipExecutionResult> RunExternalAsync(
+            SandboxedProcessInfo info,
+            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
+            System.Diagnostics.Stopwatch sandboxPrepTime,
+            CancellationToken cancellationToken = default)
+        {
+            StandardInputInfo standardInputSource = m_pip.StandardInput.IsData
+                ? StandardInputInfo.CreateForData(m_pip.StandardInput.Data.ToString(m_context.PathTable))
+                : (m_pip.StandardInput.IsFile
+                    ? StandardInputInfo.CreateForFile(m_pip.StandardInput.File.Path.ToString(m_context.PathTable))
+                    : null);
+
+            info.StandardInputSourceInfo = standardInputSource;
+
+            if (m_pip.WarningRegex.IsValid)
+            {
+                var observerDescriptor = new SandboxObserverDescriptor
+                {
+                    WarningRegex = new ExpandedRegexDescriptor(m_pip.WarningRegex.Pattern.ToString(m_context.StringTable), m_pip.WarningRegex.Options)
+                };
+
+                info.StandardObserverDescriptor = observerDescriptor;
+            }
+
+            // Preparation should be finished.
+            sandboxPrepTime.Stop();
+            ISandboxedProcess process = null;
+
+            try
+            {
+                if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalTool)
+                {
+                    string toolPath = Path.Combine(
+                        m_layoutConfiguration.BuildEngineDirectory.ToString(m_context.PathTable),
+                        ExternalToolSandboxedProcess.DefaultToolRelativePath);
+
+                    Tracing.Logger.Log.PipProcessStartExternalTool(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), toolPath);
+
+                    process = await ExternalToolSandboxedProcess.StartAsync(info, toolPath);
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+            }
+            catch (BuildXLException ex)
+            {
+                Tracing.Logger.Log.PipProcessStartFailed(
+                    m_loggingContext,
+                    m_pip.SemiStableHash,
+                    m_pip.GetDescription(m_context),
+                    ex.LogEventErrorCode,
+                    ex.LogEventMessage);
+
+                return SandboxedProcessPipExecutionResult.PreparationFailure(0, ex.LogEventErrorCode);
+            }
+
+            return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+        }
+
+        private async Task<SandboxedProcessPipExecutionResult> GetAndProcessResultAsync(
+            ISandboxedProcess process,
+            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
+            System.Diagnostics.Stopwatch sandboxPrepTime,
+            CancellationToken cancellationToken)
+        {
+            using (var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_context.CancellationToken))
+            {
+                var cancellationTokenRegistration = cancellationTokenSource.Token.Register(() => process.KillAsync());
+
+                SandboxedProcessResult result;
+
+                int lastMessageCount = 0;
+                bool isMessageCountSemaphoreCreated = false;
+
+                try
+                {
+                    m_activeProcess = process;
+                    result = await process.GetResultAsync();
+                    lastMessageCount = process.GetLastMessageCount() + result.LastMessageCount;
+                    m_numWarnings += result.WarningCount;
+                    isMessageCountSemaphoreCreated = m_fileAccessManifest.MessageCountSemaphore != null || result.MessageCountSemaphoreCreated;
+
+                    if (process is ExternalSandboxedProcess externalSandboxedProcess)
+                    {
+                        Tracing.Logger.Log.PipProcessFinishedExternalTool(
+                            m_loggingContext,
+                            m_pip.SemiStableHash,
+                            m_pip.GetDescription(m_context),
+                            externalSandboxedProcess.ExitCode ?? -1,
+                            Environment.NewLine + "StdOut:" + Environment.NewLine + externalSandboxedProcess.StdOut,
+                            Environment.NewLine + "StdErr:" + Environment.NewLine + externalSandboxedProcess.StdErr);
+                    }
+                }
+                finally
+                {
+                    m_activeProcess = null;
+                    cancellationTokenRegistration.Dispose();
+                    process.Dispose();
+                }
+
+                SandboxedProcessPipExecutionResult executionResult =
+                    await
+                        ProcessSandboxedProcessResultAsync(
+                            m_loggingContext,
+                            result,
+                            sandboxPrepTime.ElapsedMilliseconds,
+                            cancellationTokenSource.Token,
+                            process.GetDetoursMaxHeapSize() + result.DetoursMaxHeapSize,
+                            allInputPathsUnderSharedOpaques);
+
+                return ValidateDetoursCommunication(
+                    executionResult,
+                    lastMessageCount,
+                    isMessageCountSemaphoreCreated);
             }
         }
 
         /// <summary>
         /// These various validations that the detours communication channel
         /// </summary>
-        private SandboxedProcessPipExecutionResult ValidateDetoursCommunication(SandboxedProcessPipExecutionResult result, int lastMessageCount)
+        private SandboxedProcessPipExecutionResult ValidateDetoursCommunication(
+            SandboxedProcessPipExecutionResult result, 
+            int lastMessageCount,
+            bool isMessageSemaphoreCountCreated)
         {
             // If we have a failure already, that could have cause some of the mismatch in message count of writing the side communication file.
             if (result.Status == SandboxedProcessPipExecutionStatus.Succeeded && !string.IsNullOrEmpty(m_detoursFailuresFile))
@@ -892,7 +956,7 @@ namespace BuildXL.Processes
                 // a pip running longer than the timeout (5 hours). The pip gets killed and in such cases the message count mismatch
                 // is legitimate.
                 // Report a counter mismatch only if there are no other errors.
-                if (result.Status == SandboxedProcessPipExecutionStatus.Succeeded && m_fileAccessManifest.MessageCountSemaphore != null)
+                if (result.Status == SandboxedProcessPipExecutionStatus.Succeeded && isMessageSemaphoreCountCreated)
                 {
                     if (lastMessageCount != 0)
                     {
@@ -902,25 +966,7 @@ namespace BuildXL.Processes
                             m_pip.GetDescription(m_context),
                             lastMessageCount);
 
-                        return new SandboxedProcessPipExecutionResult(
-                            SandboxedProcessPipExecutionStatus.MismatchedMessageCount,
-                            result.ObservedFileAccesses,
-                            result.SharedDynamicDirectoryWriteAccesses,
-                            result.EncodedStandardOutput,
-                            result.EncodedStandardError,
-                            result.NumberOfWarnings,
-                            result.UnexpectedFileAccesses,
-                            result.PrimaryProcessTimes,
-                            result.JobAccountingInformation,
-                            result.NumberOfProcessLaunchRetries,
-                            result.ExitCode,
-                            result.SandboxPrepMs,
-                            result.ProcessSandboxedProcessResultMs,
-                            result.ProcessStartTimeMs,
-                            result.AllReportedFileAccesses,
-                            result.DetouringStatuses,
-                            result.MaxDetoursHeapSizeInBytes,
-                            result.ContainerConfiguration);
+                        return SandboxedProcessPipExecutionResult.MismatchedMessageCountFailure(result);
                     }
                 }
             }
@@ -1459,7 +1505,7 @@ namespace BuildXL.Processes
             m_fileAccessManifest.ReportProcessArgs = m_sandboxConfig.LogProcesses;
             m_fileAccessManifest.EnforceAccessPoliciesOnDirectoryCreation = m_sandboxConfig.EnforceAccessPoliciesOnDirectoryCreation;
 
-            bool allowInternalErrorsLogging = m_fileAccessManifest.AllowInternalDetoursErrorNotificationFile = m_sandboxConfig.AllowInternalDetoursErrorNotificationFile;
+            bool allowInternalErrorsLogging = m_sandboxConfig.AllowInternalDetoursErrorNotificationFile;
             bool checkMessageCount = m_fileAccessManifest.CheckDetoursMessageCount = m_sandboxConfig.CheckDetoursMessageCount;
 
             if (allowInternalErrorsLogging || checkMessageCount)
@@ -1478,11 +1524,12 @@ namespace BuildXL.Processes
                     }
 
                     // TODO: named semaphores are not supported in NetStandard2.0
-                    if (checkMessageCount && !OperatingSystemHelper.IsUnixOS)
+                    if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal 
+                        && checkMessageCount 
+                        && !OperatingSystemHelper.IsUnixOS)
                     {
                         // Semaphore names don't allow '\\' chars.
-                        m_fileAccessManifest.MessageCountSemaphore = new Semaphore(0, int.MaxValue, m_detoursFailuresFile.Replace('\\', '_'), out bool newCreated);
-                        if (!newCreated)
+                        if (!m_fileAccessManifest.SetMessageCountSemaphore(m_detoursFailuresFile.Replace('\\', '_')))
                         {
                             Tracing.Logger.Log.LogMessageCountSemaphoreExists(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
                             return false;

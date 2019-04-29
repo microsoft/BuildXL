@@ -51,6 +51,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             ["unsafeFirstDoubleWriteWins"] = DoubleWritePolicy.UnsafeFirstDoubleWriteWins,
         };
 
+        private static readonly Dictionary<string, bool> s_privilegeLevel = new Dictionary<string, bool>(StringComparer.Ordinal)
+        {
+            ["standard"] = false,
+            ["admin"]    = true,
+        };
+
         // these values must be kept in sync with the ones defined on the BuildXL Script side
         private static readonly Dictionary<string, Process.AbsentPathProbeInUndeclaredOpaquesMode> s_absentPathProbeModes = new Dictionary<string, Process.AbsentPathProbeInUndeclaredOpaquesMode>(StringComparer.Ordinal)
         {
@@ -89,6 +95,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeDoubleWritePolicy;
         private SymbolAtom m_executeAllowUndeclaredSourceReads;
         private SymbolAtom m_executeKeepOutputsWritable;
+        private SymbolAtom m_privilegeLevel;
         private SymbolAtom m_disableCacheLookup;
         private SymbolAtom m_executeWarningRegex;
         private SymbolAtom m_executeErrorRegex;
@@ -221,6 +228,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeAbsentPathProbeInUndeclaredOpaqueMode = Symbol("absentPathProbeInUndeclaredOpaquesMode");
 
             m_executeKeepOutputsWritable = Symbol("keepOutputsWritable");
+            m_privilegeLevel = Symbol("privilegeLevel");
             m_disableCacheLookup = Symbol("disableCacheLookup");
             m_executeTags = Symbol("tags");
             m_executeServiceShutdownCmd = Symbol("serviceShutdownCmd");
@@ -487,6 +495,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (keepOutputsWritable == true)
             {
                 processBuilder.Options |= Process.Options.OutputsMustRemainWritable;
+            }
+
+            // Set outputs to remain writable.
+            var privilegeLevel = Converter.ExtractStringLiteral(obj, m_privilegeLevel, s_privilegeLevel.Keys, allowUndefined: true);
+            if (privilegeLevel != null && s_privilegeLevel.TryGetValue(privilegeLevel, out bool level) && level)
+            {
+                processBuilder.Options |= Process.Options.RequiresAdmin;
             }
 
             var absentPathProbeMode = Converter.ExtractStringLiteral(obj, m_executeAbsentPathProbeInUndeclaredOpaqueMode, s_absentPathProbeModes.Keys, allowUndefined: true);

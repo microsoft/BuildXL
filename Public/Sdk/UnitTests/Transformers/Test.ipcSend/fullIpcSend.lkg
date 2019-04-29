@@ -37,11 +37,12 @@ Transformer.createService({
     implicitOutputs: [f`./Out/service-stdout.txt`],
     consoleOutput: p`./Out/service-stdout.txt`,
 });
+Transformer.sealDirectory({root: d`./src/dir`, files: [f`./src/dir/file.txt`]});
 Transformer.ipcSend({
     connectRetryDelayMillis: 1000,
     maxConnectRetries: 2,
     fileDependencies: [f`./src/ipc-src.txt`],
-    lazilyMaterializedDependencies: [f`./src/ipc-src.txt`],
+    lazilyMaterializedDependencies: [f`./src/ipc-src.txt`, d`./src/dir`],
     messageBody: {
         escaping: "CRuntimeArgumentRules",
         separator: " ",

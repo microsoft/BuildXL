@@ -283,13 +283,13 @@ namespace BuildXL.FrontEnd.Script
 
             AbsolutePath ConvertPathFromLiteralToAbsolutePath(ILiteralExpression literal)
             {
-                if (RelativePath.TryCreate(Context.StringTable, literal.Text, out RelativePath importRelativePath))
-                {
-                    return configDirectory.Combine(Context.PathTable, importRelativePath);
-                }
-                else if (AbsolutePath.TryCreate(Context.PathTable, literal.Text, out AbsolutePath absolutePath))
+                if (AbsolutePath.TryCreate(Context.PathTable, literal.Text, out AbsolutePath absolutePath))
                 {
                     return absolutePath;
+                }
+                else if (RelativePath.TryCreate(Context.StringTable, literal.Text, out RelativePath importRelativePath))
+                {
+                    return configDirectory.Combine(Context.PathTable, importRelativePath);
                 }
                 else
                 {

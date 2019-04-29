@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
@@ -536,7 +537,9 @@ namespace BuildXL.Execution.Analyzer
                 m_html.CreateRow("OutputFile", pip.OutputFile),
                 m_html.CreateRow("ServicePip Dependencies", pip.ServicePipDependencies),
                 m_html.CreateRow("File Dependencies", pip.FileDependencies),
-                m_html.CreateRow("LazilyMaterialized Dependencies", pip.LazilyMaterializedDependencies),
+                m_html.CreateRow("Directory Dependencies", pip.DirectoryDependencies),
+                m_html.CreateRow("LazilyMaterialized File Dependencies", pip.LazilyMaterializedDependencies.Where(a => a.IsFile).Select(a => a.FileArtifact)),
+                m_html.CreateRow("LazilyMaterialized Directory Dependencies", pip.LazilyMaterializedDependencies.Where(a => a.IsDirectory).Select(a => a.DirectoryArtifact)),
                 m_html.CreateRow("IsServiceFinalization", pip.IsServiceFinalization),
                 m_html.CreateRow("MustRunOnMaster", pip.MustRunOnMaster));
         }

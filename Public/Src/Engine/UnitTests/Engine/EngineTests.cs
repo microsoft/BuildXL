@@ -18,6 +18,7 @@ using Test.BuildXL.Engine;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Engine.Tracing;
 
 namespace Test.BuildXL.EngineTests
 {
@@ -394,6 +395,17 @@ namespace Test.BuildXL.EngineTests
             RunEngine(expectSuccess: false);
 
             AssertErrorEventLogged(global::BuildXL.Engine.Tracing.LogEventId.ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent);
+        }
+
+        [Fact]
+        public void TestGraphCacheMissReason()
+        {
+            foreach (var missReason in Enum.GetValues(typeof(GraphCacheMissReason)))
+            {
+                var statistics = new GraphCacheCheckStatistics() { MissReason = (GraphCacheMissReason)missReason };
+                // Make sure all miss reasons are covered in the display text here
+                Console.WriteLine(statistics.MissMessageForConsole);
+            }
         }
 
         private void SetupTestData()

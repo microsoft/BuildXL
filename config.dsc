@@ -47,7 +47,6 @@ config({
             repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                 ? {
                     "BuildXL.Selfhost": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
-                    "BuildXL.Selfhost.MyGet": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost.MyGet/nuget/v3/index.json",
                   }
                 : {
                     "buildxl-selfhost" : "https://dotnet.myget.org/F/buildxl-selfhost/api/v3/index.json",
@@ -137,6 +136,7 @@ config({
                 // RocksDb
                 { id: "RocksDbSharp", version: "5.8.0-b20181023.3", alias: "RocksDbSharpSigned" },
                 { id: "RocksDbNative", version: "6.0.1-b20190426.3" },
+                { id: "JsonDiffPatch.Net", version: "2.1.0" },
 
                 // Event hubs
                 { id: "Microsoft.Azure.Amqp", version: "2.3.5" },
@@ -505,16 +505,6 @@ config({
                 targetFramework: "net472",
                 targetRuntime: "win-x64",
             },
-            DebugNet451: {
-                configuration: "debug",
-                targetFramework: "net451",
-                targetRuntime: "win-x64",
-            },
-            DebugNet461: {
-                configuration: "debug",
-                targetFramework: "net461",
-                targetRuntime: "win-x64",
-            },
             DebugNet472: {
                 configuration: "debug",
                 targetFramework: "net472",
@@ -535,16 +525,6 @@ config({
             Release: {
                 configuration: "release",
                 targetFramework: "net472",
-                targetRuntime: "win-x64",
-            },
-            ReleaseNet451: {
-                configuration: "release",
-                targetFramework: "net451",
-                targetRuntime: "win-x64",
-            },
-            ReleaseNet461: {
-                configuration: "release",
-                targetFramework: "net461",
                 targetRuntime: "win-x64",
             },
             ReleaseNet472: {

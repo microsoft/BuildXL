@@ -168,25 +168,28 @@ namespace Transformer {
             /** Set outputs to remain writable */
             keepOutputsWritable?: boolean;
 
-			/** Whether this process should run in an isolated container (i.e. filesystem isolation)
-			 * When running in a container, the isolation level can be controlled by 'containerIsolationLevel' field.
-			 * Note: this is an experimental feature for now, use at your own risk
-			 * Default is globally controlled by the sandbox configuration
-			 * */
-			runInContainer?: boolean;
+            /** Privilege level required by this process to execute. */
+            privilegeLevel?: "standard" | "admin";
 
-			/**
-			 * Configures which inputs and outputs of this process should be isolated.
-			 * Default is globally controlled by the sandbox configuration
-			 * TODO: input isolation is not implemented
-			 */
-			containerIsolationLevel?: ContainerIsolationLevel;
+            /** Whether this process should run in an isolated container (i.e. filesystem isolation)
+             * When running in a container, the isolation level can be controlled by 'containerIsolationLevel' field.
+             * Note: this is an experimental feature for now, use at your own risk
+             * Default is globally controlled by the sandbox configuration
+             * */
+            runInContainer?: boolean;
 
-			/**
-			 * The policy to apply when a double write occurs.
-			 * Default is globally controlled by the sandbox configuration
-			 */
-			doubleWritePolicy?: DoubleWritePolicy;
+            /**
+             * Configures which inputs and outputs of this process should be isolated.
+             * Default is globally controlled by the sandbox configuration
+             * TODO: input isolation is not implemented
+             */
+            containerIsolationLevel?: ContainerIsolationLevel;
+
+            /**
+             * The policy to apply when a double write occurs.
+             * Default is globally controlled by the sandbox configuration
+             */
+            doubleWritePolicy?: DoubleWritePolicy;
         }
 
         @@public
@@ -325,7 +328,7 @@ namespace Transformer {
         return _PreludeAmbientHack_Transformer.sealPartialDirectory(rootOrArgs, files, tags, description);
     }
 
-	/** Creates a shared opaque directory whose content is the aggregation of a collection of shared opaque directories.
+    /** Creates a shared opaque directory whose content is the aggregation of a collection of shared opaque directories.
      * The provided root can be any arbitrary directory that is a common ancestor to all the provided directories
     */
     @@public
@@ -614,14 +617,14 @@ namespace Artifact {
         return createArtifact(value, ArtifactKind.output);
     }
 
-	/**
+    /**
      * Creates a shared opaque directory from a directory.
      * This is an unsafe feature, the current implementation is in a prototyping stage. Use at your own risk.
      * */
-	@@public
-	export function sharedOpaqueOutput(value: Directory): Artifact {
-		return createArtifact(value, ArtifactKind.sharedOpaque);
-	}
+    @@public
+    export function sharedOpaqueOutput(value: Directory): Artifact {
+        return createArtifact(value, ArtifactKind.sharedOpaque);
+    }
 
     /** Creates a list of output artifacts from a list of files.  */
     @@public

@@ -2,18 +2,16 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Interop;
-using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tasks;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
+using JetBrains.Annotations;
 #if FEATURE_SAFE_PROCESS_HANDLE
 using Microsoft.Win32.SafeHandles;
 #else
@@ -32,18 +30,13 @@ namespace BuildXL.Processes
     {
         private static readonly ISet<ReportedFileAccess> s_emptyFileAccessesSet = new HashSet<ReportedFileAccess>();
 
-        private readonly TaskSourceSlim<Unit> m_processExitedTcs = TaskSourceSlim.Create<Unit>();
-        private readonly TaskSourceSlim<Unit> m_stdoutFlushedTcs = TaskSourceSlim.Create<Unit>();
-        private readonly TaskSourceSlim<Unit> m_stderrFlushedTcs = TaskSourceSlim.Create<Unit>();
         private readonly SandboxedProcessOutputBuilder m_output;
         private readonly SandboxedProcessOutputBuilder m_error;
 
-        private DateTime m_startTime;
-        private DateTime m_exitTime;
         private DateTime m_reportsReceivedTime;
 
+        private AsyncProcessExecutor m_processExecutor;
         private Exception m_dumpCreationException;
-        private bool m_killed = false;
 
         internal class CpuTimes
         {
@@ -62,7 +55,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Indicates if the process has been force killed during execution.
         /// </summary>
-        protected virtual bool Killed => m_killed;
+        protected virtual bool Killed => m_processExecutor?.Killed ?? false;
 
         /// <summary>
         /// Process information associated with this process.
@@ -72,12 +65,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Underlying managed <see cref="Process"/> object.
         /// </summary>
-        protected Process Process { get; private set; }
-
-        /// <summary>
-        /// Task that completes once this process dies.
-        /// </summary>
-        protected Task WhenExited => m_processExitedTcs.Task;
+        protected Process Process => m_processExecutor?.Process;
 
         /// <summary>
         /// Returns the path table from the supplied <see cref="SandboxedProcessInfo"/>.
@@ -125,7 +113,7 @@ namespace BuildXL.Processes
         protected TimeSpan CurrentRunningTime()
         {
             Contract.Requires(Started);
-            return DateTime.UtcNow.Subtract(m_startTime);
+            return DateTime.UtcNow.Subtract(m_processExecutor.StartTime);
         }
 
         /// <inheritdoc />
@@ -134,19 +122,8 @@ namespace BuildXL.Processes
             Contract.Requires(!Started, "Process was already started.  Cannot start process more than once.");
 
             CreateAndSetUpProcess();
+            m_processExecutor.Start();
 
-            try
-            {
-                Process.Start();
-            }
-            catch (Win32Exception e)
-            {
-                // Can't use helper because when this throws the standard streams haven't been redirected and closing the streams fail...
-                throw new BuildXLException($"[Pip{ProcessInfo.PipSemiStableHash} -- {ProcessInfo.PipDescription}] Failed to launch process: {ProcessInfo.FileName} {ProcessInfo.Arguments}", e);
-            }
-
-            Process.BeginOutputReadLine();
-            Process.BeginErrorReadLine();
             SetProcessStartedExecuting();
         }
 
@@ -158,18 +135,21 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public virtual void Dispose()
         {
-            var lifetime = DateTime.UtcNow - m_startTime;
+            var startTime = m_processExecutor?.StartTime ?? DateTime.UtcNow;
+            var exitTime = m_processExecutor?.ExitTime ?? DateTime.UtcNow;
+
+            var lifetime = DateTime.UtcNow - startTime;
             var cpuTimes = GetCpuTimes();
             LogProcessState(
                 $"Process Times: " +
-                $"started = {m_startTime}, " +
-                $"exited = {m_exitTime} (since start = {ToSeconds(m_exitTime - m_startTime)}s), " +
-                $"received reports = {m_reportsReceivedTime} (since start = {ToSeconds(m_reportsReceivedTime - m_startTime)}s), " +
+                $"started = {startTime}, " +
+                $"exited = {exitTime} (since start = {ToSeconds(exitTime - startTime)}s), " +
+                $"received reports = {m_reportsReceivedTime} (since start = {ToSeconds(m_reportsReceivedTime - startTime)}s), " +
                 $"life time = {ToSeconds(lifetime)}s, " +
                 $"user time = {ToSeconds(cpuTimes.User)}s, " +
                 $"system time = {ToSeconds(cpuTimes.System)}s");
             SandboxedProcessFactory.Counters.AddToCounter(SandboxedProcessFactory.SandboxedProcessCounters.SandboxedProcessLifeTimeMs, (long)lifetime.TotalMilliseconds);
-            Process?.Dispose();
+            m_processExecutor?.Dispose();
 
             string ToSeconds(TimeSpan ts)
             {
@@ -211,37 +191,25 @@ namespace BuildXL.Processes
         {
             Contract.Requires(Started);
 
-            // 1: wait until process exits or process timeout is reached
-            LogProcessState("Waiting for process to exit");
-            var finishedTask = await Task.WhenAny(Task.Delay(ProcessInfo.Timeout.Value), WhenExited);
-            m_exitTime = DateTime.UtcNow;
+            SandboxedProcessReports reports = null;
 
-            // 2: kill process if timed out
-            var timedOut = finishedTask != WhenExited;
-            if (timedOut)
-            {
-                LogProcessState($"Process timed out after {ProcessInfo.Timeout.Value}; it will be forcefully killed.");
-                await KillAsync();
-            }
-
-            // 3: wait for reports to be all received
-            LogProcessState("Waiting for reports to be received");
-            var reports = await GetReportsAsync();
-            m_reportsReceivedTime = DateTime.UtcNow;
-            reports?.Freeze();
-
-            // 4: wait for stdout and stderr to be flushed
-            LogProcessState("Waiting for stdout and stderr to be flushed");
-            await Task.WhenAll(m_stdoutFlushedTcs.Task, m_stderrFlushedTcs.Task);
+            await m_processExecutor.WaitForExitAsync(
+                async () => 
+                {
+                    LogProcessState("Waiting for reports to be received");
+                    reports = await GetReportsAsync();
+                    m_reportsReceivedTime = DateTime.UtcNow;
+                    reports?.Freeze();
+                });
 
             var reportFileAccesses = ProcessInfo.FileAccessManifest?.ReportFileAccesses == true;
             var fileAccesses = reportFileAccesses ? (reports?.FileAccesses ?? s_emptyFileAccessesSet) : null;
 
             return new SandboxedProcessResult
             {
-                ExitCode                            = timedOut ? ExitCodes.Timeout : Process.ExitCode,
+                ExitCode                            = m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
                 Killed                              = Killed,
-                TimedOut                            = timedOut,
+                TimedOut                            = m_processExecutor.TimedOut,
                 HasDetoursInjectionFailures         = HasSandboxFailures,
                 StandardOutput                      = m_output.Freeze(),
                 StandardError                       = m_error.Freeze(),
@@ -277,41 +245,21 @@ namespace BuildXL.Processes
 
             ProcessDumper.TryDumpProcessAndChildren(ProcessId, ProcessInfo.TimeoutDumpDirectory, out m_dumpCreationException);
 
-            try
-            {
-                if (!Process.HasExited)
-                {
-                    Process.Kill();
-                }
-            }
-            catch (Exception e) when (e is Win32Exception || e is InvalidOperationException)
-            {
-                // thrown if the process doesn't exist (e.g., because it has already completed on its own)
-            }
-
-            m_stdoutFlushedTcs.TrySetResult(Unit.Void);
-            m_stderrFlushedTcs.TrySetResult(Unit.Void);
-            m_killed = true;
-            return WhenExited;
+            return m_processExecutor.KillAsync();
         }
 
         /// <summary>
         /// Mutates <see cref="Process"/>.
         /// </summary>
-        protected Process CreateAndSetUpProcess()
+        protected void CreateAndSetUpProcess()
         {
             Contract.Requires(Process == null);
 
-#if !PLATFORM_OSX
-            if (!FileUtilities.FileExistsNoFollow(ProcessInfo.FileName))
-            {
-                ThrowFileDoesNotExist();
-            }
-#else
+#if PLATFORM_OSX
             var mode = GetFilePermissionsForFilePath(ProcessInfo.FileName, followSymlink: false);
             if (mode < 0)
             {
-                ThrowFileDoesNotExist();
+                ThrowBuildXLException($"Process creation failed: File '{ProcessInfo.FileName}' not found", new Win32Exception(0x2));
             }
 
             var filePermissions = checked((FilePermissions)mode);
@@ -322,47 +270,45 @@ namespace BuildXL.Processes
             }
 #endif
 
-            Process = new Process();
-            Process.StartInfo = new ProcessStartInfo
+            var process = new Process
             {
-                FileName = ProcessInfo.FileName,
-                Arguments = ProcessInfo.Arguments,
-                WorkingDirectory = ProcessInfo.WorkingDirectory,
-                StandardErrorEncoding = m_output.Encoding,
-                StandardOutputEncoding = m_error.Encoding,
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = ProcessInfo.FileName,
+                    Arguments = ProcessInfo.Arguments,
+                    WorkingDirectory = ProcessInfo.WorkingDirectory,
+                    StandardErrorEncoding = m_output.Encoding,
+                    StandardOutputEncoding = m_error.Encoding,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                },
+                EnableRaisingEvents = true
             };
 
-            Process.StartInfo.EnvironmentVariables.Clear();
+            process.StartInfo.EnvironmentVariables.Clear();
             if (ProcessInfo.EnvironmentVariables != null)
             {
                 foreach (var envKvp in ProcessInfo.EnvironmentVariables.ToDictionary())
                 {
-                    Process.StartInfo.EnvironmentVariables[envKvp.Key] = envKvp.Value;
+                    process.StartInfo.EnvironmentVariables[envKvp.Key] = envKvp.Value;
                 }
             }
 
-            Process.EnableRaisingEvents = true;
-            Process.OutputDataReceived += (sender, e) => FeedStdOut(m_output, m_stdoutFlushedTcs, e.Data);
-            Process.ErrorDataReceived  += (sender, e) => FeedStdErr(m_error, m_stderrFlushedTcs, e.Data);
-            Process.Exited             += (sender, e) => m_processExitedTcs.TrySetResult(Unit.Void);
-
-            return Process;
-
-            void ThrowFileDoesNotExist()
-            {
-                ThrowCouldNotStartProcess(I($"File '{ProcessInfo.FileName}' not found"), new Win32Exception(0x2));
-            }
+            m_processExecutor = new AsyncProcessExecutor(
+                process,
+                ProcessInfo.Timeout ?? TimeSpan.FromMinutes(10),
+                line => FeedStdOut(m_output, line),
+                line => FeedStdErr(m_error, line),
+                ProcessInfo);
         }
 
-        internal virtual void FeedStdOut(SandboxedProcessOutputBuilder b, TaskSourceSlim<Unit> tsc, string line)
-            => FeedOutputBuilder(b, tsc, line);
+        internal virtual void FeedStdOut(SandboxedProcessOutputBuilder b, string line)
+            => FeedOutputBuilder(b, line);
 
-        internal virtual void FeedStdErr(SandboxedProcessOutputBuilder b, TaskSourceSlim<Unit> tsc, string line)
-            => FeedOutputBuilder(b, tsc, line);
+        internal virtual void FeedStdErr(SandboxedProcessOutputBuilder b, string line)
+            => FeedOutputBuilder(b, line);
 
         /// <summary>
         /// Throws a <see cref="BuildXLException"/> with pip hash and description prefixed to a supplied <paramref name="reason"/>.
@@ -393,21 +339,16 @@ namespace BuildXL.Processes
         {
             if (ProcessInfo.LoggingContext != null)
             {
-                string fullMessage = I($"Exited: {m_processExitedTcs.Task.IsCompleted}, StdOut: {m_stdoutFlushedTcs.Task.IsCompleted}, StdErr: {m_stderrFlushedTcs.Task.IsCompleted}, Reports: {ReportsCompleted()} :: {message}");
+                string fullMessage = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");
                 Tracing.Logger.Log.LogDetoursDebugMessage(ProcessInfo.LoggingContext, ProcessInfo.PipSemiStableHash, ProcessInfo.PipDescription, fullMessage);
             }
         }
 
         /// <summary>
-        ///   - sets <see cref="m_startTime"/> to current time
-        ///   - notifies the process id listener
+        /// Notifies the process id listener.
         /// </summary>
-        /// <remarks>
-        /// Mutates <see cref="m_startTime"/>.
-        /// </remarks>
         protected void SetProcessStartedExecuting()
         {
-            m_startTime = DateTime.UtcNow;
             ProcessInfo.ProcessIdListener?.Invoke(ProcessId);
         }
 
@@ -423,17 +364,11 @@ namespace BuildXL.Processes
         /// </summary>
         internal virtual Task<SandboxedProcessReports> GetReportsAsync() => Task.FromResult<SandboxedProcessReports>(null);
 
-        internal static void FeedOutputBuilder(SandboxedProcessOutputBuilder output, TaskSourceSlim<Unit> signalCompletion, string line)
+        internal static void FeedOutputBuilder(SandboxedProcessOutputBuilder output, string line)
         {
-            if (signalCompletion.Task.IsCompleted)
+            if (line != null)
             {
-                return;
-            }
-
-            output.AppendLine(line);
-            if (line == null)
-            {
-                signalCompletion.TrySetResult(Unit.Void);
+                output.AppendLine(line);
             }
         }
 
@@ -447,15 +382,15 @@ namespace BuildXL.Processes
 
         private ProcessTimes GetProcessTimes()
         {
-            if (m_startTime == default(DateTime) || m_exitTime == default(DateTime))
+            if (m_processExecutor.StartTime == default || m_processExecutor.ExitTime == default)
             {
                 return new ProcessTimes(0, 0, 0, 0);
             }
 
             var cpuTimes = GetCpuTimes();
             return new ProcessTimes(
-                creation: m_startTime.ToFileTimeUtc(),
-                exit: m_exitTime.ToFileTimeUtc(),
+                creation: m_processExecutor.StartTime.ToFileTimeUtc(),
+                exit: m_processExecutor.ExitTime.ToFileTimeUtc(),
                 kernel: cpuTimes.System.Ticks,
                 user: cpuTimes.User.Ticks);
         }

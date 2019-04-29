@@ -157,10 +157,20 @@ namespace BuildXL.Scheduler.Tracing
 
                 if (oldPipSession.FormattedSemiStableHash != newPipSession.FormattedSemiStableHash)
                 {
-                    WriteLine(RepeatedStrings.FormattedSemiStableHashChanged, writer);
-                    // Make a trivial change list so the print looks like the rest of the diff
-                    var changeList = new ChangeList<string>(new string[] { oldPipSession.FormattedSemiStableHash }, new string[] { newPipSession.FormattedSemiStableHash });
-                    WriteLine(changeList.ToString(), writer);
+                    // Make trivial json so the print looks like the rest of the diff
+                    var oldNode = new JsonNode
+                    {
+                        Name = RepeatedStrings.FormattedSemiStableHashChanged
+                    };
+                    oldNode.Values.Add(oldPipSession.FormattedSemiStableHash);
+
+                    var newNode = new JsonNode
+                    {
+                        Name = RepeatedStrings.FormattedSemiStableHashChanged
+                    };
+                    newNode.Values.Add(newPipSession.FormattedSemiStableHash);
+
+                    WriteLine(JsonTree.PrintTreeDiff(oldNode, newNode), writer);
                 }
 
                 // Diff based off the actual fingerprints instead of the PipCacheMissType

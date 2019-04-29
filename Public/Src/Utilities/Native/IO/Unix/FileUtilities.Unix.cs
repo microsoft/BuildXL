@@ -484,21 +484,18 @@ namespace BuildXL.Native.IO.Unix
 
             if (!openResult.Succeeded)
             {
-                openResult.CreateFailureForError().Throw();
+                openResult
+                    .CreateFailureForError()
+                    .Annotate($"{nameof(s_fileSystem.TryCreateOrOpenFile)} failed in {nameof(UsingFileHandleAndFileLength)}")
+                    .Throw();
             }
 
             using (handle)
             {
                 Contract.Assert(handle != null && !handle.IsInvalid);
-                var maybeTarget = FileUtilities.TryGetReparsePointTarget(handle, path);
-                if (maybeTarget.Succeeded)
-                {
-                    return handleStream(handle, maybeTarget.Result.Length);
-                }
-                else
-                {
-                    return handleStream(handle, new FileInfo(path).Length);
-                }
+                var maybeTarget = s_fileSystem.TryGetReparsePointTarget(path);
+                var length = maybeTarget.Succeeded ? maybeTarget.Result.Length : new FileInfo(path).Length;
+                return handleStream(handle, length);
             }
         }
 

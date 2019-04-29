@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Pips;
+using BuildXL.Native.IO;
 
 namespace Tool.ExecutionLogSdk
 {

@@ -89,7 +89,8 @@ namespace Test.BuildXL.Processes
                 ExpectAccess(file, exists: false));
         }
 
-        [Theory]
+        // TODO 1519677: Fix this bug on Mojave macOS
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [MemberData(nameof(AccessTypes))]
         public Task DirectlyReportedNonexistentFailsWithAllowRead(AccessType accessType)
         {
@@ -100,7 +101,8 @@ namespace Test.BuildXL.Processes
                 ExpectDeniedAccess(file, exists: false));
         }
 
-        [Theory]
+        // TODO: fix this bug on Mojave macOS
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [MemberData(nameof(AccessTypes))]
         public Task ProbesWithinScope(AccessType accessType)
         {

@@ -31,7 +31,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 55: Changed FileMaterializationInfo/FileContentInfo bond serialization
         /// 56: Added NeedsToRunInContainer, ContainerIsolationLevel and DoubleWritePolicy
         /// 57: Fixed enumeration in StoreContentForProcessAndCreateCacheEntryAsync
+        /// 58: Added RequiresAdmin field into the process pip.
         /// </remarks>
-        TwoPhaseV2 = 57,
+        TwoPhaseV2 = 58,
     }
 }

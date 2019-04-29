@@ -5,7 +5,7 @@ import * as Bash from "Bash";
 import {Cmd, Artifact, Transformer} from "Sdk.Transformers";
 
 @@public
-export const readSymlinks = !Context.isWindowsOS() && (() => {
+export const readSymlinks = Bash.isMacOS && (() => {
     const outDir = Context.getNewOutputDirectory("ln");
     const outDiffSymlinkPath = p`${outDir}/symlink-to-usr-bin-diff`;
 

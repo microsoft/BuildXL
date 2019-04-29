@@ -75,7 +75,7 @@ namespace Test.Tool.Analyzers
             ScheduleRunResult cacheMissBuild = RunScheduler().AssertCacheMiss(pip.PipId);
 
             string[] messages = { ArtifactToPrint(srcFile) };
-            
+
             RunAnalyzer(cacheHitBuild, cacheMissBuild).AssertPipMiss(pip, PipCacheMissType.MissForDescriptorsDueToWeakFingerprints, messages);
         }
 
@@ -174,7 +174,7 @@ namespace Test.Tool.Analyzers
             var entry = new BuildXLConfiguration.Mutable.FileAccessWhitelistEntry()
             {
                 Value = "testValue",
-                PathFragment = ArtifactToPrint(whitelistFile),
+                PathFragment = ArtifactToString(whitelistFile),
             };
             Configuration.FileAccessWhiteList.Add(entry);
 
@@ -256,7 +256,7 @@ namespace Test.Tool.Analyzers
             File.WriteAllText(ArtifactToPrint(srcB), "hjkl");
 
             ScheduleRunResult buildB = RunScheduler().AssertCacheMiss(pipA.PipId, pipB.PipId);
-            
+
             AnalyzerResult result = RunAnalyzer(buildA, buildB);
             result.AssertPipMiss(
                 pipA,
@@ -276,8 +276,8 @@ namespace Test.Tool.Analyzers
                 pipA,
                 PipCacheMissType.MissForDescriptorsDueToWeakFingerprints,
                 ArtifactToPrint(srcA));
-            // Analyze downstream pips
-            allPipsResult.AssertPipMiss(
+            // Analyze downstream pips, runtime cache miss does not have an all pips option
+            allPipsResult.AssertAnalyzerPipMiss(
                 pipA,
                 PipCacheMissType.MissForDescriptorsDueToWeakFingerprints,
                 ArtifactToPrint(srcB));
@@ -688,8 +688,6 @@ namespace Test.Tool.Analyzers
             result.AssertPipMiss(
                 pip,
                 PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
-                "-",
-                "+",
                 "UnsafeOptions");
         }
 
@@ -773,7 +771,7 @@ namespace Test.Tool.Analyzers
 
             // Ensure that the analyzer falls-back on the execution-time store when the cache-lookup store is missing entries
             // srcB from pipB's dependencies will show up in the analysis because of earlier manipulation of the execution-time store
-            var incorrectOut = RunAnalyzer(build1, build2).AssertPipMiss(
+            var incorrectOut = RunAnalyzer(build1, build2).AssertAnalyzerPipMiss(
                 pipA,
                 PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
                 ArtifactToPrint(srcB)).FileOutput;
@@ -787,7 +785,7 @@ namespace Test.Tool.Analyzers
         /// </summary>
         private string ArtifactToPrint(FileOrDirectoryArtifact artifact)
         {
-            return Expander.ExpandPath(Context.PathTable, artifact.Path).ToLowerInvariant();
+            return Expander.ExpandPath(Context.PathTable, artifact.Path).ToLowerInvariant().Replace(@"\", @"\\");
         }
 
         public void AssertCacheMissEventLogged(params string[] requiredMessages)

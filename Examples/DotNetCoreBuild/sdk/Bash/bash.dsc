@@ -4,6 +4,9 @@
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 
 @@public
+export const isMacOS = Context.getCurrentHost().os === "macOS";
+
+@@public
 export const untrackedSystemScopes = [
     d`/usr`,
     d`/private`,
@@ -27,7 +30,7 @@ export const toolDefinition = <Transformer.ToolDefinition>{
 
 @@public
 export function runBashCommand(hint: string, bashArguments: Argument[], printDebug?: boolean): Transformer.ExecuteResult {
-    if (Context.isWindowsOS()) return undefined;
+    if (!isMacOS) return undefined;
 
     const outDir = Context.getNewOutputDirectory(hint);
     const outFile = outDir.combine(hint + "-stdout.txt");

@@ -289,6 +289,24 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Writes a FileOrDirectoryArtifact
+        /// </summary>
+        public void Write(FileOrDirectoryArtifact value)
+        {
+            Start<FileOrDirectoryArtifact>();
+            Write(value.IsFile);
+            if (value.IsFile)
+            {
+                Write(value.FileArtifact);
+            }
+            else
+            {
+                Write(value.DirectoryArtifact);
+            }
+            End();
+        }
+
+        /// <summary>
         /// Writes a ReadOnlyArray
         /// </summary>
         public void Write<T>(ReadOnlyArray<T> value, Action<BuildXLWriter, T> writer)

@@ -31,7 +31,7 @@ namespace Test.BuildXL.FingerprintStore
 {
     public class FingerprintStoreTests : SchedulerIntegrationTestBase
     {
-        public FingerprintStoreTests(ITestOutputHelper output) 
+        public FingerprintStoreTests(ITestOutputHelper output)
             : base(output)
         {
             Configuration.Logging.StoreFingerprints = true;
@@ -61,7 +61,7 @@ namespace Test.BuildXL.FingerprintStore
             FingerprintStoreSession(ResultToStoreDirectory(result), store =>
             {
                 store.TryGetFingerprintStoreEntryBySemiStableHash(pipA.FormattedSemiStableHash, out entry);
-                
+
                 // There may be a 1-to-n relationship between fingerprint entries to relevant directory membership fingerprints, so they are stored separately
                 // Try to parse out the directory enumeration's hash from the strong fingerprint to validate there is an entry for the directory membership fingerprint
                 var reader = new JsonReader(entry.StrongFingerprintEntry.StrongFingerprintToInputs.Value);
@@ -108,7 +108,8 @@ namespace Test.BuildXL.FingerprintStore
         /// Content addressable entries like content hashes don't need to be replaced if an entry with the
         /// same key already exists.
         /// </summary>
-        [Fact]
+        // TODO 1519677: Fix this bug on Mojave macOS
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void DontOverwriteExistingContentAddressableEntries()
         {
             // Use a test hook to capture fingerprint store counters
@@ -123,7 +124,7 @@ namespace Test.BuildXL.FingerprintStore
             var nestedFile = CreateOutputFileArtifact(ArtifactToString(dir));
             File.WriteAllText(ArtifactToString(nestedFile), "nestedFile");
 
-            // Schedule two pips that use the same path set entry and directory membership fingerprint, 
+            // Schedule two pips that use the same path set entry and directory membership fingerprint,
             // but are run one after the other to prevent any race conditions
             var outFile = CreateOutputFileArtifact();
             var pipA = CreateAndSchedulePipBuilder(new Operation[]
@@ -221,7 +222,7 @@ namespace Test.BuildXL.FingerprintStore
             var nestedFile2 = CreateOutputFileArtifact(ArtifactToString(dir2));
             File.WriteAllText(ArtifactToString(nestedFile2), "nestedFile2");
 
-            // Schedule two pips that use the same path set entry and directory membership fingerprint, 
+            // Schedule two pips that use the same path set entry and directory membership fingerprint,
             // but are run one after the other to prevent any race conditions
             var outFile = CreateOutputFileArtifact();
             var pipA = CreateAndSchedulePipBuilder(new Operation[]
@@ -248,11 +249,11 @@ namespace Test.BuildXL.FingerprintStore
 
         /// <summary>
         /// Verifies that garbage collection runs and only collects entries that are past the max entry age limit.
-        /// 
+        ///
         /// Note:
-        /// 1. Garbage collect only runs if there is at least one cache miss in the build. 
+        /// 1. Garbage collect only runs if there is at least one cache miss in the build.
         /// This is verified in <see cref="CancelGarbageCollectOnCacheHitBuild"/>.
-        /// 2. A cache hit will still refresh the age of an entry. With incremental scheduling disabled, 
+        /// 2. A cache hit will still refresh the age of an entry. With incremental scheduling disabled,
         /// a pip must be completely removed from the build to be garbage collected.
         /// </summary>
         [Fact(Skip = "Bug 1513463")]
@@ -839,7 +840,7 @@ namespace Test.BuildXL.FingerprintStore
 
             var passResult = RunScheduler().AssertSuccess();
             var passEntry = default(FingerprintStoreEntry);
-            
+
             // Get the fingerprints and path set result from a passing run to compare to later
             FingerprintStoreSession(ResultToStoreDirectory(passResult), store =>
             {
@@ -936,7 +937,7 @@ namespace Test.BuildXL.FingerprintStore
             VerifyNoCacheLookupStore(fingerprintStoreMode, counters1, build1, pip);
 
             var build2 = RunScheduler(testHooks).AssertCacheHit(pip.PipId);
-            
+
             // Fully cache hit is no puts in either execution or cache lookup fingerprint store
             var counters2 = testHooks.FingerprintStoreTestHooks.Counters;
             XAssert.AreEqual(counters2.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut), 0);
@@ -947,7 +948,7 @@ namespace Test.BuildXL.FingerprintStore
             File.WriteAllText(ArtifactToString(srcFile), "asdf");
 
             var build3 = RunScheduler(testHooks).AssertCacheMiss(pip.PipId);
-            
+
             // One put in execution fingerprint store (overwrite)
             var counters3 = testHooks.FingerprintStoreTestHooks.Counters;
             XAssert.AreEqual(counters3.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut), 1);
@@ -967,7 +968,7 @@ namespace Test.BuildXL.FingerprintStore
             {
                 XAssert.AreEqual(counters4.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut), 2);
                 XAssert.AreEqual(counters4.GetCounterValue(FingerprintStoreCounters.NumCacheLookupFingerprintComputationStored), 1);
-                
+
                 // Cache lookup store should be populated on strong fingerprint misses
                 FingerprintStoreSession(ResultToStoreDirectory(build4, cacheLookupStore: true), store =>
                 {
@@ -1366,7 +1367,7 @@ namespace Test.BuildXL.FingerprintStore
             {
                 XAssert.IsTrue(misses.Contains(pipId));
             }
-            
+
             return result.AssertCacheMiss(pipIds);
         }
     }

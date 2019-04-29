@@ -5,7 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using BuildXL.Utilities;
+using JsonDiffPatchDotNet;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace BuildXL.Engine.Cache.Serialization
 {
@@ -115,8 +117,19 @@ namespace BuildXL.Engine.Cache.Serialization
     /// <summary>
     /// Reads a valid JSON object into a tree.
     /// </summary>
-    public class JsonTree
+    public static class JsonTree
     {
+        private static JsonDiffPatch s_jdp = null;
+
+        static JsonTree()
+        {
+            var diffOptions = new Options();
+            diffOptions.ArrayDiff = ArrayDiffMode.Efficient;
+            diffOptions.TextDiff = TextDiffMode.Simple;
+
+            s_jdp = new JsonDiffPatch(diffOptions);
+        }
+
         /// <summary>
         /// Given a valid JSON object, builds a tree of <see cref="JsonNode"/>s.
         /// </summary>
@@ -151,6 +164,9 @@ namespace BuildXL.Engine.Cache.Serialization
                     case JsonToken.EndObject:
                         currentNode = parentStack.Pop();
                         break;
+                    // Arrays are represented by either nodes having multiple values, or multiple children
+                    // This will remove unnecessary "nameless" nested arrays that don't provide meaningful information
+                    // These two strings deserialize the same: { "key" : [value] }, { "key" : ["value"] }
                     case JsonToken.StartArray:
                     case JsonToken.EndArray:
                     default:
@@ -223,110 +239,21 @@ namespace BuildXL.Engine.Cache.Serialization
 
         }
 
-        /// <summary>
-        /// Collects all the nodes of a tree that have values.
-        /// </summary>
-        public static List<JsonNode> CollectValueNodes(JsonNode root)
-        {
-            var nodeStack = new Stack<JsonNode>();
-            var valueNodes = new List<JsonNode>();
-
-            nodeStack.Push(root);
-
-            JsonNode currentNode;
-            while (nodeStack.Count != 0)
-            {
-                currentNode = nodeStack.Pop();
-
-                // Value node
-                if (currentNode.Values.Count > 0)
-                {
-                    valueNodes.Add(currentNode);
-                }
-
-                foreach (var child in currentNode.Children)
-                {
-                    nodeStack.Push(child);
-                }
-            }
-
-            return valueNodes;
-        }
 
         /// <summary>
         /// Diffs two <see cref="JsonNode"/> trees.
         /// </summary>
         /// <returns>
-        /// A string representation of the diff.
+        /// A JSON string representation of the diff.
         /// </returns>
         public static string PrintTreeDiff(JsonNode rootA, JsonNode rootB)
         {
-            var changeList = DiffTrees(rootA, rootB);
-            return PrintTreeChangeList(changeList);
-        }
+            var jsonA = Serialize(rootA);
+            var jsonB = Serialize(rootB);
 
-        /// <summary>
-        /// Formats and prints the resulting <see cref="ChangeList{T}"/> from a <see cref="DiffTrees(JsonNode, JsonNode)"/>.
-        /// </summary>
-        /// <returns>
-        /// A string representation of the change list.
-        /// </returns>
-        public static string PrintTreeChangeList(ChangeList<JsonNode> changeList)
-        {
-            var treeToPrint = new PrintNode();
-            for (int i = 0; i < changeList.Count; ++i)
-            {
-                var change = changeList[i];
-                var node = change.Value;
-                var path = new LinkedList<string>();
-                // Use "it.Parent != null" instead of "it != null" to 
-                // ignore printing the root parent node that matches the opening bracket
-                // for all JSON objects
-                for (var it = node; it.Parent != null; it = it.Parent)
-                {
-                    path.AddFirst(it.Name);
-                }
+            var diff = s_jdp.Diff(JToken.Parse(jsonA), JToken.Parse(jsonB));
 
-                var printNode = treeToPrint;
-                // Build a tree of the change list values, placing nodes based off
-                // their positions in the old or new tree
-                foreach (var pathAtom in path)
-                {
-                    if (!printNode.Children.ContainsKey(pathAtom))
-                    {
-                        printNode.Children.Add(pathAtom, new PrintNode());
-                    }
-
-                    printNode = printNode.Children[pathAtom];
-                }
-
-                printNode.ChangedNodes.Add(change);
-            }
-
-            return treeToPrint.ToString();
-        }
-
-        /// <summary>
-        /// Diffs two trees.
-        /// </summary>
-        /// <param name="rootA">
-        /// The root of the original tree.
-        /// </param>
-        /// <param name="rootB">
-        /// The root of the transformed tree.
-        /// </param>
-        /// <returns>
-        /// A <see cref="ChangeList{JsonNode}"/> containing
-        /// the leaf nodes that differ.
-        /// </returns>
-        public static ChangeList<JsonNode> DiffTrees(JsonNode rootA, JsonNode rootB)
-        {
-            var leavesA = CollectValueNodes(rootA);
-            var leavesB = CollectValueNodes(rootB);
-
-            var changeList = new ChangeList<JsonNode>(leavesA, leavesB);
-
-            return changeList;
+            return diff == null ? string.Empty : diff.ToString();
         }
 
         /// <summary>
@@ -400,50 +327,6 @@ namespace BuildXL.Engine.Cache.Serialization
             root.Parent = newParent;
         }
 
-        /// <summary>
-        /// Prints the leaves in a tree and the paths to the leaves. Internal for testing.
-        /// </summary>
-        internal static string PrintLeaves(JsonNode root)
-        {
-            using (var sbPool = Pools.GetStringBuilder())
-            {
-                var sb = sbPool.Instance;
-                var nodeStack = new Stack<JsonNode>();
-                var nameStack = new Stack<string>();
-
-                nodeStack.Push(root);
-                nameStack.Push(root.Name);
-
-                JsonNode currentNode;
-                string currentName;
-
-                while (nodeStack.Count != 0)
-                {
-                    currentNode = nodeStack.Pop();
-                    currentName = nameStack.Pop();
-
-                    // Leaf node
-                    if (currentNode.Children.Count == 0)
-                    {
-                        sb.AppendLine();
-                        sb.AppendFormat("{0}:", currentName);
-
-                        foreach (var value in currentNode.Values)
-                        {
-                            sb.AppendFormat("\"{0}\",", value);
-                        }
-                    }
-
-                    foreach (var child in currentNode.Children)
-                    {
-                        nodeStack.Push(child);
-                        nameStack.Push(currentName + ":" + child.Name);
-                    }
-                }
-
-                return sb.ToString();
-            }
-        }
 
         /// <summary>
         /// Reads a JSON string into a new, formatted JSON string.
@@ -498,148 +381,6 @@ namespace BuildXL.Engine.Cache.Serialization
 
                     // Make sure writer is fully closed and done writing before using the underlying string
                     return sbPool.Instance.ToString();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Helper class for printing the result of <see cref="DiffTrees(JsonNode, JsonNode)"/>
-        /// in a tree format, organizing <see cref="ChangeList{T}"/> values by their position in the original trees.
-        /// Each <see cref="PrintNode"/> represents a position in a tree. That position may have existed in the original tree,
-        /// the resulting tree, or both.
-        /// </summary>
-        private class PrintNode
-        {
-            /// <summary>
-            /// The <see cref="ChangeList{T}.ChangeListValue"/>s that represent nodes removed or added at this particular position in the tree.
-            /// </summary>
-            public readonly List<ChangeList<JsonNode>.ChangeListValue> ChangedNodes;
-
-            /// <summary>
-            /// The children of this node. The name of a child node is encapsulated in the key.
-            /// This means that the root of a tree will be nameless.
-            /// </summary>
-            public readonly Dictionary<string, PrintNode> Children;
-
-            /// <summary>
-            /// Constructor.
-            /// </summary>
-            public PrintNode()
-            {
-                ChangedNodes = new List<ChangeList<JsonNode>.ChangeListValue>();
-                Children = new Dictionary<string, PrintNode>();
-            }
-
-            /// <summary>
-            /// Helper struct for holding state used while recursively printing tree.
-            /// </summary>
-            private struct RecursionState
-            {
-                /// <summary>
-                /// The node being printed.
-                /// </summary>
-                public readonly PrintNode PrintNode;
-
-                /// <summary>
-                /// How many level deeps in the tree the node is, where 0 is top-level node
-                /// that gets printed.
-                /// </summary>
-                public readonly int Level;
-
-                /// <summary>
-                /// The name of the node being printed.
-                /// </summary>
-                public readonly string Name;
-
-                /// <summary>
-                /// Constructor.
-                /// </summary>
-                public RecursionState(PrintNode printNode, int level, string name)
-                {
-                    PrintNode = printNode;
-                    Level = level;
-                    Name = name;
-                }
-            }
-
-            /// <summary>
-            /// Returns the tree of changes encapusulated by this <see cref="PrintNode"/> as an indented, formatted string.
-            /// </summary>
-            public override string ToString()
-            {
-                using (var sbPool = Pools.GetStringBuilder())
-                {
-                    var sb = sbPool.Instance;
-                    var stack = new Stack<RecursionState>();
-                    stack.Push(new RecursionState(this, -1, null));
-
-                    while (stack.Count != 0)
-                    {
-                        var curr = stack.Pop();
-                        var indentPrefix = curr.Level > 0 ? new string('\t', curr.Level) : string.Empty;
-
-                        if (curr.Name != null)
-                        {
-                            sb.AppendLine(indentPrefix + curr.Name);
-                        }
-
-                        // Each PrintNode represents one position in a tree. The values of a PrintNode represent nodes that were added or removed at that position.
-                        // The max number of values at a position is 2, when a node is removed from one position and a new one is added at the same position. 
-                        // This is equivalent to modifying the state of that node.
-                        switch (curr.PrintNode.ChangedNodes.Count)
-                        {
-                            // A node exists in one tree that does not exist in the other
-                            // In this case, print all the values of the node as either added or removed
-                            case 1:
-                                var changeListValue = curr.PrintNode.ChangedNodes[0];
-                                sb.Append(indentPrefix + changeListValue.ToString());
-                                break;
-                            // A node exists in both trees, but with different values (equivalent to modifying the node)
-                            // Consolidate the print out by diffing just the values
-                            case 2:
-                                ChangeList<JsonNode>.ChangeListValue removed, added;
-                                if (curr.PrintNode.ChangedNodes[0].ChangeType == ChangeList<JsonNode>.ChangeType.Removed)
-                                {
-                                    removed = curr.PrintNode.ChangedNodes[0];
-                                    added = curr.PrintNode.ChangedNodes[1];
-                                }
-                                else
-                                {
-                                    removed = curr.PrintNode.ChangedNodes[1];
-                                    added = curr.PrintNode.ChangedNodes[0];
-                                }
-
-                                // Order of removed vs added node is not guaranteed in the change list,
-                                // but when diffing the nodes' values, the removed node represents a node from the old tree,
-                                // so it should go first and represent the old list to get the correct diff.
-                                var changeList = new ChangeList<string>(removed.Value.Values, added.Value.Values);
-
-                                if (changeList.Count == 0)
-                                {
-                                    // There was no difference in values between the removed node and added node,
-                                    // this means that the node simply moved positions.
-                                    // In this case, print the full list of values for both the removed and added node
-                                    sb.Append(indentPrefix + removed.ToString());
-                                    sb.Append(indentPrefix + added.ToString());
-                                }
-                                else
-                                {
-                                    // Otherwise, rely on the normal diff
-                                    sb.Append(changeList.ToString(indentPrefix));
-                                }
-
-                                break;
-                            default:
-                                break;
-                        }
-
-                        foreach (var child in curr.PrintNode.Children)
-                        {
-                            stack.Push(new RecursionState(child.Value, curr.Level + 1, child.Key));
-                        }
-                    }
-
-                    return sb.ToString();
                 }
             }
         }

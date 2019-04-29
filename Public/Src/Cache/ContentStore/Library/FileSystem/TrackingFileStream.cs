@@ -73,6 +73,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             Path = path;
         }
 
+#if !PLATFORM_OSX
         /// <inheritdoc />
         public TrackingFileStream(string path, FileMode mode, FileSystemRights rights, FileShare share, int bufferSize, FileOptions options, FileSecurity fileSecurity)
             : base(path, mode, rights, share, bufferSize, options, fileSecurity)
@@ -85,6 +86,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         {
             Path = path;
         }
+#endif
 
         /// <inheritdoc />
         [Obsolete]

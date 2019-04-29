@@ -346,7 +346,12 @@ namespace BuildXL.Pips
         /// <nodoc />
         public bool TryAddProcess(ProcessBuilder processBuilder, out ProcessOutputs processOutputs, out Process pip)
         {
-            PipGraph?.ApplyCurrentOsDefaults(processBuilder);
+            if (PipGraph?.ApplyCurrentOsDefaults(processBuilder) == false)
+            {
+                pip = null;
+                processOutputs = null;
+                return false;
+            }
 
             if (!processBuilder.TryFinish(this, out pip, out processOutputs))
             {

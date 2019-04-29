@@ -138,7 +138,6 @@ namespace BuildXL.Pips
         /// <summary>
         /// Allows the graph to set defaults for the current process;
         /// </summary>
-        /// <param name="processBuilder"></param>
-        void ApplyCurrentOsDefaults(ProcessBuilder processBuilder);
+        bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder);
     }
 }

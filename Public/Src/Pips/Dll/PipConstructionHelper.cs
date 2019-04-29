@@ -346,7 +346,15 @@ namespace BuildXL.Pips
         /// <nodoc />
         public bool TryAddProcess(ProcessBuilder processBuilder, out ProcessOutputs processOutputs, out Process pip)
         {
-            PipGraph?.ApplyCurrentOsDefaults(processBuilder);
+            // Applying defaults can fail if, for example, a source sealed directory cannot be 
+            // created because it is not under a mount.  That error must be propagated, because
+            // otherwise an error will be logged but the evaluation will succeed.
+            if (PipGraph?.ApplyCurrentOsDefaults(processBuilder) == false)
+            {
+                pip = null;
+                processOutputs = null;
+                return false;
+            }
 
             if (!processBuilder.TryFinish(this, out pip, out processOutputs))
             {

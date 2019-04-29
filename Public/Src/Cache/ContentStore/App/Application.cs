@@ -467,8 +467,6 @@ namespace BuildXL.Cache.ContentStore.App
             localCasSettings.PreferredCacheDrive = Path.GetPathRoot(cacheRootPath);
             localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies);
 
-            var redisConnectionString = Environment.GetEnvironmentVariable(EnvironmentConnectionStringProvider.RedisConnectionStringEnvironmentVariable);
-
             var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs);
 
             return new DistributedCacheServiceArguments(_logger, copier, pathTransformer, distributedCacheServiceHost, host, ct, dataRootPath, config, null);

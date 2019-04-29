@@ -67,6 +67,14 @@ function qTestDotNetFrameworkToString(qTestDotNetFramework: QTestDotNetFramework
             return "Unspecified";
     };
 }
+function qCodeCoverageEnumTypeToString(qCodeCoverageEnumType: QCodeCoverageEnumType) {
+    switch (qCodeCoverageEnumType) {
+        case QCodeCoverageEnumType.DynamicCodeCov:
+            return "DynamicCodeCov";
+        default:
+            return "None";
+    };
+}
 function validateArguments(args: QTestArguments): void {
     if (args.qTestDirToDeploy && args.qTestInputs) {
         Contract.fail("Do not specify both qTestDirToDeploy and qTestInputs. Specify your inputs using only one of these arguments");
@@ -153,6 +161,11 @@ export function runQTest(args: QTestArguments): Result {
             "--qTestRawArgFile ",
             Artifact.input(args.qTestRawArgFile)
         ),
+        Cmd.option(
+            "--qCodeCoverageEnumType ",
+            qCodeCoverageEnumTypeToString(args.qCodeCoverageEnumType)
+        ),
+        Cmd.flag("--zipSandbox", args.zipSandbox),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
     ];
@@ -218,6 +231,11 @@ export const enum QTestDotNetFramework {
     @@Tool.option("--qtestDotNetFramework framework45")
     framework45,
 }
+@@public
+export const enum QCodeCoverageEnumType {
+    @@Tool.option("--qCodeCoverageEnumType DynamicCodeCov")
+    DynamicCodeCov,
+}
 /**
  * Arguments of DBS.QTest.exe
  */
@@ -261,6 +279,10 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     vstestSettingsFile?: File;
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
+    /** Describes the type of coverage that QTest should employ. */
+    qCodeCoverageEnumType?: QCodeCoverageEnumType;
+    /** When enabled, creates a zip of the sandbox in log directory */
+    zipSandbox? : boolean;
 }
 /**
  * Test results from a vstest.console.exe run

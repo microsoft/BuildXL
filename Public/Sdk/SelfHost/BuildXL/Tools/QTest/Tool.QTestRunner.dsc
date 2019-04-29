@@ -5,6 +5,7 @@ import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
 const root = Environment.hasVariable("[Sdk.BuildXL]qtestDeploymentPath") ? d`${Environment.getFileValue("[Sdk.BuildXL]qtestDeploymentPath")}` : d`.`;
 
 @@public
+export type QCodeCoverageType = "DynamicCodeCov" | "None";
 export const qTestTool: Transformer.ToolDefinition = {
     exe: f`${root}/bin/DBS.QTest.exe`,
     description: "CloudBuild QTest",
@@ -264,7 +265,7 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
     /** Describes the type of coverage that QTest should employ. */
-    qCodeCoverageEnumType?: "DynamicCodeCov" | "None";
+    qCodeCoverageEnumType?: QCodeCoverageType;
     /** When enabled, creates a zip of the sandbox in log directory */
     zipSandbox? : boolean;
 }

@@ -73,49 +73,6 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             Path = path;
         }
 
-#if !PLATFORM_OSX
-        /// <inheritdoc />
-        public TrackingFileStream(string path, FileMode mode, FileSystemRights rights, FileShare share, int bufferSize, FileOptions options, FileSecurity fileSecurity)
-            : base(path, mode, rights, share, bufferSize, options, fileSecurity)
-        {
-        }
-
-        /// <inheritdoc />
-        public TrackingFileStream(string path, FileMode mode, FileSystemRights rights, FileShare share, int bufferSize, FileOptions options)
-            : base(path, mode, rights, share, bufferSize, options)
-        {
-            Path = path;
-        }
-#endif
-
-        /// <inheritdoc />
-        [Obsolete]
-        public TrackingFileStream(IntPtr handle, FileAccess access)
-            : base(handle, access)
-        {
-        }
-
-        /// <inheritdoc />
-        [Obsolete]
-        public TrackingFileStream(IntPtr handle, FileAccess access, bool ownsHandle)
-            : base(handle, access, ownsHandle)
-        {
-        }
-
-        /// <inheritdoc />
-        [Obsolete]
-        public TrackingFileStream(IntPtr handle, FileAccess access, bool ownsHandle, int bufferSize)
-            : base(handle, access, ownsHandle, bufferSize)
-        {
-        }
-
-        /// <inheritdoc />
-        [Obsolete]
-        public TrackingFileStream(IntPtr handle, FileAccess access, bool ownsHandle, int bufferSize, bool isAsync)
-            : base(handle, access, ownsHandle, bufferSize, isAsync)
-        {
-        }
-
         /// <inheritdoc />
         public TrackingFileStream([NotNull] SafeFileHandle handle, FileAccess access, string path)
             : base(handle, access)

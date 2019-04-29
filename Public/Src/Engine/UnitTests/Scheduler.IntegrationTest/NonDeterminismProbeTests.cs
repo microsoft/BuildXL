@@ -21,6 +21,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
+        // TODO 1519677: Fix this bug on Mojave macOS
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [Feature(Features.OpaqueDirectory)]
         [Theory]
         [InlineData(false)]
@@ -77,7 +79,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Feature(Features.OpaqueDirectory)]
-        // TODO: fix this bug on Mojave macOS
+        // TODO 1519677: Fix this bug on Mojave macOS
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void NonDeterminismOpaqueDirectoryOutputDifferentFiles()
         {

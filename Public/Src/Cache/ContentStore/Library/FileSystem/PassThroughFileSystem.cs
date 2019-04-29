@@ -518,7 +518,8 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 try
                 {
                     // Returning a special tracking stream that tracks improper resource de-allocations.
-                    var stream = new TrackingFileStream(handle, accessMode, bufferSize, isAsync: true, path.ToString());
+                    var stream = new FileStream(handle, accessMode, bufferSize, isAsync: true);
+                    //var stream = new TrackingFileStream(handle, accessMode, bufferSize, isAsync: true, path.ToString());
                     needToDisposeHandle = false;
                     
                     return stream;

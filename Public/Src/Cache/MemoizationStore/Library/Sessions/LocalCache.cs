@@ -34,17 +34,11 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ILogger logger,
             AbsolutePath rootPath,
             SQLiteMemoizationStoreConfiguration memoConfig,
+            LocalCacheConfiguration localCacheConfiguration,
             ConfigurationModel configurationModel = null,
             IClock clock = null,
             bool checkLocalFiles = true,
-            bool emptyFileHashShortcutEnabled = false,
-            bool createServer = false,
-            int grpcPort = 0,
-            int maxQuotaMB = 0,
-            string cacheName = null,
-            string stampId = null,
-            string ringId = null,
-            string scenarioName = null)
+            bool emptyFileHashShortcutEnabled = false)
             : this(
                   logger,
                   rootPath,
@@ -53,13 +47,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                   configurationModel,
                   memoConfig,
                   new ContentStoreSettings() { CheckFiles = checkLocalFiles, UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled },
-                  createServer: createServer,
-                  grpcPort: grpcPort,
-                  maxQuotaMB: maxQuotaMB,
-                  cacheName: cacheName,
-                  stampId: stampId,
-                  ringId: ringId,
-                  scenarioName: scenarioName)
+                  localCacheConfiguration)
         {
         }
 
@@ -125,27 +113,17 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ConfigurationModel configurationModel,
             SQLiteMemoizationStoreConfiguration memoConfig,
             ContentStoreSettings contentStoreSettings,
-            bool createServer,
-            int grpcPort = 0,
-            int maxQuotaMB = 0,
-            string cacheName = null,
-            string stampId = null,
-            string ringId = null,
-            string scenarioName = null)
+            LocalCacheConfiguration localCacheConfiguration)
             : base(
-                () => createServer
-                    ? (IContentStore)new DualServerClientContentStore( // TODO: Finish this!
-                        fileSystem,
+                () => localCacheConfiguration.EnableContentServer
+                    ? (IContentStore) new ServiceClientContentStore(
                         logger,
-                        new GrpcFileCopier(new Context(logger), grpcPort),
-                        new GrpcDistributedPathTransformer(),
-                        maxQuotaMB,
-                        cacheName,
-                        grpcPort,
-                        stampId,
-                        ringId,
-                        scenarioName,
-                        rootPath)
+                        fileSystem,
+                        localCacheConfiguration.CacheName,
+                        new ServiceClientRpcConfiguration(localCacheConfiguration.GrpcPort),
+                        localCacheConfiguration.RetryIntervalSeconds,
+                        localCacheConfiguration.RetryCount,
+                        scenario: localCacheConfiguration.ScenarioName)
                     : new FileSystemContentStore(
                         fileSystem, 
                         clock,

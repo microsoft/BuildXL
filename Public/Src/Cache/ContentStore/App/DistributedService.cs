@@ -4,14 +4,18 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using CLAP;
+using Newtonsoft.Json;
 
 // ReSharper disable once UnusedMember.Global
 namespace BuildXL.Cache.ContentStore.App
@@ -26,6 +30,7 @@ namespace BuildXL.Cache.ContentStore.App
         [Verb(Description = "Run distributed CAS service")]
         internal void DistributedService
             (
+            [Description("Path to DistributedContentSettings file")] string settingsPath,
             [Description("Cache name")] string cacheName,
             [Description("Cache root path")] string cachePath,
             [DefaultValue(ServiceConfiguration.GrpcDisabledPort), Description(GrpcPortDescription)] int grpcPort,
@@ -34,10 +39,16 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(null), Description("Identifier for the stamp this service will run as")] string stampId,
             [DefaultValue(null), Description("Identifier for the ring this service will run as")] string ringId,
             [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB,
-            [DefaultValue(false)] bool useDistributedGrpc
+            [DefaultValue(false)] bool useDistributedGrpc,
+            [DefaultValue(false)] bool debug
             )
         {
             Initialize();
+
+            if (debug)
+            {
+                System.Diagnostics.Debugger.Launch();
+            }
 
             try
             {
@@ -46,6 +57,8 @@ namespace BuildXL.Cache.ContentStore.App
                 {
                     cancellationTokenSource.Cancel();
                 };
+
+                var dcs = JsonConvert.DeserializeObject<DistributedContentSettings>(File.ReadAllText(settingsPath));
 
                 var host = new HostInfo(stampId, ringId, new List<string>());
 
@@ -57,6 +70,7 @@ namespace BuildXL.Cache.ContentStore.App
                 var arguments = CreateDistributedCacheServiceArguments(
                     copier: useDistributedGrpc ? new GrpcFileCopier(new Interfaces.Tracing.Context(_logger), grpcPort) : (IAbsolutePathFileCopier)new DistributedCopier(),
                     pathTransformer: useDistributedGrpc ? new GrpcDistributedPathTransformer() : (IAbsolutePathTransformer)new DistributedPathTransformer(),
+                    dcs: dcs,
                     host: host,
                     cacheName: cacheName,
                     cacheRootPath: cachePath,
@@ -74,11 +88,11 @@ namespace BuildXL.Cache.ContentStore.App
             }
         }
 
-        private class TestHost : IDistributedCacheServiceHost
+        private class EnvironmentVariableHost : IDistributedCacheServiceHost
         {
             public string GetSecretStoreValue(string key)
             {
-                return key;
+                return Environment.GetEnvironmentVariable(key);
             }
 
             public void OnStartedService()
@@ -87,7 +101,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             public Task OnStartingServiceAsync()
             {
-                return Task.Run(() => { });
+                return Task.CompletedTask;
             }
 
             public void OnTeardownCompleted()
@@ -96,7 +110,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             public Task<Dictionary<string, string>> RetrieveKeyVaultSecretsAsync(List<string> secrets, CancellationToken token)
             {
-                return Task.FromResult(new Dictionary<string, string>());
+                return Task.FromResult(secrets.ToDictionary(s => GetSecretStoreValue(s)));
             }
         }
     }

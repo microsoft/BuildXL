@@ -23,7 +23,8 @@ namespace Library {
             ContentStore.Interfaces.dll,
             ContentStore.Library.dll,
             Interfaces.dll,
-
+            
+            importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Service.dll,
 
             importFrom("BuildXL.Utilities").dll,

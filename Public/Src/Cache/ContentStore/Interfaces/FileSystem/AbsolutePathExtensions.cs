@@ -3,6 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -19,6 +20,21 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
             string fileName = Path.GetFileName(path.Path);
             Contract.Assume(fileName != null);
             return fileName;
+        }
+
+        /// <summary>
+        /// Gets the AbsolutePath for the root of a drive.
+        /// </summary>
+        public static AbsolutePath GetRootPath(this AbsolutePath path)
+        {
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                return new AbsolutePath($"{path.DriveLetter}:{Path.DirectorySeparatorChar}");
+            }
+            else
+            {
+                return new AbsolutePath(Path.VolumeSeparatorChar.ToString());
+            }
         }
     }
 }

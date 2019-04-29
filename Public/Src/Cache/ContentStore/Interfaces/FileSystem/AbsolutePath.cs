@@ -37,26 +37,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         public static int MinimumPathLength = OperatingSystemHelper.IsWindowsOS ? 2 : 1;
 
         /// <summary>
-        /// Create an AbsolutePath for the root of a drive.
-        /// </summary>
-        public static AbsolutePath RootPath(char driveLetter = default(char))
-        {
-            if (OperatingSystemHelper.IsWindowsOS)
-            {
-                if (driveLetter == default(char))
-                {
-                    throw new ArgumentException(nameof(driveLetter));
-                }
-
-                return new AbsolutePath($"{driveLetter}:{System.IO.Path.DirectorySeparatorChar}{System.IO.Path.DirectorySeparatorChar}");
-            }
-            else
-            {
-                return new AbsolutePath(System.IO.Path.DirectorySeparatorChar.ToString());
-            }
-        }
-
-        /// <summary>
         ///     Initializes a new instance of the <see cref="AbsolutePath" /> class.
         /// </summary>
         public AbsolutePath(string path)

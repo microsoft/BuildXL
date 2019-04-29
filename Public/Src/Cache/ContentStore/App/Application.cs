@@ -454,9 +454,9 @@ namespace BuildXL.Cache.ContentStore.App
         }
 
         internal DistributedCacheServiceArguments CreateDistributedCacheServiceArguments(
-            IAbsolutePathFileCopier copier, IAbsolutePathTransformer pathTransformer, HostInfo host, string cacheName, string cacheRootPath, uint grpcPort, int maxSizeQuotaMB, string dataRootPath, CancellationToken ct)
+            IAbsolutePathFileCopier copier, IAbsolutePathTransformer pathTransformer, DistributedContentSettings dcs, HostInfo host, string cacheName, string cacheRootPath, uint grpcPort, int maxSizeQuotaMB, string dataRootPath, CancellationToken ct)
         {
-            var distributedCacheServiceHost = new TestHost();
+            var distributedCacheServiceHost = new EnvironmentVariableHost();
 
             var localCasSettings = LocalCasSettings.Default(
                 maxSizeQuotaMB: maxSizeQuotaMB,
@@ -468,9 +468,8 @@ namespace BuildXL.Cache.ContentStore.App
             localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario);
 
             var redisConnectionString = Environment.GetEnvironmentVariable(EnvironmentConnectionStringProvider.RedisConnectionStringEnvironmentVariable);
-            var distributedContentSettings = DistributedContentSettings.CreateEnabled(new Dictionary<string, string>() { { host.StampId, redisConnectionString } });
 
-            var config = new DistributedCacheServiceConfiguration(localCasSettings, distributedContentSettings);
+            var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs);
 
             return new DistributedCacheServiceArguments(_logger, copier, pathTransformer, distributedCacheServiceHost, host, ct, dataRootPath, config, null);
         }

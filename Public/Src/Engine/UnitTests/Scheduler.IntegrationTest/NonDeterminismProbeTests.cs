@@ -21,10 +21,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
+        [Feature(Features.OpaqueDirectory)]
         // TODO 1519677: Fix this bug on Mojave macOS
         [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        [Feature(Features.OpaqueDirectory)]
-        [Theory]
         [InlineData(false)]
         [InlineData(true)]
         public void NonDeterminismOpaqueDirectoryOutput(bool fileListedAsNormalOutput)

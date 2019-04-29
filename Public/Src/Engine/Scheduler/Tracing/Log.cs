@@ -2178,8 +2178,8 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
-            Message = "Temp cleaner thread exited with {0} cleaned, {1} remaining and {2} failed temp directories, {3} cleaned, {4} remaining and {5} failed temp files.")]
-        public abstract void PipTempCleanerSummary(LoggingContext context, long cleanedDirs, long remainingDirs, long failedDirs, long cleanedFiles, long remainingFiles, long failedFiles);
+            Message = "Temp cleaner thread exited with {0} cleaned, {1} remaining and {2} failed temp directories, {3} cleaned, {4} remaining and {5} failed temp files. (timed out: {6})")]
+        public abstract void PipTempCleanerSummary(LoggingContext context, long cleanedDirs, long remainingDirs, long failedDirs, long cleanedFiles, long remainingFiles, long failedFiles, bool timedout);
 
         [GeneratedEvent(
             (int)EventId.RunningTimeAdded,

@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Security.AccessControl;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
@@ -137,9 +138,14 @@ namespace BuildXL.Native.IO
             return s_fileSystem.TryRemoveDirectory(path, out hr);
         }
 
-        /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool}, ITempDirectoryCleaner)"/>
-        public static void DeleteDirectoryContents(string path, bool deleteRootDirectory = false, Func<string, bool> shouldDelete = null, ITempDirectoryCleaner tempDirectoryCleaner = null) =>
-            s_fileUtilities.DeleteDirectoryContents(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner);
+        /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool}, ITempDirectoryCleaner, CancellationToken?)"/>
+        public static void DeleteDirectoryContents(
+            string path, 
+            bool deleteRootDirectory = false, 
+            Func<string, bool> shouldDelete = null, 
+            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            CancellationToken? cancellationToken = default) =>
+            s_fileUtilities.DeleteDirectoryContents(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, cancellationToken);
 
         /// <see cref="IFileSystem.EnumerateDirectoryEntries(string, bool, Action{string, string, FileAttributes}, bool)"/>
         public static EnumerateDirectoryResult EnumerateDirectoryEntries(

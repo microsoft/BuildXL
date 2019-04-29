@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.AccessControl;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.Streams;
 using BuildXL.Utilities;
@@ -68,7 +69,13 @@ namespace BuildXL.Native.IO
         /// <param name="deleteRootDirectory">whether to also delete the root directory</param>
         /// <param name="shouldDelete">a function which returns true if file should be deleted and false otherwise.</param>
         /// <param name="tempDirectoryCleaner">provides and cleans a temp directory for move-deleting files</param>
-        void DeleteDirectoryContents(string path, bool deleteRootDirectory, Func<string, bool> shouldDelete, ITempDirectoryCleaner tempDirectoryCleaner = null);
+        /// <param name="cancellationToken">provides cancelation capability.</param>
+        void DeleteDirectoryContents(
+            string path, 
+            bool deleteRootDirectory, 
+            Func<string, bool> shouldDelete, 
+            ITempDirectoryCleaner tempDirectoryCleaner = null, 
+            CancellationToken? cancellationToken = default);
 
         /// <summary>
         /// Recursively enumerates the contents of a directory along with any open handles.

@@ -67,14 +67,6 @@ function qTestDotNetFrameworkToString(qTestDotNetFramework: QTestDotNetFramework
             return "Unspecified";
     };
 }
-function qCodeCoverageEnumTypeToString(qCodeCoverageEnumType: QCodeCoverageEnumType) {
-    switch (qCodeCoverageEnumType) {
-        case QCodeCoverageEnumType.DynamicCodeCov:
-            return "DynamicCodeCov";
-        default:
-            return "None";
-    };
-}
 function validateArguments(args: QTestArguments): void {
     if (args.qTestDirToDeploy && args.qTestInputs) {
         Contract.fail("Do not specify both qTestDirToDeploy and qTestInputs. Specify your inputs using only one of these arguments");

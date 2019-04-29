@@ -5,7 +5,7 @@ import * as Bash from "Bash";
 import * as Clang from "Clang";
 import {Cmd, Artifact, Transformer} from "Sdk.Transformers";
 
-const tool = !Context.isWindowsOS() && <Transformer.ToolDefinition>{
+const tool = Bash.isMacOS && <Transformer.ToolDefinition>{
     exe: Clang.compile({
         inputs: [f`testHardLinks.c`],
         outputFileName: a`testHardLinks`
@@ -14,7 +14,7 @@ const tool = !Context.isWindowsOS() && <Transformer.ToolDefinition>{
 };
 
 export function runTool(hardlinkName: string, srcFile: File, probeFile: File): DerivedFile {
-    if (Context.isWindowsOS()) return undefined;
+    if (!Bash.isMacOS) return undefined;
 
     const outDir = Context.getNewOutputDirectory('hl');
     const hardlinkPath = p`${outDir}/${hardlinkName}`;

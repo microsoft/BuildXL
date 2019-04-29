@@ -264,7 +264,7 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
     /** Describes the type of coverage that QTest should employ. */
-    qCodeCoverageEnumType?: "DynamicCodeCov" | "None";
+    qCodeCoverageEnumType?: null | "DynamicCodeCov" | "None";
     /** When enabled, creates a zip of the sandbox in log directory */
     zipSandbox? : boolean;
 }

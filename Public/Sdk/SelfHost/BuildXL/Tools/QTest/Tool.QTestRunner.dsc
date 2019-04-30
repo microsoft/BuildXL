@@ -8,7 +8,6 @@ const qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverag
     : "None";
 
 @@public
-export type QCodeCoverageType = "DynamicCodeCov" | "None";
 export const qTestTool: Transformer.ToolDefinition = {
     exe: f`${root}/bin/DBS.QTest.exe`,
     description: "CloudBuild QTest",
@@ -268,7 +267,7 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
     /** Describes the type of coverage that QTest should employ. */
-    qCodeCoverageEnumType?: QCodeCoverageType;
+    qCodeCoverageEnumType?: "DynamicCodeCov" | "None";
     /** When enabled, creates a zip of the sandbox in log directory */
     zipSandbox? : boolean;
 }

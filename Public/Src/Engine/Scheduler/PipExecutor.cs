@@ -995,8 +995,7 @@ namespace BuildXL.Scheduler
             {
                 var analyzePipViolationsResult = AnalyzePipViolationsResult.NoViolations;
 
-                // Regardless of if we will fail the pip or not, maybe analyze them for higher-level dependency violations.
-                if (processExecutionResult.SharedDynamicDirectoryWriteAccesses != null)
+                if (allowedSameContentDoubleWriteViolations.Count > 0)
                 {
                     analyzePipViolationsResult = environment.FileMonitoringViolationAnalyzer.AnalyzeDoubleWritesOnCacheConvergence(
                         process,

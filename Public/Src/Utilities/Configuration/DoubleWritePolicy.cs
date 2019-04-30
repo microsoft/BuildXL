@@ -15,8 +15,10 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         DoubleWritesAreErrors,
 
-        // Double writes are allowed as long as the file content is the same
-        // AllowSameContentDoubleWrites // TODO: to be implemented
+        /// <summary>
+        /// Double writes are allowed as long as the file content is the same
+        /// </summary>
+        AllowSameContentDoubleWrites,
 
         /// <summary>
         /// Double writes are allowed and the first output will (non-deterministically) represent the final
@@ -32,16 +34,34 @@ namespace BuildXL.Utilities.Configuration
     public static class DoubleWritePolicyExtensions
     {
         /// <summary>
-        /// Whether the double-write policy implies that double writes should be flagged as errors
+        /// Whether the double-write policy implies that double writes should be flagged as a warning (as opposed to an error)
         /// </summary>
-        public static bool ImpliesDoubleWriteIsError(this DoubleWritePolicy policy)
+        public static bool ImpliesDoubleWriteIsWarning(this DoubleWritePolicy policy)
         {
             switch (policy)
             {
                 case DoubleWritePolicy.DoubleWritesAreErrors:
-                    return true;
-                case DoubleWritePolicy.UnsafeFirstDoubleWriteWins:
+                case DoubleWritePolicy.AllowSameContentDoubleWrites:
                     return false;
+                case DoubleWritePolicy.UnsafeFirstDoubleWriteWins:
+                    return true;
+                default:
+                    throw new InvalidOperationException("Unexpected double write policy " + policy.ToString());
+            }
+        }
+
+        /// <summary>
+        /// Whether the double-write policy implies that double writes are possible without implying a build break
+        /// </summary>
+        public static bool ImpliesDoubleWriteCanHappen(this DoubleWritePolicy policy)
+        {
+            switch (policy)
+            {
+                case DoubleWritePolicy.DoubleWritesAreErrors:
+                    return false;
+                case DoubleWritePolicy.AllowSameContentDoubleWrites:
+                case DoubleWritePolicy.UnsafeFirstDoubleWriteWins:
+                    return true;
                 default:
                     throw new InvalidOperationException("Unexpected double write policy " + policy.ToString());
             }

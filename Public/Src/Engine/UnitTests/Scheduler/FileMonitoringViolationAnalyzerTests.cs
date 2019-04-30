@@ -17,6 +17,9 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Storage;
+using BuildXL.Utilities.Collections;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -56,7 +59,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -91,7 +96,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -125,7 +132,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
             AssertErrorEventLogged(EventId.FileMonitoringError);
@@ -159,7 +168,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
 
@@ -192,7 +203,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -227,7 +240,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -263,7 +278,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -298,7 +315,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
             AssertVerboseEventLogged(LogEventId.DependencyViolationReadRace);
             AssertErrorEventLogged(EventId.FileMonitoringError);
         }
@@ -325,7 +344,9 @@ namespace Test.BuildXL.Scheduler
                     exclusiveOpaqueDirectoryContent: null,
                     sharedOpaqueDirectoryWriteAccesses: null,
                     allowedUndeclaredReads: null,
-                    absentPathProbesUnderOutputDirectories: null); 
+                    absentPathProbesUnderOutputDirectories: null,
+                    ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                    out var _); 
 
             AssertTrue(!analyzePipViolationsResult.IsViolationClean);
             AssertErrorEventLogged(EventId.FileMonitoringError);
@@ -352,7 +373,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOrderedRead);
             AssertErrorEventLogged(EventId.FileMonitoringError);
@@ -388,7 +411,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -442,7 +467,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -481,7 +508,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             analyzer.AnalyzePipViolations(
                 producerViolator,
@@ -493,7 +522,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             analyzer.AnalyzePipViolations(
                 consumerViolator2,
@@ -505,7 +536,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -585,8 +618,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null
-            );
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             AssertErrorEventLogged(EventId.FileMonitoringError);
 
@@ -623,7 +657,7 @@ namespace Test.BuildXL.Scheduler
             AbsolutePath violatorOutput = CreateAbsolutePath(context, JunkPath);
             AbsolutePath producerOutput = CreateAbsolutePath(context, DoubleWritePath);
 
-            Process producer = graph.AddProcess(producerOutput);
+            Process producer = graph.AddProcess(producerOutput, doubleWritePolicy);
             Process violator = graph.AddProcess(violatorOutput, doubleWritePolicy);
 
             analyzer.AnalyzePipViolations(
@@ -633,7 +667,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null);
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -655,6 +691,74 @@ namespace Test.BuildXL.Scheduler
             else
             {
                 AssertWarningEventLogged(EventId.FileMonitoringWarning);
+            }
+        }
+
+        [Theory]
+        [InlineData(DoubleWritePolicy.DoubleWritesAreErrors)]
+        [InlineData(DoubleWritePolicy.AllowSameContentDoubleWrites)]
+        public void DoubleWritePolicyIsContentAware(DoubleWritePolicy doubleWritePolicy)
+        {
+            BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
+            var graph = new QueryablePipDependencyGraph(context);
+            var analyzer = new TestFileMonitoringViolationAnalyzer(
+                LoggingContext,
+                context,
+                graph,
+                // Set this to test the logic of base.HandleDependencyViolation(...) instead of the overriding fake
+                doLogging: true,
+                collectNonErrorViolations: true);
+
+            // Create the path where the double write will occur, and a random file content that will be used for both producers
+            AbsolutePath doubleWriteOutput = CreateAbsolutePath(context, JunkPath);
+            ContentHash contentHash = ContentHashingUtilities.CreateRandom();
+            var fileContentInfo = new FileContentInfo(contentHash, contentHash.Length);
+            var outputsContent = new (FileArtifact, FileMaterializationInfo, PipOutputOrigin)[]
+                {
+                    (FileArtifact.CreateOutputFile(doubleWriteOutput), new FileMaterializationInfo(fileContentInfo, doubleWriteOutput.GetName(context.PathTable)), PipOutputOrigin.NotMaterialized)
+                }.ToReadOnlyArray();
+            var sharedOpaqueRoot = doubleWriteOutput.GetParent(context.PathTable);
+            var sharedOpaqueDirectoryWriteAccesses = new Dictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> { [sharedOpaqueRoot] = new AbsolutePath[] { doubleWriteOutput } };
+
+            // Create two processes that claim to produce some arbitrary static output files. We are not really use those outputs but tell
+            // the analyzer that these processes wrote into shared opaques
+            Process producer = graph.AddProcess(CreateAbsolutePath(context, X("/X/out/static1")), doubleWritePolicy);
+            Process violator = graph.AddProcess(CreateAbsolutePath(context, X("/X/out/static2")), doubleWritePolicy);
+
+            // Run the analysis for both pips
+            analyzer.AnalyzePipViolations(
+                producer,
+                new ReportedFileAccess[0],
+                new ReportedFileAccess[0],
+                exclusiveOpaqueDirectoryContent: null,
+                sharedOpaqueDirectoryWriteAccesses: sharedOpaqueDirectoryWriteAccesses,
+                allowedUndeclaredReads: null,
+                absentPathProbesUnderOutputDirectories: null,
+                outputsContent,
+                out var _);
+
+            analyzer.AnalyzePipViolations(
+                violator,
+                new ReportedFileAccess[0],
+                new ReportedFileAccess[0],
+                exclusiveOpaqueDirectoryContent: null,
+                sharedOpaqueDirectoryWriteAccesses: sharedOpaqueDirectoryWriteAccesses,
+                allowedUndeclaredReads: null,
+                absentPathProbesUnderOutputDirectories: null,
+                outputsContent,
+                out var _);
+
+            // Based on the double write policy, the violation is an error or it is not raised
+            if (doubleWritePolicy == DoubleWritePolicy.DoubleWritesAreErrors)
+            {
+                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
+            }
+            else
+            {
+                // AllowSameContentDoubleWrites case
+                AssertVerboseEventLogged(LogEventId.AllowedSameContentDoubleWrite);
+                analyzer.AssertNoExtraViolationsCollected();
             }
         }
 
@@ -682,8 +786,9 @@ namespace Test.BuildXL.Scheduler
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
-                absentPathProbesUnderOutputDirectories: null
-            );
+                absentPathProbesUnderOutputDirectories: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out var _);
             
             XAssert.IsTrue(result.IsViolationClean);
         }

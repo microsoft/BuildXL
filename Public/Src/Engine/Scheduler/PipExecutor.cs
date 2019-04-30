@@ -34,6 +34,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
+using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
@@ -935,18 +936,23 @@ namespace BuildXL.Scheduler
             PipExecutionState.PipScopeState state,
             ExecutionResult processExecutionResult,
             Process process,
-            out bool pipIsSafeToCache)
+            out bool pipIsSafeToCache,
+            out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations)
         {
             pipIsSafeToCache = true;
 
             using (operationContext.StartOperation(PipExecutorCounter.AnalyzeFileAccessViolationsDuration))
             {
                 var analyzePipViolationsResult = AnalyzePipViolationsResult.NoViolations;
+                allowedSameContentDoubleWriteViolations = CollectionUtilities.EmptyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
+
+                var exclusiveOpaqueDirectories = processExecutionResult.DirectoryOutputs.Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque).ToReadOnlyArray();
 
                 // Regardless of if we will fail the pip or not, maybe analyze them for higher-level dependency violations.
                 if (processExecutionResult.FileAccessViolationsNotWhitelisted != null 
                     || processExecutionResult.WhitelistedFileAccessViolations != null 
                     || processExecutionResult.SharedDynamicDirectoryWriteAccesses != null 
+                    || exclusiveOpaqueDirectories != null
                     || processExecutionResult.AllowedUndeclaredReads != null
                     || processExecutionResult.AbsentPathProbesUnderOutputDirectories != null)
                 {
@@ -954,10 +960,12 @@ namespace BuildXL.Scheduler
                         process,
                         processExecutionResult.FileAccessViolationsNotWhitelisted,
                         processExecutionResult.WhitelistedFileAccessViolations,
-                        processExecutionResult.DirectoryOutputs.Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque).ToReadOnlyArray(),
+                        exclusiveOpaqueDirectories,
                         processExecutionResult.SharedDynamicDirectoryWriteAccesses,
                         processExecutionResult.AllowedUndeclaredReads,
-                        processExecutionResult.AbsentPathProbesUnderOutputDirectories);
+                        processExecutionResult.AbsentPathProbesUnderOutputDirectories,
+                        processExecutionResult.OutputContent,
+                        out allowedSameContentDoubleWriteViolations);
                 }
 
                 if (!analyzePipViolationsResult.IsViolationClean)
@@ -967,6 +975,40 @@ namespace BuildXL.Scheduler
                 }
 
                 pipIsSafeToCache = analyzePipViolationsResult.PipIsSafeToCache;
+
+                return processExecutionResult;
+            }
+        }
+
+        /// <summary>
+        /// Analyze process double write violations after the cache converged outputs
+        /// </summary>
+        internal static ExecutionResult AnalyzeDoubleWritesOnCacheConvergence(
+            OperationContext operationContext,
+            IPipExecutionEnvironment environment,
+            PipExecutionState.PipScopeState state,
+            ExecutionResult processExecutionResult,
+            Process process,
+            IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations)
+        {
+            using (operationContext.StartOperation(PipExecutorCounter.AnalyzeFileAccessViolationsDuration))
+            {
+                var analyzePipViolationsResult = AnalyzePipViolationsResult.NoViolations;
+
+                // Regardless of if we will fail the pip or not, maybe analyze them for higher-level dependency violations.
+                if (processExecutionResult.SharedDynamicDirectoryWriteAccesses != null)
+                {
+                    analyzePipViolationsResult = environment.FileMonitoringViolationAnalyzer.AnalyzeDoubleWritesOnCacheConvergence(
+                        process,
+                        processExecutionResult.OutputContent,
+                        allowedSameContentDoubleWriteViolations);
+                }
+
+                if (!analyzePipViolationsResult.IsViolationClean)
+                {
+                    Contract.Assume(operationContext.LoggingContext.ErrorWasLogged, "Error should have been logged by FileMonitoringViolationAnalyzer");
+                    processExecutionResult = processExecutionResult.CloneSealedWithResult(PipResultStatus.Failed);
+                }
 
                 return processExecutionResult;
             }
@@ -1004,7 +1046,8 @@ namespace BuildXL.Scheduler
                             exclusiveOpaqueContent,
                             executionResult.SharedDynamicDirectoryWriteAccesses, 
                             executionResult.AllowedUndeclaredReads,
-                            executionResult.AbsentPathProbesUnderOutputDirectories))
+                            executionResult.AbsentPathProbesUnderOutputDirectories,
+                            executionResult.OutputContent))
                 {
                     Contract.Assume(operationContext.LoggingContext.ErrorWasLogged, "Error should have been logged by FileMonitoringViolationAnalyzer");
                     return executionResult.CloneSealedWithResult(PipResultStatus.Failed);
@@ -1015,7 +1058,7 @@ namespace BuildXL.Scheduler
                     environment, 
                     processDescription, 
                     executionResult, 
-                    pip.PipType == PipType.Process ? !((Process)pip).DoubleWritePolicy.ImpliesDoubleWriteIsError() : false);
+                    pip.PipType == PipType.Process ? ((Process)pip).DoubleWritePolicy.ImpliesDoubleWriteIsWarning() : false);
 
                 if (cacheHitData.Metadata.NumberOfWarnings > 0 && environment.Configuration.Logging.ReplayWarnings)
                 {

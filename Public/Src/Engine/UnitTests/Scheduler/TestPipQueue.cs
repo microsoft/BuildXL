@@ -200,7 +200,7 @@ namespace Test.BuildXL.Scheduler
             m_pendingConstraintCount[after] = refcount + 1;
         }
 
-        public void Unpause()
+        public TestPipQueue Unpause()
         {
             Contract.Requires(Paused);
             Contract.Ensures(!Paused);
@@ -218,6 +218,8 @@ namespace Test.BuildXL.Scheduler
             {
                 pausedQueueActions.Dequeue()();
             }
+
+            return this;
         }
 
         /// <inheritdoc/>

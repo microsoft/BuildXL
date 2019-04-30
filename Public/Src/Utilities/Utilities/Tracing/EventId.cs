@@ -1049,6 +1049,7 @@ namespace BuildXL.Utilities.Tracing
         FailedToCreateHardlinkOnMerge = 12209,
         DoubleWriteAllowedDueToPolicy = 12210,
         DisallowedDoubleWriteOnMerge = 12211,
+        AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs = 12212,
 
         // Status logging
         Status = 12400,

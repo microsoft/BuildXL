@@ -1066,7 +1066,10 @@ namespace Test.BuildXL.Scheduler
                             case Operation.Type.WriteFileWithRetries:
                                 dao.Outputs.Add(op.Path.FileArtifact);
                                 break;
-
+                            case Operation.Type.ReadAndWriteFile:
+                                dao.Outputs.Add(op.LinkPath.FileArtifact);
+                                dao.Dependencies.Add(op.Path.FileArtifact);
+                                break;
                             case Operation.Type.CreateHardlink:
                                 dao.Dependencies.Add(op.LinkPath.FileArtifact);
                                 dao.Outputs.Add(op.Path.FileArtifact);

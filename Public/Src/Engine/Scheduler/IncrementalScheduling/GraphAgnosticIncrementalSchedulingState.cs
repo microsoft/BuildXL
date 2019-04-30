@@ -2027,6 +2027,46 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 },
                 includeLazyInputs: false);
 
+            if (pip is SealDirectory sealDirectory && sealDirectory.Kind == SealDirectoryKind.Opaque)
+            {
+                // If the pip is an output directory, then PipArtifacts.ForEachInput will not let us
+                // find the producer of that directory. Thus, we need to manually get the producer to check
+                // if the output directory is still up-to-date.
+
+                PipId pipId = PipId.Invalid;
+                bool hasPipStableId = false;
+
+                if ((pipId = pipGraph.TryGetProducer(sealDirectory.Directory)).IsValid
+                    && (!(hasPipStableId = TryGetPipStableId(pipGraph, pipOrigins, pipId, out PipStableId pipStableId))
+                        || !cleanPips.TryGetValue(pipStableId, out PipGraphSequenceNumber producerSequenceNumber)
+                        || producerSequenceNumber > pipGraphSequenceNumberWhenPipIsClean))
+                {
+                    // Either
+                    // 1. dependence pip is not tracked, i.e., it doesn't have a stable id, or
+                    // 2. dependence pip is not clean, or
+                    // 3. dependence pip is clean but at later version.
+                    // Then, the pip is dirty.
+                    LogPipDirtyAcrossGraph(
+                        loggingContext,
+                        context =>
+                        {
+                            string fingerprintText = string.Empty;
+
+                            if (hasPipStableId && pipOrigins.TryGetFingerprint(pipStableId, out ContentFingerprint pipFingerprint))
+                            {
+                                fingerprintText = pipFingerprint.ToString();
+                            }
+
+                            Tracing.Logger.Log.IncrementalSchedulingPipDirtyAcrossGraphBecauseDependencyIsDirty(
+                                context,
+                                pip.SemiStableHash,
+                                pipGraph.PipTable.GetPipSemiStableHash(pipId),
+                                fingerprintText);
+                        });
+                    clean = false;
+                }
+            }
+
             return clean;
         }
 

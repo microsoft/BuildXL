@@ -98,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         public override void Close()
         {
             Interlocked.Increment(ref ProperlyClosed);
-            GC.SuppressFinalize(this);
+            base.Close();
         }
 
         ~TrackingFileStream()

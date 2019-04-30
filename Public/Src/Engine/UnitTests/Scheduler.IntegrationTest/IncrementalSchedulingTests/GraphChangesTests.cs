@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.IO;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
@@ -1350,6 +1351,79 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 
             // P is scheduled because it gets dirty by salting to B.
             RunScheduler().AssertScheduled(p.PipId).AssertCacheHit(p.PipId);            
+        }
+
+        [Fact]
+        public void DisappearingOutputDirectoryProducers()
+        {
+            // Graph G1: g -> Q -> OD/outFile -> P -> SSD
+            // Graph G2: h -> R
+
+            // Start with G1.
+            // Build P.
+            AbsolutePath sourceDirPath = CreateUniqueDirectory(SourceRoot, "SSD");
+            FileArtifact f = CreateSourceFile(sourceDirPath);
+            ModifyFile(f, "f0");
+            DirectoryArtifact sourceDir = CreateAndScheduleSealDirectoryArtifact(sourceDirPath, SealDirectoryKind.SourceAllDirectories);
+            
+            
+            DirectoryArtifact outputDir = CreateOutputDirectoryArtifact(ObjectRoot);
+            FileArtifact outputFile = CreateOutputFileArtifact(root: outputDir.Path, "outFile");
+
+            var pOperations = new Operation[] { Operation.CopyFile(f, outputFile, doNotInfer: true) };
+            ProcessBuilder pBuilder = CreatePipBuilder(pOperations, description: "Pip-P");
+            pBuilder.AddInputDirectory(sourceDir);
+            pBuilder.AddOutputDirectory(outputDir.Path, SealDirectoryKind.Opaque);
+            ProcessWithOutputs pWithOutputs = SchedulePipBuilder(pBuilder);
+
+            // Build Q.
+            FileArtifact g = CreateOutputFileArtifact();
+            var qOperations = new Operation[] { Operation.CopyFile(outputFile, g, doNotInfer: true) };
+            ProcessBuilder qBuilder = CreatePipBuilder(qOperations, description: "Pip-Q");
+            qBuilder.AddInputDirectory(pWithOutputs.ProcessOutputs.GetOpaqueDirectory(outputDir.Path));
+            qBuilder.AddOutputFile(g.Path);
+            ProcessWithOutputs qWithOutputs = SchedulePipBuilder(qBuilder);
+
+            RunScheduler().AssertScheduled(pWithOutputs.Process.PipId, qWithOutputs.Process.PipId);
+            XAssert.AreEqual("f0", ReadAllText(g));
+
+            // Switch to G2.
+            ResetPipGraphBuilder();
+
+            // Build R.
+            FileArtifact h = CreateOutputFileArtifact();
+            var rOperations = new Operation[] { Operation.WriteFile(h) };
+            ProcessBuilder rBuilder = CreatePipBuilder(rOperations, description: "Pip-R");
+            ProcessWithOutputs rWithOutputs = SchedulePipBuilder(rBuilder);
+
+            // Modify f to invalidate P.
+            ModifyFile(f, "f1");
+            RunScheduler().AssertScheduled(rWithOutputs.Process.PipId);
+            
+            // Ensure that g has not changed.
+            XAssert.AreEqual("f0", ReadAllText(g));
+
+            // Switch to G1.
+            ResetPipGraphBuilder();
+
+            sourceDir = CreateAndScheduleSealDirectoryArtifact(sourceDirPath, SealDirectoryKind.SourceAllDirectories);
+
+            pBuilder = CreatePipBuilder(pOperations, description: "Pip-P");
+            pBuilder.AddInputDirectory(sourceDir);
+            pBuilder.AddOutputDirectory(outputDir.Path, SealDirectoryKind.Opaque);
+            pWithOutputs = SchedulePipBuilder(pBuilder);
+
+            // Build Q.
+            qBuilder = CreatePipBuilder(qOperations, description: "Pip-Q");
+            qBuilder.AddInputDirectory(pWithOutputs.ProcessOutputs.GetOpaqueDirectory(outputDir.Path));
+            qBuilder.AddOutputFile(g.Path);
+            qWithOutputs = SchedulePipBuilder(qBuilder);
+
+            // Modify f to invalidate P.
+            ModifyFile(f, "f2");
+
+            RunScheduler().AssertScheduled(pWithOutputs.Process.PipId, qWithOutputs.Process.PipId);
+            XAssert.AreEqual("f2", ReadAllText(g));
         }
     }
 }

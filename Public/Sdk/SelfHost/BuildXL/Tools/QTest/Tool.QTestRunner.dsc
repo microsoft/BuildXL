@@ -3,6 +3,9 @@
 
 import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
 const root = Environment.hasVariable("[Sdk.BuildXL]qtestDeploymentPath") ? d`${Environment.getFileValue("[Sdk.BuildXL]qtestDeploymentPath")}` : d`.`;
+const qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType")
+    ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")
+    : "None";
 
 @@public
 export type QCodeCoverageType = "DynamicCodeCov" | "None";
@@ -154,8 +157,8 @@ export function runQTest(args: QTestArguments): Result {
             "--qTestRawArgFile ",
             Artifact.input(args.qTestRawArgFile)
         ),
-        Cmd.option("--qCodeCoverageEnumType ", args.qCodeCoverageEnumType),
-        Cmd.flag("--zipSandbox", args.zipSandbox),
+        Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType),
+        Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
     ];

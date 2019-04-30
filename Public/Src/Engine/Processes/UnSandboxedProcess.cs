@@ -116,15 +116,31 @@ namespace BuildXL.Processes
             return DateTime.UtcNow.Subtract(m_processExecutor.StartTime);
         }
 
+        /// <summary>
+        /// Any immediate processing that needs to be done right after the process has been started.
+        /// </summary>
+        protected virtual Task PostProcessStartAsync()
+        {
+            return Task.CompletedTask;
+        }
+
         /// <inheritdoc />
-        public virtual void Start()
+        public void Start()
         {
             Contract.Requires(!Started, "Process was already started.  Cannot start process more than once.");
 
-            CreateAndSetUpProcess();
+            m_processExecutor = new AsyncProcessExecutor(
+                CreateProcess(),
+                ProcessInfo.Timeout ?? TimeSpan.FromMinutes(10),
+                line => FeedStdOut(m_output, line),
+                line => FeedStdErr(m_error, line),
+                ProcessInfo);
+
             m_processExecutor.Start();
 
-            SetProcessStartedExecuting();
+            PostProcessStartAsync().GetAwaiter().GetResult();
+
+            ProcessInfo.ProcessIdListener?.Invoke(ProcessId);
         }
 
         private int m_processId = -1;
@@ -249,12 +265,10 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Mutates <see cref="Process"/>.
+        /// Creates a <see cref="Process"/>.
         /// </summary>
-        protected void CreateAndSetUpProcess()
+        protected virtual Process CreateProcess()
         {
-            Contract.Requires(Process == null);
-
 #if PLATFORM_OSX
             var mode = GetFilePermissionsForFilePath(ProcessInfo.FileName, followSymlink: false);
             if (mode < 0)
@@ -296,12 +310,7 @@ namespace BuildXL.Processes
                 }
             }
 
-            m_processExecutor = new AsyncProcessExecutor(
-                process,
-                ProcessInfo.Timeout ?? TimeSpan.FromMinutes(10),
-                line => FeedStdOut(m_output, line),
-                line => FeedStdErr(m_error, line),
-                ProcessInfo);
+            return process;
         }
 
         internal virtual void FeedStdOut(SandboxedProcessOutputBuilder b, string line)
@@ -342,14 +351,6 @@ namespace BuildXL.Processes
                 string fullMessage = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");
                 Tracing.Logger.Log.LogDetoursDebugMessage(ProcessInfo.LoggingContext, ProcessInfo.PipSemiStableHash, ProcessInfo.PipDescription, fullMessage);
             }
-        }
-
-        /// <summary>
-        /// Notifies the process id listener.
-        /// </summary>
-        protected void SetProcessStartedExecuting()
-        {
-            ProcessInfo.ProcessIdListener?.Invoke(ProcessId);
         }
 
         /// <summary>

@@ -127,19 +127,20 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public override void Start() => StartAsync().GetAwaiter().GetResult();
-
-        private async Task StartAsync()
+        protected override System.Diagnostics.Process CreateProcess()
         {
-            base.CreateAndSetUpProcess();
+            var process = base.CreateProcess();
 
-            Process.StartInfo.FileName = "/bin/sh";
-            Process.StartInfo.Arguments = string.Empty;
-            Process.StartInfo.RedirectStandardInput = true;
-            Process.Start();
-            Process.BeginOutputReadLine();
-            Process.BeginErrorReadLine();
+            process.StartInfo.FileName = "/bin/sh";
+            process.StartInfo.Arguments = string.Empty;
+            process.StartInfo.RedirectStandardInput = true;
 
+            return process;
+        }
+
+        /// <inheritdoc />
+        protected override async Task PostProcessStartAsync()
+        {
             // Generate "Process Created" report because the rest of the system expects to see it before any other file access reports
             //
             // IMPORTANT: do this before notifying sandbox kernel extension, because otherwise it can happen that a report
@@ -170,7 +171,6 @@ namespace BuildXL.Processes
             try
             {
                 await FeedStdInAsync();
-                SetProcessStartedExecuting();
                 m_processTreeTimeoutTask = ProcessTreeTimeoutTask();
             }
             catch (IOException e)

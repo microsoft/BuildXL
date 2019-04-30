@@ -46,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private readonly ActionBlock<ProcessEventsInput>[] _eventProcessingBlocks;
 
-        private readonly Microsoft.Practices.TransientFaultHandling.RetryPolicy _extraEventHubClientRetryPolicy;
+        private readonly RetryPolicy _extraEventHubClientRetryPolicy;
 
         /// <inheritdoc />
         public EventHubContentLocationEventStore(

@@ -109,8 +109,7 @@ function runTest(args : TestRunArguments) : File[] {
     // because the junction's target changes in every build, incremental scheduling can unnecesarily
     // makes the pips dirty. However, if we don't use a stable junction, then we won't get any cache
     // hit because the log directory can change in every build.
-    const isCloudBuild = Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD");
-    const qtestLogDir = isCloudBuild
+    const qtestLogDir = Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")
         ? d`${Context.getMount("LogsDirectory").path}/QTest/${args.testDeployment.primaryFile.name}`
         : d`${Context.getNewOutputDirectory("QTestLog")}`;
 
@@ -137,11 +136,7 @@ function runTest(args : TestRunArguments) : File[] {
         qTestTool: Environment.hasVariable("[Sdk.BuildXL]qtestDeploymentPath") ? undefined : qTestTool,
         qTestLogs: logDir,
         tags: args.tags,
-        weight: args.weight,
-        qCodeCoverageEnumType: Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType")
-            ? <Qtest.QCodeCoverageType>Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")
-            : "None",
-        zipSandbox : isCloudBuild,
+        weight: args.weight
     });
 
     return [

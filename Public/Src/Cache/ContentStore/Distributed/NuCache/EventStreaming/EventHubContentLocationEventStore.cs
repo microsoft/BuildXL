@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
@@ -14,7 +15,9 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Azure.EventHubs;
+using Microsoft.Practices.TransientFaultHandling;
 using static BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming.ContentLocationEventStoreCounters;
+using RetryPolicy = Microsoft.Practices.TransientFaultHandling.RetryPolicy;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {
@@ -42,6 +45,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private readonly string _hostName = Guid.NewGuid().ToString();
 
         private readonly ActionBlock<ProcessEventsInput>[] _eventProcessingBlocks;
+
+        private readonly RetryPolicy _extraEventHubClientRetryPolicy;
 
         /// <inheritdoc />
         public EventHubContentLocationEventStore(
@@ -74,6 +79,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             })
                         .ToArray();
             }
+
+            _extraEventHubClientRetryPolicy = CreateEventHubClientRetryPolicy();
+        }
+
+        private RetryPolicy CreateEventHubClientRetryPolicy()
+        {
+            return new RetryPolicy(
+                new TransientEventHubErrorDetectionStrategy(),
+                RetryStrategy.DefaultExponential);
         }
 
         /// <inheritdoc />
@@ -154,20 +168,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 counters[SentMessagesTotalSize].Add(eventData.Body.Count);
                 eventData.Properties[OperationIdKey] = operationId.ToString();
 
-                try
+                // Even though event hub client has it's own built-in retry strategy, we have to wrap all the calls into a separate
+                // one to cover a few more important cases that the default strategy misses.
+                await _extraEventHubClientRetryPolicy.ExecuteAsync(async () =>
                 {
-                    await _partitionSender.SendAsync(eventData);
-                }
-                catch (ServerBusyException exception)
-                {
-                    // TODO: Verify that the HResult is 50002. Documentation shows that this should be the error code for throttling,
-                    // but documentation is done for Microsoft.ServiceBus.Messaging.ServerBusyException and not Microsoft.Azure.EventHubs.ServerBusyException
-                    // https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-messaging-exceptions#serverbusyexception
-                    Tracer.Debug(context, $"{Tracer.Name}: OpId={operationId} was throttled by EventHub. HResult={exception.HResult}");
-                    Tracer.TrackMetric(context, "EventHubThrottle", 1);
+                    try
+                    {
+                        await _partitionSender.SendAsync(eventData);
+                    }
+                    catch (ServerBusyException exception)
+                    {
+                        // TODO: Verify that the HResult is 50002. Documentation shows that this should be the error code for throttling,
+                        // but documentation is done for Microsoft.ServiceBus.Messaging.ServerBusyException and not Microsoft.Azure.EventHubs.ServerBusyException
+                        // https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-messaging-exceptions#serverbusyexception
+                        Tracer.Debug(context, $"{Tracer.Name}: OpId={operationId} was throttled by EventHub. HResult={exception.HResult}");
+                        Tracer.TrackMetric(context, "EventHubThrottle", 1);
 
-                    throw;
-                }
+                        throw;
+                    }
+                });
             }
 
             return BoolResult.Success;
@@ -502,6 +521,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             { }
 
             public static OperationCounters FromEventStoreCounters(CounterCollection<ContentLocationEventStoreCounters> eventStoreCounters) => new OperationCounters(eventStoreCounters);
+        }
+
+        private class TransientEventHubErrorDetectionStrategy : ITransientErrorDetectionStrategy
+        {
+            /// <inheritdoc />
+            public bool IsTransient(Exception ex)
+            {
+                // We've seen that EH client fails with timeout, socket errors and server busy.
+                // Consider all these errors as transient and retry.
+                bool isTransient = ex is System.TimeoutException || ex is SocketException || ex is ServerBusyException;
+                return isTransient;
+            }
         }
     }
 }

@@ -523,7 +523,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             public static OperationCounters FromEventStoreCounters(CounterCollection<ContentLocationEventStoreCounters> eventStoreCounters) => new OperationCounters(eventStoreCounters);
         }
 
-        public class TransientEventHubErrorDetectionStrategy : ITransientErrorDetectionStrategy
+        private class TransientEventHubErrorDetectionStrategy : ITransientErrorDetectionStrategy
         {
             /// <inheritdoc />
             public bool IsTransient(Exception ex)

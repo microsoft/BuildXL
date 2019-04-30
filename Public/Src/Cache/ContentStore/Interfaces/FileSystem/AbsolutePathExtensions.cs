@@ -21,20 +21,5 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
             Contract.Assume(fileName != null);
             return fileName;
         }
-
-        /// <summary>
-        /// Gets the AbsolutePath for the root of a drive.
-        /// </summary>
-        public static AbsolutePath GetRootPath(this AbsolutePath path)
-        {
-            if (OperatingSystemHelper.IsWindowsOS)
-            {
-                return new AbsolutePath($"{path.DriveLetter}:{Path.DirectorySeparatorChar}");
-            }
-            else
-            {
-                return new AbsolutePath(Path.VolumeSeparatorChar.ToString());
-            }
-        }
     }
 }

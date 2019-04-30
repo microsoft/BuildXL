@@ -29,7 +29,7 @@ namespace BuildXL.Scheduler
         /// <returns>true if there were no violations marked as error</returns>
         /// <remarks>
         /// If double writes involving same-content files are detected but allowed, a collection of those non-reported violations 
-        /// are returned. This is usefule for the case of cache convergence, where outputs may change after the main violation analysis
+        /// are returned. This is useful for the case of cache convergence, where outputs may change after the main violation analysis
         /// is done.
         /// </remarks>
         AnalyzePipViolationsResult AnalyzePipViolations(

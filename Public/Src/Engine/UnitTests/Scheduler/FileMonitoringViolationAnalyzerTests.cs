@@ -61,7 +61,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -98,7 +98,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -134,7 +134,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
             AssertErrorEventLogged(EventId.FileMonitoringError);
@@ -170,7 +170,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
 
@@ -205,7 +205,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -242,7 +242,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -280,7 +280,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -317,7 +317,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
             AssertVerboseEventLogged(LogEventId.DependencyViolationReadRace);
             AssertErrorEventLogged(EventId.FileMonitoringError);
         }
@@ -346,7 +346,7 @@ namespace Test.BuildXL.Scheduler
                     allowedUndeclaredReads: null,
                     absentPathProbesUnderOutputDirectories: null,
                     ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                    out var _); 
+                    out _); 
 
             AssertTrue(!analyzePipViolationsResult.IsViolationClean);
             AssertErrorEventLogged(EventId.FileMonitoringError);
@@ -375,7 +375,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOrderedRead);
             AssertErrorEventLogged(EventId.FileMonitoringError);
@@ -413,7 +413,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -469,7 +469,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -510,7 +510,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             analyzer.AnalyzePipViolations(
                 producerViolator,
@@ -524,7 +524,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             analyzer.AnalyzePipViolations(
                 consumerViolator2,
@@ -538,7 +538,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -620,7 +620,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             AssertErrorEventLogged(EventId.FileMonitoringError);
 
@@ -669,7 +669,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
 
             analyzer.AssertContainsViolation(
                 new DependencyViolation(
@@ -735,7 +735,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 outputsContent,
-                out var _);
+                out _);
 
             analyzer.AnalyzePipViolations(
                 violator,
@@ -746,7 +746,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 outputsContent,
-                out var _);
+                out _);
 
             // Based on the double write policy, the violation is an error or it is not raised
             if (doubleWritePolicy == DoubleWritePolicy.DoubleWritesAreErrors)
@@ -788,7 +788,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 absentPathProbesUnderOutputDirectories: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
-                out var _);
+                out _);
             
             XAssert.IsTrue(result.IsViolationClean);
         }

@@ -383,9 +383,6 @@ namespace BuildXL.Processes.Containers
                     return false;
                 }
 
-                // DoubleWritePolicy.UnsafeFirstDoubleWriteWins case
-                Contract.Assert(process.DoubleWritePolicy == DoubleWritePolicy.UnsafeFirstDoubleWriteWins);
-
                 // Just log a verbose message for tracking purposes
                 Tracing.Logger.Log.DoubleWriteAllowedDueToPolicy(m_loggingContext, process.SemiStableHash, process.GetDescription(pipExecutionContext), destPath);
 

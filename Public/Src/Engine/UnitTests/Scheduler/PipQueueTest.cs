@@ -651,8 +651,8 @@ namespace Test.BuildXL.Scheduler
                                 pipScope,
                                 executionResult,
                                 cacheableProcess.Process,
-                                out var _,
-                                out var _);
+                                out _,
+                                out _);
 
                             executionResult = await PipExecutor.PostProcessExecution(operationContext, environment, pipScope, cacheableProcess, executionResult);
                             PipExecutor.ReportExecutionResultOutputContent(operationContext, environment, cacheableProcess.Description, executionResult);

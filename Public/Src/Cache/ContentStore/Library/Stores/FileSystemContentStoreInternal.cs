@@ -2215,9 +2215,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // operations in the in-memory representation of the cache.
                 if (_settings.UseEmptyFileHashShortcut && contentHashWithPath.Hash.IsEmptyHash())
                 {
-                    // TODO: Respect I/O semaphore, set file permissions
                     FileSystem.CreateDirectory(contentHashWithPath.Path.Parent);
-                    using (File.Create(contentHashWithPath.Path.Path)) { }
+                    using (await FileSystem.OpenAsync(contentHashWithPath.Path, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.None, 1).ConfigureAwait(false)) { }
 
                     return new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy);
                 }

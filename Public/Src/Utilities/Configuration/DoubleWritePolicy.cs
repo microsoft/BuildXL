@@ -53,7 +53,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Whether the double-write policy implies that double writes are possible without implying a build break
         /// </summary>
-        public static bool ImpliesDoubleWriteCanHappen(this DoubleWritePolicy policy)
+        public static bool ImpliesDoubleWriteAllowed(this DoubleWritePolicy policy)
         {
             switch (policy)
             {

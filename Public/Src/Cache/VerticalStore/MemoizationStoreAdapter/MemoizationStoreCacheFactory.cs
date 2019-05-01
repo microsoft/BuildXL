@@ -175,11 +175,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             /// <nodoc />
             [DefaultValue(ServiceClientContentStoreConfiguration.DefaultRetryIntervalSeconds)]
-            public uint RetryIntervalSeconds { get; set; }
+            public int RetryIntervalSeconds { get; set; }
 
             /// <nodoc />
             [DefaultValue(ServiceClientContentStoreConfiguration.DefaultRetryCount)]
-            public uint RetryCount { get; set; }
+            public int RetryCount { get; set; }
 
             /// <nodoc />
             public Config()

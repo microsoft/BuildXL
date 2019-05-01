@@ -121,8 +121,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                         fileSystem,
                         localCacheConfiguration.CacheName,
                         new ServiceClientRpcConfiguration(localCacheConfiguration.GrpcPort),
-                        localCacheConfiguration.RetryIntervalSeconds,
-                        localCacheConfiguration.RetryCount,
+                        (uint)localCacheConfiguration.RetryIntervalSeconds,
+                        (uint)localCacheConfiguration.RetryCount,
                         scenario: localCacheConfiguration.ScenarioName)
                     : new FileSystemContentStore(
                         fileSystem, 

@@ -42,18 +42,18 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         public string ScenarioName { get; }
 
         /// <nodoc />
-        public uint RetryIntervalSeconds { get; }
+        public int RetryIntervalSeconds { get; }
 
         /// <nodoc />
-        public uint RetryCount { get; }
+        public int RetryCount { get; }
 
         /// <summary>
         /// Create a local cache configuration which has distributed features.
         /// </summary>
-        public static LocalCacheConfiguration CreateServerEnabled(int grpcPort, string cacheName, string scenarioName, uint retryIntervalSeconds, uint retryCount)
+        public static LocalCacheConfiguration CreateServerEnabled(int grpcPort, string cacheName, string scenarioName, int retryIntervalSeconds, int retryCount)
         {
-            Contract.Assert(grpcPort > 0, $"Local server must have a positive GRPC port. Found {grpcPort}.");
-            Contract.Assert(!string.IsNullOrWhiteSpace(cacheName), $"Local server must have a non-empty cache name. Found {cacheName}.");
+            Contract.Requires(grpcPort > 0, $"Local server must have a positive GRPC port. Found {grpcPort}.");
+            Contract.Requires(!string.IsNullOrWhiteSpace(cacheName), $"Local server must have a non-empty cache name. Found {cacheName}.");
 
             return new LocalCacheConfiguration(true, grpcPort, cacheName, scenarioName, retryIntervalSeconds, retryCount);
         }
@@ -63,10 +63,10 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         /// </summary>
         public static LocalCacheConfiguration CreateServerDisabled()
         {
-            return new LocalCacheConfiguration(false);
+            return new LocalCacheConfiguration(enableContentServer: false);
         }
 
-        private LocalCacheConfiguration(bool enableContentServer, int grpcPort = 0, string cacheName = null, string scenarioName = null, uint retryIntervalSeconds = 0, uint retryCount = 0)
+        private LocalCacheConfiguration(bool enableContentServer, int grpcPort = 0, string cacheName = null, string scenarioName = null, int retryIntervalSeconds = 0, int retryCount = 0)
         {
             EnableContentServer = enableContentServer;
             GrpcPort = grpcPort;

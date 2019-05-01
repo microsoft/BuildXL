@@ -33,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.App
             [Description("Path to DistributedContentSettings file")] string settingsPath,
             [Description("Cache name")] string cacheName,
             [Description("Cache root path")] string cachePath,
-            [DefaultValue(ServiceConfiguration.GrpcDisabledPort), Description(GrpcPortDescription)] int grpcPort,
+            [DefaultValue((int)ServiceConfiguration.GrpcDisabledPort), Description(GrpcPortDescription)] int grpcPort,
             [Description("Name of the memory mapped file used to share GRPC port. 'CASaaS GRPC port' if not specified.")] string grpcPortFileName,
             [DefaultValue(null), Description("Writable directory for service operations (use CWD if null)")] string dataRootPath,
             [DefaultValue(null), Description("Identifier for the stamp this service will run as")] string stampId,

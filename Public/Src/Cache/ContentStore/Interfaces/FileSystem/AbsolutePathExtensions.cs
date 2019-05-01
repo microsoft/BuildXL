@@ -3,7 +3,6 @@
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {

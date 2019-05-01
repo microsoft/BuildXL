@@ -53,6 +53,17 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// Delegate type for <see cref="ProcessStarted"/> event.
+        /// </summary>
+        protected delegate void ProcessStartedHandler();
+
+        /// <summary>
+        /// Raised right after the process is started.
+        /// </summary>
+
+        protected event ProcessStartedHandler ProcessStarted;
+
+        /// <summary>
         /// Indicates if the process has been force killed during execution.
         /// </summary>
         protected virtual bool Killed => m_processExecutor?.Killed ?? false;
@@ -116,14 +127,6 @@ namespace BuildXL.Processes
             return DateTime.UtcNow.Subtract(m_processExecutor.StartTime);
         }
 
-        /// <summary>
-        /// Any immediate processing that needs to be done right after the process has been started.
-        /// </summary>
-        protected virtual Task PostProcessStartAsync()
-        {
-            return Task.CompletedTask;
-        }
-
         /// <inheritdoc />
         public void Start()
         {
@@ -139,7 +142,7 @@ namespace BuildXL.Processes
 
             m_processExecutor.Start();
 
-            PostProcessStartAsync().GetAwaiter().GetResult();
+            ProcessStarted?.Invoke();
 
             ProcessInfo.ProcessIdListener?.Invoke(ProcessId);
         }

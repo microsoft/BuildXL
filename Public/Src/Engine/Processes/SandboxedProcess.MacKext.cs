@@ -124,6 +124,9 @@ namespace BuildXL.Processes
                     BoundedCapacity = DataflowBlockOptions.Unbounded,
                     MaxDegreeOfParallelism = 1, // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
                 });
+
+            // install a 'ProcessStarted' handler that informs the kext of the newly started process
+            ProcessStarted += () => OnProcessStartedAsync().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc />
@@ -138,8 +141,16 @@ namespace BuildXL.Processes
             return process;
         }
 
-        /// <inheritdoc />
-        protected override async Task PostProcessStartAsync()
+        /// <summary>
+        /// Called right after the process starts executing.
+        /// 
+        /// Since we set the process file name to be /bin/sh and its arguments to be empty (<see cref="CreateProcess"/>),
+        /// the process will effectively start in a "suspended" mode, with /bin/sh just waiting for some content to be
+        /// piped to its standard input.  Therefore, in this handler we first notify the kext of the new process (so that
+        /// the kext starts tracking it) and then just send the actual process command line to /bin/sh via its standard
+        /// input.
+        /// </summary>
+        private async Task OnProcessStartedAsync()
         {
             // Generate "Process Created" report because the rest of the system expects to see it before any other file access reports
             //

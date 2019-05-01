@@ -90,7 +90,7 @@ namespace Test.BuildXL.Processes
         }
 
         // TODO 1519677: Fix this bug on Mojave macOS
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Theory]
         [MemberData(nameof(AccessTypes))]
         public Task DirectlyReportedNonexistentFailsWithAllowRead(AccessType accessType)
         {
@@ -102,7 +102,7 @@ namespace Test.BuildXL.Processes
         }
 
         // TODO: fix this bug on Mojave macOS
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: false)]
+        [Theory]
         [MemberData(nameof(AccessTypes))]
         public Task ProbesWithinScope(AccessType accessType)
         {

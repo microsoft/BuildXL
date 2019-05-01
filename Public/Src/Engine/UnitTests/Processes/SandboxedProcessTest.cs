@@ -1078,7 +1078,7 @@ namespace Test.BuildXL.Processes
         }
 
         // TODO 1519677: Fix this bug on Mojave macOS
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: false)]
+        [Fact]
         public async Task TempAccessesAreUnexpectedByDefault()
         {
             var outFile = CreateOutputFileArtifact(root: TemporaryDirectory, prefix: "not.allowed");

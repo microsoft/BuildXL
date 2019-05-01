@@ -59,7 +59,7 @@ namespace BuildXL.Processes
 
         private IKextConnection KextConnection => ProcessInfo.SandboxedKextConnection;
 
-        private TimeSpan ChildProcessTimeout => TimeSpan.FromMilliseconds(ProcessInfo.NestedProcessTerminationTimeout.TotalMilliseconds);
+        private TimeSpan ChildProcessTimeout => ProcessInfo.NestedProcessTerminationTimeout;
 
         /// <summary>
         /// Accumulates the time (in microseconds) access reports spend in the report queue
@@ -74,7 +74,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Timeout period for inactivity from the sandbox kernel extension.
         /// </summary>
-        internal TimeSpan ReportQueueProcessTimeout => KextConnection.IsInTestMode ? TimeSpan.FromSeconds(10) : TimeSpan.FromMinutes(45);
+        internal TimeSpan ReportQueueProcessTimeout => KextConnection.IsInTestMode ? TimeSpan.FromSeconds(100) : TimeSpan.FromMinutes(45);
 
         private Task m_processTreeTimeoutTask;
 

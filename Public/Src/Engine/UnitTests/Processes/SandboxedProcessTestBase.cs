@@ -3,16 +3,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
-using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Utilities;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
-using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 
 namespace Test.BuildXL.Processes
@@ -38,10 +34,7 @@ namespace Test.BuildXL.Processes
                 BuildParameters.GetFactory().PopulateFromEnvironment().ToDictionary(),
                 overrideEnvVars);
 
-            var testMethodFrame = new System.Diagnostics.StackTrace()
-                .GetFrames()
-                .Last(f => f.GetMethod().Module.Assembly == Assembly.GetAssembly(GetType()));
-            var methodName = $"{testMethodFrame.GetMethod().DeclaringType.FullName}.{testMethodFrame.GetMethod().Name}";
+            var methodName = DiscoverCurrentlyExecutingXunitTestMethodFQN();
             pipDescription = pipDescription != null
                 ? methodName + " - " + pipDescription
                 : methodName;

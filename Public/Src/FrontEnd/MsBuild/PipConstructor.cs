@@ -440,7 +440,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             // Until we can deal with double writes in a better way, this unsafe option allows the build to progress and
             // prints warnings 
-            processBuilder.DoubleWritePolicy |= DoubleWritePolicy.AllowSameContentDoubleWrites;
+            processBuilder.DoubleWritePolicy |= DoubleWritePolicy.UnsafeFirstDoubleWriteWins;
 
             SetUntrackedFilesAndDirectories(processBuilder);
 

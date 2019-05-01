@@ -17,7 +17,6 @@ using BuildXL.Utilities.Tracing;
 using Microsoft.Azure.EventHubs;
 using Microsoft.Practices.TransientFaultHandling;
 using static BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming.ContentLocationEventStoreCounters;
-using Exception = System.Exception;
 using RetryPolicy = Microsoft.Practices.TransientFaultHandling.RetryPolicy;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming

@@ -102,7 +102,7 @@ namespace Test.BuildXL.Processes
         }
 
         // TODO: fix this bug on Mojave macOS
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: false)]
         [MemberData(nameof(AccessTypes))]
         public Task ProbesWithinScope(AccessType accessType)
         {

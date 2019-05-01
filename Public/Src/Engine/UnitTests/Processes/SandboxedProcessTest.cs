@@ -831,8 +831,15 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Fact]
-        public async Task ReportSingleReadAccessXPlat()
+        private static IEnumerable<object[]> RSData()
+        {
+            for (int i = 0; i < 1; i++)
+                yield return new object[] { i };
+        }
+
+        [Theory]
+        [MemberData(nameof(RSData))]
+        public async Task ReportSingleReadAccessXPlat(int cnt)
         {
             var srcFile = CreateSourceFile();
 
@@ -1071,7 +1078,7 @@ namespace Test.BuildXL.Processes
         }
 
         // TODO 1519677: Fix this bug on Mojave macOS
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: false)]
         public async Task TempAccessesAreUnexpectedByDefault()
         {
             var outFile = CreateOutputFileArtifact(root: TemporaryDirectory, prefix: "not.allowed");

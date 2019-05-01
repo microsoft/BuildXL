@@ -350,7 +350,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
             using (await ConcurrentAccess.WaitToken())
             {
-                return await OpenInsideSemaphoreAsync(path, fileAccess, fileMode, share, options, bufferSize);
+                return OpenInternal(path, fileAccess, fileMode, share, options, bufferSize);
             }
         }
 
@@ -416,9 +416,9 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
         private async Task CopyFileInsideSemaphoreAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, bool replaceExisting)
         {
-            // It is very important to call OpenInsideSemaphoreAsync and not to call OpenAsync method that will re-acquire the semaphore once again.
+            // It is very important to call OpenInternal and not to call OpenAsync method that will re-acquire the semaphore once again.
             // Violating this rule may cause a deadlock.
-            using (var readStream = await OpenInsideSemaphoreAsync(
+            using (var readStream = OpenInternal(
                 sourcePath, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
             {
                 if (readStream == null)
@@ -431,8 +431,8 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
                 var mode = replaceExisting ? FileMode.OpenOrCreate : FileMode.CreateNew;
 
-                using (var writeStream = await OpenInsideSemaphoreAsync(
-                    destinationPath, FileAccess.Write, mode, FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize).ConfigureAwait(false))
+                using (var writeStream = OpenInternal(
+                    destinationPath, FileAccess.Write, mode, FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
                 {
                     if (writeStream == null)
                     {
@@ -445,10 +445,8 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             }
         }
 
-        private Task<Stream> OpenInsideSemaphoreAsync(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
+        private Stream OpenInternal(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
         {
-            return Task.Run(() =>
-            {
                 if (OperatingSystemHelper.IsUnixOS)
                 {
                     if (DirectoryExists(path))
@@ -530,7 +528,6 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                         handle.Dispose();
                     }
                 }
-            });
         }
 
         private FileOptions GetOptions(AbsolutePath path, FileOptions options)

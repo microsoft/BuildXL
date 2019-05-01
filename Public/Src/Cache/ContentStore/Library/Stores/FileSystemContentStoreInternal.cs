@@ -918,6 +918,14 @@ namespace BuildXL.Cache.ContentStore.Stores
                     }
                 }
 
+                // If we are given the empty file, the put is a no-op.
+                // We have dedicated logic for pinning and returning without having
+                // the empty file in the cache directory.
+                if (_settings.UseEmptyFileHashShortcut && content.Hash.IsEmptyHash())
+                {
+                    return new PutResult(content.Hash, 0L);
+                }
+
                 using (LockSet<ContentHash>.LockHandle contentHashHandle = await _lockSet.AcquireAsync(content.Hash))
                 {
                     CheckPinned(content.Hash, pinRequest);
@@ -2202,17 +2210,15 @@ namespace BuildXL.Cache.ContentStore.Stores
                     return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists);
                 }
 
-                // If this is the empty hash, then put the empty file into the cache
-                if (_settings.UseEmptyFileHashShortcut && contentHashWithPath.Hash.IsEmptyHash() && !await ContainsAsync(context, contentHashWithPath.Hash, pinRequest))
+                // If this is the empty hash, then directly create an empty file.
+                // This avoids hash-level lock, all I/O in the cache directory, and even
+                // operations in the in-memory representation of the cache.
+                if (_settings.UseEmptyFileHashShortcut && contentHashWithPath.Hash.IsEmptyHash())
                 {
-                    // Put the empty file
-                    var putResult = await PutStreamAsync(context, _emptyFileStream, contentHash, pinRequest);
-                    if (!putResult.Succeeded)
-                    {
-                        // Because this is an optimization for the empty file, we shouldn't fail here.
-                        // Instead, let the normal path have a try.
-                        context.Debug($"Failed to place empty file by putting the empty stream: {putResult}");
-                    }
+                    FileSystem.CreateDirectory(contentHashWithPath.Path.Parent);
+                    using (await FileSystem.OpenAsync(contentHashWithPath.Path, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.None, 1).ConfigureAwait(false)) { }
+
+                    return new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy);
                 }
 
                 // Lookup hash in content directory
@@ -2802,6 +2808,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // The batching needs to go further down.
                 foreach (var contentHash in contentHashes)
                 {
+                    // Pinning the empty file always succeeds; no I/O or other operations required,
+                    // because we have dedicated logic to place it when required.
                     if (_settings.UseEmptyFileHashShortcut && contentHash.IsEmptyHash())
                     {
                         results.Add(new PinResult(contentSize: 0, lastAccessTime: Clock.UtcNow, code: PinResult.ResultCode.Success));
@@ -2950,13 +2958,16 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             return OpenStreamCall<ContentStoreInternalTracer>.RunAsync(_tracer, OperationContext(context), contentHash, async () =>
             {
+
+                // Short-circut requests for the empty stream
+                // No lock is required since no file is involved.
+                if (_settings.UseEmptyFileHashShortcut && contentHash.IsEmptyHash())
+                {
+                    return new OpenStreamResult(_emptyFileStream);
+                }
+
                 using (await _lockSet.AcquireAsync(contentHash))
                 {
-                    if (_settings.UseEmptyFileHashShortcut && contentHash.IsEmptyHash())
-                    {
-                        return new OpenStreamResult(_emptyFileStream);
-                    }
-
                     var stream = await OpenStreamInternalWithLockAsync(context, contentHash, pinRequest, FileShare.Read | FileShare.Delete);
                     return new OpenStreamResult(stream);
                 }

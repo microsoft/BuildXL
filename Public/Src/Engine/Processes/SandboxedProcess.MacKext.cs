@@ -333,9 +333,10 @@ namespace BuildXL.Processes
         private async Task FeedStdInAsync()
         {
             string processStdinFileName = await FlushStandardInputToFileIfNeededAsync();
-            string redirectedStdin = processStdinFileName != null ? $" < {processStdinFileName}" : string.Empty;
-            string escapedArguments = ProcessInfo.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
-            string maybeTime = MeasureCpuTime ? TimeUtil : string.Empty;
+            string redirectedStdin      = processStdinFileName != null ? $" < {processStdinFileName}" : string.Empty;
+            string escapedArguments     = ProcessInfo.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
+            string maybeTime            = MeasureCpuTime ? TimeUtil : string.Empty;
+
             string line = I($"exec {maybeTime} {ProcessInfo.FileName} {escapedArguments} {redirectedStdin}");
 
             await Process.StandardInput.WriteLineAsync(line);

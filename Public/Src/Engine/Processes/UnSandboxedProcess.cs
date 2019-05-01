@@ -272,6 +272,8 @@ namespace BuildXL.Processes
         /// </summary>
         protected virtual Process CreateProcess()
         {
+            Contract.Requires(Process == null);
+
 #if PLATFORM_OSX
             var mode = GetFilePermissionsForFilePath(ProcessInfo.FileName, followSymlink: false);
             if (mode < 0)

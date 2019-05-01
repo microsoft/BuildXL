@@ -193,10 +193,13 @@ namespace BuildXL.Processes
         /// Waits for the process' standard output and error to get flushed.
         /// </summary>
         /// <remarks>
-        /// Note that <see cref="WaitForExitAsync"/> completes as soon as <see cref="Process"/> exits.
+        /// Note that this task completes as soon as <see cref="Process"/> exits.
         /// After <see cref="Process"/> exits, however, any of its child processes might still be running, 
         /// and might still be using their parent's stdout and stderr, which is why this task is not
-        /// guaranteed to necessarily complete right after <see cref="WaitForExitAsync"/> completes.
+        /// going to necessarily complete right after <see cref="WaitForExitAsync"/> completes.
+        /// 
+        /// Note also that no timeout is applied here, i.e., if those child processes never exit,
+        /// this task never completes.
         /// </remarks>
         public Task WaitForStdOutAndStdErrAsync()
         {

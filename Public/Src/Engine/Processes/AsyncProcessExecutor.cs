@@ -166,7 +166,11 @@ namespace BuildXL.Processes
         /// <summary>
         /// Waits for process to exit or to get killed due to timed out.
         /// </summary>
-        public async Task WaitForExitAsync(Func<Task> getProcessReport = null)
+        /// <remarks>
+        /// After this task completes, stdout and stderr of <see cref="Process"/> are not necessarily flushed
+        /// yet. If you care about those tasks completing, call <see cref="WaitForStdOutAndStdErrAsync"/>.
+        /// </remarks>
+        public async Task WaitForExitAsync()
         {
             m_logger?.Invoke($"Waiting for process({ProcessId}) to exit");
             var finishedTask = await Task.WhenAny(Task.Delay(m_timeout), WhenExited);
@@ -183,14 +187,21 @@ namespace BuildXL.Processes
             {
                 m_logger?.Invoke($"Process({ProcessId}) exited at {ExitTime}");
             }
+        }
 
-            if (getProcessReport != null)
-            {
-                await getProcessReport();
-            }
-
+        /// <summary>
+        /// Waits for the process' standard output and error to get flushed.
+        /// </summary>
+        /// <remarks>
+        /// Note that <see cref="WaitForExitAsync"/> completes as soon as <see cref="Process"/> exits.
+        /// After <see cref="Process"/> exits, however, any of its child processes might still be running, 
+        /// and might still be using their parent's stdout and stderr, which is why this task is not
+        /// guaranteed to necessarily complete right after <see cref="WaitForExitAsync"/> completes.
+        /// </remarks>
+        public Task WaitForStdOutAndStdErrAsync()
+        {
             m_logger?.Invoke($"Waiting for process({ProcessId}) stderr and stdout to flush");
-            await Task.WhenAll(m_stdoutFlushedTcs.Task, m_stderrFlushedTcs.Task);
+            return Task.WhenAll(m_stdoutFlushedTcs.Task, m_stderrFlushedTcs.Task);
         }
 
         /// <summary>

@@ -208,14 +208,14 @@ namespace BuildXL.Processes
 
             SandboxedProcessReports reports = null;
 
-            await m_processExecutor.WaitForExitAsync(
-                async () => 
-                {
-                    LogProcessState("Waiting for reports to be received");
-                    reports = await GetReportsAsync();
-                    m_reportsReceivedTime = DateTime.UtcNow;
-                    reports?.Freeze();
-                });
+            await m_processExecutor.WaitForExitAsync();
+
+            LogProcessState("Waiting for reports to be received");
+            reports = await GetReportsAsync();
+            m_reportsReceivedTime = DateTime.UtcNow;
+            reports?.Freeze();
+
+            await m_processExecutor.WaitForStdOutAndStdErrAsync();
 
             var reportFileAccesses = ProcessInfo.FileAccessManifest?.ReportFileAccesses == true;
             var fileAccesses = reportFileAccesses ? (reports?.FileAccesses ?? s_emptyFileAccessesSet) : null;

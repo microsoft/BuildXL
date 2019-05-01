@@ -17,6 +17,7 @@ using BuildXL.Utilities.Tracing;
 using Microsoft.Azure.EventHubs;
 using Microsoft.Practices.TransientFaultHandling;
 using static BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming.ContentLocationEventStoreCounters;
+using Exception = System.Exception;
 using RetryPolicy = Microsoft.Practices.TransientFaultHandling.RetryPolicy;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
@@ -184,6 +185,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         Tracer.Debug(context, $"{Tracer.Name}: OpId={operationId} was throttled by EventHub. HResult={exception.HResult}");
                         Tracer.TrackMetric(context, "EventHubThrottle", 1);
 
+                        throw;
+                    }
+                    catch (Exception e)
+                    {
+                        // If the error is not retryable, then the entire operation will fail and we don't need to double trace the error.
+                        if (TransientEventHubErrorDetectionStrategy.IsRetryable(e))
+                        {
+                            Tracer.Debug(context, $"{Tracer.Name}.{nameof(SendEventsCoreAsync)} failed with retryable error=[{e}]");
+                        }
+                        
                         throw;
                     }
                 });
@@ -528,10 +539,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             /// <inheritdoc />
             public bool IsTransient(Exception ex)
             {
-                // We've seen that EH client fails with timeout, socket errors and server busy.
-                // Consider all these errors as transient and retry.
-                bool isTransient = ex is System.TimeoutException || ex is SocketException || ex is ServerBusyException;
-                return isTransient;
+                return IsRetryable(ex);
+            }
+
+            public static bool IsRetryable(Exception exception)
+            {
+                if (exception is AggregateException ae)
+                {
+                    return ae.InnerExceptions.All(e => IsRetryable(e));
+                }
+
+                if (Microsoft.Azure.EventHubs.RetryPolicy.IsRetryableException(exception))
+                {
+                    return true;
+                }
+
+                // IsRetryableException covers TaskCanceledException, EventHubException, OperationCanceledException and SocketException
+
+                // Need to cover some additional cases here.
+                if (exception is TimeoutException || exception is ServerBusyException)
+                {
+                    return true;
+                }
+
+                return false;
             }
         }
     }

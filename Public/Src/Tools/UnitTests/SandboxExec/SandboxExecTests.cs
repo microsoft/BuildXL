@@ -160,16 +160,18 @@ namespace Test.Tool.SandboxExec
             try
             {
                 var instance = CreateSandboxExecRunner();
-                var process = await SandboxExecRunner.ExecuteAsync(instance, new string[] { "/bin/ls", "." }, TestOutputDirectory);
-                var result = await process.GetResultAsync();
+                using (var process = await SandboxExecRunner.ExecuteAsync(instance, new string[] { "/bin/ls", "." }, TestOutputDirectory))
+                {
+                    var result = await process.GetResultAsync();
 
-                var distinctAccessReports = instance.DedupeAccessReports(
-                    result.FileAccesses,
-                    result.ExplicitlyReportedFileAccesses,
-                    result.AllUnexpectedFileAccesses);
+                    var distinctAccessReports = instance.DedupeAccessReports(
+                        result.FileAccesses,
+                        result.ExplicitlyReportedFileAccesses,
+                        result.AllUnexpectedFileAccesses);
 
-                XAssert.IsTrue(distinctAccessReports.Count > 0);
-                XAssert.IsTrue(distinctAccessReports.Contains(" R  /bin/ls"));
+                    XAssert.IsTrue(distinctAccessReports.Count > 0);
+                    XAssert.Contains(distinctAccessReports, " R  /bin/ls");
+                }
             }
             catch (Exception ex)
             {

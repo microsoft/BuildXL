@@ -59,7 +59,7 @@ namespace BuildXL.Processes
 
         private IKextConnection KextConnection => ProcessInfo.SandboxedKextConnection;
 
-        private TimeSpan ChildProcessTimeout => TimeSpan.FromMilliseconds(ProcessInfo.NestedProcessTerminationTimeout.TotalMilliseconds);
+        private TimeSpan ChildProcessTimeout => ProcessInfo.NestedProcessTerminationTimeout;
 
         /// <summary>
         /// Accumulates the time (in microseconds) access reports spend in the report queue
@@ -74,7 +74,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Timeout period for inactivity from the sandbox kernel extension.
         /// </summary>
-        internal TimeSpan ReportQueueProcessTimeout => KextConnection.IsInTestMode ? TimeSpan.FromSeconds(10) : TimeSpan.FromMinutes(45);
+        internal TimeSpan ReportQueueProcessTimeout => KextConnection.IsInTestMode ? TimeSpan.FromSeconds(100) : TimeSpan.FromMinutes(45);
 
         private Task m_processTreeTimeoutTask;
 
@@ -124,22 +124,34 @@ namespace BuildXL.Processes
                     BoundedCapacity = DataflowBlockOptions.Unbounded,
                     MaxDegreeOfParallelism = 1, // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
                 });
+
+            // install a 'ProcessStarted' handler that informs the kext of the newly started process
+            ProcessStarted += () => OnProcessStartedAsync().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc />
-        public override void Start() => StartAsync().GetAwaiter().GetResult();
-
-        private async Task StartAsync()
+        protected override System.Diagnostics.Process CreateProcess()
         {
-            base.CreateAndSetUpProcess();
+            var process = base.CreateProcess();
 
-            Process.StartInfo.FileName = "/bin/sh";
-            Process.StartInfo.Arguments = string.Empty;
-            Process.StartInfo.RedirectStandardInput = true;
-            Process.Start();
-            Process.BeginOutputReadLine();
-            Process.BeginErrorReadLine();
+            process.StartInfo.FileName = "/bin/sh";
+            process.StartInfo.Arguments = string.Empty;
+            process.StartInfo.RedirectStandardInput = true;
 
+            return process;
+        }
+
+        /// <summary>
+        /// Called right after the process starts executing.
+        /// 
+        /// Since we set the process file name to be /bin/sh and its arguments to be empty (<see cref="CreateProcess"/>),
+        /// the process will effectively start in a "suspended" mode, with /bin/sh just waiting for some content to be
+        /// piped to its standard input.  Therefore, in this handler we first notify the kext of the new process (so that
+        /// the kext starts tracking it) and then just send the actual process command line to /bin/sh via its standard
+        /// input.
+        /// </summary>
+        private async Task OnProcessStartedAsync()
+        {
             // Generate "Process Created" report because the rest of the system expects to see it before any other file access reports
             //
             // IMPORTANT: do this before notifying sandbox kernel extension, because otherwise it can happen that a report
@@ -170,7 +182,6 @@ namespace BuildXL.Processes
             try
             {
                 await FeedStdInAsync();
-                SetProcessStartedExecuting();
                 m_processTreeTimeoutTask = ProcessTreeTimeoutTask();
             }
             catch (IOException e)
@@ -188,6 +199,8 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override async Task KillAsync()
         {
+            LogProcessState("SandboxedProcessMacKext::KillAsync");
+
             // In the case that the process gets shut down by either its timeout or e.g. SandboxedProcessPipExecutor
             // detecting resource usage issues and calling KillAsync(), we flag the process with m_processKilled so we
             // don't process any more kernel reports that get pushed into report structure asynchronously!
@@ -195,7 +208,7 @@ namespace BuildXL.Processes
 
             // Make sure this is done no more than once.
             if (incrementedValue == 1)
-            {                
+            {
                 m_pendingReports.Complete();
                 KillAllChildProcesses();
                 await base.KillAsync();
@@ -320,11 +333,13 @@ namespace BuildXL.Processes
         private async Task FeedStdInAsync()
         {
             string processStdinFileName = await FlushStandardInputToFileIfNeededAsync();
-            string redirectedStdin = processStdinFileName != null ? $" < {processStdinFileName}" : string.Empty;
-            string escapedArguments = ProcessInfo.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
-            string maybeTime = MeasureCpuTime ? TimeUtil : string.Empty;
+            string redirectedStdin      = processStdinFileName != null ? $" < {processStdinFileName}" : string.Empty;
+            string escapedArguments     = ProcessInfo.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
+            string maybeTime            = MeasureCpuTime ? TimeUtil : string.Empty;
+
             string line = I($"exec {maybeTime} {ProcessInfo.FileName} {escapedArguments} {redirectedStdin}");
 
+            LogProcessState("Feeding stdin: " + line);
             await Process.StandardInput.WriteLineAsync(line);
             Process.StandardInput.Close();
         }

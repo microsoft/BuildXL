@@ -347,7 +347,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         {
             string nl = Environment.NewLine;
             var elems = container.Select(e => I($"  '{e}'"));
-            return I($"[{nl}{string.Join(",", elems)}{nl}]");
+            return I($"[{nl}{string.Join("," + nl, elems)}{nl}]");
         }
 
         /// <nodoc/>

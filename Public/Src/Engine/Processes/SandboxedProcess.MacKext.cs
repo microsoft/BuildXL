@@ -339,6 +339,7 @@ namespace BuildXL.Processes
 
             string line = I($"exec {maybeTime} {ProcessInfo.FileName} {escapedArguments} {redirectedStdin}");
 
+            LogProcessState("Feeding stdin: " + line);
             await Process.StandardInput.WriteLineAsync(line);
             Process.StandardInput.Close();
         }

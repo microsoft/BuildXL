@@ -249,7 +249,11 @@ namespace BuildXL.Processes
 
         private void Log(FormattableString message)
         {
-            m_logger?.Invoke(FormattableStringEx.I($"Process({ProcessId}) - {message}"));
+            var pid = -1;
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+            try { pid = ProcessId; } catch {}
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+            m_logger?.Invoke(FormattableStringEx.I($"Process({pid}) - {message}"));
         }
 
         private static void FeedOutputBuilder(TaskSourceSlim<Unit> signalCompletion, string line, Action<string> eat)

@@ -192,7 +192,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{OpenStreamCallName} stop {result.DurationMs}ms result=[{result}]");
+                TracerOperationFinished(context, result, $"{Name}.{OpenStreamCallName} stop {result.DurationMs}ms{result.GetExtraDiagnosticsMessageForTracing()} result=[{result}]");
             }
 
             _openStreamCallCounter.Completed(result.Duration.Ticks);
@@ -233,7 +233,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{PlaceFileCallName} stop {result.DurationMs}ms input=[{input}] result=[{result}]");
+                TracerOperationFinished(context, result, $"{Name}.{PlaceFileCallName} stop {result.DurationMs}ms{result.GetExtraDiagnosticsMessageForTracing()} input=[{input}] result=[{result}]");
             }
 
             _placeFileCallCounter.Completed(result.Duration.Ticks);
@@ -263,7 +263,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{PutFileCallName} stop {result.DurationMs}ms result=[{result}] trusted={trusted}");
+                TracerOperationFinished(context, result, $"{Name}.{PutFileCallName} stop {result.DurationMs}ms{result.GetExtraDiagnosticsMessageForTracing()} result=[{result}] trusted={trusted}");
             }
 
             _putFileCallCounter.Completed(result.Duration.Ticks);
@@ -293,7 +293,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{PutStreamCallName} stop {result.DurationMs}ms result=[{result}]");
+                TracerOperationFinished(context, result, $"{Name}.{PutStreamCallName} stop {result.DurationMs}ms{result.GetExtraDiagnosticsMessageForTracing()} result=[{result}]");
             }
 
             _putStreamCallCounter.Completed(result.Duration.Ticks);

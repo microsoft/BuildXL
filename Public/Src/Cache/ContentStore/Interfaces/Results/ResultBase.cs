@@ -112,6 +112,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public TimeSpan Duration { get; set; }
 
         /// <summary>
+        /// Gets or sets additional information that can be used for tracing purposes.
+        /// </summary>
+        public string ExtraDiagnosticsMessage { get; set; }
+
+        /// <summary>
         /// Gets elapsed time, in milliseconds, of corresponding call.
         /// </summary>
         public long DurationMs => (long)Duration.TotalMilliseconds;

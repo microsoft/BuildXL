@@ -5,13 +5,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
+using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Scheduler;
+using BuildXL.Scheduler.Filter;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -19,10 +22,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = BuildXL.Scheduler.Tracing.LogEventId;
-using BuildXL.Processes;
-using BuildXL.Pips;
-using BuildXL.Scheduler;
-using BuildXL.Scheduler.Filter;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {

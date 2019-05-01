@@ -40,10 +40,11 @@ namespace Test.BuildXL.Processes
 
             var testMethodFrame = new System.Diagnostics.StackTrace()
                 .GetFrames()
-                .LastOrDefault(f => f.GetMethod().Module.Assembly == Assembly.GetAssembly(GetType()));
-            var methodName = testMethodFrame != null
-                ? $"{testMethodFrame.GetMethod().DeclaringType.FullName}.{testMethodFrame.GetMethod().Name}"
-                : null;
+                .Last(f => f.GetMethod().Module.Assembly == Assembly.GetAssembly(GetType()));
+            var methodName = $"{testMethodFrame.GetMethod().DeclaringType.FullName}.{testMethodFrame.GetMethod().Name}";
+            pipDescription = pipDescription != null
+                ? methodName + " - " + pipDescription
+                : methodName;
 
             var info = new SandboxedProcessInfo(
                 Context.PathTable,
@@ -55,7 +56,7 @@ namespace Test.BuildXL.Processes
                 fileAccessManifest: fileAccessManifest)
             {
                 PipSemiStableHash = 0x1234,
-                PipDescription = pipDescription ?? methodName ?? GetType().Name,
+                PipDescription = pipDescription,
                 WorkingDirectory = TemporaryDirectory,
                 Arguments = process.Arguments.ToString(Context.PathTable),
                 Timeout = TimeSpan.FromMinutes(10),

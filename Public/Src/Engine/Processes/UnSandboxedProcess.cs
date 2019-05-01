@@ -355,7 +355,7 @@ namespace BuildXL.Processes
             if (asm == "xunit.console" && !message.Contains("Kext report received"))
             {
                 string msg = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");                
-                Console.WriteLine($"[Pip[{ProcessInfo.PipSemiStableHash}] ({ProcessInfo.PipDescription}) PID({ProcessId}) :: {msg}");
+                Console.WriteLine($"[Pip[{ProcessInfo.FileAccessManifest.PipId:X}] ({ProcessInfo.PipDescription}) PID({ProcessId}) :: {msg}");
             }
 
             if (ProcessInfo.LoggingContext != null)

@@ -11,6 +11,8 @@ using BuildXL.Utilities;
 using JetBrains.Annotations;
 using Xunit;
 
+using static BuildXL.Utilities.FormattableStringEx;
+
 namespace Test.BuildXL.TestUtilities.Xunit
 {
     /// <summary>
@@ -321,6 +323,31 @@ namespace Test.BuildXL.TestUtilities.Xunit
         public static void IsFalse(bool condition)
         {
             Assert.False(condition);
+        }
+
+        /// <nodoc/>
+        public static void Contains<T>(IEnumerable<T> container, T elem)
+        {
+            if (!container.Contains(elem))
+            {
+                Assert.True(false, I($"Element '{elem}' not found in container: {RenderContainer(container)}"));
+            }
+        }
+
+        /// <nodoc/>
+        public static void ContainsNot<T>(IEnumerable<T> container, T elem)
+        {
+            if (container.Contains(elem))
+            {
+                Assert.True(false, I($"Element '{elem}' found in container: {RenderContainer(container)}"));
+            }
+        }
+
+        private static string RenderContainer<T>(IEnumerable<T> container)
+        {
+            string nl = Environment.NewLine;
+            var elems = container.Select(e => I($"  '{e}'"));
+            return I($"[{nl}{string.Join(",", elems)}{nl}]");
         }
 
         /// <nodoc/>

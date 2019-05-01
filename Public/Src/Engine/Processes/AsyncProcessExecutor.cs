@@ -160,7 +160,7 @@ namespace BuildXL.Processes
             Process.BeginOutputReadLine();
             Process.BeginErrorReadLine();
             StartTime = DateTime.UtcNow;
-            m_logger?.Invoke($"Process({ProcessId}) started at {StartTime}");
+            Log($"started at {StartTime}");
         }
 
         /// <summary>
@@ -172,20 +172,20 @@ namespace BuildXL.Processes
         /// </remarks>
         public async Task WaitForExitAsync()
         {
-            m_logger?.Invoke($"Waiting for process({ProcessId}) to exit");
+            Log($"waiting to exit");
             var finishedTask = await Task.WhenAny(Task.Delay(m_timeout), WhenExited);
             ExitTime = DateTime.UtcNow;
 
             var timedOut = finishedTask != WhenExited;
             if (timedOut)
             {
-                m_logger?.Invoke($"Process({ProcessId}) timed out after {ExitTime.Subtract(StartTime)} (timeout: {m_timeout})");
+                Log($"timed out after {ExitTime.Subtract(StartTime)} (timeout: {m_timeout})");
                 TimedOut = true;
                 await KillAsync();
             }
             else
             {
-                m_logger?.Invoke($"Process({ProcessId}) exited at {ExitTime}");
+                Log($"exited at {ExitTime}");
             }
         }
 
@@ -203,7 +203,7 @@ namespace BuildXL.Processes
         /// </remarks>
         public Task WaitForStdOutAndStdErrAsync()
         {
-            m_logger?.Invoke($"Waiting for process({ProcessId}) stderr and stdout to flush");
+            Log($"waiting for stderr and stdout to flush");
             return Task.WhenAll(m_stdoutFlushedTcs.Task, m_stderrFlushedTcs.Task);
         }
 
@@ -218,7 +218,7 @@ namespace BuildXL.Processes
             {
                 if (!Process.HasExited)
                 {
-                    m_logger?.Invoke($"Killing process({ProcessId})");
+                    Log($"calling Kill()");
                     Process.Kill();
                 }
             }
@@ -237,6 +237,7 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public void Dispose()
         {
+            Log($"disposing");
             Process?.Dispose();
         }
 
@@ -244,6 +245,11 @@ namespace BuildXL.Processes
         {
             string description = m_sandboxedProcessInfo == null ? string.Empty : $"[Pip{m_sandboxedProcessInfo.PipSemiStableHash:X16} -- {m_sandboxedProcessInfo.PipDescription}] ";
             throw new BuildXLException($"{description}{message}", inner);
+        }
+
+        private void Log(FormattableString message)
+        {
+            m_logger?.Invoke(FormattableStringEx.I($"Process({ProcessId}) - {message}"));
         }
 
         private static void FeedOutputBuilder(TaskSourceSlim<Unit> signalCompletion, string line, Action<string> eat)

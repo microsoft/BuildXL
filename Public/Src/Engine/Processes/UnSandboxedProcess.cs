@@ -354,14 +354,17 @@ namespace BuildXL.Processes
             string asm = System.Reflection.Assembly.GetEntryAssembly().GetName().Name;
             if (asm == "xunit.console" && !message.Contains("Kext report received"))
             {
-                string msg = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");                
-                Console.WriteLine($"[Pip[{ProcessInfo.FileAccessManifest.PipId:X}] ({ProcessInfo.PipDescription}) PID({ProcessId}) :: {msg}");
+                Console.WriteLine($"[Pip[{ProcessInfo.FileAccessManifest.PipId:X}] ({ProcessInfo.PipDescription}) PID({ProcessId}) :: {GetFullMessage()}");
             }
 
             if (ProcessInfo.LoggingContext != null)
             {
-                string fullMessage = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");
-                Tracing.Logger.Log.LogDetoursDebugMessage(ProcessInfo.LoggingContext, ProcessInfo.PipSemiStableHash, ProcessInfo.PipDescription, fullMessage);
+                Tracing.Logger.Log.LogDetoursDebugMessage(ProcessInfo.LoggingContext, ProcessInfo.PipSemiStableHash, ProcessInfo.PipDescription, GetFullMessage());
+            }
+
+            string GetFullMessage()
+            {
+                return I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");
             }
         }
 

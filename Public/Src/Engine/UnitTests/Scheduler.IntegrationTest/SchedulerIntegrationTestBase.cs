@@ -315,16 +315,16 @@ namespace Test.BuildXL.Scheduler
         /// Runs the scheduler using the instance member PipGraph and Configuration objects. This will also carry over
         /// any state from any previous run such as the cache
         /// </summary>
-        public ScheduleRunResult RunScheduler(SchedulerTestHooks testHooks = null, SchedulerState schedulerState = null, RootFilter filter = null, TempCleaner tempCleaner = null)
+        public ScheduleRunResult RunScheduler(SchedulerTestHooks testHooks = null, SchedulerState schedulerState = null, RootFilter filter = null, TempCleaner tempCleaner = null, IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
         {
             if (m_graphWasModified || m_lastGraph == null)
             {
                 m_lastGraph = PipGraphBuilder.Build();
                 XAssert.IsNotNull(m_lastGraph, "Failed to build pip graph");
             }
-
+            
             m_graphWasModified = false;
-            return RunSchedulerSpecific(m_lastGraph, testHooks, schedulerState, filter, tempCleaner);
+            return RunSchedulerSpecific(m_lastGraph, testHooks, schedulerState, filter, tempCleaner, constraintExecutionOrder);
         }
         
         public NodeId GetProducerNode(FileArtifact file) => PipGraphBuilder.GetProducerNode(file);
@@ -349,7 +349,8 @@ namespace Test.BuildXL.Scheduler
             SchedulerTestHooks testHooks = null, 
             SchedulerState schedulerState = null,
             RootFilter filter = null,
-            TempCleaner tempCleaner = null)
+            TempCleaner tempCleaner = null,
+            IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
         {
             var config = new CommandLineConfiguration(Configuration);
 
@@ -393,10 +394,12 @@ namespace Test.BuildXL.Scheduler
             Contract.Assert(!(config.Engine.CleanTempDirectories && tempCleaner == null));
 
             using (var queue = new PipQueue(config.Schedule))
-            using (var testQueue = new TestPipQueue(queue, LoggingContext, initiallyPaused: false))
+            using (var testQueue = new TestPipQueue(queue, LoggingContext, initiallyPaused: constraintExecutionOrder != null))
             using (var testScheduler = new TestScheduler(
                 graph: graph,
-                pipQueue: testQueue,
+                pipQueue: constraintExecutionOrder == null ? 
+                            testQueue : 
+                            constraintExecutionOrder.Aggregate(testQueue, (TestPipQueue _testQueue, (Pip before, Pip after) constraint) => { _testQueue.ConstrainExecutionOrder(constraint.before, constraint.after); return _testQueue; }).Unpause(),
                 context: Context,
                 fileContentTable: FileContentTable,
                 loggingContext: LoggingContext,
@@ -505,6 +508,8 @@ namespace Test.BuildXL.Scheduler
             
             foreach (var fac in filesAndContentToProduceDynamically)
             {
+                // Make sure the file is not there before writing
+                operations.Add(Operation.DeleteFile(fac.Key));
                 operations.Add(Operation.WriteFile(fac.Key, content: fac.Value, doNotInfer: true));
             }
 

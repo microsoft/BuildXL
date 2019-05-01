@@ -4,10 +4,12 @@
 using System.Collections.Generic;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
+using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 
 namespace BuildXL.Scheduler
 {
@@ -25,6 +27,11 @@ namespace BuildXL.Scheduler
         /// Analyzes an unordered sequence of violations for a single pip. This may be called only once per pip.
         /// </summary>
         /// <returns>true if there were no violations marked as error</returns>
+        /// <remarks>
+        /// If double writes involving same-content files are detected but allowed, a collection of those non-reported violations 
+        /// are returned. This is useful for the case of cache convergence, where outputs may change after the main violation analysis
+        /// is done.
+        /// </remarks>
         AnalyzePipViolationsResult AnalyzePipViolations(
             Process pip,
             [CanBeNull] IReadOnlyCollection<ReportedFileAccess> violations,
@@ -32,7 +39,9 @@ namespace BuildXL.Scheduler
             [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories);
+            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
+            ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent,
+            out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations);
 
         /// <summary>
         /// Analyzes all dynamic violations. This is useful when replaying a pip from the cache, since otherwise some violations may not be seen.
@@ -42,7 +51,19 @@ namespace BuildXL.Scheduler
             [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories);
+            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
+            ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent);
+
+        /// <summary>
+        /// Analyzes double writes after a cache convergence event. This may introduce new violations that were not flagged before convergence
+        /// </summary>
+        /// <remarks>
+        /// The analysis is based on same-content double write violations that were allowed on the first place, before cache convergence happened
+        /// </remarks>
+        AnalyzePipViolationsResult AnalyzeDoubleWritesOnCacheConvergence(
+            Process pip,
+            ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> convergedContent,
+            IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations);
     }
 
     /// <summary>

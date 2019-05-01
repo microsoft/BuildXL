@@ -95,6 +95,11 @@ namespace Test.BuildXL.Executables.TestProcess
             WriteFileWithRetries,
 
             /// <summary>
+            /// Type for reading the content of a file and creating a file with the same content
+            /// </summary>
+            ReadAndWriteFile,
+
+            /// <summary>
             /// Type for reading a file
             /// </summary>
             ReadFile,
@@ -301,6 +306,9 @@ namespace Test.BuildXL.Executables.TestProcess
                     case Type.WriteFile:
                         DoWriteFile();
                         return;
+                    case Type.ReadAndWriteFile:
+                        DoReadAndWriteFile();
+                        return;
                     case Type.ReadFile:
                         DoReadFile();
                         return;
@@ -410,6 +418,15 @@ namespace Test.BuildXL.Executables.TestProcess
             return content == Environment.NewLine
                 ? new Operation(Type.AppendNewLine, path, doNotInfer: doNotInfer)
                 : new Operation(Type.WriteFile, path, content, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
+        /// Creates a read file operation followed by a write file operation. The content of the file that was read is used to
+        /// write the new file.
+        /// </summary>
+        public static Operation ReadAndWriteFile(FileArtifact pathToRead, FileArtifact pathToWrite, bool doNotInfer = false)
+        {
+            return new Operation(Type.ReadAndWriteFile, pathToRead, content: null, pathToWrite, doNotInfer: doNotInfer);
         }
 
         /// <summary>
@@ -654,6 +671,19 @@ namespace Test.BuildXL.Executables.TestProcess
             DoWriteFile(Content ?? Guid.NewGuid().ToString());
         }
 
+        private void DoReadAndWriteFile()
+        {
+            string content = DoReadFile();
+            try
+            {
+                File.WriteAllText(FileOrDirectoryToString(LinkPath), content == string.Empty ? Guid.NewGuid().ToString() : content);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Ignore tests for denied file access policies
+            }
+        }
+        
         private void DoWriteFileIfInputEqual()
         {
             string[] argument = DecodeList(Content);
@@ -669,9 +699,14 @@ namespace Test.BuildXL.Executables.TestProcess
 
         private void DoWriteFile(string content)
         {
+            DoWriteFile(FileOrDirectoryToString(Path), content);
+        }
+
+        private void DoWriteFile(string file, string content)
+        {
             try
             {
-                File.AppendAllText(FileOrDirectoryToString(Path), content);
+                File.AppendAllText(file, content);
             }
             catch (UnauthorizedAccessException)
             {
@@ -703,11 +738,12 @@ namespace Test.BuildXL.Executables.TestProcess
             }
         }
 
-        private void DoReadFile()
+        private string DoReadFile()
         {
             try
             {
-                File.ReadAllText(FileOrDirectoryToString(Path));
+                var content = File.ReadAllText(FileOrDirectoryToString(Path));
+                return content;
             }
             catch (FileNotFoundException)
             {
@@ -721,6 +757,7 @@ namespace Test.BuildXL.Executables.TestProcess
             {
                 // Ignore tests for denied file access policies
             }
+            return string.Empty;
         }
 
         private void DoReadRequiredFile()

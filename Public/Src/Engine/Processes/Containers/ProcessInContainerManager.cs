@@ -375,16 +375,13 @@ namespace BuildXL.Processes.Containers
                     return true;
                 }
 
-                if (process.DoubleWritePolicy == DoubleWritePolicy.DoubleWritesAreErrors)
+                if (!process.DoubleWritePolicy.ImpliesDoubleWriteAllowed())
                 {
                     // Error logged by the caller
                     isDisallowed = true;
                     shouldDelete = false;
                     return false;
                 }
-
-                // DoubleWritePolicy.UnsafeFirstDoubleWriteWins case
-                Contract.Assert(process.DoubleWritePolicy == DoubleWritePolicy.UnsafeFirstDoubleWriteWins);
 
                 // Just log a verbose message for tracking purposes
                 Tracing.Logger.Log.DoubleWriteAllowedDueToPolicy(m_loggingContext, process.SemiStableHash, process.GetDescription(pipExecutionContext), destPath);

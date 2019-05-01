@@ -5,10 +5,12 @@ using System.Collections.Generic;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
+using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 
 namespace Test.BuildXL.Scheduler.Utils
 {
@@ -31,9 +33,10 @@ namespace Test.BuildXL.Scheduler.Utils
         public bool AnalyzeDynamicViolations(
             Process pip,
             [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectoryContent,
-            [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedOpaqueDirectoryWriteAccesses, 
+            [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories) => true;
+            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
+            ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputContent) => true;
 
         /// <inheritdoc />
         public AnalyzePipViolationsResult AnalyzePipViolations(
@@ -43,7 +46,19 @@ namespace Test.BuildXL.Scheduler.Utils
             [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories) 
-            => AnalyzePipViolationsResult.NoViolations;
+            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
+            ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent,
+            out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations)
+        {
+            allowedSameContentDoubleWriteViolations = CollectionUtilities.EmptyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
+            return AnalyzePipViolationsResult.NoViolations;
+        }
+
+        /// <inheritdoc />
+        public AnalyzePipViolationsResult AnalyzeDoubleWritesOnCacheConvergence(
+            Process pip,
+            ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> convergedContent,
+            IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
+        => AnalyzePipViolationsResult.NoViolations;
     }
 }

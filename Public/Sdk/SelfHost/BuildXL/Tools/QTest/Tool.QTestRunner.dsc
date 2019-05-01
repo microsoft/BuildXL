@@ -3,6 +3,9 @@
 
 import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
 const root = Environment.hasVariable("[Sdk.BuildXL]qtestDeploymentPath") ? d`${Environment.getFileValue("[Sdk.BuildXL]qtestDeploymentPath")}` : d`.`;
+const qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType")
+    ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")
+    : "None";
 
 @@public
 export const qTestTool: Transformer.ToolDefinition = {
@@ -153,6 +156,8 @@ export function runQTest(args: QTestArguments): Result {
             "--qTestRawArgFile ",
             Artifact.input(args.qTestRawArgFile)
         ),
+        Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType),
+        Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
     ];
@@ -261,6 +266,10 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     vstestSettingsFile?: File;
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
+    /** Describes the type of coverage that QTest should employ. */
+    qCodeCoverageEnumType?: "DynamicCodeCov" | "None";
+    /** When enabled, creates a zip of the sandbox in log directory */
+    zipSandbox? : boolean;
 }
 /**
  * Test results from a vstest.console.exe run

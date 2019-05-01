@@ -19,7 +19,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
-
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
 namespace BuildXL.Scheduler
@@ -77,7 +76,7 @@ namespace BuildXL.Scheduler
         private readonly ConcurrentBigMap<AbsolutePath, UndeclaredAccessors> m_undeclaredAccessors = new ConcurrentBigMap<AbsolutePath, UndeclaredAccessors>();
         // Maps of paths that are dynamically read or written to the corresponding pip. 
         // The tuple indicates whether it is a reader of the path or a writer, together with the actual pip and materialization info when available (absent file otherwise)
-        private readonly ConcurrentBigMap<AbsolutePath, (DynamicFileAccessType accessType, Process pip, FileMaterializationInfo fileMaterializationInfo)> m_dynamicReadersAndWriters = new ConcurrentBigMap<AbsolutePath, (DynamicFileAccessType, Process, FileMaterializationInfo)>();
+        private readonly ConcurrentBigMap<AbsolutePath, (DynamicFileAccessType accessType, PipId processPip, FileMaterializationInfo fileMaterializationInfo)> m_dynamicReadersAndWriters = new ConcurrentBigMap<AbsolutePath, (DynamicFileAccessType, PipId, FileMaterializationInfo)>();
 
         // Some dependency analysis rules cause issues with distribution. Even if /unsafe_* flags or configuration options
         // are used to downgrade errors to warnings, these must be treated as errors and cleaned up for distributed
@@ -766,14 +765,9 @@ namespace BuildXL.Scheduler
             var success = outputArtifactsInfo.TryGetValue(fileArtifact, out FileMaterializationInfo outputArtifactInfo);
             if (!success)
             {
-                if (pip.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites)
-                {
-                    Contract.Assert(false, $"The file '{fileArtifact.Path.ToString(Context.PathTable)}' is expected to be an output of pip '{pip.FormattedSemiStableHash}'");
-                }
-                else
-                {
-                    outputArtifactInfo = s_absentFileInfo;
-                }
+                // The artifact may not be there because we either didn't populate the output artifact dictionary (because the double write policy doesn't require this information)
+                // or because the pip failed, in which case the output content is not reported
+                outputArtifactInfo = s_absentFileInfo;
             }
 
             return outputArtifactInfo;
@@ -829,17 +823,20 @@ namespace BuildXL.Scheduler
             var result = m_dynamicReadersAndWriters.GetOrAdd(
                 path,
                 pip,
-                (accessKey, producer) => (DynamicFileAccessType.Write, producer, outputMaterializationInfo));
+                (accessKey, producer) => (DynamicFileAccessType.Write, producer.PipId, outputMaterializationInfo));
 
             // We found an existing dynamic access to the same file
             if (result.IsFound)
             {
+                var related = (Process)m_graph.HydratePip(result.Item.Value.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+
                 DependencyViolationType violationType;
                 switch (result.Item.Value.accessType)
                 {
                     // There was another write, so this is a double write
                     case DynamicFileAccessType.Write:
-                        if (IsAllowedSameContentDoubleWrite(pip, outputMaterializationInfo, result.Item.Value.pip, result.Item.Value.fileMaterializationInfo))
+                        
+                        if (IsAllowedSameContentDoubleWrite(pip, outputMaterializationInfo, related, result.Item.Value.fileMaterializationInfo))
                         {
                             // Just log a verbose message to indicate a same-content double write happened
                             Logger.Log.AllowedSameContentDoubleWrite(
@@ -847,9 +844,9 @@ namespace BuildXL.Scheduler
                                 pip.SemiStableHash,
                                 pip.GetDescription(Context),
                                 path.ToString(Context.PathTable),
-                                result.Item.Value.pip.GetDescription(Context));
+                                related.GetDescription(Context));
 
-                            allowedSameContentDoubleWriteViolation = new ReportedViolation(isError: true, DependencyViolationType.DoubleWrite, path, pip.PipId, result.Item.Value.pip.PipId, pip.Executable.Path);
+                            allowedSameContentDoubleWriteViolation = new ReportedViolation(isError: true, DependencyViolationType.DoubleWrite, path, pip.PipId, related.PipId, pip.Executable.Path);
                             return;
                         }
 
@@ -880,7 +877,7 @@ namespace BuildXL.Scheduler
                         path,
                         pip,
                         isWhitelistedViolation: false,
-                        related: result.Item.Value.pip,
+                        related: related,
                         // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                         pip.Executable.Path));
             }
@@ -916,7 +913,7 @@ namespace BuildXL.Scheduler
                 var result = m_dynamicReadersAndWriters.GetOrAdd(
                     undeclaredRead,
                     pip,
-                    (accessKey, producer) => (DynamicFileAccessType.UndeclaredRead, producer, s_absentFileInfo));
+                    (accessKey, producer) => (DynamicFileAccessType.UndeclaredRead, producer.PipId, s_absentFileInfo));
 
                 // If there is already an access on that path and it was a:
                 // - write: then this is a case of a write in an undeclared source
@@ -929,6 +926,7 @@ namespace BuildXL.Scheduler
                 // This is currently the case. Otherwise, multiple access types need to be stored and validated.
                 if (result.IsFound && result.Item.Value.accessType == DynamicFileAccessType.Write)
                 {
+                    var related = (Process)m_graph.HydratePip(result.Item.Value.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
                     reportedViolations.Add(
                         HandleDependencyViolation(
                             DependencyViolationType.WriteInUndeclaredSourceRead,
@@ -936,7 +934,7 @@ namespace BuildXL.Scheduler
                             undeclaredRead,
                             pip,
                             isWhitelistedViolation: false,
-                            related: result.Item.Value.pip,
+                            related: related,
                             // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                             pip.Executable.Path));
                 }
@@ -961,13 +959,13 @@ namespace BuildXL.Scheduler
                 var result = m_dynamicReadersAndWriters.GetOrAdd(
                     absentPathProbe,
                     pip,
-                    (accessKey, producer) => (DynamicFileAccessType.AbsentPathProbe, producer, s_absentFileInfo));
+                    (accessKey, producer) => (DynamicFileAccessType.AbsentPathProbe, producer.PipId, s_absentFileInfo));
 
                 // Equivalent logic than the one used on ReportAllowedUndeclaredReadViolations, see details there.
                 if (result.IsFound && result.Item.Value.accessType == DynamicFileAccessType.Write)
                 {
                     // The writer is always reported as the violator
-                    var writer = result.Item.Value.pip;
+                    var writer = (Process) m_graph.HydratePip(result.Item.Value.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
 
                     reportedViolations.Add(
                         HandleDependencyViolation(

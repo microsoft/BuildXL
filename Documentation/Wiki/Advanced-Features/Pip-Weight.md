@@ -1,3 +1,4 @@
+## Concept of weight
 BuildXL has a limited number of process slots that can be used for processes execution. This number is indicated by the argument /maxproc when running BuildXL. "Weight" is a concept that describes how resource-heavy a process is. It specifies how many process slots it requires to execute. The total "weight" of all processes running concurrently must be less than the number of available process slots. "Weight" defaults to 1, converts values < 1 to 1, and considers values >= available process slots to mean the process should run alone.
 
 ## Language support & API

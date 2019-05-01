@@ -466,7 +466,7 @@ namespace BuildXL.Scheduler
 
             if (exclusiveOpaqueDirectories?.Count > 0)
             {
-                ReportExclusiveOpaqueViolations(pip, exclusiveOpaqueDirectories, dynamicViolations, outputArtifactInfo, allowedDoubleWriteViolations);
+                ReportExclusiveOpaqueViolations(pip, exclusiveOpaqueDirectories, dynamicViolations, outputArtifactInfo);
             }
 
             if (allowedUndeclaredReads?.Count > 0)
@@ -785,8 +785,7 @@ namespace BuildXL.Scheduler
             Process pip,
             IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueContent,
             List<ReportedViolation> reportedViolations,
-            IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo,
-            [CanBeNull] Dictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations)
+            IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo)
         {
             // Static outputs under exclusive opaques are blocked by construction
             // Same for sealed source directories under exclusive opaques (not allowed at graph construction time)
@@ -797,11 +796,7 @@ namespace BuildXL.Scheduler
                 foreach (FileArtifact fileArtifact in directoryContent)
                 {
                     var outputArtifactInfo = GetOutputMaterializationInfo(pip, outputArtifactsInfo, fileArtifact);
-                    RegisterWriteInPathAndUpdateViolations(pip, fileArtifact.Path, reportedViolations, outputArtifactInfo, out ReportedViolation? allowedSameContentDoubleWriteViolation);
-                    if (allowedSameContentDoubleWriteViolations != null && allowedSameContentDoubleWriteViolation.HasValue)
-                    {
-                        allowedSameContentDoubleWriteViolations[fileArtifact] = (outputArtifactInfo, allowedSameContentDoubleWriteViolation.Value);
-                    }
+                    RegisterWriteInPathAndUpdateViolations(pip, fileArtifact.Path, reportedViolations, outputArtifactInfo, out _);
                 }
             }
         }

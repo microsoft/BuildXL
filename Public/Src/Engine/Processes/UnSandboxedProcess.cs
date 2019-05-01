@@ -134,7 +134,8 @@ namespace BuildXL.Processes
                 ProcessInfo.Timeout ?? TimeSpan.FromMinutes(10),
                 line => FeedStdOut(m_output, line),
                 line => FeedStdErr(m_error, line),
-                ProcessInfo);
+                ProcessInfo,
+                msg => LogProcessState(msg));
 
             m_processExecutor.Start();
 
@@ -143,10 +144,8 @@ namespace BuildXL.Processes
             ProcessInfo.ProcessIdListener?.Invoke(ProcessId);
         }
 
-        private int m_processId = -1;
-
         /// <inheritdoc />
-        public int ProcessId => m_processId != -1 ? m_processId : (m_processId = Process.Id);
+        public int ProcessId => m_processExecutor?.ProcessId ?? -1;
 
         /// <inheritdoc />
         public virtual void Dispose()
@@ -261,6 +260,7 @@ namespace BuildXL.Processes
 
             ProcessDumper.TryDumpProcessAndChildren(ProcessId, ProcessInfo.TimeoutDumpDirectory, out m_dumpCreationException);
 
+            LogProcessState($"UnSandboxedProcess::KillAsync()");
             return m_processExecutor.KillAsync();
         }
 
@@ -346,6 +346,13 @@ namespace BuildXL.Processes
         /// <nodoc />
         protected void LogProcessState(string message)
         {
+            string asm = System.Reflection.Assembly.GetEntryAssembly().GetName().Name;
+            if (asm == "xunit.console" && !message.Contains("Kext report received"))
+            {
+                string msg = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");                
+                Console.WriteLine($"[Pip[{ProcessInfo.PipSemiStableHash}] ({ProcessInfo.PipDescription}) PID({ProcessId}) :: {msg}");
+            }
+
             if (ProcessInfo.LoggingContext != null)
             {
                 string fullMessage = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");

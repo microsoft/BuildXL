@@ -3,6 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
@@ -35,7 +37,14 @@ namespace Test.BuildXL.Processes
             var envVars = Override(
                 BuildParameters.GetFactory().PopulateFromEnvironment().ToDictionary(),
                 overrideEnvVars);
-            
+
+            var testMethodFrame = new System.Diagnostics.StackTrace()
+                .GetFrames()
+                .LastOrDefault(f => f.GetMethod().Module.Assembly == Assembly.GetAssembly(GetType()));
+            var methodName = testMethodFrame != null
+                ? $"{testMethodFrame.GetMethod().DeclaringType.FullName}.{testMethodFrame.GetMethod().Name}"
+                : null;
+
             var info = new SandboxedProcessInfo(
                 Context.PathTable,
                 this,
@@ -46,7 +55,7 @@ namespace Test.BuildXL.Processes
                 fileAccessManifest: fileAccessManifest)
             {
                 PipSemiStableHash = 0x1234,
-                PipDescription = pipDescription ?? GetType().Name,
+                PipDescription = pipDescription ?? methodName ?? GetType().Name,
                 WorkingDirectory = TemporaryDirectory,
                 Arguments = process.Arguments.ToString(Context.PathTable),
                 Timeout = TimeSpan.FromMinutes(10),

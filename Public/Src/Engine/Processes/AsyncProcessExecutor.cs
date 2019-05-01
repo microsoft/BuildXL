@@ -76,6 +76,8 @@ namespace BuildXL.Processes
         /// </summary>
         private readonly SandboxedProcessInfo m_sandboxedProcessInfo;
 
+        private readonly Action<string> m_logger;
+
         private int m_processId = -1;
 
         /// <summary>
@@ -113,10 +115,12 @@ namespace BuildXL.Processes
             TimeSpan timeout,
             Action<string> outputBuilder = null,
             Action<string> errorBuilder = null,
-            SandboxedProcessInfo sandboxedProcessInfo = null)
+            SandboxedProcessInfo sandboxedProcessInfo = null,
+            Action<string> logger = null)
         {
             Contract.Requires(process != null);
 
+            m_logger = logger;
             Process = process;
             Process.Exited += (sender, e) => m_processExitedTcs.TrySetResult(Unit.Void);
 
@@ -156,6 +160,7 @@ namespace BuildXL.Processes
             Process.BeginOutputReadLine();
             Process.BeginErrorReadLine();
             StartTime = DateTime.UtcNow;
+            m_logger?.Invoke($"Process({ProcessId}) started at {StartTime}");
         }
 
         /// <summary>
@@ -163,14 +168,20 @@ namespace BuildXL.Processes
         /// </summary>
         public async Task WaitForExitAsync(Func<Task> getProcessReport = null)
         {
+            m_logger?.Invoke($"Waiting for process({ProcessId}) to exit");
             var finishedTask = await Task.WhenAny(Task.Delay(m_timeout), WhenExited);
             ExitTime = DateTime.UtcNow;
 
             var timedOut = finishedTask != WhenExited;
             if (timedOut)
             {
+                m_logger?.Invoke($"Process({ProcessId}) timed out after {ExitTime.Subtract(StartTime)} (timeout: {m_timeout})");
                 TimedOut = true;
                 await KillAsync();
+            }
+            else
+            {
+                m_logger?.Invoke($"Process({ProcessId}) exited at {ExitTime}");
             }
 
             if (getProcessReport != null)
@@ -178,6 +189,7 @@ namespace BuildXL.Processes
                 await getProcessReport();
             }
 
+            m_logger?.Invoke($"Waiting for process({ProcessId}) stderr and stdout to flush");
             await Task.WhenAll(m_stdoutFlushedTcs.Task, m_stderrFlushedTcs.Task);
         }
 
@@ -192,6 +204,7 @@ namespace BuildXL.Processes
             {
                 if (!Process.HasExited)
                 {
+                    m_logger?.Invoke($"Killing process({ProcessId})");
                     Process.Kill();
                 }
             }

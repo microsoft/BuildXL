@@ -833,7 +833,7 @@ namespace Test.BuildXL.Processes
 
         private static IEnumerable<object[]> RSData()
         {
-            for (int i = 0; i < 1; i++)
+            for (int i = 0; i < 50; i++)
                 yield return new object[] { i };
         }
 

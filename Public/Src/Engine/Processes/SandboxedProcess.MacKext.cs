@@ -188,6 +188,8 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override async Task KillAsync()
         {
+            LogProcessState("SandboxedProcessMacKext::KillAsync");
+
             // In the case that the process gets shut down by either its timeout or e.g. SandboxedProcessPipExecutor
             // detecting resource usage issues and calling KillAsync(), we flag the process with m_processKilled so we
             // don't process any more kernel reports that get pushed into report structure asynchronously!
@@ -195,7 +197,7 @@ namespace BuildXL.Processes
 
             // Make sure this is done no more than once.
             if (incrementedValue == 1)
-            {                
+            {
                 m_pendingReports.Complete();
                 KillAllChildProcesses();
                 await base.KillAsync();

@@ -1070,8 +1070,7 @@ namespace Test.BuildXL.Processes
             XAssert.Fail("Expected BuildXLException due to process creation failure");
         }
 
-        // TODO 1519677: Fix this bug on Mojave macOS
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public async Task TempAccessesAreUnexpectedByDefault()
         {
             var outFile = CreateOutputFileArtifact(root: TemporaryDirectory, prefix: "not.allowed");

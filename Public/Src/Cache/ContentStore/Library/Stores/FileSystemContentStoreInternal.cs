@@ -866,7 +866,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                         if (putInternalSucceeded)
                         {
-                            return new PutResult(contentHash, contentSize).WithLockAcquisitionDuration(contentHashHandle);
+                            return new PutResult(contentHash, contentSize)
+                                .WithLockAcquisitionDuration(contentHashHandle);
                         }
                     }
                 }
@@ -996,7 +997,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                         if (putInternalSucceeded)
                         {
-                            return new PutResult(content.Hash, content.Size).WithLockAcquisitionDuration(contentHashHandle);
+                            return new PutResult(content.Hash, content.Size)
+                                .WithLockAcquisitionDuration(contentHashHandle);
                         }
                     }
 
@@ -1039,7 +1041,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                             }
                         });
 
-                    return new PutResult(content.Hash, content.Size).WithLockAcquisitionDuration(contentHashHandle);
+                    return new PutResult(content.Hash, content.Size)
+                        .WithLockAcquisitionDuration(contentHashHandle);
                 }
             });
         }
@@ -1403,7 +1406,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                         if (putInternalSucceeded)
                         {
-                            return new PutResult(contentHash, contentSize).WithLockAcquisitionDuration(contentHashHandle);
+                            return new PutResult(contentHash, contentSize)
+                                .WithLockAcquisitionDuration(contentHashHandle);
                         }
                     }
                 }
@@ -1475,7 +1479,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                         return new PutResult(contentHash, $"{nameof(PutStreamAsync)} failed to put {pathToTempContent} with hash {contentHash} with an unknown error");
                     }
 
-                    return new PutResult(contentHash, contentSize).WithLockAcquisitionDuration(contentHashHandle);
+                    return new PutResult(contentHash, contentSize)
+                        .WithLockAcquisitionDuration(contentHashHandle);
                 }
             }
             finally
@@ -2266,7 +2271,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     if (code != PlaceFileResult.ResultCode.Unknown)
                     {
-                        return new PlaceFileResult(code, contentSize).WithLockAcquisitionDuration(contentHashHandle);
+                        return new PlaceFileResult(code, contentSize)
+                            .WithLockAcquisitionDuration(contentHashHandle);
                     }
 
                     // If hard linking failed or wasn't attempted, fall back to copy.
@@ -2287,7 +2293,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                         result.FileSize = contentSize;
                         result.LastAccessTime = lastAccessTime;
-                        return result.WithLockAcquisitionDuration(contentHashHandle);
+                        return result
+                            .WithLockAcquisitionDuration(contentHashHandle);
                     }
                     finally
                     {
@@ -2960,7 +2967,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                 using (var lockHandle = await _lockSet.AcquireAsync(contentHash))
                 {
                     var stream = await OpenStreamInternalWithLockAsync(context, contentHash, pinRequest, FileShare.Read | FileShare.Delete);
-                    return new OpenStreamResult(stream).WithLockAcquisitionDuration(lockHandle);
+                    return new OpenStreamResult(stream)
+                        .WithLockAcquisitionDuration(lockHandle);
                 }
             });
         }

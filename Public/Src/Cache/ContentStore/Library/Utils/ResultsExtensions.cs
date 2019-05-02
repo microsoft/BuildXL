@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Synchronization;
 
@@ -11,24 +12,15 @@ namespace BuildXL.Cache.ContentStore.Utils
             where TResult : ResultBase
             where TLockKey : IEquatable<TLockKey>
         {
+            Contract.Requires(result.Diagnostics == null, $"Diagnostics property can be set only once.");
+
             if (handle.LockAcquisitionDuration != null)
             {
-                var message = $", lock acquired by {(long)handle.LockAcquisitionDuration.Value.TotalMilliseconds}ms, ";
-                result.ExtraDiagnosticsMessage = message;
+                var message = $", LockWait={(long)handle.LockAcquisitionDuration.Value.TotalMilliseconds}ms";
+                result.Diagnostics = message;
             }
 
             return result;
-        }
-
-        /// <nodoc />
-        public static string GetExtraDiagnosticsMessageForTracing(this ResultBase result)
-        {
-            if (!string.IsNullOrEmpty(result.ExtraDiagnosticsMessage))
-            {
-                return " " + result.ExtraDiagnosticsMessage;
-            }
-
-            return string.Empty;
         }
     }
 }

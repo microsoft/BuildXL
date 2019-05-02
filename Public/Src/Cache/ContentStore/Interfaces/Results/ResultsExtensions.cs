@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -13,6 +12,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// </summary>
     public static class ResultsExtensions
     {
+        /// <nodoc />
+        public static string GetDiagnosticsMessageForTracing(this ResultBase result)
+        {
+            return result.Diagnostics ?? string.Empty;
+        }
+
         /// <summary>
         /// Awaits for the <paramref name="task"/> to finish and logs the error if the result is not successful.
         /// </summary>

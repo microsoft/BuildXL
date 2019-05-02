@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;

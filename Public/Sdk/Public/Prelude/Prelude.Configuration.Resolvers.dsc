@@ -3,6 +3,7 @@
 
 /// <reference path="Prelude.Core.dsc"/>
 /// <reference path="Prelude.IO.dsc"/>
+/// <reference path="Prelude.Configuration.dsc"/>
 
 /**
  * Source resolver that uses specified source paths for module resolution.
@@ -212,6 +213,11 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
      * Defaults to false.
      */
     useLegacyProjectIsolation?: boolean;
+
+    /**
+     * Policy to apply when a double write occurs. By default double writes are only allowed if the produced content is the same.
+     */
+    doubleWritePolicy?: DoubleWritePolicy;
 }
 
 

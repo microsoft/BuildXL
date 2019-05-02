@@ -37,14 +37,17 @@ namespace BuildXL.Pips
 
         internal readonly PipType PipType;
 
+        internal readonly int Priority;
+
         /// <summary>
         /// /// Constructor used for deserialization
         /// </summary>
-        protected MutablePipState(PipType piptype, long semiStableHash, PageableStoreId storeId)
+        protected MutablePipState(PipType piptype, long semiStableHash, PageableStoreId storeId, int priority)
         {
             PipType = piptype;
             SemiStableHash = semiStableHash;
             StoreId = storeId;
+            Priority = priority;
         }
 
         /// <summary>
@@ -66,15 +69,15 @@ namespace BuildXL.Pips
                         pipAsIpc.ServicePipDependencies.Any() ? ServicePipKind.ServiceClient :
                         ServicePipKind.None;
                     var serviceInfo = new ServiceInfo(serviceKind, pipAsIpc.ServicePipDependencies);
-                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), serviceInfo, Process.Options.IsLight);
+                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), serviceInfo, Process.Options.IsLight, Process.MinPriority);
                     break;
                 case PipType.Process:
                     var pipAsProcess = (Process)pip;
-                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), pipAsProcess.ServiceInfo, pipAsProcess.ProcessOptions);
+                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), pipAsProcess.ServiceInfo, pipAsProcess.ProcessOptions, pipAsProcess.Priority);
                     break;
                 case PipType.CopyFile:
                     var pipAsCopy = (CopyFile)pip;
-                    mutable = new CopyMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), pipAsCopy.OutputsMustRemainWritable);
+                    mutable = new CopyMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), pipAsCopy.OutputsMustRemainWritable, Process.MinPriority);
                     break;
                 case PipType.SealDirectory:
                     SealDirectoryKind sealDirectoryKind = default;
@@ -86,10 +89,10 @@ namespace BuildXL.Pips
                         scrub = seal.Scrub;
                     }
 
-                    mutable = new SealDirectoryMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), sealDirectoryKind, seal.Patterns, seal.IsComposite, scrub);
+                    mutable = new SealDirectoryMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), sealDirectoryKind, seal.Patterns, seal.IsComposite, scrub, Process.MinPriority);
                     break;
                 default:
-                    mutable = new MutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId));
+                    mutable = new MutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), Process.MinPriority);
                     break;
             }
 
@@ -106,6 +109,7 @@ namespace BuildXL.Pips
 
             writer.Write((byte)PipType);
             writer.Write(SemiStableHash);
+            writer.Write(Priority);
             StoreId.Serialize(writer);
             SpecializedSerialize(writer);
         }
@@ -119,19 +123,20 @@ namespace BuildXL.Pips
 
             var pipType = (PipType)reader.ReadByte();
             var semiStableHash = reader.ReadInt64();
+            var priority = reader.ReadInt32();
             var storeId = PageableStoreId.Deserialize(reader);
 
             switch (pipType)
             {
                 case PipType.Ipc:
                 case PipType.Process:
-                    return ProcessMutablePipState.Deserialize(reader, pipType, semiStableHash, storeId);
+                    return ProcessMutablePipState.Deserialize(reader, pipType, semiStableHash, storeId, priority);
                 case PipType.CopyFile:
-                    return CopyMutablePipState.Deserialize(reader, pipType, semiStableHash, storeId);
+                    return CopyMutablePipState.Deserialize(reader, pipType, semiStableHash, storeId, priority);
                 case PipType.SealDirectory:
-                    return SealDirectoryMutablePipState.Deserialize(reader, pipType, semiStableHash, storeId);
+                    return SealDirectoryMutablePipState.Deserialize(reader, pipType, semiStableHash, storeId, priority);
                 default:
-                    return new MutablePipState(pipType, semiStableHash, storeId);
+                    return new MutablePipState(pipType, semiStableHash, storeId, priority);
             }
         }
 
@@ -203,8 +208,9 @@ namespace BuildXL.Pips
             long semiStableHash, 
             PageableStoreId storeId, 
             ServiceInfo serviceInfo, 
-            Process.Options processOptions)
-            : base(pipType, semiStableHash, storeId)
+            Process.Options processOptions,
+            int priority)
+            : base(pipType, semiStableHash, storeId, priority)
         {
             ServiceInfo = serviceInfo;
             ProcessOptions = processOptions;
@@ -227,12 +233,12 @@ namespace BuildXL.Pips
             writer.Write((int)ProcessOptions);
         }
 
-        internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId)
+        internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId, int priority)
         {
             ServiceInfo serviceInfo = reader.ReadNullable(ServiceInfo.InternalDeserialize);
             int options = reader.ReadInt32();
 
-            return new ProcessMutablePipState(pipType, semiStableHash, storeId, serviceInfo, (Process.Options)options);
+            return new ProcessMutablePipState(pipType, semiStableHash, storeId, serviceInfo, (Process.Options)options, priority);
         }
 
         public override bool IsPreservedOutputsPip() => (ProcessOptions & Process.Options.AllowPreserveOutputs) != 0;
@@ -248,8 +254,9 @@ namespace BuildXL.Pips
             PipType pipType,
             long semiStableHash,
             PageableStoreId storeId,
-            bool keepOutputWritable)
-            : base(pipType, semiStableHash, storeId)
+            bool keepOutputWritable,
+            int priority)
+            : base(pipType, semiStableHash, storeId, priority)
         {
             m_keepOutputWritable = keepOutputWritable;
         }
@@ -259,11 +266,11 @@ namespace BuildXL.Pips
             writer.Write(m_keepOutputWritable);
         }
 
-        internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId)
+        internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId, int priority)
         {
             bool keepOutputWritable = reader.ReadBoolean();
 
-            return new CopyMutablePipState(pipType, semiStableHash, storeId, keepOutputWritable);
+            return new CopyMutablePipState(pipType, semiStableHash, storeId, keepOutputWritable, priority);
         }
 
         public override bool MustOutputsRemainWritable() => m_keepOutputWritable;
@@ -279,8 +286,8 @@ namespace BuildXL.Pips
         internal readonly bool IsComposite;
         internal readonly bool Scrub;
 
-        public SealDirectoryMutablePipState(PipType piptype, long semiStableHash, PageableStoreId storeId, SealDirectoryKind sealDirectoryKind, ReadOnlyArray<StringId> patterns, bool isComposite, bool scrub)
-            : base(piptype, semiStableHash, storeId)
+        public SealDirectoryMutablePipState(PipType piptype, long semiStableHash, PageableStoreId storeId, SealDirectoryKind sealDirectoryKind, ReadOnlyArray<StringId> patterns, bool isComposite, bool scrub, int priority)
+            : base(piptype, semiStableHash, storeId, priority)
         {
             SealDirectoryKind = sealDirectoryKind;
             Patterns = patterns;
@@ -296,14 +303,14 @@ namespace BuildXL.Pips
             writer.Write(Scrub);
         }
 
-        internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId)
+        internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId, int priority)
         {
             var sealDirectoryKind = (SealDirectoryKind)reader.ReadByte();
             var patterns = reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId());
             var isComposite = reader.ReadBoolean();
             var scrub = reader.ReadBoolean();
 
-            return new SealDirectoryMutablePipState(pipType, semiStableHash, storeId, sealDirectoryKind, patterns, isComposite, scrub);
+            return new SealDirectoryMutablePipState(pipType, semiStableHash, storeId, sealDirectoryKind, patterns, isComposite, scrub, priority);
         }
     }
 }

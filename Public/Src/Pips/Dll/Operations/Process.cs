@@ -22,6 +22,16 @@ namespace BuildXL.Pips.Operations
         public const int MinWeight = 1;
 
         /// <summary>
+        /// Minimum priority.  These pips go last.
+        /// </summary>
+        public const int MinPriority = 0;
+
+        /// <summary>
+        /// Maximum priority.  These pips go first.
+        /// </summary>
+        public const int MaxPriority = 99;
+
+        /// <summary>
         /// Maximum allowed timeout
         /// </summary>
         public static readonly TimeSpan MaxTimeout = int.MaxValue.MillisecondsToTimeSpan();
@@ -292,6 +302,14 @@ namespace BuildXL.Pips.Operations
         public int Weight { get; }
 
         /// <summary>
+        /// Priority hint for scheduling a process pip.
+        /// Higher priorities will be scheduled before lower priorities.
+        /// Minimum value is 0, max is 99
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public int Priority { get; }
+
+        /// <summary>
         /// A helper flag to indicate if the Test for execution retries is executing.
         /// </summary>
         public bool TestRetries { get; }
@@ -345,7 +363,8 @@ namespace BuildXL.Pips.Operations
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
             DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
-            int? weight = null)
+            int? weight = null,
+            int? priority = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -444,7 +463,8 @@ namespace BuildXL.Pips.Operations
             ProcessAbsentPathProbeInUndeclaredOpaquesMode = absentPathProbeMode;
             DoubleWritePolicy = doubleWritePolicy;
             ContainerIsolationLevel = containerIsolationLevel;
-            Weight = weight.HasValue && weight.Value > 0 ? weight.Value : MinWeight;
+            Weight = weight.HasValue && weight.Value >= MinWeight ? weight.Value : MinWeight;
+            Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
         }
 
         /// <summary>
@@ -490,7 +510,8 @@ namespace BuildXL.Pips.Operations
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
             DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
-            int? weight = null)
+            int? weight = null,
+            int? priority = null)
         {
             return new Process(
                 executable ?? Executable,
@@ -532,7 +553,8 @@ namespace BuildXL.Pips.Operations
                 absentPathProbeMode,
                 doubleWritePolicy,
                 containerIsolationLevel,
-                weight);
+                weight,
+                priority);
         }
 
         /// <inheritdoc />
@@ -757,7 +779,8 @@ namespace BuildXL.Pips.Operations
                 absentPathProbeMode: (AbsentPathProbeInUndeclaredOpaquesMode)reader.ReadByte(),
                 doubleWritePolicy: (DoubleWritePolicy)reader.ReadByte(),
                 containerIsolationLevel: (ContainerIsolationLevel)reader.ReadByte(),
-                weight: reader.ReadInt32Compact()
+                weight: reader.ReadInt32Compact(),
+                priority: reader.ReadInt32Compact()
                 );
         }
 
@@ -803,6 +826,7 @@ namespace BuildXL.Pips.Operations
             writer.Write((byte)DoubleWritePolicy);
             writer.Write((byte)ContainerIsolationLevel);
             writer.WriteCompact(Weight);
+            writer.WriteCompact(Priority);
         }
         #endregion
     }

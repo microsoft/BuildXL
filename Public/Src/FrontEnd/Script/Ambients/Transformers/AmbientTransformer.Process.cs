@@ -119,6 +119,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_envName;
         private SymbolAtom m_envValue;
         private SymbolAtom m_envSeparator;
+        private SymbolAtom m_priority;
         private SymbolAtom m_toolExe;
         private SymbolAtom m_toolNestedTools;
         private SymbolAtom m_toolRuntimeDependencies;
@@ -242,6 +243,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeNestedProcessTerminationTimeoutMs = Symbol("nestedProcessTerminationTimeoutMs");
             m_executeDependsOnCurrentHostOSDirectories = Symbol("dependsOnCurrentHostOSDirectories");
             m_weight = Symbol("weight");
+            m_priority = Symbol("priority");
 
             m_argN = Symbol("n");
             m_argV = Symbol("v");
@@ -455,6 +457,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (weight != null)
             {
                 processBuilder.Weight = weight.Value;
+            }
+
+            // Priority.
+            var priority = Converter.ExtractOptionalInt(obj, m_priority);
+            if (priority != null)
+            {
+                processBuilder.Priority = priority.Value;
             }
 
             // Acquired semaphores.

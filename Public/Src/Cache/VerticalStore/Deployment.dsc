@@ -8,6 +8,7 @@ namespace Deployment {
     @@public
     export const deployment: Deployment.Definition = {
         contents: [
+            Analyzer.exe,
             InMemory.dll,
             Interfaces.dll,
             BasicFilesystem.dll,
@@ -16,7 +17,6 @@ namespace Deployment {
             MemoizationStoreAdapter.dll,
             VerticalAggregator.dll,
         ...addIf(!BuildXLSdk.isDotNetCoreBuild,
-                Analyzer.exe,
                 Compositing.dll,
                 InputListFilter.dll
             )

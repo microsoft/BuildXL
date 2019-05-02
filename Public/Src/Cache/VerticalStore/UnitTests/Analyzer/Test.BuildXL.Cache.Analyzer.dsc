@@ -2,7 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace Analyzer {
+
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
+
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "BuildXL.Cache.Analyzer.Test",

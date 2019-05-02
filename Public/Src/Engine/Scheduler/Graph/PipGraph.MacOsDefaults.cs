@@ -53,42 +53,47 @@ namespace BuildXL.Scheduler.Graph
                 m_lazySourceSealDirectories = Lazy.Create(() =>
                     new DefaultSourceSealDirectories(new[]
                     {
-                        GetSourceSeal(pathTable, pipGraph, MacPaths.Applications),
-                        GetSourceSeal(pathTable, pipGraph, MacPaths.Library),
-                        GetSourceSeal(pathTable, pipGraph, MacPaths.UserProvisioning),
-                        GetSourceSeal(pathTable, pipGraph, MacPaths.UsrBin),
-                        GetSourceSeal(pathTable, pipGraph, MacPaths.UsrInclude),
-                        GetSourceSeal(pathTable, pipGraph, MacPaths.UsrLib),
-                    }));
+                        MacPaths.Applications,
+                        MacPaths.Library,
+                        MacPaths.UserProvisioning
+                    }
+                    .Select(p => GetSourceSeal(pathTable, pipGraph, p))
+                    .ToArray()));
 
                 m_untrackedFiles =
                     new[]
                     {
                         // login.keychain is created by the OS the first time any process invokes an OS API that references the keychain.
                         // Untracked because build state will not be stored there and code signing will fail if required certs are in the keychain
-                        FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.Etc)),
-                        FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.UserKeyChainsDb)),
-                        FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.UserKeyChains)),
-                        FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.UserCFTextEncoding)),
-                        FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, MacPaths.TmpDir)),
-                        
-                    };
+                        MacPaths.Etc,
+                        MacPaths.UserKeyChainsDb,
+                        MacPaths.UserKeyChains,
+                        MacPaths.UserCFTextEncoding,
+                        MacPaths.TmpDir,
+                        MacPaths.UsrBin,
+                        MacPaths.UsrInclude,
+                        MacPaths.UsrLib,
+                    }
+                    .Select(p => FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, p)))
+                    .ToArray();
 
                 m_untrackedDirectories =
                     new[]
                     {
-                        DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.Bin),
-                        DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.Dev),
-                        DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.Private),
-                        DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.Sbin),
-                        DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.SystemLibrary),
-                        DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.UsrLibexec),
-                        DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.UsrShare),
-                        DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.UsrStandalone),
-                        DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.UsrSbin),
-                        DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.Var),
-                        DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, MacPaths.UserPreferences),
-                    };
+                        MacPaths.Bin,
+                        MacPaths.Dev,
+                        MacPaths.Private,
+                        MacPaths.Sbin,
+                        MacPaths.SystemLibrary,
+                        MacPaths.UsrLibexec,
+                        MacPaths.UsrShare,
+                        MacPaths.UsrStandalone,
+                        MacPaths.UsrSbin,
+                        MacPaths.Var,
+                        MacPaths.UserPreferences,
+                    }
+                    .Select(p => DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, p))
+                    .ToArray();
             }
 
             /// <summary>

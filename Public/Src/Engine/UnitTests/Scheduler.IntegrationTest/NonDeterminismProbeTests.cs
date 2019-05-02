@@ -21,7 +21,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
-        // TODO 1519677: Fix this bug on Mojave macOS
         [Feature(Features.OpaqueDirectory)]
 	    [Theory]
         [InlineData(false)]
@@ -77,7 +76,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicDirectoryOutput, 1);
         }
 
-        // TODO 1519677: Fix this bug on Mojave macOS
         [Feature(Features.OpaqueDirectory)]
 	    [Fact]
         public void NonDeterminismOpaqueDirectoryOutputDifferentFiles()

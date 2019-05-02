@@ -9,7 +9,7 @@ import {Cmd, Artifact, Transformer} from "Sdk.Transformers";
 // =============================================================================
 
 @@public
-export const writeArbitraryFileIntoExclusiveOpaqueDirectoryIsAllowed = !Context.isWindowsOS() && (() => {
+export const writeArbitraryFileIntoExclusiveOpaqueDirectoryIsAllowed = Bash.isMacOS && (() => {
     const outDir = Context.getNewOutputDirectory("od");
     const od1Path = d`${outDir}/od1`;
     const od2Path = d`${outDir}/od2`;
@@ -23,7 +23,7 @@ export const writeArbitraryFileIntoExclusiveOpaqueDirectoryIsAllowed = !Context.
 // =============================================================================
 
 @@public
-export const explicitOutputsByDifferentPipsAreAllowedInSharedOpaqueDirectory = !Context.isWindowsOS() && (() => {
+export const explicitOutputsByDifferentPipsAreAllowedInSharedOpaqueDirectory = Bash.isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
     writeFileToDir(p`${sodPath}/explicit1.txt`, sod);
@@ -31,7 +31,7 @@ export const explicitOutputsByDifferentPipsAreAllowedInSharedOpaqueDirectory = !
 })();
 
 @@public
-export const twoPipsWritingArbitraryFilesIntoSharedOpaqueDirectoryIsAllowed = !Context.isWindowsOS() && (() => {
+export const twoPipsWritingArbitraryFilesIntoSharedOpaqueDirectoryIsAllowed = Bash.isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod-mix");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
     writeFileToDir("arbitrary1", sod);
@@ -42,7 +42,7 @@ export const twoPipsWritingArbitraryFilesIntoSharedOpaqueDirectoryIsAllowed = !C
 })();
 
 @@public
-export const directoryDoubleWriteIsAllowedUnderASharedOpaque = !Context.isWindowsOS() && (() => {
+export const directoryDoubleWriteIsAllowedUnderASharedOpaque = Bash.isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
     createDirectory(sod);
@@ -50,7 +50,7 @@ export const directoryDoubleWriteIsAllowedUnderASharedOpaque = !Context.isWindow
 })();
 
 @@public
-export const writeHardLinkInSharedOpaqueDirectoryIsAllowed = !Context.isWindowsOS() && (() => {
+export const writeHardLinkInSharedOpaqueDirectoryIsAllowed = Bash.isMacOS && (() => {
     const sodPath = Context.getNewOutputDirectory("sod-with-links");
     const sod = Artifact.sharedOpaqueOutput(sodPath);
 
@@ -66,6 +66,25 @@ export const writeHardLinkInSharedOpaqueDirectoryIsAllowed = !Context.isWindowsO
 
     // symlink a source file
     linkFileIntoDirectory(f`module.config.dsc`, sod, true);
+})();
+
+@@public
+export const moveDirectoryInsideSOD = Bash.isMacOS && (() => {
+    const sodPath = Context.getNewOutputDirectory("sod-mov");
+    const sod = Artifact.sharedOpaqueOutput(sodPath);
+    const nestedDirTmpName = "nested-dir-tmp";
+    const nestedDirFinalName = "nested-dir";
+    Bash.runBashCommand("move-dir", [
+        Cmd.args([ "cd", sod ]),
+        Cmd.rawArgument(" && "),
+        Cmd.args([ Artifact.input(f`/bin/mkdir`), nestedDirTmpName ]),
+        Cmd.rawArgument(" && "),
+        Cmd.args([ Artifact.input(f`/usr/bin/touch`), `${nestedDirTmpName}/file-before.txt` ]),
+        Cmd.rawArgument(" && "),
+        Cmd.args([ Artifact.input(f`/bin/mv`), nestedDirTmpName, nestedDirFinalName ]),
+        Cmd.rawArgument(" && "),
+        Cmd.args([ Artifact.input(f`/usr/bin/touch`), `${nestedDirFinalName}/file-after.txt` ]),
+    ], true);
 })();
 
 // =============================================================================
@@ -123,7 +142,7 @@ function linkFileIntoDirectory(srcFile: File, outDir: Artifact, symbolic?: boole
  */
 function writeFileToDir(outFile: string | Path, outDir: Artifact, hint?: string): OpaqueDirectory {
     const fileArgValue = typeof(outFile) === "string"
-        ? `${outFile}-$(date +%Y-%m-%d_%H-%M).txt`
+        ? `${outFile}.txt`
         : Artifact.output(outFile as Path);
 
     // Execute:
@@ -143,7 +162,7 @@ function createDirectory(outDir: Artifact) {
         Cmd.argument(Artifact.input(f`/bin/mkdir`)),
         Cmd.argument("-p"),
         Cmd.argument(outDir)
-    ], true);
+    ], false);
 }
 
 function listDirectories(dirs: OpaqueDirectory[]): DerivedFile {
@@ -157,7 +176,7 @@ function listDirectories(dirs: OpaqueDirectory[]): DerivedFile {
 }
 
 function readFileFromDirectory(hint: string, dir: SourceDirectory | StaticDirectory, fileName: string): Transformer.ExecuteResult {
-    if (Context.isWindowsOS()) return undefined;
+    if (!Bash.isMacOS) return undefined;
 
     // Execute:
     //   cd <dir> && /bin/cat <fileName>

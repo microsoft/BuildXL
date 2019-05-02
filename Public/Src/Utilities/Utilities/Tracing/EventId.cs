@@ -495,7 +495,7 @@ namespace BuildXL.Utilities.Tracing
         MaterializeFilePipProducerNotFound = 739,
 
         StoreSymlinkWarning = 740,
-        // was StoreWarnDueToUnableToDetermineReparsePoint = 741,
+        FileMaterializationMismatchFileExistenceResult = 741,
 
         SerializingToPipFingerprintEntryResultInCorruptedData = 742,
         DeserializingCorruptedPipFingerprintEntry = 743,
@@ -1049,6 +1049,7 @@ namespace BuildXL.Utilities.Tracing
         FailedToCreateHardlinkOnMerge = 12209,
         DoubleWriteAllowedDueToPolicy = 12210,
         DisallowedDoubleWriteOnMerge = 12211,
+        AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs = 12212,
 
         // Status logging
         Status = 12400,

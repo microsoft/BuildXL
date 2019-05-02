@@ -172,7 +172,7 @@ namespace Test.BuildXL.Scheduler
 
         public DirectoryArtifact TryGetSealSourceAncestor(AbsolutePath path)
         {
-            throw new NotImplementedException();
+            return DirectoryArtifact.Invalid;
         }
 
         public Pip GetSealedDirectoryPip(DirectoryArtifact directoryArtifact, PipQueryContext queryContext)
@@ -182,7 +182,9 @@ namespace Test.BuildXL.Scheduler
 
         public bool TryGetTempDirectoryAncestor(AbsolutePath path, out Pip pip, out AbsolutePath temPath)
         {
-            throw new NotImplementedException();
+            temPath = AbsolutePath.Invalid;
+            pip = null;
+            return false;
         }
         
         #endregion

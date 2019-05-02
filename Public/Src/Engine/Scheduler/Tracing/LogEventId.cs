@@ -130,6 +130,8 @@ namespace BuildXL.Scheduler.Tracing
         FailedToDeleteCorruptFile = 5042,
         AbsentPathProbeInsideUndeclaredOpaqueDirectory = 5043,
 
+        AllowedSameContentDoubleWrite = 5044,
+
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

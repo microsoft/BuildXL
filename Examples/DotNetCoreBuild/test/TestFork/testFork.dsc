@@ -5,7 +5,7 @@ import * as Bash from "Bash";
 import * as Clang from "Clang";
 import {Cmd, Artifact, Transformer} from "Sdk.Transformers";
 
-const forkTool = !Context.isWindowsOS() && <Transformer.ToolDefinition>{
+const forkTool = Bash.isMacOS && <Transformer.ToolDefinition>{
     exe: Clang.compile({
         inputs: [f`testFork.c`],
         outputFileName: a`testFork`
@@ -21,7 +21,7 @@ interface Arguments {
 }
 
 export function runFork(args: Arguments): DerivedFile {
-    if (Context.isWindowsOS()) return undefined;
+    if (!Bash.isMacOS) return undefined;
 
     const outDir = Context.getNewOutputDirectory('fork');
     const outFile = p`${outDir}/fork-out.txt`;

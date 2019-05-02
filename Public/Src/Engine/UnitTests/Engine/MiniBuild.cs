@@ -1042,7 +1042,7 @@ const helloWorldCpp : File = Transformer.writeAllLines(
             var spec = @"
 import {Artifact, Cmd, Tool, Transformer} from 'Sdk.Transformers';
 
-const pkgContents = importFrom('Microsoft.Net.Compilers').pkg.contents;
+const pkgContents = importFrom('Microsoft.Net.Compilers').Contents.all;
 
 @@public
 export const tool = {

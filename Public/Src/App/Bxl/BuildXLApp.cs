@@ -1095,8 +1095,10 @@ namespace BuildXL
                     global::BuildXL.Engine.ETWLogger.Log,
                     global::BuildXL.Scheduler.ETWLogger.Log,
                     global::BuildXL.Tracing.ETWLogger.Log,
+                    global::BuildXL.Native.ETWLogger.Log,
                     global::BuildXL.Storage.ETWLogger.Log,
                     global::BuildXL.Processes.ETWLogger.Log,
+                    global::BuildXL.FrontEnd.Sdk.ETWLogger.Log,
                     global::BuildXL.FrontEnd.Core.ETWLogger.Log,
                     global::BuildXL.FrontEnd.Download.ETWLogger.Log,
                     global::BuildXL.FrontEnd.Script.ETWLogger.Log,
@@ -1527,7 +1529,7 @@ namespace BuildXL
             /// </summary>
             public void LogEventSummary(LoggingContext loggingContext)
             {
-                Logger.Log.EventCount(loggingContext, TrackingEventListener.ToEventCountDictionary());
+                Logger.Log.EventCounts(loggingContext, TrackingEventListener.ToEventCountDictionary());
             }
 
             private void WriteErrorToConsole(string format, params object[] args)

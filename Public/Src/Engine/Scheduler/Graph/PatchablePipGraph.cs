@@ -492,9 +492,9 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public void ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
+        public bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
         {
-            m_builder.ApplyCurrentOsDefaults(processBuilder);
+            return m_builder.ApplyCurrentOsDefaults(processBuilder);
         }
     }
 }

@@ -223,7 +223,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
         }
 
-        [FactIfSupported(requiresJournalScan: true)]
+        [FactIfSupported(requiresJournalScan: true, Skip = "Bug #1517905")]
         public void UseJunctionRoots()
         {
             AbsolutePath targetPath = CreateUniqueDirectory(SourceRoot);

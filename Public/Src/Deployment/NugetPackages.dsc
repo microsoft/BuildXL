@@ -132,7 +132,7 @@ namespace NugetPackages {
         targetLocation: packageTargetFolder,
     });
 
-    export function pack(args: {id: string, deployment: Deployment.Definition, dependencies?: (Nuget.Dependency | Managed.ManagedNugetPackage)[]}) : File {
+    export function pack(args: {id: string, deployment: Deployment.Definition, copyContentFiles?: boolean, dependencies?: (Nuget.Dependency | Managed.ManagedNugetPackage)[]}) : File {
         const dependencies : Nuget.Dependency[] = (args.dependencies || [])
             .map(dep => {
                 if (isManagedPackage(dep)) {
@@ -152,6 +152,13 @@ namespace NugetPackages {
                 tags: `${Branding.company} ${Branding.shortProductName} MSBuild Build`,
                 description: `${Branding.shortProductName} is a build engine that comes with a new build automation language. ${Branding.shortProductName} performs fast parallel incremental builds enabled by fine-grained dataflow dependency information. All build artifacts are cached locally, and eventually shared between different machines. The engine can run on a single machine, and it will perform distributed builds on many machines in a lab or in the cloud.`,
                 dependencies: dependencies,
+                contentFiles: args.copyContentFiles 
+                    ? [{
+                        include: "**",
+                        copyToOutput: true,
+                        buildAction: "None",
+                      }]
+                    : undefined,
             },
             deployment: args.deployment,
             noPackageAnalysis: true,

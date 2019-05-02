@@ -82,6 +82,9 @@ export interface PackageMetadata {
 
     /** Dependencies to be specified in metadata. */
     dependencies?: Dependency[];
+
+    /** ContentFile patterns */
+    contentFiles?: ContentFile[];
 }
 
 @@public
@@ -91,6 +94,19 @@ export interface Dependency {
 
     /** Version number of the dependency. */
     version: string;
+}
+
+export interface ContentFile {
+    /** The location of the file or files to include, subject to exclusions specified by the exclude attribute. The path is relative to the .nuspec file unless an absolute path is specified. The wildcard character * is allowed, and the double wildcard ** implies a recursive folder search. */
+    include: string,
+    /** A semicolon-delimited list of files or file patterns to exclude from the src location. The wildcard character * is allowed, and the double wildcard ** implies a recursive folder search. */
+    exclude?: string,
+    /** The build action to assign to the content item for MSBuild, such as Content, None, Embedded Resource, Compile, etc. The default is Compile. */
+    buildAction?: "Content" | "None" | "Embedded Resource" | "Compile",
+    /** A Boolean indicating whether to copy content items to the build (or publish) output folder. The default is false. */
+    copyToOutput?: boolean,
+    /** A Boolean indicating whether to copy content items to a single folder in the build output (true), or to preserve the folder structure in the package (false). This flag only works when copyToOutput flag is set to true. The default is false. */
+    flatten?: boolean,
 }
 
 @@public
@@ -211,7 +227,24 @@ function createNuSpecFile(metaData: PackageMetadata, deployment: Deployment.Defi
                             Xml.attr("version", d.version)
                         )
                     )
-                )
+                ),
+                metaData.contentFiles 
+                    ? Xml.elem("contentFiles",
+                        ...metaData.contentFiles.map(c =>
+                            Xml.elem("files",
+                                Xml.attr("include", c.include),
+                                c.exclude && Xml.attr("exclude", c.exclude),
+                                c.buildAction && Xml.attr("buildAction", c.buildAction),
+                                c.copyToOutput !== undefined 
+                                    ? Xml.attr("copyToOutput", c.copyToOutput ? "true" : "false")
+                                    : undefined,
+                                c.flatten !== undefined
+                                    ? Xml.attr("flatten", c.flatten ? "true" : "false")
+                                    : undefined
+                            )
+                        )
+                    )
+                    : undefined
             ),
             Xml.elem("files", ...fileElements)
         )

@@ -284,7 +284,7 @@ namespace BuildXL.Engine
             Exception exception;
             if (!CacheFactory.TryCreateCacheConfigData(cacheConfigContent, out cacheConfigData, out exception))
             {
-                return new Failure<string>(I($"Unable to create cache config data: {exception.Message}"));
+                return new Failure<string>(I($"Unable to create cache config data: {exception.GetLogEventMessage()}"));
             }
 
             return new Possible<ICacheConfigData>(cacheConfigData);

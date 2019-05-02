@@ -48,6 +48,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private static readonly Dictionary<string, DoubleWritePolicy> s_doubleWritePolicyMap = new Dictionary<string, DoubleWritePolicy>(StringComparer.Ordinal)
         {
             ["doubleWritesAreErrors"] = DoubleWritePolicy.DoubleWritesAreErrors,
+            ["allowSameContentDoubleWrites"] = DoubleWritePolicy.AllowSameContentDoubleWrites,
             ["unsafeFirstDoubleWriteWins"] = DoubleWritePolicy.UnsafeFirstDoubleWriteWins,
         };
 

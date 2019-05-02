@@ -294,7 +294,7 @@ namespace BuildXL.Scheduler.Graph
             }
 
             /// <inheritdoc />
-            public void ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
+            public bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
             {
                 if (OperatingSystemHelper.IsUnixOS)
                 {
@@ -309,7 +309,7 @@ namespace BuildXL.Scheduler.Graph
                         }
                     }
 
-                    m_macOsDefaults.ProcessDefaults(processBuilder);
+                    return m_macOsDefaults.ProcessDefaults(processBuilder);
                 }
                 else
                 {
@@ -324,7 +324,7 @@ namespace BuildXL.Scheduler.Graph
                         }
                     }
 
-                    m_windowsOsDefaults.ProcessDefaults(processBuilder);
+                    return m_windowsOsDefaults.ProcessDefaults(processBuilder);
                 }
             }
 

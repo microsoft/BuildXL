@@ -2,13 +2,14 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.IO;
+using System.Threading;
 using BuildXL.Native.IO;
 
 namespace Test.BuildXL.TestUtilities
 {
     /// <summary>
     /// This is minimal implementation of <see cref="ITempDirectoryCleaner"/> for unit tests or test bases
-    /// This can be passed into <see cref="FileUtilities.DeleteDirectoryContents(string, bool, System.Func{string, bool}, ITempDirectoryCleaner)"/>
+    /// This can be passed into <see cref="FileUtilities.DeleteDirectoryContents(string, bool, System.Func{string, bool}, ITempDirectoryCleaner, CancellationToken?)"/>
     /// and <see cref="FileUtilities.DeleteFile(string, bool, ITempDirectoryCleaner)"/> to enable move-deletes,
     /// which are more reliable and less prone to unexected exceptions than Windows delete.
     /// </summary>

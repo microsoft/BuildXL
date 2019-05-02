@@ -67,8 +67,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             // Undeclared sources are allowed as long as they are true sources
             Assert.True(testProj.AllowUndeclaredSourceReads);
-            // Double writes are allowed as warnings
-            Assert.True(testProj.DoubleWritePolicy == DoubleWritePolicy.UnsafeFirstDoubleWriteWins);
+            // Double writes are allowed as long as the written content is the same
+            Assert.True(testProj.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites);
             // Working directory is the project directory
             Assert.True(testProj.WorkingDirectory == project.FullPath.GetParent(PathTable));
             // Log file is configured

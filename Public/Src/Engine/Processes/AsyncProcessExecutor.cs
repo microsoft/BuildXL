@@ -76,6 +76,8 @@ namespace BuildXL.Processes
         /// </summary>
         private readonly SandboxedProcessInfo m_sandboxedProcessInfo;
 
+        private readonly Action<string> m_logger;
+
         private int m_processId = -1;
 
         /// <summary>
@@ -113,10 +115,12 @@ namespace BuildXL.Processes
             TimeSpan timeout,
             Action<string> outputBuilder = null,
             Action<string> errorBuilder = null,
-            SandboxedProcessInfo sandboxedProcessInfo = null)
+            SandboxedProcessInfo sandboxedProcessInfo = null,
+            Action<string> logger = null)
         {
             Contract.Requires(process != null);
 
+            m_logger = logger;
             Process = process;
             Process.Exited += (sender, e) => m_processExitedTcs.TrySetResult(Unit.Void);
 
@@ -156,29 +160,51 @@ namespace BuildXL.Processes
             Process.BeginOutputReadLine();
             Process.BeginErrorReadLine();
             StartTime = DateTime.UtcNow;
+            Log($"started at {StartTime}");
         }
 
         /// <summary>
         /// Waits for process to exit or to get killed due to timed out.
         /// </summary>
-        public async Task WaitForExitAsync(Func<Task> getProcessReport = null)
+        /// <remarks>
+        /// After this task completes, stdout and stderr of <see cref="Process"/> are not necessarily flushed
+        /// yet. If you care about those tasks completing, call <see cref="WaitForStdOutAndStdErrAsync"/>.
+        /// </remarks>
+        public async Task WaitForExitAsync()
         {
+            Log($"waiting to exit");
             var finishedTask = await Task.WhenAny(Task.Delay(m_timeout), WhenExited);
             ExitTime = DateTime.UtcNow;
 
             var timedOut = finishedTask != WhenExited;
             if (timedOut)
             {
+                Log($"timed out after {ExitTime.Subtract(StartTime)} (timeout: {m_timeout})");
                 TimedOut = true;
                 await KillAsync();
             }
-
-            if (getProcessReport != null)
+            else
             {
-                await getProcessReport();
+                Log($"exited at {ExitTime}");
             }
+        }
 
-            await Task.WhenAll(m_stdoutFlushedTcs.Task, m_stderrFlushedTcs.Task);
+        /// <summary>
+        /// Waits for the process' standard output and error to get flushed.
+        /// </summary>
+        /// <remarks>
+        /// Note that this task completes as soon as <see cref="Process"/> exits.
+        /// After <see cref="Process"/> exits, however, any of its child processes might still be running, 
+        /// and might still be using their parent's stdout and stderr, which is why this task is not
+        /// going to necessarily complete right after <see cref="WaitForExitAsync"/> completes.
+        /// 
+        /// Note also that no timeout is applied here, i.e., if those child processes never exit,
+        /// this task never completes.
+        /// </remarks>
+        public Task WaitForStdOutAndStdErrAsync()
+        {
+            Log($"waiting for stderr and stdout to flush");
+            return Task.WhenAll(m_stdoutFlushedTcs.Task, m_stderrFlushedTcs.Task);
         }
 
         /// <summary>
@@ -192,6 +218,7 @@ namespace BuildXL.Processes
             {
                 if (!Process.HasExited)
                 {
+                    Log($"calling Kill()");
                     Process.Kill();
                 }
             }
@@ -210,6 +237,7 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public void Dispose()
         {
+            Log($"disposing");
             Process?.Dispose();
         }
 
@@ -217,6 +245,15 @@ namespace BuildXL.Processes
         {
             string description = m_sandboxedProcessInfo == null ? string.Empty : $"[Pip{m_sandboxedProcessInfo.PipSemiStableHash:X16} -- {m_sandboxedProcessInfo.PipDescription}] ";
             throw new BuildXLException($"{description}{message}", inner);
+        }
+
+        private void Log(FormattableString message)
+        {
+            var pid = -1;
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+            try { pid = ProcessId; } catch {}
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+            m_logger?.Invoke(FormattableStringEx.I($"Process({pid}) - {message}"));
         }
 
         private static void FeedOutputBuilder(TaskSourceSlim<Unit> signalCompletion, string line, Action<string> eat)

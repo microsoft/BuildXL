@@ -322,32 +322,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             case CopyFileResult.ResultCode.FileNotFoundError:
                                 Tracer.Warning(
                                     context,
-                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} to path {tempLocation} due to an error with the sourcepath: {copyFileResult.ErrorMessage}. Diagnostics: {copyFileResult.Diagnostics}. Trying another replica.");
+                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult} Trying another replica.");
                                 missingContentLocations.Add(location);
                                 _contentLocationStore.MachineReputationTracker.ReportReputation(location, MachineReputation.Missing);
                                 break;
                             case CopyFileResult.ResultCode.SourcePathError:
                                 Tracer.Warning(
                                     context,
-                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} to path {tempLocation} due to an error with the sourcepath: {copyFileResult.ErrorMessage}. Diagnostics: {copyFileResult.Diagnostics}. Trying another replica.");
+                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult} Trying another replica.");
                                 _contentLocationStore.MachineReputationTracker.ReportReputation(location, MachineReputation.Bad);
                                 badContentLocations.Add(location);
                                 break;
                             case CopyFileResult.ResultCode.DestinationPathError:
                                 Tracer.Warning(
                                     context,
-                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} to temp path {tempLocation} due to an error with the destination path: {copyFileResult.ErrorMessage}. Diagnostics: {copyFileResult.Diagnostics}. Not trying another replica.");
+                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to temp path {tempLocation} due to an error with the destination path: {copyFileResult} Not trying another replica.");
                                 return (new ErrorResult(copyFileResult).AsResult<PutResult>(), true);
                             case CopyFileResult.ResultCode.CopyTimeoutError:
                                 Tracer.Warning(
                                     context,
-                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} to path {tempLocation} due to copy timeout: {copyFileResult.ErrorMessage}. Diagnostics: {copyFileResult.Diagnostics}. Trying another replica.");
+                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult} Trying another replica.");
                                 _contentLocationStore.MachineReputationTracker.ReportReputation(location, MachineReputation.Timeout);
                                 break;
                             case CopyFileResult.ResultCode.CopyBandwidthTimeoutError:
                                 Tracer.Warning(
                                     context,
-                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult.ErrorMessage}. Diagnostics: {copyFileResult.Diagnostics}. Trying another replica.");
+                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult} Trying another replica.");
                                 _contentLocationStore.MachineReputationTracker.ReportReputation(location, MachineReputation.Timeout);
                                 break;
                             case CopyFileResult.ResultCode.InvalidHash:
@@ -358,7 +358,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             case CopyFileResult.ResultCode.Unknown:
                                 Tracer.Warning(
                                     context,
-                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} to temp path {tempLocation} due to an internal error: {copyFileResult.ErrorMessage}. Diagnostics: {copyFileResult.Diagnostics}. Not trying another replica.");
+                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to temp path {tempLocation} due to an internal error: {copyFileResult} Not trying another replica.");
                                 _contentLocationStore.MachineReputationTracker.ReportReputation(location, MachineReputation.Bad);
                                 break;
                             default:
@@ -438,7 +438,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     // Since this is the only place where we hash the file during trusted copies, we attempt to get access to the bytes here,
                     //  to avoid an additional IO operation later. In case that the file is bigger than the ContentLocationStore permits or blobs
                     //  aren't supported, disposing the FileStream twice does not throw or cause issues.
-                    using (FileStream fileStream = new FileStream(tempDestinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.Read | FileShare.Delete, bufferSize, FileOptions.SequentialScan))
+                    using (Stream fileStream = await _fileSystem.OpenAsync(tempDestinationPath, FileAccess.Write, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, bufferSize))
                     using (Stream possiblyRecordingStream = _contentLocationStore.AreBlobsSupported && hashInfo.Size <= _contentLocationStore.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)new RecordingStream(fileStream, hashInfo.Size) : fileStream)
                     using (HashingStream hashingStream = _hashers[hashInfo.ContentHash.HashType].CreateWriteHashingStream(possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
                     {

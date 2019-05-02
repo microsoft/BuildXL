@@ -93,19 +93,13 @@ namespace Sandbox {
         dependencies: [ ariaPkg.Contents.all ]
     }).outFiles[0];
 
-    function buildLibInterop(bundleInfo?: File): DerivedFile {
-        return build({
-            project: interopXcodeproj,
-            scheme: "InteropLibrary",
-            outFiles: [ a`libBuildXLInterop.dylib` ],
-            xcconfig: bundleInfo || bundleInfoXCConfig
-        }).outFiles[0];
-    }
-
-    const testConfigurationName = "debugTest";
-
     @@public
-    export const libInterop = isMacOs && buildLibInterop(bundleInfoXCConfig);
+    export const libInterop = isMacOs && build({
+        project: interopXcodeproj,
+        scheme: "InteropLibrary",
+        outFiles: [ a`libBuildXLInterop.dylib` ],
+        xcconfig: bundleInfoXCConfig
+    }).outFiles[0];
 
     @@public
     export const coreDumpTester = isMacOs && build({
@@ -118,7 +112,8 @@ namespace Sandbox {
     export const monitor = isMacOs && build({
         project: sandboxXcodeproj,
         scheme: "SandboxMonitor",
-        outFiles: [ a`SandboxMonitor` ]
+        outFiles: [ a`SandboxMonitor` ],
+        xcconfig: bundleInfoXCConfig
     }).outFiles[0];
 
     interface KextFiles {

@@ -14,7 +14,7 @@ Transformer.execute({
     });
 ```
 
-In addition, in the `QTest.SDK`, "weight" is also a field in the `QTestArguments`. The `weight` in `QTestArguments` will be passed through when calling `Transformer.execute` to create a QTest pip in `QTest.SDK`. So the user of `QTest.SDK` can easily set the weight of the QTest pip.
+In addition, in the `QTest.SDK`, `weight` is also a field in the `QTestArguments`. The `weight` in `QTestArguments` will be passed through when calling `Transformer.execute` to create a QTest pip in `QTest.SDK`. So the user of `QTest.SDK` can easily set the weight of the QTest pip.
 ```ts
 QTest.runQTest({
     testAssembly: <your testAssembly path>,

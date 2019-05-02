@@ -9,20 +9,17 @@ import * as Nuget from "Sdk.Managed.Tools.NuGet";
 
 namespace NugetPackages {
 
-    export declare const qualifier : {
-        configuration: "debug" | "release",
-        targetRuntime: "osx-x64" | "win-x64";
-    };
+    export declare const qualifier : { configuration: "debug" | "release" };
 
     const packageNamePrefix = BuildXLSdk.Flags.isMicrosoftInternal
         ? "BuildXL"
         : "Microsoft.BuildXL";
+
     const packageTargetFolder = BuildXLSdk.Flags.isMicrosoftInternal
         ? r`${qualifier.configuration}/pkgs`
         : r`${qualifier.configuration}/public/pkgs`;
 
-
-    const net472 = qualifier.targetRuntime === "osx-x64" ? undefined : pack({
+    const net472 = Context.getCurrentHost().os === "macOS" ? undefined : pack({
         id: `${packageNamePrefix}.net472`,
         deployment: BuildXL.withQualifier({
             configuration: qualifier.configuration,
@@ -31,7 +28,7 @@ namespace NugetPackages {
         }).deployment,
     });
 
-    const winX64 = qualifier.targetRuntime === "osx-x64" ? undefined : pack({
+    const winX64 = Context.getCurrentHost().os === "macOS" ? undefined : pack({
         id: `${packageNamePrefix}.win-x64`,
         deployment: BuildXL.withQualifier({
             configuration: qualifier.configuration,
@@ -40,7 +37,7 @@ namespace NugetPackages {
         }).deployment,
     });
 
-    const osxX64 = qualifier.targetRuntime !== "osx-x64" ? undefined : pack({
+    const osxX64 = pack({
         id: `${packageNamePrefix}.osx-x64`,
         deployment: BuildXL.withQualifier({
             configuration: qualifier.configuration,
@@ -51,18 +48,15 @@ namespace NugetPackages {
 
     const sdks = pack({
         id: `${packageNamePrefix}.Sdks`,
-        deployment: Sdks.withQualifier({
-            configuration: qualifier.configuration,
-            targetRuntime: "win-x64"
-        }).deployment,
+        deployment: Sdks.deployment,
     });
 
-    const cacheTools = qualifier.targetRuntime === "osx-x64" ? undefined : pack({
+    const cacheTools = Context.getCurrentHost().os === "macOS" ? undefined : pack({
         id: `${packageNamePrefix}.Cache.Tools`,
         deployment: Cache.NugetPackages.tools,
     });
 
-    const cacheLibraries = qualifier.targetRuntime === "osx-x64" ? undefined : pack({
+    const cacheLibraries = Context.getCurrentHost().os === "macOS" ? undefined : pack({
         id: `${packageNamePrefix}.Cache.Libraries`,
         deployment: Cache.NugetPackages.libraries,
         dependencies: [
@@ -78,7 +72,7 @@ namespace NugetPackages {
         ]
     });
 
-    const cacheInterfaces = qualifier.targetRuntime === "osx-x64" ? undefined : pack({
+    const cacheInterfaces = Context.getCurrentHost().os === "macOS" ? undefined : pack({
         id: `${packageNamePrefix}.Cache.Interfaces`,
         deployment: Cache.NugetPackages.interfaces,
         dependencies: [
@@ -87,7 +81,7 @@ namespace NugetPackages {
         ]
     });
 
-    const cacheHashing = qualifier.targetRuntime === "osx-x64" ? undefined : pack({
+    const cacheHashing = Context.getCurrentHost().os === "macOS" ? undefined : pack({
         id: `${packageNamePrefix}.Cache.Hashing`,
         deployment: Cache.NugetPackages.hashing
     });
@@ -121,14 +115,13 @@ namespace NugetPackages {
                 ...addIf(!BuildXLSdk.Flags.genVSSolution,
                     winX64
                 ),
+                cacheTools,
+                cacheLibraries,
+                cacheInterfaces,
+                cacheHashing,
             ]),
             osxX64,
             sdks,
-
-            cacheTools,
-            cacheLibraries,
-            cacheInterfaces,
-            cacheHashing,
             toolsSandBoxExec,
             toolsOrchestrator,
         ]

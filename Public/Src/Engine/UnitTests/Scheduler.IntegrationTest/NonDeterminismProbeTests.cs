@@ -21,8 +21,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
-        [Feature(Features.OpaqueDirectory)]
         // TODO 1519677: Fix this bug on Mojave macOS
+        [Feature(Features.OpaqueDirectory)]
 	    [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData(false)]
         [InlineData(true)]
@@ -77,8 +77,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicDirectoryOutput, 1);
         }
 
-        [Feature(Features.OpaqueDirectory)]
         // TODO 1519677: Fix this bug on Mojave macOS
+        [Feature(Features.OpaqueDirectory)]
 	    [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void NonDeterminismOpaqueDirectoryOutputDifferentFiles()
         {

@@ -51,7 +51,10 @@ namespace NugetPackages {
 
     const sdks = pack({
         id: `${packageNamePrefix}.Sdks`,
-        deployment: Sdks.deployment,
+        deployment: Sdks.withQualifier({
+            configuration: qualifier.configuration,
+            targetRuntime: "win-x64"
+        }).deployment,
     });
 
     const cacheTools = qualifier.targetRuntime === "osx-x64" ? undefined : pack({

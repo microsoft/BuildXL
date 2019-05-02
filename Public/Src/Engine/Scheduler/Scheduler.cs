@@ -54,6 +54,7 @@ using BuildXL.Scheduler.FileSystem;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Interop.MacOS;
 using BuildXL.Processes.Containers;
+using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
@@ -3486,6 +3487,8 @@ namespace BuildXL.Scheduler
 
                         bool pipIsSafeToCache = true;
 
+                        IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations = null;
+
                         if (!IsDistributedWorker)
                         {
                             // File violation analysis needs to happen on the master as it relies on
@@ -3496,7 +3499,8 @@ namespace BuildXL.Scheduler
                                 pipScope,
                                 executionResult,
                                 processRunnable.Process,
-                                out pipIsSafeToCache);
+                                out pipIsSafeToCache,
+                                out allowedSameContentDoubleWriteViolations);
 
                             processRunnable.SetExecutionResult(executionResult);
 
@@ -3521,11 +3525,34 @@ namespace BuildXL.Scheduler
                         if (!IsDistributedWorker)
                         {
                             m_chooseWorkerCpu.ReportProcessExecutionOutputs(processRunnable, executionResult);
+
+                            // If the cache converged outputs, we need to check for double writes again, since the configured policy may care about
+                            // the content of the (final) outputs
+                            if (executionResult.Converged)
+                            {
+                                executionResult = PipExecutor.AnalyzeDoubleWritesOnCacheConvergence(
+                                   operationContext,
+                                   environment,
+                                   pipScope,
+                                   executionResult,
+                                   processRunnable.Process,
+                                   allowedSameContentDoubleWriteViolations);
+
+                                processRunnable.SetExecutionResult(executionResult);
+
+                                if (executionResult.Result.IndicatesFailure())
+                                {
+                                    // Dependency analysis failure. Even though the pip is already cached, we got a cache converged event, so
+                                    // it is safe for other downstream pips to consume the cached result. However, some double writes were found based
+                                    // on the configured policy, so we fail the build
+                                    return processRunnable.SetPipResult(executionResult);
+                                }
+                            }
                         }
 
                         // Output content is reported here to ensure that it happens both on worker executing PostProcess and
                         // master which called worker to execute post process.
-                        PipExecutor.ReportExecutionResultOutputContent(operationContext, environment, processRunnable.Description, executionResult, !processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsError());
+                        PipExecutor.ReportExecutionResultOutputContent(operationContext, environment, processRunnable.Description, executionResult, processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsWarning());
 
                         return processRunnable.SetPipResult(executionResult);
                     }

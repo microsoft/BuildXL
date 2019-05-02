@@ -9,7 +9,6 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
-using BuildXL.Pips;
 using BuildXL.Processes;
 using BuildXL.Utilities;
 using Test.BuildXL.Executables.TestProcess;
@@ -185,7 +184,7 @@ namespace Test.BuildXL.Processes
                     new SandboxedProcessInfo(pt, tempFiles, cmdExeLocation, disableConHostSharing: false)
                     {
                         PipSemiStableHash = 0,
-                        PipDescription = "SandboxedProcessTest",
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments = "/d /c echo " + echoMessage,
                         WorkingDirectory = string.Empty,
                     };
@@ -243,7 +242,7 @@ namespace Test.BuildXL.Processes
                     new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX86, disableConHostSharing: false)
                     {
                         PipSemiStableHash = 0,
-                        PipDescription = "SandboxedProcessTest",
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments = "/d /c sleep 1s > " + CommandLineEscaping.EscapeAsCommandLineWord(tempFileName),
                     };
 
@@ -410,7 +409,7 @@ namespace Test.BuildXL.Processes
                     new SandboxedProcessInfo(pt, tempFiles, cmdExeLocation, disableConHostSharing: false)
                     {
                         PipSemiStableHash = 0,
-                        PipDescription = "SandboxedProcessTest",
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments = "/d /c start /B FOR /L %i IN (0,0,1) DO @rem",
 
                         // launches another cmd.exe that runs how you do an infinite loop with cmd.exe
@@ -609,7 +608,7 @@ namespace Test.BuildXL.Processes
                     new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
                     {
                         PipSemiStableHash = 0,
-                        PipDescription = "SandboxedProcessTest",
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments = "/d /c wmic process get parentprocessid,name|find \"WMIC\"",
                     };
                 info.FileAccessManifest.FailUnexpectedFileAccesses = false;
@@ -653,7 +652,7 @@ namespace Test.BuildXL.Processes
                     new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
                     {
                         PipSemiStableHash = 0,
-                        PipDescription = "SandboxedProcessTest",
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(matchingFileName)
                     };
                 AddCmdDependencies(pt, info);
@@ -675,7 +674,7 @@ namespace Test.BuildXL.Processes
                     new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
                     {
                         PipSemiStableHash = 0,
-                        PipDescription = "SandboxedProcessTest",
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
                     };
                 AddCmdDependencies(pt, info);
@@ -697,7 +696,7 @@ namespace Test.BuildXL.Processes
                     new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
                     {
                         PipSemiStableHash = 0,
-                        PipDescription = "SandboxedProcessTest",
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
                     };
                 AddCmdDependencies(pt, info);
@@ -721,7 +720,7 @@ namespace Test.BuildXL.Processes
                     new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
                     {
                         PipSemiStableHash = 0,
-                        PipDescription = "SandboxedProcessTest",
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
                     };
                 AddCmdDependencies(pt, info);
@@ -745,7 +744,7 @@ namespace Test.BuildXL.Processes
                     new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
                     {
                         PipSemiStableHash = 0,
-                        PipDescription = "SandboxedProcessTest",
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
                     };
                 AddCmdDependencies(pt, info);
@@ -794,7 +793,7 @@ namespace Test.BuildXL.Processes
                     new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
                     {
                         PipSemiStableHash = 0,
-                        PipDescription = "SandboxedProcessTest",
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments = "/d /c type " + CommandLineEscaping.EscapeAsCommandLineWord(tempFileName),
                     };
                 info.FileAccessManifest.ReportFileAccesses = true; // We expect all accesses reported (we use result.FileAccesses below).
@@ -912,7 +911,7 @@ namespace Test.BuildXL.Processes
                     new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
                     {
                         PipSemiStableHash = 0,
-                        PipDescription = "SandboxedProcessTest",
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments = "/d /c type " + CommandLineEscaping.EscapeAsCommandLineWord(tempFileName),
                     };
                 info.FileAccessManifest.ReportFileAccesses = false;
@@ -1014,7 +1013,7 @@ namespace Test.BuildXL.Processes
                     {
                         // Adding \|Bad bit| to the end should result in ERROR_INVALID_NAME. The ^ hats are for cmd escaping. Note that type eats quotes, so we can't try those.
                         PipSemiStableHash = 0,
-                        PipDescription = "SandboxedProcessTest",
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments =
                             "/d /c type " + CommandLineEscaping.EscapeAsCommandLineWord(tempDirName) +
                             "\\^|Bad bit^| 2>nul || (echo Nope & exit /b 0)",
@@ -1050,7 +1049,7 @@ namespace Test.BuildXL.Processes
             var info = new SandboxedProcessInfo(pt, this, "DoesNotExistIHope", disableConHostSharing: false)
             {
                 PipSemiStableHash = 0,
-                PipDescription = "SandboxedProcessTest",
+                PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                 SandboxedKextConnection = GetSandboxedKextConnection()
             };
 
@@ -1070,8 +1069,7 @@ namespace Test.BuildXL.Processes
             XAssert.Fail("Expected BuildXLException due to process creation failure");
         }
 
-        // TODO 1519677: Fix this bug on Mojave macOS
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public async Task TempAccessesAreUnexpectedByDefault()
         {
             var outFile = CreateOutputFileArtifact(root: TemporaryDirectory, prefix: "not.allowed");
@@ -1191,7 +1189,7 @@ namespace Test.BuildXL.Processes
                     new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
                     {
                         PipSemiStableHash = 0,
-                        PipDescription = "SandboxedProcessTest",
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
                         Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
 
                     };

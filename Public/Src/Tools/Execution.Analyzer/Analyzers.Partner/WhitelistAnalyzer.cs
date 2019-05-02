@@ -14,6 +14,7 @@ using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -215,7 +216,9 @@ namespace BuildXL.Execution.Analyzer
                             exclusiveOpaqueDirectoryContent: ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.Empty,
                             sharedOpaqueDirectoryWriteAccesses: null,
                             allowedUndeclaredReads: null,
-                            absentPathProbesUnderOutputDirectories: null);
+                            absentPathProbesUnderOutputDirectories: null,
+                            ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                            out _);
                         ;
                     }
                 }

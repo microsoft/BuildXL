@@ -101,11 +101,11 @@ namespace BuildXL.Orchestrator
         /// <summary>
         /// The maximum time an agent waits for the other agents to get ready before failing
         /// </summary>
-        public const int MaxWaitingPeriodBeforeFailingInSeconds = 200;
+        public const int MaxWaitingPeriodBeforeFailingInSeconds = 600;
 
         /// <summary>
         /// The time the agent waits before re-checking if the other agents are ready
         /// </summary>
-        public const int PollRetryPeriodInSeconds = 10;
+        public const int PollRetryPeriodInSeconds = 20;
     }
 }

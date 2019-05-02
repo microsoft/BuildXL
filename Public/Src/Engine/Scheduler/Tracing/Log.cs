@@ -1879,6 +1879,23 @@ namespace BuildXL.Scheduler.Tracing
             string producingPipDescription);
 
         [GeneratedEvent(
+             (int)LogEventId.AllowedSameContentDoubleWrite,
+             EventGenerators = EventGenerators.LocalOnly,
+             EventLevel = Level.Verbose,
+             Keywords = (int)Events.Keywords.UserMessage | (int)Events.Keywords.DependencyAnalysis,
+             EventTask = (int)Events.Tasks.Scheduler,
+             Message =
+                 PipDependencyAnalysisPrefix +
+                 "Allowed double write: This pip wrote to the path '{2}', which could have been produced earlier by the pip [{3}]. " +
+                 "However, the content produced was the same for both and the configured double write policy allows for it.")]
+        public abstract void AllowedSameContentDoubleWrite(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path,
+            string producingPipDescription);
+
+        [GeneratedEvent(
             (int)LogEventId.DependencyViolationReadRace,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -3161,6 +3178,20 @@ namespace BuildXL.Scheduler.Tracing
             long producingPipSemiStableHash,
             string producingPipDescription,
             string producingPipValueId);
+
+        [GeneratedEvent(
+            (int)EventId.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
+            EventTask = (int)Events.Tasks.Scheduler,
+            Message =
+                "Pip '{pipDescription}' is participating in a double write to the path '{outputFile}'. The double write policy for this pip is set to allow double writes as long as the content of the produced file is the same. " +
+                "However, this policy is only supported for output files under opaque directories, not for statically specified output files. The double write will be flagged as an error regardless of the produced content.")]
+        public abstract void AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs(
+            LoggingContext context,
+            string pipDescription,
+            string outputFile);
 
         [GeneratedEvent(
             (int)EventId.RewritingPreservedOutput,

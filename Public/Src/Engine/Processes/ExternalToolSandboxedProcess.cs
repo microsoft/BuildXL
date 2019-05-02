@@ -76,6 +76,7 @@ namespace BuildXL.Processes
             Contract.Requires(m_processExecutor != null);
 
             await m_processExecutor.WaitForExitAsync();
+            await m_processExecutor.WaitForStdOutAndStdErrAsync();
 
             if (m_processExecutor.TimedOut || m_processExecutor.Killed)
             {

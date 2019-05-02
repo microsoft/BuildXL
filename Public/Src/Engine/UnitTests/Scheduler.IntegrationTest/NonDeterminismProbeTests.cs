@@ -23,7 +23,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         // TODO 1519677: Fix this bug on Mojave macOS
         [Feature(Features.OpaqueDirectory)]
-	    [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+	    [Theory]
         [InlineData(false)]
         [InlineData(true)]
         public void NonDeterminismOpaqueDirectoryOutput(bool fileListedAsNormalOutput)
@@ -79,7 +79,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         // TODO 1519677: Fix this bug on Mojave macOS
         [Feature(Features.OpaqueDirectory)]
-	    [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+	    [Fact]
         public void NonDeterminismOpaqueDirectoryOutputDifferentFiles()
         {
             string untracked = Path.Combine(ObjectRoot, "untracked.txt");
@@ -90,9 +90,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             // depending on the content of the untracked file.
             var builderA = CreatePipBuilder(new Operation[]
             {
-                Operation.WriteFileIfInputEqual(CreateOutputFileArtifact(opaqueDirPath), untracked, "1", "deterministic-content"),
-                Operation.WriteFile(CreateOutputFileArtifact(opaqueDirPath), "deterministic-content", doNotInfer: true),
-                Operation.WriteFileIfInputEqual(CreateOutputFileArtifact(opaqueDirPath), untracked, "2", "deterministic-content"),
+                Operation.WriteFileIfInputEqual(CreateOutputFileArtifact(opaqueDirPath, prefix: "write-if-1"), untracked, "1", "deterministic-content"),
+                Operation.WriteFile(CreateOutputFileArtifact(opaqueDirPath, prefix: "write-always"), "deterministic-content", doNotInfer: true),
+                Operation.WriteFileIfInputEqual(CreateOutputFileArtifact(opaqueDirPath, prefix: "write-if-2"), untracked, "2", "deterministic-content"),
             });
 
             builderA.AddOutputDirectory(opaqueDirPath);
@@ -124,7 +124,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Here we are testing that the set of file paths
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicOutput, 0);
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, 0);
+            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, 1);
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredPipFailure, 0);
             AssertInformationalEventLogged(EventId.DeterminismProbeDetectedUnexpectedMismatch, 0);
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUncacheablePip, 0);

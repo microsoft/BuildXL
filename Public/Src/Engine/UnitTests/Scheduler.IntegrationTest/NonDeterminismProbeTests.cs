@@ -122,7 +122,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Here we are testing that the set of file paths
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicOutput, 0);
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, 1);
+            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, 0);
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredPipFailure, 0);
             AssertInformationalEventLogged(EventId.DeterminismProbeDetectedUnexpectedMismatch, 0);
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUncacheablePip, 0);

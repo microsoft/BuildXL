@@ -438,9 +438,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 processBuilder.ContainerIsolationLevel = ContainerIsolationLevel.IsolateAllOutputs;
             }
 
-            // Until we can deal with double writes in a better way, this unsafe option allows the build to progress and
-            // prints warnings 
-            processBuilder.DoubleWritePolicy |= DoubleWritePolicy.UnsafeFirstDoubleWriteWins;
+            // By default the double write policy is to allow same content double writes.
+            processBuilder.DoubleWritePolicy |= m_resolverSettings.DoubleWritePolicy ?? DoubleWritePolicy.AllowSameContentDoubleWrites;
 
             SetUntrackedFilesAndDirectories(processBuilder);
 

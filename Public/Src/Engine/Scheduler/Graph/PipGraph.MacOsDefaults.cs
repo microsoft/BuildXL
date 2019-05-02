@@ -55,7 +55,10 @@ namespace BuildXL.Scheduler.Graph
                     {
                         MacPaths.Applications,
                         MacPaths.Library,
-                        MacPaths.UserProvisioning
+                        MacPaths.UserProvisioning,
+                        // consider untracking /usr/bin and /usr/include because they are not writable by default
+                        MacPaths.UsrBin,
+                        MacPaths.UsrInclude,
                     }
                     .Select(p => GetSourceSeal(pathTable, pipGraph, p))
                     .ToArray()));
@@ -69,10 +72,7 @@ namespace BuildXL.Scheduler.Graph
                         MacPaths.UserKeyChainsDb,
                         MacPaths.UserKeyChains,
                         MacPaths.UserCFTextEncoding,
-                        MacPaths.TmpDir,
-                        MacPaths.UsrBin,
-                        MacPaths.UsrInclude,
-                        MacPaths.UsrLib,
+                        MacPaths.TmpDir
                     }
                     .Select(p => FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, p)))
                     .ToArray();
@@ -91,6 +91,7 @@ namespace BuildXL.Scheduler.Graph
                         MacPaths.UsrSbin,
                         MacPaths.Var,
                         MacPaths.UserPreferences,
+                        MacPaths.UsrLib
                     }
                     .Select(p => DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, p))
                     .ToArray();

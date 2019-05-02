@@ -4,34 +4,22 @@
 import * as Deployment from "Sdk.Deployment";
 import * as Managed from "Sdk.Managed";
 
-namespace Deployment{
-
-
-export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
-@@public
-export const deployment: Deployment.Definition = {
-    contents: BuildXLSdk.isDotNetCoreBuild ?
-    [
-        BasicFilesystem.dll,
-        BuildCacheAdapter.dll,
-        InMemory.dll,
-        Interfaces.dll,
-        ImplementationSupport.dll,
-        MemoizationStoreAdapter.dll,
-        VerticalAggregator.dll,
-    ]:[
-        Analyzer.exe,
-        BasicFilesystem.dll,
-        BuildCacheAdapter.dll,
-        Compositing.dll,
-        InMemory.dll,
-        InputListFilter.dll,
-        Interfaces.dll,
-        ImplementationSupport.dll,
-        MemoizationStoreAdapter.dll,
-        VerticalAggregator.dll,
-    ]
-};
-
+namespace Deployment {
+    @@public
+    export const deployment: Deployment.Definition = {
+        contents: [
+            Analyzer.exe,
+            InMemory.dll,
+            Interfaces.dll,
+            BasicFilesystem.dll,
+            BuildCacheAdapter.dll,
+            ImplementationSupport.dll,
+            MemoizationStoreAdapter.dll,
+            VerticalAggregator.dll,
+            ...addIf(!BuildXLSdk.isDotNetCoreBuild,
+                Compositing.dll,
+                InputListFilter.dll
+            )
+        ]
+    };
 }

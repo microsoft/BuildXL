@@ -108,8 +108,7 @@ namespace Test.BuildXL.FingerprintStore
         /// Content addressable entries like content hashes don't need to be replaced if an entry with the
         /// same key already exists.
         /// </summary>
-        // TODO 1519677: Fix this bug on Mojave macOS
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void DontOverwriteExistingContentAddressableEntries()
         {
             // Use a test hook to capture fingerprint store counters
@@ -256,7 +255,7 @@ namespace Test.BuildXL.FingerprintStore
         /// 2. A cache hit will still refresh the age of an entry. With incremental scheduling disabled,
         /// a pip must be completely removed from the build to be garbage collected.
         /// </summary>
-        [Fact(Skip = "Bug 1513463")]
+        [Fact]
         public void VerifyGarbageCollectWorks()
         {
             var testHooks = new SchedulerTestHooks()

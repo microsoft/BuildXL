@@ -21,9 +21,9 @@ namespace BuildXL {
             // analyzers
             importFrom("BuildXL.Tools").Execution.Analyzer.exe,
             importFrom("BuildXL.Tools").BxlScriptAnalyzer.exe,
-            ...(qualifier.targetFramework === "netcoreapp2.2" ? [] : [
+            ...addIf(qualifier.targetFramework !== "netcoreapp2.2",
                 importFrom("BuildXL.Cache.VerticalStore").Analyzer.exe
-            ]),
+            ),
 
             // tools
             ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [{

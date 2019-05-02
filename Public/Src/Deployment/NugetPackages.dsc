@@ -8,17 +8,20 @@ import * as Managed from "Sdk.Managed.Shared";
 import * as Nuget from "Sdk.Managed.Tools.NuGet";
 
 namespace NugetPackages {
-    export declare const qualifier : { configuration: "debug" | "release"};
+    export declare const qualifier : {
+        configuration: "debug" | "release",
+        targetRuntime: "osx-x64" | "win-x64";
+    };
 
     const packageNamePrefix = BuildXLSdk.Flags.isMicrosoftInternal
         ? "BuildXL"
         : "Microsoft.BuildXL";
+
     const packageTargetFolder = BuildXLSdk.Flags.isMicrosoftInternal
         ? r`${qualifier.configuration}/pkgs`
         : r`${qualifier.configuration}/public/pkgs`;
 
-
-    const net472 = pack({
+    const net472 = qualifier.targetRuntime === "osx-x64" ? undefined : pack({
         id: `${packageNamePrefix}.net472`,
         deployment: BuildXL.withQualifier({
             configuration: qualifier.configuration,
@@ -27,7 +30,7 @@ namespace NugetPackages {
         }).deployment,
     });
 
-    const winX64 = pack({
+    const winX64 = qualifier.targetRuntime === "osx-x64" ? undefined : pack({
         id: `${packageNamePrefix}.win-x64`,
         deployment: BuildXL.withQualifier({
             configuration: qualifier.configuration,
@@ -152,7 +155,7 @@ namespace NugetPackages {
                 tags: `${Branding.company} ${Branding.shortProductName} MSBuild Build`,
                 description: `${Branding.shortProductName} is a build engine that comes with a new build automation language. ${Branding.shortProductName} performs fast parallel incremental builds enabled by fine-grained dataflow dependency information. All build artifacts are cached locally, and eventually shared between different machines. The engine can run on a single machine, and it will perform distributed builds on many machines in a lab or in the cloud.`,
                 dependencies: dependencies,
-                contentFiles: args.copyContentFiles 
+                contentFiles: args.copyContentFiles
                     ? [{
                         include: "**",
                         copyToOutput: true,

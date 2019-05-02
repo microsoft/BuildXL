@@ -18,15 +18,15 @@ namespace BuildCacheAdapter {
             factoryClass: "DistributedBuildCacheFactory",
         }],
         references: [
-            importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").Storage.dll,
             Interfaces.dll,
             MemoizationStoreAdapter.dll,
+            importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
-            
+
             ...addIf(BuildXLSdk.isDotNetCoreBuild,
                 Managed.Factory.createBinary(importFrom("Microsoft.Net.Http").Contents.all, r`lib/portable-net40+sl4+win8+wp71+wpa81/System.Net.Http.Primitives.dll`)
             ),

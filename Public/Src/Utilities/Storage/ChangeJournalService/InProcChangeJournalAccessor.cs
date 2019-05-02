@@ -122,7 +122,7 @@ namespace BuildXL.Storage.ChangeJournalService
             {
                 if (!volumeOpenResult.Succeeded)
                 {
-                    string message = I($"Failed to open a volume handle for the volume '{request.VolumeGuidPath.Path}'");
+                    string message = I($"Failed to open a volume handle for the volume '{request.VolumeGuidPath.Path}': Status: {volumeOpenResult.Status.ToString()} | Error code: {volumeOpenResult.NativeErrorCode}");
                     return new MaybeResponse<QueryUsnJournalResult>(
                             new ErrorResponse(ErrorStatus.FailedToOpenVolumeHandle, message));
                 }

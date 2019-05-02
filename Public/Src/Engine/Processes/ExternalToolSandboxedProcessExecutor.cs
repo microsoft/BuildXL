@@ -37,7 +37,7 @@ namespace BuildXL.Processes
             Contract.Requires(!string.IsNullOrWhiteSpace(sandboxedProcessInfoInputFile));
             Contract.Requires(!string.IsNullOrWhiteSpace(sandboxedProcessResultOutputFile));
 
-            return $"/sandboxedProcessInfo:{sandboxedProcessInfoInputFile} /sandboxedProcessResult:{sandboxedProcessResultOutputFile}";
+            return $"/sandboxedProcessInfo:\"{sandboxedProcessInfoInputFile}\" /sandboxedProcessResult:\"{sandboxedProcessResultOutputFile}\"";
         }
     }
 }

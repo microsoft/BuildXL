@@ -21,7 +21,6 @@ namespace BuildXL.Processes
         private readonly StringBuilder m_error = new StringBuilder();
 
         private AsyncProcessExecutor m_processExecutor;
-        private Exception m_dumpCreationException;
 
         /// <summary>
         /// Creates an instance of <see cref="ExternalToolSandboxedProcess"/>.
@@ -59,16 +58,7 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public override string GetAccessedFileName(ReportedFileAccess reportedFileAccess) => null;
-
-        /// <inheritdoc />
         public override ulong? GetActivePeakMemoryUsage() => m_processExecutor?.GetActivePeakMemoryUsage();
-
-        /// <inheritdoc />
-        public override long GetDetoursMaxHeapSize() => 0;
-
-        /// <inheritdoc />
-        public override int GetLastMessageCount() => 0;
 
         /// <inheritdoc />
         public override async Task<SandboxedProcessResult> GetResultAsync()
@@ -93,23 +83,10 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public override Task KillAsync()
-        {
-            Contract.Requires(m_processExecutor != null);
-
-            ProcessDumper.TryDumpProcessAndChildren(ProcessId, GetOutputDirectory(), out m_dumpCreationException);
-
-            return m_processExecutor.KillAsync();
-        }
+        public override Task KillAsync() => KillProcessExecutorAsync(m_processExecutor);
 
         /// <inheritdoc />
         public override void Start()
-        {
-            Setup();
-            m_processExecutor.Start();
-        }
-
-        private void Setup()
         {
             SerializeSandboxedProcessInfoToFile();
 
@@ -135,37 +112,8 @@ namespace BuildXL.Processes
                 line => AppendLineIfNotNull(m_output, line),
                 line => AppendLineIfNotNull(m_error, line),
                 SandboxedProcessInfo);
-        }
 
-        private void AppendLineIfNotNull(StringBuilder sb, string line)
-        {
-            if (line != null)
-            {
-                sb.AppendLine(line);
-            }
-        }
-
-        /// <summary>
-        /// Starts process asynchronously.
-        /// </summary>
-        public static Task<ISandboxedProcess> StartAsync(SandboxedProcessInfo info, ExternalToolSandboxedProcessExecutor tool)
-        {
-            return Task.Factory.StartNew(() =>
-            {
-                ISandboxedProcess process = new ExternalToolSandboxedProcess(info, tool);
-
-                try
-                {
-                    process.Start();
-                }
-                catch
-                {
-                    process?.Dispose();
-                    throw;
-                }
-
-                return process;
-            });
+            m_processExecutor.Start();
         }
 
         private SandboxedProcessResult CreateResultForFailure()
@@ -173,29 +121,14 @@ namespace BuildXL.Processes
             string output = m_output.ToString();
             string error = m_error.ToString();
             string hint = Path.GetFileNameWithoutExtension(m_tool.ExecutablePath);
-            var standardFiles = new SandboxedProcessStandardFiles(GetStdOutPath(hint), GetStdErrPath(hint));
-            var storage = new StandardFileStorage(standardFiles);
 
-            return new SandboxedProcessResult
-            {
-                ExitCode = m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
-                Killed = m_processExecutor.Killed,
-                TimedOut = m_processExecutor.TimedOut,
-                HasDetoursInjectionFailures = false,
-                StandardOutput = new SandboxedProcessOutput(output.Length, output, null, Console.OutputEncoding, storage, SandboxedProcessFile.StandardOutput, null),
-                StandardError = new SandboxedProcessOutput(error.Length, error, null, Console.OutputEncoding, storage, SandboxedProcessFile.StandardError, null),
-                HasReadWriteToReadFileAccessRequest = false,
-                AllUnexpectedFileAccesses = EmptyFileAccessesSet,
-                FileAccesses = EmptyFileAccessesSet,
-                DetouringStatuses = new ProcessDetouringStatusData[0],
-                ExplicitlyReportedFileAccesses = EmptyFileAccessesSet,
-                Processes = new ReportedProcess[0],
-                MessageProcessingFailure = null,
-                DumpCreationException = m_dumpCreationException,
-                DumpFileDirectory = GetOutputDirectory(),
-                PrimaryProcessTimes = new ProcessTimes(0, 0, 0, 0),
-                SurvivingChildProcesses = new ReportedProcess[0],
-            };
+            return CreateResultForFailure(
+                exitCode: m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
+                killed: m_processExecutor.Killed,
+                timedOut: m_processExecutor.TimedOut,
+                output: output,
+                error: error,
+                hint: hint);
         }
     }
 }

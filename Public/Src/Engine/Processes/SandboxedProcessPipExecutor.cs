@@ -9,6 +9,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -146,6 +147,9 @@ namespace BuildXL.Processes
         private readonly ProcessInContainerManager m_processInContainerManager;
         private readonly ContainerConfiguration m_containerConfiguration;
 
+        private readonly string m_userName;
+        private readonly SecureString m_password;
+
         /// <summary>
         /// The active sandboxed process (if any)
         /// </summary>
@@ -178,6 +182,8 @@ namespace BuildXL.Processes
             DirectoryTranslator directoryTranslator = null,
             int remainingUserRetryCount = 0,
             bool isQbuildIntegrated = false,
+            string userName = null,
+            SecureString password = null,
             ITempDirectoryCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(pip != null);
@@ -287,6 +293,9 @@ namespace BuildXL.Processes
             {
                 m_containerConfiguration = ContainerConfiguration.DisabledIsolation;
             }
+
+            m_userName = userName;
+            m_password = password;
         }
 
         /// <inheritdoc />
@@ -833,11 +842,23 @@ namespace BuildXL.Processes
                 {
                     Tracing.Logger.Log.PipProcessStartExternalTool(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), externalSandboxedProcessExecutor.ExecutablePath);
 
-                    process = await ExternalToolSandboxedProcess.StartAsync(info, externalSandboxedProcessExecutor);
+                    process = await ExternalSandboxedProcess.StartAsync(
+                        info, 
+                        spi => new ExternalToolSandboxedProcess(spi, externalSandboxedProcessExecutor));
                 }
                 else
                 {
-                    throw new NotImplementedException();
+                    Contract.Assert(m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalVM);
+
+                    Tracing.Logger.Log.PipProcessStartExternalVm(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
+
+                    string vmCommandProxy = Path.Combine(
+                        m_layoutConfiguration.BuildEngineDirectory.ToString(m_context.PathTable),
+                        ExternalVMSandboxedProcess.DefaultVmCommandProxyRelativePath);
+
+                    process = await ExternalSandboxedProcess.StartAsync(
+                        info,
+                        spi => new ExternalVMSandboxedProcess(spi, vmCommandProxy, externalSandboxedProcessExecutor, m_userName, m_password));
                 }
             }
             catch (BuildXLException ex)
@@ -880,13 +901,30 @@ namespace BuildXL.Processes
 
                     if (process is ExternalSandboxedProcess externalSandboxedProcess)
                     {
-                        Tracing.Logger.Log.PipProcessFinishedExternalTool(
-                            m_loggingContext,
-                            m_pip.SemiStableHash,
-                            m_pip.GetDescription(m_context),
-                            externalSandboxedProcess.ExitCode ?? -1,
-                            Environment.NewLine + "StdOut:" + Environment.NewLine + externalSandboxedProcess.StdOut,
-                            Environment.NewLine + "StdErr:" + Environment.NewLine + externalSandboxedProcess.StdErr);
+                        int exitCode = externalSandboxedProcess.ExitCode ?? -1;
+                        string stdOut = Environment.NewLine + "StdOut:" + Environment.NewLine + externalSandboxedProcess.StdOut;
+                        string stdErr = Environment.NewLine + "StdErr:" + Environment.NewLine + externalSandboxedProcess.StdErr;
+
+                        if (process is ExternalToolSandboxedProcess externalToolSandboxedProcess)
+                        {
+                            Tracing.Logger.Log.PipProcessFinishedExternalTool(
+                                m_loggingContext,
+                                m_pip.SemiStableHash,
+                                m_pip.GetDescription(m_context),
+                                exitCode,
+                                stdOut,
+                                stdErr);
+                        }
+                        else if (process is ExternalVMSandboxedProcess externalVmSandboxedProcess)
+                        {
+                            Tracing.Logger.Log.PipProcessFinishedExternalVm(
+                                m_loggingContext,
+                                m_pip.SemiStableHash,
+                                m_pip.GetDescription(m_context),
+                                exitCode,
+                                stdOut,
+                                stdErr);
+                        }
                     }
                 }
                 finally

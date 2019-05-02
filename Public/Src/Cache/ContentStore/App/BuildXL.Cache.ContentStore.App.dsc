@@ -30,6 +30,7 @@ namespace App {
 
             importFrom("Grpc.Core").pkg,
             importFrom("Google.Protobuf").pkg,
+            importFrom("Newtonsoft.Json").pkg,
 
             ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
         ],

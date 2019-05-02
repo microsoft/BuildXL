@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -11,6 +12,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Cache.MemoizationStore.Stores;
 
 namespace BuildXL.Cache.MemoizationStore.Sessions
@@ -32,6 +34,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ILogger logger,
             AbsolutePath rootPath,
             SQLiteMemoizationStoreConfiguration memoConfig,
+            LocalCacheConfiguration localCacheConfiguration,
             ConfigurationModel configurationModel = null,
             IClock clock = null,
             bool checkLocalFiles = true,
@@ -43,8 +46,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                   clock ?? SystemClock.Instance,
                   configurationModel,
                   memoConfig,
-                  checkLocalFiles,
-                  emptyFileHashShortcutEnabled)
+                  new ContentStoreSettings() { CheckFiles = checkLocalFiles, UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled },
+                  localCacheConfiguration)
         {
         }
 
@@ -109,15 +112,24 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             IClock clock,
             ConfigurationModel configurationModel,
             SQLiteMemoizationStoreConfiguration memoConfig,
-            bool checkLocalFiles,
-            bool emptyFileHashShortcutEnabled)
+            ContentStoreSettings contentStoreSettings,
+            LocalCacheConfiguration localCacheConfiguration)
             : base(
-                () => new FileSystemContentStore(
-                    fileSystem, 
-                    clock,
-                    rootPath,
-                    configurationModel,
-                    settings: new ContentStoreSettings() { CheckFiles = checkLocalFiles, UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled }),
+                () => localCacheConfiguration.EnableContentServer
+                    ? (IContentStore) new ServiceClientContentStore(
+                        logger,
+                        fileSystem,
+                        localCacheConfiguration.CacheName,
+                        new ServiceClientRpcConfiguration(localCacheConfiguration.GrpcPort),
+                        (uint)localCacheConfiguration.RetryIntervalSeconds,
+                        (uint)localCacheConfiguration.RetryCount,
+                        scenario: localCacheConfiguration.ScenarioName)
+                    : new FileSystemContentStore(
+                        fileSystem, 
+                        clock,
+                        rootPath,
+                        configurationModel: configurationModel,
+                        settings: contentStoreSettings),
                 () => new SQLiteMemoizationStore(
                     logger,
                     clock ?? SystemClock.Instance,

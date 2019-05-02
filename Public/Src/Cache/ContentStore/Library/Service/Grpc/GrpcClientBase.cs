@@ -224,7 +224,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 if (!LocalContentServer.EnsureRunning(context, Scenario, waitMs))
                 {
-                    throw new ClientCanRetryException(context, $"{nameof(GrpcContentClient)} failed to detect running service during startup for scenario '{Scenario}' during startup.");
+                    throw new ClientCanRetryException(context, $"{nameof(GrpcContentClient)} failed to detect running service for scenario '{Scenario}' during startup.");
                 }
 
                 HelloResponse helloResponse;

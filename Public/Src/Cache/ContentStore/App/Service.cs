@@ -170,7 +170,7 @@ namespace BuildXL.Cache.ContentStore.App
                 logger: _logger,
                 copier: null,
                 pathTransformer: null,
-                host: new TestHost(),
+                host: new EnvironmentVariableHost(),
                 hostInfo: new HostInfo(null, null, new List<string>()),
                 cancellation: cancellationTokenSource.Token,
                 dataRootPath: serverDataRootPath.Path,

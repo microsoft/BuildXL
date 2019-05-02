@@ -16,12 +16,16 @@ namespace Library {
                 importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").pkg,
                 NetFx.System.Data.dll,
             ]),
+            ContentStore.Distributed.dll,
             ContentStore.UtilitiesCore.dll,
             ContentStore.Grpc.dll,
             ContentStore.Hashing.dll,
             ContentStore.Interfaces.dll,
             ContentStore.Library.dll,
             Interfaces.dll,
+            
+            importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
+            importFrom("BuildXL.Cache.DistributedCache.Host").Service.dll,
 
             importFrom("BuildXL.Utilities").dll,
 

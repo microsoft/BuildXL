@@ -72,6 +72,14 @@ namespace BuildXL {
                             importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
                         ]
                     },
+                    ...addIf(BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.isFullFramework && !BuildXLSdk.isTargetRuntimeOsx,
+                        {
+                            subfolder: r`VmCommandProxy`,
+                            contents: [
+                                importFrom("CloudBuild.VmCommandProxy").pkg.contents
+                            ]
+                        }
+                    ),
                 ]
             }])
         ]

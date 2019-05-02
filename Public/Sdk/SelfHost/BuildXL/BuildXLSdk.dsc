@@ -372,6 +372,9 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                 ...addIf(Flags.isMicrosoftInternal,
                     "FEATURE_ARIA_TELEMETRY"
                 ),
+                ...addIf(Flags.isMicrosoftInternal && isFullFramework && !isTargetRuntimeOsx,
+                    "FEATURE_VM_EXECUTION"
+                ),
                 ...addIf(isTargetRuntimeOsx,
                     "PLATFORM_OSX"
                 ),

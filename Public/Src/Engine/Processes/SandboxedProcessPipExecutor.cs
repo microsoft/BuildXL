@@ -825,15 +825,15 @@ namespace BuildXL.Processes
 
             try
             {
+                var externalSandboxedProcessExecutor = new ExternalToolSandboxedProcessExecutor(Path.Combine(
+                    m_layoutConfiguration.BuildEngineDirectory.ToString(m_context.PathTable),
+                    ExternalToolSandboxedProcessExecutor.DefaultToolRelativePath));
+
                 if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalTool)
                 {
-                    string toolPath = Path.Combine(
-                        m_layoutConfiguration.BuildEngineDirectory.ToString(m_context.PathTable),
-                        ExternalToolSandboxedProcess.DefaultToolRelativePath);
+                    Tracing.Logger.Log.PipProcessStartExternalTool(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), externalSandboxedProcessExecutor.ExecutablePath);
 
-                    Tracing.Logger.Log.PipProcessStartExternalTool(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), toolPath);
-
-                    process = await ExternalToolSandboxedProcess.StartAsync(info, toolPath);
+                    process = await ExternalToolSandboxedProcess.StartAsync(info, externalSandboxedProcessExecutor);
                 }
                 else
                 {

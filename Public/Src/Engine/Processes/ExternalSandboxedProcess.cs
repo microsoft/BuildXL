@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
@@ -15,6 +16,11 @@ namespace BuildXL.Processes
     /// </summary>
     public abstract class ExternalSandboxedProcess : ISandboxedProcess
     {
+        /// <summary>
+        /// Empty file access set.
+        /// </summary>
+        protected static readonly ISet<ReportedFileAccess> EmptyFileAccessesSet = new HashSet<ReportedFileAccess>();
+
         /// <summary>
         /// Sanboxed process info.
         /// </summary>

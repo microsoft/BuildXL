@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -16,14 +15,7 @@ namespace BuildXL.Processes
     /// </summary>
     public class ExternalToolSandboxedProcess : ExternalSandboxedProcess
     {
-        private static readonly ISet<ReportedFileAccess> s_emptyFileAccessesSet = new HashSet<ReportedFileAccess>();
-
-        /// <summary>
-        /// Relative path to the default tool.
-        /// </summary>
-        public const string DefaultToolRelativePath = @"tools\SandboxedProcessExecutor\SandboxedProcessExecutor.exe";
-
-        private readonly string m_toolPath;
+        private readonly ExternalToolSandboxedProcessExecutor m_tool;
 
         private readonly StringBuilder m_output = new StringBuilder();
         private readonly StringBuilder m_error = new StringBuilder();
@@ -34,11 +26,11 @@ namespace BuildXL.Processes
         /// <summary>
         /// Creates an instance of <see cref="ExternalToolSandboxedProcess"/>.
         /// </summary>
-        public ExternalToolSandboxedProcess(SandboxedProcessInfo sandboxedProcessInfo, string toolPath)
+        public ExternalToolSandboxedProcess(SandboxedProcessInfo sandboxedProcessInfo, ExternalToolSandboxedProcessExecutor tool)
             : base(sandboxedProcessInfo)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(toolPath));
-            m_toolPath = toolPath;
+            Contract.Requires(tool != null);
+            m_tool = tool;
         }
 
         private int m_processId = -1;
@@ -116,8 +108,6 @@ namespace BuildXL.Processes
             m_processExecutor.Start();
         }
 
-        private string CreateArguments() => $"/sandboxedProcessInfo:{GetSandboxedProcessInfoFile()} /sandboxedProcessResult:{GetSandboxedProcessResultsFile()}";
-
         private void Setup()
         {
             SerializeSandboxedProcessInfoToFile();
@@ -126,8 +116,8 @@ namespace BuildXL.Processes
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = m_toolPath,
-                    Arguments = CreateArguments(),
+                    FileName = m_tool.ExecutablePath,
+                    Arguments = m_tool.CreateArguments(GetSandboxedProcessInfoFile(), GetSandboxedProcessResultsFile()),
                     WorkingDirectory = SandboxedProcessInfo.WorkingDirectory,
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,
@@ -157,11 +147,11 @@ namespace BuildXL.Processes
         /// <summary>
         /// Starts process asynchronously.
         /// </summary>
-        public static Task<ISandboxedProcess> StartAsync(SandboxedProcessInfo info, string toolPath)
+        public static Task<ISandboxedProcess> StartAsync(SandboxedProcessInfo info, ExternalToolSandboxedProcessExecutor tool)
         {
             return Task.Factory.StartNew(() =>
             {
-                ISandboxedProcess process = new ExternalToolSandboxedProcess(info, toolPath);
+                ISandboxedProcess process = new ExternalToolSandboxedProcess(info, tool);
 
                 try
                 {
@@ -181,7 +171,7 @@ namespace BuildXL.Processes
         {
             string output = m_output.ToString();
             string error = m_error.ToString();
-            string hint = Path.GetFileNameWithoutExtension(m_toolPath);
+            string hint = Path.GetFileNameWithoutExtension(m_tool.ExecutablePath);
             var standardFiles = new SandboxedProcessStandardFiles(GetStdOutPath(hint), GetStdErrPath(hint));
             var storage = new StandardFileStorage(standardFiles);
 
@@ -194,10 +184,10 @@ namespace BuildXL.Processes
                 StandardOutput = new SandboxedProcessOutput(output.Length, output, null, Console.OutputEncoding, storage, SandboxedProcessFile.StandardOutput, null),
                 StandardError = new SandboxedProcessOutput(error.Length, error, null, Console.OutputEncoding, storage, SandboxedProcessFile.StandardError, null),
                 HasReadWriteToReadFileAccessRequest = false,
-                AllUnexpectedFileAccesses = s_emptyFileAccessesSet,
-                FileAccesses = s_emptyFileAccessesSet,
+                AllUnexpectedFileAccesses = EmptyFileAccessesSet,
+                FileAccesses = EmptyFileAccessesSet,
                 DetouringStatuses = new ProcessDetouringStatusData[0],
-                ExplicitlyReportedFileAccesses = s_emptyFileAccessesSet,
+                ExplicitlyReportedFileAccesses = EmptyFileAccessesSet,
                 Processes = new ReportedProcess[0],
                 MessageProcessingFailure = null,
                 DumpCreationException = m_dumpCreationException,

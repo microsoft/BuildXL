@@ -49,6 +49,9 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "PowerShell.Core", version: "6.1.0" },
     { id: "Dotnet-Runtime", version: "2.2.2.1" },
 
+    // VM
+    { id: "CloudBuild.VmCommandProxy", version: "19.4.28.1036" },
+
 ] : [
 
     // Artifact packages and dependencies in OSS

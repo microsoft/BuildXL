@@ -21,8 +21,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
+        // TODO 1519677: Fix this bug on Mojave macOS
         [Feature(Features.OpaqueDirectory)]
-        [Theory]
+	    [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData(false)]
         [InlineData(true)]
         public void NonDeterminismOpaqueDirectoryOutput(bool fileListedAsNormalOutput)
@@ -76,8 +77,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicDirectoryOutput, 1);
         }
 
+        // TODO 1519677: Fix this bug on Mojave macOS
         [Feature(Features.OpaqueDirectory)]
-        [Fact]
+	    [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void NonDeterminismOpaqueDirectoryOutputDifferentFiles()
         {
             string untracked = Path.Combine(ObjectRoot, "untracked.txt");

@@ -12,12 +12,11 @@ namespace BuildXL.Cache.ContentStore.Utils
             where TResult : ResultBase
             where TLockKey : IEquatable<TLockKey>
         {
-            Contract.Requires(!result.Succeeded || result.Diagnostics == null, $"Diagnostics property can be set only once.");
+            Contract.Requires(!result.Succeeded || result.Diagnostics == null, "Diagnostics property can be set only once.");
 
             if (result.Succeeded && handle.LockAcquisitionDuration != null)
             {
-                var message = $", LockWait={(long)handle.LockAcquisitionDuration.Value.TotalMilliseconds}ms";
-                result.Diagnostics = message;
+                result.Diagnostics = $", LockWait={(long)handle.LockAcquisitionDuration.Value.TotalMilliseconds}ms";
             }
 
             return result;

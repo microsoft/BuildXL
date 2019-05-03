@@ -4,6 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Engine.Cache.Serialization;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
@@ -12,6 +16,7 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
@@ -19,13 +24,9 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
+
 using FingerprintStoreClass = BuildXL.Scheduler.Tracing.FingerprintStore;
 using BuildXLConfiguration = BuildXL.Utilities.Configuration;
-using System.Threading.Tasks;
-using System.Linq;
-using System.Threading;
-using BuildXL.Engine.Cache.KeyValueStores;
-using BuildXL.Utilities.Configuration;
 
 namespace Test.BuildXL.FingerprintStore
 {

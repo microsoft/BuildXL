@@ -133,6 +133,9 @@ config({
                 // Cpp Sdk
                 { id: "VisualCppTools.Community.VS2017Layout", version: "14.11.25506"},
 
+                // ProjFS (virtual file system)
+                { id: "Microsoft.Windows.ProjFS", version: "1.0.19079.1" },
+
                 // RocksDb
                 { id: "RocksDbSharp", version: "5.8.0-b20181023.3", alias: "RocksDbSharpSigned" },
                 { id: "RocksDbNative", version: "5.14.3-b20181023.3" },

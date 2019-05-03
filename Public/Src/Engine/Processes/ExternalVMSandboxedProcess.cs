@@ -37,7 +37,7 @@ namespace BuildXL.Processes
         public Process Process => m_processExecutor?.Process;
 
         /// <inheritdoc />
-        public override string StdOut => m_processExecutor?.StdOutCompleted ?? false ? m_error.ToString() : string.Empty;
+        public override string StdOut => m_processExecutor?.StdOutCompleted ?? false ? m_output.ToString() : string.Empty;
 
         /// <inheritdoc />
         public override string StdErr => m_processExecutor?.StdErrCompleted ?? false ? m_error.ToString() : string.Empty;
@@ -107,8 +107,21 @@ namespace BuildXL.Processes
                 return CreateResultForVmCommandProxyFailure();
             }
 
+            if (!FileUtilities.FileExistsNoFollow(RunOutputPath))
+            {
+                m_error.AppendLine($"Could not find VM output file '{RunOutputPath}");
+                return CreateResultForVmCommandProxyFailure();
+            }
+
             // (3) Validate the result of sandboxed process executor run by VmCommandProxy.
-            RunResult runVmResult = JsonConvert.DeserializeObject<RunResult>(File.ReadAllText(RunOutputPath));
+            RunResult runVmResult = ExceptionUtilities.HandleRecoverableIOException(
+                () => JsonConvert.DeserializeObject<RunResult>(File.ReadAllText(RunOutputPath)),
+                e => m_error.AppendLine(e.Message));
+
+            if (runVmResult == null)
+            {
+                return CreateResultForVmCommandProxyFailure();
+            }
 
             if (runVmResult.ProcessStateInfo.ExitCode != 0)
             {

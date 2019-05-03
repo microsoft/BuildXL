@@ -11,7 +11,7 @@ using Newtonsoft.Json;
 namespace Test.BuildXL.Executables.MockVmCommandProxy
 {
     /// <summary>
-    /// Test process that performs filesystem operations
+    /// Mock of VmCommandProxy for testing.
     /// </summary>
     public static class Program
     {
@@ -46,6 +46,8 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
                     Console.Error.WriteLine($"{StartBuildCmd} command requires input");
                     return -1;
                 }
+
+                return StartBuild(inputFile);
             }
             else if (string.Equals(RunCmd, command, StringComparison.OrdinalIgnoreCase))
             {
@@ -59,14 +61,14 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
                     Console.Error.WriteLine($"{RunCmd} command requires input and output");
                     return -1;
                 }
+
+                return Run(inputFile, outputFile);
             }
             else
             {
                 Console.Error.WriteLine("Unknown command");
                 return -1;
             }
-
-            return 0;
         }
 
         private static bool TryParseArgs(string[] args, out string inputFile, out string outputFile)
@@ -78,11 +80,11 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
 
             for (int i = 1; i < args.Length; ++i)
             {
-                if (args[i].StartsWith(InputFileArgPrefix))
+                if (args[i].StartsWith(InputFileArgPrefix, StringComparison.OrdinalIgnoreCase))
                 {
                     inputFile = args[i].Substring(InputFileArgPrefix.Length);
                 }
-                if (args[i].StartsWith(OutputFileArgPrefix))
+                else if (args[i].StartsWith(OutputFileArgPrefix, StringComparison.OrdinalIgnoreCase))
                 {
                     outputFile = args[i].Substring(OutputFileArgPrefix.Length);
                 }
@@ -98,17 +100,24 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
 
         private static int StartBuild(string inputFile)
         {
+            Console.WriteLine($"Read request from '{inputFile}'");
+
             StartBuildRequest request = JsonConvert.DeserializeObject<StartBuildRequest>(File.ReadAllText(inputFile));
 
-            Console.WriteLine($"HostLowPrivilegeUsername: {request.HostLowPrivilegeUsername ?? string.Empty}");
-            Console.WriteLine($"HostLowPrivilegePassword: {request.HostLowPrivilegePassword ?? string.Empty}");
+            Console.WriteLine($"Start build request: ");
+            Console.WriteLine($"    - HostLowPrivilegeUsername: {request.HostLowPrivilegeUsername ?? string.Empty}");
+            Console.WriteLine($"    - HostLowPrivilegePassword: {request.HostLowPrivilegePassword ?? string.Empty}");
 
             return 0;
         }
 
         private static int Run(string inputFile, string outputFile)
         {
+            Console.WriteLine($"Read request from '{inputFile}'");
+
             RunRequest request = JsonConvert.DeserializeObject<RunRequest>(File.ReadAllText(inputFile));
+            
+            Console.WriteLine($"Run request '{request.AbsolutePath} {request.Arguments}'");
 
             var stdOut = new StringBuilder();
             var stdErr = new StringBuilder();
@@ -129,13 +138,14 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
                 EnableRaisingEvents = true
             })
             {
-
                 process.OutputDataReceived += (s, e) => stdOut.AppendLine(e.Data);
                 process.ErrorDataReceived += (s, e) => stdErr.AppendLine(e.Data);
                 process.Start();
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
                 process.WaitForExit();
+
+                Console.WriteLine($"Finish request '{request.AbsolutePath} {request.Arguments}'");
 
                 var stdOutPath = Path.Combine(request.WorkingDirectory, "vm.std.out");
                 var stdErrPath = Path.Combine(request.WorkingDirectory, "vm.std.err");
@@ -155,6 +165,8 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
                         TerminationReason = ProcessTerminationReason.None
                     }
                 };
+
+                Console.WriteLine($"Write result to '{outputFile}'");
 
                 var jsonSerializer = JsonSerializer.Create(new JsonSerializerSettings
                 {

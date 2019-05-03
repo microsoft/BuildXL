@@ -43,7 +43,7 @@ namespace BuildXL.Processes
         public Process Process => m_processExecutor?.Process;
 
         /// <inheritdoc />
-        public override string StdOut => m_processExecutor?.StdOutCompleted ?? false ? m_error.ToString() : string.Empty;
+        public override string StdOut => m_processExecutor?.StdOutCompleted ?? false ? m_output.ToString() : string.Empty;
 
         /// <inheritdoc />
         public override string StdErr => m_processExecutor?.StdErrCompleted ?? false ? m_error.ToString() : string.Empty;

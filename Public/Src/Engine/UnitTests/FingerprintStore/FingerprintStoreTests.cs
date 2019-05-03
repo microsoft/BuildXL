@@ -4,6 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Engine.Cache.Serialization;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
@@ -12,6 +16,7 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
@@ -19,13 +24,9 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
+
 using FingerprintStoreClass = BuildXL.Scheduler.Tracing.FingerprintStore;
 using BuildXLConfiguration = BuildXL.Utilities.Configuration;
-using System.Threading.Tasks;
-using System.Linq;
-using System.Threading;
-using BuildXL.Engine.Cache.KeyValueStores;
-using BuildXL.Utilities.Configuration;
 
 namespace Test.BuildXL.FingerprintStore
 {
@@ -108,8 +109,7 @@ namespace Test.BuildXL.FingerprintStore
         /// Content addressable entries like content hashes don't need to be replaced if an entry with the
         /// same key already exists.
         /// </summary>
-        // TODO 1519677: Fix this bug on Mojave macOS
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void DontOverwriteExistingContentAddressableEntries()
         {
             // Use a test hook to capture fingerprint store counters
@@ -256,7 +256,7 @@ namespace Test.BuildXL.FingerprintStore
         /// 2. A cache hit will still refresh the age of an entry. With incremental scheduling disabled,
         /// a pip must be completely removed from the build to be garbage collected.
         /// </summary>
-        [Fact(Skip = "Bug 1513463")]
+        [Fact]
         public void VerifyGarbageCollectWorks()
         {
             var testHooks = new SchedulerTestHooks()

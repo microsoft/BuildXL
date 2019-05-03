@@ -2658,10 +2658,10 @@ If you can't update and need this feature after July 2018 please reach out to th
         [GeneratedEvent(
             (ushort)LogEventId.FailedToGetJournalAccessor,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Informational,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (ushort)Events.Tasks.Engine,
-            Message = "Encountered an error while checking whether process can access the journal directly. The build may still proceed but without use of change journal scanning. See log for details")]
+            Message = "Change journal cannot be accessed directly. The build may still proceed but without use of change journal scanning. See log for details")]
         internal abstract void FailedToGetJournalAccessor(LoggingContext context);
     }
 

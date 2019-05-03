@@ -24,7 +24,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// Maximum time to wait for the master to connect to a worker.
         /// </summary>
         /// <remarks>
-        /// Default: 30 minutes
+        /// Default: 60 minutes
         /// </remarks>
         public static TimeSpan InactiveTimeout => EngineEnvironmentSettings.DistributionInactiveTimeout;
 
@@ -40,7 +40,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// Maximum time to wait for the master to connect to a worker.
         /// </summary>
         /// <remarks>
-        /// Default: true
+        /// Default: false
         /// </remarks>
         public static bool HandlerInliningEnabled => EngineEnvironmentSettings.GrpcHandlerInliningEnabled;
     }

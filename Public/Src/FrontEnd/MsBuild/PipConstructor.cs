@@ -560,7 +560,7 @@ namespace BuildXL.FrontEnd.MsBuild
                     pipDataBuilder.Add(PipDataAtom.FromString($"/t:{target}"));
                 }
             }
-            else
+            else if (project.ProjectReferences.Count > 0)
             {
                 // The prediction for the targets to execute is not available. Just log this as a warning for now, defaults targets will be used.
                 Tracing.Logger.Log.ProjectIsNotSpecifyingTheProjectReferenceProtocol(

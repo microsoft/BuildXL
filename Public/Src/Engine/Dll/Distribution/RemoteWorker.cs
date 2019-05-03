@@ -222,7 +222,7 @@ namespace BuildXL.Engine.Distribution
         [SuppressMessage("AsyncUsage", "AsyncFixer02:awaitinsteadofwait")]
         public async Task LogExecutionBlobAsync(WorkerNotificationArgs notification)
         {
-            Contract.Requires(notification.ExecutionLogData != null || notification.ExecutionLogData.Count != 0)
+            Contract.Requires(notification.ExecutionLogData != null || notification.ExecutionLogData.Count != 0);
 
             m_executionBlobQueue.Add(notification);
 

@@ -46,12 +46,21 @@ namespace BuildXL.Storage
                         // Attempt to access journal. Any error means that the journal operations are not unprivileged yet in the host computer.
                         var result = inprocAccessor.QueryJournal(new QueryJournalRequest(volume));
 
-                        if (!result.IsError && result.Response.Succeeded)
+                        if (!result.IsError)
                         {
-                            return inprocAccessor;
+                            if (result.Response.Succeeded)
+                            {
+                                return inprocAccessor;
+                            }
+                            else
+                            {
+                                Logger.Log.FailedCheckingDirectJournalAccess(loggingContext, I($"Querying journal results in {result.Response.Status.ToString()}"));
+                            }
                         }
-
-                        Logger.Log.FailedCheckingDirectJournalAccess(loggingContext, result.Error.Message);
+                        else
+                        {
+                            Logger.Log.FailedCheckingDirectJournalAccess(loggingContext, result.Error.Message);
+                        }
                     }
                     else
                     {

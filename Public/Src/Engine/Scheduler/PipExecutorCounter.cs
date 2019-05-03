@@ -1020,6 +1020,10 @@ namespace BuildXL.Scheduler
         RemoteWorker_BuildRequestSendDuration,
 
         /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_AwaitExecutionBlobCompletionDuration,
+
+        /// <nodoc/>
         BuildRequestBatchesSentToWorkers,
 
         /// <nodoc/>

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -64,6 +65,8 @@ namespace BuildXL.Engine.Distribution
         public override bool EverAvailable => Volatile.Read(ref m_everAvailable);
 
         private readonly TaskSourceSlim<bool> m_attachCompletion;
+        private readonly TaskSourceSlim<bool> m_executionBlobCompletion;
+        private BlockingCollection<WorkerNotificationArgs> m_executionBlobQueue = new BlockingCollection<WorkerNotificationArgs>(new ConcurrentQueue<WorkerNotificationArgs>());
 
         private readonly Thread m_sendThread;
         private readonly BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>> m_buildRequests;
@@ -101,6 +104,8 @@ namespace BuildXL.Engine.Distribution
             m_masterService = masterService;
             m_buildRequests = new BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>>();
             m_attachCompletion = TaskSourceSlim.Create<bool>();
+            m_executionBlobCompletion = TaskSourceSlim.Create<bool>();
+
             m_serviceLocation = serviceLocation;
 
             if (isGrpcEnabled)
@@ -214,11 +219,30 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        public void LogExecutionBlob(ArraySegment<byte> executionLogBlob, int blobSequenceNumber)
+        [SuppressMessage("AsyncUsage", "AsyncFixer02:awaitinsteadofwait")]
+        public async Task LogExecutionBlobAsync(WorkerNotificationArgs notification)
         {
+            Contract.Requires(notification.ExecutionLogData != null || notification.ExecutionLogData.Count != 0)
+
+            m_executionBlobQueue.Add(notification);
+
+            // After we put the executionBlob in a queue, we can unblock the caller and give an ACK to the worker.
+            await Task.Yield();
+
             // Execution log events cannot be logged by multiple threads concurrently since they must be ordered
             lock (m_logBlobLock)
             {
+                // We need to dequeue and process the blobs in order. 
+                // Here, we do not necessarily process the blob that is just added to the queue above.
+                // There might be another thread that adds the next blob to the queue after the current thread, 
+                // and that thread might acquire the lock earlier. 
+
+                WorkerNotificationArgs executionBlobNotification = null;
+                Contract.Assert(m_executionBlobQueue.TryTake(out executionBlobNotification), "The executionBlob queue cannot be empty");
+                
+                int blobSequenceNumber = executionBlobNotification.ExecutionLogBlobSequenceNumber;
+                ArraySegment<byte> executionLogBlob = executionBlobNotification.ExecutionLogData;
+
                 if (m_workerExecutionLogTarget == null)
                 {
                     return;
@@ -263,7 +287,7 @@ namespace BuildXL.Engine.Distribution
                     // Read all events into worker execution log target
                     if (!m_executionLogReader.ReadAllEvents())
                     {
-                        Logger.Log.DistributionCallMasterCodeException(m_appLoggingContext, nameof(LogExecutionBlob), "Failed to read all worker events");
+                        Logger.Log.DistributionCallMasterCodeException(m_appLoggingContext, nameof(LogExecutionBlobAsync), "Failed to read all worker events");
                         // Disable further processing of execution log since an error was encountered during processing
                         m_workerExecutionLogTarget = null;
                     }
@@ -274,12 +298,17 @@ namespace BuildXL.Engine.Distribution
                 }
                 catch (Exception ex)
                 {
-                    Logger.Log.DistributionCallMasterCodeException(m_appLoggingContext, nameof(LogExecutionBlob), ex.ToStringDemystified() + Environment.NewLine
+                    Logger.Log.DistributionCallMasterCodeException(m_appLoggingContext, nameof(LogExecutionBlobAsync), ex.ToStringDemystified() + Environment.NewLine
                                                                     + "Message sequence number: " + blobSequenceNumber
                                                                     + " Last sequence number logged: " + m_lastBlobSeqNumber);
                     // Disable further processing of execution log since an exception was encountered during processing
                     m_workerExecutionLogTarget = null;
                 }
+            }
+
+            if (m_executionBlobQueue.IsCompleted)
+            {
+                m_executionBlobCompletion.TrySetResult(true);
             }
         }
 
@@ -348,8 +377,7 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <inheritdoc />
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
-        public override async void Finish(string buildFailure)
+        public override async Task FinishAsync(string buildFailure)
         {
             m_buildRequests.CompleteAdding();
             if (m_sendThread.IsAlive)
@@ -389,6 +417,17 @@ namespace BuildXL.Engine.Distribution
                 };
 
                 await m_workerClient.ExitAsync(buildEndData, exitCancellation.Token);
+
+                m_executionBlobQueue.CompleteAdding();
+
+                using (m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_AwaitExecutionBlobCompletionDuration))
+                {
+                    if (!m_executionBlobQueue.IsCompleted)
+                    {
+                        // Wait for execution blobs to be processed.
+                        await m_executionBlobCompletion.Task;
+                    }
+                }
 
                 ChangeStatus(WorkerNodeStatus.Stopping, WorkerNodeStatus.Stopped);
             }
@@ -805,7 +844,7 @@ namespace BuildXL.Engine.Distribution
             }
             else
             {
-                Finish("ValidateCacheConnection failed");
+                await FinishAsync("ValidateCacheConnection failed");
             }
         }
 

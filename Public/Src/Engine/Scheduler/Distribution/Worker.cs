@@ -262,10 +262,12 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Signals that build is finished and that worker should exit
         /// </summary>
-        public virtual void Finish(string buildFailure)
+#pragma warning disable 1998
+        public virtual async Task FinishAsync(string buildFailure)
         {
             Status = WorkerNodeStatus.Stopped;
         }
+#pragma warning restore 1998
 
         /// <summary>
         /// Returns if true if the worker holds a local node; false otherwise.

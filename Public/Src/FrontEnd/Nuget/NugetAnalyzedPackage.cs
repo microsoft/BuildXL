@@ -325,6 +325,14 @@ namespace BuildXL.FrontEnd.Nuget
                 }
             }
 
+            if (TargetFrameworkWithFallbacks.Count == 0)
+            {
+                foreach (var moniker in NugetFrameworkMonikers.WellknownMonikers)
+                {
+                    TargetFrameworkWithFallbacks.Add(moniker);
+                }
+            }
+
             // For the refs without lib, copy them to refs.
             foreach (var kv in libs)
             {

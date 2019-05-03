@@ -554,7 +554,8 @@ namespace BuildXL.Pips
         {
             Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
-            return m_mutables[pipId.Value].Priority;
+            var mutablePipState = m_mutables[pipId.Value];
+            return mutablePipState.PipType == PipType.Process ? ((ProcessMutablePipState)mutablePipState).Priority : 0;
         }
 
         /// <summary>

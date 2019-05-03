@@ -29,7 +29,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Maximum priority.  These pips go first.
         /// </summary>
-        public const int MaxPriority = 99;
+        public const int MaxPriority = 127;
 
         /// <summary>
         /// Maximum allowed timeout

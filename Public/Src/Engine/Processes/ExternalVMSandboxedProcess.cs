@@ -11,7 +11,7 @@ using System.Security;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
-using BuildXL.Processes.VmProxy;
+using BuildXL.Utilities;
 using Newtonsoft.Json;
 
 namespace BuildXL.Processes
@@ -140,7 +140,7 @@ namespace BuildXL.Processes
             SerializeVmCommandProxyInput(StartBuildRequestPath, startBuildRequest);
 
             // (2) Create a process to execute VmCommandProxy.
-            string arguments = $"/InputJsonFile:\"{StartBuildRequestPath}\"";
+            string arguments = $"StartBuild /InputJsonFile:\"{StartBuildRequestPath}\"";
             var process = CreateVmCommandProxyProcess(arguments);
 
             var stdOutForStartBuild = new StringBuilder();
@@ -183,7 +183,7 @@ namespace BuildXL.Processes
             SerializeVmCommandProxyInput(RunRequestPath, runRequest);
 
             // (2) Create a process to execute VmCommandProxy.
-            string arguments = $"/InputJsonFile:\"{RunRequestPath}\" /OutputJsonFile:\"{RunOutputPath}\"";
+            string arguments = $"Run /InputJsonFile:\"{RunRequestPath}\" /OutputJsonFile:\"{RunOutputPath}\"";
             var process = CreateVmCommandProxyProcess(arguments);
 
             m_processExecutor = new AsyncProcessExecutor(
@@ -276,8 +276,8 @@ namespace BuildXL.Processes
                 exitCode: runVmResult.ProcessStateInfo.ExitCode,
                 killed: false,
                 timedOut: false,
-                output: string.IsNullOrWhiteSpace(runVmResult.StdOut) ? string.Empty : File.ReadAllText(runVmResult.StdOut),
-                error: string.IsNullOrWhiteSpace(runVmResult.StdErr) ? string.Empty : File.ReadAllText(runVmResult.StdErr),
+                output: runVmResult.StdOut ?? string.Empty,
+                error: runVmResult.StdErr ?? string.Empty,
                 hint: Path.GetFileNameWithoutExtension(m_tool.ExecutablePath));
         }
     }

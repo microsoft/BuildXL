@@ -3,13 +3,13 @@
 
 using Newtonsoft.Json;
 
-namespace BuildXL.Processes.VmProxy
+namespace BuildXL.Utilities
 {
     /// <summary>
     /// Input for 'StartBuild' command.
     /// </summary>
     [JsonObject(MemberSerialization.OptIn)]
-    internal class StartBuildRequest
+    public class StartBuildRequest
     {
         /// <summary>
         /// User name.
@@ -28,7 +28,7 @@ namespace BuildXL.Processes.VmProxy
     /// Input for 'Run' command.
     /// </summary>
     [JsonObject(MemberSerialization.OptIn)]
-    internal class RunRequest
+    public class RunRequest
     {
         /// <summary>
         /// Executable path.
@@ -53,7 +53,7 @@ namespace BuildXL.Processes.VmProxy
     /// Output of 'Run' command.
     /// </summary>
     [JsonObject(MemberSerialization.OptIn)]
-    internal class RunResult
+    public class RunResult
     {
         /// <summary>
         /// Process state info.
@@ -78,7 +78,7 @@ namespace BuildXL.Processes.VmProxy
     /// Process state info.
     /// </summary>
     [JsonObject(MemberSerialization.OptIn)]
-    internal class ProcessStateInfo
+    public class ProcessStateInfo
     {
         /// <summary>
         /// Process state.
@@ -120,26 +120,72 @@ namespace BuildXL.Processes.VmProxy
     /// <summary>
     /// Process state.
     /// </summary>
-    internal enum ProcessState
+    public enum ProcessState
     {
+        /// <summary>
+        /// Unknown.
+        /// </summary>
         Unknown = 0,
+
+        /// <summary>
+        /// Starting.
+        /// </summary>
         Starting = 1,
+
+        /// <summary>
+        /// Startup error.
+        /// </summary>
         StartupError = 2,
+
+        /// <summary>
+        /// Running.
+        /// </summary>
         Running = 3,
+
+        /// <summary>
+        /// Exited.
+        /// </summary>
         Exited = 4,
+
+        /// <summary>
+        /// Crash.
+        /// </summary>
         Crashed = 5,
+
+        /// <summary>
+        /// Terminate error.
+        /// </summary>
         TerminateError = 6,
+
+        /// <summary>
+        /// Terminated.
+        /// </summary>
         Terminated = 7,
+
+        /// <summary>
+        /// Terminating.
+        /// </summary>
         Terminating = 8,
     };
 
     /// <summary>
     /// Process termination reason.
     /// </summary>
-    internal enum ProcessTerminationReason
+    public enum ProcessTerminationReason
     {
+        /// <summary>
+        /// None.
+        /// </summary>
         None = 0,
+
+        /// <summary>
+        /// Killed by client.
+        /// </summary>
         KilledByClient = 1,
+
+        /// <summary>
+        /// Exceeded memory quota.
+        /// </summary>
         ExceededMemoryQuota = 2,
     };
 }

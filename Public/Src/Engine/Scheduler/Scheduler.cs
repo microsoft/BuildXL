@@ -5046,7 +5046,10 @@ namespace BuildXL.Scheduler
                                 }
                             }
 
-                            pipRuntimeInfo.Priority = (criticalPath < 0 || criticalPath > MaxInitialPipPriority) ? MaxInitialPipPriority : unchecked((int)criticalPath);
+                            int priorityBase = m_pipTable.GetPipPriority(pipId) << 24;
+                            int criticalPathPriority = (criticalPath < 0 || criticalPath > MaxInitialPipPriority) ? MaxInitialPipPriority : unchecked((int)criticalPath);
+                            criticalPathPriority = Math.Min(criticalPathPriority, (1 << 24) - 1);
+                            pipRuntimeInfo.Priority = priorityBase | criticalPathPriority;
 
                             Contract.Assert(pipType != PipType.HashSourceFile);
                             pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Waiting);

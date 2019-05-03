@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -219,7 +218,7 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        [SuppressMessage("AsyncUsage", "AsyncFixer02:awaitinsteadofwait")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:awaitinsteadofwait")]
         public async Task LogExecutionBlobAsync(WorkerNotificationArgs notification)
         {
             Contract.Requires(notification.ExecutionLogData != null || notification.ExecutionLogData.Count != 0);

@@ -262,7 +262,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Signals that build is finished and that worker should exit
         /// </summary>
-#pragma warning disable 1998
+#pragma warning disable 1998 // Disable the warning for "This async method lacks 'await'"
         public virtual async Task FinishAsync(string buildFailure)
         {
             Status = WorkerNodeStatus.Stopped;

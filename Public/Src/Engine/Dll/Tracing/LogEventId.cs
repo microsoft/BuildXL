@@ -218,6 +218,8 @@ namespace BuildXL.Engine.Tracing
         ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent = 7119,
         BusyOrUnavailableOutputDirectoriesException = 7120,
         GrpcSettings = 7121,
+
+        FailedToGetJournalAccessor = 7122,
         // max 7200
     }
 }

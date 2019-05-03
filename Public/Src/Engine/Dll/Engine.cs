@@ -1456,7 +1456,12 @@ namespace BuildXL.Engine
                     loggingContext,
                     volumeMap,
                     m_initialCommandLineConfiguration.Startup.ConfigFile.ToString(Context.PathTable))
-                : default(Optional<IChangeJournalAccessor>);
+                : default;
+
+            if (!journal.IsValid)
+            {
+                Logger.Log.FailedToGetJournalAccessor(loggingContext);
+            }
 
             return journal.IsValid ? JournalState.CreateEnabledJournal(volumeMap, journal.Value) : JournalState.DisabledJournal;
         }

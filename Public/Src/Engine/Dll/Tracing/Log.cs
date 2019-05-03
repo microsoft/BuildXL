@@ -2654,6 +2654,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (ushort)Events.Tasks.Distribution,
             Message = "Grpc settings: ThreadPoolSize {threadPoolSize}, HandlerInlining {handlerInlining}, CallTimeoutMin {callTimeoutMin}, InactiveTimeoutMin {inactiveTimeoutMin}")]
         internal abstract void GrpcSettings(LoggingContext context, int threadPoolSize, bool handlerInlining, int callTimeoutMin, int inactiveTimeoutMin);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.FailedToGetJournalAccessor,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.Engine,
+            Message = "Change journal cannot be accessed directly. The build may still proceed but without use of change journal scanning. See log for details")]
+        internal abstract void FailedToGetJournalAccessor(LoggingContext context);
     }
 
     /// <summary>

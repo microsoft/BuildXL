@@ -503,7 +503,8 @@ namespace BuildXL.FrontEnd.MsBuild
             processBuilder.AllowedSurvivingChildProcessNames = ReadOnlyArray<PathAtom>.FromWithoutCopy(
                 PathAtom.Create(m_context.StringTable, "mspdbsrv.exe"),
                 PathAtom.Create(m_context.StringTable, "vctip.exe"),
-                PathAtom.Create(m_context.StringTable, "conhost.exe"));
+                PathAtom.Create(m_context.StringTable, "conhost.exe"),
+                PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe"));
             processBuilder.NestedProcessTerminationTimeout = TimeSpan.Zero;
 
             SetProcessEnvironmentVariables(CreateEnvironment(logDirectory, project), processBuilder);
@@ -533,6 +534,17 @@ namespace BuildXL.FrontEnd.MsBuild
             foreach(var kvp in project.GlobalProperties)
             {
                 AddMsBuildProperty(pipDataBuilder, kvp.Key, kvp.Value);
+            }
+
+            // Compilation uses VBCSCompiler.exe as a cache; this is a process that lives for longer than
+            // the pip itself does, so we will kill it as part of the clean-up. By forcefully adding the
+            // property below, we ensure that the cache is not used by any of the processes, thus making
+            // VBCSCompiler.exe safe to kill.
+            // If this isn't used, the clean-up for one pip may kill the process and cause a different pip
+            // to fail.
+            if (!project.GlobalProperties.ContainsKey("UseSharedCompilation"))
+            {
+                AddMsBuildProperty(pipDataBuilder, "UseSharedCompilation", "false");
             }
 
             // Configure binary logger if specified

@@ -136,7 +136,7 @@ config({
                 // RocksDb
                 { id: "RocksDbSharp", version: "5.8.0-b20181023.3", alias: "RocksDbSharpSigned" },
                 { id: "RocksDbNative", version: "5.14.3-b20181023.3" },
-                
+
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
 
                 // Event hubs
@@ -227,6 +227,8 @@ config({
                 { id: "Microsoft.NETCore.Platforms", version: "2.1.0", tfm: ".NETStandard2.0" },
                 { id: "Microsoft.NETCore.DotNetHostPolicy", version: "2.1.1"},
                 { id: "System.Security.Claims", version: "4.3.0" },
+
+                { id: "Microsoft.VisualStudio.Services.Client", version: "17.149.20190311.3-release", dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
 
                 // .NET Core Self-Contained Deployment
                 { id: "Microsoft.NETCore.DotNetHostResolver", version: "2.2.0" },

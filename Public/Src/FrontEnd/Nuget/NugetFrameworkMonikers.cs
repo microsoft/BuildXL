@@ -14,7 +14,7 @@ namespace BuildXL.FrontEnd.Nuget
     {
         /// <nodoc />
         public PathAtom Net10 { get; }
-        
+
         /// <nodoc />
         public PathAtom Net11 { get; }
 
@@ -76,6 +76,9 @@ namespace BuildXL.FrontEnd.Nuget
         public PathAtom NetStandard20 { get; }
 
         /// <nodoc />
+        public PathAtom NetStandard21 { get; }
+
+        /// <nodoc />
         public PathAtom NetCoreApp20 { get; }
 
         /// <nodoc />
@@ -83,6 +86,9 @@ namespace BuildXL.FrontEnd.Nuget
 
         /// <nodoc />
         public PathAtom NetCoreApp22 { get; }
+
+        /// <nodoc />
+        public PathAtom NetCoreApp30 { get; }
 
         /// <nodoc />
         public PathAtom BuildFolderName { get; }
@@ -96,11 +102,6 @@ namespace BuildXL.FrontEnd.Nuget
         /// <nodoc />
         public HashSet<PathAtom> WellknownMonikers { get; }
 
-        /// <summary>
-        /// Compatibility matrix. If the key is desired, the values are ordered by preference of matches
-        /// </summary>
-        public MultiValueDictionary<PathAtom, PathAtom> CompatibilityMatrix { get; }
-
         /// <nodoc />
         public Dictionary<string, PathAtom> TargetFrameworkNameToMoniker { get; }
 
@@ -111,7 +112,6 @@ namespace BuildXL.FrontEnd.Nuget
             RefFolderName = PathAtom.Create(stringTable, "ref");
 
             WellknownMonikers = new HashSet<PathAtom>();
-            CompatibilityMatrix = new MultiValueDictionary<PathAtom, PathAtom>();
             TargetFrameworkNameToMoniker = new Dictionary<string, PathAtom>();
 
             NetStandard10 = Register(stringTable, "netstandard1.0", ".NETStandard1.0");
@@ -122,10 +122,12 @@ namespace BuildXL.FrontEnd.Nuget
             NetStandard15 = Register(stringTable, "netstandard1.5", ".NETStandard1.5");
             NetStandard16 = Register(stringTable, "netstandard1.6", ".NETStandard1.6");
             NetStandard20 = Register(stringTable, "netstandard2.0", ".NETStandard2.0");
+            NetStandard21 = Register(stringTable, "netstandard2.1", ".NETStandard2.1");
 
             NetCoreApp20 = Register(stringTable, "netcoreapp2.0", ".NETCoreApp2.0");
             NetCoreApp21 = Register(stringTable, "netcoreapp2.1", ".NETCoreApp2.1");
             NetCoreApp22 = Register(stringTable, "netcoreapp2.2", ".NETCoreApp2.2");
+            NetCoreApp30 = Register(stringTable, "netcoreapp3.0", ".NETCoreApp3.0");
 
             Net10 = Register(stringTable, "net10", ".NETFramework1.0");
             Net11 = Register(stringTable, "net11", ".NETFramework1.1");
@@ -141,18 +143,6 @@ namespace BuildXL.FrontEnd.Nuget
             Net461 = Register(stringTable, "net461", ".NETFramework4.6.1");
             Net462 = Register(stringTable, "net462", ".NETFramework4.6.2");
             Net472 = Register(stringTable, "net472", ".NETFramework4.7.2");
-
-            RegisterCompatibility(Net451, Net45, Net40, Net35, Net20, NetStandard12, NetStandard11, NetStandard10, Net11, Net10);
-            //RegisterCompatibility(Net452, Net451, Net45, Net40, Net35);
-            //RegisterCompatibility(Net46, NetStandard13, NetStandard12, NetStandard11, NetStandard10, Net452, Net451, Net45, Net40, Net35);
-            // The fallback logic is: to use .net 4x version for .net 4.6.1
-            RegisterCompatibility(Net461, Net46, Net452, Net451, Net45, Net40, NetStandard20, NetStandard16, NetStandard15, NetStandard14, NetStandard13, NetStandard12, NetStandard11, NetStandard10, Net35, Net20, Net11, Net10);
-
-            RegisterCompatibility(Net472, Net461, Net46, Net452, Net451, Net45, Net40, NetStandard20, NetStandard16, NetStandard15, NetStandard14, NetStandard13, NetStandard12, NetStandard11, NetStandard10, Net35, Net20, Net11, Net10);
-
-            RegisterCompatibility(NetStandard20, NetStandard16, NetStandard15, NetStandard14, NetStandard13, NetStandard12, NetStandard11, NetStandard10);
-            
-            RegisterCompatibility(NetCoreApp22, NetCoreApp21, NetCoreApp20, NetStandard20, NetStandard16, NetStandard15, NetStandard14, NetStandard13, NetStandard12, NetStandard11, NetStandard10);
         }
 
         private PathAtom Register(StringTable stringTable, string smallMoniker, string largeMoniker)
@@ -162,14 +152,6 @@ namespace BuildXL.FrontEnd.Nuget
             WellknownMonikers.Add(pathAtom);
 
             return pathAtom;
-        }
-
-        private void RegisterCompatibility(PathAtom moniker, params PathAtom[] compatibility)
-        {
-            if (compatibility != null && compatibility.Length > 0)
-            {
-                CompatibilityMatrix.Add(moniker, compatibility);
-            }
         }
     }
 }

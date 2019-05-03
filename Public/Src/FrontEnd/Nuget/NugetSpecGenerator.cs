@@ -115,7 +115,6 @@ namespace BuildXL.FrontEnd.Nuget
         private List<ICaseClause> CreateSwitchCasesForTargetFrameworks(NugetAnalyzedPackage analyzedPackage, ITypeNode pkgType)
         {
             var cases = new List<ICaseClause>();
-            Contract.Assert(analyzedPackage.TargetFrameworkWithFallbacks.Count != 0, "Managed package must have at least one target framework.");
 
             foreach (var framework in analyzedPackage.TargetFrameworkWithFallbacks)
             {
@@ -190,17 +189,6 @@ namespace BuildXL.FrontEnd.Nuget
             if (map.TryGetValue(framework, out value))
             {
                 return true;
-            }
-
-            if (m_analyzedPackage.NugetFrameworkMonikers.CompatibilityMatrix.TryGetValue(framework.Moniker, out var compatibleFrameworks))
-            {
-                foreach (var compatibleFramework in compatibleFrameworks)
-                {
-                    if (map.TryGetValue(new NugetTargetFramework(compatibleFramework), out value))
-                    {
-                        return true;
-                    }
-                }
             }
 
             return false;

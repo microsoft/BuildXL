@@ -84,7 +84,7 @@ namespace BuildXL.FrontEnd.Nuget
 
         /// <nodoc />
         public List<string> DependentPackageIdsToSkip => PackageOnDisk.Package.DependentPackageIdsToSkip ?? new List<string>() { };
-        
+
         /// <nodoc />
         public List<string> DependentPackageIdsToIgnore => PackageOnDisk.Package.DependentPackageIdsToIgnore ?? new List<string>() { };
 
@@ -153,72 +153,7 @@ namespace BuildXL.FrontEnd.Nuget
             }
 
             analyzedPackage.ParseManagedSemantics();
-            analyzedPackage.UpdateForMissingQualifierConversionFunction();
-
             return analyzedPackage;
-        }
-
-        /// <summary>
-        /// Given a dictionary of packageID -> NugetAnalyzedPackage that is closed under dependencies (if a nuget package A depends on B, if
-        /// A is in the dictionary then B is in the dictionary), updates the set of supported target frameworks for each package considering its package
-        /// dependencies.
-        /// </summary>
-        /// <remarks>
-        /// The way the patch works is as follows:
-        /// - For a managed package, the set of supported frameworks is explicit given the package directory structure, so it is left as is
-        /// - For a non-managed package, the patched set of supported frameworks is the union of the supported frameworks of all its dependencies, considering
-        /// that all its dependencies were already patched
-        /// </remarks>
-        public static bool TryPatchSupportedTargetFrameworksForPackageExtent(NugetFrameworkMonikers nugetFrameworkMonikers, IDictionary<string, NugetAnalyzedPackage> packageExtent, out NugetFailure failure)
-        {
-            // We topo sort the list of packages, where dependents are always after their dependencies
-            if (!TryToposortPackages(packageExtent, out List<NugetAnalyzedPackage> sortedAnalyzedPackages, out failure))
-            {
-                return false;
-            }
-
-            // We traverse the list from head to tail, so when we retrieve a dependency, it is already patched
-            foreach (var analyzedPackage in sortedAnalyzedPackages)
-            {
-                var targetFrameworkWithFallBacks = analyzedPackage.TargetFrameworkWithFallbacks;
-
-                // If the package is managed, the qualifier space is already the right one
-                if (analyzedPackage.IsManagedPackage)
-                {
-                    /*
-                     *  TODO:Nuget: Another workaround to make Nuget packages that are already exposing .NET Standard targets compatible to .NET Framework 452 qualifiers,
-                     *  unfortunately we have many of those in use with BuildXL already e.g. ProtocolReader. This makes coercing between .NETStandard1.1 packages and
-                     *  .NET Framework 4.5.1 work, until we have proper support built in. If we encounter more packages with different .NETStandard this would
-                     *  at least be the only place we introduce more special casing.
-                     */
-                    if (targetFrameworkWithFallBacks.Count == 1)
-                    {
-                        if (targetFrameworkWithFallBacks.Keys.FirstOrDefault().Equals(nugetFrameworkMonikers.NetStandard10) ||
-                            targetFrameworkWithFallBacks.Keys.FirstOrDefault().Equals(nugetFrameworkMonikers.NetStandard11))
-                        {
-                            targetFrameworkWithFallBacks.Add(nugetFrameworkMonikers.Net472);
-                            targetFrameworkWithFallBacks.Add(nugetFrameworkMonikers.Net462);
-                            targetFrameworkWithFallBacks.Add(nugetFrameworkMonikers.Net461);
-                            targetFrameworkWithFallBacks.Add(nugetFrameworkMonikers.Net46);
-                            targetFrameworkWithFallBacks.Add(nugetFrameworkMonikers.Net452);
-                            targetFrameworkWithFallBacks.Add(nugetFrameworkMonikers.Net451);
-                            targetFrameworkWithFallBacks.Add(nugetFrameworkMonikers.Net45);
-                        }
-                    }
-
-                    continue;
-                }
-
-                // Otherwise, we compute the union of the qualifier spaces of its dependencies
-                foreach (var dependency in analyzedPackage.Dependencies)
-                {
-                    Contract.Assert(packageExtent.Keys.Contains(dependency.GetPackageIdentity()));
-                    var analyzedDependency = packageExtent[dependency.GetPackageIdentity()];
-                    CombineTargetFrameworksForUnmanagedPackage(targetFrameworkWithFallBacks, analyzedDependency.TargetFrameworkWithFallbacks);
-                }
-            }
-
-            return true;
         }
 
         /// <summary>
@@ -376,24 +311,7 @@ namespace BuildXL.FrontEnd.Nuget
 
                             if (!TargetFrameworkWithFallbacks.ContainsKey(targetFramework.Moniker))
                             {
-                                bool comaptibleMonikerAlreadyPresent = false;
-                                if (NugetFrameworkMonikers.CompatibilityMatrix.ContainsKey(targetFramework.Moniker))
-                                {
-                                    foreach (var compatibleMoniker in NugetFrameworkMonikers.CompatibilityMatrix[targetFramework.Moniker])
-                                    {
-                                        if (TargetFrameworkWithFallbacks.ContainsKey(compatibleMoniker))
-                                        {
-                                            comaptibleMonikerAlreadyPresent = true;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if (!comaptibleMonikerAlreadyPresent)
-                                {
-                                    // If nuspec does not specify target frameworks, we need to infer from the layout
-                                    TargetFrameworkWithFallbacks.Add(targetFramework.Moniker);
-                                }
+                                TargetFrameworkWithFallbacks.Add(targetFramework.Moniker);
                             }
 
                             // The magic marker is there so the framework is declared as supported, but no actual files are listed
@@ -634,9 +552,9 @@ namespace BuildXL.FrontEnd.Nuget
         private bool TryResolveNugetPackageVersion(
             Dictionary<string, INugetPackage> packagesOnConfig,
             INugetPackage requestorPackage,
-            string id, 
-            string version, 
-            bool doNotEnforceDependencyVersions, 
+            string id,
+            string version,
+            bool doNotEnforceDependencyVersions,
             out INugetPackage nugetPackage,
             out string errorMessage)
         {
@@ -730,39 +648,6 @@ namespace BuildXL.FrontEnd.Nuget
             nugetPackage = null;
             errorMessage = string.Format(CultureInfo.InvariantCulture, "Could not parse version '{0}'.", version);
             return false;
-        }
-
-        /// <summary>
-        /// DScript still lacks a compatibility function for qualifiers, so we temporary patch that here.
-        /// </summary>
-        /// <remarks>
-        /// We currently patch net45, net451, net452, net46, net472, netstandard2.0 and netcoreapp2.2
-        /// </remarks>
-        private void UpdateForMissingQualifierConversionFunction()
-        {
-            // Order matters as older versions get replaced by newer ones if they are marked accordingly in the compatibility matrix
-            UpdateForMissingQualifierConversionFunction(NugetFrameworkMonikers.Net451);
-            //UpdateForMissingQualifierConversionFunction(NugetFrameworkMonikers.Net452);
-            //UpdateForMissingQualifierConversionFunction(NugetFrameworkMonikers.Net46);
-            UpdateForMissingQualifierConversionFunction(NugetFrameworkMonikers.Net461);
-            UpdateForMissingQualifierConversionFunction(NugetFrameworkMonikers.NetStandard20);
-            UpdateForMissingQualifierConversionFunction(NugetFrameworkMonikers.NetCoreApp22);
-            UpdateForMissingQualifierConversionFunction(NugetFrameworkMonikers.Net472);
-        }
-
-        private void UpdateForMissingQualifierConversionFunction(Moniker moniker)
-        {
-            // Check if a compatible one is good for the TargetFrameworks
-            foreach (var compatibleMoniker in NugetFrameworkMonikers.CompatibilityMatrix[moniker])
-            {
-                if (TargetFrameworkWithFallbacks.ContainsKey(compatibleMoniker) && !TargetFrameworkWithFallbacks.ContainsKey(moniker))
-                {
-                    // Add the framework as compatible with this package for now.
-                    TargetFrameworkWithFallbacks.Add(compatibleMoniker, moniker);
-
-                    break;
-                }
-            }
         }
     }
 }

@@ -28,7 +28,6 @@ export const pkgs = isMicrosoftInternal ? [
     // Artifact packages and dependencies
     { id: "Microsoft.VisualStudio.Services.ArtifactServices.Shared", version: "17.149.28711-buildid8812231", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
     { id: "Microsoft.VisualStudio.Services.BlobStore.Client", version: "17.149.28711-buildid8812231", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces"] },
-    { id: "Microsoft.VisualStudio.Services.Client", version: "17.149.20190311.3-release", dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
     { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: "17.149.20190311.3-release", dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },
 
     // DropDaemon Artifact dependencies.
@@ -49,12 +48,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "PowerShell.Core", version: "6.1.0" },
     { id: "Dotnet-Runtime", version: "2.2.2.1" },
 
-] : [
-
-    // Artifact packages and dependencies in OSS
-    { id: "Microsoft.VisualStudio.Services.Client", version: "16.148.0-preview", dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
-
-];
+] : [];
 
 // This contains facade modules for the packages that are only availalbe internally
 export const resolver = {

@@ -53,7 +53,6 @@ namespace BuildXL.Utilities.Configuration
         public static string GetPackageIdentity(this INugetPackage nugetPackage)
         {
             Contract.Requires(!string.IsNullOrEmpty(nugetPackage.Id), "Every package should have an ID");
-
             return !string.IsNullOrEmpty(nugetPackage.Alias) ? nugetPackage.Alias : nugetPackage.Id;
         }
     }

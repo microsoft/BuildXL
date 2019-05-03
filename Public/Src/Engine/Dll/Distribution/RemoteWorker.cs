@@ -81,7 +81,7 @@ namespace BuildXL.Engine.Distribution
         private BinaryLogReader m_executionLogBinaryReader;
         private MemoryStream m_executionLogBufferStream;
         private ExecutionLogFileReader m_executionLogReader;
-        private readonly object m_logBlobLock = new object();
+        private readonly SemaphoreSlim m_logBlobMutex = TaskUtilities.CreateMutex();
         private readonly object m_hashListLock = new object();
 
         private int m_lastBlobSeqNumber = -1;
@@ -230,7 +230,7 @@ namespace BuildXL.Engine.Distribution
             await Task.Yield();
 
             // Execution log events cannot be logged by multiple threads concurrently since they must be ordered
-            lock (m_logBlobLock)
+            using (await m_logBlobMutex.AcquireAsync())
             {
                 // We need to dequeue and process the blobs in order. 
                 // Here, we do not necessarily process the blob that is just added to the queue above.

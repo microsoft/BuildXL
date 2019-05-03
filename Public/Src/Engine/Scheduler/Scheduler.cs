@@ -1325,7 +1325,7 @@ namespace BuildXL.Scheduler
 
                 foreach (var worker in m_workers)
                 {
-                    worker.Finish(HasFailed ? "Distributed build failed. See errors on master." : null);
+                    await worker.FinishAsync(HasFailed ? "Distributed build failed. See errors on master." : null);
                 }
 
                 // Wait for all workers to confirm that they have stopped.

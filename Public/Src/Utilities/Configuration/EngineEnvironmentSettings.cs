@@ -133,7 +133,7 @@ namespace BuildXL.Utilities.Configuration
         ///     - Worker - if it doesn't receive any call from the master within this interval, decides that the master is dead and exits
         /// </summary>
         public static readonly Setting<TimeSpan> DistributionInactiveTimeout = CreateSetting("BuildXLDistribInactiveTimeoutMin", value => ParseTimeSpan(value, ts => TimeSpan.FromMinutes(ts)) ??
-            TimeSpan.FromMinutes(30));
+            TimeSpan.FromMinutes(60));
 
         /// <summary>
         /// The number of threads in the grpc thread pool.
@@ -147,9 +147,9 @@ namespace BuildXL.Utilities.Configuration
         /// Whether HandlerInlining is enabled for grpc.
         /// </summary>
         /// <remarks>
-        /// Default enabled
+        /// Default disabled
         /// </remarks>
-        public static readonly Setting<bool> GrpcHandlerInliningEnabled = CreateSetting("BuildXLGrpcHandlerInliningEnabled", value => string.IsNullOrWhiteSpace(value) ? true : value == "1");
+        public static readonly Setting<bool> GrpcHandlerInliningEnabled = CreateSetting("BuildXLGrpcHandlerInliningEnabled", value => string.IsNullOrWhiteSpace(value) ? false : value == "1");
 
         /// <summary>
         /// An artificial delay in reporting notifications to force batching

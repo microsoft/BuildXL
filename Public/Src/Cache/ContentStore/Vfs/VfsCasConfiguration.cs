@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
         public string CacheName { get; }
 
         /// <summary>
-        /// What does this even mean?
+        /// The scenario of the backing server (defines ready event wait handle name)
         /// </summary>
         public string Scenario { get; }
 
@@ -92,7 +92,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
             public string CacheName { get; set; }
 
             /// <summary>
-            /// What does this even mean?
+            /// The scenario of the backing server (defines ready event wait handle name)
             /// </summary>
             public string Scenario { get; set; }
 

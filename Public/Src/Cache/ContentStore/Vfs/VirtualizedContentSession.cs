@@ -24,7 +24,6 @@ namespace BuildXL.Cache.ContentStore.Vfs
     public class VirtualizedContentSession : ContentSessionBase
     {
         private IContentSession InnerSession { get; }
-        //private VirtualizationRegistry VirtualizationRegistry { get; }
         private VirtualizedContentStore Store { get; }
         protected override Tracer Tracer { get; } = new Tracer(nameof(VirtualizedContentSession));
 
@@ -106,47 +105,5 @@ namespace BuildXL.Cache.ContentStore.Vfs
         {
             return InnerSession.PutStreamAsync(operationContext, hashType, stream, operationContext.Token, urgencyHint);
         }
-
-        //protected override async Task<PlaceFileResult> PlaceFileCoreAsync(
-        //    OperationContext operationContext,
-        //    ContentHash contentHash,
-        //    AbsolutePath path,
-        //    FileAccessMode accessMode,
-        //    FileReplacementMode replacementMode,
-        //    FileRealizationMode realizationMode,
-        //    UrgencyHint urgencyHint,
-        //    Counter retryCounter)
-        //{
-        //    // Open stream gets translated into PlaceFile for server/client CAS. Ideally this case would be handled,
-        //    // i.e. those calls should be just directed to the underlying CAS. Better still would be to never go through
-        //    // the virtual CAS for those calls
-
-        //    // TODO: Handle replacement modes
-        //    VirtualizationRegistry.RegisterFile(CreateVirtualPath(path), contentHash, realizationMode);
-        //    return new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy);
-        //}
-
-        //private VirtualPath CreateVirtualPath(AbsolutePath path)
-        //{
-        //    throw new NotImplementedException();
-        //}
-
-        //protected override async Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(
-        //    OperationContext operationContext,
-        //    IReadOnlyList<ContentHashWithPath> hashesWithPaths,
-        //    FileAccessMode accessMode,
-        //    FileReplacementMode replacementMode,
-        //    FileRealizationMode realizationMode,
-        //    UrgencyHint urgencyHint,
-        //    Counter retryCounter)
-        //{
-        //    return await hashesWithPaths.SelectList((item, index) => (item: item, index: index)).ForEachAsync(
-        //        degreeOfParallelism: 8,
-        //        async tuple =>
-        //        {
-        //            var result = await PlaceFileCoreAsync(operationContext, tuple.item.Hash, tuple.item.Path, accessMode, replacementMode, realizationMode, urgencyHint, retryCounter);
-        //            return Task.FromResult(result.WithIndex(tuple.index));
-        //        }, operationContext.Token);
-        //}
     }
 }

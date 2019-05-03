@@ -503,7 +503,8 @@ namespace BuildXL.FrontEnd.MsBuild
             processBuilder.AllowedSurvivingChildProcessNames = ReadOnlyArray<PathAtom>.FromWithoutCopy(
                 PathAtom.Create(m_context.StringTable, "mspdbsrv.exe"),
                 PathAtom.Create(m_context.StringTable, "vctip.exe"),
-                PathAtom.Create(m_context.StringTable, "conhost.exe"));
+                PathAtom.Create(m_context.StringTable, "conhost.exe"),
+                PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe"));
             processBuilder.NestedProcessTerminationTimeout = TimeSpan.Zero;
 
             SetProcessEnvironmentVariables(CreateEnvironment(logDirectory, project), processBuilder);

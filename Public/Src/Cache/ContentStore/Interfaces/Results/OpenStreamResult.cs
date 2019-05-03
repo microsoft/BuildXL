@@ -124,7 +124,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 case ResultCode.Error:
                     return GetErrorString();
                 default:
-                    return $"{Code} Size={Stream?.Length}";
+                    return $"{Code} Size={Stream?.Length}{this.GetDiagnosticsMessageForTracing()}";
             }
         }
     }

@@ -16,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             if (result.Succeeded && handle.LockAcquisitionDuration != null)
             {
-                result.Diagnostics = $", LockWait={(long)handle.LockAcquisitionDuration.Value.TotalMilliseconds}ms";
+                result.Diagnostics = $"LockWait={(long)handle.LockAcquisitionDuration.Value.TotalMilliseconds}ms";
             }
 
             return result;

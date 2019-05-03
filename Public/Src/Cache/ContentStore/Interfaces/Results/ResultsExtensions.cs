@@ -13,9 +13,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     public static class ResultsExtensions
     {
         /// <nodoc />
-        public static string GetDiagnosticsMessageForTracing(this ResultBase result)
+        public static string GetDiagnosticsMessageForTracing(this ResultBase result, string prefix = " ")
         {
-            return result.Diagnostics ?? string.Empty;
+            if (string.IsNullOrEmpty(result.Diagnostics))
+            {
+                return string.Empty;
+            }
+
+            return $"{prefix}{result.Diagnostics}";
         }
 
         /// <summary>

@@ -1,10 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+import * as Clang      from "Sdk.Clang";
 import * as Deployment from "Sdk.Deployment";
 import * as Shared     from "Sdk.Managed.Shared";
 import * as Frameworks from "Sdk.Managed.Frameworks";
 import * as Csc        from "Sdk.Managed.Tools.Csc";
+import * as Ilc        from "Sdk.Managed.Tools.ILCompiler";
 import * as ResGen     from "Sdk.Managed.Tools.ResGen.Lite";
 import * as AppPatcher from "Sdk.Managed.Tools.AppHostPatcher";
 import * as Xml        from "Sdk.Xml";
@@ -20,6 +22,61 @@ export interface Template {
     managedExecutable?: Arguments;
     managedTest?: TestArguments;
     managedAssembly?: Arguments;
+}
+
+@@public
+export function nativeExecutable(args: Arguments): DerivedFile {
+    /** Override framework.applicationDeploymentStyle to make sure we don't use apphost */
+    const exeArgs = args.override<Arguments>({
+        framework: (args.framework || Frameworks.framework).override<Shared.Framework>({
+            applicationDeploymentStyle: "frameworkDependent"
+        })
+    });
+
+    /** Compile to MSIL */
+    const exeResult = executable(exeArgs);
+
+    /** Compile to native object file */
+    const userIlcArgs = <Ilc.Arguments>((args.tools && args.tools.ilc) || {});
+    const ilcArgs = Object.merge(userIlcArgs, <Ilc.Arguments>{
+        out: `${args.assemblyName}.o`,
+        inputs: [ 
+            exeResult.runtime.binary
+        ],
+        dependencies: [
+            exeResult.runtime.pdb
+        ]
+    });
+    const ilcResult = Ilc.compile(ilcArgs);
+
+    /** Link native */
+    const linkArgs = <Clang.Arguments>{
+        out: args.assemblyName,
+        inputs: [
+            ilcResult.binary,
+            ...Ilc.linkTimeLibraries,
+        ],
+        emitDebugInformation: true,
+        linkerArgs: [
+            "-rpath",
+            "'$ORIGIN'"
+        ],
+        frameworks: [
+            "CoreFoundation",
+            "Security",
+            "GSS"
+        ],
+        libraries: [
+            "stdc++",
+            "dl",
+            "m",
+            "curl",
+            "z",
+            "icucore"
+        ]
+    };
+    
+    return Clang.compile(linkArgs);
 }
 
 /** Builds a managed library. */
@@ -339,11 +396,14 @@ export interface Arguments {
 
     /** Settings for nested tools */
     tools?: {
-        /** Default argument for Csc invocation. */
+        /** Csc default args. */
         csc?: Csc.Arguments;
 
-        /** ResGen default args*/
+        /** ResGen default args */
         resgen?: ResGen.Arguments;
+
+        /** Ilc default args */
+        ilc?: Ilc.Arguments;
     };
 
     /** Options that control how this compiled assembly gets deployed */

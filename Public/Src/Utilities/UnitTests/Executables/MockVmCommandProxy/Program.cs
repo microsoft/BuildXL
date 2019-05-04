@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using BuildXL.Utilities;
-using Newtonsoft.Json;
+using BuildXL.Utilities.VmCommandProxy;
 
 namespace Test.BuildXL.Executables.MockVmCommandProxy
 {
@@ -26,15 +26,11 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
                 return -1;
             }
 
-            const string StartBuildCmd = "StartBuild";
-            const string RunCmd = "Run";
-
-
             string inputFile = null;
             string outputFile = null;
             string command = args[0];
 
-            if (string.Equals(StartBuildCmd, command, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(VmCommand.StartBuild, command, StringComparison.OrdinalIgnoreCase))
             {
                 if (!TryParseArgs(args, out inputFile, out _))
                 {
@@ -43,13 +39,13 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
 
                 if (string.IsNullOrWhiteSpace(inputFile))
                 {
-                    Console.Error.WriteLine($"{StartBuildCmd} command requires input");
+                    Console.Error.WriteLine($"{VmCommand.StartBuild} command requires input");
                     return -1;
                 }
 
                 return StartBuild(inputFile);
             }
-            else if (string.Equals(RunCmd, command, StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(VmCommand.Run, command, StringComparison.OrdinalIgnoreCase))
             {
                 if (!TryParseArgs(args, out inputFile, out outputFile))
                 {
@@ -58,7 +54,7 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
 
                 if (string.IsNullOrWhiteSpace(inputFile) || string.IsNullOrWhiteSpace(outputFile))
                 {
-                    Console.Error.WriteLine($"{RunCmd} command requires input and output");
+                    Console.Error.WriteLine($"{VmCommand.Run} command requires input and output");
                     return -1;
                 }
 
@@ -75,18 +71,18 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
         {
             inputFile = null;
             outputFile = null;
-            const string InputFileArgPrefix = "/InputJsonFile:";
-            const string OutputFileArgPrefix = "/OutputJsonFile:";
+            string inputFileArgPrefix = $"/{VmCommand.Param.InputJsonFile}:";
+            string outputFileArgPrefix = $"/{VmCommand.Param.OutputJsonFile}:";
 
             for (int i = 1; i < args.Length; ++i)
             {
-                if (args[i].StartsWith(InputFileArgPrefix, StringComparison.OrdinalIgnoreCase))
+                if (args[i].StartsWith(inputFileArgPrefix, StringComparison.OrdinalIgnoreCase))
                 {
-                    inputFile = args[i].Substring(InputFileArgPrefix.Length);
+                    inputFile = args[i].Substring(inputFileArgPrefix.Length);
                 }
-                else if (args[i].StartsWith(OutputFileArgPrefix, StringComparison.OrdinalIgnoreCase))
+                else if (args[i].StartsWith(outputFileArgPrefix, StringComparison.OrdinalIgnoreCase))
                 {
-                    outputFile = args[i].Substring(OutputFileArgPrefix.Length);
+                    outputFile = args[i].Substring(outputFileArgPrefix.Length);
                 }
                 else
                 {
@@ -102,7 +98,7 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
         {
             Console.WriteLine($"Read request from '{inputFile}'");
 
-            StartBuildRequest request = JsonConvert.DeserializeObject<StartBuildRequest>(File.ReadAllText(inputFile));
+            StartBuildRequest request = VmSerializer.DeserializeFromFile<StartBuildRequest>(inputFile);
 
             Console.WriteLine($"Start build request: ");
             Console.WriteLine($"    - HostLowPrivilegeUsername: {request.HostLowPrivilegeUsername ?? string.Empty}");
@@ -115,7 +111,7 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
         {
             Console.WriteLine($"Read request from '{inputFile}'");
 
-            RunRequest request = JsonConvert.DeserializeObject<RunRequest>(File.ReadAllText(inputFile));
+            RunRequest request = VmSerializer.DeserializeFromFile<RunRequest>(inputFile);
             
             Console.WriteLine($"Run request '{request.AbsolutePath} {request.Arguments}'");
 
@@ -168,18 +164,7 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
 
                 Console.WriteLine($"Write result to '{outputFile}'");
 
-                var jsonSerializer = JsonSerializer.Create(new JsonSerializerSettings
-                {
-                    NullValueHandling = NullValueHandling.Include
-                });
-
-                Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
-
-                using (var streamWriter = new StreamWriter(outputFile))
-                using (var jsonTextWriter = new JsonTextWriter(streamWriter))
-                {
-                    jsonSerializer.Serialize(jsonTextWriter, result);
-                }
+                VmSerializer.SerializeToFile(outputFile, result);
 
                 return 0;
             }

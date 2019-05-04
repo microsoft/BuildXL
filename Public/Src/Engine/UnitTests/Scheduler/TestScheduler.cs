@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using Test.BuildXL.TestUtilities.Xunit;
+using BuildXL.Utilities.VmCommandProxy;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -65,12 +66,14 @@ namespace Test.BuildXL.Scheduler
             LoggingContext loggingContext = null,
             IIpcProvider ipcProvider = null,
             DirectoryTranslator directoryTranslator = null,
+            VmInitializer vmInitializer = null,
             SchedulerTestHooks testHooks = null) : base(graph, pipQueue, context, fileContentTable, cache,
                 configuration, fileAccessWhitelist, loggingContext, null, directoryMembershipFingerprinterRules,
                 tempCleaner, Task.FromResult<PipRuntimeTimeTable>(runningTimeTable), performanceCollector, fingerprintSalt, previousInputsSalt,
                 ipcProvider: ipcProvider, 
                 directoryTranslator: directoryTranslator, 
                 journalState: journalState, 
+                vmInitializer: vmInitializer,
                 testHooks: testHooks)
         {
             m_testPipQueue = pipQueue;

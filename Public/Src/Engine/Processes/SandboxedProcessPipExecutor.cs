@@ -9,7 +9,6 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -24,6 +23,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.VmCommandProxy;
 using static BuildXL.Utilities.BuildParameters;
 
 namespace BuildXL.Processes
@@ -147,8 +147,7 @@ namespace BuildXL.Processes
         private readonly ProcessInContainerManager m_processInContainerManager;
         private readonly ContainerConfiguration m_containerConfiguration;
 
-        private readonly string m_userName;
-        private readonly SecureString m_password;
+        private readonly VmInitializer m_vmInitializer;
 
         /// <summary>
         /// The active sandboxed process (if any)
@@ -182,8 +181,7 @@ namespace BuildXL.Processes
             DirectoryTranslator directoryTranslator = null,
             int remainingUserRetryCount = 0,
             bool isQbuildIntegrated = false,
-            string userName = null,
-            SecureString password = null,
+            VmInitializer vmInitializer = null,
             ITempDirectoryCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(pip != null);
@@ -294,8 +292,7 @@ namespace BuildXL.Processes
                 m_containerConfiguration = ContainerConfiguration.DisabledIsolation;
             }
 
-            m_userName = userName;
-            m_password = password;
+            m_vmInitializer = vmInitializer;
         }
 
         /// <inheritdoc />
@@ -852,13 +849,11 @@ namespace BuildXL.Processes
 
                     Tracing.Logger.Log.PipProcessStartExternalVm(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
 
-                    string vmCommandProxy = Path.Combine(
-                        m_layoutConfiguration.BuildEngineDirectory.ToString(m_context.PathTable),
-                        ExternalVMSandboxedProcess.DefaultVmCommandProxyRelativePath);
+                    await m_vmInitializer.LazyInitVmAsync.Value;
 
                     process = await ExternalSandboxedProcess.StartAsync(
                         info,
-                        spi => new ExternalVMSandboxedProcess(spi, vmCommandProxy, externalSandboxedProcessExecutor, m_userName, m_password));
+                        spi => new ExternalVmSandboxedProcess(spi, m_vmInitializer, externalSandboxedProcessExecutor));
                 }
             }
             catch (BuildXLException ex)
@@ -915,7 +910,7 @@ namespace BuildXL.Processes
                                 stdOut,
                                 stdErr);
                         }
-                        else if (process is ExternalVMSandboxedProcess externalVmSandboxedProcess)
+                        else if (process is ExternalVmSandboxedProcess externalVmSandboxedProcess)
                         {
                             Tracing.Logger.Log.PipProcessFinishedExternalVm(
                                 m_loggingContext,

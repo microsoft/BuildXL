@@ -7,9 +7,9 @@ using Xunit.Abstractions;
 namespace IntegrationTest.BuildXL.Scheduler
 {
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
-    public class ExternalVMExecutionTests : ExternalToolExecutionTests
+    public class ExternalVmExecutionTests : ExternalToolExecutionTests
     {
-        public ExternalVMExecutionTests(ITestOutputHelper output) : base(output)
+        public ExternalVmExecutionTests(ITestOutputHelper output) : base(output)
         {
             Configuration.Sandbox.AdminRequiredProcessExecutionMode = global::BuildXL.Utilities.Configuration.AdminRequiredProcessExecutionMode.ExternalVM;
         }

@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Utilities;
 
 namespace BuildXL.Processes
 {
@@ -111,7 +112,7 @@ namespace BuildXL.Processes
                 TimeSpan.FromMilliseconds(-1), // Timeout should only be applied to the process that the external tool executes.
                 line => AppendLineIfNotNull(m_output, line),
                 line => AppendLineIfNotNull(m_error, line),
-                SandboxedProcessInfo);
+                SandboxedProcessInfo.Provenance);
 
             m_processExecutor.Start();
         }

@@ -6,26 +6,19 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Security;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using Newtonsoft.Json;
+using BuildXL.Utilities.VmCommandProxy;
 
 namespace BuildXL.Processes
 {
     /// <summary>
     /// Sandboxed process that will be executed in VM.
     /// </summary>
-    public class ExternalVMSandboxedProcess : ExternalSandboxedProcess
+    public class ExternalVmSandboxedProcess : ExternalSandboxedProcess
     {
-        /// <summary>
-        /// Default VmCommandProxy relative path.
-        /// </summary>
-        public const string DefaultVmCommandProxyRelativePath = @"tools\VmCommandProxy\tools\VmCommandProxy.exe";
-
         private int m_processId = -1;
 
         /// <inheritdoc />
@@ -51,29 +44,22 @@ namespace BuildXL.Processes
         private AsyncProcessExecutor m_processExecutor;
 
         private readonly ExternalToolSandboxedProcessExecutor m_tool;
-        private readonly string m_vmCommandProxy;
-
-        private readonly string m_userName;
-        private readonly SecureString m_password;
+        private readonly VmInitializer m_vmInitializer;
 
         /// <summary>
-        /// Creates an instance of <see cref="ExternalVMSandboxedProcess"/>.
+        /// Creates an instance of <see cref="ExternalVmSandboxedProcess"/>.
         /// </summary>
-        public ExternalVMSandboxedProcess(
+        public ExternalVmSandboxedProcess(
             SandboxedProcessInfo sandboxedProcessInfo, 
-            string vmCommandProxy, 
-            ExternalToolSandboxedProcessExecutor tool,
-            string userName,
-            SecureString password)
+            VmInitializer vmInitializer, 
+            ExternalToolSandboxedProcessExecutor tool)
             : base(sandboxedProcessInfo)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(vmCommandProxy));
+            Contract.Requires(vmInitializer != null);
             Contract.Requires(tool != null);
 
-            m_vmCommandProxy = vmCommandProxy;
+            m_vmInitializer = vmInitializer;
             m_tool = tool;
-            m_userName = userName;
-            m_password = password;
         }
 
         /// <inheritdoc />
@@ -115,7 +101,7 @@ namespace BuildXL.Processes
 
             // (3) Validate the result of sandboxed process executor run by VmCommandProxy.
             RunResult runVmResult = ExceptionUtilities.HandleRecoverableIOException(
-                () => JsonConvert.DeserializeObject<RunResult>(File.ReadAllText(RunOutputPath)),
+                () => VmSerializer.DeserializeFromFile<RunResult>(RunOutputPath),
                 e => m_error.AppendLine(e.Message));
 
             if (runVmResult == null)
@@ -137,50 +123,10 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override void Start()
         {
-            InitVM();
-            RunInVM();
+            RunInVm();
         }
 
-        private void InitVM()
-        {
-            // (1) Create and serialize 'StartBuild' request.
-            var startBuildRequest = new StartBuildRequest
-            {
-                HostLowPrivilegeUsername = m_userName,
-                HostLowPrivilegePassword = m_password != null ? SecureStringToString(m_password) : null
-            };
-
-            SerializeVmCommandProxyInput(StartBuildRequestPath, startBuildRequest);
-
-            // (2) Create a process to execute VmCommandProxy.
-            string arguments = $"StartBuild /InputJsonFile:\"{StartBuildRequestPath}\"";
-            var process = CreateVmCommandProxyProcess(arguments);
-
-            var stdOutForStartBuild = new StringBuilder();
-            var stdErrForStartBuild = new StringBuilder();
-
-            // (3) Run VmCommandProxy to start build.
-            using (var executor = new AsyncProcessExecutor(
-                process,
-                TimeSpan.FromMilliseconds(-1),
-                line => AppendLineIfNotNull(stdOutForStartBuild, line),
-                line => AppendLineIfNotNull(stdErrForStartBuild, line),
-                SandboxedProcessInfo))
-            {
-                executor.Start();
-                executor.WaitForExitAsync().GetAwaiter().GetResult();
-                executor.WaitForStdOutAndStdErrAsync().GetAwaiter().GetResult();
-
-                if (executor.Process.ExitCode != 0)
-                {
-                    string stdOut = $"{Environment.NewLine}StdOut:{Environment.NewLine}{stdOutForStartBuild.ToString()}";
-                    string stdErr = $"{Environment.NewLine}StdErr:{Environment.NewLine}{stdErrForStartBuild.ToString()}";
-                    ThrowBuildXLException($"Failed to init VM '{m_vmCommandProxy} {arguments}', with exit code {executor.Process.ExitCode}{stdOut}{stdErr}");
-                }
-            }
-        }
-
-        private void RunInVM()
+        private void RunInVm()
         {
             // (1) Serialize sandboxed prosess info.
             SerializeSandboxedProcessInfoToFile();
@@ -193,10 +139,10 @@ namespace BuildXL.Processes
                 WorkingDirectory = SandboxedProcessInfo.WorkingDirectory
             };
 
-            SerializeVmCommandProxyInput(RunRequestPath, runRequest);
+            VmSerializer.SerializeToFile(RunRequestPath, runRequest);
 
             // (2) Create a process to execute VmCommandProxy.
-            string arguments = $"Run /InputJsonFile:\"{RunRequestPath}\" /OutputJsonFile:\"{RunOutputPath}\"";
+            string arguments = $"{VmCommand.Run} /{VmCommand.Param.InputJsonFile}:\"{RunRequestPath}\" /{VmCommand.Param.OutputJsonFile}:\"{RunOutputPath}\"";
             var process = CreateVmCommandProxyProcess(arguments);
 
             m_processExecutor = new AsyncProcessExecutor(
@@ -204,7 +150,7 @@ namespace BuildXL.Processes
                 TimeSpan.FromMilliseconds(-1), // Timeout should only be applied to the process that the external tool executes.
                 line => AppendLineIfNotNull(m_output, line),
                 line => AppendLineIfNotNull(m_error, line),
-                SandboxedProcessInfo);
+                SandboxedProcessInfo.Provenance);
 
             m_processExecutor.Start();
         }
@@ -213,25 +159,7 @@ namespace BuildXL.Processes
 
         private string RunOutputPath => GetVmCommandProxyPath("VmRunOutput");
 
-        private string StartBuildRequestPath => GetVmCommandProxyPath("VmStartBuild");
-
         private string GetVmCommandProxyPath(string command) => Path.Combine(GetOutputDirectory(), $"{command}-Pip{SandboxedProcessInfo.PipSemiStableHash:X16}.json");
-
-        private static void SerializeVmCommandProxyInput(string file, object input)
-        {
-            var jsonSerializer = JsonSerializer.Create(new JsonSerializerSettings
-            {
-                NullValueHandling = NullValueHandling.Include
-            });
-
-            FileUtilities.CreateDirectory(Path.GetDirectoryName(file));
-
-            using (var streamWriter = new StreamWriter(file))
-            using (var jsonTextWriter = new JsonTextWriter(streamWriter))
-            {
-                jsonSerializer.Serialize(jsonTextWriter, input);
-            }
-        }
 
         private Process CreateVmCommandProxyProcess(string arguments)
         {
@@ -239,7 +167,7 @@ namespace BuildXL.Processes
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = m_vmCommandProxy,
+                    FileName = m_vmInitializer.VmCommandProxy,
                     Arguments = arguments,
                     WorkingDirectory = SandboxedProcessInfo.WorkingDirectory,
                     RedirectStandardError = true,
@@ -250,20 +178,6 @@ namespace BuildXL.Processes
 
                 EnableRaisingEvents = true
             };
-        }
-
-        private static string SecureStringToString(SecureString value)
-        {
-            IntPtr valuePtr = IntPtr.Zero;
-            try
-            {
-                valuePtr = Marshal.SecureStringToGlobalAllocUnicode(value);
-                return Marshal.PtrToStringUni(valuePtr);
-            }
-            finally
-            {
-                Marshal.ZeroFreeGlobalAllocUnicode(valuePtr);
-            }
         }
 
         private SandboxedProcessResult CreateResultForVmCommandProxyFailure()

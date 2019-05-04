@@ -70,7 +70,7 @@ namespace BuildXL {
                             importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
                         ]
                     },
-                    ...addIf(BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.isFullFramework && !BuildXLSdk.isTargetRuntimeOsx,
+                    ...addIf(BuildXLSdk.Flags.isMicrosoftInternal && !BuildXLSdk.isTargetRuntimeOsx,
                         {
                             subfolder: r`VmCommandProxy`,
                             contents: [

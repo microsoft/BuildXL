@@ -21,6 +21,9 @@ const patcherExecutable = Context.getCurrentHost().os === "macOS"
 const patcher: Transformer.ToolDefinition = {
     exe: patcherExecutable,
     dependsOnCurrentHostOSDirectories: true,
+    runtimeDirectoryDependencies: [
+        pkgContents
+    ]
 };
 
 @@public

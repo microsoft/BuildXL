@@ -426,7 +426,6 @@ config({
                 { id: "BuildXL.Tools.AppHostPatcher", version: "1.0.0" },
 
                 // CoreRT
-                { id: "Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
                 { id: "runtime.osx-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
                 { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" }
             ],

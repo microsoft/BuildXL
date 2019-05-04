@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
+import * as Deployment from "Sdk.Deployment";
 import * as Managed from "Sdk.Managed";
 import * as Shared from "Sdk.Managed.Shared";
 import * as MacOS from "Sdk.MacOS";
@@ -9,22 +10,23 @@ import * as Frameworks from "Sdk.Managed.Frameworks";
 
 export declare const qualifier: Managed.TargetFrameworks.CurrentMachineQualifier;
 
-const pkgContents = importFrom("BuildXL.Tools.AppHostPatcher").Contents.all;
-
-const patcherExecutable = Context.getCurrentHost().os === "macOS"
-    ? Managed.nativeExecutable({ 
-        assemblyName: "NativeAppHostPatcher",
+const patcher: Transformer.ToolDefinition = (() => {
+    const compileArgs = <Managed.Arguments>{ 
+        assemblyName: "AppHostPatcher",
         sources: globR(d`.`, "*.cs")
-      })
-    : pkgContents.getFile(r`tools/${qualifier.targetRuntime}/${"AppHostPatcher" + (qualifier.targetRuntime === "win-x64" ? ".exe" : "")}`);
+    };
 
-const patcher: Transformer.ToolDefinition = {
-    exe: patcherExecutable,
-    dependsOnCurrentHostOSDirectories: true,
-    runtimeDirectoryDependencies: [
-        pkgContents
-    ]
-};
+    const tool = Context.getCurrentHost().os === "macOS"
+        ? Managed.nativeExecutable(compileArgs)
+        : Managed.executable(compileArgs);
+
+    return Managed.deployManagedTool({
+        tool: tool,
+        options: {
+            dependsOnCurrentHostOSDirectories: true
+        }
+    });
+})();
 
 @@public
 export function patchBinary(args: Arguments) : Result {
@@ -44,17 +46,20 @@ export function patchBinary(args: Arguments) : Result {
     const outputFileName = args.binary.nameWithoutExtension + (targetsWindows ? ".exe" : "");
     const outputPath = p`${wd}/Output/${outputFileName}`;
 
-    const result = Transformer.execute({
+    let exeArgs = <Transformer.ExecuteArguments>{
         tool: patcher,
         arguments: arguments,
         workingDirectory: wd,
         outputs: [
             outputPath,
-        ],
-        dependencies: [
-            ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.filesAndSymlinkInputDeps)
         ]
-    });
+    };
+
+    if (Context.getCurrentHost().os === "win") {
+        exeArgs = importFrom("Sdk.Managed.Frameworks.NetCoreApp2.2").withQualifier({targetFramework: "netcoreapp2.2"}).wrapInDotNetExeForCurrentOs(exeArgs);
+    }
+
+    const result = Transformer.execute(exeArgs);
 
     return {
         binary: result.getOutputFile(outputPath)

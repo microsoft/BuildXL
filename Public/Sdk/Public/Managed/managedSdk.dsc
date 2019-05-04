@@ -25,7 +25,7 @@ export interface Template {
 }
 
 @@public
-export function nativeExecutable(args: Arguments): DerivedFile {
+export function nativeExecutable(args: Arguments): Result {
     /** Override framework.applicationDeploymentStyle to make sure we don't use apphost */
     const exeArgs = args.override<Arguments>({
         framework: (args.framework || Frameworks.framework).override<Shared.Framework>({
@@ -75,8 +75,12 @@ export function nativeExecutable(args: Arguments): DerivedFile {
             "icucore"
         ]
     };
+    const nativeExecutable = Clang.compile(linkArgs);
     
-    return Clang.compile(linkArgs);
+    return exeResult.override<Result>({
+        name: a`${args.assemblyName}`,
+        runtime: {binary: nativeExecutable},
+    });
 }
 
 /** Builds a managed library. */

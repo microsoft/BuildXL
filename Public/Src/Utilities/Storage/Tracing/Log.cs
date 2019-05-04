@@ -548,10 +548,10 @@ namespace BuildXL.Storage.Tracing
         [GeneratedEvent(
             (ushort)EventId.FailedCheckingDirectJournalAccess,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (ushort)Events.Tasks.Storage,
-            Message = "Encountered an error while checking whether process can access the journal directly. The build may still proceed but without use of change journal scanning. {errorMessage}")]
+            Message = "Checking direct journal access results in failure. {errorMessage}")]
         internal abstract void FailedCheckingDirectJournalAccess(LoggingContext context, string errorMessage);
 
         [GeneratedEvent(

@@ -174,12 +174,11 @@ namespace BuildXL.Engine.Distribution
 
             if (notification.ExecutionLogData != null && notification.ExecutionLogData.Count != 0)
             {
-                // NOTE: We need to log the execution blob synchronously as the order of the execution log events
-                // must be retained for proper deserialization
-                worker.LogExecutionBlob(notification.ExecutionLogData, notification.ExecutionLogBlobSequenceNumber);
+                // The channel is unblocked and ACK is sent after we put the execution blob to the queue in 'LogExecutionBlobAsync' method.
+                await worker.LogExecutionBlobAsync(notification);
             }
 
-            // Return immediately to unblock worker
+            // Return immediately to unblock the channel so that worker can receive the ACK for the sent message
             await Task.Yield();
 
             foreach (var forwardedEvent in notification.ForwardedEvents)

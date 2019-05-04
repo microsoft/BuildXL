@@ -548,6 +548,17 @@ namespace BuildXL.Pips
         }
 
         /// <summary>
+        /// Get a scheduling priority for a pip
+        /// </summary>
+        public int GetPipPriority(PipId pipId)
+        {
+            Contract.Requires(!IsDisposed);
+            Contract.Requires(IsValid(pipId));
+            var mutablePipState = m_mutables[pipId.Value];
+            return mutablePipState.PipType == PipType.Process ? ((ProcessMutablePipState)mutablePipState).Priority : 0;
+        }
+
+        /// <summary>
         /// Get a formatted pip semi stable hash without the need to hydrate the pip
         /// </summary>
         public string GetFormattedSemiStableHash(PipId pipId)

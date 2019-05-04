@@ -1328,7 +1328,7 @@ namespace BuildXL.Scheduler
 
                 foreach (var worker in m_workers)
                 {
-                    worker.Finish(HasFailed ? "Distributed build failed. See errors on master." : null);
+                    await worker.FinishAsync(HasFailed ? "Distributed build failed. See errors on master." : null);
                 }
 
                 // Wait for all workers to confirm that they have stopped.
@@ -5049,7 +5049,10 @@ namespace BuildXL.Scheduler
                                 }
                             }
 
-                            pipRuntimeInfo.Priority = (criticalPath < 0 || criticalPath > MaxInitialPipPriority) ? MaxInitialPipPriority : unchecked((int)criticalPath);
+                            int priorityBase = m_pipTable.GetPipPriority(pipId) << 24;
+                            int criticalPathPriority = (criticalPath < 0 || criticalPath > MaxInitialPipPriority) ? MaxInitialPipPriority : unchecked((int)criticalPath);
+                            criticalPathPriority = Math.Min(criticalPathPriority, (1 << 24) - 1);
+                            pipRuntimeInfo.Priority = priorityBase | criticalPathPriority;
 
                             Contract.Assert(pipType != PipType.HashSourceFile);
                             pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Waiting);

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -o nounset
+set -o errexit
+
 MY_DIR=$(cd `dirname ${BASH_SOURCE[0]}` && pwd)
 
 source "$MY_DIR/env.sh"
@@ -9,24 +12,19 @@ declare arg_kextDeployDir=""
 declare arg_noReload=""
 declare arg_enableCounters=""
 declare arg_verboseLogging=""
-declare arg_buildXLBundleId="com.microsoft.buildxl.sandbox"
 
 # Prints out BuildXLSandbox bundle id if it is currently loaded, or empty string otherwise.
-function getRunningBuildXLSandboxBundleId {
-    echo $(kextstat | grep -o ${arg_buildXLBundleId})
+function getRunningBuildXLSandboxBundleId { # (bundleId)
+    local bundleId="$1"
+    echo $(kextstat | grep -o ${bundleId}) || echo ""
 }
 
 # Unloads BuildXLSandbox extension if already running
-function unloadBuildXLSandbox {
-    local bundleId=$(getRunningBuildXLSandboxBundleId)
-    if [[ ! -z $bundleId ]]; then
-        print_info " [Unloading] $bundleId"
-        kextunload -bundle-id $bundleId
-        if [[ $? != 0 ]]; then
-            print_error " Failed to unload existing BuildXLSandbox extension; extension id: $bundleId"
-            return 1
-        fi
-    fi
+function unloadBuildXLSandbox { # (bundleId)
+    local bundleId="$1"
+
+    print_info " [Unloading] $bundleId"
+    kextunload -bundle-id $bundleId
 }
 
 # Copies 'fromDir' to 'toDir', first deleting 'toDir' if it exists.
@@ -52,8 +50,9 @@ function redeployKext { # (fromDir, toDir)
 }
 
 # Loads BuildXLSandbox extension from 'kextDir' directory by calling 'kextload'.
-function loadBuildXLSandbox { # (kextDir)
+function loadBuildXLSandbox { # (kextDir, bundleId)
     local kextDir="$1"
+    local bundleId="$2"
 
     if [[ -z $kextDir ]]; then
         print_error "No kext folder specified"
@@ -74,7 +73,7 @@ function loadBuildXLSandbox { # (kextDir)
     kextload "$kextDir"
 
     # verify extension loaded
-    local runningExt=$(getRunningBuildXLSandboxBundleId)
+    local runningExt=$(getRunningBuildXLSandboxBundleId "${bundleId}")
     if [[ -z $runningExt ]]; then
         print_error " Failed to load BuildXLSandbox from $kextDir; see more details below"
         kextutil "$kextDir"
@@ -111,11 +110,6 @@ function parseArgs {
                 arg_noReload=1
                 shift
                 ;;
-            --kext-bundle-id)
-                arg_buildXLBundleId="$2"
-                shift
-                shift
-                ;;
             --enable-counters)
                 arg_enableCounters="1"
                 shift
@@ -142,14 +136,31 @@ function validateArgs {
         print_error "Kext folder must be specified; run '$0 --help' for usage."
         return 1
     fi
+
+    if [[ ! -d "$arg_kextSourceDir" ]]; then
+        print_error "Kext source dir is not a directory: $arg_kextSourceDir"
+        return 1
+    fi
+}
+
+function extractBundleIdFromKextDir { # (kextDir)
+    local kextDir="$1"
+    local plistFile="$arg_kextSourceDir/Contents/Info.plist"
+
+    if [[ ! -f "$plistFile" ]]; then
+        print_error "plist file not found inside the kext source directory: $plistFile"
+        return 1
+    fi
+
+    grep -A1 CFBundleIdentifier "$plistFile" | tail -n1 | sed 's!^.*<string>\(.*\)</string>.*$!\1!g'
 }
 
 # ======== entry point =======
 
-parseArgs "$@" && validateArgs
-if [[ $? != 0 ]]; then
-    exit 1
-fi
+parseArgs "$@"
+validateArgs
+
+declare bundleId=$(extractBundleIdFromKextDir "${arg_kextSourceDir}")
 
 if [[ $EUID -ne 0 ]]; then
    print_error "This script must be run as root"
@@ -157,14 +168,16 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # just exit if already loaded and --no-reload
-readonly runningExtBundleId=$(getRunningBuildXLSandboxBundleId)
+readonly runningExtBundleId=$(getRunningBuildXLSandboxBundleId "${bundleId}")
 if [[ -n $runningExtBundleId && -n $arg_noReload ]]; then
     print_info "BuildXLSandbox is alredy running: $runningExtBundleId"
     exit 0
 fi
 
-# unload currently loaded extension (if any)
-unloadBuildXLSandbox || exit 1
+# unload currently loaded extension (if already running)
+if [[ -n $runningExtBundleId ]]; then
+    unloadBuildXLSandbox "${bundleId}"
+fi
 
 # optionally redeploy kext to a new folder
 declare finalKextFolder=""
@@ -180,7 +193,7 @@ else
 fi
 
 # load kext
-loadBuildXLSandbox "$finalKextFolder"
+loadBuildXLSandbox "$finalKextFolder" "$bundleId"
 
 # enable counters if requested
 if [[ -n $arg_enableCounters ]]; then

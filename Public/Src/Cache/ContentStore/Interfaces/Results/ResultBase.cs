@@ -102,7 +102,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public readonly string ErrorMessage;
 
         /// <summary>
-        /// Optional verbose diagnostic information about the error.
+        /// Optional verbose diagnostic information about the result (either error or success).
         /// </summary>
         public string Diagnostics;
 

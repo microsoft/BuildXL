@@ -22,7 +22,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Feature(Features.OpaqueDirectory)]
-        [Theory]
+	    [Theory]
         [InlineData(false)]
         [InlineData(true)]
         public void NonDeterminismOpaqueDirectoryOutput(bool fileListedAsNormalOutput)
@@ -77,7 +77,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Feature(Features.OpaqueDirectory)]
-        [Fact]
+	    [Fact]
         public void NonDeterminismOpaqueDirectoryOutputDifferentFiles()
         {
             string untracked = Path.Combine(ObjectRoot, "untracked.txt");
@@ -88,9 +88,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             // depending on the content of the untracked file.
             var builderA = CreatePipBuilder(new Operation[]
             {
-                Operation.WriteFileIfInputEqual(CreateOutputFileArtifact(opaqueDirPath), untracked, "1", "deterministic-content"),
-                Operation.WriteFile(CreateOutputFileArtifact(opaqueDirPath), "deterministic-content", doNotInfer: true),
-                Operation.WriteFileIfInputEqual(CreateOutputFileArtifact(opaqueDirPath), untracked, "2", "deterministic-content"),
+                Operation.WriteFileIfInputEqual(CreateOutputFileArtifact(opaqueDirPath, prefix: "write-if-1"), untracked, "1", "deterministic-content"),
+                Operation.WriteFile(CreateOutputFileArtifact(opaqueDirPath, prefix: "write-always"), "deterministic-content", doNotInfer: true),
+                Operation.WriteFileIfInputEqual(CreateOutputFileArtifact(opaqueDirPath, prefix: "write-if-2"), untracked, "2", "deterministic-content"),
             });
 
             builderA.AddOutputDirectory(opaqueDirPath);

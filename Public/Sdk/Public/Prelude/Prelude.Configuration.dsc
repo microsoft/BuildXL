@@ -306,6 +306,8 @@ interface UnsafeSandboxConfiguration {
 type DoubleWritePolicy =  
         // double writes are blocked
         "doubleWritesAreErrors" | 
+        // double writes are allowed as long as the file content is the same
+        "allowSameContentDoubleWrites" |
         // double writes are allowed, and the first process writing the output will (non-deterministically)
         // win the race. Consider this will result in a non-deterministic deployment for a given build, and is therefore unsafe.
         "unsafeFirstDoubleWriteWins";

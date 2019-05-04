@@ -438,9 +438,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 processBuilder.ContainerIsolationLevel = ContainerIsolationLevel.IsolateAllOutputs;
             }
 
-            // Until we can deal with double writes in a better way, this unsafe option allows the build to progress and
-            // prints warnings 
-            processBuilder.DoubleWritePolicy |= DoubleWritePolicy.UnsafeFirstDoubleWriteWins;
+            // By default the double write policy is to allow same content double writes.
+            processBuilder.DoubleWritePolicy |= m_resolverSettings.DoubleWritePolicy ?? DoubleWritePolicy.AllowSameContentDoubleWrites;
 
             SetUntrackedFilesAndDirectories(processBuilder);
 
@@ -504,7 +503,8 @@ namespace BuildXL.FrontEnd.MsBuild
             processBuilder.AllowedSurvivingChildProcessNames = ReadOnlyArray<PathAtom>.FromWithoutCopy(
                 PathAtom.Create(m_context.StringTable, "mspdbsrv.exe"),
                 PathAtom.Create(m_context.StringTable, "vctip.exe"),
-                PathAtom.Create(m_context.StringTable, "conhost.exe"));
+                PathAtom.Create(m_context.StringTable, "conhost.exe"),
+                PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe"));
             processBuilder.NestedProcessTerminationTimeout = TimeSpan.Zero;
 
             SetProcessEnvironmentVariables(CreateEnvironment(logDirectory, project), processBuilder);

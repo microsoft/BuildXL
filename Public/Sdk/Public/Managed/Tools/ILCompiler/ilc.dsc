@@ -4,17 +4,19 @@
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 import * as Shared from "Sdk.Managed.Shared";
 
-const pkgContents = Context.getCurrentHost().os === "win"
-    ? importFrom("runtime.win-x64.Microsoft.DotNet.ILCompiler").Contents.all
-    : importFrom("runtime.osx-x64.Microsoft.DotNet.ILCompiler").Contents.all;
+const isMacOS = Context.getCurrentHost().os === "macOS";
 
-const netcoreAppPkgContents = Context.getCurrentHost().os === "win"
-    ? importFrom("runtime.win-x64.Microsoft.NETCore.App").Contents.all
-    : importFrom("runtime.osx-x64.Microsoft.NETCore.App").Contents.all;
+const pkgContents = isMacOS
+    ? importFrom("runtime.osx-x64.Microsoft.DotNet.ILCompiler").Contents.all
+    : importFrom("runtime.win-x64.Microsoft.DotNet.ILCompiler").Contents.all;
 
-const ilcToolPackagePath = Context.getCurrentHost().os === "win"
-    ? r`tools/ilc.exe`
-    : r`tools/ilc`;
+const netcoreAppPkgContents = isMacOS
+    ? importFrom("runtime.osx-x64.Microsoft.NETCore.App").Contents.all
+    : importFrom("runtime.win-x64.Microsoft.NETCore.App").Contents.all;
+
+const ilcToolPackagePath = isMacOS
+    ? r`tools/ilc`
+    : r`tools/ilc.exe`;
 
 const ilcTool: Transformer.ToolDefinition = Shared.Factory.createTool({
     exe: pkgContents.getFile(ilcToolPackagePath),
@@ -23,8 +25,8 @@ const ilcTool: Transformer.ToolDefinition = Shared.Factory.createTool({
 });
 
 @@public
-export const linkTimeLibraries = // TODO: add case for Windows
-    pkgContents.getFiles([
+export const linkTimeLibraries: File[] =
+    pkgContents.getFiles(isMacOS ? [
         r`sdk/libbootstrapper.a`,
         r`sdk/libRuntime.a`,
         r`sdk/libSystem.Private.CoreLib.Native.a`,
@@ -35,11 +37,20 @@ export const linkTimeLibraries = // TODO: add case for Windows
         r`framework/System.Net.Http.Native.a`,
         r`framework/System.Net.Security.Native.a`,
         r`framework/System.Security.Cryptography.Native.Apple.a`
+    ] : [
+        // TODO: libraries for Windows
     ]);
 
 @@public
-export const compileTimeReferences = // TODO: add case for Windows
-    pkgContents.contents.filter(f => f.name.extension === a`.dll` && f.path.parent.name !== a`tools`);
+export const compileTimeReferences: File[] = [
+    ...pkgContents.contents.filter(f => f.name.extension === a`.dll` && f.path.parent.name !== a`tools`),
+    ...(isMacOS ? netcoreAppPkgContents.getFiles([
+        r`runtimes/osx-x64/lib/netcoreapp2.2/SOS.NETCore.dll`,
+        r`runtimes/osx-x64/lib/netcoreapp2.2/System.Runtime.InteropServices.WindowsRuntime.dll`
+    ]) : [
+        // TODO: references for Windows
+    ])
+];
 
 @@public
 export const defaultArgs = <Arguments>{
@@ -53,15 +64,7 @@ export const defaultArgs = <Arguments>{
         "System.Private.Reflection.Execution",
         "System.Private.Interop"
     ],
-    references: [
-        ...addIf(Context.getCurrentHost().os === "macOS",
-            ...netcoreAppPkgContents.getFiles([
-                r`runtimes/osx-x64/lib/netcoreapp2.2/SOS.NETCore.dll`,
-                r`runtimes/osx-x64/lib/netcoreapp2.2/System.Runtime.InteropServices.WindowsRuntime.dll`
-            ])
-        ),
-        ...compileTimeReferences,
-    ],
+    references: compileTimeReferences,
     stackTraceData: true,
     scanReflection: true,
     emitDebugInformation: true,

@@ -82,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             }
             var hashTypeLiteral = segments.ElementAt(segments.Count - 1 - 2);
 
-            if (!Enum.TryParse(hashTypeLiteral, true, out HashType hashType))
+            if (!Enum.TryParse(hashTypeLiteral, ignoreCase: true, out HashType hashType))
             {
                 throw new InvalidOperationException($"{hashTypeLiteral} is not a valid member of {nameof(HashType)}");
             }

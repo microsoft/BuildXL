@@ -119,7 +119,7 @@ namespace BuildXL.Utilities.Configuration
         /// Allows optionally specifying an alternative timeout for workers to wait for attach from master
         /// </summary>
         public static readonly Setting<TimeSpan> WorkerAttachTimeout = CreateSetting("BuildXLWorkerAttachTimeoutMin", value => ParseTimeSpan(value, ts => TimeSpan.FromMinutes(ts)) ??
-            TimeSpan.FromMinutes(30));
+            TimeSpan.FromMinutes(45));
 
         /// <summary>
         /// Maximum time to wait while establishing a connection to the remote machine (both master->worker and worker->master)
@@ -133,7 +133,7 @@ namespace BuildXL.Utilities.Configuration
         ///     - Worker - if it doesn't receive any call from the master within this interval, decides that the master is dead and exits
         /// </summary>
         public static readonly Setting<TimeSpan> DistributionInactiveTimeout = CreateSetting("BuildXLDistribInactiveTimeoutMin", value => ParseTimeSpan(value, ts => TimeSpan.FromMinutes(ts)) ??
-            TimeSpan.FromMinutes(60));
+            TimeSpan.FromMinutes(30));
 
         /// <summary>
         /// The number of threads in the grpc thread pool.

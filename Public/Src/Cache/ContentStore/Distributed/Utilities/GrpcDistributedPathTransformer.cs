@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -50,31 +51,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 cacheRoot = cacheRoot / Constants.SharedDirectoryName;
             }
 
-            var cacheRootString = cacheRoot.Path.ToUpperInvariant();
+            var cacheRootString = cacheRoot.Path.PathToUpperInvariant();
 
             // Determine if cacheRoot needs to be accessed through its directory junction
             var directories = _junctionsByDirectory.Keys;
             var directoryToReplace = directories.SingleOrDefault(directory =>
-                                        cacheRootString.StartsWith(directory, StringComparison.OrdinalIgnoreCase));
+                                        cacheRootString.StartsWith(directory, OperatingSystemHelper.IsWindowsOS ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
 
             if (!string.IsNullOrEmpty(directoryToReplace))
             {
                 // Replace directory with its junction
                 var junction = _junctionsByDirectory[directoryToReplace];
-                cacheRootString = cacheRootString.Replace(directoryToReplace.ToUpperInvariant(), junction);
+                cacheRootString = cacheRootString.Replace(directoryToReplace.PathToUpperInvariant(), junction);
             }
 
-            string networkPathRoot = cacheRootString.Replace(":", "$");
-
+            string networkPathRoot = null;
             if (OperatingSystemHelper.IsWindowsOS)
             {
                 // Only unify paths along casing if on Windows
-                networkPathRoot = Path.Combine(@"\\" + _localMachineName, networkPathRoot).ToUpperInvariant();
+                networkPathRoot = Path.Combine(@"\\" + _localMachineName, cacheRootString.Replace(":", "$")).ToUpperInvariant();
             }
             else
             {
                 // Path.Combine ignores the first parameter if the second is a rooted path. To get the machine name before the rooted network path, the combination must be done manually.
-                networkPathRoot = Path.Combine(Path.DirectorySeparatorChar + _localMachineName, networkPathRoot.TrimStart(Path.DirectorySeparatorChar));
+                networkPathRoot = Path.Combine(Path.DirectorySeparatorChar + _localMachineName, cacheRootString.TrimStart(Path.DirectorySeparatorChar));
             }
 
             return Encoding.UTF8.GetBytes(networkPathRoot);

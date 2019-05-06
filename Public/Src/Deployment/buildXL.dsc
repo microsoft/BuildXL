@@ -17,7 +17,7 @@ namespace BuildXL {
             // primary
             importFrom("BuildXL.App").deployment,
             importFrom("BuildXL.App").serverDeployment,
-            ...(qualifier.targetFramework === "netcoreapp2.2" ? [] : [
+            ...(qualifier.targetFramework !== "net472" ? [] : [
                 importFrom("BuildXL.Cache.ContentStore").VfsApplication.exe,
             ]),
             

@@ -19,10 +19,8 @@ namespace BuildXL.Processes
     /// </summary>
     public class ExternalVmSandboxedProcess : ExternalSandboxedProcess
     {
-        private int m_processId = -1;
-
         /// <inheritdoc />
-        public override int ProcessId => m_processId != -1 ? m_processId : (m_processId = Process?.Id ?? -1);
+        public override int ProcessId => Process?.Id ?? -1;
 
         /// <summary>
         /// Underlying managed <see cref="Process"/> object.

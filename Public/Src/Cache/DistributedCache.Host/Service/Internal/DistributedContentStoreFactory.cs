@@ -337,7 +337,10 @@ namespace BuildXL.Cache.Host.Service.Internal
         private async Task<Dictionary<string, string>> TryRetrieveSecretsAsync(CancellationToken token, StringBuilder errorBuilder)
         {
             _logger.Debug(
-                $"EventHubSecretName: {_distributedSettings.EventHubSecretName}, AzureStorageSecretName: {_distributedSettings.AzureStorageSecretName}, GlobalRedisSecretName: {_distributedSettings.GlobalRedisSecretName}, SecondaryGlobalRedisSecretName: {_distributedSettings.SecondaryGlobalRedisSecretName}.");
+                $"{nameof(_distributedSettings.EventHubSecretName)}: {_distributedSettings.EventHubSecretName}, " +
+                $"{nameof(_distributedSettings.AzureStorageSecretName)}: {_distributedSettings.AzureStorageSecretName}, " +
+                $"{nameof(_distributedSettings.GlobalRedisSecretName)}: {_distributedSettings.GlobalRedisSecretName}, " +
+                $"{nameof(_distributedSettings.SecondaryGlobalRedisSecretName)}: {_distributedSettings.SecondaryGlobalRedisSecretName}.");
 
             bool invalidConfiguration = appendIfNull(_distributedSettings.EventHubSecretName, $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.EventHubSecretName)}");
             invalidConfiguration |= appendIfNull(_distributedSettings.GlobalRedisSecretName, $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.GlobalRedisSecretName)}");

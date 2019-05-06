@@ -1,4 +1,5 @@
-﻿// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
 using System.IO;
@@ -23,7 +24,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void RunSingleProcessInExternalTool()
+        public void RunSingleProcess()
         {
             ProcessBuilder builder = CreatePipBuilder(new[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) });
             builder.Options |= Process.Options.RequiresAdmin;
@@ -34,7 +35,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void RunMultipleProcessesInExternalTool()
+        public void RunMultipleProcesses()
         {
             for (int i = 0; i < 5; ++i)
             {
@@ -63,7 +64,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ExternalToolRespectFailure()
+        public void ExecutionRespectFailure()
         {
             ProcessBuilder builder = CreatePipBuilder(new[] {
                 Operation.ReadFile(CreateSourceFile()),
@@ -77,7 +78,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ExternalToolRespectFileAccessManifest()
+        public void ExecutionRespectFileAccessManifest()
         {
             ProcessBuilder builder = CreatePipBuilder(new[] { Operation.ReadFile(CreateSourceFile(), doNotInfer: true), Operation.WriteFile(CreateOutputFileArtifact()) });
             builder.Options |= Process.Options.RequiresAdmin;
@@ -89,7 +90,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ExternalToolRecordsReportedFileAccesses()
+        public void ExecutionRecordsReportedFileAccesses()
         {
             FileArtifact sourceFile = CreateSourceFile();
 
@@ -108,7 +109,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ExternalToolExecuteProcessReadingStdIn()
+        public void ExecutionProcessReadingStdIn()
         {
             FileArtifact stdOut = CreateOutputFileArtifact();
             ProcessBuilder builder = CreatePipBuilder(new[] { Operation.ReadStdIn() });
@@ -134,7 +135,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ExternalToolRespectTimeout()
+        public void ExecutionRespectTimeout()
         {
             ProcessBuilder builder = CreatePipBuilder(new[] {
                 Operation.ReadFile(CreateSourceFile()),

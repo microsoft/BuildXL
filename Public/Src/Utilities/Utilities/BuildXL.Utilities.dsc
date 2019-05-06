@@ -22,6 +22,7 @@ export const dll = BuildXLSdk.library({
             importFrom("Microsoft.Win32.Registry").pkg,
         ]),
         ...BuildXLSdk.tplPackages,
+        importFrom("Newtonsoft.Json").pkg,
     ],
     defineConstants: qualifier.configuration === "debug" ? ["DebugStringTable"] : [],
     internalsVisibleTo: [

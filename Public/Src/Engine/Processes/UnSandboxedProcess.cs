@@ -137,7 +137,7 @@ namespace BuildXL.Processes
                 ProcessInfo.Timeout ?? TimeSpan.FromMinutes(10),
                 line => FeedStdOut(m_output, line),
                 line => FeedStdErr(m_error, line),
-                ProcessInfo,
+                ProcessInfo.Provenance,
                 msg => LogProcessState(msg));
 
             m_processExecutor.Start();

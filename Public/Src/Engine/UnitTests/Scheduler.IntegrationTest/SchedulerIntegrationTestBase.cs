@@ -32,6 +32,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
 using ProcessOutputs = BuildXL.Pips.Builders.ProcessOutputs;
+using BuildXL.Utilities.VmCommandProxy;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -415,6 +416,7 @@ namespace Test.BuildXL.Scheduler
                 failedPips: null,
                 ipcProvider: null,
                 directoryTranslator: DirectoryTranslator,
+                vmInitializer: VmInitializer.CreateFromEngine(config.Layout.BuildEngineDirectory.ToString(Context.PathTable)),
                 testHooks: testHooks))
             {
                 MountPathExpander mountPathExpander = null;

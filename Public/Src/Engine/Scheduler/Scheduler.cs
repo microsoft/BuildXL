@@ -55,6 +55,7 @@ using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Interop.MacOS;
 using BuildXL.Processes.Containers;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
+using BuildXL.Utilities.VmCommandProxy;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
@@ -1002,6 +1003,7 @@ namespace BuildXL.Scheduler
             PipTwoPhaseCache pipTwoPhaseCache = null,
             SymlinkDefinitions symlinkDefinitions = null,
             JournalState journalState = null,
+            VmInitializer vmInitializer = null,
             SchedulerTestHooks testHooks = null)
         {
             Contract.Requires(graph != null);
@@ -1215,6 +1217,7 @@ namespace BuildXL.Scheduler
             m_groupedPipCounters = new PipCountersByGroupAggregator(loggingContext);
 
             ProcessInContainerManager = new ProcessInContainerManager(loggingContext, Context.PathTable);
+            VmInitializer = vmInitializer;
         }
 
         private static ILogger CreateLoggerForIpcClients(LoggingContext loggingContext)
@@ -6032,6 +6035,9 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc/>
         public ProcessInContainerManager ProcessInContainerManager { get; }
+
+        /// <inheritdoc/>
+        public VmInitializer VmInitializer { get; }
 
         private long m_maxExternalProcessesRan;
 

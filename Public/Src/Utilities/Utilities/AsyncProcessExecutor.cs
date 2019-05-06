@@ -7,10 +7,9 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Interop;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 
-namespace BuildXL.Processes
+namespace BuildXL.Utilities
 {
     /// <summary>
     /// Executes process asynchronously.
@@ -72,9 +71,9 @@ namespace BuildXL.Processes
         private readonly TimeSpan m_timeout;
 
         /// <summary>
-        /// Sandboxed process info for provenence purpose.
+        /// Provenance for logging and exception purpose.
         /// </summary>
-        private readonly SandboxedProcessInfo m_sandboxedProcessInfo;
+        private readonly string m_provenance;
 
         private readonly Action<string> m_logger;
 
@@ -111,11 +110,11 @@ namespace BuildXL.Processes
         /// Creates an instance of <see cref="AsyncProcessExecutor"/>.
         /// </summary>
         public AsyncProcessExecutor(
-            Process process, 
+            Process process,
             TimeSpan timeout,
             Action<string> outputBuilder = null,
             Action<string> errorBuilder = null,
-            SandboxedProcessInfo sandboxedProcessInfo = null,
+            string provenance = null,
             Action<string> logger = null)
         {
             Contract.Requires(process != null);
@@ -135,7 +134,7 @@ namespace BuildXL.Processes
             }
 
             m_timeout = timeout;
-            m_sandboxedProcessInfo = sandboxedProcessInfo;
+            m_provenance = provenance;
         }
 
         /// <summary>
@@ -243,15 +242,14 @@ namespace BuildXL.Processes
 
         private void ThrowBuildXLException(string message, Exception inner = null)
         {
-            string description = m_sandboxedProcessInfo == null ? string.Empty : $"[Pip{m_sandboxedProcessInfo.PipSemiStableHash:X16} -- {m_sandboxedProcessInfo.PipDescription}] ";
-            throw new BuildXLException($"{description}{message}", inner);
+            throw new BuildXLException($"{m_provenance + " " ?? string.Empty}{message}", inner);
         }
 
         private void Log(FormattableString message)
         {
             var pid = -1;
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
-            try { pid = ProcessId; } catch {}
+            try { pid = ProcessId; } catch { }
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
             m_logger?.Invoke(FormattableStringEx.I($"Process({pid}) - {message}"));
         }

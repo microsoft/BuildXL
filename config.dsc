@@ -423,6 +423,7 @@ config({
 
                 // Ninja JSON graph generation helper
                 { id: "BuildXL.Tools.Ninjson", version: "0.0.6" },
+                { id: "BuildXL.Tools.AppHostPatcher", version: "1.0.0" },
 
                 // CoreRT
                 { id: "runtime.osx-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },

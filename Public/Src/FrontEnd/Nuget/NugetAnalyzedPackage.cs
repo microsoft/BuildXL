@@ -42,12 +42,7 @@ namespace BuildXL.FrontEnd.Nuget
         /// <summary>
         /// Supported target frameworks of the package.
         /// </summary>
-        /// <remarks>
-        /// For each supported framework, a set of fallback frameworks may be available. Fallback frameworks
-        /// are computed based on the moniker compatibility matrix specified in <see cref="Nuget.NugetFrameworkMonikers"/>
-        /// Fallback frameworks are a stop gap till the compatibility matrix is supported dynamically
-        /// </remarks>
-        public MultiValueDictionary<Moniker, Moniker> TargetFrameworkWithFallbacks { get; }
+        public List<Moniker> TargetFrameworks { get; }
 
         /// <summary>
         /// Package assembly references per framework
@@ -122,7 +117,7 @@ namespace BuildXL.FrontEnd.Nuget
             NugetFrameworkMonikers = nugetFrameworkMonikers;
             m_packagesOnConfig = packagesOnConfig;
             m_doNotEnforceDependencyVersions = doNotEnforceDependencyVersions;
-            TargetFrameworkWithFallbacks = new MultiValueDictionary<Moniker, Moniker>();
+            TargetFrameworks = new List<Moniker>();
         }
 
         /// <summary>
@@ -214,9 +209,9 @@ namespace BuildXL.FrontEnd.Nuget
                         {
                             IsManagedPackage = true;
 
-                            if (!TargetFrameworkWithFallbacks.ContainsKey(targetFramework.Moniker))
+                            if (!TargetFrameworks.Contains(targetFramework.Moniker))
                             {
-                                TargetFrameworkWithFallbacks.Add(targetFramework.Moniker);
+                                TargetFrameworks.Add(targetFramework.Moniker);
                             }
 
                             // The magic marker is there so the framework is declared as supported, but no actual files are listed
@@ -230,11 +225,11 @@ namespace BuildXL.FrontEnd.Nuget
                 }
             }
 
-            if (TargetFrameworkWithFallbacks.Count == 0)
+            if (TargetFrameworks.Count == 0)
             {
                 foreach (var moniker in NugetFrameworkMonikers.WellknownMonikers)
                 {
-                    TargetFrameworkWithFallbacks.Add(moniker);
+                    TargetFrameworks.Add(moniker);
                 }
             }
 
@@ -365,7 +360,7 @@ namespace BuildXL.FrontEnd.Nuget
                 {
                     // If there is at least one valid dependency for a known framework, then the package is defined as managed
                     IsManagedPackage = group.Elements().Any();
-                    TargetFrameworkWithFallbacks.Add(targetFramework);
+                    TargetFrameworks.Add(targetFramework);
 
                     // If the package has a pinned tfm and the groups tfm does not match, skip the groups dependency resolution
                     if (!string.IsNullOrEmpty(this.Tfm) && NugetFrameworkMonikers.TargetFrameworkNameToMoniker.TryGetValue(this.Tfm, out Moniker pinnedTfm) && !PathAtom.Equals(pinnedTfm, targetFramework))

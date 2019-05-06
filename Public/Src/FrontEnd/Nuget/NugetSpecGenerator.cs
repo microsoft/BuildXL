@@ -13,6 +13,7 @@ using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
 using static TypeScript.Net.DScript.SyntaxFactory;
 using static BuildXL.FrontEnd.Nuget.SyntaxFactoryEx;
+using System;
 
 namespace BuildXL.FrontEnd.Nuget
 {
@@ -118,60 +119,20 @@ namespace BuildXL.FrontEnd.Nuget
         private List<ICaseClause> CreateSwitchCasesForTargetFrameworks(NugetAnalyzedPackage analyzedPackage, ITypeNode pkgType)
         {
             var cases = new List<ICaseClause>();
+            Contract.Assert(analyzedPackage.TargetFrameworks.Count != 0, "Managed package must have at least one target framework.");
 
-            foreach (var framework in analyzedPackage.TargetFrameworkWithFallbacks)
+            var valid = analyzedPackage.TargetFrameworks.Exists(moniker => m_nugetFrameworkMonikers.FullFrameworkVersionHistory.Contains(moniker) || m_nugetFrameworkMonikers.NetCoreVersionHistory.Contains(moniker));
+            Contract.Assert(valid, "Target framework monikers must exsist and be registered with internal target framework version helpers.");
+
+            foreach (var versionHistory in new List<PathAtom>[] { m_nugetFrameworkMonikers.FullFrameworkVersionHistory, m_nugetFrameworkMonikers.NetCoreVersionHistory })
             {
-                var compile = new List<IExpression>();
-                var runtime = new List<IExpression>();
-                var dependencies = new List<IExpression>();
-
-                // Compile items
-                if (TryGetValueForFrameworkAndFallbacks(analyzedPackage.References, new NugetTargetFramework(framework.Key), out IReadOnlyList<RelativePath> refAssemblies))
+                var indices = analyzedPackage.TargetFrameworks.Select(moniker => versionHistory.IndexOf(moniker)).Where(idx => idx != -1).ToList();
+                for (int i = 0; i < indices.Count(); i++)
                 {
-                    foreach (var assembly in refAssemblies)
-                    {
-                        compile.Add(CreateSimpleBinary(assembly));
-                    }
+                    int start = indices[i];
+                    int count = (i + 1) > indices.Count() - 1 ? versionHistory.Count() - start : (indices[i + 1] - indices[i]);
+                    Console.WriteLine(analyzedPackage.Id + ": " + string.Join(",", versionHistory.GetRange(start, count)));
                 }
-
-                // Runtime items
-                if (TryGetValueForFrameworkAndFallbacks(analyzedPackage.Libraries, new NugetTargetFramework(framework.Key), out IReadOnlyList<RelativePath> libAssemblies))
-                {
-                    foreach (var assembly in libAssemblies)
-                    {
-                        runtime.Add(CreateSimpleBinary(assembly));
-                    }
-                }
-
-                // Dependency items
-                if (analyzedPackage.DependenciesPerFramework.TryGetValue(
-                    framework.Key,
-                    out IReadOnlyList<INugetPackage> dependencySpecificFrameworks))
-                {
-                    foreach (var dependencySpecificFramework in dependencySpecificFrameworks)
-                    {
-                        dependencies.Add(CreateImportFromForDependency(dependencySpecificFramework));
-                    }
-                }
-
-                dependencies.AddRange(analyzedPackage.Dependencies.Select(CreateImportFromForDependency));
-
-                cases.Add(
-                    new CaseClause(
-                        new LiteralExpression(framework.Key.ToString(m_pathTable.StringTable)),
-                        new ReturnStatement(
-                            new CallExpression(
-                                PropertyAccess("Managed", "Factory", "createNugetPackge"),
-                                new LiteralExpression(analyzedPackage.Id),
-                                new LiteralExpression(analyzedPackage.Version),
-                                PropertyAccess("Contents", "all"),
-                                Array(compile),
-                                Array(runtime),
-                                Array(dependencies)
-                            )
-                        )
-                    )
-                );
             }
 
             return cases;

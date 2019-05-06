@@ -156,101 +156,6 @@ namespace BuildXL.FrontEnd.Nuget
             return analyzedPackage;
         }
 
-        /// <summary>
-        /// Combines the elements of targetFrameworksToCombine into targetFrameworks. The keys of targetFrameworkToCombine are added to targetFrameworks.
-        /// Additionally, for each key in targetFrameworkToCombine, each of the frameworks in the list of values are added as keys as well.
-        /// </summary>
-        /// <remarks>
-        /// The result is a 'flattened' version of the frameworks and fallbacks, which are enough for an unmanaged package, since we are only
-        /// interested in computing the qualifier space, there is no libs/refs generation, for which distinct fallbacks are needed.
-        /// </remarks>
-        private static void CombineTargetFrameworksForUnmanagedPackage(
-            MultiValueDictionary<PathAtom, PathAtom> targetFrameworks,
-            MultiValueDictionary<PathAtom, PathAtom> targetFrameworksToCombine)
-        {
-            foreach (var targetFrameworkToCombine in targetFrameworksToCombine.Keys)
-            {
-                targetFrameworks.Add(targetFrameworkToCombine);
-                foreach (var fallbackToCombine in targetFrameworksToCombine[targetFrameworkToCombine])
-                {
-                    targetFrameworks.Add(fallbackToCombine);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Sorts analyzedPackages into sortedPackages such that given a package A in sortedPackages, its dependencies are always in the
-        /// tail of A.
-        /// </summary>
-        /// <returns>
-        /// Returns true if the packages were successfully sorted, and in that case failure is null. An unsuccessfull sort is always due
-        /// to a cycle in the package references. In that case, failure contains one package involved in the cycle.
-        /// TODO: Consider enhancing the failure case with information about the whole cycle, for better diagnostics
-        /// </returns>
-        private static bool TryToposortPackages(
-            IDictionary<string, NugetAnalyzedPackage> analyzedPackages, out List<NugetAnalyzedPackage> sortedPackages, out NugetFailure failure)
-        {
-            sortedPackages = new List<NugetAnalyzedPackage>(analyzedPackages.Count);
-
-            // All packages start as unmarked, and none as temporary marked. We loop until all packages are marked
-            var unmarkedPackages = new HashSet<NugetAnalyzedPackage>(analyzedPackages.Values);
-            var temporaryMarkedPackages = new HashSet<NugetAnalyzedPackage>();
-
-            while (unmarkedPackages.Any())
-            {
-                var aPackage = unmarkedPackages.First();
-                if (!TryVisit(analyzedPackages, unmarkedPackages, temporaryMarkedPackages, aPackage, sortedPackages))
-                {
-                    sortedPackages = null;
-                    failure = new NugetFailure(aPackage.PackageOnDisk.Package, NugetFailure.FailureType.CyclicPackageDependency);
-                    return false;
-                }
-            }
-
-            failure = null;
-            return true;
-        }
-
-        /// <summary>
-        /// Performs a depth first search with cycle detection. All descendants of analyzedPackage are pushed into result after it.
-        /// </summary>
-        /// <returns>
-        /// Whether there is a cycle that involves analyzedPackage
-        /// </returns>
-        private static bool TryVisit(
-            IDictionary<string, NugetAnalyzedPackage> allAnalyzedPackages,
-            HashSet<NugetAnalyzedPackage> unmarkedPackages,
-            HashSet<NugetAnalyzedPackage> temporaryMarkedPackages,
-            NugetAnalyzedPackage analyzedPackage,
-            IList<NugetAnalyzedPackage> result)
-        {
-            if (temporaryMarkedPackages.Contains(analyzedPackage))
-            {
-                // This is a cycle!
-                return false;
-            }
-
-            if (unmarkedPackages.Contains(analyzedPackage))
-            {
-                var isRemoved = unmarkedPackages.Remove(analyzedPackage);
-                Contract.Assert(isRemoved);
-
-                temporaryMarkedPackages.Add(analyzedPackage);
-                foreach (var dependency in analyzedPackage.Dependencies)
-                {
-                    Contract.Assert(allAnalyzedPackages.ContainsKey(dependency.GetPackageIdentity()));
-                    var analyzedDependency = allAnalyzedPackages[dependency.GetPackageIdentity()];
-                    TryVisit(allAnalyzedPackages, unmarkedPackages, temporaryMarkedPackages, analyzedDependency, result);
-                }
-
-                isRemoved = temporaryMarkedPackages.Remove(analyzedPackage);
-                Contract.Assert(isRemoved);
-                result.Add(analyzedPackage);
-            }
-
-            return true;
-        }
-
         private void ParseManagedSemantics()
         {
             var stringTable = m_context.PathTable.StringTable;
@@ -461,20 +366,6 @@ namespace BuildXL.FrontEnd.Nuget
                     // If there is at least one valid dependency for a known framework, then the package is defined as managed
                     IsManagedPackage = group.Elements().Any();
                     TargetFrameworkWithFallbacks.Add(targetFramework);
-
-                    // TODO:Nuget: Clean this up once we got end to end TFM support inside our Nuget toolchain, this is needed to not break backwards compatibility
-                    if (string.IsNullOrEmpty(this.Tfm) &&
-                        (targetFramework.Equals(NugetFrameworkMonikers.NetCore) ||
-                        targetFramework.Equals(NugetFrameworkMonikers.NetStandard10) ||
-                        targetFramework.Equals(NugetFrameworkMonikers.NetStandard11) ||
-                        targetFramework.Equals(NugetFrameworkMonikers.NetStandard12) ||
-                        targetFramework.Equals(NugetFrameworkMonikers.NetStandard13) ||
-                        targetFramework.Equals(NugetFrameworkMonikers.NetStandard14) ||
-                        targetFramework.Equals(NugetFrameworkMonikers.NetStandard15) ||
-                        targetFramework.Equals(NugetFrameworkMonikers.NetStandard16)))
-                    {
-                        continue;
-                    }
 
                     // If the package has a pinned tfm and the groups tfm does not match, skip the groups dependency resolution
                     if (!string.IsNullOrEmpty(this.Tfm) && NugetFrameworkMonikers.TargetFrameworkNameToMoniker.TryGetValue(this.Tfm, out Moniker pinnedTfm) && !PathAtom.Equals(pinnedTfm, targetFramework))

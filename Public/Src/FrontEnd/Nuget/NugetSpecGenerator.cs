@@ -25,6 +25,8 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly PackageOnDisk m_packageOnDisk;
         private readonly NugetAnalyzedPackage m_analyzedPackage;
 
+        private readonly  NugetFrameworkMonikers m_nugetFrameworkMonikers;
+
         private readonly PathAtom m_xmlExtension;
         private readonly PathAtom m_pdbExtension;
 
@@ -34,6 +36,7 @@ namespace BuildXL.FrontEnd.Nuget
             m_pathTable = pathTable;
             m_analyzedPackage = analyzedPackage;
             m_packageOnDisk = analyzedPackage.PackageOnDisk;
+            m_nugetFrameworkMonikers = new NugetFrameworkMonikers(pathTable.StringTable);
 
             m_xmlExtension = PathAtom.Create(pathTable.StringTable, ".xml");
             m_pdbExtension = PathAtom.Create(pathTable.StringTable, ".pdb");
@@ -118,13 +121,6 @@ namespace BuildXL.FrontEnd.Nuget
 
             foreach (var framework in analyzedPackage.TargetFrameworkWithFallbacks)
             {
-                // Emit the fallback cases first:
-                foreach (var fallback in framework.Value)
-                {
-                    var fallbackString = fallback.ToString(m_pathTable.StringTable);
-                    cases.Add(new CaseClause(new LiteralExpression(fallbackString)));
-                }
-
                 var compile = new List<IExpression>();
                 var runtime = new List<IExpression>();
                 var dependencies = new List<IExpression>();

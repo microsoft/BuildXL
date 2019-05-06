@@ -35,6 +35,28 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             // No targets should be explicitly passed (so MSBuild will pick defaults)
             Assert.DoesNotContain("/t", arguments);
+            // The project doesn't have any references, so there shouldn't be any logging
+            AssertWarningEventLogged(LogEventId.ProjectIsNotSpecifyingTheProjectReferenceProtocol, 0);
+            AssertWarningCount();
+        }
+
+        [Fact]
+        public void ProjectWithNoPredictedTargetsAndReferencesGetScheduledWithDefaultTargetsAndWarn()
+        {
+            var referencedProject = CreateProjectWithPredictions(predictedTargetsToExecute: PredictedTargetsToExecute.PredictionNotAvailable);
+            var noPredictionProject = CreateProjectWithPredictions(predictedTargetsToExecute: PredictedTargetsToExecute.PredictionNotAvailable, references: new [] { referencedProject });
+            var process =
+                Start()
+                    .Add(referencedProject)
+                    .Add(noPredictionProject)
+                    .ScheduleAll()
+                    .AssertSuccess()
+                    .RetrieveSuccessfulProcess(noPredictionProject);
+
+            var arguments = RetrieveProcessArguments(process);
+
+            // No targets should be explicitly passed (so MSBuild will pick defaults)
+            Assert.DoesNotContain("/t", arguments);
             // We should warn when this is the case
             AssertWarningEventLogged(LogEventId.ProjectIsNotSpecifyingTheProjectReferenceProtocol);
         }

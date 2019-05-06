@@ -560,13 +560,25 @@ namespace BuildXL.FrontEnd.MsBuild
                     pipDataBuilder.Add(PipDataAtom.FromString($"/t:{target}"));
                 }
             }
-            else if (project.ProjectReferences.Count > 0)
+            else
             {
-                // The prediction for the targets to execute is not available. Just log this as a warning for now, defaults targets will be used.
-                Tracing.Logger.Log.ProjectIsNotSpecifyingTheProjectReferenceProtocol(
-                    m_context.LoggingContext,
-                    Location.FromFile(project.FullPath.ToString(PathTable)),
-                    project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
+                // The prediction for the targets to execute is not available. We need to log this.
+                if (project.ProjectReferences.Count > 0)
+                {
+                    Tracing.Logger.Log.ProjectIsNotSpecifyingTheProjectReferenceProtocol(
+                        m_context.LoggingContext,
+                        Location.FromFile(project.FullPath.ToString(PathTable)),
+                        project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
+                }
+                else
+                {
+                    // If the project has no references, then we log it as an informational message rather than a warning.
+                    Tracing.Logger.Log.LeafProjectIsNotSpecifyingTheProjectReferenceProtocol(
+                        m_context.LoggingContext,
+                        Location.FromFile(project.FullPath.ToString(PathTable)),
+                        project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
+                }
+
             }
 
             // Pass the output result cache file if present

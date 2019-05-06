@@ -35,7 +35,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             // No targets should be explicitly passed (so MSBuild will pick defaults)
             Assert.DoesNotContain("/t", arguments);
-            // The project doesn't have any references, so there shouldn't be any logging
+            // The project doesn't have any references, so there should be an informational log
+            AssertInformationalEventLogged(LogEventId.LeafProjectIsNotSpecifyingTheProjectReferenceProtocol, 1);
             AssertWarningEventLogged(LogEventId.ProjectIsNotSpecifyingTheProjectReferenceProtocol, 0);
             AssertWarningCount();
         }

@@ -6,7 +6,6 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 namespace BuildXL.Cache.ContentStore.Extensions
 {
@@ -54,19 +53,6 @@ namespace BuildXL.Cache.ContentStore.Extensions
                 str = str.Remove(replaceIndex, oldValue.Length);
                 str = str.Insert(replaceIndex, newValue);
                 startIndex = replaceIndex += newValue.Length;
-            }
-
-            return str;
-        }
-
-        /// <summary>
-        /// Returns the upper invariant when paths are case-insensitive
-        /// </summary>
-        public static string PathToUpperInvariant(this string str)
-        {
-            if (OperatingSystemHelper.IsWindowsOS)
-            {
-                return str.ToUpperInvariant();
             }
 
             return str;

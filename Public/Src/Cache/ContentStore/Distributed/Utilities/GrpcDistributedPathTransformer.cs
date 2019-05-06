@@ -20,14 +20,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// </summary>
     public class GrpcDistributedPathTransformer : IAbsolutePathTransformer
     {
-        private readonly IReadOnlyDictionary<string, string> _junctionsByDirectory;
+        private readonly IReadOnlyDictionary<AbsolutePath, AbsolutePath> _junctionsByDirectory;
         private static readonly string _localMachineName = Environment.MachineName;
         internal const string BlobFileExtension = ".blob";
 
         /// <nodoc />
-        public GrpcDistributedPathTransformer(IReadOnlyDictionary<string, string> junctionsByDirectory = null)
+        public GrpcDistributedPathTransformer()
         {
-            _junctionsByDirectory = junctionsByDirectory ?? new Dictionary<string,string>();
+            _junctionsByDirectory = new Dictionary<AbsolutePath, AbsolutePath>();
+        }
+
+        /// <nodoc />
+        public GrpcDistributedPathTransformer(IReadOnlyDictionary<string, string> junctionsByDirectory)
+        {
+            _junctionsByDirectory = junctionsByDirectory.ToDictionary(kvp => new AbsolutePath(kvp.Key), kvp => new AbsolutePath(kvp.Value));
+        }
+
+        /// <nodoc />
+        public GrpcDistributedPathTransformer(IReadOnlyDictionary<AbsolutePath, AbsolutePath> junctionsByDirectory)
+        {
+            _junctionsByDirectory = junctionsByDirectory;
         }
 
         /// <inheritdoc />
@@ -51,25 +63,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 cacheRoot = cacheRoot / Constants.SharedDirectoryName;
             }
 
-            var cacheRootString = cacheRoot.Path.PathToUpperInvariant();
+            var cacheRootString = cacheRoot.Path.ToUpperInvariant();
 
             // Determine if cacheRoot needs to be accessed through its directory junction
             var directories = _junctionsByDirectory.Keys;
             var directoryToReplace = directories.SingleOrDefault(directory =>
-                                        cacheRootString.StartsWith(directory, OperatingSystemHelper.IsWindowsOS ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+                                        cacheRootString.StartsWith(directory.Path, StringComparison.OrdinalIgnoreCase));
 
-            if (!string.IsNullOrEmpty(directoryToReplace))
+            if (directoryToReplace != null)
             {
                 // Replace directory with its junction
                 var junction = _junctionsByDirectory[directoryToReplace];
-                cacheRootString = cacheRootString.Replace(directoryToReplace.PathToUpperInvariant(), junction);
+                cacheRootString = cacheRootString.Replace(directoryToReplace.Path.ToUpperInvariant(), junction.Path);
             }
 
             string networkPathRoot = null;
             if (OperatingSystemHelper.IsWindowsOS)
             {
                 // Only unify paths along casing if on Windows
-                networkPathRoot = Path.Combine(@"\\" + _localMachineName, cacheRootString.Replace(":", "$")).ToUpperInvariant();
+                networkPathRoot = Path.Combine(@"\\" + _localMachineName, cacheRootString.Replace(":", "$"));
             }
             else
             {
@@ -77,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 networkPathRoot = Path.Combine(Path.DirectorySeparatorChar + _localMachineName, cacheRootString.TrimStart(Path.DirectorySeparatorChar));
             }
 
-            return Encoding.UTF8.GetBytes(networkPathRoot);
+            return Encoding.UTF8.GetBytes(networkPathRoot.ToUpperInvariant());
         }
 
         /// <inheritdoc />

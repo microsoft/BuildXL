@@ -16,7 +16,7 @@ const patcherExecutable = Context.getCurrentHost().os === "macOS"
         assemblyName: "NativeAppHostPatcher",
         sources: globR(d`.`, "*.cs")
       })
-    : pkgContents.getFile(r`tools/${qualifier.targetRuntime}/${"AppHostPatcher" + (qualifier.targetRuntime === "win-x64" ? ".exe" : "")}`);
+    : pkgContents.getFile(r`tools/win-x64/AppHostPatcher.exe`);
 
 const patcher: Transformer.ToolDefinition = {
     exe: patcherExecutable,

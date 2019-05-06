@@ -44,7 +44,7 @@ config({
                 hash: "17E8C8C0CDCCA3A6D1EE49836847148C4623ACEA5E6E36E10B691DA7FDC4C39200",
             },
 
-            repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
+            repositories: (importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                 ? {
                     "BuildXL.Selfhost": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
                   }
@@ -53,7 +53,10 @@ config({
                     "nuget.org" : "http://api.nuget.org/v3/index.json",
                     "roslyn-tools" : "https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json",
                     "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json"
-                  },
+                  }
+                ).override<any>({
+                    "dotnet-core" : "https://dotnet.myget.org/F/dotnet-core/api/v3/index.json"
+                }),
 
             packages: [
                 { id: "Bond.Core.CSharp", version: "8.0.0" },
@@ -421,6 +424,10 @@ config({
                 // Ninja JSON graph generation helper
                 { id: "BuildXL.Tools.Ninjson", version: "0.0.6" },
                 { id: "BuildXL.Tools.AppHostPatcher", version: "1.0.0" },
+
+                // CoreRT
+                { id: "runtime.osx-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
+                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" }
             ],
 
             doNotEnforceDependencyVersions: true,

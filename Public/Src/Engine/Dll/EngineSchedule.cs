@@ -7,7 +7,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -163,29 +162,6 @@ namespace BuildXL.Engine
                        maxDegreeOfParallelism: PipTableMaxDegreeOfParallelismDuringConstruction,
                        debug: false);
         }
-
-        private static string GetLowPrivilegeBuildAccount()
-        {
-            return Environment.GetEnvironmentVariable("LowPrivilegeBuildAccount");
-        }
-
-        private static string GetLowPrivilegeBuildPassword()
-        {
-            var encryptedSecret = Environment.GetEnvironmentVariable("LowPrivilegeBuildPassword");
-
-            if (String.IsNullOrEmpty(encryptedSecret))
-            {
-                return null;
-            }
-            else
-            {
-                byte[] clearText = ProtectedData.Unprotect(
-                    Convert.FromBase64String(encryptedSecret),
-                    null,
-                    DataProtectionScope.LocalMachine);
-                return Encoding.UTF8.GetString(clearText);
-            }
-        }
         
         /// <summary>
         /// Creates an EngineSchedule for an immutable pip graph.
@@ -306,7 +282,7 @@ namespace BuildXL.Engine
                     pipTwoPhaseCache: twoPhaseCache,
                     symlinkDefinitions: symlinkDefinitions,
                     buildEngineFingerprint: buildEngineFingerprint,
-                    vmInitializer: VmInitializer.CreateFromEngine(configuration.Layout.BuildEngineDirectory.ToString(context.PathTable), GetLowPrivilegeBuildAccount(), GetLowPrivilegeBuildPassword()));
+                    vmInitializer: VmInitializer.CreateFromEngine(configuration.Layout.BuildEngineDirectory.ToString(context.PathTable)));
             }
             catch (BuildXLException e)
             {
@@ -1683,7 +1659,7 @@ namespace BuildXL.Engine
                         pipTwoPhaseCache: pipTwoPhaseCache,
                         symlinkDefinitions: await symlinkDefinitionsTask,
                         buildEngineFingerprint: buildEngineFingerprint,
-                        vmInitializer: VmInitializer.CreateFromEngine(newConfiguration.Layout.BuildEngineDirectory.ToString(pathTable), GetLowPrivilegeBuildAccount(), GetLowPrivilegeBuildPassword()));
+                        vmInitializer: VmInitializer.CreateFromEngine(newConfiguration.Layout.BuildEngineDirectory.ToString(pathTable)));
                 }
                 catch (BuildXLException e)
                 {

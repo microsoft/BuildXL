@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using Newtonsoft.Json;
 
 namespace BuildXL.Utilities
@@ -9,7 +10,7 @@ namespace BuildXL.Utilities
     /// Input for 'StartBuild' command.
     /// </summary>
     [JsonObject(MemberSerialization.OptIn)]
-    public class StartBuildRequest
+    public class StartBuildRequest : IDisposable
     {
         /// <summary>
         /// User name.
@@ -22,6 +23,14 @@ namespace BuildXL.Utilities
         /// </summary>
         [JsonProperty]
         public string HostLowPrivilegePassword { get; set; }
+
+        /// <summary>
+        /// Reset the Password to aviod it stay in memory.
+        /// </summary>
+        public void Dispose()
+        {
+            HostLowPrivilegePassword = null;
+        }
     }
 
     /// <summary>

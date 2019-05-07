@@ -2920,6 +2920,10 @@ namespace BuildXL.Native.IO.Windows
                 else
                 {
                     // Fall back using more expensive FindFirstFile.
+                    // Getting file attributes for probing file existence with GetFileAttributesW sometimes results in "access denied". 
+                    // This causes problem especially during file materialization. Because such a probe is interpreted as probing non-existent path, 
+                    // the materialization target is not deleted. However, cache, using .NET File.Exist, is able to determine that the file exists. 
+                    // Thus, cache refuses to materialize the file
                     if (!TryGetFileAttributesViaFindFirstFile(path, out fileAttributes, out hr))
                     {
                         if (IsHresultNonesixtent(hr))

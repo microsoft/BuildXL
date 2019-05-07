@@ -179,9 +179,8 @@ namespace BuildXL.Engine
             }
             else
             {
-                byte[] encryptedData = Convert.FromBase64String(encryptedSecret);
                 byte[] clearText = ProtectedData.Unprotect(
-                    encryptedData,
+                    Convert.FromBase64String(encryptedSecret),
                     null,
                     DataProtectionScope.LocalMachine);
                 return Encoding.UTF8.GetString(clearText);

@@ -152,7 +152,6 @@ export function compile(inputArgs: Arguments) : Result {
         tool: args.tool || tool,
         arguments: cscArguments,
         workingDirectory: outputDirectory,
-        privilegeLevel: args.privilegeLevel,
         dependencies: additionalDependencies.filter(f => f !== undefined), //TODO: or additionalInputs???
         tags: ["compile"],
     };
@@ -333,9 +332,6 @@ export interface Arguments extends Transformer.RunnerArguments{
     deterministic?: boolean;
     /** Specify a mapping for source path names output by the compiler to substitute the paths in the output PDBs*/
     pathMap?: PathMapEntry[];
-
-    /** Privilege level required by this process to execute. */
-    privilegeLevel?: "standard" | "admin";
 }
 
 @@public

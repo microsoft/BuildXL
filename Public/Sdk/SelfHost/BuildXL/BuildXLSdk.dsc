@@ -75,7 +75,7 @@ export interface Arguments extends Managed.Arguments {
     cacheOldNames?: {
         namespace: string,
         factoryClass: string,
-    }[],
+    }[]
 }
 
 @@public

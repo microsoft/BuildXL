@@ -172,14 +172,17 @@ namespace BuildXL.Engine
         private static string GetLowPrivilegeBuildPassword()
         {
             var encryptedSecret = Environment.GetEnvironmentVariable("LowPrivilegeBuildPassword");
+
+            System.Diagnostics.Debugger.Launch();
             if (String.IsNullOrEmpty(encryptedSecret))
             {
                 return null;
             }
             else
             {
+                byte[] encryptedData = Convert.FromBase64String(encryptedSecret);
                 byte[] clearText = ProtectedData.Unprotect(
-                    Encoding.UTF8.GetBytes(encryptedSecret),
+                    encryptedData,
                     null,
                     DataProtectionScope.LocalMachine);
                 return Encoding.UTF8.GetString(clearText);

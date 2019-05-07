@@ -12,17 +12,8 @@ const pkgContents = Context.getCurrentHost().os === "win"
 @@public
 export const tool : Transformer.ToolDefinition = {
     exe: pkgContents.getFile(r`tools/${"gbc" + (Context.getCurrentHost().os === "win" ? ".exe" : "")}`),
-    dependsOnWindowsDirectories: true,
-    prepareTempDirectory: true,
-    untrackedDirectoryScopes: [
-        ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.untrackedSystemFolderDeps)
-    ],
-    untrackedFiles: [
-        ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.untrackedFiles)
-    ],
-    runtimeDirectoryDependencies: [
-        ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.systemFolderInputDeps),
-    ]
+    dependsOnCurrentHostOSDirectories: true,
+    prepareTempDirectory: true
 };
 
 @@public
@@ -47,10 +38,7 @@ export function generate(args: Arguments) : Result {
         outputs: [
             typesFile
         ],
-        dependencies: [
-            ...(args.includeFiles || []),
-            ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.filesAndSymlinkInputDeps)
-        ]
+        dependencies: args.includeFiles
     });
 
     return {

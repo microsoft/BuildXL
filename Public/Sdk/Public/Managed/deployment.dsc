@@ -33,26 +33,16 @@ export function deployAssemblyToDisk(assembly: Shared.Assembly, targetDirectory?
  */
 @@public
 export function deployManagedTool(args: DeployWithToolDefinitionArguments) : Transformer.ToolDefinition {
-
     const primaryFile = r`${args.tool.runtime.binary.name}`.changeExtension(qualifier.targetRuntime === "win-x64" ? ".exe" : "");
     const onDiskDeployment = deployAssemblyToDisk(args.tool, args.targetDirectory, primaryFile);
 
     let deploymentDefinition : Transformer.ToolDefinition = {
         exe: onDiskDeployment.primaryFile,
         description: args.description,
+        dependsOnCurrentHostOSDirectories: true,
         // Opting to take individual file dependencies rather than as a sealed directory dependency
         runtimeDependencies: [
             ...onDiskDeployment.contents.getContent(),
-            ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.filesAndSymlinkInputDeps)
-        ],
-        untrackedDirectoryScopes: [
-            ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.untrackedSystemFolderDeps)
-        ],
-        untrackedFiles: [
-            ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.untrackedFiles)
-        ],
-        runtimeDirectoryDependencies: [
-            ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.systemFolderInputDeps)
         ]
     };
 

@@ -44,19 +44,19 @@ config({
                 hash: "17E8C8C0CDCCA3A6D1EE49836847148C4623ACEA5E6E36E10B691DA7FDC4C39200",
             },
 
-            repositories: (importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
+            repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                 ? {
                     "BuildXL.Selfhost": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
+                    // Note: From a compliance point of view it is important that MicrosoftInternal has a single feed.
+                    // If you need to consume packages make sure they are upstreamed in that feed.
                   }
                 : {
                     "buildxl-selfhost" : "https://dotnet.myget.org/F/buildxl-selfhost/api/v3/index.json",
                     "nuget.org" : "http://api.nuget.org/v3/index.json",
                     "roslyn-tools" : "https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json",
-                    "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json"
-                  }
-                ).override<any>({
+                    "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json",
                     "dotnet-core" : "https://dotnet.myget.org/F/dotnet-core/api/v3/index.json"
-                }),
+                  },
 
             packages: [
                 { id: "Bond.Core.CSharp", version: "8.0.0" },

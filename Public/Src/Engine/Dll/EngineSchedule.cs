@@ -173,7 +173,6 @@ namespace BuildXL.Engine
         {
             var encryptedSecret = Environment.GetEnvironmentVariable("LowPrivilegeBuildPassword");
 
-            System.Diagnostics.Debugger.Launch();
             if (String.IsNullOrEmpty(encryptedSecret))
             {
                 return null;

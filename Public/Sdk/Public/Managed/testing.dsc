@@ -269,6 +269,9 @@ export interface TestRunArguments {
 
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
+
+    /** Privilege level required by this process to execute. */
+    privilegeLevel?: "standard" | "admin";
 }
 
 @@public

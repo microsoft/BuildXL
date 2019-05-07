@@ -10,7 +10,7 @@ namespace BuildXL.Utilities
     /// Input for 'StartBuild' command.
     /// </summary>
     [JsonObject(MemberSerialization.OptIn)]
-    public class StartBuildRequest : IDisposable
+    public class StartBuildRequest
     {
         /// <summary>
         /// User name.
@@ -23,14 +23,6 @@ namespace BuildXL.Utilities
         /// </summary>
         [JsonProperty]
         public string HostLowPrivilegePassword { get; set; }
-
-        /// <summary>
-        /// Reset the Password to aviod it stay in memory.
-        /// </summary>
-        public void Dispose()
-        {
-            HostLowPrivilegePassword = null;
-        }
     }
 
     /// <summary>

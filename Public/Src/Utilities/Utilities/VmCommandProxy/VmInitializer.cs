@@ -51,12 +51,14 @@ namespace BuildXL.Utilities.VmCommandProxy
         {
             // (1) Create and serialize 'StartBuild' request.
             string startBuildRequestPath = Path.GetTempFileName();
-            using (var startBuildRequest = new StartBuildRequest
+            using (var password = LowPrivilegeAccountUtils.GetLowPrivilegeBuildPassword())
             {
-                HostLowPrivilegeUsername = LowPrivilegeAccountUtils.GetLowPrivilegeBuildAccount(),
-                HostLowPrivilegePassword = LowPrivilegeAccountUtils.GetUnsecuredString(LowPrivilegeAccountUtils.GetLowPrivilegeBuildPassword())
-            })
-            {
+                //This will be temporary, will fix the problem exposing the password
+                var startBuildRequest = new StartBuildRequest
+                {
+                    HostLowPrivilegeUsername = LowPrivilegeAccountUtils.GetLowPrivilegeBuildAccount(),
+                    HostLowPrivilegePassword = LowPrivilegeAccountUtils.GetUnsecuredString(password)
+                };
                 VmSerializer.SerializeToFile(startBuildRequestPath, startBuildRequest);
             }
 

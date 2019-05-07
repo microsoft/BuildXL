@@ -4,6 +4,8 @@ import * as ManagedSdk from "Sdk.Managed";
 import { NetFx } from "Sdk.BuildXL";
 
 namespace VfsApplication {
+    export declare const qualifier: BuildXLSdk.FullFrameworkQualifier;
+
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "bvfs",

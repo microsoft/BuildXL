@@ -1,7 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
@@ -73,10 +72,11 @@ namespace BuildXL.Cache.ContentStore.Vfs
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
             // Close all sessions?
+            var result = await base.ShutdownCoreAsync(context);
 
-            var result = await InnerStore.ShutdownAsync(context).ThrowIfFailure();
+            result &= await InnerStore.ShutdownAsync(context);
 
-            return result & await base.ShutdownCoreAsync(context);
+            return result;
         }
     }
 }

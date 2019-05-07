@@ -2889,6 +2889,25 @@ namespace BuildXL.Native.IO.Windows
             return true;
         }
 
+        private bool TryGetFileAttributesViaFindFirstFile(string path, out FileAttributes attributes, out int hr)
+        {
+            WIN32_FIND_DATA findResult;
+
+            using (SafeFindFileHandle findHandle = FindFirstFileW(ToLongPathIfExceedMaxPath(path), out findResult))
+            {
+                if (findHandle.IsInvalid)
+                {
+                    hr = Marshal.GetLastWin32Error();
+                    attributes = FileAttributes.Normal;
+                    return false;
+                }
+
+                hr = 0;
+                attributes = findResult.DwFileAttributes;
+                return true;
+            }
+        }
+
         /// <inheritdoc />
         public Possible<PathExistence, NativeFailure> TryProbePathExistence(string path, bool followSymlink)
         {
@@ -2900,7 +2919,18 @@ namespace BuildXL.Native.IO.Windows
                 }
                 else
                 {
-                    return new NativeFailure(hr);
+                    // Fall back using more expensive FindFirstFile.
+                    if (!TryGetFileAttributesViaFindFirstFile(path, out fileAttributes, out hr))
+                    {
+                        if (IsHresultNonesixtent(hr))
+                        {
+                            return PathExistence.Nonexistent;
+                        }
+                        else
+                        {
+                            return new NativeFailure(hr);
+                        }
+                    }
                 }
             }
 

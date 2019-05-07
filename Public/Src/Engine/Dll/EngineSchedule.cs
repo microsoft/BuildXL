@@ -185,8 +185,6 @@ namespace BuildXL.Engine
                     DataProtectionScope.LocalMachine);
                 return Encoding.UTF8.GetString(clearText);
             }
-
-            
         }
         
         /// <summary>

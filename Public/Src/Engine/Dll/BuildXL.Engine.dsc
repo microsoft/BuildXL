@@ -32,6 +32,7 @@ namespace Engine {
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.IO.dll,
                 NetFx.System.IO.Compression.dll,
+                NetFx.System.Security.dll,
                 NetFx.System.ServiceProcess.dll,
                 NetFx.System.IO.Compression.dll,
                 importFrom("Bond.Rpc.NET").pkg,
@@ -64,7 +65,9 @@ namespace Engine {
             importFrom("Google.Protobuf").pkg,
             importFrom("Grpc.Core").pkg,
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("System.Security.Cryptography.ProtectedData").pkg,
+            ...addIf(BuildXLSdk.isDotNetCoreBuild,
+                importFrom("System.Security.Cryptography.ProtectedData").withQualifier({targetFramework: "netstandard2.0"}).pkg
+            ),
         ],
         internalsVisibleTo: [
             "bxlScriptAnalyzer",

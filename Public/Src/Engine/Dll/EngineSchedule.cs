@@ -174,7 +174,7 @@ namespace BuildXL.Engine
             var encryptedSecret = Environment.GetEnvironmentVariable("LowPrivilegeBuildPassword");
 
             byte[] clearText = ProtectedData.Unprotect(
-                encryptedSecret,
+                Encoding.UTF8.GetBytes(encryptedSecret),
                 null,
                 DataProtectionScope.LocalMachine);
             return Encoding.UTF8.GetString(clearText);

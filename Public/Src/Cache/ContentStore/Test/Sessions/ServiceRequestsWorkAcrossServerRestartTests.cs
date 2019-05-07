@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -65,6 +66,29 @@ namespace ContentStoreTest.Sessions
                 {
                     r4.ShouldBeSuccess();
                 }
+            });
+        }
+
+        [Fact]
+        public Task BuildIdServicesRestartingServer()
+        {
+            var mockLogger = new MockLogger();
+            Logger = mockLogger;
+            var sessionId = Guid.NewGuid().ToString();
+
+            // Creating session with build id in it.
+            SessionName = $"{Context.BuildIdPrefix}{sessionId}";
+
+            return RunSessionTestAsync(ImplicitPin.None, async (context, session) =>
+            {
+                mockLogger.CurrentBuildId.Should().Be(sessionId);
+
+                // Restart the server.
+                ITestServiceClientContentStore store = ((TestServiceClientContentSession)session).Store;
+                await store.RestartServerAsync(context);
+
+                // Check that build id is still set.
+                mockLogger.CurrentBuildId.Should().Be(sessionId);
             });
         }
 
@@ -188,6 +212,115 @@ namespace ContentStoreTest.Sessions
                 }
             });
         }
+
+        private class MockLogger : IOperationLogger
+        {
+            /// <inheritdoc />
+            public void Dispose()
+            {
+            }
+
+            /// <inheritdoc />
+            public Severity CurrentSeverity => Severity.Unknown;
+
+            /// <inheritdoc />
+            public int ErrorCount => 0;
+
+            /// <inheritdoc />
+            public void Flush()
+            {
+            }
+
+            /// <inheritdoc />
+            public void Always(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            /// <inheritdoc />
+            public void Fatal(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            /// <inheritdoc />
+            public void Error(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            /// <inheritdoc />
+            public void Error(Exception exception, string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            /// <inheritdoc />
+            public void ErrorThrow(Exception exception, string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            /// <inheritdoc />
+            public void Warning(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            /// <inheritdoc />
+            public void Info(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            /// <inheritdoc />
+            public void Debug(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            /// <inheritdoc />
+            public void Debug(Exception exception)
+            {
+            }
+
+            /// <inheritdoc />
+            public void Diagnostic(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            /// <inheritdoc />
+            public void Log(Severity severity, string message)
+            {
+            }
+
+            /// <inheritdoc />
+            public void LogFormat(Severity severity, string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            /// <inheritdoc />
+            public void OperationFinished(in OperationResult result)
+            {
+            }
+
+            /// <inheritdoc />
+            public void TrackMetric(in Metric metric)
+            {
+            }
+
+            /// <inheritdoc />
+            public void TrackTopLevelStatistic(in Statistic statistic)
+            {
+            }
+
+            public string CurrentBuildId;
+
+            /// <inheritdoc />
+            public void RegisterBuildId(string buildId)
+            {
+                CurrentBuildId = buildId;
+            }
+
+            /// <inheritdoc />
+            public void UnregisterBuildId()
+            {
+                CurrentBuildId = null;
+            }
+        }
+
     }
 
     [Trait("Category", "Integration")]

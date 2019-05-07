@@ -26,7 +26,7 @@ namespace AppHostPatcher
         /// <nodoc />
         public string AppBinaryName { get; set; }
 
-        // See: https://github.com/dotnet/sdk/blob/master/src/Tasks/Microsoft.NET.Build.Tasks/EmbedAppNameInHost.cs
+        // See: https://github.com/dotnet/sdk/blob/4e90cac1d4b8743e39ed6945677020f9d4cbfd81/src/Tasks/Microsoft.NET.Build.Tasks/AppHost.cs#L20
         // Basically the un-patched apphost from the official Nuget package contains this string as a placeholder
         private static readonly string s_placeHolder = "c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2";
         private static readonly byte[] s_bytesToSearch = Encoding.UTF8.GetBytes(s_placeHolder);

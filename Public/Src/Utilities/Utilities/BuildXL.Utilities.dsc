@@ -10,6 +10,7 @@ export const dll = BuildXLSdk.library({
     allowUnsafeBlocks: true,
     embeddedResources: [{resX: f`Strings.resx`, generatedClassMode: "implicitPublic"}],
     sources: globR(d`.`, "*.cs"), 
+    privilegeLevel: "admin",
     references: [
         ...addIf(BuildXLSdk.isFullFramework,
             NetFx.System.Xml.dll,

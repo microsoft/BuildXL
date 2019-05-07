@@ -46,7 +46,7 @@ namespace BuildXL.Scheduler
     /// <summary>
     /// This class brings pips to life
     /// </summary>
-    public static class PipExecutor
+    public static partial class PipExecutor
     {
         /// <summary>
         /// The maximum number of times to retry running a pip due to internal sandboxed process execution failure.
@@ -4441,77 +4441,6 @@ namespace BuildXL.Scheduler
             return (environment.Configuration.Engine.UseHardlinks && !process.OutputsMustRemainWritable)
                 ? FileRealizationMode.HardLinkOrCopy // Prefers hardlinks, but will fall back to copying when creating a hard link fails. (e.g. >1023 links)
                 : FileRealizationMode.Copy;
-        }
-
-        /// <summary>
-        /// The result of storing the two phase cache entry
-        /// </summary>
-        internal sealed class StoreCacheEntryResult
-        {
-            /// <summary>
-            /// Gets result indicate the the operation successfully stored the cache entry to the cache
-            /// </summary>
-            public static readonly StoreCacheEntryResult Succeeded = new StoreCacheEntryResult();
-
-            /// <summary>
-            /// The execution result if the cache entry had conflicting entry which was retrieved
-            /// and outputs were reported from the entry
-            /// </summary>
-            public readonly ExecutionResult ConvergedExecutionResult;
-
-            /// <summary>
-            /// Gets whether the cache entry had conflicting entry which was retrieved
-            /// and outputs were reported from the entry
-            /// </summary>
-            public bool Converged => ConvergedExecutionResult != null;
-
-            /// <summary>
-            /// Creates a <see cref="StoreCacheEntryResult"/> indicating cache convergence.
-            /// </summary>
-            public static StoreCacheEntryResult CreateConvergedResult(ExecutionResult convergedExecutionResult)
-            {
-                Contract.Requires(convergedExecutionResult != null);
-                Contract.Requires(!convergedExecutionResult.IsSealed);
-
-                convergedExecutionResult.Converged = true;
-                convergedExecutionResult.Seal();
-
-                Contract.Assert(!convergedExecutionResult.Result.IndicatesFailure(), "Converged result must represent success");
-                return new StoreCacheEntryResult(convergedExecutionResult);
-            }
-
-            private StoreCacheEntryResult(ExecutionResult convergedExecutionResult = null)
-            {
-                ConvergedExecutionResult = convergedExecutionResult;
-            }
-        }
-
-        /// <summary>
-        /// Directory-related information to be passed to <see cref="SandboxedProcessPipExecutor"/>
-        /// </summary>
-        private sealed class DirectoryArtifactContext : IDirectoryArtifactContext
-        {
-            private readonly IPipExecutionEnvironment m_pipExecutionEnvironment;
-
-            /// <nodoc/>
-            public DirectoryArtifactContext(IPipExecutionEnvironment pipExecutionEnvironment)
-            {
-                Contract.Requires(pipExecutionEnvironment != null);
-
-                m_pipExecutionEnvironment = pipExecutionEnvironment;
-            }
-
-            /// <inheritdoc/>
-            public SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directoryArtifact)
-            {
-                return m_pipExecutionEnvironment.GetSealDirectoryKind(directoryArtifact);
-            }
-
-            /// <inheritdoc/>
-            public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealDirectoryContents(DirectoryArtifact directory)
-            {
-                return m_pipExecutionEnvironment.State.FileContentManager.ListSealedDirectoryContents(directory);
-            }
         }
 
         /// <summary>

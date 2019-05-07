@@ -8,7 +8,6 @@ namespace Core {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Utilities",
         allowUnsafeBlocks: true,
-        privilegeLevel: "admin",
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Utilities").dll,

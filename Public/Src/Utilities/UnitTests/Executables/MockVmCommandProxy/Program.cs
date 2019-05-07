@@ -102,6 +102,7 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
 
             Console.WriteLine($"Start build request: ");
             Console.WriteLine($"    - HostLowPrivilegeUsername: {request.HostLowPrivilegeUsername ?? string.Empty}");
+            Console.WriteLine($"    - HostLowPrivilegePassword: {request.HostLowPrivilegePassword ?? string.Empty}");
 
             return 0;
         }

@@ -100,19 +100,10 @@ function getToolTemplate() : Transformer.ExecuteArgumentsComposible {
     return {
         tool: {
             exe: pkgContents.getFile(executable),
-            untrackedDirectoryScopes: [
-                ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.untrackedSystemFolderDeps)
-            ],
-            untrackedFiles: [
-                ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.untrackedFiles)
-            ],
-            runtimeDirectoryDependencies: [
-                ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.systemFolderInputDeps),
-            ]
+            dependsOnCurrentHostOSDirectories: true,
         },
         dependencies: [
             pkgContents,
-            ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.filesAndSymlinkInputDeps)
         ]
     };
 }

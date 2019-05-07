@@ -2,9 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
-import * as Managed from "Sdk.Managed";
-import * as Shared from "Sdk.Managed.Shared";
 import * as MacOS from "Sdk.MacOS";
+import * as Managed from "Sdk.Managed";
 import * as Frameworks from "Sdk.Managed.Frameworks";
 
 export declare const qualifier: Managed.TargetFrameworks.CurrentMachineQualifier;
@@ -51,9 +50,6 @@ export function patchBinary(args: Arguments) : Result {
         outputs: [
             outputPath,
         ],
-        dependencies: [
-            ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.filesAndSymlinkInputDeps)
-        ]
     });
 
     return {

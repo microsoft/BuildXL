@@ -32,7 +32,9 @@ namespace ContentStoreTest.Sessions
         protected const uint MaxConnections = 4;
         protected const uint ConnectionsPerSession = 2;
         protected const uint GracefulShutdownSeconds = ServiceConfiguration.DefaultGracefulShutdownSeconds;
-        private const string Name = "name";
+
+        protected virtual string SessionName { get; set; } = "name";
+
         protected const int ContentByteCount = 100;
         protected const HashType ContentHashType = HashType.Vso0;
         private const long DefaultMaxSize = 1 * 1024 * 1024;
@@ -49,10 +51,10 @@ namespace ContentStoreTest.Sessions
 
         protected static long MaxSize => DefaultMaxSize;
 
-        protected static async Task RunSessionTestAsync(
+        protected async Task RunSessionTestAsync(
             Context context, IContentStore store, ImplicitPin implicitPin, Func<Context, IContentSession, Task> funcAsync)
         {
-            var createResult = store.CreateSession(context, Name, implicitPin);
+            var createResult = store.CreateSession(context, SessionName, implicitPin);
             createResult.ShouldBeSuccess();
             using (var session = createResult.Session)
             {

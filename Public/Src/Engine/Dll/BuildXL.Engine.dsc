@@ -64,6 +64,7 @@ namespace Engine {
             importFrom("Google.Protobuf").pkg,
             importFrom("Grpc.Core").pkg,
             importFrom("Newtonsoft.Json").pkg,
+            importFrom("System.Security.Cryptography.ProtectedData").pkg,
         ],
         internalsVisibleTo: [
             "bxlScriptAnalyzer",

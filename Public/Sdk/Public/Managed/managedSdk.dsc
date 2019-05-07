@@ -177,6 +177,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         appConfig: appConfig,
         implicitSources: args.implicitSources,
         noConfig: args.noConfig || true,
+        privilegeLevel: args.privilegeLevel,
         defines: [
             ...(qualifier.configuration === "debug" ? ["DEBUG"] : []),
             "TRACE",
@@ -347,7 +348,10 @@ export interface Arguments {
     };
 
     /** Options that control how this compiled assembly gets deployed */
-    deploymentOptions?: Deployment.DeploymentOptions
+    deploymentOptions?: Deployment.DeploymentOptions,
+
+    /** Privilege level required by this process to execute. */
+    privilegeLevel?: "standard" | "admin";
 }
 
 @@public

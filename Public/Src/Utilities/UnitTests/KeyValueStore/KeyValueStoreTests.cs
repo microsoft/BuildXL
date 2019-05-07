@@ -894,7 +894,7 @@ namespace Test.BuildXL.Engine.Cache
             }
         }
 
-        [Fact]
+        [Fact(Skip = "1374242")]
         public void ChangingColumnFamilies()
         {
             var additionalColumns = new HashSet<string>

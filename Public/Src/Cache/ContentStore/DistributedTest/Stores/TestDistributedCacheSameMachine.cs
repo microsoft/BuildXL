@@ -166,7 +166,7 @@ namespace ContentStoreTest.Distributed.Stores
 
         private async Task<BoolResult> CheckGrpcPortIsOpen(Context context, uint grpcPort)
         {
-            var client = new GrpcClient(new ServiceClientContentSessionTracer(nameof(CheckGrpcPortIsOpen)), FileSystem, grpcPort, nameof(CheckGrpcPortIsOpen));
+            var client = new GrpcContentClient(new ServiceClientContentSessionTracer(nameof(CheckGrpcPortIsOpen)), FileSystem, (int)grpcPort, nameof(CheckGrpcPortIsOpen));
 
             var sw = Stopwatch.StartNew();
             while (sw.ElapsedMilliseconds < ReadyWaitMs * 5)

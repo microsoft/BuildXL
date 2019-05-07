@@ -92,9 +92,12 @@ namespace BuildXL.Storage
         /// <summary>
         /// Clients may switch between hashing algorithms. Must be set at the beginning of the build.
         /// </summary>
-        public static void SetDefaultHashType()
+        public static void SetDefaultHashType(bool force = false)
         {
-            SetDefaultHashType(HashType.Vso0);
+            if (!s_isInitialized || force)
+            {
+                SetDefaultHashType(HashType.Vso0);
+            }
         }
 
         /// <summary>

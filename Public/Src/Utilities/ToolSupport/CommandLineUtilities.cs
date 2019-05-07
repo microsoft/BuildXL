@@ -334,7 +334,10 @@ namespace BuildXL.ToolSupport
         /// </summary>
         public static IEnumerable<string> ParseRepeatingPathOption(Option opt, string separator) => ParseRepeatingOption(opt, separator, v => GetFullPath(v, opt));
 
-        private static string GetFullPath(string path, Option opt)
+        /// <summary>
+        /// Gets the full path for an option
+        /// </summary>
+        public static string GetFullPath(string path, Option opt)
         {
             string fullPath = null;
 

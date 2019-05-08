@@ -143,12 +143,15 @@ namespace BuildXL.Processes
             string arguments = $"{VmCommand.Run} /{VmCommand.Param.InputJsonFile}:\"{RunRequestPath}\" /{VmCommand.Param.OutputJsonFile}:\"{RunOutputPath}\"";
             var process = CreateVmCommandProxyProcess(arguments);
 
+            LogExternalExecution($"call {m_vmInitializer.VmCommandProxy} {arguments}");
+
             m_processExecutor = new AsyncProcessExecutor(
                 process,
                 TimeSpan.FromMilliseconds(-1), // Timeout should only be applied to the process that the external tool executes.
                 line => AppendLineIfNotNull(m_output, line),
                 line => AppendLineIfNotNull(m_error, line),
-                SandboxedProcessInfo.Provenance);
+                SandboxedProcessInfo.Provenance,
+                message => LogExternalExecution(message));
 
             m_processExecutor.Start();
         }

@@ -110,7 +110,8 @@ namespace BuildXL.Processes
                 TimeSpan.FromMilliseconds(-1), // Timeout should only be applied to the process that the external tool executes.
                 line => AppendLineIfNotNull(m_output, line),
                 line => AppendLineIfNotNull(m_error, line),
-                SandboxedProcessInfo.Provenance);
+                SandboxedProcessInfo.Provenance,
+                message => LogExternalExecution(message));
 
             m_processExecutor.Start();
         }

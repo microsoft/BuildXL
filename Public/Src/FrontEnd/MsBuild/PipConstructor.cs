@@ -269,9 +269,29 @@ namespace BuildXL.FrontEnd.MsBuild
             ProjectWithPredictions project, 
             ProcessBuilder processBuilder)
         {
-            // Add all predicted inputs
+            // Predicted output directories for all direct dependencies, plus the output directories for the given project itself
+            var knownOutputDirectories = project.ProjectReferences.SelectMany(reference => reference.PredictedOutputFolders).Union(project.PredictedOutputFolders);
+
+            // Add all predicted inputs that are recognized as true source files
+            // This is done to make the weak fingerprint stronger. Pips are scheduled so undeclared source reads are allowed. This means
+            // we don't actually need accurate (or in fact any) input predictions to run successfully. But we are trying to avoid the degenerate case
+            // of a very small weak fingerprint with too many candidates, that can slow down two-phase cache look-up.
             foreach (AbsolutePath buildInput in project.PredictedInputFiles)
             {
+                // If any of the predicted inputs is under the predicted output folder of a dependency, then there is a very good chance the predicted input is actually an intermediate file
+                // In that case, don't add the input as a source file to stay on the safe side. Otherwise we will have a file that is both declared as a source file and contained in a directory
+                // dependency.
+                if (knownOutputDirectories.Any(outputFolder => buildInput.IsWithin(PathTable, outputFolder)))
+                {
+                    continue;
+                }
+
+                // If any of the predicted inputs is under an untracked directory scope, don't add it as an input
+                if (processBuilder.GetUntrackedDirectoryScopesSoFar().Any(untrackedDirectory => buildInput.IsWithin(PathTable, untrackedDirectory)))
+                {
+                    continue;
+                }
+
                 processBuilder.AddInputFile(FileArtifact.CreateSourceFile(buildInput));
             }
 

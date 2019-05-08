@@ -176,6 +176,7 @@ export function runQTest(args: QTestArguments): Result {
         weight: args.weight,
         disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
         additionalTempDirectories : [sandboxDir],
+        privilegeLevel: args.privilegeLevel,
         dependencies: [
             //When there are test failures, and PDBs are looked up to generate the stack traces,
             //the original location of PDBs is used instead of PDBs in test sandbox. This is 
@@ -273,6 +274,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qCodeCoverageEnumType?: "DynamicCodeCov" | "None";
     /** When enabled, creates a zip of the sandbox in log directory */
     zipSandbox? : boolean;
+    /** Privilege level required by this process to execute. */
+    privilegeLevel?: "standard" | "admin";
 }
 /**
  * Test results from a vstest.console.exe run

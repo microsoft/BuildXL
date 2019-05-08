@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Security;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -24,9 +25,6 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// </summary>
         public string VmCommandProxy { get; }
 
-        private readonly string m_userName;
-        private readonly string m_password;
-
         /// <summary>
         /// Lazy VM initialization.
         /// </summary>
@@ -36,36 +34,34 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// Creates an instance of <see cref="VmInitializer"/> from build engine.
         /// </summary>
         public static VmInitializer CreateFromEngine(
-            string buildEngineDirectory, 
-            string userName = null, 
-            string password = null) => new VmInitializer(Path.Combine(buildEngineDirectory, VmExecutable.DefaultRelativePath), userName ?? string.Empty, password ?? string.Empty);
+            string buildEngineDirectory) => new VmInitializer(Path.Combine(buildEngineDirectory, VmExecutable.DefaultRelativePath));
 
         /// <summary>
         /// Creates an instance of <see cref="VmInitializer"/>.
         /// </summary>
-        public VmInitializer(string vmCommandProxy, string userName, string password)
+        public VmInitializer(string vmCommandProxy)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(vmCommandProxy));
-            Contract.Requires(userName != null);
-            Contract.Requires(password != null);
 
             VmCommandProxy = vmCommandProxy;
-            m_userName = userName;
-            m_password = password;
             LazyInitVmAsync = new Lazy<Task>(() => InitVmAsync(), true);
         }
 
         private async Task InitVmAsync()
         {
             // (1) Create and serialize 'StartBuild' request.
-            var startBuildRequest = new StartBuildRequest
-            {
-                HostLowPrivilegeUsername = m_userName,
-                HostLowPrivilegePassword = m_password
-            };
-
             string startBuildRequestPath = Path.GetTempFileName();
-            VmSerializer.SerializeToFile(startBuildRequestPath, startBuildRequest);
+            using (var password = LowPrivilegeAccountUtils.GetLowPrivilegeBuildPassword())
+            {
+                //This will be temporary, will fix the problem exposing the password
+                var startBuildRequest = new StartBuildRequest
+                {
+                    HostLowPrivilegeUsername = LowPrivilegeAccountUtils.GetLowPrivilegeBuildAccount(),
+                    HostLowPrivilegePassword = LowPrivilegeAccountUtils.GetUnsecuredString(password)
+                };
+                VmSerializer.SerializeToFile(startBuildRequestPath, startBuildRequest);
+            }
+
 
             // (2) Create a process to execute VmCommandProxy.
             string arguments = $"{VmCommand.StartBuild} /{VmCommand.Param.InputJsonFile}:\"{startBuildRequestPath}\"";

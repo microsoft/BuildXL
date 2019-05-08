@@ -162,7 +162,7 @@ namespace BuildXL.Engine
                        maxDegreeOfParallelism: PipTableMaxDegreeOfParallelismDuringConstruction,
                        debug: false);
         }
-
+        
         /// <summary>
         /// Creates an EngineSchedule for an immutable pip graph.
         /// </summary>

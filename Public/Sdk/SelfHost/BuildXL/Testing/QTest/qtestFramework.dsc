@@ -136,7 +136,8 @@ function runTest(args : TestRunArguments) : File[] {
         qTestTool: Environment.hasVariable("QTEST_DEPLOYMENT_PATH") ? undefined : qTestTool,
         qTestLogs: logDir,
         tags: args.tags,
-        weight: args.weight
+        weight: args.weight,
+        privilegeLevel: args.privilegeLevel,
     });
 
     return [

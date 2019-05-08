@@ -464,7 +464,7 @@ namespace BuildXL.FrontEnd.Nuget
                             toExclusive: aggregateResult.Length,
                             new ParallelOptions()
                             {
-                                MaxDegreeOfParallelism = 1,
+                                MaxDegreeOfParallelism = concurrencyLevel,
                                 CancellationToken = m_context.CancellationToken,
                             },
                             (index) =>

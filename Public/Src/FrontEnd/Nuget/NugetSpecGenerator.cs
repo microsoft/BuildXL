@@ -161,14 +161,12 @@ namespace BuildXL.FrontEnd.Nuget
                         }
                     }
 
-
-
                     cases.Add(
                         new CaseClause(
                             new LiteralExpression(monikers.Last().ToString(m_pathTable.StringTable)),
                             new ReturnStatement(
                                 new CallExpression(
-                                    PropertyAccess("Managed", "Factory", "createNugetPackge"),
+                                    PropertyAccess("Managed", "Factory", "createNugetPackage"),
                                     new LiteralExpression(analyzedPackage.Id),
                                     new LiteralExpression(analyzedPackage.Version),
                                     PropertyAccess("Contents", "all"),
@@ -277,7 +275,7 @@ namespace BuildXL.FrontEnd.Nuget
             );
         }
 
-        private void FindAllCompatibleFrameworkMonikers(NugetAnalyzedPackage analyzedPackage, Action<List<PathAtom>> callback, params List<PathAtom>[] tfmHistory)
+        internal static void FindAllCompatibleFrameworkMonikers(NugetAnalyzedPackage analyzedPackage, Action<List<PathAtom>> callback, params List<PathAtom>[] tfmHistory)
         {
             if (analyzedPackage.TargetFrameworks.Count > 0)
             {

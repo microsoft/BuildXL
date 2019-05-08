@@ -11,7 +11,7 @@ export namespace Contents {
 
 @@public
 export const pkg: Managed.ManagedNugetPackage =
-    Managed.Factory.createNugetPackge(
+    Managed.Factory.createNugetPackage(
         "Microsoft.Applications.Telemetry.Desktop",
         "1.1.152",
         Contents.all,

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
+import * as BuildXLSdk from "Sdk.BuildXL";
 import * as MacOS from "Sdk.MacOS";
 import * as Managed from "Sdk.Managed";
 import * as Frameworks from "Sdk.Managed.Frameworks";
@@ -11,10 +12,10 @@ export declare const qualifier: Managed.TargetFrameworks.CurrentMachineQualifier
 const pkgContents = importFrom("BuildXL.Tools.AppHostPatcher").Contents.all;
 
 const patcherExecutable = Context.getCurrentHost().os === "macOS"
-    ? Managed.nativeExecutable({ 
+    ? BuildXLSdk.nativeExecutable({ 
         assemblyName: "NativeAppHostPatcher",
         sources: globR(d`.`, "*.cs")
-      })
+      }).runtime.binary
     : pkgContents.getFile(r`tools/win-x64/AppHostPatcher.exe`);
 
 const patcher: Transformer.ToolDefinition = {

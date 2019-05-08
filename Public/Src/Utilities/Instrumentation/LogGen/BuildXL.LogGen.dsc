@@ -4,7 +4,7 @@
 namespace LogGen {
     export declare const qualifier: BuildXLSdk.TargetFrameworks.CurrentMachineQualifier;
 
-    const exe = BuildXLSdk.executable({
+    const exe = BuildXLSdk.nativeExecutable({
         assemblyName: "BuildXL.LogGen",
         platform: "anycpu32bitpreferred",
         sources: globR(d`.`, "*.cs"),

@@ -3,12 +3,13 @@
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 import * as Managed from "Sdk.Managed";
+import * as BuildXLSdk from "Sdk.BuildXL";
 
 export declare const qualifier: Managed.TargetFrameworks.CurrentMachineQualifier;
 
 const NetFx = qualifier.targetFramework === "net472" ? importFrom("Sdk.Managed.Frameworks.Net472").NetFx : undefined;
 
-const exe = Managed.executable({
+const exe = BuildXLSdk.nativeExecutable({
     assemblyName: "ResXPreProcessor",
     sources: globR(d`.`,"*.cs"),
     references: qualifier.targetFramework !== "net472" ? [] : [

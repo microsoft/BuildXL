@@ -33,7 +33,10 @@ export function deployAssemblyToDisk(assembly: Shared.Assembly, targetDirectory?
  */
 @@public
 export function deployManagedTool(args: DeployWithToolDefinitionArguments) : Transformer.ToolDefinition {
-    const primaryFile = r`${args.tool.runtime.binary.name}`.changeExtension(qualifier.targetRuntime === "win-x64" ? ".exe" : "");
+    let primaryFile = r`${args.tool.runtime.binary.name}`;
+    if (qualifier.targetRuntime !== "win-x64" && [ a`.exe`, a`.dll` ].some(ext => ext === primaryFile.extension)) {
+        primaryFile = primaryFile.changeExtension("");
+    }
     const onDiskDeployment = deployAssemblyToDisk(args.tool, args.targetDirectory, primaryFile);
 
     let deploymentDefinition : Transformer.ToolDefinition = {

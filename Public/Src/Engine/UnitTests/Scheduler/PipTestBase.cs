@@ -213,6 +213,13 @@ namespace Test.BuildXL.Scheduler
                 builder.ToolDescription = StringId.Create(Context.StringTable, description);
             }
 
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                builder.SetEnvironmentVariable(
+                    StringId.Create(Context.StringTable, "DYLD_LIBRARY_PATH"),
+                    Path.GetDirectoryName(TestProcessExecutable.Path.ToString(Context.PathTable)));
+            }
+
             return builder;
         }
 

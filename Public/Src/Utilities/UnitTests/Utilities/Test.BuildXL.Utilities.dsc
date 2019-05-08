@@ -15,5 +15,6 @@ namespace Core {
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
         ],
+        runTestArgs: { privilegeLevel: "admin" },
     });
 }

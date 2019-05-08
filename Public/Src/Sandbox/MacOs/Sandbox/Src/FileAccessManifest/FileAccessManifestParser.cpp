@@ -54,6 +54,13 @@ void SkipOverCharArray(const BYTE *&cursor)
     cursor += sizeof(char16_t) *len;
 }
 
+inline uint32_t ParseUint32(const BYTE *&cursor)
+{
+    uint32_t i = *(uint32_t*)(cursor);
+    cursor += sizeof(uint32_t);
+    return i;
+}
+
 const char *CheckValidUnixManifestTreeRoot(PCManifestRecord node)
 {
     // empty manifest is ok
@@ -93,10 +100,7 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
 
         manifestTranslatePathsStrings_ = ParseAndAdvancePointer<PManifestTranslatePathsStrings>(payloadCursor);
         if (HasErrors()) continue;
-        
-        uint32_t manifestTranslatePathsSize = *((uint32_t *)(payloadCursor));
-        payloadCursor += sizeof(uint32_t);
-
+        uint32_t manifestTranslatePathsSize = ParseUint32(payloadCursor);
         for (uint32_t i = 0; i < manifestTranslatePathsSize; i++)
         {
             SkipOverCharArray(payloadCursor); // 'from' path
@@ -122,6 +126,14 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
 
         dllBlock_ = ParseAndAdvancePointer<PCManifestDllBlock>(payloadCursor);
         if (HasErrors()) continue;
+
+        shim_ = ParseAndAdvancePointer<PCManifestSubstituteProcessExecutionShim>(payloadCursor);
+        uint32_t numProcessMatches = ParseUint32(payloadCursor);
+        for (uint32_t i = 0; i < numProcessMatches; i++)
+        {
+            SkipOverCharArray(payloadCursor); // 'processName'
+            SkipOverCharArray(payloadCursor); // 'argumentMatch'
+        }
 
         root_ = Parse<PCManifestRecord>(payloadCursor);
         error_ = root_->CheckValid();

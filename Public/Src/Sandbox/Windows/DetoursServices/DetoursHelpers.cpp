@@ -512,16 +512,22 @@ void WriteToInternalErrorsFile(PCWSTR format, ...)
     }
 }
 
+inline uint32_t ParseUint32(const byte *payloadBytes, size_t &offset)
+{
+    uint32_t i = *(uint32_t*)(&payloadBytes[offset]);
+    offset += sizeof(uint32_t);
+    return i;
+}
+
 /// Decodes a length plus UTF-16 non-null-terminated string written by FileAccessManifest.WriteChars()
 /// into an allocated, null-terminated string. Returns nullptr if the encoded string length is zero.
 wchar_t *CreateStringFromWriteChars(const byte *payloadBytes, size_t &offset, uint32_t *pStrLen = nullptr)
 {
-    uint32_t len = *((uint32_t *)&payloadBytes[offset]);
+    uint32_t len = ParseUint32(payloadBytes, offset);
     if (pStrLen != nullptr)
     {
         *pStrLen = len;
     }
-    offset += sizeof(uint32_t);
 
     WCHAR *pStr = nullptr;
     if (len != 0)
@@ -666,18 +672,13 @@ bool ParseFileAccessManifest(
 
     g_manifestTranslatePathsStrings = reinterpret_cast<const PManifestTranslatePathsStrings>(&payloadBytes[offset]);
     g_manifestTranslatePathsStrings->AssertValid();
-
 #ifdef _DEBUG
     offset += sizeof(uint32_t);
 #endif
-
-    uint32_t manifestTranslatePathsSize = *(uint32_t*)(&payloadBytes[offset]);
-    offset += sizeof(uint32_t);
-
+    uint32_t manifestTranslatePathsSize = ParseUint32(payloadBytes, offset);
     for (uint32_t i = 0; i < manifestTranslatePathsSize; i++)
     {
-        uint32_t manifestTranslatePathsFromSize = *(uint32_t*)(&payloadBytes[offset]);
-        offset += sizeof(uint32_t);
+        uint32_t manifestTranslatePathsFromSize = ParseUint32(payloadBytes, offset);
         std::wstring translateFrom;
         translateFrom.assign(L"");
         if (manifestTranslatePathsFromSize > 0)
@@ -693,8 +694,7 @@ bool ParseFileAccessManifest(
             offset += sizeof(WCHAR) * manifestTranslatePathsFromSize;
         }
 
-        uint32_t manifestTranslatePathsToSize = *(uint32_t*)(&payloadBytes[offset]);
-        offset += sizeof(uint32_t);
+        uint32_t manifestTranslatePathsToSize = ParseUint32(payloadBytes, offset);
         std::wstring translateTo;
         translateTo.assign(L"");
         if (manifestTranslatePathsToSize > 0)
@@ -720,7 +720,6 @@ bool ParseFileAccessManifest(
     PCManifestFlags flags = reinterpret_cast<PCManifestFlags>(&payloadBytes[offset]);
     flags->AssertValid();
     g_fileAccessManifestFlags = static_cast<FileAccessManifestFlag>(flags->Flags);
-
     offset += flags->GetSize();
 
     PCManifestExtraFlags extraFlags = reinterpret_cast<PCManifestExtraFlags>(&payloadBytes[offset]);
@@ -832,6 +831,15 @@ bool ParseFileAccessManifest(
     offset += sizeof(uint32_t);
 #endif
     g_substituteProcessExecutionShimPath = CreateStringFromWriteChars(payloadBytes, offset);
+    g_ProcessExecutionShimAllProcesses = ParseUint32(payloadBytes, offset) != 0;
+    uint32_t numProcessMatches = ParseUint32(payloadBytes, offset);
+    g_pShimProcessMatches = new vector<ShimProcessMatch*>(numProcessMatches);
+    for (uint32_t i = 0; i < numProcessMatches; i++)
+    {
+        wchar_t *processName = CreateStringFromWriteChars(payloadBytes, offset);
+        wchar_t *argumentMatch = CreateStringFromWriteChars(payloadBytes, offset);
+        g_pShimProcessMatches->push_back(new ShimProcessMatch(processName, argumentMatch));
+    }
 
     g_manifestTreeRoot = reinterpret_cast<PCManifestRecord>(&payloadBytes[offset]);
     VerifyManifestRoot(g_manifestTreeRoot);

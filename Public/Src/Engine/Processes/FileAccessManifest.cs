@@ -465,6 +465,20 @@ namespace BuildXL.Processes
 #endif
             WriteChars(writer,
                 AnyBuildShimInfo?.SubstituteProcessExecutionShimPath.ToString(m_pathTable) ?? null);
+
+            writer.Write((AnyBuildShimInfo?.ShimAllProcesses ?? false) ? 1 : 0);
+
+            uint numShimProcessMatches = (uint)(AnyBuildShimInfo?.ShimProcessMatches.Count ?? 0);
+            writer.Write(numShimProcessMatches);
+
+            if (numShimProcessMatches > 0)
+            {
+                foreach (ShimProcessMatch match in AnyBuildShimInfo.ShimProcessMatches)
+                {
+                    WriteChars(writer, match.ProcessName.ToString(m_pathTable.StringTable));
+                    WriteChars(writer, match.ArgumentMatch.IsValid ? match.ArgumentMatch.ToString(m_pathTable.StringTable) : null);
+                }
+            }
         }
         
         // See unmanaged decoder at DetoursHelpers.cpp :: CreateStringFromWriteChars()

@@ -1936,10 +1936,10 @@ typedef struct
     // Optional, if present a case-sensitive string match is performed against the command arguments.
     // When present, this is an AND operation, i.e. the ProcessName and this search must both be found.
     const wchar_t *const ArgMatch;
-} ShimMatchInfo;
+} ShimProcessMatchInfo;
 
 // Processes to avoid shimming. These entries are typically build engines or their worker process children.
-static const ShimMatchInfo NeverShimProcesses[] = {
+static const ShimProcessMatchInfo NeverShimProcesses[] = {
     { L"cmd.exe", nullptr },
 
     // Gulp build engine, run under Node.js.
@@ -1964,13 +1964,24 @@ static bool CommandArgsContainMatch(const wchar_t *commandArgs, const wchar_t *a
     return wcsstr(commandArgs, argMatch) != nullptr;
 }
 
-static bool CanShim(const wstring &command, const wchar_t *commandArgs)
+static bool ShouldShim(const wstring &command, const wchar_t *commandArgs)
 {
+    // Easy cases.
+    if (g_pShimProcessMatches == nullptr || g_pShimProcessMatches->empty())
+    {
+        // Shim everything or shim nothing if there are no matches to compare.
+        return g_ProcessExecutionShimAllProcesses;
+    }
+
     size_t len = command.length();
 
-    for (int i = 0; i < NumNeverShimEntries; i++)
+    bool foundMatch = false;
+
+    for (auto it = g_pShimProcessMatches->begin(); it != g_pShimProcessMatches->end(); ++it)
     {
-        const wchar_t *neverShim = NeverShimProcesses[i].ProcessName;
+        ShimProcessMatch *pMatch = *it;
+
+        const wchar_t *neverShim = pMatch->ProcessName.get();
         size_t neverLen = wcslen(neverShim);
 
         // lpAppName is longer than e.g. "cmd.exe", see if lpAppName ends with e.g. "\cmd.exe"
@@ -1979,9 +1990,10 @@ static bool CanShim(const wstring &command, const wchar_t *commandArgs)
             if (command[len - neverLen - 1] == L'\\' &&
                 _wcsicmp(command.c_str() + len - neverLen, neverShim) == 0)
             {
-                if (CommandArgsContainMatch(commandArgs, NeverShimProcesses[i].ArgMatch))
+                if (CommandArgsContainMatch(commandArgs, pMatch->ArgumentMatch.get()))
                 {
-                    return false;
+                    foundMatch = true;
+                    break;
                 }
             }
 
@@ -1992,15 +2004,23 @@ static bool CanShim(const wstring &command, const wchar_t *commandArgs)
         {
             if (_wcsicmp(neverShim, command.c_str()) == 0)
             {
-                if (CommandArgsContainMatch(commandArgs, NeverShimProcesses[i].ArgMatch))
+                if (CommandArgsContainMatch(commandArgs, pMatch->ArgumentMatch.get()))
                 {
-                    return false;
+                    foundMatch = true;
+                    break;
                 }
             }
         }
     }
 
-    return true;
+    if (g_ProcessExecutionShimAllProcesses)
+    {
+        // A match means we don't want to shim - an opt-out list.
+        return !foundMatch;
+    }
+
+    // An opt-in list, shim if matching.
+    return foundMatch;
 }
 
 IMPLEMENTED(Detoured_CreateProcessW)
@@ -2032,13 +2052,10 @@ BOOL WINAPI Detoured_CreateProcessW(
             lpCommandArgs = lpCommandLine;
         }
 
-        if (CanShim(command, lpCommandArgs))
+        if (ShouldShim(command, lpCommandArgs))
         {
             // Instead of Detouring the child, run the requested shim
             // passing the original command line, but only for appropriate commands.
-            // TODO: We need additional payload information to indicate what
-            // process names we Detour instead, e.g. for the case of MSBuild or CMake
-            // running itself as children, which we should detour instead of shimming.
             return InjectShim(
                 lpApplicationName,
                 lpCommandLine,

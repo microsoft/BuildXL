@@ -545,6 +545,18 @@ typedef const ManifestDllBlock * PCManifestDllBlock;
 typedef struct ManifestSubstituteProcessExecutionShim_t
 {
     GENERATE_TAG("ManifestSubstituteProcessExecutionShim", 0xABCDEF04)
+
+    // Followed by WriteChars string and a custom collection consisting of N
+    // entries where each entry is a WriteChars string.
+
+    /// GetSize
+    ///
+    /// Calculate the size of this structure by fields which exist for this struct, and the total
+    /// size of the StringBlock (in StringBlockSize).
+    size_t GetSize() const
+    {
+        return sizeof(ManifestSubstituteProcessExecutionShim_t);
+    }
 } ManifestSubstituteProcessExecutionShim_t;
 typedef const ManifestSubstituteProcessExecutionShim_t * PCManifestSubstituteProcessExecutionShim;
 

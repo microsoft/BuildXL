@@ -233,6 +233,8 @@ LPCSTR g_lpDllNameX86;
 LPCSTR g_lpDllNameX64;
 
 wchar_t *g_substituteProcessExecutionShimPath = nullptr;
+bool g_ProcessExecutionShimAllProcesses;
+vector<ShimProcessMatch*>* g_pShimProcessMatches = nullptr;
 
 DetouredProcessInjector* g_pDetouredProcessInjector = nullptr;
 

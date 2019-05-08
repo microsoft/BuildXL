@@ -345,7 +345,7 @@
 		F58E91FD220B595B0083C57E /* utf8proc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = utf8proc.c; sourceTree = "<group>"; };
 		F58E91FE220B595B0083C57E /* utf8proc_data.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = utf8proc_data.c; sourceTree = "<group>"; };
 		F58E91FF220B595B0083C57E /* utf8proc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utf8proc.h; sourceTree = "<group>"; };
-		F598838C22527E7400A7A2D9 /* BundleInfoTest.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BundleInfoTest.xcconfig; path = ../BundleInfoTest.xcconfig; sourceTree = "<group>"; };
+		F598838C22527E7400A7A2D9 /* BundleInfoDebug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BundleInfoDebug.xcconfig; path = ../BundleInfoDebug.xcconfig; sourceTree = "<group>"; };
 		F598838D22527E7400A7A2D9 /* BundleInfo.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BundleInfo.xcconfig; path = ../BundleInfo.xcconfig; sourceTree = "<group>"; };
 		F5A804C42182937400626B9C /* Checkers.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Checkers.cpp; sourceTree = "<group>"; };
 		F5A804C52182937400626B9C /* Checkers.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Checkers.hpp; sourceTree = "<group>"; };
@@ -443,7 +443,7 @@
 			isa = PBXGroup;
 			children = (
 				F598838D22527E7400A7A2D9 /* BundleInfo.xcconfig */,
-				F598838C22527E7400A7A2D9 /* BundleInfoTest.xcconfig */,
+				F598838C22527E7400A7A2D9 /* BundleInfoDebug.xcconfig */,
 				3CCA66C720D15BBD0051F984 /* Src */,
 				F58E912F220B562A0083C57E /* External */,
 				3CCA66C620D15BBD0051F984 /* Products */,

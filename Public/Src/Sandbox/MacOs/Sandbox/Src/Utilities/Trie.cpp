@@ -114,28 +114,38 @@ void Trie::free()
     super::free();
 }
 
-bool Trie::ensureChildNodeExists(Node *node, int idx)
+bool Trie::findChildNode(Node *node, int idx, bool createIfMissing)
 {
     if (idx < 0 || idx >= node->length())
     {
         return false;
     }
 
-    if (node->children()[idx] == nullptr)
+    bool childNodeExists = node->children()[idx] != nullptr;
+
+    if (childNodeExists)
     {
-        Node* newNode = createNode();
+        return true;
+    }
 
-        // This should never happen except if we run out of memory.
-        if (newNode == nullptr)
-        {
-            return false;
-        }
+    // child is missing
+    if (!createIfMissing)
+    {
+        return false;
+    }
 
-        if (!OSCompareAndSwapPtr(nullptr, newNode, &node->children()[idx]))
-        {
-            // someone else created this child node before us --> release 'newNode' that we created for nothing
-            OSSafeReleaseNULL(newNode);
-        }
+    Node* newNode = createNode();
+
+    // This should never happen except if we run out of memory.
+    if (newNode == nullptr)
+    {
+        return false;
+    }
+
+    if (!OSCompareAndSwapPtr(nullptr, newNode, &node->children()[idx]))
+    {
+        // someone else created this child node before us --> release 'newNode' that we created for nothing
+        OSSafeReleaseNULL(newNode);
     }
 
     return true;
@@ -241,16 +251,12 @@ Trie::TrieResult Trie::insert(Node *node, const OSObject *value)
 
 Trie::TrieResult Trie::remove(Node *node)
 {
-    if (node == nullptr)
-    {
-        return kTrieResultFailure;
-    }
-
-    OSObject *previousValue = node->record_;
-    if (previousValue == nullptr)
+    if (node == nullptr || node->record_ == nullptr)
     {
         return kTrieResultAlreadyEmpty;
     }
+
+    OSObject *previousValue = node->record_;
 
     if (OSCompareAndSwapPtr(previousValue, nullptr, &node->record_))
     {
@@ -543,14 +549,14 @@ static int s_char2idx[256] =
 static_assert(CHAR_BIT == 8, "char is not 8 bits long");
 static_assert(UCHAR_MAX == 255, "max unsigned char is not 255");
 
-Node* Trie::findPathNode(const char *path)
+Node* Trie::findPathNode(const char *path, bool createIfMissing)
 {
     Node *currNode = root_;
     unsigned char ch;
     while ((ch = *path++) != '\0')
     {
         int idx = s_char2idx[ch];
-        if (!ensureChildNodeExists(currNode, idx))
+        if (!findChildNode(currNode, idx, createIfMissing))
         {
             return nullptr;
         }
@@ -560,7 +566,7 @@ Node* Trie::findPathNode(const char *path)
     return currNode;
 }
 
-Node* Trie::findUintNode(uint64_t key)
+Node* Trie::findUintNode(uint64_t key, bool createIfMissing)
 {
     Node *currNode = root_;
     while (true)
@@ -569,7 +575,7 @@ Node* Trie::findUintNode(uint64_t key)
 
         int lsd = key % 10;
 
-        if (!ensureChildNodeExists(currNode, lsd))
+        if (!findChildNode(currNode, lsd, createIfMissing))
         {
             return nullptr;
         }

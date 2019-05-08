@@ -18,6 +18,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         public const int DefaultFileStreamBufferSize = 4 * 1024;
 
         /// <summary>
+        /// Creates an empty file at a given path.
+        /// </summary>
+        public static async Task CreateEmptyFileAsync(this IAbsFileSystem fileSystem, AbsolutePath path)
+        {
+            fileSystem.CreateDirectory(path.Parent);
+            using (await fileSystem.OpenAsync(path, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.None, bufferSize: 1).ConfigureAwait(false))
+            {
+            }
+        }
+
+        /// <summary>
         ///     Try getting the attributes of a file.
         /// </summary>
         /// <returns>Returns false if the file doesn't exist.</returns>

@@ -900,5 +900,23 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Events.Tasks.PipExecutor,
             Message = Events.PipPrefix + "Process execution via external tool finished with the tool's exit code {exitCode}:{stdOut}{stdErr}")]
         public abstract void PipProcessFinishedExternalTool(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
+
+        [GeneratedEvent(
+            (int)EventId.PipProcessStartExternalVm,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "Process execution in VM starts")]
+        public abstract void PipProcessStartExternalVm(LoggingContext context, long pipSemiStableHash, string pipDescription);
+
+        [GeneratedEvent(
+            (int)EventId.PipProcessFinishedExternalVm,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "Process execution in VM finished with VM's command proxy exit code {exitCode}:{stdOut}{stdErr}")]
+        public abstract void PipProcessFinishedExternalVm(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
     }
 }

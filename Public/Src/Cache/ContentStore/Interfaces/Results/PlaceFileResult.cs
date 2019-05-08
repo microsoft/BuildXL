@@ -164,7 +164,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 case ResultCode.Error:
                     return GetErrorString();
                 default:
-                    return $"{Code} Size={FileSize}";
+                    return $"{Code} Size={FileSize}{this.GetDiagnosticsMessageForTracing()}";
             }
         }
     }

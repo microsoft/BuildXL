@@ -103,11 +103,12 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             bool traceOperationStarted = true,
             bool traceOperationFinished = true,
             Func<T, string> messageFactory = null,
+            string extraStartMessage = null,
             [CallerMemberName]string caller = null) where T : ResultBase
         {
             var self = this;
             var operationStartedAction = traceOperationStarted
-                ? () => operationTracer?.OperationStarted(self, caller, enabled: !traceErrorsOnly)
+                ? () => operationTracer?.OperationStarted(self, caller, enabled: !traceErrorsOnly, additionalInfo: extraStartMessage)
                 : (Action)null;
 
             using (counter?.Start())

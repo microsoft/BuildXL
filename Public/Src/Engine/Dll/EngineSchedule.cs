@@ -34,6 +34,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.VmCommandProxy;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Engine.Tracing.Logger;
@@ -161,7 +162,7 @@ namespace BuildXL.Engine
                        maxDegreeOfParallelism: PipTableMaxDegreeOfParallelismDuringConstruction,
                        debug: false);
         }
-
+        
         /// <summary>
         /// Creates an EngineSchedule for an immutable pip graph.
         /// </summary>
@@ -280,7 +281,8 @@ namespace BuildXL.Engine
                     directoryTranslator: directoryTranslator,
                     pipTwoPhaseCache: twoPhaseCache,
                     symlinkDefinitions: symlinkDefinitions,
-                    buildEngineFingerprint: buildEngineFingerprint);
+                    buildEngineFingerprint: buildEngineFingerprint,
+                    vmInitializer: VmInitializer.CreateFromEngine(configuration.Layout.BuildEngineDirectory.ToString(context.PathTable)));
             }
             catch (BuildXLException e)
             {
@@ -1656,7 +1658,8 @@ namespace BuildXL.Engine
                         directoryTranslator: directoryTranslator,
                         pipTwoPhaseCache: pipTwoPhaseCache,
                         symlinkDefinitions: await symlinkDefinitionsTask,
-                        buildEngineFingerprint: buildEngineFingerprint);
+                        buildEngineFingerprint: buildEngineFingerprint,
+                        vmInitializer: VmInitializer.CreateFromEngine(newConfiguration.Layout.BuildEngineDirectory.ToString(pathTable)));
                 }
                 catch (BuildXLException e)
                 {

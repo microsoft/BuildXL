@@ -65,6 +65,12 @@ namespace Scheduler.IntegrationTest {
                         ]
                     }
                 ]
+            },
+            {
+                subfolder: r`tools/VmCommandProxy/tools`,
+                contents: [
+                    importFrom("BuildXL.Utilities.UnitTests").MockVmCommandProxy.exe
+                ]
             }
         ],
     });

@@ -2,7 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
-const root = Environment.hasVariable("[Sdk.BuildXL]qtestDeploymentPath") ? d`${Environment.getFileValue("[Sdk.BuildXL]qtestDeploymentPath")}` : d`.`;
+
+const root = Environment.hasVariable("QTEST_DEPLOYMENT_PATH") ? d`${Environment.getFileValue("QTEST_DEPLOYMENT_PATH")}` : d`.`;
 const qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType")
     ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")
     : "None";
@@ -115,6 +116,7 @@ export function runQTest(args: QTestArguments): Result {
     // If no qTestInputs is specified, use the qTestDirToDeploy
     qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
 
+    let qTestContextInfo = Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo") ? f`${Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo")}` : undefined;
     let commandLineArgs: Argument[] = [
         Cmd.option("--testBinary ", args.testAssembly),
         Cmd.option(
@@ -160,6 +162,7 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
+        Cmd.option("--qTestContextInfo ", Artifact.input(qTestContextInfo)),
     ];
 
     let result = Transformer.execute({
@@ -173,6 +176,7 @@ export function runQTest(args: QTestArguments): Result {
         weight: args.weight,
         disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
         additionalTempDirectories : [sandboxDir],
+        privilegeLevel: args.privilegeLevel,
         dependencies: [
             //When there are test failures, and PDBs are looked up to generate the stack traces,
             //the original location of PDBs is used instead of PDBs in test sandbox. This is 
@@ -270,6 +274,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qCodeCoverageEnumType?: "DynamicCodeCov" | "None";
     /** When enabled, creates a zip of the sandbox in log directory */
     zipSandbox? : boolean;
+    /** Privilege level required by this process to execute. */
+    privilegeLevel?: "standard" | "admin";
 }
 /**
  * Test results from a vstest.console.exe run

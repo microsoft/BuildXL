@@ -55,6 +55,7 @@ using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Interop.MacOS;
 using BuildXL.Processes.Containers;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
+using BuildXL.Utilities.VmCommandProxy;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
@@ -1002,6 +1003,7 @@ namespace BuildXL.Scheduler
             PipTwoPhaseCache pipTwoPhaseCache = null,
             SymlinkDefinitions symlinkDefinitions = null,
             JournalState journalState = null,
+            VmInitializer vmInitializer = null,
             SchedulerTestHooks testHooks = null)
         {
             Contract.Requires(graph != null);
@@ -1215,6 +1217,7 @@ namespace BuildXL.Scheduler
             m_groupedPipCounters = new PipCountersByGroupAggregator(loggingContext);
 
             ProcessInContainerManager = new ProcessInContainerManager(loggingContext, Context.PathTable);
+            VmInitializer = vmInitializer;
         }
 
         private static ILogger CreateLoggerForIpcClients(LoggingContext loggingContext)
@@ -1325,7 +1328,7 @@ namespace BuildXL.Scheduler
 
                 foreach (var worker in m_workers)
                 {
-                    worker.Finish(HasFailed ? "Distributed build failed. See errors on master." : null);
+                    await worker.FinishAsync(HasFailed ? "Distributed build failed. See errors on master." : null);
                 }
 
                 // Wait for all workers to confirm that they have stopped.
@@ -5046,7 +5049,10 @@ namespace BuildXL.Scheduler
                                 }
                             }
 
-                            pipRuntimeInfo.Priority = (criticalPath < 0 || criticalPath > MaxInitialPipPriority) ? MaxInitialPipPriority : unchecked((int)criticalPath);
+                            int priorityBase = m_pipTable.GetPipPriority(pipId) << 24;
+                            int criticalPathPriority = (criticalPath < 0 || criticalPath > MaxInitialPipPriority) ? MaxInitialPipPriority : unchecked((int)criticalPath);
+                            criticalPathPriority = Math.Min(criticalPathPriority, (1 << 24) - 1);
+                            pipRuntimeInfo.Priority = priorityBase | criticalPathPriority;
 
                             Contract.Assert(pipType != PipType.HashSourceFile);
                             pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Waiting);
@@ -6029,6 +6035,9 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc/>
         public ProcessInContainerManager ProcessInContainerManager { get; }
+
+        /// <inheritdoc/>
+        public VmInitializer VmInitializer { get; }
 
         private long m_maxExternalProcessesRan;
 

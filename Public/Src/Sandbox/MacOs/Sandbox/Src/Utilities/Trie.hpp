@@ -143,13 +143,16 @@ private:
     void triggerOnChange(int oldCount, int newCount) const;
 
     /*!
-     * Creates a child node of 'node' at position 'idx' if such a child node doesn't already exist.
+     * Checks if a child node of 'node' exists at position 'idx'.
+     * If no such child node exists and 'createIfMissing' is true,
+     * a new child node is created and saved at position 'idx'.
      *
-     * @param node The node which must contain a child at position 'idx'.  Must not be null.
+     * @param node The parent node.  Must not be null.
      * @param idx Must be between 0 (inclusive) and 'node.length()' (exclusive); otherwise this method returns false.
-     * @result Indicates the success of the operation (it's true IFF 'node' has a child at position 'idx').
+     * @param createIfMissing When true, this method creates a new child node at position 'idx' if one doesn't already exist.
+     * @result True IFF 'node' contains a child node at position 'idx' after this method returns.
      */
-    bool ensureChildNodeExists(Node *node, int idx);
+    bool findChildNode(Node *node, int idx, bool createIfMissing);
 
     /*!
      * Ensures that 'node' has its 'record_' field set to a non-null value.
@@ -229,16 +232,34 @@ private:
     void traverse(bool computeKey, void *callbackArgs, traverse_fn callback);
 
     /*!
-     * Traverses the trie until it gets to the node corresponding to the given 'key', creating new nodes as necessary.
-     * Returning NULL indicates that the system is out of memory.
+     * When 'createIfMissing' is true:
+     *   traverses the trie until it gets to the node corresponding to the given 'key', creating new nodes as necessary
+     * else:
+     *   returns the node corresponding to the given 'key' IFF such node already exists, or NULL otherwise.
      */
-    Node* findUintNode(uint64_t key);
+    Node* findUintNode(uint64_t key, bool createIfMissing);
+
+    /*! Calls 'findUintNode' with 'createIfMissing' set to true. */
+    Node* findOrCreateNodeForUint(uint64_t key) { return findUintNode(key, true); }
+
+    /*! Calls 'findUintNode' with 'createIfMissing' set to false. */
+    Node* findExistingNodeForUint(uint64_t key) { return findUintNode(key, false); }
 
     /*!
-     * Traverses the trie until it gets to the node corresponding to the given 'key', creating new nodes as necessary.
-     * Returning NULL indicates that either the key is invalid (e.g., contains non-ascii characters) or the system is out of memory.
+     * When 'createIfMissing' is true:
+     *   traverses the trie until it gets to the node corresponding to the given 'key', creating new nodes as necessary
+     * else:
+     *   returns the node corresponding to the given 'key' IFF such node already exists, or NULL otherwise.
+     *
+     * NULL is also returned when the key is invalid (contains non-ascii characters) or the system is out of memory.
      */
-    Node* findPathNode(const char *key);
+    Node* findPathNode(const char *key, bool createIfMissing);
+
+    /*! Calls 'findPathNode' with 'createIfMissing' set to true. */
+    Node* findOrCreateNodeForPath(const char *key) { return findPathNode(key, true); }
+
+    /*! Calls 'findPathNode' with 'createIfMissing' set to false. */
+    Node* findExistingNodeForPath(const char *key) { return findPathNode(key, false); }
 
     /*! Creates either a Uint or a Path node, based on the kind of this trie. */
     Node* createNode()
@@ -286,7 +307,7 @@ public:
     OSObject* get(const char *path)
     {
         if (kind_ != kPathTrie) return nullptr;
-        return get(findPathNode(path));
+        return get(findExistingNodeForPath(path));
     }
 
     template<typename T>
@@ -309,25 +330,25 @@ public:
     OSObject* getOrAdd(const char *path, void *factoryArgs, factory_fn factory, TrieResult *result = nullptr)
     {
         if (kind_ != kPathTrie) return nullptr;
-        return getOrAdd(findPathNode(path), factoryArgs, factory, result);
+        return getOrAdd(findOrCreateNodeForPath(path), factoryArgs, factory, result);
     }
 
     TrieResult replace(const char *path, const OSObject *value)
     {
         if (kind_ != kPathTrie) return kTrieResultFailure;
-        return replace(findPathNode(path), value);
+        return replace(findOrCreateNodeForPath(path), value);
     }
 
     TrieResult insert(const char *path, const OSObject *value)
     {
         if (kind_ != kPathTrie) return kTrieResultFailure;
-        return insert(findPathNode(path), value);
+        return insert(findOrCreateNodeForPath(path), value);
     }
 
     TrieResult remove(const char *key)
     {
         if (kind_ != kPathTrie) return kTrieResultFailure;
-        return remove(findPathNode(key));
+        return remove(findExistingNodeForPath(key));
     }
 
 #pragma mark Methods for 'uint' keys
@@ -335,7 +356,7 @@ public:
     OSObject* get(uint64_t key)
     {
         if (kind_ != kUintTrie) return nullptr;
-        return get(findUintNode(key));
+        return get(findExistingNodeForUint(key));
     }
 
     template<typename T>
@@ -348,25 +369,25 @@ public:
     OSObject* getOrAdd(uint64_t key, void *factoryArgs, factory_fn factory, TrieResult *result = nullptr)
     {
         if (kind_ != kUintTrie) return nullptr;
-        return getOrAdd(findUintNode(key), factoryArgs, factory, result);
+        return getOrAdd(findOrCreateNodeForUint(key), factoryArgs, factory, result);
     }
 
     TrieResult replace(uint64_t key, const OSObject *value)
     {
         if (kind_ != kUintTrie) return kTrieResultFailure;
-        return replace(findUintNode(key), value);
+        return replace(findOrCreateNodeForUint(key), value);
     }
 
     TrieResult insert(uint64_t key, const OSObject *value)
     {
         if (kind_ != kUintTrie) return kTrieResultFailure;
-        return insert(findUintNode(key), value);
+        return insert(findOrCreateNodeForUint(key), value);
     }
 
     TrieResult remove(uint64_t key)
     {
         if (kind_ != kUintTrie) return kTrieResultFailure;
-        return remove(findUintNode(key));
+        return remove(findExistingNodeForUint(key));
     }
 
 #pragma mark Static factory methods

@@ -47,12 +47,15 @@ config({
             repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                 ? {
                     "BuildXL.Selfhost": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
+                    // Note: From a compliance point of view it is important that MicrosoftInternal has a single feed.
+                    // If you need to consume packages make sure they are upstreamed in that feed.
                   }
                 : {
                     "buildxl-selfhost" : "https://dotnet.myget.org/F/buildxl-selfhost/api/v3/index.json",
                     "nuget.org" : "http://api.nuget.org/v3/index.json",
                     "roslyn-tools" : "https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json",
-                    "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json"
+                    "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json",
+                    "dotnet-core" : "https://dotnet.myget.org/F/dotnet-core/api/v3/index.json"
                   },
 
             packages: [
@@ -133,9 +136,12 @@ config({
                 // Cpp Sdk
                 { id: "VisualCppTools.Community.VS2017Layout", version: "14.11.25506"},
 
+                // ProjFS (virtual file system)
+                { id: "Microsoft.Windows.ProjFS", version: "1.0.19079.1" },
+
                 // RocksDb
                 { id: "RocksDbSharp", version: "5.8.0-b20181023.3", alias: "RocksDbSharpSigned" },
-                { id: "RocksDbNative", version: "5.14.3-b20181023.3" },
+                { id: "RocksDbNative", version: "6.0.1-b20190426.4" },
 
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
 
@@ -423,6 +429,10 @@ config({
                 // Ninja JSON graph generation helper
                 { id: "BuildXL.Tools.Ninjson", version: "0.0.6" },
                 { id: "BuildXL.Tools.AppHostPatcher", version: "1.0.0" },
+
+                // CoreRT
+                { id: "runtime.osx-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
+                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" }
             ],
 
             doNotEnforceDependencyVersions: true,

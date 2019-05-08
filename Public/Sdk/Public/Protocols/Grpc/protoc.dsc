@@ -13,16 +13,7 @@ export const tool: Transformer.ToolDefinition = {
         Context.getCurrentHost().os === "win"
             ? r`tools/windows_x64/protoc.exe`
             : r`tools/macosx_x64/protoc`),
-    dependsOnWindowsDirectories: true,
-    untrackedDirectoryScopes: [
-        ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.untrackedSystemFolderDeps)
-    ],
-    untrackedFiles: [
-        ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.untrackedFiles)
-    ],
-    runtimeDirectoryDependencies: [
-        ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.systemFolderInputDeps),
-    ]
+    dependsOnCurrentHostOSDirectories: true
 };
 
 /**
@@ -57,9 +48,6 @@ export function generate(args: Arguments) : Result {
         outputs: [
             mainCsFile,
             grpcCsFile,
-        ],
-        dependencies: [
-            ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.filesAndSymlinkInputDeps)
         ]
     });
 

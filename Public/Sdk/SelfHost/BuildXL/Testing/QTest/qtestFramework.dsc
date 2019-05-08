@@ -133,10 +133,11 @@ function runTest(args : TestRunArguments) : File[] {
         qTestTimeoutSec: 540,
         useVsTest150:true,
         vstestSettingsFile: f`test.runsettings`,
-        qTestTool: Environment.hasVariable("[Sdk.BuildXL]qtestDeploymentPath") ? undefined : qTestTool,
+        qTestTool: Environment.hasVariable("QTEST_DEPLOYMENT_PATH") ? undefined : qTestTool,
         qTestLogs: logDir,
         tags: args.tags,
-        weight: args.weight
+        weight: args.weight,
+        privilegeLevel: args.privilegeLevel,
     });
 
     return [

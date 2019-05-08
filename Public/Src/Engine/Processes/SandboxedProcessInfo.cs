@@ -392,6 +392,11 @@ namespace BuildXL.Processes
         /// </remarks>
         public SandboxObserverDescriptor StandardObserverDescriptor { get; set; }
 
+        /// <summary>
+        /// Provenance description.
+        /// </summary>
+        public string Provenance => $"[Pip{PipSemiStableHash:X16} -- {PipDescription}] ";
+
         #region Serialization
 
         /// <nodoc />

@@ -36,6 +36,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using KextConnection = BuildXL.Processes.KextConnection;
+using BuildXL.Utilities.VmCommandProxy;
 
 namespace Test.BuildXL.Scheduler.Utils
 {
@@ -579,6 +580,8 @@ namespace Test.BuildXL.Scheduler.Utils
         public IKextConnection SandboxedKextConnection => m_sandboxedKextConnection;
 
         public ProcessInContainerManager ProcessInContainerManager { get; }
+
+        public VmInitializer VmInitializer { get; }
 
         public SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directory)
         {

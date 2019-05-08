@@ -37,5 +37,6 @@ namespace BuildXL.FrontEnd.MsBuild.Tracing
         ProjectWithEmptyTargetsIsNotScheduled = 11421,
         ProjectIsNotSpecifyingTheProjectReferenceProtocol = 11422,
         GraphBuilderFilesAreNotRemoved = 11423,
+        LeafProjectIsNotSpecifyingTheProjectReferenceProtocol = 11424,
     }
 }

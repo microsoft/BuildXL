@@ -95,6 +95,12 @@ namespace BuildXL.Pips.Builders
         /// </summary>
         public int? Weight { get; set; } = null;
 
+        /// <summary>
+        /// The priority value of this pip when scheduling process pips.
+        /// The higher the priority, the sooner it will run.
+        /// </summary>
+        public int? Priority { get; set; } = null;
+
         /// <nodoc />
         public TimeSpan? Timeout { get; set; }
 
@@ -619,7 +625,8 @@ namespace BuildXL.Pips.Builders
                 doubleWritePolicy: DoubleWritePolicy,
                 containerIsolationLevel: ContainerIsolationLevel,
                 absentPathProbeMode: AbsentPathProbeUnderOpaquesMode,
-                weight: Weight);
+                weight: Weight,
+                priority: Priority);
 
             return true;
         }

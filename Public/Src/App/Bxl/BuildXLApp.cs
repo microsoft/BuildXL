@@ -330,7 +330,8 @@ namespace BuildXL
                         (int)EventId.EndFilterApplyTraversal,
                         (int)EventId.EndAssigningPriorities,
                         (int)Engine.Tracing.LogEventId.DeserializedFile,
-                        (int)EventId.PipQueueConcurrency
+                        (int)EventId.PipQueueConcurrency,
+                        (int)Engine.Tracing.LogEventId.GrpcSettings
                     });
 
                 // Distribution related messages are disabled in default text log and routed to special log file

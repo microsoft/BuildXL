@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
 
@@ -30,8 +31,9 @@ namespace BuildXL.Cache.ContentStore.Synchronization
         /// </summary>
         public async Task<LockHandle> AcquireAsync(TKey key)
         {
-            var thisHandle = new LockHandle(this, key);
-
+            StopwatchSlim stopwatch = StopwatchSlim.Start();
+            LockHandle thisHandle = new LockHandle(this, key);
+            
             while (true)
             {
                 LockHandle currentHandle = _exclusiveLocks.GetOrAdd(key, thisHandle);
@@ -46,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
                 }
             }
 
-            return thisHandle;
+            return thisHandle.WithDuration(stopwatch.Elapsed);
         }
 
         /// <summary>
@@ -119,6 +121,11 @@ namespace BuildXL.Cache.ContentStore.Synchronization
             public TKey Key { get; }
 
             /// <summary>
+            /// Optional duration of a lock acquisition.
+            /// </summary>
+            public TimeSpan? LockAcquisitionDuration { get; }
+
+            /// <summary>
             /// Initializes a new instance of the <see cref="LockHandle" /> struct for the given collection/key.
             /// </summary>
             public LockHandle(LockSet<TKey> locks, TKey key)
@@ -130,6 +137,16 @@ namespace BuildXL.Cache.ContentStore.Synchronization
                 _locks = locks;
                 Key = key;
                 _handleId = Interlocked.Increment(ref _currentHandleId);
+                LockAcquisitionDuration = null;
+            }
+
+            private LockHandle(LockHandle lockHandle, TimeSpan lockAcquisitionDuration)
+            {
+                _locks = lockHandle._locks;
+                TaskCompletionSource = lockHandle.TaskCompletionSource;
+                Key = lockHandle.Key;
+                _handleId = lockHandle._handleId;
+                LockAcquisitionDuration = lockAcquisitionDuration;
             }
 
             /// <inheritdoc />
@@ -176,6 +193,14 @@ namespace BuildXL.Cache.ContentStore.Synchronization
             public static bool operator !=(LockHandle left, LockHandle right)
             {
                 return !(left == right);
+            }
+
+            /// <summary>
+            /// Clones the current instance and adds <paramref name="lockAcquisitionDuration"/> to it for diagnostic purposes.
+            /// </summary>
+            public LockHandle WithDuration(TimeSpan lockAcquisitionDuration)
+            {
+                return new LockHandle(this, lockAcquisitionDuration);
             }
         }
 

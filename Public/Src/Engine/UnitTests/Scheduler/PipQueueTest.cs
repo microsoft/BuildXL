@@ -45,6 +45,7 @@ using BuildXL.Scheduler.FileSystem;
 using Test.BuildXL.Scheduler.Utils;
 using KextConnection = BuildXL.Processes.KextConnection;
 using BuildXL.Processes.Containers;
+using BuildXL.Utilities.VmCommandProxy;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -589,6 +590,8 @@ namespace Test.BuildXL.Scheduler
             public IKextConnection SandboxedKextConnection => m_sandboxedKextConnection;
 
             public ProcessInContainerManager ProcessInContainerManager { get; }
+
+            public VmInitializer VmInitializer { get; }
         }
     }
 

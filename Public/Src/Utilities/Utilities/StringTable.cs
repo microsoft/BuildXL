@@ -558,7 +558,10 @@ namespace BuildXL.Utilities
                 bufferNum++;
 
                 // Make sure we don't overflow the buffer we're indexing into
-                Contract.Assert(bufferNum < NumByteBuffers, $"Exceeded the number of ByteBuffers allowed in this StringTable: {bufferNum} >= {NumByteBuffers}");
+                if (bufferNum >= NumByteBuffers)
+                {
+                    Contract.Assert(false, $"Exceeded the number of ByteBuffers allowed in this StringTable: {bufferNum} >= {NumByteBuffers}");
+                }
 
                 lock (m_byteBuffers)
                 {

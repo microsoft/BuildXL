@@ -1492,6 +1492,7 @@ namespace BuildXL.Native.IO.Windows
         public bool HasWritableAccessControl(string path)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
+            path = FileSystemWin.ToLongPathIfExceedMaxPath(path);
 
 #if !FEATURE_CORECLR
             FileSystemRights fileSystemRights =

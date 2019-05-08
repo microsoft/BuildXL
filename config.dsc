@@ -169,7 +169,6 @@ config({
                 { id: "Microsoft.Data.Edm", version: "5.8.2" },
 
                 // xUnit
-                { id: "xunit", version: "2.4.1" },
                 { id: "xunit.abstractions", version: "2.0.3", tfm: ".NETStandard2.0" },
                 { id: "xunit.analyzers", version: "0.10.0" },
                 { id: "xunit.assert", version: "2.4.1" },
@@ -233,8 +232,6 @@ config({
                 { id: "Microsoft.NETCore.Platforms", version: "2.1.0", tfm: ".NETStandard2.0" },
                 { id: "Microsoft.NETCore.DotNetHostPolicy", version: "2.1.1"},
                 { id: "System.Security.Claims", version: "4.3.0" },
-
-                { id: "Microsoft.VisualStudio.Services.Client", version: "17.149.20190311.3-release", dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
 
                 // .NET Core Self-Contained Deployment
                 { id: "Microsoft.NETCore.DotNetHostResolver", version: "2.2.0" },

@@ -23,10 +23,10 @@ namespace Tool {
                 importFrom("System.Threading.Tasks.Extensions").pkg,
 
                 ] : []),
-            importFrom("Microsoft.CodeAnalysis.Common").pkg,
-            importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
-            importFrom("Microsoft.CodeAnalysis.CSharp.Workspaces").pkg,
-            importFrom("Microsoft.CodeAnalysis.Workspaces.Common").pkg,
+            importFrom("Microsoft.CodeAnalysis.Common").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("Microsoft.CodeAnalysis.CSharp").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("Microsoft.CodeAnalysis.CSharp.Workspaces").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("Microsoft.CodeAnalysis.Workspaces.Common").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
 
             // There is a gap in our nuget integration so temporarily adding the dependencies manually
             importFrom("System.Composition.AttributedModel").pkg,

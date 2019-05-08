@@ -8,6 +8,8 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.FrontEnd.Script.Util;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -95,9 +97,51 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             XAssert.IsTrue(processOutputDirectories.Any(outputDirectory => outputDirectory.IsSharedOpaque && outOfRootOutput.IsWithin(PathTable, outputDirectory.Path)));
         }
 
+        [Fact]
+        public void PredictedInputsInKnownOutputDirectoriesAreSkipped()
+        {
+            var dependency = CreateProjectWithPredictions(outputs: CreatePath("OutDir"));
+
+            // We create 4 predicted inputs. 3 of them under predicted output directories. So only the last one should be added as a true input, the rest are assumed to be intermediates
+            var dependent = CreateProjectWithPredictions(
+                outputs: CreatePath("AnotherOutput"),
+                inputs: CreatePath(@"AnotherOutput\input.txt", @"OutDir\input1.txt", @"OutDir\nested\input2.txt", "input3.txt"), 
+                references: new[] { dependency });
+
+            var processInputs = Start()
+                .Add(dependency)
+                .Add(dependent)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(dependent)
+                .Dependencies;
+
+            // The only source file (besides MSBuild.exe itself) should be input3
+            var input = processInputs.Single(i => (i.IsSourceFile && i.Path.GetName(PathTable) != PathAtom.Create(StringTable, "MSBuild.exe")));
+            XAssert.Equals("input3.txt", input.Path.GetName(PathTable).ToString(PathTable.StringTable));
+        }
+
+        [Fact]
+        public void PredictedInputsUnderUntrackedDirectoriesAreSkipped()
+        {
+            var project = CreateProjectWithPredictions(inputs: CreatePath(@"untracked\input.txt", "input2.txt"));
+
+            var processInputs = Start(new MsBuildResolverSettings
+                {
+                    UntrackedDirectories = CreatePath("untracked").Select(path => DirectoryArtifact.CreateWithZeroPartialSealId(path)).ToList()
+                })
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .Dependencies;
+
+            // The only source file (besides MSBuild.exe itself) should be input2
+            var input = processInputs.Single(i => (i.IsSourceFile && i.Path.GetName(PathTable) != PathAtom.Create(StringTable, "MSBuild.exe")));
+            XAssert.Equals("input2.txt", input.Path.GetName(PathTable).ToString(PathTable.StringTable));
+        }
+
         private IReadOnlyCollection<AbsolutePath> CreatePath(params string[] paths)
         {
-            return paths.Select(path => TestPath.Combine(PathTable, path)).ToList();
+            return paths.Select(path => TestPath.Combine(PathTable, RelativePath.Create(PathTable.StringTable, path))).ToList();
         }
     }
 }

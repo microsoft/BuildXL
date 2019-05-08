@@ -126,13 +126,70 @@ namespace BuildXL.FrontEnd.Nuget
 
             foreach (var versionHistory in new List<PathAtom>[] { m_nugetFrameworkMonikers.FullFrameworkVersionHistory, m_nugetFrameworkMonikers.NetCoreVersionHistory })
             {
-                var indices = analyzedPackage.TargetFrameworks.Select(moniker => versionHistory.IndexOf(moniker)).Where(idx => idx != -1).ToList();
-                for (int i = 0; i < indices.Count(); i++)
+                FindAllCompatibleFrameworkMonikers(analyzedPackage, (List<PathAtom> monikers) =>
                 {
-                    int start = indices[i];
-                    int count = (i + 1) > indices.Count() - 1 ? versionHistory.Count() - start : (indices[i + 1] - indices[i]);
-                    Console.WriteLine(analyzedPackage.Id + ": " + string.Join(",", versionHistory.GetRange(start, count)));
-                }
+                    cases.AddRange(monikers.Take(monikers.Count - 1).Select(m => new CaseClause(new LiteralExpression(m.ToString(m_pathTable.StringTable)))));
+
+                    var compile = new List<IExpression>();
+                    var runtime = new List<IExpression>();
+                    var dependencies = new List<IExpression>();
+
+                    // Compile items
+                    if (TryGetValueForFrameworkAndFallbacks(analyzedPackage.References, new NugetTargetFramework(monikers.First()), out IReadOnlyList<RelativePath> refAssemblies))
+                    {
+                        foreach (var assembly in refAssemblies)
+                        {
+                            compile.Add(CreateSimpleBinary(assembly));
+                        }
+                    }
+
+                    // Runtime items
+                    if (TryGetValueForFrameworkAndFallbacks(analyzedPackage.Libraries, new NugetTargetFramework(monikers.First()), out IReadOnlyList<RelativePath> libAssemblies))
+                    {
+                        foreach (var assembly in libAssemblies)
+                        {
+                            runtime.Add(CreateSimpleBinary(assembly));
+                        }
+                    }
+
+                    // Dependency items
+                    if (analyzedPackage.DependenciesPerFramework.TryGetValue(monikers.First(), out IReadOnlyList<INugetPackage> dependencySpecificFrameworks))
+                    {
+                        foreach (var dependencySpecificFramework in dependencySpecificFrameworks)
+                        {
+                            dependencies.Add(CreateImportFromForDependency(dependencySpecificFramework));
+                        }
+                    }
+
+
+
+                    cases.Add(
+                        new CaseClause(
+                            new LiteralExpression(monikers.Last().ToString(m_pathTable.StringTable)),
+                            new ReturnStatement(
+                                new CallExpression(
+                                    PropertyAccess("Managed", "Factory", "createNugetPackge"),
+                                    new LiteralExpression(analyzedPackage.Id),
+                                    new LiteralExpression(analyzedPackage.Version),
+                                    PropertyAccess("Contents", "all"),
+                                    Array(compile),
+                                    Array(runtime),
+                                    Array(new CallExpression(new Identifier("...addIfLazy"),
+                                        new BinaryExpression(
+                                            new PropertyAccessExpression("qualifier", "targetFramework"),
+                                            SyntaxKind.EqualsEqualsEqualsToken,
+                                            new LiteralExpression(monikers.First().ToString(m_pathTable.StringTable))
+                                        ),
+                                        new ArrowFunction(
+                                            CollectionUtilities.EmptyArray<IParameterDeclaration>(),
+                                            Array(dependencies)
+                                        )
+                                    ))
+                                )
+                            )
+                        )
+                    );
+                }, versionHistory);
             }
 
             return cases;
@@ -220,13 +277,46 @@ namespace BuildXL.FrontEnd.Nuget
             );
         }
 
+        private void FindAllCompatibleFrameworkMonikers(NugetAnalyzedPackage analyzedPackage, Action<List<PathAtom>> callback, params List<PathAtom>[] tfmHistory)
+        {
+            if (analyzedPackage.TargetFrameworks.Count > 0)
+            {
+                foreach (var versionHistory in tfmHistory)
+                {
+                    var indices = analyzedPackage.TargetFrameworks.Select(moniker => versionHistory.IndexOf(moniker)).Where(idx => idx != -1).OrderBy(x => x).ToList();
+                    if (indices.IsNullOrEmpty())
+                    {
+                        continue;
+                    }
+
+                    for (int i = 0; i < indices.Count(); i++)
+                    {
+                        int start = indices[i];
+                        int count = (i + 1) > indices.Count() - 1 ? versionHistory.Count() - start : (indices[i + 1] - indices[i]);
+
+                        callback(versionHistory.GetRange(start, count));
+                    }
+                }
+            }
+            else
+            {
+                callback(default(List<PathAtom>));
+            }
+        }
+
         private bool TryCreateQualifier(NugetAnalyzedPackage analyzedPackage, out IStatement statement)
         {
-            if (analyzedPackage.HasTargetFrameworks())
+            List<PathAtom> compatibleTfms = new List<PathAtom>();
+
+            FindAllCompatibleFrameworkMonikers(analyzedPackage,
+                (List<PathAtom> monikers) => compatibleTfms.AddRange(monikers),
+                m_nugetFrameworkMonikers.FullFrameworkVersionHistory,
+                m_nugetFrameworkMonikers.NetCoreVersionHistory);
+
+            if (compatibleTfms.Count > 0)
             {
-                var targetFrameworks = analyzedPackage.GetTargetFrameworksInStableOrder(m_pathTable);
-                // { targetFramework: 'tf1' | 'tf2' }
-                var qualifierType = UnionType(propertyName: "targetFramework", literalTypes: targetFrameworks);
+                // { targetFramework: 'tf1' | 'tf2' | ... }
+                var qualifierType = UnionType(propertyName: "targetFramework", literalTypes: compatibleTfms.Select(m => m.ToString(m_pathTable.StringTable)).ToArray());
                 statement = Qualifier(qualifierType);
                 return true;
             }

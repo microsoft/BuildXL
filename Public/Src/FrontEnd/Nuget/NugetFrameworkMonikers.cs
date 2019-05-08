@@ -104,7 +104,10 @@ namespace BuildXL.FrontEnd.Nuget
         /// <nodoc />
         public HashSet<PathAtom> WellknownMonikers { get; }
 
+        /// <nodoc />
         public readonly List<PathAtom> FullFrameworkVersionHistory;
+
+        /// <nodoc />
         public readonly List<PathAtom> NetCoreVersionHistory;
 
         /// <nodoc />
@@ -120,7 +123,7 @@ namespace BuildXL.FrontEnd.Nuget
             TargetFrameworkNameToMoniker = new Dictionary<string, PathAtom>();
             FullFrameworkVersionHistory = new List<PathAtom>();
             NetCoreVersionHistory = new List<PathAtom>();
-            
+
             NetStandard10 = Register(stringTable, "netstandard1.0", ".NETStandard1.0", ref NetCoreVersionHistory);
             NetStandard11 = Register(stringTable, "netstandard1.1", ".NETStandard1.1", ref NetCoreVersionHistory);
             NetStandard12 = Register(stringTable, "netstandard1.2", ".NETStandard1.2", ref NetCoreVersionHistory);

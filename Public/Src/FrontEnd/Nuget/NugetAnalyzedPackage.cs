@@ -358,30 +358,33 @@ namespace BuildXL.FrontEnd.Nuget
             {
                 if (group.Attribute("targetFramework") != null && NugetFrameworkMonikers.TargetFrameworkNameToMoniker.TryGetValue(group.Attribute("targetFramework").Value, out Moniker targetFramework))
                 {
-                    // If there is at least one valid dependency for a known framework, then the package is defined as managed
-                    IsManagedPackage = group.Elements().Any();
-                    TargetFrameworks.Add(targetFramework);
-
-                    // If the package has a pinned tfm and the groups tfm does not match, skip the groups dependency resolution
-                    if (!string.IsNullOrEmpty(this.Tfm) && NugetFrameworkMonikers.TargetFrameworkNameToMoniker.TryGetValue(this.Tfm, out Moniker pinnedTfm) && !PathAtom.Equals(pinnedTfm, targetFramework))
+                    if (group.Elements().Any())
                     {
-                        continue;
-                    }
+                        // If there is at least one valid dependency for a known framework, then the package is defined as managed
+                        IsManagedPackage = true;
+                        TargetFrameworks.Add(targetFramework);
 
-                    foreach (
-                        var dependency in
-                            group.Elements().Where(
-                                el => string.Equals(el.Name.LocalName, "dependency", StringComparison.Ordinal)))
-                    {
-                        var grouppedDependency = ReadDependencyElement(dependency);
-                        if (grouppedDependency == null && !(ignoreAllDependencies || ignoreIdLookupTable.Contains(dependency.Attribute("id")?.Value?.Trim())))
+                        // If the package has a pinned tfm and the groups tfm does not match, skip the groups dependency resolution
+                        if (!string.IsNullOrEmpty(this.Tfm) && NugetFrameworkMonikers.TargetFrameworkNameToMoniker.TryGetValue(this.Tfm, out Moniker pinnedTfm) && !PathAtom.Equals(pinnedTfm, targetFramework))
                         {
-                            return false;
+                            continue;
                         }
 
-                        if (grouppedDependency != null && !skipAllDependencies && !skipIdLookupTable.Contains(grouppedDependency.GetPackageIdentity()))
+                        foreach (
+                            var dependency in
+                                group.Elements().Where(
+                                    el => string.Equals(el.Name.LocalName, "dependency", StringComparison.Ordinal)))
                         {
-                            dependenciesPerFramework.Add(targetFramework, grouppedDependency);
+                            var grouppedDependency = ReadDependencyElement(dependency);
+                            if (grouppedDependency == null && !(ignoreAllDependencies || ignoreIdLookupTable.Contains(dependency.Attribute("id")?.Value?.Trim())))
+                            {
+                                return false;
+                            }
+
+                            if (grouppedDependency != null && !skipAllDependencies && !skipIdLookupTable.Contains(grouppedDependency.GetPackageIdentity()))
+                            {
+                                dependenciesPerFramework.Add(targetFramework, grouppedDependency);
+                            }
                         }
                     }
                 }

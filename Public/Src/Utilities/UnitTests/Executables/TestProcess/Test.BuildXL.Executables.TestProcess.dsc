@@ -16,7 +16,6 @@ namespace TestProcess {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
         ],
-        contractsLevel: importFrom("Tse.RuntimeContracts").ContractsLevel.disabled
     };
 
     @@public

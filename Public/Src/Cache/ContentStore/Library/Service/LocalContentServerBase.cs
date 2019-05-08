@@ -599,6 +599,7 @@ namespace BuildXL.Cache.ContentStore.Service
                 Tracer,
                 async () =>
                 {
+                    TrySetBuildId(name);
                     if (!StoresByName.TryGetValue(cacheName, out var store))
                     {
                         return Result.FromErrorMessage<TSession>($"Cache by name=[{cacheName}] is not available");
@@ -629,6 +630,39 @@ namespace BuildXL.Cache.ContentStore.Service
                     Tracer.Debug(context, $"{nameof(CreateSessionAsync)} created session {handle.ToString(id)}.");
                     return Result.Success(session);
                 });
+        }
+
+        private void TrySetBuildId(string sessionName)
+        {
+            // Domino provides build ID through session name for CB builds.
+            if (Logger is IOperationLogger operationLogger && TryExtractBuildId(sessionName, out var buildId))
+            {
+                operationLogger.RegisterBuildId(buildId);
+            }
+        }
+
+        private static bool TryExtractBuildId(string sessionName, out string buildId)
+        {
+            if (sessionName?.Contains(Context.BuildIdPrefix) == true)
+            {
+                var index = sessionName.IndexOf(Context.BuildIdPrefix) + Context.BuildIdPrefix.Length;
+                buildId = sessionName.Substring(index);
+
+                // Return true only if buildId is actually a guid.
+                return Guid.TryParse(buildId, out _);
+            }
+
+            buildId = null;
+            return false;
+        }
+
+        private void TryUnsetBuildId(string sessionName)
+        {
+            // Domino provides build ID through session name for CB builds.
+            if (Logger is IOperationLogger operationLogger && TryExtractBuildId(sessionName, out _))
+            {
+                operationLogger.UnregisterBuildId();
+            }
         }
 
         /// <summary>
@@ -741,6 +775,9 @@ namespace BuildXL.Cache.ContentStore.Service
             }
 
             Tracer.Debug(context, $"{method} closing session {DescribeSession(sessionId, sessionHandle)}");
+
+            TryUnsetBuildId(sessionHandle.SessionName);
+
             await sessionHandle.Session.ShutdownAsync(context).ThrowIfFailure();
             sessionHandle.Session.Dispose();
         }

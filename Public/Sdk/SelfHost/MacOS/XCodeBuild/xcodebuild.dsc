@@ -3,12 +3,15 @@
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 
+const userName = Environment.getStringValue("USER") || "";
+
 @@public
 export const tool: Transformer.ToolDefinition = {
     exe: f`/usr/bin/xcodebuild`,
-    untrackedDirectoryScopes: untrackedSystemFolderDeps,
-    untrackedFiles: untrackedFiles,
-    runtimeDirectoryDependencies: systemFolderInputDeps
+    dependsOnCurrentHostOSDirectories: true,
+    untrackedFiles: [
+        f`/Users/${userName}/Library/Developer/Xcode/UserData/IDEEditorInteractivityHistory`
+    ]
 };
 
 @@public
@@ -96,10 +99,7 @@ export function execute(args: Arguments): Transformer.ExecuteResult {
             incrementBy: 1
         }),
         outputs: args.declaredOutputs,
-        dependencies: [
-            ...args.dependencies,
-            ...filesAndSymlinkInputDeps
-        ]
+        dependencies: args.dependencies
     };
 
     // Debug.writeLine([

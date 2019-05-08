@@ -234,6 +234,18 @@ namespace BuildXL.FrontEnd.MsBuild.Tracing
         public abstract void ProjectIsNotSpecifyingTheProjectReferenceProtocol(LoggingContext context, Location location, string projectName);
 
         [GeneratedEvent(
+            (ushort)LogEventId.LeafProjectIsNotSpecifyingTheProjectReferenceProtocol,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Message = Events.LabeledProvenancePrefix + "Project '{projectName}' is a leaf project and not specifying its project reference protocol, and therefore the targets to call cannot " +
+                      " be inferred; this will be an issue in the future if references are added. Falling back to calling the project default targets. For more details, see " + 
+                      "https://github.com/Microsoft/msbuild/blob/master/documentation/specs/static-graph.md",
+            EventTask = (ushort)Events.Tasks.Engine,
+            EventOpcode = (byte)Events.Tasks.Parser,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Diagnostics))]
+        public abstract void LeafProjectIsNotSpecifyingTheProjectReferenceProtocol(LoggingContext context, Location location, string projectName);
+
+        [GeneratedEvent(
             (ushort)LogEventId.GraphBuilderFilesAreNotRemoved,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.LogAlways,

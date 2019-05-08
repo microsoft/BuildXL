@@ -276,16 +276,16 @@ namespace BuildXL.Cache.Host.Configuration
         public string KeyVaultSettingsString { get; set; }
 
         [DataMember]
-        public int KeyVaultRetryCount { get; set; } = 5;
+        public int SecretsRetrievalRetryCount { get; set; } = 5;
 
         [DataMember]
-        public int KeyVaultMinBackoffSeconds { get; set; } = 10;
+        public int SecretsRetrievalMinBackoffSeconds { get; set; } = 10;
 
         [DataMember]
-        public int KeyVaultMaxBackoffSeconds { get; set; } = 60;
+        public int SecretsRetrievalMaxBackoffSeconds { get; set; } = 60;
 
         [DataMember]
-        public int KeyVaultDeltaBackoffSeconds { get; set; } = 10;
+        public int SecretsRetrievalDeltaBackoffSeconds { get; set; } = 10;
 
         [DataMember]
         public string EventHubSecretName { get; set; }

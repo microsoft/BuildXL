@@ -76,13 +76,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             var host = segments.First();
             var hashLiteral = segments.Last();
-            if (hashLiteral.EndsWith(GrpcDistributedPathTransformer.BlobFileExtension))
+            if (hashLiteral.EndsWith(GrpcDistributedPathTransformer.BlobFileExtension, StringComparison.OrdinalIgnoreCase))
             {
                 hashLiteral = hashLiteral.Substring(0, hashLiteral.Length - GrpcDistributedPathTransformer.BlobFileExtension.Length);
             }
             var hashTypeLiteral = segments.ElementAt(segments.Count - 1 - 2);
 
-            if (!Enum.TryParse(hashTypeLiteral, out HashType hashType))
+            if (!Enum.TryParse(hashTypeLiteral, ignoreCase: true, out HashType hashType))
             {
                 throw new InvalidOperationException($"{hashTypeLiteral} is not a valid member of {nameof(HashType)}");
             }

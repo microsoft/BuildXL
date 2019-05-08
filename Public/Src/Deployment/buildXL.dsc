@@ -17,7 +17,10 @@ namespace BuildXL {
             // primary
             importFrom("BuildXL.App").deployment,
             importFrom("BuildXL.App").serverDeployment,
-
+            ...(qualifier.targetFramework !== "net472" ? [] : [
+                importFrom("BuildXL.Cache.ContentStore").VfsApplication.exe,
+            ]),
+            
             // analyzers
             importFrom("BuildXL.Tools").Execution.Analyzer.exe,
             importFrom("BuildXL.Tools").BxlScriptAnalyzer.exe,

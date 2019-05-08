@@ -1557,7 +1557,7 @@ namespace BuildXL.Processes
                     }
 
                     // TODO: named semaphores are not supported in NetStandard2.0
-                    if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal 
+                    if ((!m_pip.RequiresAdmin || m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal) 
                         && checkMessageCount 
                         && !OperatingSystemHelper.IsUnixOS)
                     {

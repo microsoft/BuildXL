@@ -750,9 +750,9 @@ bool ParseFileAccessManifest(
         {
             WriteToInternalErrorsFile(L"Detours Error: Failed opening semaphore for tracking message count - %s\r\n", helperString);
             DWORD error = GetLastError();
-            Dbg(L"Failed opening semaphore for tracking message count - %d. Error Code: %d", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
-            wprintf(L"Detours Error: Failed opening semaphore for tracking message count - %d. Error Code: %d", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
-            fwprintf(stderr, L"Detours Error: Failed opening semaphore for tracking message count - %d. Error Code: %d", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
+            Dbg(L"Failed opening semaphore for tracking message count - Last error: %d, Detours error code: %d\r\n", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
+            wprintf(L"Detours Error: Failed opening semaphore for tracking message count - Last error: %d, Detours error code: %d\r\n", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
+            fwprintf(stderr, L"Detours Error: Failed opening semaphore for tracking message count - Last error: %d, Detours error code: %d\r\n", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
             HandleDetoursInjectionAndCommunicationErrors(DETOURS_SEMAPHOREOPEN_ERROR_6, L"Detours Error : Failed opening semaphore for tracking message count. exit(-48).", DETOURS_WINDOWS_LOG_MESSAGE_6);
         }
 

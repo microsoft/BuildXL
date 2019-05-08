@@ -177,6 +177,15 @@ export function runQTest(args: QTestArguments): Result {
         disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
         additionalTempDirectories : [sandboxDir],
         privilegeLevel: args.privilegeLevel,
+        unsafe: {
+            untrackedPaths: [
+                qTestContextInfo,
+            ],
+            untrackedScopes: [
+                d`d:/data`,
+                d`d:/app`,
+            ]
+        },
         dependencies: [
             //When there are test failures, and PDBs are looked up to generate the stack traces,
             //the original location of PDBs is used instead of PDBs in test sandbox. This is 

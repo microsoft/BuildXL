@@ -25,10 +25,17 @@ function ilcCompile(framework: Shared.Framework, asm: Shared.Assembly) {
     });
 }
 
+interface NativeExecutableResult extends Shared.Assembly {
+    getExecutable: () => File
+}
+
 @@public
-export function nativeExecutable(args: Arguments): Result {
+export function nativeExecutable(args: Arguments): NativeExecutableResult {
     if (Context.getCurrentHost().os !== "macOS") {
-        return executable(args);
+        const asm = executable(args);
+        return asm.override<NativeExecutableResult>({
+            getExecutable: () => asm.runtime.binary
+        });
     }
 
     /** Override framework.applicationDeploymentStyle to make sure we don't use apphost */
@@ -39,18 +46,27 @@ export function nativeExecutable(args: Arguments): Result {
     });
 
     /** Compile to MSIL */
-    const exeResult = executable(args);
-
-    const assemblyReferences = (args.references || [])
-        .filter(r => Shared.isAssembly(r))
-        .map(r => <Shared.Assembly>r);
+    const asm = executable(args);
 
     /** Compile to native object file */
-    const ilcResult = ilcCompile(args.framework, exeResult);
+    const referencesClosure = Managed.Helpers.computeTransitiveReferenceClosure(args.framework, asm.references, false);
+    const ilcResult = Ilc.compile({
+        out: `${asm.name}.o`,
+        inputs: [ 
+            asm.runtime.binary
+        ],
+        references: [
+            ...referencesClosure.map(r => r.binary)
+        ],
+        dependencies: [
+            asm.runtime.pdb,
+            ...referencesClosure.map(r => r.pdb)
+        ]
+    });
 
-    /** Link native */
-    const linkArgs = <Clang.Arguments>{
-        out: exeResult.name,
+    /** Link native executable */
+    const nativeExecutable = Clang.compile(<Clang.Arguments>{
+        out: asm.name,
         inputs: [
             ilcResult.binary,
             ...Ilc.linkTimeLibraries,
@@ -73,11 +89,11 @@ export function nativeExecutable(args: Arguments): Result {
             "z",
             "icucore"
         ]
-    };
-    
-    const nativeBinary = Clang.compile(linkArgs);
+    });
 
-    return Object.merge<Result>(exeResult, {
-        runtime: { binary: nativeBinary },
+    /** Set the nativeExecutable property in the produced assembly */
+    return asm.override<NativeExecutableResult>({
+        nativeExecutable: nativeExecutable,
+        getExecutable: () => nativeExecutable
     });
 }

@@ -3,10 +3,10 @@
 
 import * as Deployment from "Sdk.Deployment";
 import * as MacServices from "BuildXL.Sandbox.MacOS";
-import * as ManagedSdk from "Sdk.Managed";
 
 namespace TestProcess {
-    const exeArgs = <BuildXLSdk.Arguments>{
+    @@public
+    export const exe = BuildXLSdk.nativeExecutable({
         assemblyName: "Test.BuildXL.Executables.TestProcess",
         sources: globR(d`.`, "*.cs"),
         references: [
@@ -15,14 +15,8 @@ namespace TestProcess {
             importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
-        ],
-    };
-
-    @@public
-    export const exe = BuildXLSdk.executable(exeArgs);
-
-    @@public
-    export const nativeExe = BuildXLSdk.nativeExecutable(exeArgs);
+        ]
+    });
 
     @@public
     export const deploymentDefinition: Deployment.Definition = {
@@ -45,13 +39,7 @@ namespace TestProcess {
                             configuration: qualifier.configuration,
                             targetFramework: "netcoreapp2.2",
                             targetRuntime: "osx-x64"
-                        }).TestProcess.nativeExe,
-
-                        $.withQualifier({
-                            configuration: qualifier.configuration,
-                            targetFramework: "netcoreapp2.2",
-                            targetRuntime: "osx-x64"
-                        }).TestProcess.exe.runtime.binary, // this .dll is needed for libraries that compile against it
+                        }).testProcessExe,
 
                         ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none", () => [
                             MacServices.Deployment.coreDumpTester

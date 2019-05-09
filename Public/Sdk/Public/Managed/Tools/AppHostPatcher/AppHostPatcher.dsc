@@ -15,7 +15,7 @@ const patcherExecutable = Context.getCurrentHost().os === "macOS"
     ? BuildXLSdk.nativeExecutable({ 
         assemblyName: "NativeAppHostPatcher",
         sources: globR(d`.`, "*.cs")
-      }).runtime.binary
+      }).getExecutable()
     : pkgContents.getFile(r`tools/win-x64/AppHostPatcher.exe`);
 
 const patcher: Transformer.ToolDefinition = {

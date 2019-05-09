@@ -82,8 +82,7 @@ namespace BuildXL.Interop.MacOS
 }
 `;
 
-
-    const exe = BuildXLSdk.executable({
+    const exe = BuildXLSdk.nativeExecutable({
         assemblyName: "BuildXL.Interop.TmpOpNameGenerator",
         sources: [
             Transformer.writeAllText({

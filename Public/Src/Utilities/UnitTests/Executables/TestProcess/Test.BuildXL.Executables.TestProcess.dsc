@@ -6,13 +6,15 @@ import * as MacServices from "BuildXL.Sandbox.MacOS";
 
 namespace TestProcess {
     @@public
-    export const exe = BuildXLSdk.executable({
+    export const exe = BuildXLSdk.nativeExecutable({
         assemblyName: "Test.BuildXL.Executables.TestProcess",
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
         ]
     });
 

@@ -83,6 +83,9 @@ namespace BuildXL.FrontEnd.Nuget
         /// <nodoc />
         public List<string> DependentPackageIdsToIgnore => PackageOnDisk.Package.DependentPackageIdsToIgnore ?? new List<string>() { };
 
+        /// <nodoc />
+        public bool ForceFullFrameworkQualifiersOnly => PackageOnDisk.Package.ForceFullFrameworkQualifiersOnly;
+
         /// <summary>
         /// A compound framework is a target framework that contains '+' or '-' (e.g 'portable-net45+win8+wpa81'). This means that different
         /// target framework folders can be compatible with the same known moniker (e.g. 'portable-net45+win8+wpa81' and 'net45' are both compatible with
@@ -142,12 +145,12 @@ namespace BuildXL.FrontEnd.Nuget
             var analyzedPackage = new NugetAnalyzedPackage(context, nugetFrameworkMonikers, nuSpec, packageOnDisk,
                 packagesOnConfig, doNotEnforceDependencyVersions);
 
+            analyzedPackage.ParseManagedSemantics();
             if (!analyzedPackage.TryParseDependenciesFromNuSpec())
             {
                 return null;
             }
 
-            analyzedPackage.ParseManagedSemantics();
             return analyzedPackage;
         }
 
@@ -227,7 +230,17 @@ namespace BuildXL.FrontEnd.Nuget
 
             if (TargetFrameworks.Count == 0)
             {
-                foreach (var moniker in NugetFrameworkMonikers.WellknownMonikers)
+                var history = ForceFullFrameworkQualifiersOnly ?
+                    NugetFrameworkMonikers.FullFrameworkVersionHistory :
+                    NugetFrameworkMonikers.WellknownMonikers.ToList();
+
+                // TODO: Remove this once we have a LKG with ForceFullFrameworkQualifiersOnly on spec generation
+                if (Id.Equals("Bond.NET"))
+                {
+                    history = NugetFrameworkMonikers.FullFrameworkVersionHistory;
+                }
+
+                foreach (var moniker in history)
                 {
                     TargetFrameworks.Add(moniker);
                 }
@@ -362,7 +375,12 @@ namespace BuildXL.FrontEnd.Nuget
                     {
                         // If there is at least one valid dependency for a known framework, then the package is defined as managed
                         IsManagedPackage = true;
-                        TargetFrameworks.Add(targetFramework);
+
+                        // Only add the group dependency target framework if the nuget package itself also contains specific assemblies of the same version
+                        if (!TargetFrameworks.Contains(targetFramework) && (References.Keys.Any(tfm => tfm.Moniker == targetFramework) || Libraries.Keys.Any(tfm => tfm.Moniker == targetFramework)))
+                        {
+                            TargetFrameworks.Add(targetFramework);
+                        }
 
                         // If the package has a pinned tfm and the groups tfm does not match, skip the groups dependency resolution
                         if (!string.IsNullOrEmpty(this.Tfm) && NugetFrameworkMonikers.TargetFrameworkNameToMoniker.TryGetValue(this.Tfm, out Moniker pinnedTfm) && !PathAtom.Equals(pinnedTfm, targetFramework))

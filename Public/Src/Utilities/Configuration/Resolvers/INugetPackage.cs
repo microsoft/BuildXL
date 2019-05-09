@@ -41,6 +41,11 @@ namespace BuildXL.Utilities.Configuration
         /// Optional dependent Nuget packages to skip when resolving dependencies, a list of Nuget package Ids
         /// </summary>
         List<string> DependentPackageIdsToIgnore { get; }
+
+        /// <summary>
+        /// Optional flag to force package spec generation to use full framework qualifiers only
+        /// </summary>
+        bool ForceFullFrameworkQualifiersOnly { get; }
     }
 
     /// <nodoc/>

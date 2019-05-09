@@ -128,6 +128,11 @@ namespace BuildXL.FrontEnd.Nuget
             {
                 FindAllCompatibleFrameworkMonikers(analyzedPackage, (List<PathAtom> monikers) =>
                 {
+                    if (monikers.Count == 0)
+                    {
+                        return;
+                    }
+
                     cases.AddRange(monikers.Take(monikers.Count - 1).Select(m => new CaseClause(new LiteralExpression(m.ToString(m_pathTable.StringTable)))));
 
                     var compile = new List<IExpression>();

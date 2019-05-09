@@ -29,11 +29,11 @@ namespace Tool {
             importFrom("Microsoft.CodeAnalysis.Workspaces.Common").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
 
             // There is a gap in our nuget integration so temporarily adding the dependencies manually
-            importFrom("System.Composition.AttributedModel").pkg,
-            importFrom("System.Composition.Convention").pkg,
-            importFrom("System.Composition.Hosting").pkg,
-            importFrom("System.Composition.Runtime").pkg,
-            importFrom("System.Composition.TypedParts").pkg,
+            importFrom("System.Composition.AttributedModel").withQualifier({ targetFramework: "netstandard1.0" }).pkg,
+            importFrom("System.Composition.Convention").withQualifier({ targetFramework: "netstandard1.0" }).pkg,
+            importFrom("System.Composition.Hosting").withQualifier({ targetFramework: "netstandard1.0" }).pkg,
+            importFrom("System.Composition.Runtime").withQualifier({ targetFramework: "netstandard1.0" }).pkg,
+            importFrom("System.Composition.TypedParts").withQualifier({ targetFramework: "netstandard1.0" }).pkg,
         ],
         tools: {
             csc: {

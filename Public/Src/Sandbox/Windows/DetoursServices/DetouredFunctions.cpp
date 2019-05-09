@@ -1926,17 +1926,6 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
     }
 }
 
-/// Table entries used below that match process names and optional argument matches
-/// to processes that should or should not be shimmed.
-typedef struct
-{
-    const wchar_t *const ProcessName;
-
-    // Optional, if present a case-sensitive string match is performed against the command arguments.
-    // When present, this is an AND operation, i.e. the ProcessName and this search must both be found.
-    const wchar_t *const ArgMatch;
-} ShimProcessMatchInfo;
-
 static bool CommandArgsContainMatch(const wchar_t *commandArgs, const wchar_t *argMatch)
 {
     if (argMatch == nullptr)

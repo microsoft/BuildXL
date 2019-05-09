@@ -61,7 +61,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
     </dependencies>
   </metadata>
 </package>",
-                s_packagesOnConfig);
+                s_packagesOnConfig, new string[] { "lib/net45/my.dll", "lib/net451/my.dll"});
 
             var spec = new NugetSpecGenerator(m_context.PathTable, pkg).CreateScriptSourceFile(pkg);
             var text = spec.ToDisplayStringV2();
@@ -77,9 +77,12 @@ const packageRoot = Contents.packageRoot;
 namespace Contents {{
     export declare const qualifier: {{
     }};
-    export const packageRoot = d`{0}`;
+    export const packageRoot = d`../../../pkgs/TestPkg.1.999`;
     @@public
-    export const all: StaticDirectory = Transformer.sealDirectory(packageRoot, [f`${{packageRoot}}/TestPkg.nuspec`]);
+    export const all: StaticDirectory = Transformer.sealDirectory(
+        packageRoot,
+        [f`${{packageRoot}}/lib/net45/my.dll`, f`${{packageRoot}}/lib/net451/my.dll`, f`${{packageRoot}}/TestPkg.nuspec`]
+    );
 }}
 
 @@public
@@ -90,9 +93,11 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
                 ""TestPkg"",
                 ""1.999"",
                 Contents.all,
-                [],
-                [],
-                [...addIfLazy(qualifier.targetFramework === ""net45"", () => [importFrom(""System.Collections"").pkg, importFrom(""System.Collections.Concurrent"").pkg])]
+                [Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/net45/my.dll`)],
+                [Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/net45/my.dll`)],
+                [
+                    ...addIfLazy(qualifier.targetFramework === ""net45"", () => [importFrom(""System.Collections"").pkg, importFrom(""System.Collections.Concurrent"").pkg]),
+                ]
             );
         case ""net451"":
         case ""net452"":
@@ -104,9 +109,11 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
                 ""TestPkg"",
                 ""1.999"",
                 Contents.all,
-                [],
-                [],
-                [...addIfLazy(qualifier.targetFramework === ""net451"", () => [importFrom(""System.Collections"").pkg, importFrom(""System.Collections.Concurrent"").pkg])]
+                [Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/net451/my.dll`)],
+                [Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/net451/my.dll`)],
+                [
+                    ...addIfLazy(qualifier.targetFramework === ""net451"", () => [importFrom(""System.Collections"").pkg, importFrom(""System.Collections.Concurrent"").pkg]),
+                ]
             );
         default:
             Contract.fail(""Unsupported target framework"");

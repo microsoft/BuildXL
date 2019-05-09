@@ -1937,21 +1937,6 @@ typedef struct
     const wchar_t *const ArgMatch;
 } ShimProcessMatchInfo;
 
-// Processes to avoid shimming. These entries are typically build engines or their worker process children.
-static const ShimProcessMatchInfo NeverShimProcesses[] = {
-    { L"cmd.exe", nullptr },
-
-    // Gulp build engine, run under Node.js.
-    { L"node.exe", L"gulp.js" },
-
-    // MSBuild engine and its spawned worker processes.
-    { L"MSBuild.exe", nullptr },
-
-    // Visual Studio, which contains an embedded MSBuild engine and spawns MSBuild worker children.
-    { L"devenv.exe", nullptr },
-};
-static const size_t NumNeverShimEntries = ARRAYSIZE(NeverShimProcesses);
-
 static bool CommandArgsContainMatch(const wchar_t *commandArgs, const wchar_t *argMatch)
 {
     if (argMatch == nullptr)
@@ -1972,7 +1957,7 @@ static bool ShouldShim(const wstring &command, const wchar_t *commandArgs)
         return g_ProcessExecutionShimAllProcesses;
     }
 
-    size_t len = command.length();
+    size_t commandLen = command.length();
 
     bool foundMatch = false;
 
@@ -1980,14 +1965,14 @@ static bool ShouldShim(const wstring &command, const wchar_t *commandArgs)
     {
         ShimProcessMatch *pMatch = *it;
 
-        const wchar_t *neverShim = pMatch->ProcessName.get();
-        size_t neverLen = wcslen(neverShim);
+        const wchar_t *processName = pMatch->ProcessName.get();
+        size_t processLen = wcslen(processName);
 
         // lpAppName is longer than e.g. "cmd.exe", see if lpAppName ends with e.g. "\cmd.exe"
-        if (neverLen < len)
+        if (processLen < commandLen)
         {
-            if (command[len - neverLen - 1] == L'\\' &&
-                _wcsicmp(command.c_str() + len - neverLen, neverShim) == 0)
+            if (command[commandLen - processLen - 1] == L'\\' &&
+                _wcsicmp(command.c_str() + commandLen - processLen, processName) == 0)
             {
                 if (CommandArgsContainMatch(commandArgs, pMatch->ArgumentMatch.get()))
                 {
@@ -1999,9 +1984,9 @@ static bool ShouldShim(const wstring &command, const wchar_t *commandArgs)
             continue;
         }
 
-        if (neverLen == len)
+        if (processLen == commandLen)
         {
-            if (_wcsicmp(neverShim, command.c_str()) == 0)
+            if (_wcsicmp(processName, command.c_str()) == 0)
             {
                 if (CommandArgsContainMatch(commandArgs, pMatch->ArgumentMatch.get()))
                 {

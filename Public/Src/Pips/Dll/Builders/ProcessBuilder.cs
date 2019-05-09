@@ -258,6 +258,14 @@ namespace BuildXL.Pips.Builders
             return ReadOnlyArray<DirectoryArtifact>.From(m_inputDirectories.Instance);
         }
 
+        /// <summary>
+        /// Returns the untracked directory scopes that have been added so far.
+        /// </summary>
+        public ReadOnlyArray<DirectoryArtifact> GetUntrackedDirectoryScopesSoFar()
+        {
+            return ReadOnlyArray<DirectoryArtifact>.From(m_untrackedDirectoryScopes.Instance);
+        }
+
         /// <nodoc />
         public void AddOutputFile(AbsolutePath file, FileExistence attribute)
         {

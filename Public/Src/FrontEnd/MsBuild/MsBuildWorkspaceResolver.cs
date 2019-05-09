@@ -467,6 +467,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             var serializer = JsonSerializer.Create(ProjectGraphSerializationSettings.Settings);
             serializer.Converters.Add(new AbsolutePathJsonConverter(m_context.PathTable));
+            serializer.Converters.Add(new ValidAbsolutePathEnumerationJsonConverter());
 
             using (var sr = new StreamReader(outputFile.ToString(m_context.PathTable)))
             using (var reader = new JsonTextReader(sr))

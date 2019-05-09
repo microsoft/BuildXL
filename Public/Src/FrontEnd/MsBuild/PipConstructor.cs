@@ -269,9 +269,29 @@ namespace BuildXL.FrontEnd.MsBuild
             ProjectWithPredictions project, 
             ProcessBuilder processBuilder)
         {
-            // Add all predicted inputs
+            // Predicted output directories for all direct dependencies, plus the output directories for the given project itself
+            var knownOutputDirectories = project.ProjectReferences.SelectMany(reference => reference.PredictedOutputFolders).Union(project.PredictedOutputFolders);
+
+            // Add all predicted inputs that are recognized as true source files
+            // This is done to make the weak fingerprint stronger. Pips are scheduled so undeclared source reads are allowed. This means
+            // we don't actually need accurate (or in fact any) input predictions to run successfully. But we are trying to avoid the degenerate case
+            // of a very small weak fingerprint with too many candidates, that can slow down two-phase cache look-up.
             foreach (AbsolutePath buildInput in project.PredictedInputFiles)
             {
+                // If any of the predicted inputs is under the predicted output folder of a dependency, then there is a very good chance the predicted input is actually an intermediate file
+                // In that case, don't add the input as a source file to stay on the safe side. Otherwise we will have a file that is both declared as a source file and contained in a directory
+                // dependency.
+                if (knownOutputDirectories.Any(outputFolder => buildInput.IsWithin(PathTable, outputFolder)))
+                {
+                    continue;
+                }
+
+                // If any of the predicted inputs is under an untracked directory scope, don't add it as an input
+                if (processBuilder.GetUntrackedDirectoryScopesSoFar().Any(untrackedDirectory => buildInput.IsWithin(PathTable, untrackedDirectory)))
+                {
+                    continue;
+                }
+
                 processBuilder.AddInputFile(FileArtifact.CreateSourceFile(buildInput));
             }
 
@@ -397,12 +417,15 @@ namespace BuildXL.FrontEnd.MsBuild
                     // Casing for paths is not stable as reported by BuildPrediction. So here we try to guess if the value
                     // represents a path, and normalize it
                     string value = kvp.Value;
-                    if (!string.IsNullOrEmpty(value) && value.TryCreateNormalizedAbsolutePath(PathTable, out var absolutePath))
+                    if (!string.IsNullOrEmpty(value) && AbsolutePath.TryCreate(PathTable, value, out var absolutePath))
                     {
-                        value = absolutePath.ToString(PathTable);
+                        envPipData.Add(absolutePath);
                     }
-
-                    envPipData.Add(value);
+                    else
+                    {
+                        envPipData.Add(value);
+                    }
+                    
                     processBuilder.SetEnvironmentVariable(
                         StringId.Create(m_context.StringTable, kvp.Key),
                         envPipData.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
@@ -665,7 +688,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             if (Engine.TryGetBuildParameter("PUBLIC", m_frontEndName, out string publicDir))
             {             
-                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(publicDir.ToNormalizedAbsolutePath(PathTable)));
+                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(PathTable, publicDir)));
             }
 
             PipConstructionUtilities.UntrackUserConfigurableArtifacts(processBuilder, m_resolverSettings);

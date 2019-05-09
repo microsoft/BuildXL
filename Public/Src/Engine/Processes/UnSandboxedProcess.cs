@@ -212,6 +212,10 @@ namespace BuildXL.Processes
             SandboxedProcessReports reports = null;
 
             await m_processExecutor.WaitForExitAsync();
+            if (m_processExecutor.Killed)
+            {
+                await KillAsync();
+            }
 
             LogProcessState("Waiting for reports to be received");
             reports = await GetReportsAsync();

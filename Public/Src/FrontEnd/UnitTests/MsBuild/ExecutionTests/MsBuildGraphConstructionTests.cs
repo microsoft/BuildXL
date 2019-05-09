@@ -189,6 +189,15 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             AssertErrorEventLogged(LogEventId.InvalidResolverSettings);
         }
 
+        [Fact]
+        public void MalformedPredictionsAreIgnored()
+        {
+            // We set the output path to a malformed directory.
+            var process = CreateDummyProjectWithEnvironment(new Dictionary<string, string> { ["OutputPath"] = @"not,a,dir" });
+            // The process should be computed succesfully with no directory outputs predicted. So the test root will be the only shared opaque
+            Assert.Equal(AbsolutePath.Create(PathTable, TestRoot), process.DirectoryOutputs.Single().Path);
+        }
+
         #region helpers
 
         private Process CreateDummyProjectWithEnvironment(Dictionary<string, string> environment)

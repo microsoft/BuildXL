@@ -1858,7 +1858,6 @@ inline void trim_inplace(std::wstring& str)
 
 // Returns new value for lpCommandLine pointing to the remainder of the string
 // to use as the command line parameters.
-// CODESYNC: Logic based on ParseCommandLine() in RemoteShimProgram.cs in NukularBuild repo.
 static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLine, _Out_ wstring &command, _Out_ wstring &commandArgs)
 {
     wstring fullCommandLine(lpCommandLine);

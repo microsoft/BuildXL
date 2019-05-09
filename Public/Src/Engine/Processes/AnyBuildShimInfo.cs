@@ -48,7 +48,7 @@ namespace BuildXL.Processes
     /// <summary>
     /// Process matching information used for including or excluding processes in <see cref="AnyBuildShimInfo"/>.
     /// </summary>
-    /// <remarks>In unmanaged code this is decoded into class ShimProcessMatch in DetoursHelpers.cpp.</remarks>
+    /// <remarks>In unmanaged code this is decoded into class ShimProcessMatchInfo in DetoursHelpers.cpp.</remarks>
     public sealed class ShimProcessMatch
     {
         /// <summary>

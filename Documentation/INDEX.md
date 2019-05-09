@@ -9,6 +9,8 @@ The following list might be out of date, see the [Specs/](Specs/) folder for the
 
 [Cache](../Public/Src/Cache/README.md) - A guide to the BuildXL Cache, including its two-phase lookup scheme that reduces the need for perfect input prediction, its Content Addressable Store (CAS) blob storage, and its tiered architecture that allows it to use local, remote, and (in Microsoft deployments) peer-to-peer datacenter cache tiers.
 
+[Paged Hashes](Specs/PagedHash.md) - The details of the "VSO Hash" used in the cache CAS that is a hash-of-hashes of sub-pages within a file. This is the commonly used hash format used by the CAS.
+
 # Wiki
 A wiki in the form of .md files visible on GitHub. Click [here](Wiki/INDEX.md).
 

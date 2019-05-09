@@ -1263,8 +1263,20 @@ namespace BuildXL.Scheduler
             m_executePhaseLoggingContext = loggingContext;
             m_serviceManager.Start(loggingContext, OperationTracker);
             m_apiServer?.Start(loggingContext);
-            m_chooseWorkerCpu = new ChooseWorkerCpu(loggingContext, m_configuration, m_workers, m_pipQueue, PipGraph, m_fileContentManager);
-            m_chooseWorkerCacheLookup = new ChooseWorkerCacheLookup(loggingContext, m_configuration, m_workers, m_pipQueue);
+            m_chooseWorkerCpu = new ChooseWorkerCpu(
+                loggingContext, 
+                m_configuration.Schedule.MaxChooseWorkerCpu, 
+                m_workers,
+                m_pipQueue, 
+                PipGraph, 
+                m_fileContentManager);
+
+            m_chooseWorkerCacheLookup = new ChooseWorkerCacheLookup(
+                loggingContext, 
+                m_configuration.Schedule.MaxChooseWorkerCacheLookup, 
+                m_configuration.Distribution.DistributeCacheLookups, 
+                m_workers, 
+                m_pipQueue);
 
             ExecutionLog?.DominoInvocation(new DominoInvocationEventData(m_configuration));
 

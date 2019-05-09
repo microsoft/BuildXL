@@ -11,6 +11,9 @@ namespace BuildXL.FrontEnd.Utilities
     /// <summary>
     /// Converts strings coming from JSON to <see cref="AbsolutePath"/>
     /// </summary>
+    /// <remarks>
+    /// Any malformed path will result in <see cref="AbsolutePath.Invalid"/>
+    /// </remarks>
     public class AbsolutePathJsonConverter : ReadOnlyJsonConverter<AbsolutePath>
     {
         private readonly PathTable m_pathTable;
@@ -27,13 +30,16 @@ namespace BuildXL.FrontEnd.Utilities
         {
             var pathAsString = (string)reader.Value;
 
-            // We allow for empty strings (but in any other case the assumption is that they are well-formed paths)
+            // If the string is empty, or the absolute path cannot be created, AbsolutePath.Invalid is returned
             if (string.IsNullOrEmpty(pathAsString))
             {
                 return AbsolutePath.Invalid;
             }
 
-            AbsolutePath fullPath = pathAsString.ToNormalizedAbsolutePath(m_pathTable);
+            if (!AbsolutePath.TryCreate(m_pathTable, pathAsString, out AbsolutePath fullPath))
+            {
+                return AbsolutePath.Invalid;
+            }
 
             return fullPath;
         }

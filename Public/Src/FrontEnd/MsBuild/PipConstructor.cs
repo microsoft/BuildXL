@@ -417,12 +417,15 @@ namespace BuildXL.FrontEnd.MsBuild
                     // Casing for paths is not stable as reported by BuildPrediction. So here we try to guess if the value
                     // represents a path, and normalize it
                     string value = kvp.Value;
-                    if (!string.IsNullOrEmpty(value) && value.TryCreateNormalizedAbsolutePath(PathTable, out var absolutePath))
+                    if (!string.IsNullOrEmpty(value) && AbsolutePath.TryCreate(PathTable, value, out var absolutePath))
                     {
-                        value = absolutePath.ToString(PathTable);
+                        envPipData.Add(absolutePath);
                     }
-
-                    envPipData.Add(value);
+                    else
+                    {
+                        envPipData.Add(value);
+                    }
+                    
                     processBuilder.SetEnvironmentVariable(
                         StringId.Create(m_context.StringTable, kvp.Key),
                         envPipData.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
@@ -685,7 +688,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             if (Engine.TryGetBuildParameter("PUBLIC", m_frontEndName, out string publicDir))
             {             
-                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(publicDir.ToNormalizedAbsolutePath(PathTable)));
+                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(PathTable, publicDir)));
             }
 
             PipConstructionUtilities.UntrackUserConfigurableArtifacts(processBuilder, m_resolverSettings);

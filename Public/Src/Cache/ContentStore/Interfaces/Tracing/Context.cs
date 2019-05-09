@@ -147,7 +147,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
 
             if (Logger is IOperationLogger operationLogger)
             {
-                var operationResult = new OperationResult(message, operationName, componentName, statusFromResult(result), duration, kind, result.Exception);
+                var operationResult = new OperationResult(message, operationName, componentName, statusFromResult(result), duration, kind, result.Exception, Id, severity);
                 operationLogger.OperationFinished(operationResult);
             }
 

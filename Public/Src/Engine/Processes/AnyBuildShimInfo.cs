@@ -18,6 +18,7 @@ namespace BuildXL.Processes
         public AnyBuildShimInfo(AbsolutePath substituteProcessExecutionShimPath, bool shimAllProcesses, IReadOnlyCollection<ShimProcessMatch> processMatches)
         {
             Contract.Requires(substituteProcessExecutionShimPath.IsValid);
+            Contract.Requires(processMatches != null);
 
             SubstituteProcessExecutionShimPath = substituteProcessExecutionShimPath;
             ShimAllProcesses = shimAllProcesses;

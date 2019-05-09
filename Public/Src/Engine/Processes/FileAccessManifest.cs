@@ -463,12 +463,25 @@ namespace BuildXL.Processes
 #if DEBUG
             writer.Write(0xABCDEF04); // "ABCDEF04"
 #endif
-            WriteChars(writer,
-                AnyBuildShimInfo?.SubstituteProcessExecutionShimPath.ToString(m_pathTable) ?? null);
 
-            writer.Write((AnyBuildShimInfo?.ShimAllProcesses ?? false) ? 1 : 0);
+            string substituteProcessExecShimPath;
+            uint shimAllProcessesFlagValue;
+            uint numShimProcessMatches;
+            if (AnyBuildShimInfo != null && AnyBuildShimInfo.shimAllProcesses)
+            {
+                substituteProcessExecShimPath = AnyBuildShimInfo.SubstituteProcessExecutionShimPath.ToString(m_pathTable);
+                shimAllProcessesFlagValue = 1;
+                numShimProcessMatches = (uint)AnyBuildShimInfo.ShimProcessMatches.Count;
+            }
+            else
+            {
+                substituteProcessExecShimPath = null;
+                shimAllProcessesFlagValue = 0;
+                numShimProcessMatches = 0;
+            }
 
-            uint numShimProcessMatches = (uint)(AnyBuildShimInfo?.ShimProcessMatches.Count ?? 0);
+            WriteChars(writer, substituteProcessExecShimPath);
+            writer.Write(shimAllProcessesFlagValue);
             writer.Write(numShimProcessMatches);
 
             if (numShimProcessMatches > 0)

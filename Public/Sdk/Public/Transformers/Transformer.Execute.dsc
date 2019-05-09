@@ -180,6 +180,12 @@ namespace Transformer {
          * If a given weight is greater than or equal to # of available process slots, the process will run alone.
          */
         weight?: number;
+
+        /**
+         * The priority of this process.  Processes with a higher priority will be run first.
+         * Minimum value is 0, maximum value is 99
+         */
+        priority?: number;
     }
 
     @@public

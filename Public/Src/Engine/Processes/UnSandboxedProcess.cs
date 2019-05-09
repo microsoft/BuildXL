@@ -214,6 +214,8 @@ namespace BuildXL.Processes
             await m_processExecutor.WaitForExitAsync();
             if (m_processExecutor.Killed)
             {
+                // call here this.KillAsync() because a subclass may override it and a
+                // subclass may want to do extra processing when a process is killed
                 await KillAsync();
             }
 

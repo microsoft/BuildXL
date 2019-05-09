@@ -218,6 +218,10 @@ namespace Test.BuildXL.Scheduler
                 builder.SetEnvironmentVariable(
                     StringId.Create(Context.StringTable, "DYLD_LIBRARY_PATH"),
                     Path.GetDirectoryName(TestProcessExecutable.Path.ToString(Context.PathTable)));
+
+                // untracking this directory as well because dynamic probes are non-deterministic which
+                // can cause some of our FingerprintStore tests to fail.
+                builder.AddUntrackedDirectoryScope(TestProcessExecutable.Path.GetParent(Context.PathTable));
             }
 
             return builder;

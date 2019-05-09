@@ -128,11 +128,14 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
         if (HasErrors()) continue;
 
         shim_ = ParseAndAdvancePointer<PCManifestSubstituteProcessExecutionShim>(payloadCursor);
+        if (HasErrors()) continue;
+        SkipOverCharArray(payloadCursor);  // SubstituteProcessExecutionShimPath
+        uint32_t shimAllProcesses = ParseUint32(payloadCursor);
         uint32_t numProcessMatches = ParseUint32(payloadCursor);
         for (uint32_t i = 0; i < numProcessMatches; i++)
         {
-            SkipOverCharArray(payloadCursor); // 'processName'
-            SkipOverCharArray(payloadCursor); // 'argumentMatch'
+            SkipOverCharArray(payloadCursor); // 'ProcessName'
+            SkipOverCharArray(payloadCursor); // 'ArgumentMatch'
         }
 
         root_ = Parse<PCManifestRecord>(payloadCursor);

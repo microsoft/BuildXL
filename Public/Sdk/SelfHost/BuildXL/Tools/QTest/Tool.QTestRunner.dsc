@@ -173,6 +173,7 @@ export function runQTest(args: QTestArguments): Result {
         ),
         Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType),
         Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
+        Cmd.flag("--enableVsJitDebugger", Environment.hasVariable("[Sdk.BuildXL]enableVsJitDebugger")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
         Cmd.option("--qTestContextInfo ", Artifact.input(qTestContextInfo)),
@@ -294,6 +295,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     zipSandbox? : boolean;
     /** Privilege level required by this process to execute. */
     privilegeLevel?: "standard" | "admin";
+    /** Applicable only when QTestType is MsTest. When enabled, uses VsJitDebugger to launch a popup to automatically attach the debugger */
+    enableVsJitDebugger?: boolean;
 }
 /**
  * Test results from a vstest.console.exe run

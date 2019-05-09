@@ -126,6 +126,7 @@ export function runQTest(args: QTestArguments): Result {
             untrackedScopes: [
                 d`d:/data`,
                 d`d:/app`,
+                Environment.hasVariable("QAUTHMATERIALROOT") ? d`${Environment.getDirectoryValue("QAUTHMATERIALROOT")}` : undefined,
             ]
         }
     } : {};

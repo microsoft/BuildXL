@@ -810,8 +810,6 @@ namespace BuildXL.Engine
                     loggingConfiguration: configuration.Logging,
                     // Everything that is not an output under a shared opaque is considered part of the build. 
                     isPathInBuild: path =>
-                        // Scheduler.PipGraph.IsPathInBuild is used for extra safety.
-                        scheduler.PipGraph.IsPathInBuild(AbsolutePath.Create(scheduler.Context.PathTable, path)) ||
                         !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path) ||
                         ShouldRemoveEmptyDirectories(configuration, path),
                     pathsToScrub: sharedOpaqueDirectories.Select(directory => directory.Path.ToString(scheduler.Context.PathTable)),

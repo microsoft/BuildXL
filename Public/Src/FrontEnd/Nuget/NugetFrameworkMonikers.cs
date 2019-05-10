@@ -124,35 +124,35 @@ namespace BuildXL.FrontEnd.Nuget
             FullFrameworkVersionHistory = new List<PathAtom>();
             NetCoreVersionHistory = new List<PathAtom>();
 
-            NetStandard10 = Register(stringTable, "netstandard1.0", ".NETStandard1.0", ref NetCoreVersionHistory);
-            NetStandard11 = Register(stringTable, "netstandard1.1", ".NETStandard1.1", ref NetCoreVersionHistory);
-            NetStandard12 = Register(stringTable, "netstandard1.2", ".NETStandard1.2", ref NetCoreVersionHistory);
-            NetStandard13 = Register(stringTable, "netstandard1.3", ".NETStandard1.3", ref NetCoreVersionHistory);
-            NetStandard14 = Register(stringTable, "netstandard1.4", ".NETStandard1.4", ref NetCoreVersionHistory);
-            NetStandard15 = Register(stringTable, "netstandard1.5", ".NETStandard1.5", ref NetCoreVersionHistory);
-            NetStandard16 = Register(stringTable, "netstandard1.6", ".NETStandard1.6", ref NetCoreVersionHistory);
-            NetStandard20 = Register(stringTable, "netstandard2.0", ".NETStandard2.0", ref NetCoreVersionHistory);
-            NetCoreApp20  = Register(stringTable, "netcoreapp2.0",  ".NETCoreApp2.0", ref NetCoreVersionHistory);
-            NetCoreApp21  = Register(stringTable, "netcoreapp2.1",  ".NETCoreApp2.1", ref NetCoreVersionHistory);
-            NetCoreApp22  = Register(stringTable, "netcoreapp2.2",  ".NETCoreApp2.2", ref NetCoreVersionHistory);
-            NetCoreApp30  = Register(stringTable, "netcoreapp3.0",  ".NETCoreApp3.0", ref NetCoreVersionHistory);
-            NetStandard21 = Register(stringTable, "netstandard2.1", ".NETStandard2.1", ref NetCoreVersionHistory);
+            NetStandard10 = Register(stringTable, "netstandard1.0", ".NETStandard1.0", NetCoreVersionHistory);
+            NetStandard11 = Register(stringTable, "netstandard1.1", ".NETStandard1.1", NetCoreVersionHistory);
+            NetStandard12 = Register(stringTable, "netstandard1.2", ".NETStandard1.2", NetCoreVersionHistory);
+            NetStandard13 = Register(stringTable, "netstandard1.3", ".NETStandard1.3", NetCoreVersionHistory);
+            NetStandard14 = Register(stringTable, "netstandard1.4", ".NETStandard1.4", NetCoreVersionHistory);
+            NetStandard15 = Register(stringTable, "netstandard1.5", ".NETStandard1.5", NetCoreVersionHistory);
+            NetStandard16 = Register(stringTable, "netstandard1.6", ".NETStandard1.6", NetCoreVersionHistory);
+            NetStandard20 = Register(stringTable, "netstandard2.0", ".NETStandard2.0", NetCoreVersionHistory);
+            NetCoreApp20  = Register(stringTable, "netcoreapp2.0",  ".NETCoreApp2.0", NetCoreVersionHistory);
+            NetCoreApp21  = Register(stringTable, "netcoreapp2.1",  ".NETCoreApp2.1", NetCoreVersionHistory);
+            NetCoreApp22  = Register(stringTable, "netcoreapp2.2",  ".NETCoreApp2.2", NetCoreVersionHistory);
+            NetCoreApp30  = Register(stringTable, "netcoreapp3.0",  ".NETCoreApp3.0", NetCoreVersionHistory);
+            NetStandard21 = Register(stringTable, "netstandard2.1", ".NETStandard2.1", NetCoreVersionHistory);
 
-            Net10  = Register(stringTable, "net10",  ".NETFramework1.0", ref FullFrameworkVersionHistory);
-            Net11  = Register(stringTable, "net11",  ".NETFramework1.1", ref FullFrameworkVersionHistory);
-            Net20  = Register(stringTable, "net20",  ".NETFramework2.0", ref FullFrameworkVersionHistory);
-            Net35  = Register(stringTable, "net35",  ".NETFramework3.5", ref FullFrameworkVersionHistory);
-            Net40  = Register(stringTable, "net40",  ".NETFramework4.0", ref FullFrameworkVersionHistory);
-            Net45  = Register(stringTable, "net45",  ".NETFramework4.5", ref FullFrameworkVersionHistory);
-            Net451 = Register(stringTable, "net451", ".NETFramework4.5.1", ref FullFrameworkVersionHistory);
-            Net452 = Register(stringTable, "net452", ".NETFramework4.5.2", ref FullFrameworkVersionHistory);
-            Net46  = Register(stringTable, "net46",  ".NETFramework4.6", ref FullFrameworkVersionHistory);
-            Net461 = Register(stringTable, "net461", ".NETFramework4.6.1", ref FullFrameworkVersionHistory);
-            Net462 = Register(stringTable, "net462", ".NETFramework4.6.2", ref FullFrameworkVersionHistory);
-            Net472 = Register(stringTable, "net472", ".NETFramework4.7.2", ref FullFrameworkVersionHistory);
+            Net10  = Register(stringTable, "net10",  ".NETFramework1.0", FullFrameworkVersionHistory);
+            Net11  = Register(stringTable, "net11",  ".NETFramework1.1", FullFrameworkVersionHistory);
+            Net20  = Register(stringTable, "net20",  ".NETFramework2.0", FullFrameworkVersionHistory);
+            Net35  = Register(stringTable, "net35",  ".NETFramework3.5", FullFrameworkVersionHistory);
+            Net40  = Register(stringTable, "net40",  ".NETFramework4.0", FullFrameworkVersionHistory);
+            Net45  = Register(stringTable, "net45",  ".NETFramework4.5", FullFrameworkVersionHistory);
+            Net451 = Register(stringTable, "net451", ".NETFramework4.5.1", FullFrameworkVersionHistory);
+            Net452 = Register(stringTable, "net452", ".NETFramework4.5.2", FullFrameworkVersionHistory);
+            Net46  = Register(stringTable, "net46",  ".NETFramework4.6", FullFrameworkVersionHistory);
+            Net461 = Register(stringTable, "net461", ".NETFramework4.6.1", FullFrameworkVersionHistory);
+            Net462 = Register(stringTable, "net462", ".NETFramework4.6.2", FullFrameworkVersionHistory);
+            Net472 = Register(stringTable, "net472", ".NETFramework4.7.2", FullFrameworkVersionHistory);
         }
 
-        private PathAtom Register(StringTable stringTable, string smallMoniker, string largeMoniker, ref List<PathAtom> versions)
+        private PathAtom Register(StringTable stringTable, string smallMoniker, string largeMoniker, List<PathAtom> versions)
         {
             var pathAtom = PathAtom.Create(stringTable, smallMoniker);
             TargetFrameworkNameToMoniker.Add(largeMoniker, pathAtom);

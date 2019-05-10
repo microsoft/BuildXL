@@ -40,6 +40,7 @@ export function withRuntimeContracts(args: Managed.Arguments, contractsLevel?: C
     return args.merge<Managed.Arguments>({
         defineConstants: getContractsSymbols(contractsLevel || ContractLevel.full, isDebug),
         references: [
+            // Use .NETStandard as target framework, as its compatible with both .NET 4.7.2 and .NETCore
             importFrom("RuntimeContracts").withQualifier({targetFramework: 'netstandard2.0'}).pkg
         ],
         tools: {

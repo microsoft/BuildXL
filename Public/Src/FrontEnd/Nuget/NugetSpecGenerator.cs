@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -13,7 +14,6 @@ using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
 using static TypeScript.Net.DScript.SyntaxFactory;
 using static BuildXL.FrontEnd.Nuget.SyntaxFactoryEx;
-using System;
 
 namespace BuildXL.FrontEnd.Nuget
 {
@@ -286,7 +286,11 @@ namespace BuildXL.FrontEnd.Nuget
             {
                 foreach (var versionHistory in tfmHistory)
                 {
-                    var indices = analyzedPackage.TargetFrameworks.Select(moniker => versionHistory.IndexOf(moniker)).Where(idx => idx != -1).OrderBy(x => x).ToList();
+                    var indices = analyzedPackage.TargetFrameworks
+                        .Select(moniker => versionHistory.IndexOf(moniker))
+                        .Where(idx => idx != -1)
+                        .OrderBy(x => x).ToList();
+
                     if (indices.IsNullOrEmpty())
                     {
                         continue;

@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -14,6 +15,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
 using ContentStoreTest.Test;
+using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -76,6 +78,39 @@ namespace ContentStoreTest.Stores
                 // The content from the first and the second stores should be available.
                 await store3.OpenStreamAsync(context, putResult.ContentHash, null).ShouldBeSuccess();
                 await store3.OpenStreamAsync(context, putResult2.ContentHash, null).ShouldBeSuccess();
+            }
+        }
+
+        [Fact]
+        public async Task TestSelfCheck()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var context = new Context(Logger);
+
+                var store = CreateStore(testDirectory);
+                await store.StartupAsync(context).ShouldBeSuccess();
+                var putResult = await store.PutRandomAsync(context, ValueSize).ShouldBeSuccess();
+
+                var currentSize = store.ContentDirectorySize();
+
+                var pathInCache = store.GetPrimaryPathFor(putResult.ContentHash);
+                FileSystem.WriteAllText(pathInCache, "Definitely wrong content");
+
+                var result = await store.SelfCheckAsync(context, CancellationToken.None).ShouldBeSuccess();
+
+                result.Value.InvalidFiles.Should().Be(1);
+
+                // An invalid file should be removed from:
+
+                // 1. File system
+                FileSystem.FileExists(pathInCache).Should().BeFalse("The store should delete the file with invalid content.");
+
+                // 2. Content directory
+                store.ContentDirectorySize().Should().Be(currentSize - ValueSize);
+
+                // 3. Quota Keeper
+                store.QuotaKeeperSize().Should().Be(currentSize - ValueSize);
             }
         }
     }

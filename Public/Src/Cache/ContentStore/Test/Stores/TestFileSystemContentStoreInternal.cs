@@ -75,6 +75,10 @@ namespace ContentStoreTest.Stores
 
         public static int CurrentVersionNumber => (int)VersionHistory.CurrentVersion;
 
+        public long ContentDirectorySize() => ContentDirectory.GetSizeAsync().GetAwaiter().GetResult();
+
+        public long QuotaKeeperSize() => QuotaKeeper?.CurrentSize ?? 0;
+
         public AbsolutePath RootPathForTest => RootPath;
 
         public SerializedDataValue SerializedDataVersionForTest => SerializedDataVersion;

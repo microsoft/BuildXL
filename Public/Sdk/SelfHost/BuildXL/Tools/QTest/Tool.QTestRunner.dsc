@@ -117,16 +117,15 @@ export function runQTest(args: QTestArguments): Result {
     qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
 
     // Microsoft internal cloud service use only
-    let qTestContextInfo = undefined;
     let qTestContextInfoPath = undefined;
     let untrackingCBPaths = {};
     if (Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo")){
-        qTestContextInfo = Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo");
-        qTestContextInfoPath = qTestContextInfo.path;
+        const qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo");
+        qTestContextInfoPath = qTestContextInfoFile.path;
         untrackingCBPaths =  {
             unsafe: {
                 untrackedPaths: [
-                    qTestContextInfo,
+                    qTestContextInfoFile,
                 ],
                 untrackedScopes: [
                     d`d:/data`,

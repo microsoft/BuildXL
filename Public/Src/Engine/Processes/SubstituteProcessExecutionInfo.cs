@@ -10,12 +10,12 @@ namespace BuildXL.Processes
     /// <summary>
     /// Configuration for shim execution in place of child processes executing in a build sandbox.
     /// </summary>
-    public sealed class AnyBuildShimInfo
+    public sealed class SubstituteProcessExecutionInfo
     {
         /// <summary>
         /// Constructor.
         /// </summary>
-        public AnyBuildShimInfo(AbsolutePath substituteProcessExecutionShimPath, bool shimAllProcesses, IReadOnlyCollection<ShimProcessMatch> processMatches)
+        public SubstituteProcessExecutionInfo(AbsolutePath substituteProcessExecutionShimPath, bool shimAllProcesses, IReadOnlyCollection<ShimProcessMatch> processMatches)
         {
             Contract.Requires(substituteProcessExecutionShimPath.IsValid);
             Contract.Requires(processMatches != null);
@@ -47,7 +47,7 @@ namespace BuildXL.Processes
     }
 
     /// <summary>
-    /// Process matching information used for including or excluding processes in <see cref="AnyBuildShimInfo"/>.
+    /// Process matching information used for including or excluding processes in <see cref="SubstituteProcessExecutionInfo"/>.
     /// </summary>
     /// <remarks>In unmanaged code this is decoded into class ShimProcessMatch in DetoursHelpers.cpp.</remarks>
     public sealed class ShimProcessMatch

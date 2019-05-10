@@ -422,13 +422,13 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Optional AnyBuild shim execution information.
+        /// Optional child substitute shim execution information.
         /// </summary>
         /// <remarks>
         /// Internal since this is set as a side effect of initializing a FileAccessManifest
         /// in <see cref="SandboxedProcessInfo"/>.
         /// </remarks>
-        internal AnyBuildShimInfo AnyBuildShimInfo { get; set; }
+        internal SubstituteProcessExecutionInfo SubstituteProcessExecutionInfo { get; set; }
 
         /// <summary>
         /// Adds a policy to an entire scope
@@ -467,11 +467,11 @@ namespace BuildXL.Processes
             string substituteProcessExecShimPath;
             uint shimAllProcessesFlagValue;
             uint numShimProcessMatches;
-            if (AnyBuildShimInfo != null)
+            if (SubstituteProcessExecutionInfo != null)
             {
-                substituteProcessExecShimPath = AnyBuildShimInfo.SubstituteProcessExecutionShimPath.ToString(m_pathTable);
-                shimAllProcessesFlagValue = AnyBuildShimInfo.ShimAllProcesses ? 1 : 0;
-                numShimProcessMatches = (uint)AnyBuildShimInfo.ShimProcessMatches.Count;
+                substituteProcessExecShimPath = SubstituteProcessExecutionInfo.SubstituteProcessExecutionShimPath.ToString(m_pathTable);
+                shimAllProcessesFlagValue = SubstituteProcessExecutionInfo.ShimAllProcesses ? (uint)1 : (uint)0;
+                numShimProcessMatches = (uint)SubstituteProcessExecutionInfo.ShimProcessMatches.Count;
             }
             else
             {
@@ -486,7 +486,7 @@ namespace BuildXL.Processes
 
             if (numShimProcessMatches > 0)
             {
-                foreach (ShimProcessMatch match in AnyBuildShimInfo.ShimProcessMatches)
+                foreach (ShimProcessMatch match in SubstituteProcessExecutionInfo.ShimProcessMatches)
                 {
                     WriteChars(writer, match.ProcessName.ToString(m_pathTable.StringTable));
                     WriteChars(writer, match.ArgumentMatch.IsValid ? match.ArgumentMatch.ToString(m_pathTable.StringTable) : null);

@@ -130,7 +130,7 @@ public:
     }
 };
 
-// CODESYNC: AnyBuildShimInfo.cs :: ShimProcessMatch class
+// CODESYNC: SubstituteProcessExecutionInfo.cs :: ShimProcessMatch class
 class ShimProcessMatch
 {
 public:

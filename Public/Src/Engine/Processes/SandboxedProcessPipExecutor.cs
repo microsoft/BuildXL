@@ -149,7 +149,7 @@ namespace BuildXL.Processes
 
         private readonly VmInitializer m_vmInitializer;
 
-        private readonly AnyBuildShimInfo m_anyBuildShimInfo;
+        private readonly SubstituteProcessExecutionInfo m_anyBuildShimInfo;
 
         /// <summary>
         /// The active sandboxed process (if any)
@@ -185,7 +185,7 @@ namespace BuildXL.Processes
             bool isQbuildIntegrated = false,
             VmInitializer vmInitializer = null,
             ITempDirectoryCleaner tempDirectoryCleaner = null,
-            AnyBuildShimInfo shimInfo = null)
+            SubstituteProcessExecutionInfo shimInfo = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);

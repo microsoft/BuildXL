@@ -84,7 +84,7 @@ namespace BuildXL.Processes
             LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
             IKextConnection sandboxedKextConnection = null,
-            AnyBuildShimInfo shimInfo = null)
+            SubstituteProcessExecutionInfo shimInfo = null)
             : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxedKextConnection, shimInfo: shimInfo)
         {
         }
@@ -103,15 +103,15 @@ namespace BuildXL.Processes
             LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
             IKextConnection sandboxedKextConnection = null,
-            AnyBuildShimInfo shimInfo = null)
+            SubstituteProcessExecutionInfo shimInfo = null)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(fileStorage != null);
             Contract.Requires(fileName != null);
             if (shimInfo != null)
             {
-                Contract.Requires(fileAccessManifest != null, "When an AnyBuildShimInfo is provided a FileAccessManifest is required");
-                fileAccessManifest.AnyBuildShimInfo = shimInfo;
+                Contract.Requires(fileAccessManifest != null, "When a SubstituteProcessExecutionInfo is provided a FileAccessManifest is required");
+                fileAccessManifest.SubstituteProcessExecutionInfo = shimInfo;
             }
 
             PathTable = pathTable;
@@ -144,7 +144,7 @@ namespace BuildXL.Processes
             IKextConnection sandboxedKextConnection = null,
             ContainerConfiguration containerConfiguration = null,
             FileAccessManifest fileAccessManifest = null,
-            AnyBuildShimInfo shimInfo = null)
+            SubstituteProcessExecutionInfo shimInfo = null)
             : this(
                   pathTable,
                   fileStorage,

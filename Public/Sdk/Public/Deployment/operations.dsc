@@ -8,7 +8,7 @@ export const emptyFlattenedResult : FlattenedResult = {
     visitedItems: Set.empty<Object>(),
 };
 
-/** 
+/**
  * Flattens a deployment definition into a map of relative path to file to be stored at that relative path.
  * This is typically called by the specific deploy functions before doing the actualy deployment operations.
  * @param definition - The definition to flatten
@@ -17,7 +17,7 @@ export const emptyFlattenedResult : FlattenedResult = {
  */
 @@public
 export function flatten(
-    definition: Definition, 
+    definition: Definition,
     handleDuplicateFile?: HandleDuplicateFileDeployment,
     deploymentOptions?: DeploymentOptions): FlattenedResult {
 
@@ -45,9 +45,9 @@ export function flatten(
  */
 @@public
 export function flattenRecursive(
-    definition: Definition, 
-    targetFolder: RelativePath, 
-    handleDuplicateFile: HandleDuplicateFileDeployment, 
+    definition: Definition,
+    targetFolder: RelativePath,
+    handleDuplicateFile: HandleDuplicateFileDeployment,
     currentResult: FlattenedResult,
     deploymentOptions: DeploymentOptions,
     provenance: Diagnostics.Provenance
@@ -58,7 +58,7 @@ export function flattenRecursive(
     for (let item of definition.contents) {
         result = flattenItem(item, targetFolder, handleDuplicateFile, result, deploymentOptions, provenance);
     }
-   
+
     return result;
 }
 
@@ -77,7 +77,7 @@ export function getFiles(defn: Definition) : File[] {
 @@public
 export function extractRelativePaths(deployment: Definition): [RelativePath,File][] {
     return flatten(deployment).flattenedFiles.toArray().map(kvp => <[RelativePath, File]>[kvp[0], kvp[1].file]);
-} 
+}
 
 function getInitialVisitedItems(deploymentOptions: DeploymentOptions) : Set<Object> {
     if (deploymentOptions && deploymentOptions.excludedDeployableItems)
@@ -90,12 +90,12 @@ function getInitialVisitedItems(deploymentOptions: DeploymentOptions) : Set<Obje
 
 
 function flattenItem(
-    item: DeployableItem, 
+    item: DeployableItem,
     targetFolder: RelativePath,
-    handleDuplicateFile: HandleDuplicateFileDeployment, 
-    currentResult: FlattenedResult, 
+    handleDuplicateFile: HandleDuplicateFileDeployment,
+    currentResult: FlattenedResult,
     deploymentOptions: DeploymentOptions,
-    provenance: Diagnostics.Provenance) 
+    provenance: Diagnostics.Provenance)
     : FlattenedResult {
 
     if (item === undefined) {
@@ -114,16 +114,14 @@ function flattenItem(
 
     if (isStaticDirectory(item)) {
         return flattenStaticDirectory(item, targetFolder, handleDuplicateFile, currentResult, provenance);
-    } 
+    }
 
     if (isFile(item)) {
         return flattenFile(item, targetFolder.combine(item.name), handleDuplicateFile, currentResult, provenance);
     }
 
     if (isDeployable(item)) {
-        // TODO: TEMPORARY HACK: ['deploy'] just a little hack until I get an LKG using the NugetSpecGenerator.cs (ie, next build)
-        // then I can make it a mandatory attribute of Deployable and remove this indexing call
-        return item['deploy'](item, targetFolder, handleDuplicateFile, currentResult, deploymentOptions, provenance);
+        return item.deploy(item, targetFolder, handleDuplicateFile, currentResult, deploymentOptions, provenance);
     }
 
     if (isNestedDefinition(item)) {
@@ -192,7 +190,7 @@ export function flattenFile(file: File, targetFile: RelativePath, handleDuplicat
                     Contract.fail("Invalid handleDuplicateFile handler. It must return either 'takeA', 'takeB' or fail evaluation");
             }
         }
-        
+
         return result;
     } else {
         return {
@@ -268,16 +266,16 @@ export function createFromFilteredStaticDirectory(staticDirectory: StaticDirecto
 }
 
 function deployFilteredStaticDirectory(
-    item: DeployableStaticDirectoryWithFolderFilter, 
+    item: DeployableStaticDirectoryWithFolderFilter,
     targetFolder: RelativePath,
-    handleDuplicateFile: HandleDuplicateFileDeployment, 
+    handleDuplicateFile: HandleDuplicateFileDeployment,
     currentResult: FlattenedResult,
     deploymentOptions: Object,
     provenance: Diagnostics.Provenance) : FlattenedResult {
 
     const staticDirectory = item.staticDirectory;
     const folderFilter = item.folderFilter;
-    
+
     let result = currentResult;
 
     for (let file of staticDirectory.getContent()) {
@@ -285,16 +283,16 @@ function deployFilteredStaticDirectory(
         if (file.path.isWithin(filteredRoot)) {
             const targetFile = targetFolder.combine(filteredRoot.getRelative(file.path));
             result = flattenFile(file, targetFile, handleDuplicateFile, result, provenance);
-        } 
+        }
     }
 
     return result;
 }
 
-// Private helper functions for type discrimination 
+// Private helper functions for type discrimination
 
 function isRenamedFile(item: DeployableItem) : item is RenamedFile {
-    return item["targetFileName"] !== undefined; 
+    return item["targetFileName"] !== undefined;
 }
 
 function isFile(item:DeployableItem) : item is File {
@@ -307,24 +305,24 @@ function isStaticDirectory(item:DeployableItem) : item is StaticDirectory {
         case "FullStaticContentDirectory":
         case "PartialStaticContentDirectory":
         case "SourceAllDirectory":
-        case "SourceTopDirectory": 
+        case "SourceTopDirectory":
         case "SharedOpaqueDirectory":
-        case "ExclusiveOpaqueDirectory": 
-        case "StaticDirectory": 
+        case "ExclusiveOpaqueDirectory":
+        case "StaticDirectory":
             return true;
-        default: 
+        default:
             false;
     }
 }
 
 function isNestedDefinition(item:DeployableItem) : item is NestedDefinition {
-    return item["subfolder"] !== undefined; 
+    return item["subfolder"] !== undefined;
 }
 
 function isDefinition(item:DeployableItem) : item is Definition {
-    return item["contents"] !== undefined; 
+    return item["contents"] !== undefined;
 }
 
 function isDeployable(item:DeployableItem) : item is Deployable {
-    return item["deploy"] !== undefined; 
+    return item["deploy"] !== undefined;
 }

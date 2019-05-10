@@ -684,14 +684,6 @@ namespace BuildXL.FrontEnd.Nuget
                 Logger.Log.NugetRegeneratingNugetSpecs(m_context.LoggingContext);
 
                 var result = new Dictionary<string, Possible<AbsolutePath>>(analyzedPackages.Count);
-                if (!NugetAnalyzedPackage.TryPatchSupportedTargetFrameworksForPackageExtent(m_nugetFrameworkMonikers, analyzedPackages, out var failure))
-                {
-                    // In order to not complicate the result type, in case of a failure in patching the extent, we add it as a dummy package.
-                    // Observe the package name is not really used when there is a failure.
-                    result.Add("__dummy__", failure);
-                    return result;
-                }
-
                 var generatedSpecsCount = 0;
                 foreach (var analyzedPackage in analyzedPackages.Values)
                 {
@@ -786,7 +778,7 @@ namespace BuildXL.FrontEnd.Nuget
 
                 try
                 {
-                    // Sadly nuget goes all over the disk to chain configs, but when it comes to the credentials it decides not to properly merge them. 
+                    // Sadly nuget goes all over the disk to chain configs, but when it comes to the credentials it decides not to properly merge them.
                     // So for now we have to hack and read the credentials from the users profile and stick them in the local config....
                     if (FileUtilities.Exists(localNuGetConfigPath))
                     {

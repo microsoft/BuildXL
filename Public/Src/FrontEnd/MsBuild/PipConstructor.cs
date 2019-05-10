@@ -277,7 +277,8 @@ namespace BuildXL.FrontEnd.MsBuild
                     Tracing.Logger.Log.ProjectPredictedTargetsAlsoContainDefaultTargets(
                             m_context.LoggingContext,
                             Location.FromFile(project.FullPath.ToString(PathTable)),
-                            project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
+                            project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable),
+                            $"[{string.Join(";", project.PredictedTargetsToExecute.AppendedDefaultTargets)}]");
                 }
 
                 m_processOutputsPerProject[project] = projectOutputs;

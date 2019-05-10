@@ -57,10 +57,10 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         public IReadOnlyCollection<string> EntryPointTargets { get; }
 
         /// <summary>
-        /// Whether projects are allows to not implement the target protocol
+        /// Whether projects are allowed to not implement the target protocol
         /// </summary>
         /// <remarks>
-        /// If true, default targets are used as a heuristics
+        /// If true, default targets are used as heuristics
         /// </remarks>
         public bool AllowProjectsWithoutTargetProtocol { get; }
 

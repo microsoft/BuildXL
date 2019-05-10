@@ -221,7 +221,7 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
 
     /**
      * Whether projects are allowed to not specify their target protocol.
-     * When true, default targets will be used as a heuristic. Defaults to false.
+     * When true, default targets will be used as heuristics. Defaults to false.
      */
     allowProjectsToNotSpecifyTargetProtocol?: boolean;
 }

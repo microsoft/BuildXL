@@ -25,18 +25,27 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// <nodoc/>
         public IReadOnlyCollection<string> Targets { get; }
 
+        /// <summary>
+        /// If <see cref="IsDefaultTargetsAppended"/>, the collection of default targets already appended to <see cref="Targets"/>. Null otherwise.
+        /// </summary>
+        /// <remarks>
+        /// Intended for error reporting purposes
+        /// </remarks>
+        public IReadOnlyCollection<string> AppendedDefaultTargets { get; }
+
         [JsonConstructor]
-        private PredictedTargetsToExecute(bool isDefaultTargetsAppended, IReadOnlyCollection<string> targets)
+        private PredictedTargetsToExecute(bool isDefaultTargetsAppended, IReadOnlyCollection<string> targets, IReadOnlyCollection<string> appendedDefaultTargets)
         {
             IsDefaultTargetsAppended = isDefaultTargetsAppended;
             Targets = targets;
+            AppendedDefaultTargets = appendedDefaultTargets;
         }
 
         /// <nodoc/>
         public static PredictedTargetsToExecute Create(IReadOnlyCollection<string> targets)
         {
             Contract.Requires(targets != null);
-            return new PredictedTargetsToExecute(isDefaultTargetsAppended: false, targets: targets);
+            return new PredictedTargetsToExecute(isDefaultTargetsAppended: false, targets: targets, appendedDefaultTargets: null);
         }
 
         /// <summary>
@@ -53,7 +62,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
                 return this;
             }
 
-            return new PredictedTargetsToExecute(isDefaultTargetsAppended: true, Targets.Union(defaultTargets).ToList());
+            return new PredictedTargetsToExecute(isDefaultTargetsAppended: true, Targets.Union(defaultTargets).ToList(), defaultTargets);
         }
     }
 }

@@ -237,12 +237,12 @@ namespace BuildXL.FrontEnd.MsBuild.Tracing
             (ushort)LogEventId.ProjectPredictedTargetsAlsoContainDefaultTargets,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Message = Events.LabeledProvenancePrefix + "Default targets were appended to the predicted target of project '{projectName}'. " +
+            Message = Events.LabeledProvenancePrefix + "Default targets '{defaultTargets}' were appended to the predicted target of project '{projectName}'. " +
                         "This is because there is a direct dependency of this project that is not specifying the reference protocol, so default targets were added as a way to guess the right targets to call.",
             EventTask = (ushort)Events.Tasks.Engine,
             EventOpcode = (byte)Events.Tasks.Parser,
             Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Diagnostics))]
-        public abstract void ProjectPredictedTargetsAlsoContainDefaultTargets(LoggingContext context, Location location, string projectName);
+        public abstract void ProjectPredictedTargetsAlsoContainDefaultTargets(LoggingContext context, Location location, string projectName, string defaultTargets);
 
         [GeneratedEvent(
             (ushort)LogEventId.LeafProjectIsNotSpecifyingTheProjectReferenceProtocol,

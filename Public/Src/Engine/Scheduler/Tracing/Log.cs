@@ -610,6 +610,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void StorageCacheCleanDirectoryOutputError(LoggingContext loggingContext, string pipDescription, string destinationPath, string errorMessage);
 
         [GeneratedEvent(
+            (ushort)LogEventId.StorageSymlinkDirInOutputDirectoryWarning,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.Storage,
+            Message = "[{pipDescription}] Cache pip with symlink directory '{symlinkPath}' in output directory resulted in error")]
+        public abstract void StorageSymlinkDirInOutputDirectoryWarning(LoggingContext loggingContext, string pipDescription, string symlinkPath);
+
+        [GeneratedEvent(
             (ushort)LogEventId.StorageRemoveAbsentFileOutputWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

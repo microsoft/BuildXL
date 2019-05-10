@@ -2871,7 +2871,7 @@ namespace BuildXL.Native.IO.Windows
         /// <summary>
         /// Thin wrapper for native GetFileAttributesW that checks the win32 error upon failure
         /// </summary>
-        public bool TryGetFileAttributes(string path, out FileAttributes attributes, out int hr)
+        public static bool TryGetFileAttributes(string path, out FileAttributes attributes, out int hr)
         {
             Contract.Ensures(Contract.Result<bool>() ^ Contract.ValueAtReturn<int>(out hr) != 0);
 
@@ -2906,6 +2906,17 @@ namespace BuildXL.Native.IO.Windows
                 attributes = findResult.DwFileAttributes;
                 return true;
             }
+        }
+
+        public static bool IsPathReparseDirectory(string path)
+        {
+            if (TryGetFileAttributes(path, out var attrs, out int _))
+            {
+                var iReparsePoint = (attrs & FileAttributes.ReparsePoint) != 0;
+                var isDirectory = (attrs & FileAttributes.Directory) != 0;
+                return iReparsePoint && isDirectory;
+            }
+            return false;
         }
 
         /// <inheritdoc />

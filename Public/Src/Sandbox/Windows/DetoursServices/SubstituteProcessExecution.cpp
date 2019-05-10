@@ -291,4 +291,3 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
     injectedShim = false;
     return FALSE;
 }
-

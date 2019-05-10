@@ -3,6 +3,9 @@
 
 #pragma once
 
+/// Checks whether substitute process injection is enabled and injects the shim process
+/// if this child process matches requirements. Returns true in injectedShim if the
+/// substitution was performed and the caller should avoid running the real child process.
 BOOL WINAPI MaybeInjectSubstituteProcessShim(
     _In_opt_    LPCWSTR               lpApplicationName,
     _Inout_opt_ LPWSTR                lpCommandLine,
@@ -15,4 +18,3 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
     _In_        LPSTARTUPINFOW        lpStartupInfo,
     _Out_       LPPROCESS_INFORMATION lpProcessInformation,
     _Out_       bool&                 injectedShim);
-    

@@ -1841,15 +1841,21 @@ inline const wchar_t *trim_start(const wchar_t *str)
     while (wmemchr(L" \t\n\r", *str, 4))  ++str;
     return str;
 }
+
+// https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
 inline const wchar_t *trim_end(const wchar_t *end)
 {
     while (wmemchr(L" \t\n\r", end[-1], 4)) --end;
     return end;
 }
+
+// https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
 inline std::wstring trim(const wchar_t *buffer, size_t len) // trim a buffer (input?)
 {
     return std::wstring(trim_start(buffer), trim_end(buffer + len));
 }
+
+// https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
 inline void trim_inplace(std::wstring& str)
 {
     str.assign(trim_start(str.c_str()),

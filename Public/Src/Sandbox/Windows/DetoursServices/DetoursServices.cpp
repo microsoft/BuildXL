@@ -193,6 +193,7 @@ that none of the appends will be lost.
 */
 
 using std::string;
+using std::wstring;
 using std::vector;
 using std::unique_ptr;
 using std::make_unique;
@@ -221,7 +222,7 @@ PManifestTranslatePathsStrings g_manifestTranslatePathsStrings;
 vector<TranslatePathTuple*>* g_pManifestTranslatePathTuples = nullptr;
 
 PManifestInternalDetoursErrorNotificationFileString g_manifestInternalDetoursErrorNotificationFileString;
-LPCTSTR g_internalDetoursErrorNotificationFile = nullptr;
+wstring g_internalDetoursErrorNotificationFile;
 
 HANDLE g_messageCountSemaphore = INVALID_HANDLE_VALUE;
 
@@ -232,7 +233,7 @@ bool g_BreakOnAccessDenied;
 LPCSTR g_lpDllNameX86;
 LPCSTR g_lpDllNameX64;
 
-wchar_t *g_substituteProcessExecutionShimPath = nullptr;
+wstring g_substituteProcessExecutionShimPath;
 bool g_ProcessExecutionShimAllProcesses;
 vector<ShimProcessMatch*>* g_pShimProcessMatches = nullptr;
 

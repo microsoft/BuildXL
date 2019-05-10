@@ -10,6 +10,7 @@
 #include <vector>
 
 using std::vector;
+using std::wstring;
 
 // ----------------------------------------------------------------------------
 // DEFINES
@@ -48,7 +49,7 @@ extern PManifestTranslatePathsStrings g_manifestTranslatePathsStrings;
 extern vector<TranslatePathTuple*>* g_pManifestTranslatePathTuples;
 
 extern PManifestInternalDetoursErrorNotificationFileString g_manifestInternalDetoursErrorNotificationFileString;
-extern LPCTSTR g_internalDetoursErrorNotificationFile;
+extern wstring g_internalDetoursErrorNotificationFile;
 
 extern HANDLE g_messageCountSemaphore;
 
@@ -61,7 +62,7 @@ extern bool g_BreakOnAccessDenied;
 extern LPCSTR g_lpDllNameX86;
 extern LPCSTR g_lpDllNameX64;
 
-extern wchar_t *g_substituteProcessExecutionShimPath;
+extern wstring g_substituteProcessExecutionShimPath;
 extern bool g_ProcessExecutionShimAllProcesses;
 extern vector<ShimProcessMatch*>* g_pShimProcessMatches;
 

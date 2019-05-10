@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stack>
 
+using std::wstring;
 using std::unique_ptr;
 using std::basic_string;
 
@@ -467,14 +468,14 @@ inline void VerifyManifestRoot(PCManifestRecord const root)
 void WriteToInternalErrorsFile(PCWSTR format, ...)
 {
     wprintf(L"Logging internal error message from Detours...\r\n");
-    if (g_internalDetoursErrorNotificationFile != nullptr)
+    if (!g_internalDetoursErrorNotificationFile.empty())
     {
         DWORD error = GetLastError();
 
         while (true)
         {
             // Get a file handle.
-            HANDLE openedFile = CreateFileW(g_internalDetoursErrorNotificationFile,
+            HANDLE openedFile = CreateFileW(g_internalDetoursErrorNotificationFile.c_str(),
                 GENERIC_WRITE,
                 0,
                 NULL,
@@ -520,26 +521,19 @@ inline uint32_t ParseUint32(const byte *payloadBytes, size_t &offset)
 }
 
 /// Decodes a length plus UTF-16 non-null-terminated string written by FileAccessManifest.WriteChars()
-/// into an allocated, null-terminated string. Returns nullptr if the encoded string length is zero.
-wchar_t *CreateStringFromWriteChars(const byte *payloadBytes, size_t &offset, uint32_t *pStrLen = nullptr)
+/// into a wstring.
+void CreateStringFromWriteChars(const byte *payloadBytes, size_t &offset, wstring& outString)
 {
     uint32_t len = ParseUint32(payloadBytes, offset);
-    if (pStrLen != nullptr)
-    {
-        *pStrLen = len;
-    }
-
-    WCHAR *pStr = nullptr;
     if (len != 0)
     {
-        pStr = new wchar_t[len + 1]; // Reserve some space for \0 terminator at end.
-        uint32_t strSizeBytes = sizeof(wchar_t) * (len + 1);
-        ZeroMemory((void*)pStr, strSizeBytes);
-        memcpy_s((void*)pStr, strSizeBytes, (wchar_t*)(&payloadBytes[offset]), sizeof(wchar_t) * len);
+        outString.assign((wchar_t*)(&payloadBytes[offset]), len);
         offset += sizeof(wchar_t) * len;
     }
-
-    return pStr;
+    else
+    {
+        outString.clear();
+    }
 }
 
 bool ParseFileAccessManifest(
@@ -714,8 +708,7 @@ bool ParseFileAccessManifest(
 #ifdef _DEBUG
     offset += sizeof(uint32_t);
 #endif
-    uint32_t manifestInternalDetoursErrorNotificationFileSize;
-    g_internalDetoursErrorNotificationFile = CreateStringFromWriteChars(payloadBytes, offset, &manifestInternalDetoursErrorNotificationFileSize);
+    CreateStringFromWriteChars(payloadBytes, offset, g_internalDetoursErrorNotificationFile);
 
     PCManifestFlags flags = reinterpret_cast<PCManifestFlags>(&payloadBytes[offset]);
     flags->AssertValid();
@@ -733,12 +726,13 @@ bool ParseFileAccessManifest(
     offset += pipId->GetSize();
 
     // Semaphore names don't allow '\\'
-    if (CheckDetoursMessageCount() && g_internalDetoursErrorNotificationFile != nullptr)
+    if (CheckDetoursMessageCount() && !g_internalDetoursErrorNotificationFile.empty())
     {
-        wchar_t* helperString = new wchar_t[manifestInternalDetoursErrorNotificationFileSize + 1];
-        ZeroMemory((void*)helperString, sizeof(wchar_t) * (manifestInternalDetoursErrorNotificationFileSize + 1));
+        size_t len = g_internalDetoursErrorNotificationFile.size();
+        wchar_t* helperString = new wchar_t[len + 1];
+        ZeroMemory((void*)helperString, sizeof(wchar_t) * (len + 1));
 
-        for (uint32_t i = 0; i < manifestInternalDetoursErrorNotificationFileSize; i++)
+        for (uint32_t i = 0; i < len; i++)
         {
             if (g_internalDetoursErrorNotificationFile[i] == L'\\')
             {
@@ -830,14 +824,16 @@ bool ParseFileAccessManifest(
 #ifdef _DEBUG
     offset += sizeof(uint32_t);
 #endif
-    g_substituteProcessExecutionShimPath = CreateStringFromWriteChars(payloadBytes, offset);
+    CreateStringFromWriteChars(payloadBytes, offset, g_substituteProcessExecutionShimPath);
     g_ProcessExecutionShimAllProcesses = ParseUint32(payloadBytes, offset) != 0;
     uint32_t numProcessMatches = ParseUint32(payloadBytes, offset);
     g_pShimProcessMatches = new vector<ShimProcessMatch*>(numProcessMatches);
     for (uint32_t i = 0; i < numProcessMatches; i++)
     {
-        wchar_t *processName = CreateStringFromWriteChars(payloadBytes, offset);
-        wchar_t *argumentMatch = CreateStringFromWriteChars(payloadBytes, offset);
+        wstring processName;
+        CreateStringFromWriteChars(payloadBytes, offset, processName);
+        wstring argumentMatch;
+        CreateStringFromWriteChars(payloadBytes, offset, argumentMatch);
         g_pShimProcessMatches->push_back(new ShimProcessMatch(processName, argumentMatch));
     }
 

@@ -31,7 +31,8 @@ static BOOL WINAPI InjectShim(
     _In_        LPSTARTUPINFOW        lpStartupInfo,
     _Out_       LPPROCESS_INFORMATION lpProcessInformation)
 {
-    // Create a final buffer for the original command line.
+    // Create a final buffer for the original command line - we prepend the original command
+    // (if present) in quotes for easier parsing in the shim, ahead of the original argument list if provided.
     size_t fullCmdLineSizeInChars =
         (lpApplicationName != nullptr ? wcslen(lpApplicationName) : 0) +
         (lpCommandLine != nullptr ? wcslen(lpCommandLine) : 0) +
@@ -183,6 +184,8 @@ static bool CommandArgsContainMatch(const wchar_t *commandArgs, const wchar_t *a
 
 bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandArgs)
 {
+    assert(!g_ProcessExecutionShimAllProcesses.empty());
+
     // Easy cases.
     if (g_pShimProcessMatches == nullptr || g_pShimProcessMatches->empty())
     {

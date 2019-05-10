@@ -16,7 +16,7 @@ namespace Contents {
 
 @@public
 export const pkg: Managed.ManagedNugetPackage =
-    Managed.Factory.createNugetPackge(
+    Managed.Factory.createNugetPackage(
         "Drop.RemotableClient.Interfaces",
         "0.0.0",
         Contents.all,

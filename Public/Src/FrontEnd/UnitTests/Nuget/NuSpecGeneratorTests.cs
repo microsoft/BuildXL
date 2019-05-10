@@ -23,16 +23,17 @@ namespace Test.BuildXL.FrontEnd.Nuget
         private static readonly INugetPackage s_systemCollectionsConcurrent = new NugetPackage() { Id = "System.Collections.Concurrent", Version = "4.0.12" };
 
         private static readonly Dictionary<string, INugetPackage> s_packagesOnConfig = new Dictionary<string, INugetPackage>
-                                                                                       {
-                                                                                           [s_myPackage.Id] = s_myPackage,
-                                                                                           [s_systemCollections.Id] = s_systemCollections,
-                                                                                           [s_systemCollectionsConcurrent.Id] = s_systemCollectionsConcurrent
-                                                                                       };
+        {
+            [s_myPackage.Id] = s_myPackage,
+            [s_systemCollections.Id] = s_systemCollections,
+            [s_systemCollectionsConcurrent.Id] = s_systemCollectionsConcurrent
+        };
 
         public NuSpecGeneratorTests(ITestOutputHelper output)
         {
             m_output = output;
             m_context = FrontEndContext.CreateInstanceForTesting();
+
             var monikers = new NugetFrameworkMonikers(m_context.StringTable);
             m_packageGenerator = new PackageGenerator(m_context, monikers);
         }
@@ -40,8 +41,8 @@ namespace Test.BuildXL.FrontEnd.Nuget
         [Fact]
         public void GenerateNuSpec()
         {
-            var epectedpackageRoot = "../../../pkgs/TestPkg.1.999";
-            
+            var expectedpackageRoot = "../../../pkgs/TestPkg.1.999";
+
             var pkg = m_packageGenerator.AnalyzePackage(
                 @"<?xml version='1.0' encoding='utf-8'?>
 <package xmlns='http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd'>
@@ -60,54 +61,65 @@ namespace Test.BuildXL.FrontEnd.Nuget
     </dependencies>
   </metadata>
 </package>",
-                s_packagesOnConfig);
+                s_packagesOnConfig, new string[] { "lib/net45/my.dll", "lib/net451/my.dll"});
 
             var spec = new NugetSpecGenerator(m_context.PathTable, pkg).CreateScriptSourceFile(pkg);
             var text = spec.ToDisplayStringV2();
             m_output.WriteLine(text);
+
             string expectedSpec = string.Format(@"import {{Transformer}} from ""Sdk.Transformers"";
 import * as Managed from ""Sdk.Managed"";
 
-export declare const qualifier: {{targetFramework: ""net472"" | ""net461"" | ""net451"" | ""net45""}};
+export declare const qualifier: {{targetFramework: ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472""}};
 
 const packageRoot = Contents.packageRoot;
 
 namespace Contents {{
     export declare const qualifier: {{
     }};
-    export const packageRoot = d`{0}`;
+    export const packageRoot = d`../../../pkgs/TestPkg.1.999`;
     @@public
-    export const all: StaticDirectory = Transformer.sealDirectory(packageRoot, [f`${{packageRoot}}/TestPkg.nuspec`]);
+    export const all: StaticDirectory = Transformer.sealDirectory(
+        packageRoot,
+        [f`${{packageRoot}}/lib/net45/my.dll`, f`${{packageRoot}}/lib/net451/my.dll`, f`${{packageRoot}}/TestPkg.nuspec`]
+    );
 }}
 
 @@public
 export const pkg: Managed.ManagedNugetPackage = (() => {{
     switch (qualifier.targetFramework) {{
         case ""net45"":
-            return Managed.Factory.createNugetPackge(
+            return Managed.Factory.createNugetPackage(
                 ""TestPkg"",
                 ""1.999"",
                 Contents.all,
-                [],
-                [],
-                [importFrom(""System.Collections"").pkg, importFrom(""System.Collections.Concurrent"").pkg]
+                [Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/net45/my.dll`)],
+                [Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/net45/my.dll`)],
+                [
+                    ...addIfLazy(qualifier.targetFramework === ""net45"", () => [importFrom(""System.Collections"").pkg, importFrom(""System.Collections.Concurrent"").pkg]),
+                ]
             );
-        case ""net461"":
-        case ""net472"":
         case ""net451"":
-            return Managed.Factory.createNugetPackge(
+        case ""net452"":
+        case ""net46"":
+        case ""net461"":
+        case ""net462"":
+        case ""net472"":
+            return Managed.Factory.createNugetPackage(
                 ""TestPkg"",
                 ""1.999"",
                 Contents.all,
-                [],
-                [],
-                [importFrom(""System.Collections"").pkg, importFrom(""System.Collections.Concurrent"").pkg]
+                [Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/net451/my.dll`)],
+                [Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/net451/my.dll`)],
+                [
+                    ...addIfLazy(qualifier.targetFramework === ""net451"", () => [importFrom(""System.Collections"").pkg, importFrom(""System.Collections.Concurrent"").pkg]),
+                ]
             );
         default:
             Contract.fail(""Unsupported target framework"");
     }};
 }}
-)();", epectedpackageRoot);
+)();", expectedpackageRoot);
             Assert.Equal(expectedSpec, text);
         }
     }

@@ -22,6 +22,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Tfm = template.Tfm;
             DependentPackageIdsToSkip = template.DependentPackageIdsToSkip ?? new List<string>() { };
             DependentPackageIdsToIgnore = template.DependentPackageIdsToIgnore ?? new List<string>() { };
+            ForceFullFrameworkQualifiersOnly = template.ForceFullFrameworkQualifiersOnly;
         }
 
         /// <inheritdoc />
@@ -41,5 +42,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public List<string> DependentPackageIdsToIgnore { get; private set; }
+
+        /// <inheritdoc />
+        public bool ForceFullFrameworkQualifiersOnly { get; private set; } = false;
     }
 }

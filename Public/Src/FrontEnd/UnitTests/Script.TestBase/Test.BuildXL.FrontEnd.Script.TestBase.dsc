@@ -23,7 +23,7 @@ namespace Script.TestBase {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll,
-            importFrom("xunit.abstractions").pkg,
+            importFrom("xunit.abstractions").withQualifier({targetFramework: "netstandard2.0"}).pkg,
         ],
         runtimeContent: [
             {

@@ -289,14 +289,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     vstestSettingsFile?: File;
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
-    /** Describes the type of coverage that QTest should employ. */
-    qCodeCoverageEnumType?: "DynamicCodeCov" | "None";
-    /** When enabled, creates a zip of the sandbox in log directory */
-    zipSandbox? : boolean;
     /** Privilege level required by this process to execute. */
     privilegeLevel?: "standard" | "admin";
-    /** Applicable only when QTestType is MsTest. When enabled, uses VsJitDebugger to launch a popup to automatically attach the debugger */
-    enableVsJitDebugger?: boolean;
 }
 /**
  * Test results from a vstest.console.exe run

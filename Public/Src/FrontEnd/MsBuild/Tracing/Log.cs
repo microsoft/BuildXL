@@ -226,7 +226,7 @@ namespace BuildXL.FrontEnd.MsBuild.Tracing
             (ushort)LogEventId.ProjectIsNotSpecifyingTheProjectReferenceProtocol,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Message = Events.LabeledProvenancePrefix + "Project '{projectName}' is not specifying its project reference protocol, and therefore the targets to call cannot be inferred. " +
+            Message = Events.LabeledProvenancePrefix + "Project '{projectName}' is not specifying its project reference protocol, and therefore the targets to call on its dependencies cannot be inferred. " +
                       "Falling back to calling the project default targets. For more details, see https://github.com/Microsoft/msbuild/blob/master/documentation/specs/static-graph.md",
             EventTask = (ushort)Events.Tasks.Engine,
             EventOpcode = (byte)Events.Tasks.Parser,
@@ -234,12 +234,22 @@ namespace BuildXL.FrontEnd.MsBuild.Tracing
         public abstract void ProjectIsNotSpecifyingTheProjectReferenceProtocol(LoggingContext context, Location location, string projectName);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ProjectPredictedTargetsAlsoContainDefaultTargets,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Message = Events.LabeledProvenancePrefix + "Default targets '{defaultTargets}' were appended to the predicted target of project '{projectName}'. " +
+                        "This is because there is a direct dependency of this project that is not specifying the reference protocol, so default targets were added as a way to guess the right targets to call.",
+            EventTask = (ushort)Events.Tasks.Engine,
+            EventOpcode = (byte)Events.Tasks.Parser,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Diagnostics))]
+        public abstract void ProjectPredictedTargetsAlsoContainDefaultTargets(LoggingContext context, Location location, string projectName, string defaultTargets);
+
+        [GeneratedEvent(
             (ushort)LogEventId.LeafProjectIsNotSpecifyingTheProjectReferenceProtocol,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
-            Message = Events.LabeledProvenancePrefix + "Project '{projectName}' is a leaf project and not specifying its project reference protocol, and therefore the targets to call cannot " +
-                      " be inferred; this will be an issue in the future if references are added. Falling back to calling the project default targets. For more details, see " + 
-                      "https://github.com/Microsoft/msbuild/blob/master/documentation/specs/static-graph.md",
+            EventLevel = Level.Verbose,
+            Message = Events.LabeledProvenancePrefix + "Project '{projectName}' is not specifying its project reference protocol. This project does not have any references, so the lack of protocol does not have any impact." +
+                      "However, this may be an issue in the future if references are added. For more details, see https://github.com/Microsoft/msbuild/blob/master/documentation/specs/static-graph.md",
             EventTask = (ushort)Events.Tasks.Engine,
             EventOpcode = (byte)Events.Tasks.Parser,
             Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Diagnostics))]

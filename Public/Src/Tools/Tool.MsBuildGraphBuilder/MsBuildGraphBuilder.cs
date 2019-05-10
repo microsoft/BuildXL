@@ -23,6 +23,7 @@ using Newtonsoft.Json;
 using ProjectGraphWithPredictionsResult = BuildXL.FrontEnd.MsBuild.Serialization.ProjectGraphWithPredictionsResult<string>;
 using ProjectGraphWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectGraphWithPredictions<string>;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<string>;
+using BuildXL.Utilities.Collections;
 
 namespace MsBuildGraphBuilderTool
 {
@@ -175,6 +176,7 @@ namespace MsBuildGraphBuilderTool
                     projectInstanceToProjectCache,
                     graphBuildArguments.EntryPointTargets, 
                     projectPredictorsForTesting, 
+                    graphBuildArguments.AllowProjectsWithoutTargetProtocol,
                     out ProjectGraphWithPredictions projectGraphWithPredictions, 
                     out failure))
                 {
@@ -304,6 +306,7 @@ namespace MsBuildGraphBuilderTool
             ConcurrentDictionary<ProjectInstance, Project> projectInstanceToProjectCache,
             IReadOnlyCollection<string> entryPointTargets,
             IReadOnlyCollection<IProjectStaticPredictor> projectPredictorsForTesting,
+            bool allowProjectsWithoutTargetProtocol,
             out ProjectGraphWithPredictions projectGraphWithPredictions,
             out string failure)
         {
@@ -343,8 +346,14 @@ namespace MsBuildGraphBuilderTool
 
             var predictionExecutor = new ProjectStaticPredictionExecutor(enlistmentRoot, predictors);
 
-            // Each predictor may return unexpected/incorrect results. We put them here for post-processing.
-            ConcurrentQueue<(IReadOnlyCollection<string> predictedBy, string failure)> failures = new ConcurrentQueue<(IReadOnlyCollection<string>, string)>();
+            // Each predictor may return unexpected/incorrect results and targets may not be able to be predicted. We put those failures here for post-processing.
+            ConcurrentQueue<(IReadOnlyCollection<string> predictedBy, string failure)> predictedIOFailures = new ConcurrentQueue<(IReadOnlyCollection<string>, string)>();
+            var predictedTargetFailures = new ConcurrentQueue<string>();
+
+            // The predicted targets to execute (per project) go here
+            var computedTargets = new ConcurrentBigMap<ProjectGraphNode, PredictedTargetsToExecute>();
+            // When projects are allowed to not implement the target protocol, its references need default targets as a post-processing step
+            var pendingAddDefaultTargets = new ConcurrentBigSet<ProjectGraphNode>();
 
             // First pass
             // Predict all projects in the graph in parallel and populate ProjectNodes
@@ -362,7 +371,7 @@ namespace MsBuildGraphBuilderTool
                 }
                 catch(Exception ex)
                 {
-                    failures.Enqueue((
+                    predictedIOFailures.Enqueue((
                         new string[] { "Unknown predictor" }, 
                         $"Cannot run static predictor on project '{project.FullPath ?? "Unknown project"}'. An unexpected error occurred. Please contact BuildPrediction project owners with this stack trace: {ex.ToString()}"));
                     
@@ -373,33 +382,79 @@ namespace MsBuildGraphBuilderTool
                 // Let's validate the predicted inputs and outputs, in case the predictor is not working properly
                 if (!TryGetInputPredictions(predictions, out IReadOnlyCollection<string> inputPredictions, out (IReadOnlyCollection<string> predictedBy, string failure) inputPredictionFailure))
                 {
-                    failures.Enqueue(inputPredictionFailure);
+                    predictedIOFailures.Enqueue(inputPredictionFailure);
                 }
 
                 if (!TryGetOutputPredictions(predictions, out IReadOnlyCollection<string> outputPredictions, out (IReadOnlyCollection<string> predictedBy, string failure) outputPredictionFailure))
                 {
-                    failures.Enqueue(outputPredictionFailure);
+                    predictedIOFailures.Enqueue(outputPredictionFailure);
                 }
 
-                PredictedTargetsToExecute targetsToExecute = GetPredictedTargetsAndPropertiesToExecute(projectInstance, msBuildNode, targetsPerProject, out GlobalProperties globalProperties);
+                 if (!TryGetPredictedTargetsAndPropertiesToExecute(
+                    projectInstance, 
+                    msBuildNode, 
+                    targetsPerProject, 
+                    computedTargets, 
+                    pendingAddDefaultTargets,
+                    allowProjectsWithoutTargetProtocol,
+                    out GlobalProperties globalProperties,
+                    out string protocolMissingFailure))
+                {
+                    predictedTargetFailures.Enqueue(protocolMissingFailure);
+                    return;
+                }
 
                 projectNodes[i] = new ProjectWithPredictions(
                     projectInstance.FullPath,
+                    projectInstance.GetItems(ProjectReferenceTargets).Count > 0,
                     globalProperties,
                     inputPredictions,
-                    outputPredictions,
-                    targetsToExecute);
+                    outputPredictions);
+
+                // If projects not implementing the target protocol are blocked, then the list of computed targets is final. So we set it right here
+                // to avoid wasted allocations
+                // Otherwise, we leave it as a post-processing step. Since we are visiting the graph in parallel, without considering edges at all,
+                // we need to wait until all nodes are visited to know the full set of projects that have pending default targets to be added
+                if (!allowProjectsWithoutTargetProtocol)
+                {
+                    projectNodes[i].SetTargetsToExecute(computedTargets[msBuildNode]);
+                }
 
                 nodeWithPredictionsToMsBuildNodes[projectNodes[i]] = msBuildNode;
                 msBuildNodesToNodeWithPredictionIndex[msBuildNode] = projectNodes[i];
             });
 
-            // There were prediction errors. Do not bother reconstructing references and bail out here
-            if (!failures.IsEmpty)
+            // There were IO prediction errors. 
+            if (!predictedIOFailures.IsEmpty)
             {
                 projectGraphWithPredictions = new ProjectGraphWithPredictions(new ProjectWithPredictions<string>[] { });
-                failure = $"Errors found during static prediction of inputs and outputs. {string.Join(", ", failures.Select(failureWithCulprit => $"[Predicted by: {string.Join(", ", failureWithCulprit.predictedBy)}] {failureWithCulprit.failure}"))}";
+                failure = $"Errors found during static prediction of inputs and outputs. " +
+                    $"{string.Join(", ", predictedIOFailures.Select(failureWithCulprit => $"[Predicted by: {string.Join(", ", failureWithCulprit.predictedBy)}] {failureWithCulprit.failure}"))}";
                 return false;
+            }
+
+            // There were target prediction errors. 
+            if (!predictedTargetFailures.IsEmpty)
+            {
+                projectGraphWithPredictions = new ProjectGraphWithPredictions(new ProjectWithPredictions<string>[] { });
+                failure = $"Errors found during target prediction. {string.Join(", ", predictedTargetFailures) }";
+                return false;
+            }
+
+            // If there are references from (allowed) projects not implementing the target protocol, then we may need to change the already computed targets to add default targets to them
+            if (allowProjectsWithoutTargetProtocol)
+            {
+                Parallel.ForEach(computedTargets.Keys, (ProjectGraphNode projectNode) =>
+                {
+                    PredictedTargetsToExecute targets = computedTargets[projectNode];
+
+                    if (pendingAddDefaultTargets.Contains(projectNode))
+                    {
+                        targets = targets.WithDefaultTargetsAppended(projectNode.ProjectInstance.DefaultTargets);
+                    }
+
+                    msBuildNodesToNodeWithPredictionIndex[projectNode].SetTargetsToExecute(targets);
+                });
             }
 
             // Second pass
@@ -423,29 +478,53 @@ namespace MsBuildGraphBuilderTool
             return true;
         }
 
-        private static PredictedTargetsToExecute GetPredictedTargetsAndPropertiesToExecute(
+        private static bool TryGetPredictedTargetsAndPropertiesToExecute(
             ProjectInstance projectInstance,
             ProjectGraphNode projectNode,
             IReadOnlyDictionary<ProjectGraphNode, ImmutableList<string>> targetsPerProject,
-            out GlobalProperties globalPropertiesForNode)
+            ConcurrentBigMap<ProjectGraphNode, PredictedTargetsToExecute> computedTargets,
+            ConcurrentBigSet<ProjectGraphNode> pendingAddDefaultTargets,
+            bool allowProjectsWithoutTargetProtocol,
+            out GlobalProperties globalPropertiesForNode,
+            out string failure)
         {
             // If the project instance contains a definition for project reference targets, that means it is complying to the static graph protocol for defining
             // the targets that will be executed on its children. Otherwise, the target prediction is not there.
             // In the future we may be able to query the project using the MSBuild static graph APIs to know if it is complying with the protocol, or even what level of compliance
             // is there
-            if (projectInstance.GetItems(ProjectReferenceTargets).Count > 0)
+            // If the project has no references, then not specifying the protocol is not a problem (or even required)
+            var projectImplementsProtocol = projectInstance.GetItems(ProjectReferenceTargets).Count > 0;
+            if (projectImplementsProtocol || projectNode.ProjectReferences.Count == 0 || allowProjectsWithoutTargetProtocol)
             {
+                // If the project does not implement the protocol (but that's allowed) and has references
+                // add all the references to the 'without target protocol' map, so we can add default targets
+                // to those as a post-processing step
+                if (!projectImplementsProtocol && projectNode.ProjectReferences.Count > 0)
+                {
+                    foreach (var reference in projectNode.ProjectReferences)
+                    {
+                        pendingAddDefaultTargets.Add(reference);
+                    }
+                }
+
                 var targets = targetsPerProject[projectNode];
 
                 // The global properties to use are an augmented version of the original project properties
                 globalPropertiesForNode = new GlobalProperties(projectInstance.GlobalProperties);
+                failure = string.Empty;
+                computedTargets.Add(projectNode, PredictedTargetsToExecute.Create(targets));
 
-                return PredictedTargetsToExecute.CreatePredictedTargetsToExecute(targets);
+                return true;
             }
 
-            // In this case, and since the target protocol is not available, the global properties are just the ones reported for the project
-            globalPropertiesForNode = new GlobalProperties(projectInstance.GlobalProperties);
-            return PredictedTargetsToExecute.PredictionNotAvailable;
+            // This is the case where the project doesn't implement the protocol, it has non-empty references
+            // and projects without a protocol are not allowed.
+            
+            failure = $"Project '{projectInstance.FullPath}' is not specifying its project reference protocol. For more details see https://github.com/Microsoft/msbuild/blob/master/documentation/specs/static-graph.md";
+            computedTargets = null;
+            globalPropertiesForNode = GlobalProperties.Empty;
+
+            return false;
         }
 
         private static bool TryGetInputPredictions(StaticPredictions predictions, out IReadOnlyCollection<string> inputPredictions, out (IReadOnlyCollection<string> predictedBy, string failure) inputPredictionFailure)

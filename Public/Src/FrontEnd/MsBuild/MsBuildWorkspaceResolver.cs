@@ -527,7 +527,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 new GlobalProperties(m_resolverSettings.GlobalProperties ?? CollectionUtilities.EmptyDictionary<string, string>()),
                 searchLocations.Select(location => location.ToString(m_context.PathTable)).ToList(),
                 entryPointTargets,
-                requestedQualifiers);
+                requestedQualifiers,
+                m_resolverSettings.AllowProjectsToNotSpecifyTargetProtocol == true);
 
             var responseFilePath = responseFile.ToString(m_context.PathTable);
             SerializeResponseFile(responseFilePath, arguments);

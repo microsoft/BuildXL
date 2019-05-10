@@ -38,5 +38,6 @@ namespace BuildXL.FrontEnd.MsBuild.Tracing
         ProjectIsNotSpecifyingTheProjectReferenceProtocol = 11422,
         GraphBuilderFilesAreNotRemoved = 11423,
         LeafProjectIsNotSpecifyingTheProjectReferenceProtocol = 11424,
+        ProjectPredictedTargetsAlsoContainDefaultTargets = 11425,
     }
 }

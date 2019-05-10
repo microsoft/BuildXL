@@ -96,17 +96,19 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
             IReadOnlyCollection<AbsolutePath> outputs = null, 
             IEnumerable<ProjectWithPredictions> references = null,
             GlobalProperties globalProperties = null,
-            PredictedTargetsToExecute predictedTargetsToExecute = null)
+            PredictedTargetsToExecute predictedTargetsToExecute = null,
+            bool implementsTargetProtocol = true)
         {
             var projectNameRelative = RelativePath.Create(StringTable, projectName ?? "testProj.proj");
 
             var projectWithPredictions = new ProjectWithPredictions(
                 TestPath.Combine(PathTable, projectNameRelative), 
+                implementsTargetProtocol,
                 globalProperties ?? GlobalProperties.Empty, 
                 inputs ?? CollectionUtilities.EmptyArray<AbsolutePath>(), 
                 outputs ?? CollectionUtilities.EmptyArray<AbsolutePath>(), 
                 projectReferences: references?.ToArray() ?? CollectionUtilities.EmptyArray<ProjectWithPredictions>(),
-                predictedTargetsToExecute: predictedTargetsToExecute ?? PredictedTargetsToExecute.CreatePredictedTargetsToExecute(new[] { "Build" }));
+                predictedTargetsToExecute: predictedTargetsToExecute ?? PredictedTargetsToExecute.Create(new[] { "Build" }));
 
             return projectWithPredictions;
         }

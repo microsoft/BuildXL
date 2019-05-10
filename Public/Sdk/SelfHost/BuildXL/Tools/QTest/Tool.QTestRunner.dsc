@@ -117,7 +117,7 @@ export function runQTest(args: QTestArguments): Result {
     qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
 
     // Microsoft internal cloud service use only
-    let qTestContextInfo = Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo") ? f`${Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo")}` : undefined;
+    let qTestContextInfo = Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo") ? Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo") : undefined;
     let untrackingCBPaths =  Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo") ? {
         unsafe: {
             untrackedPaths: [
@@ -126,6 +126,7 @@ export function runQTest(args: QTestArguments): Result {
             untrackedScopes: [
                 d`d:/data`,
                 d`d:/app`,
+                Environment.hasVariable("QAUTHMATERIALROOT") ? d`${Environment.getDirectoryValue("QAUTHMATERIALROOT")}` : undefined,
             ]
         }
     } : {};
@@ -175,7 +176,7 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
-        Cmd.option("--qTestContextInfo ", Artifact.input(qTestContextInfo)),
+        Cmd.option("--qTestContextInfo ", qTestContextInfo.path),
     ];          
 
     let result = Transformer.execute(

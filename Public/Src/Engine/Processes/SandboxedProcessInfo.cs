@@ -83,9 +83,8 @@ namespace BuildXL.Processes
             bool testRetries = false,
             LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
-            IKextConnection sandboxedKextConnection = null,
-            SubstituteProcessExecutionInfo shimInfo = null)
-            : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxedKextConnection, shimInfo: shimInfo)
+            IKextConnection sandboxedKextConnection = null)
+            : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxedKextConnection)
         {
         }
 
@@ -102,17 +101,11 @@ namespace BuildXL.Processes
             bool testRetries = false,
             LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
-            IKextConnection sandboxedKextConnection = null,
-            SubstituteProcessExecutionInfo shimInfo = null)
+            IKextConnection sandboxedKextConnection = null)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(fileStorage != null);
             Contract.Requires(fileName != null);
-            if (shimInfo != null)
-            {
-                Contract.Requires(fileAccessManifest != null, "When a SubstituteProcessExecutionInfo is provided a FileAccessManifest is required");
-                fileAccessManifest.SubstituteProcessExecutionInfo = shimInfo;
-            }
 
             PathTable = pathTable;
             FileAccessManifest = fileAccessManifest;
@@ -143,8 +136,7 @@ namespace BuildXL.Processes
             IDetoursEventListener detoursEventListener = null,
             IKextConnection sandboxedKextConnection = null,
             ContainerConfiguration containerConfiguration = null,
-            FileAccessManifest fileAccessManifest = null,
-            SubstituteProcessExecutionInfo shimInfo = null)
+            FileAccessManifest fileAccessManifest = null)
             : this(
                   pathTable,
                   fileStorage,
@@ -155,8 +147,7 @@ namespace BuildXL.Processes
                   testRetries,
                   loggingContext,
                   detoursEventListener,
-                  sandboxedKextConnection,
-                  shimInfo)
+                  sandboxedKextConnection)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(fileStorage != null);
@@ -475,7 +466,6 @@ namespace BuildXL.Processes
                 var envVars = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => new KeyValuePair<string, string>(r2.ReadString(), r2.ReadString())));
                 if (envVars != null)
                 {
-
                     buildParameters = BuildParameters.GetFactory().PopulateFromDictionary(envVars.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
                 }
 

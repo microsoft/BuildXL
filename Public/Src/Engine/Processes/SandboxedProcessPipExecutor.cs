@@ -149,8 +149,6 @@ namespace BuildXL.Processes
 
         private readonly VmInitializer m_vmInitializer;
 
-        private readonly SubstituteProcessExecutionInfo m_anyBuildShimInfo;
-
         /// <summary>
         /// The active sandboxed process (if any)
         /// </summary>
@@ -228,6 +226,7 @@ namespace BuildXL.Processes
                     // since multiple pips can have no provenance, SemiStableHash is not always unique across all pips
                     PipId = m_pip.SemiStableHash != 0 ? m_pip.SemiStableHash : m_pip.PipId.Value,
                     QBuildIntegrated = isQbuildIntegrated,
+                    SubstituteProcessExecutionInfo = shimInfo,
                 };
 
             if (!sandBoxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses)
@@ -278,7 +277,6 @@ namespace BuildXL.Processes
             m_loggingConfiguration = loggingConfig;
             m_remainingUserRetryCount = remainingUserRetryCount;
             m_tempDirectoryCleaner = tempDirectoryCleaner;
-            m_anyBuildShimInfo = shimInfo;
 
             m_sharedOpaqueDirectoryRoots = m_pip.DirectoryOutputs
                 .Where(directory => directory.IsSharedOpaque)
@@ -635,8 +633,7 @@ namespace BuildXL.Processes
                         m_containerConfiguration,
                         m_pip.TestRetries,
                         m_loggingContext,
-                        sandboxedKextConnection: sandboxedKextConnection,
-                        shimInfo: m_anyBuildShimInfo)
+                        sandboxedKextConnection: sandboxedKextConnection)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,

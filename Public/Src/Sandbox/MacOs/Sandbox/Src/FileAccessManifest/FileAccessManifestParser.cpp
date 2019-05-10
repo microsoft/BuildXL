@@ -46,12 +46,14 @@ RequestedAccess GetRequestedAccess(DWORD desiredAccess)
     return reqAccess;
 }
 
-void SkipOverCharArray(const BYTE *&cursor)
+// Returns the lenmgth of the skipped-over string.
+uint32_t SkipOverCharArray(const BYTE *&cursor)
 {
     uint32_t len = *((uint32_t *)(cursor));
     cursor += sizeof(uint32_t);
     // skip over the path (don't care); chars in C# are 2 bytes
     cursor += sizeof(char16_t) *len;
+    return len;
 }
 
 inline uint32_t ParseUint32(const BYTE *&cursor)
@@ -129,13 +131,16 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
 
         shim_ = ParseAndAdvancePointer<PCManifestSubstituteProcessExecutionShim>(payloadCursor);
         if (HasErrors()) continue;
-        SkipOverCharArray(payloadCursor);  // SubstituteProcessExecutionShimPath
-        uint32_t shimAllProcesses = ParseUint32(payloadCursor);
-        uint32_t numProcessMatches = ParseUint32(payloadCursor);
-        for (uint32_t i = 0; i < numProcessMatches; i++)
+        uint32_t shimPathLength = SkipOverCharArray(payloadCursor);  // SubstituteProcessExecutionShimPath
+        if (shimPathLength > 0)
         {
-            SkipOverCharArray(payloadCursor); // 'ProcessName'
-            SkipOverCharArray(payloadCursor); // 'ArgumentMatch'
+            uint32_t shimAllProcesses = ParseUint32(payloadCursor);
+            uint32_t numProcessMatches = ParseUint32(payloadCursor);
+            for (uint32_t i = 0; i < numProcessMatches; i++)
+            {
+                SkipOverCharArray(payloadCursor); // 'ProcessName'
+                SkipOverCharArray(payloadCursor); // 'ArgumentMatch'
+            }
         }
 
         root_ = Parse<PCManifestRecord>(payloadCursor);

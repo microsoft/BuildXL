@@ -466,27 +466,18 @@ namespace BuildXL.Processes
             writer.Write(0xABCDEF04); // "ABCDEF04"
 #endif
 
-            string substituteProcessExecShimPath;
-            uint shimAllProcessesFlagValue;
-            uint numShimProcessMatches;
-            if (SubstituteProcessExecutionInfo != null)
+            if (SubstituteProcessExecutionInfo == null)
             {
-                substituteProcessExecShimPath = SubstituteProcessExecutionInfo.SubstituteProcessExecutionShimPath.ToString(m_pathTable);
-                shimAllProcessesFlagValue = SubstituteProcessExecutionInfo.ShimAllProcesses ? (uint)1 : (uint)0;
-                numShimProcessMatches = (uint)SubstituteProcessExecutionInfo.ShimProcessMatches.Count;
-            }
-            else
-            {
-                substituteProcessExecShimPath = null;
-                shimAllProcessesFlagValue = 0;
-                numShimProcessMatches = 0;
+                // Emit just a zero-length substituteProcessExecShimPath when substitution is turned off.
+                WriteChars(writer, null);
+                return;
             }
 
-            WriteChars(writer, substituteProcessExecShimPath);
-            writer.Write(shimAllProcessesFlagValue);
-            writer.Write(numShimProcessMatches);
+            WriteChars(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionShimPath.ToString(m_pathTable));
+            writer.Write(SubstituteProcessExecutionInfo.ShimAllProcesses ? (uint)1 : (uint)0);
+            writer.Write((uint)SubstituteProcessExecutionInfo.ShimProcessMatches.Count);
 
-            if (numShimProcessMatches > 0)
+            if (SubstituteProcessExecutionInfo.ShimProcessMatches.Count > 0)
             {
                 foreach (ShimProcessMatch match in SubstituteProcessExecutionInfo.ShimProcessMatches)
                 {

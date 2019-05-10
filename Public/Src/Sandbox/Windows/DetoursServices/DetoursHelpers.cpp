@@ -825,16 +825,19 @@ bool ParseFileAccessManifest(
     offset += sizeof(uint32_t);
 #endif
     CreateStringFromWriteChars(payloadBytes, offset, g_substituteProcessExecutionShimPath);
-    g_ProcessExecutionShimAllProcesses = ParseUint32(payloadBytes, offset) != 0;
-    uint32_t numProcessMatches = ParseUint32(payloadBytes, offset);
-    g_pShimProcessMatches = new vector<ShimProcessMatch*>(numProcessMatches);
-    for (uint32_t i = 0; i < numProcessMatches; i++)
+    if (!g_substituteProcessExecutionShimPath.empty())
     {
-        wstring processName;
-        CreateStringFromWriteChars(payloadBytes, offset, processName);
-        wstring argumentMatch;
-        CreateStringFromWriteChars(payloadBytes, offset, argumentMatch);
-        g_pShimProcessMatches->push_back(new ShimProcessMatch(processName, argumentMatch));
+        g_ProcessExecutionShimAllProcesses = ParseUint32(payloadBytes, offset) != 0;
+        uint32_t numProcessMatches = ParseUint32(payloadBytes, offset);
+        g_pShimProcessMatches = new vector<ShimProcessMatch*>(numProcessMatches);
+        for (uint32_t i = 0; i < numProcessMatches; i++)
+        {
+            wstring processName;
+            CreateStringFromWriteChars(payloadBytes, offset, processName);
+            wstring argumentMatch;
+            CreateStringFromWriteChars(payloadBytes, offset, argumentMatch);
+            g_pShimProcessMatches->push_back(new ShimProcessMatch(processName, argumentMatch));
+        }
     }
 
     g_manifestTreeRoot = reinterpret_cast<PCManifestRecord>(&payloadBytes[offset]);

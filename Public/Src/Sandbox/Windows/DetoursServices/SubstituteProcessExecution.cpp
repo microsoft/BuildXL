@@ -182,9 +182,9 @@ static bool CommandArgsContainMatch(const wchar_t *commandArgs, const wchar_t *a
     return wcsstr(commandArgs, argMatch) != nullptr;
 }
 
-bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandArgs)
+static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandArgs)
 {
-    assert(!g_ProcessExecutionShimAllProcesses.empty());
+    assert(!g_substituteProcessExecutionShimPath.empty());
 
     // Easy cases.
     if (g_pShimProcessMatches == nullptr || g_pShimProcessMatches->empty())

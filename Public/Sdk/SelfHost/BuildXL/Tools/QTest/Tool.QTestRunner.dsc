@@ -117,18 +117,24 @@ export function runQTest(args: QTestArguments): Result {
     qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
 
     // Microsoft internal cloud service use only
-    let qTestContextInfo = Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo") ? f`${Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo")}` : undefined;
-    let untrackingCBPaths =  Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo") ? {
-        unsafe: {
-            untrackedPaths: [
-                qTestContextInfo,
-            ],
-            untrackedScopes: [
-                d`d:/data`,
-                d`d:/app`,
-            ]
-        }
-    } : {};
+    let qTestContextInfoPath = undefined;
+    let untrackingCBPaths = {};
+    if (Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo")){
+        const qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo");
+        qTestContextInfoPath = qTestContextInfoFile.path;
+        untrackingCBPaths =  {
+            unsafe: {
+                untrackedPaths: [
+                    qTestContextInfoFile,
+                ],
+                untrackedScopes: [
+                    d`d:/data`,
+                    d`d:/app`,
+                    Environment.hasVariable("QAUTHMATERIALROOT") ? d`${Environment.getDirectoryValue("QAUTHMATERIALROOT")}` : undefined,
+                ]
+            }
+        };
+    }
     
     let commandLineArgs: Argument[] = [
         Cmd.option("--testBinary ", args.testAssembly),
@@ -175,7 +181,7 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
-        Cmd.option("--qTestContextInfo ", Artifact.input(qTestContextInfo)),
+        Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
     ];          
 
     let result = Transformer.execute(

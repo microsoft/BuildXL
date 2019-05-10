@@ -135,6 +135,14 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// By default double writes are only allowed if the produced content is the same.
         /// </remarks>
-        DoubleWritePolicy? DoubleWritePolicy { get; set; }
+        DoubleWritePolicy? DoubleWritePolicy { get; }
+
+        /// <summary>
+        /// Whether projects are allowed to not specify their target protocol.
+        /// </summary>
+        /// <remarks>
+        /// When true, default targets will be used as a heuristic. Defaults to false.
+        /// </remarks>
+        bool? AllowProjectsToNotSpecifyTargetProtocol { get; }
     }
 }

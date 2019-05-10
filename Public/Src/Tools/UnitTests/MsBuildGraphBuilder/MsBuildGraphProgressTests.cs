@@ -76,7 +76,8 @@ namespace Test.ProjectGraphBuilder
                 globalProperties: GlobalProperties.Empty,
                 mSBuildSearchLocations: new[] {TestDeploymentDir},
                 entryPointTargets: new string[0],
-                requestedQualifiers: new GlobalProperties[] { GlobalProperties.Empty });
+                requestedQualifiers: new GlobalProperties[] { GlobalProperties.Empty },
+                allowProjectsWithoutTargetProtocol: false);
 
             MsBuildGraphBuilder.BuildGraphAndSerializeForTesting(MsBuildAssemblyLoader.Instance, reporter, arguments);
             var result = SimpleDeserializer.Instance.DeserializeGraph(outputFile);

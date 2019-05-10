@@ -467,10 +467,10 @@ namespace BuildXL.Processes
             string substituteProcessExecShimPath;
             uint shimAllProcessesFlagValue;
             uint numShimProcessMatches;
-            if (AnyBuildShimInfo != null && AnyBuildShimInfo.shimAllProcesses)
+            if (AnyBuildShimInfo != null)
             {
                 substituteProcessExecShimPath = AnyBuildShimInfo.SubstituteProcessExecutionShimPath.ToString(m_pathTable);
-                shimAllProcessesFlagValue = 1;
+                shimAllProcessesFlagValue = AnyBuildShimInfo.ShimAllProcesses ? 1 : 0;
                 numShimProcessMatches = (uint)AnyBuildShimInfo.ShimProcessMatches.Count;
             }
             else

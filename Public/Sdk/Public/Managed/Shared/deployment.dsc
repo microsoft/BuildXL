@@ -104,7 +104,7 @@ namespace Deployment {
 
         let runtimeProvenance = chainAssemblyProvenance(provenance, assembly, 'Runtime files');
 
-        // TODO: optimize deployment for assemblies with nativeExecutable (they don't need all the referenced assemblies etc.)
+        // TODO: optimize deployment for assemblies with nativeExecutable (they don't need referenced managed assemblies etc.)
         if (assembly.nativeExecutable)
         {
             result = addAssemblyFile(assembly.nativeExecutable, targetFolder, handleDuplicate, result, deploymentOptions, runtimeProvenance);

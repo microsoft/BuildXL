@@ -79,6 +79,36 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         }
 
         /// <summary>
+        /// Reads the content from a file <paramref name="absolutePath"/>.
+        /// </summary>
+        /// <exception cref="Exception">Throws if the IO operation fails.</exception>
+        public static string ReadAllText(this IAbsFileSystem fileSystem, AbsolutePath absolutePath, FileShare fileShare = FileShare.ReadWrite)
+        {
+            using (Stream readLockFile = fileSystem.OpenSafeAsync(absolutePath, FileAccess.Read, FileMode.Open, fileShare).GetAwaiter().GetResult())
+            {
+                using (var reader = new StreamReader(readLockFile))
+                {
+                    return reader.ReadToEnd();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes the content to a file <paramref name="absolutePath"/>.
+        /// </summary>
+        /// <exception cref="Exception">Throws if the IO operation fails.</exception>
+        public static void WriteAllText(this IAbsFileSystem fileSystem, AbsolutePath absolutePath, string contents, FileShare fileShare = FileShare.ReadWrite)
+        {
+            using (Stream file = fileSystem.OpenSafeAsync(absolutePath, FileAccess.Write, FileMode.Create, fileShare).GetAwaiter().GetResult())
+            {
+                using (var writer = new StreamWriter(file))
+                {
+                    writer.WriteLine(contents);
+                }
+            }
+        }
+
+        /// <summary>
         /// Open the named file asynchronously for reading.
         /// </summary>
         /// <exception cref="FileNotFoundException">Throws if the file is not found.</exception>

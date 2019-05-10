@@ -192,10 +192,11 @@ namespace BuildXL.Cache.ContentStore.Stores
                 throw new CacheException($"Failed to reserve space for content size=[{contentSize}], result=[{result}]");
             }
 
-            return new ReserveTransaction(contentSize, Evicted);
+            return new ReserveTransaction(contentSize, OnContentEvicted);
         }
 
-        private void Evicted(long size)
+        /// <inheritdoc />
+        public override void OnContentEvicted(long size)
         {
             Interlocked.Add(ref _size, -1 * size);
 
@@ -208,7 +209,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <inheritdoc />
         protected internal override Task<EvictResult> EvictContentAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked)
         {
-            return _store.EvictAsync(context, contentHashInfo, onlyUnlinked, Evicted);
+            return _store.EvictAsync(context, contentHashInfo, onlyUnlinked, OnContentEvicted);
         }
 
         private Task CalibrateAsync(Context context, IQuotaRule rule)

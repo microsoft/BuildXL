@@ -226,6 +226,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private readonly ContentStoreSettings _settings;
 
+        private readonly AbsolutePath _selfCheckFilePath;
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="FileSystemContentStoreInternal" /> class.
         /// </summary>
@@ -259,6 +261,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             _tempFolder = _contentRootDirectory / TempFileSubdirectory;
 
             VersionFilePath = RootPath / VersionFileName;
+
+            _selfCheckFilePath = RootPath / "selfCheckMarker.txt";
 
             SerializedDataVersion = new SerializedDataValue(FileSystem, VersionFilePath, (int)VersionHistory.CurrentVersion);
 
@@ -347,6 +351,195 @@ namespace BuildXL.Cache.ContentStore.Stores
                 new ExecutionDataflowBlockOptions {MaxDegreeOfParallelism = Environment.ProcessorCount});
 
             return upgradeCacheBlobAction.PostAllAndComplete(EnumerateBlobPathsFromDisk());
+        }
+
+        /// <summary>
+        /// Checks that the content on disk is correct and every file in content directory matches it's hash.
+        /// </summary>
+        /// <returns></returns>
+        public async Task<Result<SelfCheckResult>> SelfCheckAsync(Context context, CancellationToken token)
+        {
+            using (var trackingContext = TrackShutdown(context, token))
+            {
+                var result = await trackingContext.Context.PerformOperationAsync(
+                    Tracer,
+                    () =>
+                    {
+                        if (SelfCheckUpToDate())
+                        {
+                            return Task.FromResult(Result.Success(SelfCheckResult.UpToDate()));
+                        }
+
+                        return SelfCheckCoreAsync(trackingContext.Context);
+                    });
+
+                if (result)
+                {
+                    MarkSelfChecked(success: true);
+                }
+
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// A result of <see cref="SelfCheckAsync"/>.
+        /// </summary>
+        public struct SelfCheckResult
+        {
+            /// <summary>
+            /// Total number of invalid files.
+            /// </summary>
+            public int InvalidFiles { get; }
+
+            /// <summary>
+            /// Total number of files scanned on disk.
+            /// </summary>
+            public int TotalFilesScanned { get; }
+
+            /// <nodoc />
+            public SelfCheckResult(int invalidHashes, int totalFilesScanned) =>
+                (InvalidFiles, TotalFilesScanned) = (invalidHashes, totalFilesScanned);
+
+            /// <nodoc />
+            public static SelfCheckResult UpToDate() => new SelfCheckResult(invalidHashes: 0, totalFilesScanned: -1);
+
+            /// <inheritdoc />
+            public override string ToString() => $"InvalidHashes={InvalidFiles}, TotalFilesScanned={TotalFilesScanned}";
+        }
+
+        private async Task<Result<SelfCheckResult>> SelfCheckCoreAsync(OperationContext context)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var contentHashes = ReadContentHashesFromDisk(context);
+            _tracer.Debug(context, $"SelfCheck: Enumerated {contentHashes.Count} entries by {stopwatch.ElapsedMilliseconds}ms.");
+
+            stopwatch.Restart();
+
+            int invalidEntries = 0;
+
+            foreach (var (contentHash, fileInfo) in contentHashes)
+            {
+                if (context.Token.IsCancellationRequested)
+                {
+                    context.TracingContext.Debug("Exiting self check because cancellation was requested.");
+                    break;
+                }
+
+                var (isValid, error) = await ValidateFileAsync(context, contentHash, fileInfo);
+                if (!isValid)
+                {
+                    _tracer.Warning(context, $"Found invalid entry in cache. Hash={contentHash}. {error}. Evicting the file...");
+                    await RemoveInvalidContentAsync(context, contentHash);
+                    invalidEntries++;
+                }
+            }
+
+            return Result.Success(new SelfCheckResult(invalidHashes: invalidEntries, totalFilesScanned: contentHashes.Count));
+        }
+
+        private async Task RemoveInvalidContentAsync(OperationContext context, ContentHash contentHash)
+        {
+            // In order to remove the content we have to do the following things:
+            // Remove file from disk
+            // Update memory content directory
+            // Update quota keeper
+            // Notify distributed store that the content is gone from this machine
+            // The first 3 things are happening in the first call.
+            await EvictAsync(
+                context,
+                new ContentHashWithLastAccessTimeAndReplicaCount(contentHash, Clock.UtcNow),
+                onlyUnlinked: false,
+                size => { _quotaKeeper.OnContentEvicted(size); })
+                .TraceIfFailure(context);
+
+            if (_distributedEvictionSettings.DistributedStore != null)
+            {
+                await _distributedEvictionSettings.DistributedStore.UnregisterAsync(context, new ContentHash[] {contentHash}, context.Token)
+                    .TraceIfFailure(context);
+            }
+        }
+
+        private async Task<(bool isValid, string error)> ValidateFileAsync(Context context, ContentHash expectedHash, FileInfo fileInfo)
+        {
+            try
+            {
+                // The cache entry is invalid if the size in content directory doesn't mach an actual size
+                if (ContentDirectory.TryGetFileInfo(expectedHash, out var contentFileInfo) && contentFileInfo.FileSize != fileInfo.Length)
+                {
+                    return (isValid: false, error: $"File size mismatch. Expected size is {contentFileInfo.FileSize} and size on disk is {fileInfo.Length}.");
+                }
+
+                // Or if the content doesn't match the hash.
+                var actualHashAndSize = await TryHashFileAsync(context, fileInfo.FullPath, expectedHash.HashType);
+                if (actualHashAndSize != null && actualHashAndSize.Value.Hash != expectedHash)
+                {
+                    // Don't need to add an expected hash into the error string because the client code will always put it into the final error message.
+                    return (isValid: false, error: $"Hash mismatch. Actual hash is {actualHashAndSize.Value.Hash}.");
+                }
+
+                return (isValid: true, error: string.Empty);
+            }
+            catch (IOException e)
+            {
+                _tracer.Warning(context, $"Content hash validation failed. Hash={expectedHash}, Error={e}.");
+
+                return (isValid: true, error: string.Empty);
+            }
+        }
+
+        private async Task<ContentHashWithSize?> TryHashFileAsync(Context context, AbsolutePath path, HashType hashType, Func<Stream, Stream> wrapStream = null)
+        {
+            // We only hash the file if a trusted hash is not supplied
+            using (var stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
+            {
+                if (stream == null)
+                {
+                    return null;
+                }
+
+                using (var wrappedStream = (wrapStream == null) ? stream : wrapStream(stream))
+                {
+                    // Hash the file in  place
+                    return await HashContentAsync(context, wrappedStream, hashType, path);
+                }
+            }
+        }
+
+        private bool SelfCheckUpToDate()
+        {
+            if (!FileSystem.FileExists(_selfCheckFilePath))
+            {
+                return false;
+            }
+
+            // The format is: "SelfCheckEpoch|LastSelfCheckTime"
+            var contents = FileSystem.ReadAllText(_selfCheckFilePath);
+            var parts = contents.Split('|');
+            if (parts.Length != 2 || parts[0] != _settings.SelfCheckEpoch)
+            {
+                return false;
+            }
+
+            var reconcileTime = DateTimeUtilities.FromReadableTimestamp(parts[1]);
+            if (reconcileTime == null)
+            {
+                return false;
+            }
+
+            return reconcileTime.Value.IsRecent(Clock.UtcNow, _settings.SelfCheckFrequency);
+        }
+
+        private void MarkSelfChecked(bool success)
+        {
+            if (success)
+            {
+                FileSystem.WriteAllText(_selfCheckFilePath, $"{_settings.SelfCheckEpoch}|{Clock.UtcNow.ToReadableString()}");
+            }
+            else
+            {
+                FileSystem.DeleteFile(_selfCheckFilePath);
+            }
         }
 
         /// <summary>
@@ -556,13 +749,13 @@ namespace BuildXL.Cache.ContentStore.Stores
                 var hashInfoPairs = new List<KeyValuePair<ContentHash, ContentFileInfo>>();
                 foreach (var grouping in contentHashes.GroupBy(hash => hash))
                 {
-                    var contentFileInfo = new ContentFileInfo(Clock, grouping.First().Size, grouping.Count());
+                    var contentFileInfo = new ContentFileInfo(Clock, grouping.First().fileInfo.Length, grouping.Count());
                     contentCount++;
                     contentSize += contentFileInfo.TotalSize;
 
                     hashInfoPairs.Add(
                         new KeyValuePair<ContentHash, ContentFileInfo>(
-                            grouping.Key.Hash,
+                            grouping.Key.hash,
                             contentFileInfo));
                 }
 
@@ -898,23 +1091,17 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             return PutFileCall<ContentStoreInternalTracer>.RunAsync(_tracer, OperationContext(context), path, realizationMode, hashType, trustedHash: trustedHashWithSize != null, async () =>
             {
-                ContentHashWithSize content = trustedHashWithSize ?? default(ContentHashWithSize);
+                ContentHashWithSize content = trustedHashWithSize ?? default;
                 if (trustedHashWithSize == null)
                 {
                     // We only hash the file if a trusted hash is not supplied
-                    using (var stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
+                    var possibleContent = await TryHashFileAsync(context, path, hashType, wrapStream);
+                    if (possibleContent == null)
                     {
-                        if (stream == null)
-                        {
-                            return new PutResult(default(ContentHash), $"Source file not found at '{path}'.");
-                        }
-
-                        using (var wrappedStream = (wrapStream == null) ? stream : wrapStream(stream))
-                        {
-                            // Hash the file in  place
-                            content = await HashContentAsync(context, wrappedStream, hashType, path);
-                        }
+                        return new PutResult(default(ContentHash), $"Source file not found at '{path}'.");
                     }
+
+                    content = possibleContent.Value;
                 }
 
                 // If we are given the empty file, the put is a no-op.
@@ -1799,9 +1986,9 @@ namespace BuildXL.Cache.ContentStore.Stores
             return new RelativePath(contentHash.ToHex().Substring(0, HashDirectoryNameLength));
         }
 
-        private List<ContentHashWithSize> ReadContentHashesFromDisk(Context context)
+        private List<(ContentHash hash, FileInfo fileInfo)> ReadContentHashesFromDisk(Context context)
         {
-            var contentHashes = new List<ContentHashWithSize>();
+            var contentHashes = new List<(ContentHash hash, FileInfo fileInfo)>();
             if (_settings.UseNativeBlobEnumeration)
             {
                 EnumerateBlobPathsFromDisk(context, fileInfo => parseAndAccumulateContentHashes(fileInfo));
@@ -1822,7 +2009,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // This is not an error condition if we can't get the hash out of it.
                 if (TryGetHashFromPath(fileInfo.FullPath, out var contentHash))
                 {
-                    contentHashes.Add(new ContentHashWithSize(contentHash, fileInfo.Length));
+                    contentHashes.Add((contentHash, fileInfo));
                 }
                 else
                 {

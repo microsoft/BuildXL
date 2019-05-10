@@ -28,6 +28,8 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
+using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
+using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {

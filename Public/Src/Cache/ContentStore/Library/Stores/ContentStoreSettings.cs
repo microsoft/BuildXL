@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
+
 namespace BuildXL.Cache.ContentStore.Stores
 {
     /// <summary>
@@ -37,6 +39,16 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// If true, then quota keeper will check the current content directory size and start content eviction at startup if the threshold is reached.
         /// </summary>
         public bool StartPurgingAtStartup { get; set; } = true;
+
+        /// <summary>
+        /// An interval between self checks performed by a content store to make sure that all the data on disk matches it's hashes.
+        /// </summary>
+        public TimeSpan SelfCheckFrequency { get; set; } = TimeSpan.FromDays(1);
+
+        /// <summary>
+        /// An epoch used for reseting self check of a content directory.
+        /// </summary>
+        public string SelfCheckEpoch { get; set; } = "E0";
 
         /// <nodoc />
         public static ContentStoreSettings DefaultSettings { get; } = new ContentStoreSettings();

@@ -142,7 +142,7 @@ config({
                 // RocksDb
                 { id: "RocksDbSharp", version: "5.8.0-b20181023.3", alias: "RocksDbSharpSigned" },
                 { id: "RocksDbNative", version: "6.0.1-b20190426.4" },
-                
+
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
 
                 // Event hubs
@@ -169,7 +169,6 @@ config({
                 { id: "Microsoft.Data.Edm", version: "5.8.2" },
 
                 // xUnit
-                { id: "xunit", version: "2.4.1" },
                 { id: "xunit.abstractions", version: "2.0.3", tfm: ".NETStandard2.0" },
                 { id: "xunit.analyzers", version: "0.10.0" },
                 { id: "xunit.assert", version: "2.4.1" },

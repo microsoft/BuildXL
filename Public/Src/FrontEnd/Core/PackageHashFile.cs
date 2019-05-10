@@ -21,17 +21,17 @@ namespace BuildXL.FrontEnd.Core
     /// </remarks>
     internal readonly struct PackageHashFile
     {
-        // The hash file version is separated to cover the following cases: 
+        // The hash file version is separated to cover the following cases:
         //  * the file format itself, and
         //  * the format of the generated specs.
         // If the file format changes, we have to ignore the files on disk,
         // buf if the file format is the same and only generated specs format has changed,
         // then we can reuse files from disk and force specs regeneration.
 
-        // The file format change will force specs regeneration. 
+        // The file format change will force specs regeneration.
         // Change the version if the nuget spec generation has changed in a backward incompatible way.
         private const string HashFileFormatVersion = "8";
-        private const string GeneratedSpecsVersion = "13";
+        private const string GeneratedSpecsVersion = "14";
 
         /// <summary>
         /// The minimal number of lines for the hash file.

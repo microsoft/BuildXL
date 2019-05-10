@@ -20,9 +20,9 @@ namespace Nuget {
                 NetFx.System.Xml.Linq.dll
             ),
 
+            Sdk.dll,
             Core.dll,
             Script.dll,
-            Sdk.dll,
             TypeScript.Net.dll,
 
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
@@ -40,7 +40,7 @@ namespace Nuget {
             importFrom("BuildXL.Utilities").Script.Constants.dll,
 
             importFrom("NuGet.Versioning").pkg,
-            
+
             ...BuildXLSdk.tplPackages,
         ],
         internalsVisibleTo: [

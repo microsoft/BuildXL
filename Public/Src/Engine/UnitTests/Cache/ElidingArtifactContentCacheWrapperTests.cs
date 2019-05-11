@@ -100,8 +100,7 @@ namespace Test.BuildXL.Engine.Cache
 
             public HarnessArtifactContentCache()
             {
-                var context = BuildXLContext.CreateInstanceForTesting();
-                m_cache = new InMemoryArtifactContentCache(context);
+                m_cache = new InMemoryArtifactContentCache();
             }
 
             public int GetLoadCount(ContentHash hash)

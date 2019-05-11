@@ -109,8 +109,8 @@ namespace Test.DScript.Ast
             using (EngineTestHooksData testHooks =  new EngineTestHooksData
                                                     {
                                                        AppDeployment = appDeployment,
-                                                       CacheFactory = (context) => new EngineCache(
-                                                            testCache.GetArtifacts(context),
+                                                       CacheFactory = () => new EngineCache(
+                                                            testCache.GetArtifacts(),
                                                             testCache.Fingerprints)
                                                     })
             {

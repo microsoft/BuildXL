@@ -1058,6 +1058,13 @@ namespace BuildXL.Engine
                     }
                 }
 
+                if (mutableConfig.Logging.CacheMissAnalysisOption.Mode == CacheMissMode.Local)
+                {
+                    // BuildXL should not use local fingerprintstore for cache miss analysis.
+                    // Because you do not know how old is that fingerprintstore, the data is not really useful.
+                    mutableConfig.Logging.CacheMissAnalysisOption.Mode = CacheMissMode.Disabled;
+                }
+
                 mutableConfig.Logging.StoreFingerprints = initialCommandLineConfiguration.Logging.StoreFingerprints ?? false;
             }
             else

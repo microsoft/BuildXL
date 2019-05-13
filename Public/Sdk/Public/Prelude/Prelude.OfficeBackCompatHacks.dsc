@@ -132,6 +132,8 @@ namespace Transformer {
         isLight?: boolean;
         /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
         keepOutputsWritable?: boolean;
+        /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
+        priority?: number;
     }
     /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
     export type InputArtifact = File | StaticDirectory;

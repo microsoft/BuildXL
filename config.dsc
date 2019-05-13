@@ -353,7 +353,7 @@ config({
                 { id: "System.Threading", version: "4.3.0" },
                 { id: "System.Threading.Overlapped", version: "4.3.0" },
                 { id: "System.Threading.Tasks", version: "4.3.0" },
-                { id: "System.Threading.Tasks.Extensions", version: "4.5.2" },
+                { id: "System.Threading.Tasks.Extensions", version: "4.3.0" },
                 { id: "System.Threading.Tasks.Parallel", version: "4.3.0" },
                 { id: "System.Threading.Thread", version: "4.3.0" },
                 { id: "System.Threading.ThreadPool", version: "4.3.0" },

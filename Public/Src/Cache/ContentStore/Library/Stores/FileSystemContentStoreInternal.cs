@@ -227,7 +227,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private readonly ContentStoreSettings _settings;
 
-        private readonly AbsolutePath _selfCheckFilePath;
+        private readonly FileSystemContentStoreInternalChecker _checker;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="FileSystemContentStoreInternal" /> class.
@@ -263,8 +263,6 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             VersionFilePath = RootPath / VersionFileName;
 
-            _selfCheckFilePath = RootPath / "selfCheckMarker.txt";
-
             SerializedDataVersion = new SerializedDataValue(FileSystem, VersionFilePath, (int)VersionHistory.CurrentVersion);
 
             ContentDirectory = new MemoryContentDirectory(FileSystem, RootPath, this);
@@ -274,6 +272,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             _distributedEvictionSettings = distributedEvictionSettings;
             _settings = settings ?? ContentStoreSettings.DefaultSettings;
+
+            _checker = new FileSystemContentStoreInternalChecker(FileSystem, Clock, RootPath, _tracer, _settings, this);
         }
 
         private async Task PerformUpgradeToNextVersionAsync(Context context, VersionHistory currentVersion)
@@ -358,88 +358,18 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// Checks that the content on disk is correct and every file in content directory matches it's hash.
         /// </summary>
         /// <returns></returns>
-        public async Task<Result<SelfCheckResult>> SelfCheckAsync(Context context, CancellationToken token)
+        internal async Task<Result<FileSystemContentStoreInternalChecker.SelfCheckResult>> SelfCheckContentDirectoryAsync(Context context, CancellationToken token)
         {
-            using (var trackingContext = TrackShutdown(context, token))
+            using (var disposableContext = TrackShutdown(context, token))
             {
-                var result = await trackingContext.Context.PerformOperationAsync(
-                    Tracer,
-                    () =>
-                    {
-                        if (SelfCheckUpToDate())
-                        {
-                            return Task.FromResult(Result.Success(SelfCheckResult.UpToDate()));
-                        }
-
-                        return SelfCheckCoreAsync(trackingContext.Context);
-                    });
-
-                if (result)
-                {
-                    MarkSelfChecked(success: true);
-                }
-
-                return result;
+                return await _checker.SelfCheckContentDirectoryAsync(disposableContext.Context);
             }
         }
 
         /// <summary>
-        /// A result of <see cref="SelfCheckAsync"/>.
+        /// Removes invalid content from cache.
         /// </summary>
-        public struct SelfCheckResult
-        {
-            /// <summary>
-            /// Total number of invalid files.
-            /// </summary>
-            public int InvalidFiles { get; }
-
-            /// <summary>
-            /// Total number of files scanned on disk.
-            /// </summary>
-            public int TotalFilesScanned { get; }
-
-            /// <nodoc />
-            public SelfCheckResult(int invalidHashes, int totalFilesScanned) =>
-                (InvalidFiles, TotalFilesScanned) = (invalidHashes, totalFilesScanned);
-
-            /// <nodoc />
-            public static SelfCheckResult UpToDate() => new SelfCheckResult(invalidHashes: 0, totalFilesScanned: -1);
-
-            /// <inheritdoc />
-            public override string ToString() => $"InvalidHashes={InvalidFiles}, TotalFilesScanned={TotalFilesScanned}";
-        }
-
-        private async Task<Result<SelfCheckResult>> SelfCheckCoreAsync(OperationContext context)
-        {
-            var stopwatch = Stopwatch.StartNew();
-            var contentHashes = ReadContentHashesFromDisk(context);
-            _tracer.Debug(context, $"SelfCheck: Enumerated {contentHashes.Count} entries by {stopwatch.ElapsedMilliseconds}ms.");
-
-            stopwatch.Restart();
-
-            int invalidEntries = 0;
-
-            foreach (var (contentHash, fileInfo) in contentHashes)
-            {
-                if (context.Token.IsCancellationRequested)
-                {
-                    context.TracingContext.Debug("Exiting self check because cancellation was requested.");
-                    break;
-                }
-
-                var (isValid, error) = await ValidateFileAsync(context, contentHash, fileInfo);
-                if (!isValid)
-                {
-                    _tracer.Warning(context, $"Found invalid entry in cache. Hash={contentHash}. {error}. Evicting the file...");
-                    await RemoveInvalidContentAsync(context, contentHash);
-                    invalidEntries++;
-                }
-            }
-
-            return Result.Success(new SelfCheckResult(invalidHashes: invalidEntries, totalFilesScanned: contentHashes.Count));
-        }
-
-        private async Task RemoveInvalidContentAsync(OperationContext context, ContentHash contentHash)
+        internal async Task RemoveInvalidContentAsync(OperationContext context, ContentHash contentHash)
         {
             // In order to remove the content we have to do the following things:
             // Remove file from disk
@@ -447,9 +377,10 @@ namespace BuildXL.Cache.ContentStore.Stores
             // Update quota keeper
             // Notify distributed store that the content is gone from this machine
             // The first 3 things are happening in the first call.
-            await EvictAsync(
+            await EvictCoreAsync(
                 context,
                 new ContentHashWithLastAccessTimeAndReplicaCount(contentHash, Clock.UtcNow),
+                force: true, // Need to evict an invalid content even if it is pinned.
                 onlyUnlinked: false,
                 size => { QuotaKeeper.OnContentEvicted(size); })
                 .TraceIfFailure(context);
@@ -461,35 +392,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private async Task<(bool isValid, string error)> ValidateFileAsync(Context context, ContentHash expectedHash, FileInfo fileInfo)
-        {
-            try
-            {
-                // The cache entry is invalid if the size in content directory doesn't mach an actual size
-                if (ContentDirectory.TryGetFileInfo(expectedHash, out var contentFileInfo) && contentFileInfo.FileSize != fileInfo.Length)
-                {
-                    return (isValid: false, error: $"File size mismatch. Expected size is {contentFileInfo.FileSize} and size on disk is {fileInfo.Length}.");
-                }
-
-                // Or if the content doesn't match the hash.
-                var actualHashAndSize = await TryHashFileAsync(context, fileInfo.FullPath, expectedHash.HashType);
-                if (actualHashAndSize != null && actualHashAndSize.Value.Hash != expectedHash)
-                {
-                    // Don't need to add an expected hash into the error string because the client code will always put it into the final error message.
-                    return (isValid: false, error: $"Hash mismatch. Actual hash is {actualHashAndSize.Value.Hash}.");
-                }
-
-                return (isValid: true, error: string.Empty);
-            }
-            catch (IOException e)
-            {
-                _tracer.Warning(context, $"Content hash validation failed. Hash={expectedHash}, Error={e}.");
-
-                return (isValid: true, error: string.Empty);
-            }
-        }
-
-        private async Task<ContentHashWithSize?> TryHashFileAsync(Context context, AbsolutePath path, HashType hashType, Func<Stream, Stream> wrapStream = null)
+        internal async Task<ContentHashWithSize?> TryHashFileAsync(Context context, AbsolutePath path, HashType hashType, Func<Stream, Stream> wrapStream = null)
         {
             // We only hash the file if a trusted hash is not supplied
             using (var stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
@@ -504,42 +407,6 @@ namespace BuildXL.Cache.ContentStore.Stores
                     // Hash the file in  place
                     return await HashContentAsync(context, wrappedStream, hashType, path);
                 }
-            }
-        }
-
-        private bool SelfCheckUpToDate()
-        {
-            if (!FileSystem.FileExists(_selfCheckFilePath))
-            {
-                return false;
-            }
-
-            // The format is: "SelfCheckEpoch|LastSelfCheckTime"
-            var contents = FileSystem.ReadAllText(_selfCheckFilePath);
-            var parts = contents.Split('|');
-            if (parts.Length != 2 || parts[0] != _settings.SelfCheckEpoch)
-            {
-                return false;
-            }
-
-            var reconcileTime = DateTimeUtilities.FromReadableTimestamp(parts[1]);
-            if (reconcileTime == null)
-            {
-                return false;
-            }
-
-            return reconcileTime.Value.IsRecent(Clock.UtcNow, _settings.SelfCheckFrequency);
-        }
-
-        private void MarkSelfChecked(bool success)
-        {
-            if (success)
-            {
-                FileSystem.WriteAllText(_selfCheckFilePath, $"{_settings.SelfCheckEpoch}|{Clock.UtcNow.ToReadableString()}");
-            }
-            else
-            {
-                FileSystem.DeleteFile(_selfCheckFilePath);
             }
         }
 
@@ -880,6 +747,15 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             _tracer.StartStats(context, size, contentDirectoryCount);
 
+            if (_settings.SelfCheckEnabled)
+            {
+                // Starting the self check and ignore and trace the failure.
+                // Self check procedure is a long running operation that can take longer then an average process lifetime.
+                // So instead of relying on timers to recheck content directory, we rely on
+                // periodic service restarts.
+                SelfCheckContentDirectoryAsync(context, context.Token).FireAndForget(context);
+            }
+
             return result;
         }
 
@@ -931,9 +807,9 @@ namespace BuildXL.Cache.ContentStore.Stores
                         ForceDeleteFile(fileInfo.FullPath);
                         _tracer.Warning(context, $"Temp file still existed at shutdown: {fileInfo.FullPath}");
                     }
-                    catch (IOException ioExecption)
+                    catch (IOException ioException)
                     {
-                        _tracer.Warning(context, $"Could not clean up temp file due to exception: {ioExecption}");
+                        _tracer.Warning(context, $"Could not clean up temp file due to exception: {ioException}");
                     }
                 }
             }
@@ -1272,7 +1148,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        // ReSharper disable once UnusedMember.Global
         public async Task<bool> Validate(Context context)
         {
             bool foundIssue = false;
@@ -2176,7 +2051,13 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Remove specified content.
         /// </summary>
-        public async Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked, Action<long> evicted)
+        public Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked, Action<long> evicted)
+        {
+            // This operation respects pinned content and won't evict it if it's pinned.
+            return EvictCoreAsync(context, contentHashInfo, force: false, onlyUnlinked, evicted);
+        }
+
+        private async Task<EvictResult> EvictCoreAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool force, bool onlyUnlinked, Action<long> evicted)
         {
             ContentHash contentHash = contentHashInfo.ContentHash;
 
@@ -2189,7 +2070,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                     return new EvictResult(evictedSize: 0, evictedFiles: 0, pinnedSize: 0, contentHashInfo.LastAccessTime, successfullyEvictedHash: false, contentHashInfo.ReplicaCount);
                 }
 
-                if (PinMap.TryGetValue(contentHash, out var pin) && pin.Count > 0)
+                // Only checked PinMap if force is false, otherwise even pinned content should be evicted.
+                if (!force && PinMap.TryGetValue(contentHash, out var pin) && pin.Count > 0)
                 {
                     // The content is pinned. Eviction is not possible in this case.
                     if (TryGetContentTotalSize(contentHash, out var size))
@@ -2223,7 +2105,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                     return null;
                                 }
 
-                                if (PinMap.TryGetValue(contentHash, out pin) && pin.Count > 0)
+                                if (!force && PinMap.TryGetValue(contentHash, out pin) && pin.Count > 0)
                                 {
                                     pinnedSize = fileInfo.TotalSize;
 

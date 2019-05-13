@@ -10,14 +10,17 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
+using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
+using static BuildXL.Cache.ContentStore.Stores.FileSystemContentStoreInternalChecker;
 
 namespace ContentStoreTest.Stores
 {
@@ -82,14 +85,26 @@ namespace ContentStoreTest.Stores
         }
 
         [Fact]
-        public async Task TestSelfCheck()
+        public async Task TestSelfCheckAsync()
         {
+            var mockDistributedLocationStore = new MockDistributedLocationStore();
+
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var context = new Context(Logger);
 
-                var store = CreateStore(testDirectory);
+                var store = CreateStore(testDirectory, Settings, WithMockDistributedLocationStore(mockDistributedLocationStore));
+
                 await store.StartupAsync(context).ShouldBeSuccess();
+
+                var result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ShouldBeSuccess();
+                result.Value.TotalProcessedFiles.Should().Be(0, "TotalProcessedFiles should be 0 for an empty store.");
+
+                // Running self check, but it should be up-to-date
+                result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ShouldBeSuccess();
+                result.Value.TotalProcessedFiles.Should().Be(-1, "SelfCheck should be skipped due to up-to-date check.");
+
+                // Now we're going to mess up with the content by putting the file and changing it on disk.
                 var putResult = await store.PutRandomAsync(context, ValueSize).ShouldBeSuccess();
 
                 var currentSize = store.ContentDirectorySize();
@@ -97,7 +112,10 @@ namespace ContentStoreTest.Stores
                 var pathInCache = store.GetPrimaryPathFor(putResult.ContentHash);
                 FileSystem.WriteAllText(pathInCache, "Definitely wrong content");
 
-                var result = await store.SelfCheckAsync(context, CancellationToken.None).ShouldBeSuccess();
+                // Moving the time forward to make self check is not up-to-date.
+                Clock.UtcNow = Clock.UtcNow + TimeSpan.FromDays(2);
+
+                result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ShouldBeSuccess();
 
                 result.Value.InvalidFiles.Should().Be(1);
 
@@ -111,7 +129,140 @@ namespace ContentStoreTest.Stores
 
                 // 3. Quota Keeper
                 store.QuotaKeeperSize().Should().Be(currentSize - ValueSize);
+
+                // 4. The content should be removed from distributed store.
+                mockDistributedLocationStore.UnregisteredHashes.Should().NotBeNullOrEmpty();
             }
+        }
+
+        [Fact]
+        public async Task TestSelfCheckIncrementality()
+        {
+            // This test checks that an incremental state is saved if self check operation takes too much time.
+            // (the test relies on SelfCheckBatchLimit instead of time though.)
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var context = new Context(Logger);
+
+                var settings = new ContentStoreSettings()
+                               {
+                                   SelfCheckFilesLimit = 1,
+                                   // If SelfCheckEnabled is false then self check is not run within startup.
+                                   SelfCheckEnabled = false,
+                               };
+
+                var store = CreateStore(testDirectory, settings);
+
+                await store.StartupAsync(context).ShouldBeSuccess();
+
+                var putResult = await store.PutRandomAsync(context, ValueSize).ShouldBeSuccess();
+                var putResult2 = await store.PutRandomAsync(context, ValueSize).ShouldBeSuccess();
+
+                var pathInCache = store.GetPrimaryPathFor(putResult.ContentHash);
+                FileSystem.WriteAllText(pathInCache, "Definitely wrong content");
+
+                var pathInCache2 = store.GetPrimaryPathFor(putResult2.ContentHash);
+                FileSystem.WriteAllText(pathInCache2, "Definitely wrong content");
+
+                // Moving the time forward to make self check is not up-to-date.
+                Clock.UtcNow = Clock.UtcNow + TimeSpan.FromDays(2);
+
+                var result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ShouldBeSuccess();
+                // The self check should stop after the limit of 1 hash is reached.
+                result.Value.InvalidFiles.Should().Be(1);
+
+                // Now the self check should continue from the previous step
+                result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ShouldBeSuccess();
+                result.Value.InvalidFiles.Should().Be(1);
+            }
+        }
+
+        [Fact]
+        public async Task TestSelfCheckWithNewEpoch()
+        {
+            // This test checks that an incremental state is saved if self check operation takes too much time.
+            // (the test relies on SelfCheckBatchLimit instead of time though.)
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var context = new Context(Logger);
+
+                var settings = new ContentStoreSettings() { SelfCheckEpoch = "E1", SelfCheckEnabled = false};
+
+                //
+                // Using store with original settings
+                //
+                var store = CreateStore(testDirectory, settings);
+
+                await store.StartupAsync(context).ShouldBeSuccess();
+                var result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ShouldBeSuccess();
+
+                var putResult = await store.PutRandomAsync(context, ValueSize).ShouldBeSuccess();
+                var pathInCache = store.GetPrimaryPathFor(putResult.ContentHash);
+                FileSystem.WriteAllText(pathInCache, "Definitely wrong content");
+
+                await store.ShutdownAsync(context).ShouldBeSuccess();
+
+                //
+                // Recreating a store with a new epoch
+                //
+
+                // Disable self check won't run within startup
+                settings = new ContentStoreSettings() { SelfCheckEpoch = "E2", SelfCheckEnabled = false };
+                store = CreateStore(testDirectory, settings);
+
+                await store.StartupAsync(context).ShouldBeSuccess();
+                result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ShouldBeSuccess();
+
+                // Even though the time in marker file is the same, but epoch has change.
+                // So the self check should be performed.
+                result.Value.InvalidFiles.Should().Be(1);
+            }
+        }
+
+        [Fact]
+        public void SelfCheckStateTests()
+        {
+            // Reparsing date time to loose precision in order for equality to work.
+            var now = DateTimeUtilities.FromReadableTimestamp(DateTime.UtcNow.ToReadableString()).Value;
+
+            var state1 = new SelfCheckState("Epoch1", now, ContentHash.Random());
+            var reparsedState1 = SelfCheckState.TryParse(state1.ToParseableString());
+
+            reparsedState1.Should().NotBeNull();
+            reparsedState1.Value.Should().Be(state1);
+
+            var state2 = new SelfCheckState("Epoch1", now);
+            var reparsedState2 = SelfCheckState.TryParse(state2.ToParseableString());
+
+            reparsedState2.Should().NotBeNull();
+            reparsedState2.Value.Should().Be(state2);
+        }
+
+        private static ContentStoreSettings Settings => new ContentStoreSettings() {SelfCheckEnabled = false};
+        
+        private static DistributedEvictionSettings WithMockDistributedLocationStore(MockDistributedLocationStore mock)
+        {
+            return new DistributedEvictionSettings(
+                (context, contentHashesWithInfo, cts, urgencyHint) => null,
+                locationStoreBatchSize: 42,
+                replicaCreditInMinutes: null,
+                distributedStore: mock);
+        }
+
+        private TestFileSystemContentStoreInternal CreateStore(DisposableDirectory testDirectory, ContentStoreSettings settings, DistributedEvictionSettings distributedEvictionSettings)
+        {
+            return new TestFileSystemContentStoreInternal(FileSystem, Clock, testDirectory.Path, Config, distributedEvictionSettings: distributedEvictionSettings, nagleQueue: EmptyNagleQueue(), settings: settings);
+        }
+
+        private TestFileSystemContentStoreInternal CreateStore(DisposableDirectory testDirectory, ContentStoreSettings settings)
+        {
+            return new TestFileSystemContentStoreInternal(FileSystem, Clock, testDirectory.Path, Config, settings: settings);
+        }
+
+        private NagleQueue<ContentHash> EmptyNagleQueue()
+        {
+            return NagleQueue<ContentHash>.CreateUnstarted(1, TimeSpan.MaxValue, 42);
+
         }
     }
 }

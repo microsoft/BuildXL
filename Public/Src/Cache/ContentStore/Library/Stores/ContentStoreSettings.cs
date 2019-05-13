@@ -41,6 +41,15 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool StartPurgingAtStartup { get; set; } = true;
 
         /// <summary>
+        /// If true, then <see cref="FileSystemContentStoreInternal"/> will perform a self-check to validate that the content in cache is valid.
+        /// </summary>
+        /// <remarks>
+        /// If the property is false, then the self check is still possible but <see cref="FileSystemContentStoreInternal.SelfCheckContentDirectoryAsync(Interfaces.Tracing.Context, System.Threading.CancellationToken)"/>
+        /// method should be called manually.
+        /// </remarks>
+        public bool SelfCheckEnabled { get; set; } = true;
+
+        /// <summary>
         /// An interval between self checks performed by a content store to make sure that all the data on disk matches it's hashes.
         /// </summary>
         public TimeSpan SelfCheckFrequency { get; set; } = TimeSpan.FromDays(1);
@@ -49,6 +58,19 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// An epoch used for reseting self check of a content directory.
         /// </summary>
         public string SelfCheckEpoch { get; set; } = "E0";
+
+        /// <summary>
+        /// An interval for tracing self check progress.
+        /// </summary>
+        public TimeSpan SelfCheckProgressReportingInterval { get; set; } = TimeSpan.FromSeconds(5);
+
+        /// <summary>
+        /// A number of hashes that the checker will process in one attempt.
+        /// </summary>
+        /// <remarks>
+        /// Used for testing purposes.
+        /// </remarks>
+        public long SelfCheckFilesLimit { get; set; } = long.MaxValue;
 
         /// <nodoc />
         public static ContentStoreSettings DefaultSettings { get; } = new ContentStoreSettings();

@@ -2201,6 +2201,10 @@ namespace BuildXL.Scheduler
                             m_groupedPipCounters.IncrementCounter(processRunnablePip.Process, PipCountersByGroup.Failed);
                         }
                     }
+
+                    // Keep logging the process stats near the Pip's state transition so we minimize having inconsistent
+                    // stats like having more cache hits than completed process pips
+                    LogProcessStats(runnablePip);
                 }
                 else if (pipType == PipType.Ipc)
                 {
@@ -2254,13 +2258,6 @@ namespace BuildXL.Scheduler
                         result.Status == PipResultStatus.UpToDate ||
                         result.Status == PipResultStatus.Succeeded ||
                         result.Status == PipResultStatus.NotMaterialized, I($"{result.Status} should not be here at this point"));
-
-                    // Keep logging the process stats near the Pip's state transition so we minimize having inconsistent
-                    // stats like having more cache hits than completed process pips
-                    if (pipType == PipType.Process)
-                    {
-                        LogProcessStats(runnablePip);
-                    }
 
                     pipRuntimeInfo.Transition(
                         m_pipStateCounters,

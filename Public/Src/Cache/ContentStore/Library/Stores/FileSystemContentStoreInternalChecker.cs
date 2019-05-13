@@ -17,6 +17,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
@@ -131,9 +132,10 @@ namespace BuildXL.Cache.ContentStore.Stores
             // Namely, it checks that the hashes for all the files and their size are correct.
             var stopwatch = Stopwatch.StartNew();
 
-            var contentInfos = await _contentStoreInternal.EnumerateContentInfoAsync();
-            var orderedContentHashInfos = contentInfos.OrderBy(ci => ci.ContentHash).ToList();
-            _tracer.Debug(context, $"SelfCheck: Obtained {orderedContentHashInfos.Count} entries from content directory by {stopwatch.ElapsedMilliseconds}ms.");
+            // Enumerating files from disk instead of looking them up from content directory.
+            // This is done due to simplicity (we don't have to worry about replicas) and because an additional IO cost is negligible compared to the cost of rehashing.
+            var contentHashes = _contentStoreInternal.ReadContentHashesFromDisk(context).OrderBy(tpl => tpl.hash).ToList();
+            _tracer.Debug(context, $"SelfCheck: Enumerated {contentHashes.Count} entries from disk by {stopwatch.ElapsedMilliseconds}ms.");
 
             stopwatch.Restart();
 
@@ -158,7 +160,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             int invalidEntries = 0;
             int processedEntries = 0;
 
-            for (; index < orderedContentHashInfos.Count; index++)
+            for (; index < contentHashes.Count; index++)
             {
                 if (context.Token.IsCancellationRequested)
                 {
@@ -166,19 +168,19 @@ namespace BuildXL.Cache.ContentStore.Stores
                     break;
                 }
 
-                var hashInfo = orderedContentHashInfos[index];
+                var hashInfo = contentHashes[index];
                 processedEntries++;
 
-                var (isValid, error) = await ValidateFileAsync(context, hashInfo.ContentHash, hashInfo.Size);
+                var (isValid, error) = await ValidateFileAsync(context, hashInfo.hash, hashInfo.fileInfo);
                 if (!isValid)
                 {
-                    _tracer.Warning(context, $"SelfCheck: Found invalid entry in cache. Hash={hashInfo.ContentHash}. {error}. Evicting the file...");
-                    await _contentStoreInternal.RemoveInvalidContentAsync(context, hashInfo.ContentHash);
+                    _tracer.Warning(context, $"SelfCheck: Found invalid entry in cache. Hash={hashInfo.hash}. {error}. Evicting the file...");
+                    await _contentStoreInternal.RemoveInvalidContentAsync(context, hashInfo.hash);
                     invalidEntries++;
                 }
 
                 // Tracking the progress if needed.
-                traceProgressIfNeeded(hashInfo.ContentHash);
+                traceProgressIfNeeded(hashInfo.hash);
 
                 if (((index + 1) % _settings.SelfCheckFilesLimit) == 0)
                 {
@@ -187,7 +189,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
             }
 
-            if (index == orderedContentHashInfos.Count)
+            if (index == contentHashes.Count)
             {
                 // All the items are processed. Saving new stable checkpoint
                 UpdateSelfCheckStateOnDisk(context, SelfCheckState.SelfCheckComplete(_settings.SelfCheckEpoch, _clock.UtcNow));
@@ -195,7 +197,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             else
             {
                 // The loop was interrupted. Saving an incremental state.
-                var newStatus = selfCheckState.WithNewPosition(orderedContentHashInfos[index].ContentHash);
+                var newStatus = selfCheckState.WithNewPosition(contentHashes[index].hash);
                 UpdateSelfCheckStateOnDisk(context, newStatus);
             }
 
@@ -203,12 +205,12 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             int findNextIndexToProcess(ContentHash lastProcessedHash)
             {
-                var binarySearchResult = orderedContentHashInfos.BinarySearch(
-                    new ContentInfo(lastProcessedHash, size: -1, lastAccessTimeUtc: DateTime.MinValue),
-                    ContentInfoByHashComparer.Instance);
+                var binarySearchResult = contentHashes.BinarySearch(
+                    (hash: lastProcessedHash, fileInfo: default),
+                    CreateComparer<(ContentHash hash, FileInfo fileInfo)>((x , y) => x.hash.CompareTo(y.hash)));
 
                 int targetIndex = 0;
-                if (binarySearchResult >= 0 && binarySearchResult < orderedContentHashInfos.Count - 1)
+                if (binarySearchResult >= 0 && binarySearchResult < contentHashes.Count - 1)
                 {
                     targetIndex = binarySearchResult + 1;
                 }
@@ -218,7 +220,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     // BinarySearch returns a negative value that bitwise complement of the closest element in the sorted array.
 
                     binarySearchResult = ~binarySearchResult;
-                    if (binarySearchResult < orderedContentHashInfos.Count)
+                    if (binarySearchResult < contentHashes.Count)
                     {
                         targetIndex = binarySearchResult;
                     }
@@ -233,7 +235,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     progressReportingTask = Task.Delay(_settings.SelfCheckProgressReportingInterval);
 
-                    _tracer.Debug(context, $"SelfCheck: progress ({processedEntries}/{orderedContentHashInfos.Count}): {new SelfCheckResult(invalidEntries, processedEntries)}.");
+                    _tracer.Debug(context, $"SelfCheck: progress ({processedEntries}/{contentHashes.Count}): {new SelfCheckResult(invalidEntries, processedEntries)}.");
 
                     // Saving incremental state
                     var newStatus = selfCheckState.WithNewPosition(currentHash);
@@ -242,17 +244,16 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private async Task<(bool isValid, string error)> ValidateFileAsync(Context context, ContentHash expectedHash, long expectedFileSize)
+        private async Task<(bool isValid, string error)> ValidateFileAsync(Context context, ContentHash expectedHash, FileInfo fileInfo)
         {
             try
             {
-                var path = _contentStoreInternal.GetPrimaryPathFor(expectedHash);
-                var sizeOnDisk = _fileSystem.GetFileSize(path);
+                var path = fileInfo.FullPath;
 
                 // The cache entry is invalid if the size in content directory doesn't mach an actual size
-                if (expectedFileSize != sizeOnDisk)
+                if (_contentStoreInternal.TryGetFileInfo(expectedHash, out var contentFileInfo) && contentFileInfo.FileSize != fileInfo.Length)
                 {
-                    return (isValid: false, error: $"File size mismatch. Expected size is {expectedFileSize} and size on disk is {sizeOnDisk}");
+                    return (isValid: false, error: $"File size mismatch. Expected size is {contentFileInfo.FileSize} and size on disk is {fileInfo.Length}.");
                 }
 
                 // Or if the content doesn't match the hash.
@@ -423,38 +424,42 @@ namespace BuildXL.Cache.ContentStore.Stores
             public static bool operator !=(SelfCheckState left, SelfCheckState right) => !left.Equals(right);
         }
 
+        private class DelegateBasedComparer<T> : IComparer<T> where T : IComparable<T>
+        {
+            private readonly Func<T, T, int> _comparer;
+
+            public DelegateBasedComparer(Func<T, T, int> comparer) => _comparer = comparer;
+
+            /// <inheritdoc />
+            public int Compare(T x, T y) => _comparer(x, y);
+        }
+
+        private static DelegateBasedComparer<T> CreateComparer<T>(Func<T, T, int> comparer) where T : IComparable<T> => new DelegateBasedComparer<T>(comparer);
+    }
+
+    /// <summary>
+    /// A result of <see cref="FileSystemContentStoreInternal.SelfCheckContentDirectoryAsync"/>.
+    /// </summary>
+    public struct SelfCheckResult
+    {
         /// <summary>
-        /// A result of <see cref="FileSystemContentStoreInternal.SelfCheckContentDirectoryAsync"/>.
+        /// Total number of invalid files.
         /// </summary>
-        public struct SelfCheckResult
-        {
-            /// <summary>
-            /// Total number of invalid files.
-            /// </summary>
-            public int InvalidFiles { get; }
+        public int InvalidFiles { get; }
 
-            /// <summary>
-            /// Total number of files scanned on disk.
-            /// </summary>
-            public int TotalProcessedFiles { get; }
+        /// <summary>
+        /// Total number of files scanned on disk.
+        /// </summary>
+        public int TotalProcessedFiles { get; }
 
-            /// <nodoc />
-            public SelfCheckResult(int invalidHashes, int totalProcessedFiles) =>
-                (InvalidFiles, TotalProcessedFiles) = (invalidHashes, totalProcessedFiles);
+        /// <nodoc />
+        public SelfCheckResult(int invalidHashes, int totalProcessedFiles) =>
+            (InvalidFiles, TotalProcessedFiles) = (invalidHashes, totalProcessedFiles);
 
-            /// <nodoc />
-            public static SelfCheckResult UpToDate() => new SelfCheckResult(invalidHashes: 0, totalProcessedFiles: -1);
+        /// <nodoc />
+        public static SelfCheckResult UpToDate() => new SelfCheckResult(invalidHashes: 0, totalProcessedFiles: -1);
 
-            /// <inheritdoc />
-            public override string ToString() => $"{nameof(InvalidFiles)}={InvalidFiles}, {nameof(TotalProcessedFiles)}={TotalProcessedFiles}";
-        }
-
-        private class ContentInfoByHashComparer : IComparer<ContentInfo>
-        {
-            public static readonly ContentInfoByHashComparer Instance = new ContentInfoByHashComparer();
-
-            /// <inheritdoc />
-            public int Compare(ContentInfo x, ContentInfo y) => x.ContentHash.CompareTo(y.ContentHash);
-        }
+        /// <inheritdoc />
+        public override string ToString() => $"{nameof(InvalidFiles)}={InvalidFiles}, {nameof(TotalProcessedFiles)}={TotalProcessedFiles}";
     }
 }

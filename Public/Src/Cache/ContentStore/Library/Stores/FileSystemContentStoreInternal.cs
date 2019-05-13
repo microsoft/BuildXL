@@ -358,7 +358,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// Checks that the content on disk is correct and every file in content directory matches it's hash.
         /// </summary>
         /// <returns></returns>
-        internal async Task<Result<FileSystemContentStoreInternalChecker.SelfCheckResult>> SelfCheckContentDirectoryAsync(Context context, CancellationToken token)
+        public async Task<Result<SelfCheckResult>> SelfCheckContentDirectoryAsync(Context context, CancellationToken token)
         {
             using (var disposableContext = TrackShutdown(context, token))
             {
@@ -1862,7 +1862,9 @@ namespace BuildXL.Cache.ContentStore.Stores
             return new RelativePath(contentHash.ToHex().Substring(0, HashDirectoryNameLength));
         }
 
-        private List<(ContentHash hash, FileInfo fileInfo)> ReadContentHashesFromDisk(Context context)
+        internal bool TryGetFileInfo(ContentHash contentHash, out ContentFileInfo fileInfo) => ContentDirectory.TryGetFileInfo(contentHash, out fileInfo);
+
+        internal List<(ContentHash hash, FileInfo fileInfo)> ReadContentHashesFromDisk(Context context)
         {
             var contentHashes = new List<(ContentHash hash, FileInfo fileInfo)>();
             if (_settings.UseNativeBlobEnumeration)

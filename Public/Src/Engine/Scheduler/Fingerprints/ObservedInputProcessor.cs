@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -395,7 +396,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             }
                             else
                             {
-                                type = MapPathExistenceToObservedInputType(maybeType.Result, observationFlags);
+                                type = MapPathExistenceToObservedInputType(pathTable, path, maybeType.Result, observationFlags);
                             }
                         }
 
@@ -983,7 +984,7 @@ namespace BuildXL.Scheduler.Fingerprints
             }
         }
 
-        private static ObservedInputType MapPathExistenceToObservedInputType(PathExistence pathExistence, ObservationFlags observationFlags)
+        private static ObservedInputType MapPathExistenceToObservedInputType(PathTable pathTable, AbsolutePath path, PathExistence pathExistence, ObservationFlags observationFlags)
         {
             switch (pathExistence)
             {
@@ -992,6 +993,31 @@ namespace BuildXL.Scheduler.Fingerprints
                 case PathExistence.ExistsAsFile:
                     if ((observationFlags & (ObservationFlags.DirectoryLocation | ObservationFlags.Enumeration)) != 0)
                     {
+                        try
+                        {
+                            FileAttributes dirSymlinkOrJunction = FileAttributes.ReparsePoint | FileAttributes.Directory;
+                            FileAttributes attributes = FileUtilities.GetFileAttributes(path.ToString(pathTable));
+
+                            if ((attributes & dirSymlinkOrJunction) == dirSymlinkOrJunction)
+                            {
+                                if ((observationFlags & ObservationFlags.Enumeration) != 0)
+                                {
+                                    // Enumeration of directory through directory symlink or junction.
+                                    return ObservedInputType.DirectoryEnumeration;
+                                }
+                                else if ((observationFlags & ObservationFlags.DirectoryLocation) != 0)
+                                {
+                                    // Probing of directory through directory symlink or junction.
+                                    return ObservedInputType.ExistingDirectoryProbe;
+                                }
+                            }
+                        }
+                        catch (NativeWin32Exception)
+                        {
+                            // Assume file doesn't exists.
+                            return ObservedInputType.AbsentPathProbe;
+                        }
+
                         // If the location is a DirectoryLocation and the result of the probe is ExistsAs File,
                         // The directory is not existent. Report it as an absent path probe. The cache/fingerprints
                         // already deal with such probe properly since it is the same as absent path probe in the enumeration case.
@@ -1551,8 +1577,6 @@ namespace BuildXL.Scheduler.Fingerprints
             m_pooledPipFileSystem?.Dispose();
         }
 
-        
-
         public Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, bool isReadOnly, bool trackPathExistence = true)
         {
             // ****************** CAUTION *********************
@@ -1598,30 +1622,45 @@ namespace BuildXL.Scheduler.Fingerprints
             // If path is not eventually produced, query real file system
             existence = FileSystemView.GetExistence(path, FileSystemViewMode.Real, isReadOnly: !hasBuildOutputs, cachePathExistence: trackPathExistence);
 
+            SillyLog(path, "A -- ", existence);
+
             if (existence.Succeeded && (existence.Result == PathExistence.Nonexistent || existence.Result == PathExistence.ExistsAsDirectory) && hasBuildOutputs)
             {
                 var fullGraphExistExistence = FileSystemView.GetExistence(path, FileSystemViewMode.FullGraph);
                 if (fullGraphExistExistence.Result == PathExistence.ExistsAsDirectory)
                 {
-                    return PathExistence.ExistsAsDirectory;
+                    existence = PathExistence.ExistsAsDirectory;
                 }
                 else if (fullGraphExistExistence.Result == PathExistence.ExistsAsFile)
                 {
                     // The file is a source file so we return non-existent. This is to match legacy behavior where non-existence is returned in this case
                     // which returns NonExistent even though the real file system existence could also be ExistsAsDirectory
                     // TODO: Consider whether we should use the real file system existence which could be Nonexistent OR ExistsAsDirectory
-                    return PathExistence.Nonexistent;
+                    existence = PathExistence.Nonexistent;
                 }
                 else
                 {
                     // ExistsAsDirectory is handled before querying real file system
                     Contract.Assert(fullGraphExistExistence.Result == PathExistence.Nonexistent);
-                    return PathExistence.Nonexistent;
+                    existence = PathExistence.Nonexistent;
                 }
             }
 
+            SillyLog(path, "B -- ", existence);
+
             // Return the real file system existence
             return existence;
+        }
+
+        private void SillyLog(AbsolutePath path, string tag, Possible<PathExistence> existence)
+        {
+            string pathStr = path.ToString(PathTable);
+
+            if (pathStr.EndsWith(@"IMPORT\X64\DEBUG\LIBLET_TELEMETRYEVENT\X-NONE\X64\INC\TIMING", StringComparison.OrdinalIgnoreCase))
+            {
+                Logger.Log.ImanDebug(Events.StaticContext, tag + " " + pathStr + " " + (existence.Succeeded ? existence.Result.ToString() : existence.Failure.Describe()));
+
+            }
         }
 
         /// <inheritdoc />

@@ -566,6 +566,9 @@ namespace BuildXL.Native.IO
             }
         }
 
+        /// <see cref="IFileSystem.GetFileAttributes(string)"/>
+        public static FileAttributes GetFileAttributes(string path) => s_fileSystem.GetFileAttributes(path);
+
         /// <see cref="IFileSystem.SetFileAttributes(string, FileAttributes)"/>
         public static void SetFileAttributes(string path, FileAttributes attributes)
         {

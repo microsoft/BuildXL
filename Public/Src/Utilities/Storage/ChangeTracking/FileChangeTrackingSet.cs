@@ -1739,6 +1739,14 @@ namespace BuildXL.Storage.ChangeTracking
                                 ? PathExistence.ExistsAsFile 
                                 : (hasDirectoryFlag ? PathExistence.ExistsAsDirectory : PathExistence.ExistsAsFile);
 
+                            string pathStr = internalPath.ToString(m_internalPathTable);
+
+                            if (pathStr.EndsWith(@"IMPORT\X64\DEBUG\LIBLET_TELEMETRYEVENT\X-NONE\X64\INC\TIMING", StringComparison.OrdinalIgnoreCase))
+                            {
+                                Logger.Log.ImanDebugToo(Events.StaticContext, " C -- " + pathStr + " " + specificExistence.ToString());
+
+                            }
+
                             return new ProbeResult(specificExistence, result.PossibleTrackingResult.Then(_ => Unit.Void));
                         }
                     }

@@ -4,7 +4,7 @@ dominoinvocation
 | extend EnvironmentShort = tostring(split(Environment, ";")[0])
 | extend Month = startofmonth(EventInfo_Time)
 | extend Infra = case(
-        UserName == "_qcloud1" or UserName == "_qcloud2" , "CB",
+        UserName == "_qcloud1" or UserName == "_qcloud2" or UserName startswith "CBA" , "CB",
         (Environment contains "Dev" or Environment contains "WrapItUp") and UserName != "tpctext" and UserName != "y-arnold", "Dev",
         Environment contains "Self" and UserName != "tsebuild", "Dev",
         "Lab")

@@ -78,7 +78,7 @@ config({
 
                 // Roslyn
                 { id: "Microsoft.Net.Compilers", version: "3.0.0" },
-                { id: "Microsoft.NETCore.Compilers", version: "2.10.0" },
+                { id: "Microsoft.NETCore.Compilers", version: "3.1.0-beta3-final" },
                 { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0" },
                 { id: "Microsoft.CodeAnalysis.VisualBasic", version: "2.10.0" },
@@ -470,13 +470,13 @@ config({
                 {
                     moduleName: "DotNet-Runtime.osx-x64",
                     url: "https://download.visualstudio.microsoft.com/download/pr/85024962-5dee-4f64-ab29-a903f3749f85/6178bfacc58f4d9a596b5e3facc767ab/dotnet-runtime-3.0.0-preview5-27626-15-osx-x64.tar.gz",
-                    hash: "VSO0:6E5172671364C65B06C9940468A62BAF70EE27392CB2CA8B2C8BFE058CCD088300",
+                    hash: "VSO0:C6AB5808D30BFF857263BC467FE8D818F35486763F673F79CA5A758727CEF3A900",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64",
                     url: "https://download.visualstudio.microsoft.com/download/pr/f15ad9ab-7bd2-4ff5-87b6-b1a08f062ea2/6fdd314c16c17ba22934cd0ac6b4d343/dotnet-runtime-3.0.0-preview5-27626-15-linux-x64.tar.gz",
-                    hash: "VSO0:6E5172671364C65B06C9940468A62BAF70EE27392CB2CA8B2C8BFE058CCD088300",
+                    hash: "VSO0:C6AB5808D30BFF857263BC467FE8D818F35486763F673F79CA5A758727CEF3A900",
                     archiveType: "tgz",
                 },
 

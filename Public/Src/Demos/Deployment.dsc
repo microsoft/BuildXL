@@ -14,7 +14,7 @@ namespace Deployment {
         ]
     };
 
-    const frameworkSpecificPart = qualifier.targetFramework === "netcoreapp2.2"
+    const frameworkSpecificPart = qualifier.targetFramework === "netcoreapp3.0"
         ? qualifier.targetRuntime
         : qualifier.targetFramework;
 

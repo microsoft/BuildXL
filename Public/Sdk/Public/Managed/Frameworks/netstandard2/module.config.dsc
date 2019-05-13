@@ -2,9 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 module({
-    name: "Sdk.Managed.Frameworks.NetCoreApp2.2",
+    name: "Sdk.Managed.Frameworks.NetStandard2",
     nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [
-        f`netcoreapp2.2.dsc`,
+        f`netstandard2.0.dsc`,
     ]
 });

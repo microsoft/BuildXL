@@ -186,7 +186,7 @@ config({
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 { id: "StackExchange.Redis.StrongName", version: "1.2.6" },
-                { id: "System.Interactive.Async", version: "3.1.1" },
+                { id: "System.Interactive.Async", version: "3.2.0" },
                 { id: "TransientFaultHandling.Core", version: "5.1.1209.1" },
                 { id: "Grpc", version: "1.18.0" },
                 { id: "Grpc.Core", version: "1.18.0" },
@@ -227,24 +227,24 @@ config({
                 { id: "Validation", version: "2.3.7"},
 
                 // .NET Core Dependencies
-                { id: "Microsoft.NETCore.App", version: "2.1.1" },
-                { id: "NETStandard.Library", version: "2.0.3", tfm: ".NETStandard2.0"},
-                { id: "Microsoft.NETCore.Platforms", version: "2.1.0", tfm: ".NETStandard2.0" },
-                { id: "Microsoft.NETCore.DotNetHostPolicy", version: "2.1.1"},
+                { id: "Microsoft.NETCore.App", version: "3.0.0-preview5-27626-15" },
+                { id: "NETStandard.Library", version: "2.0.3", tfm: ".NETStandard2.0" },
+                { id: "Microsoft.NETCore.Platforms", version: "3.0.0-preview5.19224.8" },
+                { id: "Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-preview5-27626-15"},
                 { id: "System.Security.Claims", version: "4.3.0" },
 
                 // .NET Core Self-Contained Deployment
-                { id: "Microsoft.NETCore.DotNetHostResolver", version: "2.2.0" },
-                { id: "Microsoft.NETCore.DotNetAppHost", version: "2.2.0" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0" },
-                { id: "runtime.win-x64.Microsoft.NETCore.App", version: "2.2.0" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0" },
+                { id: "Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-preview5-27626-15" },
+                { id: "Microsoft.NETCore.DotNetAppHost", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.win-x64.Microsoft.NETCore.App", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-preview5-27626-15" },
 
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0" },
-                { id: "runtime.osx-x64.Microsoft.NETCore.App", version: "2.2.0" },
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0" },
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.App", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-preview5-27626-15" },
 
                 { id: "System.Security.Principal.Windows", version: "4.5.1" },
                 { id: "System.Security.AccessControl", version: "4.5.0", dependentPackageIdsToSkip: ["System.Security.Principal.Windows"] },
@@ -353,7 +353,7 @@ config({
                 { id: "System.Threading", version: "4.3.0" },
                 { id: "System.Threading.Overlapped", version: "4.3.0" },
                 { id: "System.Threading.Tasks", version: "4.3.0" },
-                { id: "System.Threading.Tasks.Extensions", version: "4.3.0" },
+                { id: "System.Threading.Tasks.Extensions", version: "4.5.2" },
                 { id: "System.Threading.Tasks.Parallel", version: "4.3.0" },
                 { id: "System.Threading.Thread", version: "4.3.0" },
                 { id: "System.Threading.ThreadPool", version: "4.3.0" },
@@ -506,7 +506,7 @@ config({
     qualifiers: {
         defaultQualifier: {
             configuration: "debug",
-            targetFramework: Context.getCurrentHost().os === "win" ? "net472" : "netcoreapp2.2",
+            targetFramework: Context.getCurrentHost().os === "win" ? "net472" : "netcoreapp3.0",
             targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "osx-x64",
         },
         namedQualifiers: {
@@ -522,12 +522,12 @@ config({
             },
             DebugDotNetCore: {
                 configuration: "debug",
-                targetFramework: "netcoreapp2.2",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "win-x64",
             },
             DebugDotNetCoreMac: {
                 configuration: "debug",
-                targetFramework: "netcoreapp2.2",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "osx-x64",
             },
 
@@ -545,12 +545,12 @@ config({
 
             ReleaseDotNetCore: {
                 configuration: "release",
-                targetFramework: "netcoreapp2.2",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "win-x64",
             },
             ReleaseDotNetCoreMac: {
                 configuration: "release",
-                targetFramework: "netcoreapp2.2",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "osx-x64",
             },
         }

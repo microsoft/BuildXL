@@ -6,7 +6,7 @@ import * as Shared from "Sdk.Managed.Shared";
 import * as Deployment from "Sdk.Deployment";
 import * as MacOS from "Sdk.MacOS";
 
-export declare const qualifier: {targetFramework: "netcoreapp2.2"};
+export declare const qualifier: {targetFramework: "netcoreapp3.0"};
 
 const defaultAssemblies: Shared.Assembly[] = createDefaultAssemblies();
 
@@ -48,8 +48,8 @@ export function runtimeContentProvider(runtimeVersion: Shared.RuntimeVersion): F
 export const framework : Shared.Framework = {
     targetFramework: qualifier.targetFramework,
 
-    supportedRuntimeVersion: "v2.2",
-    assemblyInfoTargetFramework: ".NETCoreApp,Version=v2.2",
+    supportedRuntimeVersion: "v3.0",
+    assemblyInfoTargetFramework: ".NETCoreApp,Version=v3.0",
     assemblyInfoFrameworkDisplayName: ".NET Core App",
 
     standardReferences: defaultAssemblies,
@@ -58,7 +58,7 @@ export const framework : Shared.Framework = {
 
     runtimeConfigStyle: "runtimeJson",
     runtimeFrameworkName: "Microsoft.NETCore.App",
-    runtimeConfigVersion: "2.2.0",
+    runtimeConfigVersion: "3.0.0",
 
     // Deployment style for .NET Core applications currently defaults to self-contained
     applicationDeploymentStyle: "selfContained",
@@ -66,10 +66,10 @@ export const framework : Shared.Framework = {
 };
 
 function createDefaultAssemblies() : Shared.Assembly[] {
-    const pkgContents = importFrom("Microsoft.NETCore.App").withQualifier({targetFramework: "netcoreapp2.2"}).Contents.all;
+    const pkgContents = importFrom("Microsoft.NETCore.App").withQualifier({targetFramework: "netcoreapp3.0"}).Contents.all;
     const netcoreAppPackageContents = pkgContents.contents;
     const dlls = netcoreAppPackageContents.filter(file => file.hasExtension && file.extension === a`.dll`);
-    return dlls.map(file  => Shared.Factory.createAssembly(pkgContents, file, "netcoreapp2.2", [], true));
+    return dlls.map(file  => Shared.Factory.createAssembly(pkgContents, file, "netcoreapp3.0", [], true));
 }
 
 function getToolTemplate() : Transformer.ExecuteArgumentsComposible {

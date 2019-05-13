@@ -19,7 +19,7 @@ export const framework : Managed.TestFramework = {
  const xunitNet451Qualifier: {targetFramework: "net451"} = {targetFramework: "net451"};
 
 @@public
-export const xunitReferences : Managed.Reference[] = qualifier.targetFramework === "netcoreapp2.2"
+export const xunitReferences : Managed.Reference[] = qualifier.targetFramework === "netcoreapp3.0"
     ? [
         importFrom("xunit.assert").pkg,
         importFrom("xunit.abstractions").pkg,
@@ -42,7 +42,7 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
         args);
 }
 
-const netStandardFramework = importFrom("Sdk.Managed.Frameworks.NetCoreApp2.2").withQualifier({targetFramework: "netcoreapp2.2"}).framework;
+const netStandardFramework = importFrom("Sdk.Managed.Frameworks.NetCoreApp3").withQualifier({targetFramework: "netcoreapp3.0"}).framework;
 const xunitNetStandardRuntimeConfigFiles: File[] = Managed.RuntimeConfigFiles.createFiles(
     netStandardFramework,
     "xunit.console",
@@ -53,7 +53,7 @@ const xunitNetStandardRuntimeConfigFiles: File[] = Managed.RuntimeConfigFiles.cr
 
 // For the DotNetCore run we need to copy a bunch more files:
 function additionalRuntimeContent(args: Managed.TestArguments) : Deployment.DeployableItem[] {
-    return qualifier.targetFramework !== "netcoreapp2.2" ? [] : [
+    return qualifier.targetFramework !== "netcoreapp3.0" ? [] : [
         // Unfortunately xUnit console runner comes as a precompiled assembly for .NET Core, we could either go and pacakge it
         // into a self-contained deployment or treat it as a framework-dependent deployment as intended, let's do the latter
         ...(args.framework === netStandardFramework

@@ -45,8 +45,8 @@ export const linkTimeLibraries: File[] =
 export const compileTimeReferences: File[] = [
     ...pkgContents.contents.filter(f => f.name.extension === a`.dll` && f.path.parent.name !== a`tools`),
     ...(isMacOS ? netcoreAppPkgContents.getFiles([
-        r`runtimes/osx-x64/lib/netcoreapp2.2/SOS.NETCore.dll`,
-        r`runtimes/osx-x64/lib/netcoreapp2.2/System.Runtime.InteropServices.WindowsRuntime.dll`
+        r`runtimes/osx-x64/lib/netcoreapp3.0/SOS.NETCore.dll`,
+        r`runtimes/osx-x64/lib/netcoreapp3.0/System.Runtime.InteropServices.WindowsRuntime.dll`
     ]) : [
         // TODO: references for Windows
     ])

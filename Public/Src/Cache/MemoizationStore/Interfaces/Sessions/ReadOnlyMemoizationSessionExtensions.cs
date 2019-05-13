@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+extern alias Async;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -54,7 +56,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         /// Enumerate known selectors for a given weak fingerprint.
         /// </summary>
-        public static IAsyncEnumerable<GetSelectorResult> GetSelectorsAsAsyncEnumerable(
+        public static Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectorsAsAsyncEnumerable(
             this IReadOnlyMemoizationSessionWithLevelSelectors session,
             Context context,
             Fingerprint weakFingerprint,
@@ -71,7 +73,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         /// Enumerates a given <paramref name="enumerable"/> until the predicate <paramref name="predicate"/> returns true.
         /// </summary>
-        private static IAsyncEnumerable<T> StopAfter<T>(this IAsyncEnumerable<T> enumerable, Func<T, bool> predicate)
+        private static Async::System.Collections.Generic.IAsyncEnumerable<T> StopAfter<T>(this Async::System.Collections.Generic.IAsyncEnumerable<T> enumerable, Func<T, bool> predicate)
         {
             return AsyncEnumerable.CreateEnumerable(
                 () =>
@@ -103,7 +105,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 });
         }
 
-        private static IAsyncEnumerable<GetSelectorResult> ToSelectorResults(Result<LevelSelectors> levelResult)
+        private static Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> ToSelectorResults(Result<LevelSelectors> levelResult)
         {
             IEnumerable<GetSelectorResult> selectorResults;
             if (!levelResult)
@@ -118,7 +120,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             return selectorResults.ToAsyncEnumerable();
         }
 
-        private static IAsyncEnumerable<Result<LevelSelectors>> GetLevelSelectorsEnumerableAsync(
+        private static Async::System.Collections.Generic.IAsyncEnumerable<Result<LevelSelectors>> GetLevelSelectorsEnumerableAsync(
             this IReadOnlyMemoizationSessionWithLevelSelectors session,
             Context context,
             Fingerprint weakFingerprint,

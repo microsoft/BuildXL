@@ -58,7 +58,7 @@ export const framework : Shared.Framework = {
 
     runtimeConfigStyle: "runtimeJson",
     runtimeFrameworkName: "Microsoft.NETCore.App",
-    runtimeConfigVersion: "3.0.0",
+    runtimeConfigVersion: "3.0.0-preview5-27626-15",
 
     // Deployment style for .NET Core applications currently defaults to self-contained
     applicationDeploymentStyle: "selfContained",

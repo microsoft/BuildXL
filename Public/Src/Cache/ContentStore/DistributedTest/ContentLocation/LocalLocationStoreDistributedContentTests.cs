@@ -895,7 +895,9 @@ namespace ContentStoreTest.Distributed.Sessions
                         contentHash,
                         Token).ShouldBeSuccess();
 
+#pragma warning disable AsyncFixer02
                     openStreamResult.Stream.Dispose();
+#pragma warning restore AsyncFixer02
                 });
         }
 
@@ -1172,7 +1174,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Increment the time to ensure master lease expires
                     // then heartbeat worker first to ensure it steals the lease
                     // Master heartbeat trigger it to become a worker since the other
-                    // machine will 
+                    // machine will
                     TestClock.UtcNow += masterLeaseExpiryTime;
                     TestClock.UtcNow += TimeSpan.FromMinutes(masterLeaseExpiryTime.TotalMinutes * 2);
                     await workerRedisStore.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();

@@ -64,7 +64,7 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(configuration != null);
 
             var cacheLayer = new EngineCache(
-                new InMemoryArtifactContentCache(context),
+                new InMemoryArtifactContentCache(),
                 new EmptyTwoPhaseFingerprintStore());
 
             Scheduler scheduler = CreateInternal(
@@ -96,7 +96,7 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(queue != null);
 
             var cacheLayer = new EngineCache(
-                new InMemoryArtifactContentCache(context),
+                new InMemoryArtifactContentCache(),
                 new InMemoryTwoPhaseFingerprintStore());
 
             Scheduler scheduler = CreateInternal(

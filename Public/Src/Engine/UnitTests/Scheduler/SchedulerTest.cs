@@ -1306,7 +1306,7 @@ namespace Test.BuildXL.Scheduler
                 context: Context,
                 fileContentTable: m_fileContentTable,
                 loggingContext: LoggingContext,
-                cache: cache ?? InMemoryCacheFactory.Create(Context),
+                cache: cache ?? InMemoryCacheFactory.Create(),
                 configuration: m_configuration,
                 fileAccessWhitelist: new FileAccessWhitelist(Context),
                 successfulPips: overriddenSuccessfulPips,
@@ -2524,7 +2524,7 @@ namespace Test.BuildXL.Scheduler
                 pipGraph.Serialize(writer);
 
                 // Deserialize the schedule and run all pips using a cache.
-                var cache = InMemoryCacheFactory.Create(Context);
+                var cache = InMemoryCacheFactory.Create();
                 await DeserializeScheduleAndRun(stream, cache, null, disableLazyOutputMaterialization: true);
 
                 // Deserialize a second time with the same cache. This time run pips based on a filter.

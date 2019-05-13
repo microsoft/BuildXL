@@ -1582,7 +1582,7 @@ ENDLOCAL && EXIT /b 1
             Dictionary<string, Process> processes = new Dictionary<string, Process>();
 
             // Create cache for reuse.
-            EngineCache cache = InMemoryCacheFactory.Create(Context);
+            EngineCache cache = InMemoryCacheFactory.Create();
 
             CreateGraphWithSealedDirectoryWhoseMemberIsConsumedDirectly(nodes, files, directories, processes);
 
@@ -1952,7 +1952,7 @@ ENDLOCAL && EXIT /b 1
                 new[] {StringId.Create(Context.PathTable.StringTable, "P1")});
 
             // Create cache for reuse.
-            EngineCache cache = InMemoryCacheFactory.Create(Context);
+            EngineCache cache = InMemoryCacheFactory.Create();
 
             ///////////// Scenario 1: Clean build.
 
@@ -2087,7 +2087,7 @@ ENDLOCAL && EXIT /b 1
                 new StringId[0]);
 
             // Create cache for reuse.
-            EngineCache cache = InMemoryCacheFactory.Create(Context);
+            EngineCache cache = InMemoryCacheFactory.Create();
 
             SchedulerTestHooks testHooks;
 

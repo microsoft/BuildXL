@@ -79,7 +79,7 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             using (var environmentAdapter = new ObservedInputProcessingEnvironmentAdapter(environment, state))
             {
-                return await ProcessInternal(
+                return await ProcessInternalAsync(
                     operationContext,
                     environmentAdapter,
                     target,
@@ -107,7 +107,7 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             using (var environmentAdapter = new ObservedInputProcessingEnvironmentAdapter(environment, state))
             {
-                return await ProcessInternal(
+                return await ProcessInternalAsync(
                     operationContext,
                     environmentAdapter,
                     target,
@@ -125,7 +125,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// This implementation requires that the <paramref name="observations"/> array is sorted by each entry's expanded
         /// path. Observations for duplicate paths are permitted (the observations themselves may be distinct due to other members).
         /// </summary>
-        internal static async Task<ObservedInputProcessingResult> ProcessInternal<TTarget, TEnv, TObservation>(
+        internal static async Task<ObservedInputProcessingResult> ProcessInternalAsync<TTarget, TEnv, TObservation>(
             OperationContext operationContext,
             TEnv environment,
             TTarget target,
@@ -993,29 +993,18 @@ namespace BuildXL.Scheduler.Fingerprints
                 case PathExistence.ExistsAsFile:
                     if ((observationFlags & (ObservationFlags.DirectoryLocation | ObservationFlags.Enumeration)) != 0)
                     {
-                        try
+                        if (FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(pathTable)))
                         {
-                            FileAttributes dirSymlinkOrJunction = FileAttributes.ReparsePoint | FileAttributes.Directory;
-                            FileAttributes attributes = FileUtilities.GetFileAttributes(path.ToString(pathTable));
-
-                            if ((attributes & dirSymlinkOrJunction) == dirSymlinkOrJunction)
+                            if ((observationFlags & ObservationFlags.Enumeration) != 0)
                             {
-                                if ((observationFlags & ObservationFlags.Enumeration) != 0)
-                                {
-                                    // Enumeration of directory through directory symlink or junction.
-                                    return ObservedInputType.DirectoryEnumeration;
-                                }
-                                else if ((observationFlags & ObservationFlags.DirectoryLocation) != 0)
-                                {
-                                    // Probing of directory through directory symlink or junction.
-                                    return ObservedInputType.ExistingDirectoryProbe;
-                                }
+                                // Enumeration of directory through directory symlink or junction.
+                                return ObservedInputType.DirectoryEnumeration;
                             }
-                        }
-                        catch (NativeWin32Exception)
-                        {
-                            // Assume file doesn't exists.
-                            return ObservedInputType.AbsentPathProbe;
+                            else if ((observationFlags & ObservationFlags.DirectoryLocation) != 0)
+                            {
+                                // Probing of directory through directory symlink or junction.
+                                return ObservedInputType.ExistingDirectoryProbe;
+                            }
                         }
 
                         // If the location is a DirectoryLocation and the result of the probe is ExistsAs File,
@@ -1622,8 +1611,6 @@ namespace BuildXL.Scheduler.Fingerprints
             // If path is not eventually produced, query real file system
             existence = FileSystemView.GetExistence(path, FileSystemViewMode.Real, isReadOnly: !hasBuildOutputs, cachePathExistence: trackPathExistence);
 
-            SillyLog(path, "A -- ", existence);
-
             if (existence.Succeeded && (existence.Result == PathExistence.Nonexistent || existence.Result == PathExistence.ExistsAsDirectory) && hasBuildOutputs)
             {
                 var fullGraphExistExistence = FileSystemView.GetExistence(path, FileSystemViewMode.FullGraph);
@@ -1646,21 +1633,8 @@ namespace BuildXL.Scheduler.Fingerprints
                 }
             }
 
-            SillyLog(path, "B -- ", existence);
-
             // Return the real file system existence
             return existence;
-        }
-
-        private void SillyLog(AbsolutePath path, string tag, Possible<PathExistence> existence)
-        {
-            string pathStr = path.ToString(PathTable);
-
-            if (pathStr.EndsWith(@"IMPORT\X64\DEBUG\LIBLET_TELEMETRYEVENT\X-NONE\X64\INC\TIMING", StringComparison.OrdinalIgnoreCase))
-            {
-                Logger.Log.ImanDebug(Events.StaticContext, tag + " " + pathStr + " " + (existence.Succeeded ? existence.Result.ToString() : existence.Failure.Describe()));
-
-            }
         }
 
         /// <inheritdoc />

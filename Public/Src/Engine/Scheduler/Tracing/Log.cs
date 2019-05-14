@@ -4266,15 +4266,6 @@ namespace BuildXL.Scheduler.Tracing
             string directoryPath,
             string pipDescription,
             string deletedPaths);
-
-        [GeneratedEvent(
-            (int)EventId.ImanDebug,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.Scheduler,
-            Message = "[IMAN]: {message}")]
-        public abstract void ImanDebug(LoggingContext context, string message);
     }
 }
 #pragma warning restore CA1823 // Unused field

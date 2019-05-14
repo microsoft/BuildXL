@@ -722,6 +722,24 @@ namespace BuildXL.Native.IO
             return s_fileSystem.TryGetReparsePointTarget(handle, sourcePath);
         }
 
+        /// <summary>
+        /// Checks if a path is a directory symlink or a junction.
+        /// </summary>
+        public static bool IsDirectorySymlinkOrJunction(string path)
+        {
+            try
+            {
+                FileAttributes dirSymlinkOrJunction = FileAttributes.ReparsePoint | FileAttributes.Directory;
+                FileAttributes attributes = FileUtilities.GetFileAttributes(path);
+
+                return (attributes & dirSymlinkOrJunction) == dirSymlinkOrJunction;
+            }
+            catch (NativeWin32Exception)
+            {
+                return false;
+            }
+        }
+
 #endregion
 
         #region Journaling functions

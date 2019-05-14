@@ -1131,8 +1131,5 @@ namespace BuildXL.Utilities.Tracing
         // Sandbox kernel extension connection manger errors
         KextFailedToInitializeConnectionManager = 14500,
         KextFailureNotificationReceived = 14501,
-
-        ImanDebug = 14502,
-        ImanDebugToo = 14503
     }
 }

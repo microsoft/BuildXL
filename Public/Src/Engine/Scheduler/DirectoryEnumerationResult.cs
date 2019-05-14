@@ -43,7 +43,7 @@ namespace BuildXL.Scheduler
         public DirectoryEnumerationResult(PathExistence existence, IReadOnlyList<(AbsolutePath, string)> members)
         {
             Contract.Requires(members != null);
-            Contract.Requires(members.Count == 0 || existence == PathExistence.ExistsAsDirectory);
+            Contract.Requires(members.Count == 0 || existence != PathExistence.Nonexistent);
 
             Existence = existence;
             Members = members;

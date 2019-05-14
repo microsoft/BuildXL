@@ -151,7 +151,9 @@ namespace BuildXL.Scheduler.FileSystem
             PathExistence existence;
             if (PathExistenceCache.TryGetValue(path, out entry) && entry.TryGetExistence(mode, out existence))
             {
-                if (existence != PathExistence.ExistsAsDirectory)
+                if (existence == PathExistence.Nonexistent
+                    || (existence == PathExistence.ExistsAsFile 
+                        && !FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(PathTable))))
                 {
                     return existence;
                 }

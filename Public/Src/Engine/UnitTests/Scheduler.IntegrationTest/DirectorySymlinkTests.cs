@@ -547,6 +547,32 @@ Versions/sym-sym-A -> sym-A
             RunScheduler().AssertSuccess();
         }
 
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void EnumerateDirectoryViaDirectorySymlinkShouldBeObservedAsDirectoryEnumeration()
+        {
+            AbsolutePath targetDirectory = CreateUniqueDirectory(ReadonlyRoot, "Target");
+            CreateSourceFile(targetDirectory, "file1");
+            CreateSourceFile(targetDirectory, "file2");
+
+            AbsolutePath directorySymlink = CreateUniquePath("Symlink", ReadonlyRoot);
+            XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(
+                directorySymlink.ToString(Context.PathTable), 
+                targetDirectory.ToString(Context.PathTable), 
+                isTargetFile: false).Succeeded);
+
+            ProcessWithOutputs processWithOutputs = CreateAndSchedulePipBuilder(new[]
+            {
+                Operation.EnumerateDir(DirectoryArtifact.CreateWithZeroPartialSealId(directorySymlink)),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            RunScheduler().AssertSuccess();
+            RunScheduler().AssertCacheHit(processWithOutputs.Process.PipId);
+
+            CreateSourceFile(targetDirectory, "file3");
+            RunScheduler().AssertCacheMiss(processWithOutputs.Process.PipId);
+        }
+
         private static IEnumerable<T> Multiply<T>(int count, T elem) => Enumerable.Range(1, count).Select(_ => elem);
         private static IEnumerable<T> Concat<T>(T elem, params IEnumerable<T>[] rest) => new[] { elem }.Concat(rest.SelectMany(e => e));
         private static IEnumerable<T> Shuffle<T>(IEnumerable<T> col) => col.OrderBy(e => new Random().Next());

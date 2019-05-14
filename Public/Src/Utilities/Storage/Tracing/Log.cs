@@ -693,15 +693,6 @@ namespace BuildXL.Storage.Tracing
             Message = "Directory '{path}' is enumerated multiple times with different resulting directory fingerprints; this indicates that the membership of directory changed during the build")]
         public abstract void ConflictDirectoryMembershipFingerprint(LoggingContext loggingContext, string path);
 
-        [GeneratedEvent(
-            (int)EventId.ImanDebugToo,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.Scheduler,
-            Message = "[IMAN-TOO]: {message}")]
-        public abstract void ImanDebugToo(LoggingContext context, string message);
-
         public class FileCombinerStats
         {
             public long BeginCount;

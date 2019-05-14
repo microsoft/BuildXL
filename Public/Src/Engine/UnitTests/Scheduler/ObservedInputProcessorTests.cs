@@ -491,7 +491,7 @@ namespace Test.BuildXL.Scheduler
                     ReadOnlyArray<DirectoryArtifact>.From(directoryDependencies),
                     m_fileDependencies.ToArray());
 
-                var result = ObservedInputProcessor.ProcessInternal(
+                var result = ObservedInputProcessor.ProcessInternalAsync(
                     OperationContext.CreateUntracked(loggingContext),
                     new Environment(this),
                     new AssertingTarget(this, Context, (target, topOnly) => handled.Add(new Tuple<TestObservation, bool>(target, topOnly))),

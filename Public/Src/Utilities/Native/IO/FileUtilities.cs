@@ -736,6 +736,12 @@ namespace BuildXL.Native.IO
             }
             catch (NativeWin32Exception)
             {
+                // FileSystem.Win.
+                return false;
+            }
+            catch (BuildXLException)
+            {
+                // FileSystem.Unix.
                 return false;
             }
         }

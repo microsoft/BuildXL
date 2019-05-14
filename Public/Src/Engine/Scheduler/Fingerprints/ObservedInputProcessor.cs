@@ -1616,20 +1616,20 @@ namespace BuildXL.Scheduler.Fingerprints
                 var fullGraphExistExistence = FileSystemView.GetExistence(path, FileSystemViewMode.FullGraph);
                 if (fullGraphExistExistence.Result == PathExistence.ExistsAsDirectory)
                 {
-                    existence = PathExistence.ExistsAsDirectory;
+                    return PathExistence.ExistsAsDirectory;
                 }
                 else if (fullGraphExistExistence.Result == PathExistence.ExistsAsFile)
                 {
                     // The file is a source file so we return non-existent. This is to match legacy behavior where non-existence is returned in this case
                     // which returns NonExistent even though the real file system existence could also be ExistsAsDirectory
                     // TODO: Consider whether we should use the real file system existence which could be Nonexistent OR ExistsAsDirectory
-                    existence = PathExistence.Nonexistent;
+                    return PathExistence.Nonexistent;
                 }
                 else
                 {
                     // ExistsAsDirectory is handled before querying real file system
                     Contract.Assert(fullGraphExistExistence.Result == PathExistence.Nonexistent);
-                    existence = PathExistence.Nonexistent;
+                    return PathExistence.Nonexistent;
                 }
             }
 

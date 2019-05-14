@@ -560,11 +560,18 @@ Versions/sym-sym-A -> sym-A
                 targetDirectory.ToString(Context.PathTable), 
                 isTargetFile: false).Succeeded);
 
-            ProcessWithOutputs processWithOutputs = CreateAndSchedulePipBuilder(new[]
+            var pipBuilder = CreatePipBuilder(new[]
             {
                 Operation.EnumerateDir(DirectoryArtifact.CreateWithZeroPartialSealId(directorySymlink)),
                 Operation.WriteFile(CreateOutputFileArtifact())
             });
+
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                pipBuilder.AddInputFile(directorySymlink);
+            }
+
+            ProcessWithOutputs processWithOutputs = SchedulePipBuilder(pipBuilder);
 
             RunScheduler().AssertSuccess();
             RunScheduler().AssertCacheHit(processWithOutputs.Process.PipId);

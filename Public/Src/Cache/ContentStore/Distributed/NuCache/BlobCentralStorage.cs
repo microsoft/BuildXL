@@ -133,7 +133,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Tracer.Debug(context, $@"Downloading blob '{_configuration.ContainerName}\{blobName}' failed with recoverable exception: {e}.");
                 }
 
-                return AttemptResult.FromException(isRecoverable, e);
+                return AttemptResult.FromException(isRecoverable, e, context.Token);
             }
         }
 
@@ -370,7 +370,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             public static AttemptResult SuccessResult { get; } = new AttemptResult();
             public static AttemptResult FromResult(ResultBase other) => other.Succeeded ? SuccessResult : new AttemptResult(other);
             public static AttemptResult RecoverableError(string errorMessage) => new AttemptResult(canRetry: true, errorMessage: errorMessage);
-            public static AttemptResult FromException(bool isRecoverable, Exception exception) => new AttemptResult(isRecoverable, exception);
+            public static AttemptResult FromException(bool isRecoverable, Exception exception, CancellationToken contextToken) =>
+                new AttemptResult(isRecoverable, exception)
+                {
+                    IsCancelled = contextToken.IsCancellationRequested && NonCriticalForCancellation(exception)
+                };
         }
     }
 }

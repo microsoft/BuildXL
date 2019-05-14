@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+extern alias Async;
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -380,7 +382,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public bool ShutdownStarted { get; private set; }
 
         /// <inheritdoc />
-        public IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        public Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return this.GetSelectorsAsAsyncEnumerable(context, weakFingerprint, cts, urgencyHint);
         }

@@ -63,7 +63,9 @@ namespace BuildXL.FrontEnd.Script.Debugger
             {
                 if (stream != null)
                 {
+#pragma warning disable AsyncFixer02
                     stream.Dispose();
+#pragma warning restore AsyncFixer02
                 }
             }
         }

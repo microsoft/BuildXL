@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+extern alias Async;
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -95,7 +97,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _cacheNamespace = cacheNamespace;
             _buildCacheHttpClientFactory = buildCacheHttpClientFactory;
             _tracer = new BuildCacheCacheTracer(logger, nameof(BuildCacheCache));
-            
+
             _backingContentStore = new BackingContentStore(
                 fileSystem, backingContentStoreHttpClientFactory, timeToKeepUnreferencedContent, _tracer.ContentSessionTracer, downloadBlobsThroughBlobStore, useDedupStore);
 
@@ -402,7 +404,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public Guid Id { get; private set; }
 
         /// <inheritdoc />
-        public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             return AsyncEnumerable.Empty<StructResult<StrongFingerprint>>();
         }

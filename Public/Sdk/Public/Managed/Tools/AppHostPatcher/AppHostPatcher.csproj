@@ -2,6 +2,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <PlatformTarget>x64</PlatformTarget>
-    <TargetFramework>netcoreapp2.2</TargetFramework>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
   </PropertyGroup>
 </Project>

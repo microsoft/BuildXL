@@ -8,6 +8,7 @@ using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Types;
 using TypeScript.Net.Utilities;
 using Diagnostic = Microsoft.VisualStudio.LanguageServer.Protocol.Diagnostic;
+using Range = Microsoft.VisualStudio.LanguageServer.Protocol.Range;
 
 namespace BuildXL.Ide.LanguageServer
 {
@@ -73,7 +74,7 @@ namespace BuildXL.Ide.LanguageServer
                 End = LineInfoExtensions.GetLineAndColumnBy(spec.End, spec, false).ToPosition(),
             };
         }
-        
+
         /// <nodoc />
         public static Range ToRange(this ITextSpan textSpan, ISourceFile sourceFile)
         {

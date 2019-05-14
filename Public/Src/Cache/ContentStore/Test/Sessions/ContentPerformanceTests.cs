@@ -158,7 +158,10 @@ namespace ContentStoreTest.Performance.Sessions
 
             results.All(r => r.Succeeded).Should().BeTrue();
             results.All(r => r.Stream != null).Should().BeTrue();
-            results.ForEach(r => r.Stream.Dispose());
+            results.ForEach(r =>
+#pragma warning disable AsyncFixer02
+                    r.Stream.Dispose());
+#pragma warning restore AsyncFixer02
         }
 
         private async Task OpenStreamAsync(
@@ -251,7 +254,10 @@ namespace ContentStoreTest.Performance.Sessions
                 session => Task.FromResult(0),
                 session => PutStreamAsync(session, streams, results));
 
-            streams.ForEach(s => s.Dispose());
+            streams.ForEach(s =>
+#pragma warning disable AsyncFixer02
+                s.Dispose());
+#pragma warning restore AsyncFixer02
             results.All(r => r.Succeeded).Should().BeTrue();
         }
 

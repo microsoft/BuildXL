@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+extern alias Async;
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -295,7 +297,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
             foreach (var weakFingerprint in weakFingerprints)
             {
                 var getSelectorsEnumerator = session.GetSelectors(context, weakFingerprint, Token);
-                IAsyncEnumerator<GetSelectorResult> enumerator = getSelectorsEnumerator.GetEnumerator();
+                Async::System.Collections.Generic.IAsyncEnumerator<GetSelectorResult> enumerator = getSelectorsEnumerator.GetEnumerator();
                 while (await enumerator.MoveNext(CancellationToken.None))
                 {
                     GetSelectorResult result = enumerator.Current;

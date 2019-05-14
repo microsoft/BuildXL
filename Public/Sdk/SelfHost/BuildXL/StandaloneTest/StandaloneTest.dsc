@@ -62,7 +62,7 @@ namespace StandaloneTest {
             `    description: "${assemblyName} [${qualifier.configuration}, ${dotNetFramework}]",`,
             `    testAssembly: f\`${def.assembly.name}\`,`,
             `    untracked: ${def.untracked},`,
-            `    wrapInDotNet: ${qualifier.targetFramework === "netcoreapp2.2"},`,
+            `    wrapInDotNet: ${$.isDotNetCoreBuild},`,
             `    untrackTestDirectory: ${def.untrackTestDirectory},`,
             StandaloneTestUtils.generateArrayProperty("parallelCategories", def.parallelCategories, indent, StandaloneTestUtils.quoteString),
             StandaloneTestUtils.generateArrayProperty("limitCategories", def.limitCategories, indent, StandaloneTestUtils.quoteString),
@@ -83,7 +83,7 @@ namespace StandaloneTest {
 
     /**
      * Deployment layout:
-     * 
+     *
      * tests/standaloneTest/unittests/[Configuration]/[Framework]
      *    [TestDlls]/
      *          ... Dlls ...
@@ -95,14 +95,14 @@ namespace StandaloneTest {
         const mainSpecName = "runUnitTest.dsc";
         return {
             contents: [
-                { 
+                {
                     subfolder: testDefinition.subfolder,
                     contents: [
                         StandaloneTestUtils.writeFile(a`${mainSpecName}`, createSpecFile(testDefinition)),
                         StandaloneTestUtils.writeFile(
-                            a`module.config.dsc`, 
+                            a`module.config.dsc`,
                             StandaloneTestUtils.createModuleConfig(
-                                `${assemblyName}__${qualifier.configuration}__${dotNetFramework}`, 
+                                `${assemblyName}__${qualifier.configuration}__${dotNetFramework}`,
                                 [mainSpecName])),
                     ]
                 },
@@ -122,8 +122,8 @@ namespace StandaloneTest {
 
     @@public
     export function deploy(
-        testDeployment: Deployment.OnDiskDeployment, 
-        testFramework: Managed.TestFramework, 
+        testDeployment: Deployment.OnDiskDeployment,
+        testFramework: Managed.TestFramework,
         deploymentOptions?: Deployment.DeploymentOptions,
         subfolder?: PathAtom,
         parallelCategories?: string[],
@@ -131,7 +131,7 @@ namespace StandaloneTest {
         skipCategories?: string[],
         untrackTestDirectory?: boolean,
         testClasses?: string[]) {
-        
+
         if (!StandaloneTestUtils.shouldDeployStandaloneTest) return undefined;
         return deployTestDefinition(createTestDeploymentDefinition(
             testDeployment,

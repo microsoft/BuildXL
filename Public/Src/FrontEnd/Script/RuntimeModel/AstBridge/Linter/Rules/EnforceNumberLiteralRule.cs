@@ -77,7 +77,11 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
             // Failing when the number literal overflows
             try
             {
-                double.Parse(literal, NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent, s_numberFormatInfo);
+                var result = double.Parse(literal, NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent, s_numberFormatInfo);
+                if (Double.IsInfinity(result))
+                {
+                    throw new OverflowException();
+                }
             }
             catch (OverflowException)
             {

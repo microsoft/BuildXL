@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+extern alias Async;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -190,7 +192,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         {
         }
 
-        public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             throw new NotImplementedException();
         }
@@ -245,7 +247,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         }
 
         /// <inheritdoc />
-        public IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        public Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return this.GetSelectorsAsAsyncEnumerable(context, weakFingerprint, cts, urgencyHint);
         }
@@ -256,7 +258,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             GetSelectorsParams.Add(weakFingerprint);
             return Task.FromResult(Result.Success(new LevelSelectors(new Selector[0], hasMore: false)));
         }
-        
+
         public Task<BoolResult> IncorporateStrongFingerprintsAsync(Context context, IEnumerable<Task<StrongFingerprint>> strongFingerprints, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             IncorporateStringFingerprintsAsyncParams.Add(strongFingerprints);

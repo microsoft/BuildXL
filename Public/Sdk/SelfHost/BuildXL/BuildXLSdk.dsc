@@ -97,7 +97,7 @@ export interface TestResult extends Managed.TestResult {
  * Returns if the current qualifier is targeting .NET Core
  */
 @@public
-export const isDotNetCoreBuild : boolean = qualifier.targetFramework === "netcoreapp2.2" || qualifier.targetFramework === "netstandard2.0";
+export const isDotNetCoreBuild : boolean = qualifier.targetFramework === "netcoreapp3.0" || qualifier.targetFramework === "netstandard2.0";
 
 @@public
 export const isFullFramework : boolean = qualifier.targetFramework === "net451" || qualifier.targetFramework === "net461" || qualifier.targetFramework === "net472";
@@ -134,8 +134,8 @@ namespace Flags {
     @@public
     export const isQTestEnabled = isMicrosoftInternal && Environment.getFlag("[Sdk.BuildXL]useQTest");
 
-    /** 
-     * Whether we are generating VS solution. 
+    /**
+     * Whether we are generating VS solution.
      * We are using this flag to filter out some deployment items that can cause race in the generated VS project files.
      */
     @@public
@@ -149,7 +149,7 @@ export const devKey = f`BuildXL.DevKey.snk`;
 export const cacheRuleSet = f`BuildXl.Cache.ruleset`;
 
 @@public
-export const dotNetFramework = qualifier.targetFramework === "netcoreapp2.2"
+export const dotNetFramework = isDotNetCoreBuild
 ? qualifier.targetRuntime
 : qualifier.targetFramework;
 
@@ -165,7 +165,7 @@ export function library(args: Arguments): Managed.Assembly {
     {
         csFiles = args.cacheOldNames.map(cacheOldName =>
             Transformer.writeAllLines({
-                outputPath: p`${Context.getNewOutputDirectory("oldcache")}/cache.g.cs`, 
+                outputPath: p`${Context.getNewOutputDirectory("oldcache")}/cache.g.cs`,
                 lines: [
                     `namespace Cache.${cacheOldName.namespace}`,
                     `{`,
@@ -533,7 +533,7 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
     args = processArguments(args, "library");
 
     let xunitSemaphoreLimit = Environment.hasVariable(envVarNamePrefix + "xunitSemaphoreCount") ? Environment.getNumberValue(envVarNamePrefix + "xunitSemaphoreCount") : 8;
-    let useQTest = Flags.isQTestEnabled && qualifier.targetFramework !== "netcoreapp2.2";
+    let useQTest = Flags.isQTestEnabled && qualifier.targetFramework !== "netcoreapp3.0";
     let testFramework = args.testFramework || (useQTest ? QTest.getFramework(XUnit.framework) : XUnit.framework);
 
     args = Object.merge<Managed.TestArguments>({

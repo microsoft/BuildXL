@@ -20,7 +20,7 @@ namespace Tool.CreateZipPackage {
             importFrom("BuildXL.Utilities").ToolSupport.dll,
         ],
         defineConstants: [
-            ...addIf(qualifier.targetFramework === "net472" || qualifier.targetFramework === "netcoreapp2.2", "FEATURE_EXTENDED_ATTR")
+            ...addIf(qualifier.targetFramework === "net472" || BuildXLSdk.isDotNetCoreBuild, "FEATURE_EXTENDED_ATTR")
         ]
     });
 

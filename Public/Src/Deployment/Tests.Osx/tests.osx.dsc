@@ -6,7 +6,7 @@ import * as Deployment from "Sdk.Deployment";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace Tests.Osx {
-    export declare const qualifier : {configuration: "debug" | "release", targetFramework: "netcoreapp2.2", targetRuntime: "osx-x64"};
+    export declare const qualifier : {configuration: "debug" | "release", targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64"};
 
     const sharedBinFolderName = a`shared_bin`;
 
@@ -225,7 +225,7 @@ namespace Tests.Osx {
 
     function writeFile(fileName: PathAtom, content: string): DerivedFile {
         return Transformer.writeAllText({
-            outputPath: p`${Context.getNewOutputDirectory("mac-tests")}/${fileName}`, 
+            outputPath: p`${Context.getNewOutputDirectory("mac-tests")}/${fileName}`,
             text: content
         });
     }

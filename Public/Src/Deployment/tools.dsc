@@ -42,7 +42,7 @@ namespace Tools {
             contents: [
                 importFrom("BuildXL.Tools").withQualifier({
                     configuration: qualifier.configuration,
-                    targetFramework: "netcoreapp2.2",
+                    targetFramework: "netcoreapp3.0",
                     targetRuntime: qualifier.targetRuntime
                 }).Orchestrator.exe
             ],

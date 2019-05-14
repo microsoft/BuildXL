@@ -476,7 +476,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private void OnContentEvicted(long size)
+        /// <inheritdoc />
+        public override void OnContentEvicted(long size)
         {
             DecreaseSize(ref _allContentSize, size);
 

@@ -7,7 +7,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -16,7 +15,9 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Utilities.Tasks;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
+using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {

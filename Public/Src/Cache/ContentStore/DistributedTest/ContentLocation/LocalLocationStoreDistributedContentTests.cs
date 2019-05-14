@@ -4,10 +4,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
@@ -16,7 +14,6 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -30,7 +27,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Utilities;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using ContentStoreTest.Distributed.ContentLocation;
@@ -895,7 +892,9 @@ namespace ContentStoreTest.Distributed.Sessions
                         contentHash,
                         Token).ShouldBeSuccess();
 
+#pragma warning disable AsyncFixer02
                     openStreamResult.Stream.Dispose();
+#pragma warning restore AsyncFixer02
                 });
         }
 
@@ -1172,7 +1171,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Increment the time to ensure master lease expires
                     // then heartbeat worker first to ensure it steals the lease
                     // Master heartbeat trigger it to become a worker since the other
-                    // machine will 
+                    // machine will
                     TestClock.UtcNow += masterLeaseExpiryTime;
                     TestClock.UtcNow += TimeSpan.FromMinutes(masterLeaseExpiryTime.TotalMinutes * 2);
                     await workerRedisStore.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();

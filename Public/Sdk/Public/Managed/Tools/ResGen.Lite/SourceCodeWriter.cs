@@ -22,7 +22,7 @@ namespace ResGen.Lite
         private static readonly AssemblyName s_toolAssemblyName = typeof(SourceCodeWriter).GetTypeInfo().Assembly.GetName();
 
         /// <summary>
-        /// Writes a strongly typed helper class for the 
+        /// Writes a strongly typed helper class for the
         /// </summary>
         public static void Write(string filePath, ResourceData data, string namespaceName, string className, bool isPublic, string languageName)
         {
@@ -30,7 +30,7 @@ namespace ResGen.Lite
 
             try
             {
-                // TextWriter from System.IO has problems unifying versions from nuget and BCL between net461, net472 and netcoreapp2.2.
+                // TextWriter from System.IO has problems unifying versions from nuget and BCL between net461, net472 and netcoreapp3.0.
                 // So using ToFullString instead of WriteTo.
                 var sourceFileText = sourceFile.NormalizeWhitespace().ToFullString();
                 File.WriteAllText(filePath, sourceFileText, Encoding.UTF8);
@@ -181,8 +181,8 @@ namespace ResGen.Lite
                     generatedClass
                 )
                 : generator.CompilationUnit(
-                    generator.NamespaceDeclaration(namespaceName, 
-                        generator.NamespaceImportDeclaration("System"), 
+                    generator.NamespaceDeclaration(namespaceName,
+                        generator.NamespaceImportDeclaration("System"),
                         generatedClass)
                 );
 

@@ -92,7 +92,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             XAssert.AreEqual(0, explicitlyScheduled.GetCounterValue(PipCountersByGroup.Count));
             XAssert.AreEqual(2, implicitlyScheduled.GetCounterValue(PipCountersByGroup.Count));
-            XAssert.AreEqual(1, implicitlyScheduled.GetCounterValue(PipCountersByGroup.CacheMiss));
+            XAssert.AreEqual(2, implicitlyScheduled.GetCounterValue(PipCountersByGroup.CacheMiss));
             XAssert.AreEqual(1, implicitlyScheduled.GetCounterValue(PipCountersByGroup.Failed));
 
 

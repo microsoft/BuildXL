@@ -1146,9 +1146,12 @@ namespace BuildXL.Utilities
 
         internal static void GetBufferIndex(int nextId, out int indexOfPartiallyFilledBuffer, out int lengthInPartiallyFilledBuffer)
         {
-            // Need to cast nextId to a unit to prevent the right shift from bringing in ones if the leftmost bit is a 1
-            indexOfPartiallyFilledBuffer = (int)((uint)nextId >> BytesPerBufferBits);
-            lengthInPartiallyFilledBuffer = (int)((uint)nextId & BytesPerBufferMask);
+            unchecked
+            {
+                // Need to cast nextId to a unit to prevent the right shift from bringing in ones if the leftmost bit is a 1
+                indexOfPartiallyFilledBuffer = (int)((uint)nextId >> BytesPerBufferBits);
+                lengthInPartiallyFilledBuffer = (int)((uint)nextId & BytesPerBufferMask);
+            }
         }
 #endregion
 

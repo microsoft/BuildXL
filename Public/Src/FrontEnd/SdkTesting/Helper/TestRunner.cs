@@ -180,7 +180,7 @@ export function test(args: TestArguments): TestResult {{
                         mountPathExpander);
 
                     using (var cacheLayer = new EngineCache(
-                        new InMemoryArtifactContentCache(pipContext),
+                        new InMemoryArtifactContentCache(),
                         new InMemoryTwoPhaseFingerprintStore()))
                     {
                         var cache = Task.FromResult(Possible.Create(cacheLayer));

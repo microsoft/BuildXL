@@ -60,7 +60,7 @@ namespace BuildXL.Engine
         /// from the newly installed context.
         /// The returned instance is owned by this <see cref="CacheInitializer"/> wrapper and should not outlive it.
         /// </summary>
-        public abstract EngineCache CreateCacheForContext(PipExecutionContext context);
+        public abstract EngineCache CreateCacheForContext();
 
         /// <summary>
         /// Creates a task that creates a derived <see cref="CacheInitializer"/> instance that can be used to initialize a cache
@@ -76,7 +76,7 @@ namespace BuildXL.Engine
             CancellationToken cancellationToken,
 
             // Only used for testing purposes to inject cache.
-            Func<PipExecutionContext, EngineCache> testHookCacheFactory = null)
+            Func<EngineCache> testHookCacheFactory = null)
         {
             Contract.Requires(recoveryStatus.HasValue, "Recovery attempt should have been done before initializing the cache");
             DateTime startTime = DateTime.UtcNow;
@@ -162,10 +162,10 @@ namespace BuildXL.Engine
 
     internal sealed class MemoryCacheInitializer : CacheInitializer
     {
-        private readonly Func<PipExecutionContext, EngineCache> m_cacheFactory;
+        private readonly Func<EngineCache> m_cacheFactory;
 
         public MemoryCacheInitializer(
-            Func<PipExecutionContext, EngineCache> cacheFactory,
+            Func<EngineCache> cacheFactory,
             LoggingContext loggingContext,
             List<IDisposable> acquiredDisposables,
             bool enableFingerprintLookup)
@@ -179,9 +179,9 @@ namespace BuildXL.Engine
             m_cacheFactory = cacheFactory;
         }
 
-        public override EngineCache CreateCacheForContext(PipExecutionContext context)
+        public override EngineCache CreateCacheForContext()
         {
-            var cache = m_cacheFactory(context);
+            var cache = m_cacheFactory();
 
             return new EngineCache(
                 contentCache: cache.ArtifactContentCache,
@@ -228,7 +228,7 @@ namespace BuildXL.Engine
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
-        public override EngineCache CreateCacheForContext(PipExecutionContext context)
+        public override EngineCache CreateCacheForContext()
         {
             IArtifactContentCache contentCache = new CacheCoreArtifactContentCache(
                 m_session,

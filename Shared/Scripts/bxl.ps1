@@ -63,7 +63,7 @@ param(
     [string]$DeployConfig = "Debug",
 
     [ValidateSet("net472", "net461", "win-x64", "osx-x64")]
-    [string]$DeployRuntime = "net472",
+    [string]$DeployRuntime = "win-x64",
 
     [Parameter(Mandatory=$false)]
     [string]$DominoDeploymentRoot = "Out\Bin",

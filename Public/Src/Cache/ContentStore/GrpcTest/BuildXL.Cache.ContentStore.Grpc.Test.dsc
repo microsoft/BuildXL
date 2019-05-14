@@ -33,7 +33,7 @@ namespace GrpcTest {
 
             importFrom("Grpc.Core").pkg,
             importFrom("Google.Protobuf").pkg,
-            importFrom("FluentAssertions").pkg,
+            ...BuildXLSdk.fluentAssertionsWorkaround,
         ],
         runtimeContent: [
             importFrom("Sdk.Protocols.Grpc").runtimeContent,

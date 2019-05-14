@@ -36,7 +36,7 @@ namespace Test {
 
             importFrom("BuildXL.Utilities").dll,
             importFrom("System.Interactive.Async").pkg,
-            importFrom("FluentAssertions").pkg,
+            ...BuildXLSdk.fluentAssertionsWorkaround,
         ],
     });
 }

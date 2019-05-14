@@ -162,7 +162,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         /// <inheritdoc />
-        public IEnumerable<FileInfo> EnumerateFiles(AbsolutePath path, EnumerateOptions options)
+        public virtual IEnumerable<FileInfo> EnumerateFiles(AbsolutePath path, EnumerateOptions options)
         {
             var infos = new List<FileInfo>();
             lock (_drives)
@@ -383,7 +383,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         /// <inheritdoc />
-        public bool DirectoryExists(AbsolutePath path)
+        public virtual bool DirectoryExists(AbsolutePath path)
         {
             lock (_drives)
             {
@@ -419,7 +419,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         /// <inheritdoc />
-        public void CreateDirectory(AbsolutePath path)
+        public virtual void CreateDirectory(AbsolutePath path)
         {
             lock (_drives)
             {
@@ -453,7 +453,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         /// <inheritdoc />
-        public void DeleteDirectory(AbsolutePath path, DeleteOptions deleteOptions)
+        public virtual void DeleteDirectory(AbsolutePath path, DeleteOptions deleteOptions)
         {
             lock (_drives)
             {
@@ -565,7 +565,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         /// <inheritdoc />
-        public void MoveDirectory(AbsolutePath sourcePath, AbsolutePath destinationPath)
+        public virtual void MoveDirectory(AbsolutePath sourcePath, AbsolutePath destinationPath)
         {
             lock (_drives)
             {

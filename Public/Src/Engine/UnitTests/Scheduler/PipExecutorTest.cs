@@ -536,7 +536,7 @@ namespace Test.BuildXL.Scheduler
             const string BadContents = "Anti-Matches!";
 
             var context = BuildXLContext.CreateInstanceForTesting();
-            var cache = InMemoryCacheFactory.Create(context);
+            var cache = InMemoryCacheFactory.Create();
             
             string source = GetFullPath("source");
             string destination = GetFullPath("dest");
@@ -552,11 +552,11 @@ namespace Test.BuildXL.Scheduler
             };
 
             // run the pip with "safer options" (monitorFileAccesses: true) --> expect it to succeed
-            var env1 = CreateExecutionEnvironment(context, cache: (c) => cache, config: GetSaferOptions);
+            var env1 = CreateExecutionEnvironment(context, cache: () => cache, config: GetSaferOptions);
             await new TestRunChecker(destination).VerifySucceeded(env1, createPip(env1), Contents);
 
             // run the pip with "less safe options" (monitorFileAccesses: false) --> expect cache hit
-            var env2 = CreateExecutionEnvironment(context, cache: (c) => cache, config: GetUnsafeOptions);
+            var env2 = CreateExecutionEnvironment(context, cache: () => cache, config: GetUnsafeOptions);
             await new TestRunChecker(destination).VerifyDeployedFromCache(env2, createPip(env2), Contents);
         }
 
@@ -567,7 +567,7 @@ namespace Test.BuildXL.Scheduler
             const string BadContents = "Anti-Matches!";
 
             var context = BuildXLContext.CreateInstanceForTesting();
-            var cache = InMemoryCacheFactory.Create(context);
+            var cache = InMemoryCacheFactory.Create();
 
             string source = GetFullPath("source");
             string destination = GetFullPath("dest");
@@ -583,11 +583,11 @@ namespace Test.BuildXL.Scheduler
             };
 
             // run the pip with "unsafe options" (monitorFileAccesses: false, unexpecteFileAccessesAreErrors: false) --> expect it to succeed
-            var env1 = CreateExecutionEnvironment(context, cache: (c) => cache, config: GetUnsafeOptions);
+            var env1 = CreateExecutionEnvironment(context, cache: () => cache, config: GetUnsafeOptions);
             await new TestRunChecker(destination).VerifySucceeded(env1, createPip(env1), Contents);
 
             // run the pip with "safer options" (monitorFileAccesses: true, unexpecteFileAccessesAreErrors: false) --> expect cache miss
-            var env2 = CreateExecutionEnvironment(context, cache: (c) => cache, config: GetSaferOptions);
+            var env2 = CreateExecutionEnvironment(context, cache: () => cache, config: GetSaferOptions);
             var pip2 = createPip(env2);
             var testChecker = new TestRunChecker(destination);
             await testChecker.VerifySucceeded(env2, pip2, Contents);
@@ -596,7 +596,7 @@ namespace Test.BuildXL.Scheduler
             await testChecker.VerifyUpToDate(env2, pip2, Contents);
 
             // run the same pip again against a new environment with the same unsafe options --> expect 'DeployedFromCache' cache hit
-            var env3 = CreateExecutionEnvironment(context, cache: (c) => cache, config: GetSaferOptions);
+            var env3 = CreateExecutionEnvironment(context, cache: () => cache, config: GetSaferOptions);
             await new TestRunChecker(destination).VerifyDeployedFromCache(env3, createPip(env3), Contents);
         }
 
@@ -607,7 +607,7 @@ namespace Test.BuildXL.Scheduler
             const string BadContents = "Anti-Matches!";
 
             var context = BuildXLContext.CreateInstanceForTesting();
-            var cache = InMemoryCacheFactory.Create(context);
+            var cache = InMemoryCacheFactory.Create();
 
             string source = GetFullPath("source");
             string destination = GetFullPath("dest");
@@ -625,14 +625,14 @@ namespace Test.BuildXL.Scheduler
             // run the pip with "safer options" (preserveOutputs: disabled) --> expect it to succeed
             var env1 = CreateExecutionEnvironment(
                 context, 
-                cache: (c) => cache, 
+                cache: () => cache, 
                 config: pt => GetConfiguration(pt, preserveOutputs: PreserveOutputsMode.Disabled));
             await new TestRunChecker(destination).VerifySucceeded(env1, createPip(env1), Contents);
 
             // run the pip with "less safe options" (preserveOutputs: enabled) --> expect cache hit
             var env2 = CreateExecutionEnvironment(
                 context, 
-                cache: (c) => cache, 
+                cache: () => cache, 
                 config: pt => GetConfiguration(pt, preserveOutputs: PreserveOutputsMode.Enabled));
             await new TestRunChecker(destination).VerifyDeployedFromCache(env2, createPip(env2), Contents);
         }
@@ -644,7 +644,7 @@ namespace Test.BuildXL.Scheduler
             const string BadContents = "Anti-Matches!";
 
             var context = BuildXLContext.CreateInstanceForTesting();
-            var cache = InMemoryCacheFactory.Create(context);
+            var cache = InMemoryCacheFactory.Create();
 
             string source = GetFullPath("source");
             string destination = GetFullPath("dest");
@@ -662,7 +662,7 @@ namespace Test.BuildXL.Scheduler
             // run the pip with (preserveOutputs: enabled) --> expect it to succeed
             var env1 = CreateExecutionEnvironment(
                 context,
-                cache: (c) => cache,
+                cache: () => cache,
                 config: pt => GetConfiguration(pt, preserveOutputs: PreserveOutputsMode.Enabled));
             var pip1 = createPip(env1);
             var testChecker = new TestRunChecker(destination);
@@ -674,14 +674,14 @@ namespace Test.BuildXL.Scheduler
             // run the pip with different preserve outputs salt (preserveOutputs: enabled) --> expect cache miss
             var env2 = CreateExecutionEnvironment(
                 context,
-                cache: (c) => cache,
+                cache: () => cache,
                 config: pt => GetConfiguration(pt, preserveOutputs: PreserveOutputsMode.Enabled));
             await new TestRunChecker(destination).VerifySucceeded(env2, createPip(env2), Contents);
 
             // run the pip with (preserveOutputs: disabled) --> expect cache miss
             var env3 = CreateExecutionEnvironment(
                 context,
-                cache: (c) => cache,
+                cache: () => cache,
                 config: pt => GetConfiguration(pt, preserveOutputs: PreserveOutputsMode.Disabled));
             await new TestRunChecker(destination).VerifySucceeded(env3, createPip(env3), Contents);
         }
@@ -2301,9 +2301,7 @@ EXIT /b 3
             Func<PipExecutionContext, FileAccessWhitelist> whitelistCreator = null,
             bool useInMemoryCache = true)
         {
-            Func<PipExecutionContext, EngineCache> cache = InMemoryCacheFactory.Create;
-
-            return WithExecutionEnvironment(act, cache, createMountExpander, config: config, whitelistCreator: whitelistCreator);
+            return WithExecutionEnvironment(act, InMemoryCacheFactory.Create, createMountExpander, config: config, whitelistCreator: whitelistCreator);
         }
 
         private static Task WithExecutionEnvironmentForCacheConvergence(
@@ -2328,7 +2326,7 @@ EXIT /b 3
             IIpcProvider ipcProvider,
             IIpcOperationExecutor ipcExecutor,
             Func<DummyPipExecutionEnvironment, IIpcMoniker, IServer, Task> act,
-            Func<PipExecutionContext, EngineCache> cache = null,
+            Func<EngineCache> cache = null,
             Func<PathTable, SemanticPathExpander> createMountExpander = null,
             Func<PathTable, IConfiguration> config = null,
             Func<PipExecutionContext, FileAccessWhitelist> whitelistCreator = null,
@@ -2352,7 +2350,7 @@ EXIT /b 3
 
         private static Task WithExecutionEnvironment(
             Func<DummyPipExecutionEnvironment, Task> act,
-            Func<PipExecutionContext, EngineCache> cache = null,
+            Func<EngineCache> cache = null,
             Func<PathTable, SemanticPathExpander> createMountExpander = null,
             Func<PathTable, IConfiguration> config = null,
             Func<PipExecutionContext, FileAccessWhitelist> whitelistCreator = null,
@@ -2431,7 +2429,7 @@ EXIT /b 3
             IConfiguration configInstance = config == null ? GetConfigurationForCacheConvergence(context.PathTable) : config(context.PathTable);
 
             EngineCache cacheLayer = new EngineCache(
-                    new InMemoryArtifactContentCache(context),
+                    new InMemoryArtifactContentCache(),
                     new TestPipExecutorTwoPhaseFingerprintStore());
 
             var env = new DummyPipExecutionEnvironment(
@@ -2449,7 +2447,7 @@ EXIT /b 3
 
         private static DummyPipExecutionEnvironment CreateExecutionEnvironment(
             BuildXLContext context,
-            Func<PipExecutionContext, EngineCache> cache = null,
+            Func<EngineCache> cache = null,
             SemanticPathExpander mountExpander = null,
             Func<PathTable, IConfiguration> config = null,
             FileAccessWhitelist fileAccessWhitelist = null,
@@ -2458,9 +2456,9 @@ EXIT /b 3
             IConfiguration configInstance = config == null ? GetConfiguration(context.PathTable) : config(context.PathTable);
 
             EngineCache cacheLayer = cache != null
-                ? cache(context)
+                ? cache()
                 : new EngineCache(
-                    new InMemoryArtifactContentCache(context),
+                    new InMemoryArtifactContentCache(),
 
                     // Note that we have an 'empty' store (no hits ever) rather than a normal in memory one.
                     new EmptyTwoPhaseFingerprintStore());

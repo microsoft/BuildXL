@@ -28,6 +28,8 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
+using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
+using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -330,7 +332,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
+#pragma warning disable AsyncFixer02
             _heartbeatTimer?.Dispose();
+#pragma warning restore AsyncFixer02
 
             if (EventStore != null)
             {
@@ -429,7 +433,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                     else
                     {
-                            // Stop receiving events. 
+                            // Stop receiving events.
                             result = EventStore.SuspendProcessing(context);
                     }
 
@@ -440,7 +444,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (newRole == Role.Master)
                     {
-                            // Only create a checkpoint if the machine is currently a master machine and was a master machine 
+                            // Only create a checkpoint if the machine is currently a master machine and was a master machine
                             if (ShouldSchedule(_configuration.Checkpoint.CreateCheckpointInterval, _lastCheckpointTime))
                         {
                             result = await CreateCheckpointAsync(context);
@@ -453,7 +457,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
 
-                        // Successfully, applied changes for role. Set it as the current role. 
+                        // Successfully, applied changes for role. Set it as the current role.
                         CurrentRole = newRole;
 
                     return result;

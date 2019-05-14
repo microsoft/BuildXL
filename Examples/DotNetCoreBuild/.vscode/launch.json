@@ -9,7 +9,7 @@
     "configurations": [
         {
             "name": "Attach to running BuildXL DScript",
-            "type": "dscript",
+            "type": "DScript",
             "request": "attach",
             "address": "localhost",
             "debugServer": 41177

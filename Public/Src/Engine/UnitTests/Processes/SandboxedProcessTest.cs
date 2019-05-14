@@ -222,6 +222,7 @@ namespace Test.BuildXL.Processes
             // process is running in an infinite loop, but we have a timeout installed
             SandboxedProcessResult result = await RunProcess(info);
             XAssert.IsTrue(result.TimedOut);
+            XAssert.IsTrue(result.Killed);
             XAssert.AreEqual(ExitCodes.Timeout, result.ExitCode);
         }
 

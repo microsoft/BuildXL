@@ -9,10 +9,10 @@ import * as Shared from "Sdk.Managed.Shared";
 import * as MacOS from "Sdk.MacOS";
 
 export function deployAssemblyToDisk(assembly: Shared.Assembly, targetDirectory?: Directory, primaryFile?: RelativePath) : Deployment.OnDiskDeployment {
-    let toolName = primaryFile.name || assembly.runtime.binary.name;
+    primaryFile = primaryFile || r`${Shared.getExecutable(assembly).name}`;
 
     if (!targetDirectory) {
-        targetDirectory = Context.getNewOutputDirectory(toolName.concat("-deployment"));
+        targetDirectory = Context.getNewOutputDirectory(primaryFile.name.concat("-deployment"));
     }
 
     const definition : Deployment.Definition = {
@@ -24,7 +24,7 @@ export function deployAssemblyToDisk(assembly: Shared.Assembly, targetDirectory?
     return Deployment.deployToDisk({
         definition: definition,
         targetDirectory: targetDirectory,
-        primaryFile: primaryFile || r`${assembly.runtime.binary.name}`,
+        primaryFile: primaryFile,
     });
 }
 
@@ -33,7 +33,10 @@ export function deployAssemblyToDisk(assembly: Shared.Assembly, targetDirectory?
  */
 @@public
 export function deployManagedTool(args: DeployWithToolDefinitionArguments) : Transformer.ToolDefinition {
-    const primaryFile = r`${args.tool.runtime.binary.name}`.changeExtension(qualifier.targetRuntime === "win-x64" ? ".exe" : "");
+    let primaryFile = r`${Shared.getExecutable(args.tool).name}`;
+    if ([ a`.exe`, a`.dll` ].some(ext => ext === primaryFile.extension)) {
+        primaryFile = primaryFile.changeExtension(qualifier.targetRuntime === "win-x64" ? ".exe" : "");
+    }
     const onDiskDeployment = deployAssemblyToDisk(args.tool, args.targetDirectory, primaryFile);
 
     let deploymentDefinition : Transformer.ToolDefinition = {

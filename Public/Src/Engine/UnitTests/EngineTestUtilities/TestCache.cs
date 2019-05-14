@@ -29,15 +29,15 @@ namespace Test.BuildXL.EngineTestUtilities
         /// <summary>
         /// Gets an artifact cache for the given context
         /// </summary>
-        public InMemoryArtifactContentCache GetArtifacts(PipExecutionContext context)
+        public InMemoryArtifactContentCache GetArtifacts()
         {
             if (m_artifacts == null)
             {
-                m_artifacts = new InMemoryArtifactContentCache(context);
+                m_artifacts = new InMemoryArtifactContentCache();
             }
             else
             {
-                m_artifacts = m_artifacts.WrapForContext(context);
+                m_artifacts = m_artifacts.Wrap();
             }
 
             return m_artifacts;

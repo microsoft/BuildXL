@@ -44,6 +44,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnableTransitiveProjectReferences = resolverSettings.EnableTransitiveProjectReferences;
             UseLegacyProjectIsolation = resolverSettings.UseLegacyProjectIsolation;
             DoubleWritePolicy = resolverSettings.DoubleWritePolicy;
+            AllowProjectsToNotSpecifyTargetProtocol = resolverSettings.AllowProjectsToNotSpecifyTargetProtocol;
         }
 
         /// <inheritdoc/>
@@ -105,5 +106,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public DoubleWritePolicy? DoubleWritePolicy { get; set; }
+
+        /// <inheritdoc/>
+        public bool? AllowProjectsToNotSpecifyTargetProtocol { get; set; }
     }
 }

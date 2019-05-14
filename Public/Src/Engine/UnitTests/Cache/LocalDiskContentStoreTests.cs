@@ -839,7 +839,7 @@ namespace Test.BuildXL.Engine.Cache
                 FileContentTable = useDummyFileContentTable ? FileContentTable.CreateStub() : FileContentTable.CreateNew();
                 Tracker = new FileChangeTrackingRecorder(verifyKnownIdentityOnTrackingFile);
                 DisabledTracker = new FileChangeTrackingRecorder(verifyKnownIdentityOnTrackingFile);
-                ContentCache = contentCacheForTest ?? new InMemoryArtifactContentCache(Context);
+                ContentCache = contentCacheForTest ?? new InMemoryArtifactContentCache();
                 m_outputRoot = AbsolutePath.Create(Context.PathTable, outputRoot);
                 LoggingContext = new LoggingContext(nameof(Harness));
             }

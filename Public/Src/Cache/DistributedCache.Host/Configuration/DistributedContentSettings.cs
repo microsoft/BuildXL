@@ -116,6 +116,24 @@ namespace BuildXL.Cache.Host.Configuration
         public bool StartPurgingAtStartup { get; set; } = true;
 
         /// <summary>
+        /// If true, then content store will start a self-check to validate that the content in cache is valid at startup.
+        /// </summary>
+        [DataMember]
+        public bool StartSelfCheckAtStartup { get; set; } = false;
+
+        /// <summary>
+        /// An interval between self checks performed by a content store to make sure that all the data on disk matches it's hashes.
+        /// </summary>
+        [DataMember]
+        public int SelfCheckFrequencyInMinutes { get; set; } = (int)TimeSpan.FromDays(1).TotalMinutes;
+
+        /// <summary>
+        /// An epoch used for reseting self check of a content directory.
+        /// </summary>
+        [DataMember]
+        public string SelfCheckEpoch { get; set; } = "E0";
+
+        /// <summary>
         /// Whether to use native (unmanaged) file enumeration or not.
         /// </summary>
         [DataMember]

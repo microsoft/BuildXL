@@ -99,6 +99,11 @@ namespace BuildXL.Cache.ContentStore.Stores
             ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo,
             bool onlyUnlinked);
 
+        /// <summary>
+        /// Notifies the keeper that content of a given size is evicted.
+        /// </summary>
+        public abstract void OnContentEvicted(long size);
+
         /// <nodoc />
         protected List<IQuotaRule> CreateRules(
             IAbsFileSystem fileSystem,

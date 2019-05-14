@@ -840,7 +840,7 @@ namespace BuildXL.Processes
                     Tracing.Logger.Log.PipProcessStartExternalTool(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), externalSandboxedProcessExecutor.ExecutablePath);
 
                     process = await ExternalSandboxedProcess.StartAsync(
-                        info, 
+                        info,
                         spi => new ExternalToolSandboxedProcess(spi, externalSandboxedProcessExecutor));
                 }
                 else
@@ -925,7 +925,9 @@ namespace BuildXL.Processes
                 finally
                 {
                     m_activeProcess = null;
+#pragma warning disable AsyncFixer02
                     cancellationTokenRegistration.Dispose();
+#pragma warning restore AsyncFixer02
                     process.Dispose();
                 }
 
@@ -950,7 +952,7 @@ namespace BuildXL.Processes
         /// These various validations that the detours communication channel
         /// </summary>
         private SandboxedProcessPipExecutionResult ValidateDetoursCommunication(
-            SandboxedProcessPipExecutionResult result, 
+            SandboxedProcessPipExecutionResult result,
             int lastMessageCount,
             bool isMessageSemaphoreCountCreated)
         {
@@ -3126,7 +3128,7 @@ namespace BuildXL.Processes
             var maybeResult = FileUtilities.TryProbePathExistence(path, followSymlink: false);
             var existsAsFile = maybeResult.Succeeded && maybeResult.Result == PathExistence.ExistsAsFile;
 
-            // If file outputs are not redirected, this is simply file existence. Otherwise, we have 
+            // If file outputs are not redirected, this is simply file existence. Otherwise, we have
             // to check that the file is not a WCI tombstone, since this means the file is not really there.
             return existsAsFile && !(fileOutputsAreRedirected && FileUtilities.IsWciTombstoneFile(path));
         }

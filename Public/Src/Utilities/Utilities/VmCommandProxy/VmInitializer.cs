@@ -5,10 +5,8 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Security;
 using System.Text;
 using System.Threading.Tasks;
-using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Utilities.VmCommandProxy
 {
@@ -21,6 +19,14 @@ namespace BuildXL.Utilities.VmCommandProxy
     /// </remarks>
     public class VmInitializer
     {
+        /// <summary>
+        /// Timeout (in minute) for VM initialization.
+        /// </summary>
+        /// <remarks>
+        /// According to CB team, VM initialization roughly takes 2-3 minutes.
+        /// </remarks>
+        private const int InitVmTimeoutInMinute = 10;
+
         /// <summary>
         /// Path to VmCommandProxy executable.
         /// </summary>
@@ -89,7 +95,7 @@ namespace BuildXL.Utilities.VmCommandProxy
             // (3) Run VmCommandProxy to start build.
             using (var executor = new AsyncProcessExecutor(
                 process,
-                TimeSpan.FromMilliseconds(-1),
+                TimeSpan.FromMinutes(InitVmTimeoutInMinute),
                 line => { if (line != null) { stdOutForStartBuild.AppendLine(line); m_logInitExecution?.Invoke($"{provenance} stdOut: {line}"); } },
                 line => { if (line != null) { stdErrForStartBuild.AppendLine(line); m_logInitExecution?.Invoke($"{provenance} stdErr: {line}"); } },
                 provenance: provenance,

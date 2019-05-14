@@ -11,7 +11,7 @@ export namespace Contents {
 
 @@public
 export const pkg: Managed.ManagedNugetPackage =
-    Managed.Factory.createNugetPackge(
+    Managed.Factory.createNugetPackage(
         "Bond.Core.NET",
         "3.2.0",
         Contents.all,

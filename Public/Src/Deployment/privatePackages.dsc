@@ -36,7 +36,7 @@ namespace PrivatePackages {
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Native.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Storage.dll),
 
-                ...importFrom("RuntimeContracts").withQualifier({ targetFramework: net472Qualifier.targetFramework }).pkg.runtime,
+                ...importFrom("RuntimeContracts").withQualifier({ targetFramework: "netstandard2.0" }).pkg.runtime,
 
                 {
                     subfolder: r`content`,

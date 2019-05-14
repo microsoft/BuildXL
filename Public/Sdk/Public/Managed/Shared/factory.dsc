@@ -7,7 +7,7 @@ namespace Factory {
 
     // Factory functions are qualifier agnostic
     export declare const qualifier : {};
-    
+
     @@public
     export function createBinaryFromFiles(binary: File, pdb?: File, documentation?: File) : Binary {
         return {
@@ -20,14 +20,14 @@ namespace Factory {
 
     @@public
     export function createBinary(contents: StaticDirectory, binaryLocation: RelativePath | File) : Binary {
-        const binaryPath = typeof binaryLocation === "File" 
-            ? (<File>binaryLocation).path 
+        const binaryPath = typeof binaryLocation === "File"
+            ? (<File>binaryLocation).path
             : p`${contents.root}/${binaryLocation}`;
         const pdbPath = binaryPath.changeExtension(".pdb");
         const xmlPath = binaryPath.changeExtension(".xml");
 
         return {
-            binary:  contents.getFile(binaryPath),
+            binary: contents.getFile(binaryPath),
             pdb: contents.hasFile(pdbPath) ? contents.getFile(pdbPath) : undefined,
             documentation: contents.hasFile(xmlPath) ? contents.getFile(xmlPath) : undefined,
             deploy: Deployment.flattenBinary,
@@ -50,6 +50,12 @@ namespace Factory {
 
     @@public
     export function createNugetPackge(name: string, version: string, contents: StaticDirectory, compile: Binary[], runtime: Binary[], dependencies?: NugetPackage[]) : ManagedNugetPackage {
+        // TODO: Delete this method once the new Nuget changes are merged and in LKG
+        return createNugetPackage(name, version, contents, compile, runtime, dependencies);
+    }
+
+    @@public
+    export function createNugetPackage(name: string, version: string, contents: StaticDirectory, compile: Binary[], runtime: Binary[], dependencies?: NugetPackage[]) : ManagedNugetPackage {
         return <ManagedNugetPackage>{
             name: name,
             version: version,

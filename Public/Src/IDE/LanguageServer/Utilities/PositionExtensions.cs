@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Types;
 using TypeScript.Net.Utilities;
+using Range = Microsoft.VisualStudio.LanguageServer.Protocol.Range;
 
 namespace BuildXL.Ide.LanguageServer
 {

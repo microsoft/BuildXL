@@ -213,8 +213,8 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                               {
                                   AppDeployment = appDeployment,
                                   DoWarnForVirusScan = false,
-                                  CacheFactory = (context) => new EngineCache(
-                                     new InMemoryArtifactContentCache(context),
+                                  CacheFactory = () => new EngineCache(
+                                     new InMemoryArtifactContentCache(),
                                      new InMemoryTwoPhaseFingerprintStore())
                               };
 
@@ -266,14 +266,14 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
 
         protected void ConfigureInMemoryCache(TestCache testCache)
         {
-            TestHooks.CacheFactory = (context) => new EngineCache(
-                testCache.GetArtifacts(context),
+            TestHooks.CacheFactory = () => new EngineCache(
+                testCache.GetArtifacts(),
                 testCache.Fingerprints);
         }
 
         protected void ConfigureCache(CacheInitializer cacheInitializer)
         {
-            TestHooks.CacheFactory = (context) => cacheInitializer.CreateCacheForContext(context);
+            TestHooks.CacheFactory = () => cacheInitializer.CreateCacheForContext();
         }
 
         /// <summary>

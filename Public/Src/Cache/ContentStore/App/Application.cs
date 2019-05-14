@@ -242,10 +242,7 @@ namespace BuildXL.Cache.ContentStore.App
 
         private static void SetThreadPoolSizes()
         {
-            int workerThreads;
-            int completionPortThreads;
-
-            ThreadPool.GetMaxThreads(out workerThreads, out completionPortThreads);
+            ThreadPool.GetMaxThreads(out var workerThreads, out var completionPortThreads);
             workerThreads = Math.Max(workerThreads, Environment.ProcessorCount * 16);
             completionPortThreads = workerThreads;
             ThreadPool.SetMaxThreads(workerThreads, completionPortThreads);
@@ -295,7 +292,7 @@ namespace BuildXL.Cache.ContentStore.App
             }
         }
 
-        private void RunFileSystemContentStoreInternal(AbsolutePath rootPath, System.Func<Context, IContentStoreInternal, Task> funcAsync)
+        private void RunFileSystemContentStoreInternal(AbsolutePath rootPath, System.Func<Context, FileSystemContentStoreInternal, Task> funcAsync)
         {
             Initialize();
 
@@ -308,7 +305,7 @@ namespace BuildXL.Cache.ContentStore.App
                     try
                     {
                         var result = store.StartupAsync(context).Result;
-                        if (!result.Succeeded)
+                        if (!result)
                         {
                             Trace(result, context, "Failed to start store");
                             return;
@@ -319,7 +316,7 @@ namespace BuildXL.Cache.ContentStore.App
                     finally
                     {
                         var result = store.ShutdownAsync(context).Result;
-                        if (!result.Succeeded)
+                        if (!result)
                         {
                             context.Error($"Failed to shutdown store, error=[{result.ErrorMessage}]");
                         }

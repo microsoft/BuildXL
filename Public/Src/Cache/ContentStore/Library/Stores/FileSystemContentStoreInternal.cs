@@ -181,6 +181,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         protected readonly IContentDirectory ContentDirectory;
 
+        /// <nodoc />
+        protected QuotaKeeper QuotaKeeper;
+
         /// <summary>
         ///     Tracker for the number of times each content has been pinned.
         /// </summary>
@@ -216,8 +219,6 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private BackgroundTaskTracker _taskTracker;
 
-        private QuotaKeeper _quotaKeeper;
-
         private PinSizeHistory _pinSizeHistory;
 
         private int _pinContextCount;
@@ -225,6 +226,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         private long _maxPinSize;
 
         private readonly ContentStoreSettings _settings;
+
+        private readonly FileSystemContentStoreInternalChecker _checker;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="FileSystemContentStoreInternal" /> class.
@@ -269,6 +272,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             _distributedEvictionSettings = distributedEvictionSettings;
             _settings = settings ?? ContentStoreSettings.DefaultSettings;
+
+            _checker = new FileSystemContentStoreInternalChecker(FileSystem, Clock, RootPath, _tracer, _settings, this);
         }
 
         private async Task PerformUpgradeToNextVersionAsync(Context context, VersionHistory currentVersion)
@@ -347,6 +352,62 @@ namespace BuildXL.Cache.ContentStore.Stores
                 new ExecutionDataflowBlockOptions {MaxDegreeOfParallelism = Environment.ProcessorCount});
 
             return upgradeCacheBlobAction.PostAllAndComplete(EnumerateBlobPathsFromDisk());
+        }
+
+        /// <summary>
+        /// Checks that the content on disk is correct and every file in content directory matches it's hash.
+        /// </summary>
+        /// <returns></returns>
+        public async Task<Result<SelfCheckResult>> SelfCheckContentDirectoryAsync(Context context, CancellationToken token)
+        {
+            using (var disposableContext = TrackShutdown(context, token))
+            {
+                return await _checker.SelfCheckContentDirectoryAsync(disposableContext.Context);
+            }
+        }
+
+        /// <summary>
+        /// Removes invalid content from cache.
+        /// </summary>
+        internal async Task RemoveInvalidContentAsync(OperationContext context, ContentHash contentHash)
+        {
+            // In order to remove the content we have to do the following things:
+            // Remove file from disk
+            // Update memory content directory
+            // Update quota keeper
+            // Notify distributed store that the content is gone from this machine
+            // The first 3 things are happening in the first call.
+            await EvictCoreAsync(
+                context,
+                new ContentHashWithLastAccessTimeAndReplicaCount(contentHash, Clock.UtcNow),
+                force: true, // Need to evict an invalid content even if it is pinned.
+                onlyUnlinked: false,
+                size => { QuotaKeeper.OnContentEvicted(size); })
+                .TraceIfFailure(context);
+
+            if (_distributedEvictionSettings?.DistributedStore != null)
+            {
+                await _distributedEvictionSettings.DistributedStore.UnregisterAsync(context, new ContentHash[] {contentHash}, context.Token)
+                    .TraceIfFailure(context);
+            }
+        }
+
+        internal async Task<ContentHashWithSize?> TryHashFileAsync(Context context, AbsolutePath path, HashType hashType, Func<Stream, Stream> wrapStream = null)
+        {
+            // We only hash the file if a trusted hash is not supplied
+            using (var stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
+            {
+                if (stream == null)
+                {
+                    return null;
+                }
+
+                using (var wrappedStream = (wrapStream == null) ? stream : wrapStream(stream))
+                {
+                    // Hash the file in  place
+                    return await HashContentAsync(context, wrappedStream, hashType, path);
+                }
+            }
         }
 
         /// <summary>
@@ -556,13 +617,13 @@ namespace BuildXL.Cache.ContentStore.Stores
                 var hashInfoPairs = new List<KeyValuePair<ContentHash, ContentFileInfo>>();
                 foreach (var grouping in contentHashes.GroupBy(hash => hash))
                 {
-                    var contentFileInfo = new ContentFileInfo(Clock, grouping.First().Size, grouping.Count());
+                    var contentFileInfo = new ContentFileInfo(Clock, grouping.First().fileInfo.Length, grouping.Count());
                     contentCount++;
                     contentSize += contentFileInfo.TotalSize;
 
                     hashInfoPairs.Add(
                         new KeyValuePair<ContentHash, ContentFileInfo>(
-                            grouping.Key.Hash,
+                            grouping.Key.hash,
                             contentFileInfo));
                 }
 
@@ -673,18 +734,27 @@ namespace BuildXL.Cache.ContentStore.Stores
                 _distributedEvictionSettings,
                 _settings,
                 size);
-            _quotaKeeper = QuotaKeeper.Create(
+            QuotaKeeper = QuotaKeeper.Create(
                 FileSystem,
                 _tracer,
                 ShutdownStartedCancellationToken,
                 this,
                 quotaKeeperConfiguration);
 
-            var result = await _quotaKeeper.StartupAsync(context);
+            var result = await QuotaKeeper.StartupAsync(context);
 
             _taskTracker = new BackgroundTaskTracker(Component, new Context(context));
 
             _tracer.StartStats(context, size, contentDirectoryCount);
+
+            if (_settings.StartSelfCheckInStartup)
+            {
+                // Starting the self check and ignore and trace the failure.
+                // Self check procedure is a long running operation that can take longer then an average process lifetime.
+                // So instead of relying on timers to recheck content directory, we rely on
+                // periodic service restarts.
+                SelfCheckContentDirectoryAsync(context, context.Token).FireAndForget(context);
+            }
 
             return result;
         }
@@ -696,13 +766,13 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             var statsResult = await GetStatsAsync(context);
 
-            if (_quotaKeeper != null)
+            if (QuotaKeeper != null)
             {
-                _tracer.EndStats(context, _quotaKeeper.CurrentSize, await ContentDirectory.GetCountAsync());
+                _tracer.EndStats(context, QuotaKeeper.CurrentSize, await ContentDirectory.GetCountAsync());
 
                 // NOTE: QuotaKeeper must be shut down before the content directory because it owns
                 // background operations which may be calling EvictAsync or GetLruOrderedContentListAsync
-                result &= await _quotaKeeper.ShutdownAsync(context);
+                result &= await QuotaKeeper.ShutdownAsync(context);
             }
 
             if (_pinSizeHistory != null)
@@ -737,9 +807,9 @@ namespace BuildXL.Cache.ContentStore.Stores
                         ForceDeleteFile(fileInfo.FullPath);
                         _tracer.Warning(context, $"Temp file still existed at shutdown: {fileInfo.FullPath}");
                     }
-                    catch (IOException ioExecption)
+                    catch (IOException ioException)
                     {
-                        _tracer.Warning(context, $"Could not clean up temp file due to exception: {ioExecption}");
+                        _tracer.Warning(context, $"Could not clean up temp file due to exception: {ioException}");
                     }
                 }
             }
@@ -898,23 +968,17 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             return PutFileCall<ContentStoreInternalTracer>.RunAsync(_tracer, OperationContext(context), path, realizationMode, hashType, trustedHash: trustedHashWithSize != null, async () =>
             {
-                ContentHashWithSize content = trustedHashWithSize ?? default(ContentHashWithSize);
+                ContentHashWithSize content = trustedHashWithSize ?? default;
                 if (trustedHashWithSize == null)
                 {
                     // We only hash the file if a trusted hash is not supplied
-                    using (var stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
+                    var possibleContent = await TryHashFileAsync(context, path, hashType, wrapStream);
+                    if (possibleContent == null)
                     {
-                        if (stream == null)
-                        {
-                            return new PutResult(default(ContentHash), $"Source file not found at '{path}'.");
-                        }
-
-                        using (var wrappedStream = (wrapStream == null) ? stream : wrapStream(stream))
-                        {
-                            // Hash the file in  place
-                            content = await HashContentAsync(context, wrappedStream, hashType, path);
-                        }
+                        return new PutResult(default(ContentHash), $"Source file not found at '{path}'.");
                     }
+
+                    content = possibleContent.Value;
                 }
 
                 // If we are given the empty file, the put is a no-op.
@@ -1063,11 +1127,11 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (StartupCompleted)
                 {
-                    counters.Add($"{CurrentByteCountName}", _quotaKeeper.CurrentSize);
+                    counters.Add($"{CurrentByteCountName}", QuotaKeeper.CurrentSize);
                     counters.Add($"{CurrentFileCountName}", await ContentDirectory.GetCountAsync());
                     counters.Merge(ContentDirectory.GetCounters(), "ContentDirectory.");
 
-                    var quotaKeeperCounter = _quotaKeeper.Counters;
+                    var quotaKeeperCounter = QuotaKeeper.Counters;
                     if (quotaKeeperCounter != null)
                     {
                         counters.Merge(quotaKeeperCounter.ToCounterSet());
@@ -1084,7 +1148,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        // ReSharper disable once UnusedMember.Global
         public async Task<bool> Validate(Context context)
         {
             bool foundIssue = false;
@@ -1113,7 +1176,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         public async Task SyncAsync(Context context, bool purge = true)
         {
-            await _quotaKeeper.SyncAsync(context, purge);
+            await QuotaKeeper.SyncAsync(context, purge);
 
             // Ensure there are no pending LRU updates.
             await ContentDirectory.SyncAsync();
@@ -1295,7 +1358,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 hasher.Dispose();
             }
 
-            _quotaKeeper?.Dispose();
+            QuotaKeeper?.Dispose();
             _taskTracker?.Dispose();
             ContentDirectory.Dispose();
         }
@@ -1333,7 +1396,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 if (fileInfo == null || await RemoveEntryIfNotOnDiskAsync(context, contentHash))
                 {
-                    using (var txn = await _quotaKeeper.ReserveAsync(contentSize))
+                    using (var txn = await QuotaKeeper.ReserveAsync(contentSize))
                     {
                         FileSystem.CreateDirectory(primaryPath.Parent);
 
@@ -1773,7 +1836,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <param name="contentHash">Content hash to get path for</param>
         /// <returns>Path for the hash</returns>
         /// <remarks>Does not guarantee anything is at the returned path</remarks>
-        protected AbsolutePath GetPrimaryPathFor(ContentHash contentHash)
+        protected internal AbsolutePath GetPrimaryPathFor(ContentHash contentHash)
         {
             return GetReplicaPathFor(contentHash, 0);
         }
@@ -1799,9 +1862,11 @@ namespace BuildXL.Cache.ContentStore.Stores
             return new RelativePath(contentHash.ToHex().Substring(0, HashDirectoryNameLength));
         }
 
-        private List<ContentHashWithSize> ReadContentHashesFromDisk(Context context)
+        internal bool TryGetFileInfo(ContentHash contentHash, out ContentFileInfo fileInfo) => ContentDirectory.TryGetFileInfo(contentHash, out fileInfo);
+
+        internal List<(ContentHash hash, FileInfo fileInfo)> ReadContentHashesFromDisk(Context context)
         {
-            var contentHashes = new List<ContentHashWithSize>();
+            var contentHashes = new List<(ContentHash hash, FileInfo fileInfo)>();
             if (_settings.UseNativeBlobEnumeration)
             {
                 EnumerateBlobPathsFromDisk(context, fileInfo => parseAndAccumulateContentHashes(fileInfo));
@@ -1822,7 +1887,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // This is not an error condition if we can't get the hash out of it.
                 if (TryGetHashFromPath(fileInfo.FullPath, out var contentHash))
                 {
-                    contentHashes.Add(new ContentHashWithSize(contentHash, fileInfo.Length));
+                    contentHashes.Add((contentHash, fileInfo));
                 }
                 else
                 {
@@ -1988,7 +2053,13 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Remove specified content.
         /// </summary>
-        public async Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked, Action<long> evicted)
+        public Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked, Action<long> evicted)
+        {
+            // This operation respects pinned content and won't evict it if it's pinned.
+            return EvictCoreAsync(context, contentHashInfo, force: false, onlyUnlinked, evicted);
+        }
+
+        private async Task<EvictResult> EvictCoreAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool force, bool onlyUnlinked, Action<long> evicted)
         {
             ContentHash contentHash = contentHashInfo.ContentHash;
 
@@ -2001,7 +2072,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                     return new EvictResult(evictedSize: 0, evictedFiles: 0, pinnedSize: 0, contentHashInfo.LastAccessTime, successfullyEvictedHash: false, contentHashInfo.ReplicaCount);
                 }
 
-                if (PinMap.TryGetValue(contentHash, out var pin) && pin.Count > 0)
+                // Only checked PinMap if force is false, otherwise even pinned content should be evicted.
+                if (!force && PinMap.TryGetValue(contentHash, out var pin) && pin.Count > 0)
                 {
                     // The content is pinned. Eviction is not possible in this case.
                     if (TryGetContentTotalSize(contentHash, out var size))
@@ -2035,7 +2107,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                     return null;
                                 }
 
-                                if (PinMap.TryGetValue(contentHash, out pin) && pin.Count > 0)
+                                if (!force && PinMap.TryGetValue(contentHash, out pin) && pin.Count > 0)
                                 {
                                     pinnedSize = fileInfo.TotalSize;
 
@@ -2522,7 +2594,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             if (replicaExistence == ReplicaExistence.DoesNotExist)
             {
                 // Create a new replica
-                using (var txn = await _quotaKeeper.ReserveAsync(info.FileSize))
+                using (var txn = await QuotaKeeper.ReserveAsync(info.FileSize))
                 {
                     await RetryOnUnexpectedReplicaAsync(
                         context,
@@ -2722,7 +2794,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
             }
 
-            _quotaKeeper.Calibrate();
+            QuotaKeeper.Calibrate();
 
             lock (_pinSizeHistory)
             {

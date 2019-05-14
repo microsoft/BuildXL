@@ -149,7 +149,7 @@ export const devKey = f`BuildXL.DevKey.snk`;
 export const cacheRuleSet = f`BuildXl.Cache.ruleset`;
 
 @@public
-export const dotNetFramework = qualifier.targetFramework === "netcoreapp3.0"
+export const dotNetFramework = isDotNetCoreBuild
 ? qualifier.targetRuntime
 : qualifier.targetFramework;
 

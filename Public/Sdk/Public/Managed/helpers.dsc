@@ -143,10 +143,9 @@ namespace Helpers {
     **/
 
     @@public
-    export function aliasedReferencesForSystemInteractiveAsync(references: Shared.Reference[]) : Csc.Arguments {
-        const needsSystemInteractiveAsync =
-            references.some(ref => (ref as Shared.ManagedNugetPackage).name !== undefined &&
-            (ref as Shared.ManagedNugetPackage).name.toString().contains("System.Interactive.Async"));
+    export function patchReferencesForSystemInteractiveAsync(references: Shared.Reference[]) : Csc.Arguments {
+        const needsSystemInteractiveAsync = references.some(ref =>
+            Shared.isManagedPackage(ref) && !Shared.isAssembly(ref) && ref.name.contains("System.Interactive.Async"));
 
         if (needsSystemInteractiveAsync) {
             return <Csc.Arguments> {
@@ -173,7 +172,7 @@ namespace Helpers {
             case "netcoreapp3.0":
             case "netstandard2.0":
             default:
-                return "netstandard2.0";
+                return "netstandard1.3";
         }
     }
 }

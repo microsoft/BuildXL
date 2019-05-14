@@ -42,7 +42,7 @@ namespace Test {
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
 
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
-            ...BuildXLSdk.fluentAssertionsWorkaround,
+            importFrom("FluentAssertions").pkg,
         ],
         runtimeContent: [
             ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [

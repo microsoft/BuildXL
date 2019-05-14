@@ -160,7 +160,7 @@ export function compile(inputArgs: Arguments) : Result {
     };
 
     if (Context.getCurrentHost().os !== "win") {
-        cscExecuteArgs = importFrom("Sdk.Managed.Frameworks.NetCoreApp3").withQualifier({targetFramework: "netcoreapp3.0"}).wrapInDotNetExeForCurrentOs(cscExecuteArgs);
+        cscExecuteArgs = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(cscExecuteArgs);
     }
     let executeResult = Transformer.execute(cscExecuteArgs);
 

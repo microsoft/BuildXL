@@ -38,7 +38,7 @@ namespace DistributedTest {
 
                 importFrom("StackExchange.Redis.StrongName").pkg,
                 importFrom("xunit.abstractions").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-                ...BuildXLSdk.fluentAssertionsWorkaround,
+                importFrom("FluentAssertions").pkg,
             ],
             runtimeContent: [
                 ...importFrom("Redis-64").Contents.all.contents,

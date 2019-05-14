@@ -186,7 +186,7 @@ config({
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 { id: "StackExchange.Redis.StrongName", version: "1.2.6" },
-                { id: "System.Interactive.Async", version: "3.2.0" },
+                { id: "System.Interactive.Async", version: "3.1.1" },
                 { id: "TransientFaultHandling.Core", version: "5.1.1209.1" },
                 { id: "Grpc", version: "1.18.0" },
                 { id: "Grpc.Core", version: "1.18.0" },
@@ -228,6 +228,8 @@ config({
 
                 // .NET Core Dependencies
                 { id: "Microsoft.NETCore.App", version: "3.0.0-preview5-27626-15" },
+                { id: "Microsoft.NETCore.App", version: "2.1.1", alias: "Microsoft.NETCore.App.211" },
+
                 { id: "NETStandard.Library", version: "2.0.3", tfm: ".NETStandard2.0" },
                 { id: "Microsoft.NETCore.Platforms", version: "3.0.0-preview5.19224.8" },
                 { id: "Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-preview5-27626-15"},
@@ -235,22 +237,38 @@ config({
 
                 // .NET Core Self-Contained Deployment
                 { id: "Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-preview5-27626-15" },
+                { id: "Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "Microsoft.NETCore.DotNetHostResolver.220" },
+
                 { id: "Microsoft.NETCore.DotNetAppHost", version: "3.0.0-preview5-27626-15" },
+                { id: "Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "Microsoft.NETCore.DotNetAppHost.220" },
+
+                // .NET Core win-x64 runtime deps
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost.220" },
+
                 { id: "runtime.win-x64.Microsoft.NETCore.App", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.win-x64.Microsoft.NETCore.App", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.App.220" },
+
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.220" },
+
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.220" },
 
+                // .NET Core osx-x64 runtime deps
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost.220" },
+
                 { id: "runtime.osx-x64.Microsoft.NETCore.App", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.App", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.App.220" },
+
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.220" },
+
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.220" },
 
-                { id: "System.Security.Principal.Windows", version: "4.5.1" },
-                { id: "System.Security.AccessControl", version: "4.5.0", dependentPackageIdsToSkip: ["System.Security.Principal.Windows"] },
-                { id: "System.Threading.AccessControl", version: "4.5.0" },
-
-                // DotNetCore related
+                // DotNetCore related deps
                 { id: "Microsoft.CSharp", version: "4.3.0" },
                 { id: "Microsoft.Win32.Primitives", version: "4.3.0" },
                 { id: "Microsoft.Win32.Registry", version: "4.3.0" },
@@ -338,6 +356,7 @@ config({
                 { id: "System.Runtime.Serialization.Json", version: "4.3.0" },
                 { id: "System.Runtime.Serialization.Primitives", version: "4.3.0" },
                 { id: "System.Runtime.Serialization.Xml", version: "4.3.0" },
+                { id: "System.Security.AccessControl", version: "4.5.0", dependentPackageIdsToSkip: ["System.Security.Principal.Windows"] },
                 { id: "System.Security.Cryptography.Algorithms", version: "4.3.0" },
                 { id: "System.Security.Cryptography.Cng", version: "4.3.0" },
                 { id: "System.Security.Cryptography.Csp", version: "4.3.0" },
@@ -345,12 +364,14 @@ config({
                 { id: "System.Security.Cryptography.Primitives", version: "4.3.0" },
                 { id: "System.Security.Cryptography.X509Certificates", version: "4.3.0" },
                 { id: "System.Security.Principal", version: "4.3.0" },
+                { id: "System.Security.Principal.Windows", version: "4.5.1" },
                 { id: "System.Security.SecureString", version: "4.3.0" },
                 { id: "System.Text.Encoding", version: "4.3.0" },
                 { id: "System.Text.Encoding.CodePages", version: "4.3.0" },
                 { id: "System.Text.Encoding.Extensions", version: "4.3.0" },
                 { id: "System.Text.RegularExpressions", version: "4.3.0" },
                 { id: "System.Threading", version: "4.3.0" },
+                { id: "System.Threading.AccessControl", version: "4.5.0" },
                 { id: "System.Threading.Overlapped", version: "4.3.0" },
                 { id: "System.Threading.Tasks", version: "4.3.0" },
                 { id: "System.Threading.Tasks.Extensions", version: "4.3.0" },

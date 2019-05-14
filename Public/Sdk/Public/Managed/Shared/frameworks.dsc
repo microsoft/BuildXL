@@ -55,7 +55,7 @@ namespace TargetFrameworks {
     export type DesktopTargetFrameworks = "net451" | "net461" | "net472";
 
     @@public
-    export type CoreClrTargetFrameworks = "netcoreapp3.0";
+    export type CoreClrTargetFrameworks = "netcoreapp2.2" | "netcoreapp3.0";
 
     @@public
     export type StandardTargetFrameworks = "netstandard2.0";

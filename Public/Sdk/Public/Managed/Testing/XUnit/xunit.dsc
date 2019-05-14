@@ -53,7 +53,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
     };
 
     if (qualifier.targetFramework === "netcoreapp3.0") {
-        execArguments = importFrom("Sdk.Managed.Frameworks.NetCoreApp3").wrapInDotNetExeForCurrentOs(execArguments);
+        execArguments = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(execArguments);
     }
 
     execArguments = Managed.TestHelpers.applyTestRunExecutionArgs(execArguments, args);

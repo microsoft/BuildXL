@@ -16,8 +16,6 @@ export const framework : Managed.TestFramework = {
     name: "XUnit",
 };
 
- const xunitNet451Qualifier: {targetFramework: "net451"} = {targetFramework: "net451"};
-
 @@public
 export const xunitReferences : Managed.Reference[] = qualifier.targetFramework === "netcoreapp3.0"
     ? [
@@ -42,7 +40,7 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
         args);
 }
 
-const netStandardFramework = importFrom("Sdk.Managed.Frameworks.NetCoreApp3").withQualifier({targetFramework: "netcoreapp3.0"}).framework;
+const netStandardFramework = importFrom("Sdk.Managed.Frameworks.NetCoreApp3.0").withQualifier({targetFramework: "netcoreapp3.0"}).framework;
 const xunitNetStandardRuntimeConfigFiles: File[] = Managed.RuntimeConfigFiles.createFiles(
     netStandardFramework,
     "xunit.console",

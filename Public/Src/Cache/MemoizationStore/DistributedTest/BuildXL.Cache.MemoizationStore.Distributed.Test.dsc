@@ -25,7 +25,7 @@ namespace DistributedTest {
             Interfaces.dll,
             Library.dll,
 
-            ...BuildXLSdk.fluentAssertionsWorkaround,
+            importFrom("FluentAssertions").pkg,
             importFrom("StackExchange.Redis.StrongName").pkg,
             importFrom("System.Interactive.Async").pkg,
         ],

@@ -33,7 +33,7 @@ namespace VstsTest {
             importFrom("StackExchange.Redis.StrongName").pkg,
             importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
-            ...BuildXLSdk.fluentAssertionsWorkaround,
+            importFrom("FluentAssertions").pkg,
         ],
         deploymentOptions: {
             excludedDeployableItems: [

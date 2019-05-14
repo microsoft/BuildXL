@@ -196,7 +196,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         cscArgs = Object.merge(args.tools.csc, cscArgs);
     }
 
-    cscArgs = Object.merge(Helpers.aliasedReferencesForSystemInteractiveAsync(references), cscArgs);
+    cscArgs = Object.merge(Helpers.patchReferencesForSystemInteractiveAsync(references), cscArgs);
 
     let cscResult =  Csc.compile(cscArgs);
 

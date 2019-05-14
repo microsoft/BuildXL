@@ -14,7 +14,7 @@ namespace Deployment {
         ]
     };
 
-    const frameworkSpecificPart = qualifier.targetFramework === "netcoreapp3.0"
+    const frameworkSpecificPart = BuildXLSdk.isDotNetCoreBuild
         ? qualifier.targetRuntime
         : qualifier.targetFramework;
 

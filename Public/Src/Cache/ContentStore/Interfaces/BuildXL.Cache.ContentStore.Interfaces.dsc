@@ -4,7 +4,7 @@
 import * as Deployment from "Sdk.Deployment";
 import * as ILRepack from "Sdk.Managed.Tools.ILRepack";
 import * as Shared from "Sdk.Managed.Shared";
-import * as NetCoreApp from "Sdk.Managed.Frameworks.NetCoreApp3";
+import * as NetCoreApp from "Sdk.Managed.Frameworks.NetCoreApp3.0";
 
 namespace Interfaces {
     export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451AndNetStandard20;
@@ -31,7 +31,6 @@ namespace Interfaces {
             "BuildXL.Cache.ContentStore",
             "BuildXL.Cache.ContentStore.Distributed",
             "BuildXL.Cache.ContentStore.Interfaces.Test",
-        ],
-        //tools : qualifier.targetFramework !== "netcoreapp3.0" ? undefined : NetCoreApp.aliasedSystemInteractiveAsyncAssembly
+        ]
     });
 }

@@ -62,7 +62,7 @@ namespace StandaloneTest {
             `    description: "${assemblyName} [${qualifier.configuration}, ${dotNetFramework}]",`,
             `    testAssembly: f\`${def.assembly.name}\`,`,
             `    untracked: ${def.untracked},`,
-            `    wrapInDotNet: ${qualifier.targetFramework === "netcoreapp3.0"},`,
+            `    wrapInDotNet: ${$.isDotNetCoreBuild},`,
             `    untrackTestDirectory: ${def.untrackTestDirectory},`,
             StandaloneTestUtils.generateArrayProperty("parallelCategories", def.parallelCategories, indent, StandaloneTestUtils.quoteString),
             StandaloneTestUtils.generateArrayProperty("limitCategories", def.limitCategories, indent, StandaloneTestUtils.quoteString),

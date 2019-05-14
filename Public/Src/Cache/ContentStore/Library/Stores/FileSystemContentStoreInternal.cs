@@ -747,7 +747,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             _tracer.StartStats(context, size, contentDirectoryCount);
 
-            if (_settings.SelfCheckEnabled)
+            if (_settings.StartSelfCheckInStartup)
             {
                 // Starting the self check and ignore and trace the failure.
                 // Self check procedure is a long running operation that can take longer then an average process lifetime.

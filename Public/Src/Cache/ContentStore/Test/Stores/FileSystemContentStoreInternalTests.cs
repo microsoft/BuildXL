@@ -2,7 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Exceptions;
@@ -146,22 +148,26 @@ namespace ContentStoreTest.Stores
 
                 var settings = new ContentStoreSettings()
                                {
-                                   SelfCheckFilesLimit = 1,
+                                   SelfCheckInvalidFilesLimit = 1,
                                    // If SelfCheckEnabled is false then self check is not run within startup.
-                                   SelfCheckEnabled = false,
+                                   StartSelfCheckInStartup = false,
                                };
 
                 var store = CreateStore(testDirectory, settings);
 
                 await store.StartupAsync(context).ShouldBeSuccess();
 
-                var putResult = await store.PutRandomAsync(context, ValueSize).ShouldBeSuccess();
+                var putResult0 = await store.PutRandomAsync(context, ValueSize).ShouldBeSuccess();
+                var putResult1 = await store.PutRandomAsync(context, ValueSize).ShouldBeSuccess();
                 var putResult2 = await store.PutRandomAsync(context, ValueSize).ShouldBeSuccess();
 
-                var pathInCache = store.GetPrimaryPathFor(putResult.ContentHash);
+                var hashes = new List<ContentHash> {putResult0.ContentHash, putResult1.ContentHash, putResult2.ContentHash}.OrderBy(h => h).ToList();
+
+                // Explicitly making the second hash incorrect keeping the first one as valid one.
+                var pathInCache = store.GetPrimaryPathFor(hashes[1]);
                 FileSystem.WriteAllText(pathInCache, "Definitely wrong content");
 
-                var pathInCache2 = store.GetPrimaryPathFor(putResult2.ContentHash);
+                var pathInCache2 = store.GetPrimaryPathFor(hashes[2]);
                 FileSystem.WriteAllText(pathInCache2, "Definitely wrong content");
 
                 // Moving the time forward to make self check is not up-to-date.
@@ -170,10 +176,18 @@ namespace ContentStoreTest.Stores
                 var result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ShouldBeSuccess();
                 // The self check should stop after the limit of 1 hash is reached.
                 result.Value.InvalidFiles.Should().Be(1);
+                // Because the first hash is correct, we should've enumerate 2 entries because only the second one is wrong.
+                result.Value.TotalProcessedFiles.Should().Be(2);
 
+                
                 // Now the self check should continue from the previous step
                 result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ShouldBeSuccess();
                 result.Value.InvalidFiles.Should().Be(1);
+                result.Value.TotalProcessedFiles.Should().Be(1, "Because of incrementality we should check only one file.");
+
+                result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ShouldBeSuccess();
+                result.Value.InvalidFiles.Should().Be(0);
+                result.Value.TotalProcessedFiles.Should().Be(-1, "Self check procedure should be skipped due to up-to-date check.");
             }
         }
 
@@ -186,7 +200,7 @@ namespace ContentStoreTest.Stores
             {
                 var context = new Context(Logger);
 
-                var settings = new ContentStoreSettings() { SelfCheckEpoch = "E1", SelfCheckEnabled = false};
+                var settings = new ContentStoreSettings() { SelfCheckEpoch = "E1", StartSelfCheckInStartup = false};
 
                 //
                 // Using store with original settings
@@ -207,7 +221,7 @@ namespace ContentStoreTest.Stores
                 //
 
                 // Disable self check won't run within startup
-                settings = new ContentStoreSettings() { SelfCheckEpoch = "E2", SelfCheckEnabled = false };
+                settings = new ContentStoreSettings() { SelfCheckEpoch = "E2", StartSelfCheckInStartup = false };
                 store = CreateStore(testDirectory, settings);
 
                 await store.StartupAsync(context).ShouldBeSuccess();
@@ -238,7 +252,7 @@ namespace ContentStoreTest.Stores
             reparsedState2.Value.Should().Be(state2);
         }
 
-        private static ContentStoreSettings Settings => new ContentStoreSettings() {SelfCheckEnabled = false};
+        private static ContentStoreSettings Settings => new ContentStoreSettings() {StartSelfCheckInStartup = false};
         
         private static DistributedEvictionSettings WithMockDistributedLocationStore(MockDistributedLocationStore mock)
         {

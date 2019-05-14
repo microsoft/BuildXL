@@ -3,7 +3,6 @@
 
 using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using CLAP;
 
 // ReSharper disable once UnusedMember.Global
@@ -19,7 +18,9 @@ namespace BuildXL.Cache.ContentStore.App
         {
             RunFileSystemContentStoreInternal(new AbsolutePath(root), async (context, store) =>
             {
-                await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).IgnoreFailure().ConfigureAwait(false);
+                context.Always($"Running self-check for '{root}'.");
+                var result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ConfigureAwait(false);
+                context.Always($"Self check completed {result}.");
             });
         }
     }

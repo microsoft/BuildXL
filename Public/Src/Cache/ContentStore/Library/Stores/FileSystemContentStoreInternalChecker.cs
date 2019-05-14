@@ -127,6 +127,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             SelfCheckState selfCheckState,
             SelfCheckStatus status)
         {
+            _tracer.Always(context, "Starting self check.");
             // Self checking procedure validates that in-memory content directory
             // is valid in respect to the state on disk.
             // Namely, it checks that the hashes for all the files and their size are correct.
@@ -154,12 +155,13 @@ namespace BuildXL.Cache.ContentStore.Stores
                     $"SelfCheck: starting self check for the entire content directory because {statusAsString}. Previous state '{selfCheckState.ToParseableString()}'.");
             }
 
-            // Task for tracking progress.
-            Task progressReportingTask = Task.Delay(_settings.SelfCheckProgressReportingInterval);
+            // Time span for tracking progress.
+            TimeSpan progressTracker = TimeSpan.FromSeconds(0);
+            long processedBytes = 0;
 
             int invalidEntries = 0;
             int processedEntries = 0;
-
+            
             for (; index < contentHashes.Count; index++)
             {
                 if (context.Token.IsCancellationRequested)
@@ -180,11 +182,13 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
 
                 // Tracking the progress if needed.
-                traceProgressIfNeeded(hashInfo.hash);
+                traceProgressIfNeeded(hashInfo.hash, index);
 
-                if (((index + 1) % _settings.SelfCheckFilesLimit) == 0)
+                // If the current entry is not the last one, and we reached the number of invalid files,
+                // then exiting the loop.
+                if (invalidEntries ==  _settings.SelfCheckInvalidFilesLimit && index != contentHashes.Count - 1)
                 {
-                    _tracer.Debug(context, "SelfCheck: Exiting self check because file count limit is reached.");
+                    _tracer.Debug(context, $"SelfCheck: Exiting self check because invalid file limit of {_settings.SelfCheckInvalidFilesLimit} is reached.");
                     break;
                 }
             }
@@ -197,7 +201,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             else
             {
                 // The loop was interrupted. Saving an incremental state.
-                var newStatus = selfCheckState.WithNewPosition(contentHashes[index].hash);
+                var newStatus = selfCheckState.WithEpochAndPosition(_settings.SelfCheckEpoch, contentHashes[index].hash);
                 UpdateSelfCheckStateOnDisk(context, newStatus);
             }
 
@@ -229,17 +233,28 @@ namespace BuildXL.Cache.ContentStore.Stores
                 return targetIndex;
             }
 
-            void traceProgressIfNeeded(ContentHash currentHash)
+            void traceProgressIfNeeded(ContentHash currentHash, int currentHashIndex)
             {
-                if (progressReportingTask.IsCompleted)
+                processedBytes += contentHashes[currentHashIndex].fileInfo.Length;
+
+                var swTime = stopwatch.Elapsed;
+                if (swTime - progressTracker > _settings.SelfCheckProgressReportingInterval)
                 {
-                    progressReportingTask = Task.Delay(_settings.SelfCheckProgressReportingInterval);
+                    // It is possible to have multiple replicas with the same hash.
+                    // We need to save the state only when *all* the replicas are processed.
+                    // So we check if the next item has a different hash.
+                    if (currentHash != contentHashes[currentHashIndex + 1].hash)
+                    {
+                        var speed = ((double)processedBytes / (1024*1024)) / _settings.SelfCheckProgressReportingInterval.TotalSeconds;
+                        _tracer.Always(context, $"SelfCheck: processed {index}/{contentHashes.Count}: {new SelfCheckResult(invalidEntries, processedEntries)}. Hashing speed {speed:0.##}Mb/s.");
+                        processedBytes = 0;
 
-                    _tracer.Debug(context, $"SelfCheck: progress ({processedEntries}/{contentHashes.Count}): {new SelfCheckResult(invalidEntries, processedEntries)}.");
+                        // Saving incremental state
+                        var newStatus = selfCheckState.WithEpochAndPosition(_settings.SelfCheckEpoch, currentHash);
+                        UpdateSelfCheckStateOnDisk(context, newStatus);
 
-                    // Saving incremental state
-                    var newStatus = selfCheckState.WithNewPosition(currentHash);
-                    UpdateSelfCheckStateOnDisk(context, newStatus);
+                        progressTracker = swTime;
+                    }
                 }
             }
         }
@@ -302,7 +317,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         internal readonly struct SelfCheckState : IEquatable<SelfCheckState>
         {
-            private const string EmptyHash = "NO_HASH";
+            private const string EmptyHash = "FINISHED_NOT_A_HASH";
 
             /// <summary>
             /// Epoch used during the last self check.
@@ -335,7 +350,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             /// <nodoc />
             public static SelfCheckState OutOfDate { get; } = new SelfCheckState();
 
-            public SelfCheckState WithNewPosition(ContentHash lastPosition) => new SelfCheckState(Epoch, LastReconcileTime, lastPosition);
+            public SelfCheckState WithEpochAndPosition(string epoch, ContentHash lastPosition) => new SelfCheckState(epoch, LastReconcileTime, lastPosition);
 
             public static SelfCheckState SelfCheckComplete(string epoch, DateTime now) => new SelfCheckState(epoch, now);
 
@@ -365,6 +380,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             /// <nodoc />
             public static SelfCheckState? TryParse(string content)
             {
+                content = content.Trim('\r', '\n');
                 // The format is:
                 // Epoch|LastFullReconcileTime|LastContentHash
                 var parts = content.Split('|');

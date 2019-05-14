@@ -620,13 +620,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Transform entries of an existing serialized file.
         /// </summary>
-        public static async Task TransformFile
-            (
+        public static async Task TransformFile(
             Context context,
             IAbsFileSystem fileSystem,
             AbsolutePath directoryPath,
-            Func<KeyValuePair<ContentHash, ContentFileInfo>, KeyValuePair<ContentHash, ContentFileInfo>> transformer
-            )
+            Func<KeyValuePair<ContentHash, ContentFileInfo>, KeyValuePair<ContentHash, ContentFileInfo>> transformer)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(directoryPath != null);

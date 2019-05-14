@@ -200,6 +200,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                              UseLegacyQuotaKeeperImplementation = settings.UseLegacyQuotaKeeperImplementation,
                              StartPurgingAtStartup = settings.StartPurgingAtStartup,
                              UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
+                             SelfCheckEpoch = settings.SelfCheckEpoch,
+                             StartSelfCheckInStartup = settings.StartSelfCheckAtStartup,
+                             SelfCheckFrequency = TimeSpan.FromMinutes(settings.SelfCheckFrequencyInMinutes),
                          };
         }
 

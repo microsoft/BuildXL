@@ -27,7 +27,7 @@ namespace Factory {
         const xmlPath = binaryPath.changeExtension(".xml");
 
         return {
-            binary:  contents.getFile(binaryPath),
+            binary: contents.getFile(binaryPath),
             pdb: contents.hasFile(pdbPath) ? contents.getFile(pdbPath) : undefined,
             documentation: contents.hasFile(xmlPath) ? contents.getFile(xmlPath) : undefined,
             deploy: Deployment.flattenBinary,

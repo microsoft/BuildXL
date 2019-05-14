@@ -2,10 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 module({
-    name: "Sdk.Managed.Frameworks",
+    name: "Sdk.Managed.Frameworks.NetCoreApp3.0",
     nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [
-        f`frameworks.dsc`,
-        f`helpers.dsc`
+        f`netcoreapp3.0.dsc`,
     ]
 });

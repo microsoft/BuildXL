@@ -4,7 +4,7 @@
 import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 
-export declare const qualifier: {targetFramework: "netcoreapp2.2" | "netstandard1.6" | "net472" | "net461" | "net451" | "net45" };
+export declare const qualifier: {targetFramework: "netcoreapp3.0" | "netstandard1.6" | "net472" | "net461" | "net451" | "net45" };
 
 const nativePackage = importFrom("RocksDbNative").pkg;
 const managedPackage = importFrom("RocksDbSharpSigned").withQualifier({targetFramework: "net451"}).pkg;
@@ -13,10 +13,10 @@ const managedPackage = importFrom("RocksDbSharpSigned").withQualifier({targetFra
 export const pkg = managedPackage.override<Managed.ManagedNugetPackage>({
     name: "RocksDbSharp",
     version: nativePackage.version,
-    runtimeContent: { 
-        contents: [ <Deployment.NestedDefinition>{ 
+    runtimeContent: {
+        contents: [ <Deployment.NestedDefinition>{
             subfolder: r`native`,
             contents: [ Deployment.createFromFilteredStaticDirectory(nativePackage.contents, r`build/native`) ] }
-        ] 
+        ]
     },
 });

@@ -4,11 +4,11 @@
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 import * as Shared from "Sdk.Managed.Shared";
 
-const pkgContents = Context.getCurrentHost().os === "win" 
+const pkgContents = Context.getCurrentHost().os === "win"
     ? importFrom("Microsoft.Net.Compilers").Contents.all
     : importFrom("Microsoft.NETCore.Compilers").Contents.all;
 
-const cscTool = Context.getCurrentHost().os === "win" 
+const cscTool = Context.getCurrentHost().os === "win"
     ? r`tools/csc.exe`
     : r`tools/bincore/csc.dll`;
 
@@ -55,8 +55,8 @@ export function compile(inputArgs: Arguments) : Result {
 
     const outputDirectory = Context.getNewOutputDirectory(args.out + "-csc");
     const outputBinPath = outputDirectory.combine(args.out);
-    const outputPdbPath = (args.debugType || args.emitDebugInformation) 
-        ? (args.pdb ? p`${outputDirectory}/${args.pdb}` : outputBinPath.changeExtension(".pdb")) 
+    const outputPdbPath = (args.debugType || args.emitDebugInformation)
+        ? (args.pdb ? p`${outputDirectory}/${args.pdb}` : outputBinPath.changeExtension(".pdb"))
         : undefined;
     const outputDocPath = args.doc && p`${outputDirectory}/${args.doc}`;
     const outputRefPath = args.emitReferenceAssembly ? p`${outputDirectory}/ref/${args.out}` : undefined;
@@ -77,7 +77,7 @@ export function compile(inputArgs: Arguments) : Result {
         Cmd.option("/langversion:", args.languageVersion),
 
         // TODO: uncoment the following line and delete the line after it once a new LKG is published
-        // Cmd.option("/define:",       args.defines ? args.defines.join(";") : undefined), 
+        // Cmd.option("/define:",       args.defines ? args.defines.join(";") : undefined),
         ...addIf((args.defines || []).length > 0, Cmd.rawArgument(`/define:"${args.defines.join(';')}"`)),
 
         Cmd.option("/nowarn:",       args.noWarnings ? args.noWarnings.map(n => n.toString()).join(",") : undefined),
@@ -111,7 +111,7 @@ export function compile(inputArgs: Arguments) : Result {
         Cmd.option("/test:",               args.moduleName ? ("moduleName=" + args.moduleName) : undefined),
         Cmd.option("/errorreport:",        args.errorReport ? args.errorReport.toString() : undefined),
         Cmd.flag("/deterministic",         args.deterministic),
-        ...(args.pathMap || []).map(entry => 
+        ...(args.pathMap || []).map(entry =>
             Cmd.option("/pathMap:", Cmd.join("", [Artifact.none(entry.key), "=", entry.value]))),
 
         Cmd.option("/keyfile:",         Artifact.input(args.keyFile)),
@@ -126,6 +126,9 @@ export function compile(inputArgs: Arguments) : Result {
         Cmd.options("/addmodule:",      Artifact.inputs(args.modules)),
         Cmd.options("/link:",           Artifact.inputs(args.link)),
         Cmd.options("/r:",              Artifact.inputs(args.references && args.references.map(r => r.binary))),
+
+        ...(args.aliasedReferences || []).map(r =>
+            Cmd.option(`/r:${r.alias}=`, Artifact.input(r.assembly.binary))),
 
         Cmd.options("/lib:",            Artifact.inputs(args.lib)),
         Cmd.options("/analyzer:",       Artifact.inputs(args.analyzers && args.analyzers.map(a => a.binary))),
@@ -157,7 +160,7 @@ export function compile(inputArgs: Arguments) : Result {
     };
 
     if (Context.getCurrentHost().os !== "win") {
-        cscExecuteArgs = importFrom("Sdk.Managed.Frameworks.NetCoreApp2.2").withQualifier({targetFramework: "netcoreapp2.2"}).wrapInDotNetExeForCurrentOs(cscExecuteArgs);
+        cscExecuteArgs = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(cscExecuteArgs);
     }
     let executeResult = Transformer.execute(cscExecuteArgs);
 
@@ -168,8 +171,8 @@ export function compile(inputArgs: Arguments) : Result {
         outputDocPath && executeResult.getOutputFile(outputDocPath)
     );
 
-    const referenceBinary = outputRefPath 
-        ? Shared.Factory.createBinaryFromFiles(executeResult.getOutputFile(outputRefPath)) 
+    const referenceBinary = outputRefPath
+        ? Shared.Factory.createBinaryFromFiles(executeResult.getOutputFile(outputRefPath))
         : undefined;
 
     return {
@@ -379,6 +382,6 @@ function toWarningLevelNumber(warningLevel: WarningLevel): number {
         case "level 2": return 2;
         case "level 3": return 3;
         case "level 4": return 4;
-        default:                  return Contract.fail("Unexpected WarningLevel '" + warningLevel + "'.");  
+        default:                  return Contract.fail("Unexpected WarningLevel '" + warningLevel + "'.");
     }
 }

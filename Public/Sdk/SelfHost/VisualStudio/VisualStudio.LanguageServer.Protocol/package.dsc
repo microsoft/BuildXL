@@ -18,7 +18,7 @@ export const pkg: Managed.ManagedNugetPackage = (() => {
         case "net451":
         case "net461":
         case "net472":
-            return Managed.Factory.createNugetPackge(
+            return Managed.Factory.createNugetPackage(
                 package.name,
                 package.version,
                 package.contents,

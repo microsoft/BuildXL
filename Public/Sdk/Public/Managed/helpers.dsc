@@ -44,17 +44,29 @@ namespace Helpers {
     };
 
     /**
-     * computes a transitive closure or managed binaries for the given list of references.
+     * Computes a transitive closure or managed binaries for the given list of references.
+     * Standard references of the supplied framework are automatically included.
      * You can control whether to follow the compile or the runtime axis using the optional compile argument.
      */
     @@public
     export function computeTransitiveReferenceClosure(framework: Shared.Framework, references: Shared.Reference[], compile?: boolean) : Shared.Binary[] {
+        return computeTransitiveClosure([
+            ...references,
+            ...framework.standardReferences
+        ], compile);
+    }
+
+    /**
+     * Computes a transitive closure or managed binaries for the given list of references.
+     * You can control whether to follow the compile or the runtime axis using the optional compile argument.
+     */
+    @@public
+    export function computeTransitiveClosure(references: Shared.Reference[], compile?: boolean) : Shared.Binary[] {
         let results = MutableSet.empty<Shared.Binary>();
         let visitedReferences = MutableSet.empty<Shared.Reference>();
 
         let allReferences = [
             ...(references || []),
-            ...framework.standardReferences,
         ];
 
         for (let ref of allReferences)

@@ -20,6 +20,9 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         [JsonProperty]
         private IReadOnlyCollection<ProjectWithPredictions<TPathType>> m_projectReferences;
 
+        [JsonProperty]
+        private PredictedTargetsToExecute m_predictedTargetsToExecute;
+
         /// <nodoc/>
         [JsonProperty(IsReference = false)]
         public TPathType FullPath { get; }
@@ -39,13 +42,26 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         public IReadOnlyCollection<TPathType> PredictedOutputFolders{ get; }
 
         /// <summary>
-        /// Collection of targets to be executed on the project (based on the initial targets for the entry point project)
+        /// Whether the project implements the target protocol
         /// </summary>
         /// <remarks>
-        /// An empty collection here means 'no targets' instead of 'default targets', so this project shouldn't be built.
-        /// The prediction may not be available, in which case some default actions are taken
+        /// See https://github.com/Microsoft/msbuild/blob/master/documentation/specs/static-graph.md
         /// </remarks>
-        public PredictedTargetsToExecute PredictedTargetsToExecute { get; }
+        public bool ImplementsTargetProtocol { get; }
+
+        /// <summary>
+        /// Collection of targets to be executed on the project (based on the initial targets for the entry point project)
+        /// </summary>
+        [JsonIgnore()]
+        public PredictedTargetsToExecute PredictedTargetsToExecute
+        {
+            get
+            {
+                Contract.Assert(m_predictedTargetsToExecute != null, "Predicted targets to execute are not set");
+                return m_predictedTargetsToExecute;
+            }
+            private set => m_predictedTargetsToExecute = value;
+        }
 
         /// <nodoc/>
         [JsonIgnore()]
@@ -62,18 +78,19 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// <nodoc/>
         public ProjectWithPredictions(
             TPathType fullPath, 
+            bool implementsTargetProtocol,
             GlobalProperties globalProperties,
             IReadOnlyCollection<TPathType> predictedInputFiles,
             IReadOnlyCollection<TPathType> predictedOutputFolders,
-            PredictedTargetsToExecute predictedTargetsToExecute,
+            PredictedTargetsToExecute predictedTargetsToExecute = null,
             IReadOnlyCollection<ProjectWithPredictions<TPathType>> projectReferences = null)
         {
             Contract.Requires(globalProperties != null);
             Contract.Requires(predictedInputFiles != null);
             Contract.Requires(predictedOutputFolders != null);
-            Contract.Requires(predictedTargetsToExecute != null);
 
             FullPath = fullPath;
+            ImplementsTargetProtocol = implementsTargetProtocol;
             GlobalProperties = globalProperties;
             PredictedInputFiles = predictedInputFiles;
             PredictedOutputFolders = predictedOutputFolders;
@@ -93,6 +110,20 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
             Contract.Assert(m_projectReferences == null, "Project references can be set only once");
 
             m_projectReferences = projectReferences;
+        }
+
+        /// <summary>
+        /// When constructing the graph under particular scenarios some instances of this class are created without knowing the targets to execute yet, so this allows for a way to set them after the fact.
+        /// </summary>
+        /// <remarks>
+        /// This method should be called only once per instance
+        /// </remarks>
+        public void SetTargetsToExecute(PredictedTargetsToExecute predictedTargetsToExecute)
+        {
+            Contract.Assert(predictedTargetsToExecute != null);
+            Contract.Assert(m_predictedTargetsToExecute == null, "Predicted targets to execute can be set only once");
+
+            m_predictedTargetsToExecute = predictedTargetsToExecute;
         }
     }
 }

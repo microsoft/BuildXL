@@ -14,12 +14,12 @@ interface DScriptResolver {
     /** Root directory where packages are stored. */
     root?: Directory;
 
-    /** List of packages with respecting path where to look for this package. 
+    /** List of packages with respecting path where to look for this package.
      * Obsolete, use 'modules' instead
     */
-    //@@obsolete 
+    //@@obsolete
     packages?: File[];
-    
+
     /** List of modules with respecting path where to look for this module. */
     modules?: File[];
 
@@ -31,27 +31,27 @@ interface DScriptResolver {
  * Custom resolver that uses NuGet for getting packages.
  */
 interface NuGetResolver {
-    kind: "Nuget";   
-    
+    kind: "Nuget";
+
     /**
      * Optional configuration to fix the version of nuget to use.
      *  When not specified the latest one will be used.
      */
     configuration?: NuGetConfiguration;
-    
+
     /**
      * The list of respositories to use to resolve. Keys are the name, values are the urls
      */
-    repositories?: { [name: string]: string; };  
-    
+    repositories?: { [name: string]: string; };
+
     /**
      * The transitive set of NuGet packages to retrieve
      */
-    packages?: {id: string; version: string; alias?: string; tfm?: string; dependentPackageIdsToSkip?: string[]; dependentPackageIdsToIgnore?: string[]}[];
-    
-    /** 
+    packages?: {id: string; version: string; alias?: string; tfm?: string; dependentPackageIdsToSkip?: string[]; dependentPackageIdsToIgnore?: string[], forceFullFrameworkQualifiersOnly?: boolean}[];
+
+    /**
      * Whether to enforce that the version range specified for dependencies in a NuGet package
-     * match the package version specified in the configuration file. 
+     * match the package version specified in the configuration file.
      * This is enforced if not specified */
     doNotEnforceDependencyVersions?: boolean;
 }
@@ -64,7 +64,7 @@ interface MsBuildResolver {
     kind: "MsBuild";
 
     /**
-     * The enlistment root. This may not be the location where parsing should begin; 
+     * The enlistment root. This may not be the location where parsing should begin;
      * 'rootTraversal' can override that behavior.
      */
     root: Directory;
@@ -103,7 +103,7 @@ interface MsBuildResolver {
      */
     untrackedDirectoryScopes?: Directory[];
 
-    /** 
+    /**
      * Whether pips scheduled by this resolver should run in an isolated container
      * For now running in a container means that outputs will always be created in unique locations
      * and merged back. No merge policies are available at this point, but they will likely be available.
@@ -112,7 +112,7 @@ interface MsBuildResolver {
      */
     runInContainer?: boolean;
 
-    /** 
+    /**
      * Collection of directories to search for the required MsBuild assemblies and MsBuild.exe (aka toolset).
      * If not specified, locations in %PATH% are used.
      * Locations are traversed in specification order.
@@ -133,7 +133,7 @@ interface MsBuildResolver {
 
     /**
      * Environment that is exposed to MSBuild. If not defined, the current process environment is exposed
-     * Note: if this field is not specified any change in an environment variable will potentially cause 
+     * Note: if this field is not specified any change in an environment variable will potentially cause
      * cache misses for all pips. This is because there is no way to know which variables were actually used during the build.
      * Therefore, it is recommended to specify the environment explicitly.
      */

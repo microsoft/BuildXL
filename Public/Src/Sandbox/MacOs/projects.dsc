@@ -1,5 +1,5 @@
 import {Cmd, Artifact, Transformer} from "Sdk.Transformers";
-import * as XCode from "Sdk.MacOS";
+import {XCode} from "Sdk.MacOS";
 
 namespace Sandbox {
     export declare const qualifier : {

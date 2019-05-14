@@ -170,7 +170,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
             Assert.Equal(packageRelativePath, pkg.Libraries[new NugetTargetFramework(m_monikers.Net45)].First().ToString(m_context.StringTable));
         }
 
-        [Fact(Skip = "Assumptions no longer correct with current Nuget workarounds for .NET Core")]
+        [Fact]
         public void TestManagedDependenciesImpliesAManagedPackage()
         {
             var pkg = AnalyzePackage(
@@ -194,10 +194,8 @@ namespace Test.BuildXL.FrontEnd.Nuget
                 s_packagesOnConfig);
 
             Assert.True(pkg.IsManagedPackage);
-            Assert.True(pkg.TargetFrameworkWithFallbacks.ContainsKey(m_monikers.Net45));
-
-            // TODO:Nuget: Add this back once we don't use a hack to collapse 4.5.1 dependencies to use 4.5 entries and thus enable .NET Core
-            // Assert.True(pkg.TargetFrameworkWithFallbacks.ContainsKey(m_monikers.Net451));
+            Assert.True(pkg.TargetFrameworks.Contains(m_monikers.Net45));
+            Assert.True(pkg.TargetFrameworks.Contains(m_monikers.Net451));
         }
 
         private NugetAnalyzedPackage AnalyzePackage(string xml, Dictionary<string, INugetPackage> packagesOnConfig, params string[] relativePaths)

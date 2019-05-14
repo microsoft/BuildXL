@@ -76,7 +76,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(Args.TryParseArguments(new[] { "/c:" + Path.Combine(TemporaryDirectory, "config.dc") }, Context.PathTable, null, out config), "Failed to construct arguments");
             Configuration = new CommandLineConfiguration(config);
 
-            Cache = OperatingSystemHelper.IsUnixOS ? InMemoryCacheFactory.Create(Context) : MockCacheFactory.Create(CacheRoot);
+            Cache = OperatingSystemHelper.IsUnixOS ? InMemoryCacheFactory.Create() : MockCacheFactory.Create(CacheRoot);
 
             FileContentTable = FileContentTable.CreateNew();
 

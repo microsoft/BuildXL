@@ -110,6 +110,37 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
+        public void SharedOpaqueOutputsAreScrubbedRegardlessOfDirectoriesKnownToTheGraph()
+        {
+            var file = X("out/subdir1/subdir2/MyFile.txt");
+            var spec0 = ProduceFileUnderSharedOpaque(file);
+            AddModule("Module0", ("spec0.dsc", spec0), placeInRoot: true);
+
+            RunEngine(rememberAllChangedTrackedInputs: true);
+
+            var objDir = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
+
+            // Make sure the file was produced
+            Assert.True(File.Exists(Path.Combine(objDir, file)));
+
+            // Change the spec so now another file is produced and the nested directory where the old output was is 
+            // declared as an input to the pip (so therefore becomes part of the graph)
+            var anotherFile = X("out/MyOtherFile.txt");
+            spec0 = ProduceFileUnderSharedOpaque(anotherFile, dependencies: "f`out/subdir1/subdir2`");
+
+            // Overrite the spec with the new content and run the engine again
+            File.WriteAllText(Path.Combine(Configuration.Layout.SourceDirectory.ToString(Context.PathTable), "spec0.dsc"), spec0);
+
+            RunEngine(rememberAllChangedTrackedInputs: true);
+
+            IgnoreWarnings();
+            // Make sure the new output is produced
+            Assert.True(File.Exists(Path.Combine(objDir, anotherFile)));
+            // Make sure the old output is deleted
+            Assert.False(File.Exists(Path.Combine(objDir, file)));
+        }
+
+        [Fact]
         public void OutputsUnderSharedOpaqueInSubdirAreScrubbed()
         {
             var file = X("out/subdir/MyFile.txt");
@@ -233,10 +264,10 @@ namespace Test.BuildXL.Engine
             XAssert.AreEqual(WellKnownTimestamps.OutputInSharedOpaqueTimestamp, FileUtilities.GetFileTimestamps(producedFile).CreationTime);
         }
 
-        private string ProduceFileUnderSharedOpaque(string file, bool failOnExit = false) => ProduceFileUnderDirectory(file, isDynamic: true, failOnExit);
+        private string ProduceFileUnderSharedOpaque(string file, bool failOnExit = false, string dependencies = "") => ProduceFileUnderDirectory(file, isDynamic: true, failOnExit, dependencies);
         private string ProduceFileStatically(string file, bool failOnExit = false) => ProduceFileUnderDirectory(file, isDynamic: false, failOnExit);
 
-        private string ProduceFileUnderDirectory(string file, bool isDynamic, bool failOnExit)
+        private string ProduceFileUnderDirectory(string file, bool isDynamic, bool failOnExit, string dependencies = "")
         {
             var shellCommand = OperatingSystemHelper.IsUnixOS
                 ? "-c 'echo hi" // note we are opening single quotes in this case
@@ -287,7 +318,7 @@ const result = execute({{
         {FailOnExitIfNeeded(failOnExit)}
         ],
     outputs: {outputs},
-    dependencies: [],
+    dependencies: [{dependencies}],
 }});";
         }
     }

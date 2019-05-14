@@ -77,7 +77,7 @@ namespace BuildXL.Engine
 
                 var possibleStore = await TryStoreToCacheAsync(
                     loggingContext,
-                    cache: possibleCacheInitializer.Result.CreateCacheForContext(context).ArtifactContentCache,
+                    cache: possibleCacheInitializer.Result.CreateCacheForContext().ArtifactContentCache,
                     symlinkFile: symlinkFile);
 
                 if (!possibleStore.Succeeded)

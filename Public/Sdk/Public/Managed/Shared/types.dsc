@@ -53,6 +53,11 @@ export interface Assembly extends Deployment.Deployable {
     runtime?: Binary;
 
     /**
+     * Optional native executable (for programs compiled to native with ILCompiler)
+     */
+    nativeExecutable?: File;
+
+    /**
      * The direct references of the assembly.
      */
     references: Reference[];
@@ -138,4 +143,9 @@ export function isAssembly(item: Reference) : item is Assembly {
 @@public
 export function isManagedPackage(item: NugetPackage) : item is ManagedNugetPackage {
     return item["compile"] !== undefined || item["runtime"] !== undefined || item["runtimeContent"] !== undefined || item["analyzers"] !== undefined;
+}
+
+@@public
+export function getExecutable(assembly: Assembly): File {
+    return assembly.nativeExecutable || assembly.runtime.binary;
 }

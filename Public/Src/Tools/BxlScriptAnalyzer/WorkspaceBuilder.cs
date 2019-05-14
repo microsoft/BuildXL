@@ -157,13 +157,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
             using (var cache = Task.FromResult<Possible<EngineCache>>(
                 new EngineCache(
-                    new InMemoryArtifactContentCache(
-                        new SchedulerContext(
-                            CancellationToken.None,
-                            frontEndContext.StringTable,
-                            frontEndContext.PathTable,
-                            frontEndContext.SymbolTable,
-                            frontEndContext.QualifierTable)),
+                    new InMemoryArtifactContentCache(),
 
                     // Note that we have an 'empty' store (no hits ever) rather than a normal in memory one.
                     new EmptyTwoPhaseFingerprintStore())))

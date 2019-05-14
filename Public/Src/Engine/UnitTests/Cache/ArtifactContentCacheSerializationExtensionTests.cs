@@ -27,8 +27,7 @@ namespace Test.BuildXL.Engine.Cache
         [Fact]
         public async Task RoundtripSimpleStructure()
         {
-            var context = BuildXLContext.CreateInstanceForTesting();
-            var cache = new InMemoryArtifactContentCache(context);
+            var cache = new InMemoryArtifactContentCache();
 
             var originalEntry = new PipCacheDescriptorV2Metadata()
                                 {
@@ -56,8 +55,7 @@ namespace Test.BuildXL.Engine.Cache
         [Fact]
         public async Task DeserializationReturnsNullIfUnavailable()
         {
-            var context = BuildXLContext.CreateInstanceForTesting();
-            var cache = new InMemoryArtifactContentCache(context);
+            var cache = new InMemoryArtifactContentCache();
 
             ContentHash imaginaryContent = ContentHashingUtilities.HashBytes(Encoding.UTF8.GetBytes("Imagination"));
 

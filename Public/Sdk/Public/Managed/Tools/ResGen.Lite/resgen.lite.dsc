@@ -17,23 +17,23 @@ namespace Tool {
             ...(qualifier.targetFramework === "net472" ? [
                 NetFx.System.Xml.dll,
                 NetFx.System.Xml.Linq.dll,
-
                 importFrom("System.Collections.Immutable").pkg,
                 importFrom("System.Reflection.Metadata").pkg,
-                importFrom("System.Threading.Tasks.Extensions").pkg,
+                importFrom("System.Threading.Tasks.Extensions").pkg
+            ] : []),
 
-                ] : []),
-            importFrom("Microsoft.CodeAnalysis.Common").pkg,
-            importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
-            importFrom("Microsoft.CodeAnalysis.CSharp.Workspaces").pkg,
-            importFrom("Microsoft.CodeAnalysis.Workspaces.Common").pkg,
+            // CodeAnalysis packages come with .NETStandard assemblies only. Force netstandard2.0 here as .NET 4.7.2 is
+            // compatible and the x-plat builds need that flavor anyway
+            importFrom("Microsoft.CodeAnalysis.Common").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("Microsoft.CodeAnalysis.CSharp").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("Microsoft.CodeAnalysis.CSharp.Workspaces").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("Microsoft.CodeAnalysis.Workspaces.Common").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
 
-            // There is a gap in our nuget integration so temporarily adding the dependencies manually
-            importFrom("System.Composition.AttributedModel").pkg,
-            importFrom("System.Composition.Convention").pkg,
-            importFrom("System.Composition.Hosting").pkg,
-            importFrom("System.Composition.Runtime").pkg,
-            importFrom("System.Composition.TypedParts").pkg,
+            importFrom("System.Composition.AttributedModel").withQualifier({ targetFramework: "netstandard1.0" }).pkg,
+            importFrom("System.Composition.Convention").withQualifier({ targetFramework: "netstandard1.0" }).pkg,
+            importFrom("System.Composition.Hosting").withQualifier({ targetFramework: "netstandard1.0" }).pkg,
+            importFrom("System.Composition.Runtime").withQualifier({ targetFramework: "netstandard1.0" }).pkg,
+            importFrom("System.Composition.TypedParts").withQualifier({ targetFramework: "netstandard1.0" }).pkg,
         ],
         tools: {
             csc: {

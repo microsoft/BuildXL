@@ -202,7 +202,7 @@ namespace BuildXL.Engine
 
             // We have a context which should be valid for the schedule. So, we can get a context-specific
             // cache for the schedule. Note that the resultant EngineSchedule will own this cache and dispose it later.
-            EngineCache scheduleCache = cacheInitializer.CreateCacheForContext(context);
+            EngineCache scheduleCache = cacheInitializer.CreateCacheForContext();
 
             var performanceDataFingerprint = PerformanceDataUtilities.ComputePerformanceDataFingerprint(
                 loggingContext,
@@ -395,12 +395,10 @@ namespace BuildXL.Engine
             }
         }
 
-        private static async Task<Possible<EngineCache>> GetCacheForContext(
-            CacheInitializationTask cacheInitializationTask,
-            EngineContext context)
+        private static async Task<Possible<EngineCache>> GetCacheForContext(CacheInitializationTask cacheInitializationTask)
         {
             var possibleCacheInitializer = await cacheInitializationTask;
-            return possibleCacheInitializer.Then(cacheInitializer => cacheInitializer.CreateCacheForContext(context));
+            return possibleCacheInitializer.Then(cacheInitializer => cacheInitializer.CreateCacheForContext());
         }
 
         /// <summary>
@@ -810,8 +808,6 @@ namespace BuildXL.Engine
                     loggingConfiguration: configuration.Logging,
                     // Everything that is not an output under a shared opaque is considered part of the build. 
                     isPathInBuild: path =>
-                        // Scheduler.PipGraph.IsPathInBuild is used for extra safety.
-                        scheduler.PipGraph.IsPathInBuild(AbsolutePath.Create(scheduler.Context.PathTable, path)) ||
                         !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path) ||
                         ShouldRemoveEmptyDirectories(configuration, path),
                     pathsToScrub: sharedOpaqueDirectories.Select(directory => directory.Path.ToString(scheduler.Context.PathTable)),
@@ -1585,7 +1581,7 @@ namespace BuildXL.Engine
                         loggingContext,
                         newContext,
                         newConfiguration,
-                        GetCacheForContext(engineCacheInitializationTask, newContext),
+                        GetCacheForContext(engineCacheInitializationTask),
                         performanceDataFingerprint: performanceDataFingerprint));
             // Make sure the result of the task is observed
             runningTimeTableTask.Forget();
@@ -1605,7 +1601,7 @@ namespace BuildXL.Engine
             // newContext is the finalized EngineContext. Now we can construct anything that needs a context.
             // Note that the proper EngineCache is one such thing, and so now we are responsible for disposing it later
             // (rather than EngineCache, which is initialized before we have a context ready).
-            EngineCache scheduleCache = cacheInitializer.CreateCacheForContext(newContext);
+            EngineCache scheduleCache = cacheInitializer.CreateCacheForContext();
 
             var pathExpander = await mountPathExpanderTask;
             PipTwoPhaseCache pipTwoPhaseCache = InitTwoPhaseCache(

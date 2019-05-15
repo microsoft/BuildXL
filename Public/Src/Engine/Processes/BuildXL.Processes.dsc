@@ -16,6 +16,9 @@ namespace Processes {
                 BuildXLSdk.NetFx.System.IO.Compression.dll,
                 BuildXLSdk.NetFx.System.Management.dll
             ),
+            ...addIf(BuildXLSdk.isDotNetCoreBuild,
+                importFrom("System.Management").pkg
+            ),
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,

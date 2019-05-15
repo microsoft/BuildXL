@@ -318,6 +318,7 @@ config({
                 { id: "System.Linq.Expressions", version: "4.3.0" },
                 { id: "System.Linq.Parallel", version: "4.3.0" },
                 { id: "System.Linq.Queryable", version: "4.3.0" },
+                { id: "System.Management", version: "4.5.0" },
                 { id: "System.Net.Http", version: "4.3.0" },
                 { id: "System.Net.NameResolution", version: "4.3.0" },
                 { id: "System.Net.NetworkInformation", version: "4.3.0" },

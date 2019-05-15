@@ -2,6 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Managed from "Sdk.Managed";
+import * as Shared from "Sdk.Managed.Shared";
+import * as SysMng from "System.Management";
+
 namespace Processes {
     export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet461;
 
@@ -17,7 +20,11 @@ namespace Processes {
                 BuildXLSdk.NetFx.System.Management.dll
             ),
             ...addIf(BuildXLSdk.isDotNetCoreBuild,
-                importFrom("System.Management").pkg
+                SysMng.pkg.override<Shared.ManagedNugetPackage>({
+                    runtime: [
+                        Shared.Factory.createBinaryFromFiles(SysMng.Contents.all.getFile(r`runtimes/win/lib/netcoreapp2.0/System.Management.dll`))
+                    ]
+                })
             ),
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             importFrom("BuildXL.Pips").dll,

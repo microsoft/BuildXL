@@ -87,7 +87,7 @@ if [[ -f "$kext_zip" ]]; then
 fi
 
 echo -e "Current state:\n"
-xcrun stapler validate -v $arg_KextPath
+xcrun stapler validate -v "$arg_KextPath"
 
 if [[ $? -eq 0 ]]; then
     echo "$arg_KextPath already notarized and stapled, nothing to do!"

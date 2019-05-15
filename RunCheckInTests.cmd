@@ -70,9 +70,9 @@ if EXIST %ENLISTMENTROOT%\Out\frontend\Nuget\specs (
 )
 
 set start=%time%
-set stepName=Building 'debug\net472' & 'debug\win-x64' using Lkg and deploying to RunCheckinTests
+set stepName=Building 'debug\net472' and 'debug\win-x64' using Lkg and deploying to RunCheckinTests (deploying net472 for the rest of RunCheckinTests)
 call :StatusMessage %stepName%
-    call :RunBxl -Use LKG -Deploy RunCheckinTests /q:DebugNet472 /q:DebugDotNetCore /f:output='%ENLISTMENTROOT%\Out\Bin\debug\net472\*'oroutput='%ENLISTMENTROOT%\Out\Bin\debug\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\tests\debug\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole-
+    call :RunBxl -Use LKG -Deploy RunCheckinTests -DeployRuntime net472 /q:DebugNet472 /q:DebugDotNetCore /f:output='%ENLISTMENTROOT%\Out\Bin\debug\net472\*'oroutput='%ENLISTMENTROOT%\Out\Bin\debug\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\tests\debug\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole-
     if %ERRORLEVEL% NEQ 0 goto BadLKGMessage
 call :RecordStep "%stepName%" %start%
 
@@ -170,7 +170,7 @@ endlocal && exit /b 0
         REM Incremental scheduling is disabled so we can deterministically get all pip fingerprints exported.
         REM This build and the next are disconnected from the shared cache to ensure that they don't converge with a remote build happening at the same time.
         set COMPARE_FINGERPRINTS_LOGS_DIR=%ENLISTMENTROOT%\Out\Logs\CompareFingerprints\
-        call :RunBxl -Use RunCheckinTests -minimal /q:Debug %BUILDXL_ARGS% /incrementalscheduling- /TraceInfo:RunCheckinTests=CompareFingerprints1 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable
+        call :RunBxl -Use RunCheckinTests -minimal -DeployRuntime net472 %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints1 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
 
         REM Produce a fingerprint file of the first run.
@@ -187,7 +187,7 @@ endlocal && exit /b 0
         REM Graph caching is disabled in case there is nondeterminism during graph construction.
         REM We use the same logs directory but with different prefix.
         set SECOND_PREFIX=BuildXL.2
-        call :RunBxl -Use RunCheckinTests -minimal /q:DebugNet472 %BUILDXL_ARGS% /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! /logPrefix:!SECOND_PREFIX! /IncrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints2 /cachegraph- -SharedCacheMode disable
+        call :RunBxl -Use RunCheckinTests -minimal -DeployRuntime net472 %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints2 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable /logPrefix:!SECOND_PREFIX! /cachegraph-
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
 
         REM Produce a fingerprint file of the second run.

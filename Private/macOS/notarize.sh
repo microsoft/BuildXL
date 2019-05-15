@@ -2,6 +2,8 @@
 
 # For detailed explanation see: https://developer.apple.com/documentation/security/notarizing_your_app_before_distribution/customizing_the_notarization_workflow
 
+set -e
+
 usage() {
     cat <<EOM
 
@@ -38,11 +40,11 @@ function parseArgs() {
             shift
             ;;
         --password | -p)
-            arg_Password=$2
+            arg_Password="$2"
             shift
             ;;
         --kext | -k)
-            arg_KextPath=$2
+            arg_KextPath="$2"
             shift
             ;;
         *)
@@ -65,7 +67,7 @@ if [[ -z $arg_Password ]]; then
     exit 1
 fi
 
-if [[ -z $arg_KextPath ]]; then
+if [[ ! -d "$arg_KextPath" ]]; then
     echo "[ERROR] Must supply valid / non-empty path to KEXT to notarize!"
     exit 1
 fi
@@ -78,10 +80,10 @@ if [[ -z $bundle_id ]]; then
 fi
 
 echo "Notarizating $arg_KextPath"
-declare kext_zip=$arg_KextPath.zip
+declare kext_zip="${arg_KextPath}.zip"
 
-if [[ -f $kext_zip ]]; then
-    rm -Rf $kext_zip
+if [[ -f "$kext_zip" ]]; then
+    rm -f "$kext_zip"
 fi
 
 echo -e "Current state:\n"
@@ -93,7 +95,7 @@ if [[ $? -eq 0 ]]; then
 fi
 
 echo "Creating zip file..."
-ditto -c -k --rsrc --keepParent $arg_KextPath $kext_zip
+ditto -c -k --rsrc --keepParent "$arg_KextPath" "$kext_zip"
 
 declare start_time=$(date +%s)
 
@@ -125,7 +127,7 @@ if [[ $request_id =~ ^\{?[A-F0-9a-f]{8}-[A-F0-9a-f]{4}-[A-F0-9a-f]{4}-[A-F0-9a-f
                 break
             fi
 
-            ((-attempts))
+            ((attempts--))
         else
             if [[ $status != "in progress" ]]; then
                 break
@@ -147,10 +149,10 @@ if [[ $request_id =~ ^\{?[A-F0-9a-f]{8}-[A-F0-9a-f]{4}-[A-F0-9a-f]{4}-[A-F0-9a-f
         fi
 
         # Staple the ticket to the kext
-        xcrun stapler staple $arg_KextPath
+        xcrun stapler staple "$arg_KextPath"
 
         echo -e "State after notarization:\n"
-        xcrun stapler validate -v $arg_KextPath
+        xcrun stapler validate -v "$arg_KextPath"
         echo -e "Stapler exit code: $? (must be zero on success!)\n"
     fi
 else

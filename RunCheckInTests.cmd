@@ -170,7 +170,7 @@ endlocal && exit /b 0
         REM Incremental scheduling is disabled so we can deterministically get all pip fingerprints exported.
         REM This build and the next are disconnected from the shared cache to ensure that they don't converge with a remote build happening at the same time.
         set COMPARE_FINGERPRINTS_LOGS_DIR=%ENLISTMENTROOT%\Out\Logs\CompareFingerprints\
-        call :RunBxl -Use RunCheckinTests -minimal %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints1 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable
+        call :RunBxl -Use RunCheckinTests -minimal -DeployRuntime net472 %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints1 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
 
         REM Produce a fingerprint file of the first run.
@@ -187,7 +187,7 @@ endlocal && exit /b 0
         REM Graph caching is disabled in case there is nondeterminism during graph construction.
         REM We use the same logs directory but with different prefix.
         set SECOND_PREFIX=BuildXL.2
-        call :RunBxl -Use RunCheckinTests -minimal %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints2 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable /logPrefix:!SECOND_PREFIX! /cachegraph-
+        call :RunBxl -Use RunCheckinTests -minimal -DeployRuntime net472 %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints2 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable /logPrefix:!SECOND_PREFIX! /cachegraph-
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
 
         REM Produce a fingerprint file of the second run.

@@ -76,7 +76,7 @@ function runTest(args : TestRunArguments) : File[] {
 
         args = Object.merge<TestRunArguments>({
             xmlFile: xmlResultFile,
-            parallel: "all",
+            parallel: "none",
             noShadow: true,
             useAppDomains: false,
             traits: args.limitGroups && args.limitGroups.map(testGroup => <NameValuePair>{name: "Category", value: testGroup}),

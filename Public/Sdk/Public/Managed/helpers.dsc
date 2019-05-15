@@ -2,8 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Shared from "Sdk.Managed.Shared";
+import * as Csc    from "Sdk.Managed.Tools.Csc";
 
 namespace Helpers {
+
+    export declare const qualifier : Shared.TargetFrameworks.All;
+
     /**
      * Helper method that computes the compile closure based on a set of references.
      * This helper is for tools that gets a set of managed referneces and need to have the list of binaries that are used for compile.
@@ -44,17 +48,29 @@ namespace Helpers {
     };
 
     /**
-     * computes a transitive closure or managed binaries for the given list of references.
+     * Computes a transitive closure or managed binaries for the given list of references.
+     * Standard references of the supplied framework are automatically included.
      * You can control whether to follow the compile or the runtime axis using the optional compile argument.
      */
     @@public
     export function computeTransitiveReferenceClosure(framework: Shared.Framework, references: Shared.Reference[], compile?: boolean) : Shared.Binary[] {
+        return computeTransitiveClosure([
+            ...references,
+            ...framework.standardReferences
+        ], compile);
+    }
+
+    /**
+     * Computes a transitive closure or managed binaries for the given list of references.
+     * You can control whether to follow the compile or the runtime axis using the optional compile argument.
+     */
+    @@public
+    export function computeTransitiveClosure(references: Shared.Reference[], compile?: boolean) : Shared.Binary[] {
         let results = MutableSet.empty<Shared.Binary>();
         let visitedReferences = MutableSet.empty<Shared.Reference>();
 
         let allReferences = [
             ...(references || []),
-            ...framework.standardReferences,
         ];
 
         for (let ref of allReferences)
@@ -65,7 +81,7 @@ namespace Helpers {
         return results.toArray();
     }
 
-     function computeTransitiveReferenceClosureHelper(ref: Shared.Reference, results: MutableSet<Shared.Binary>, visitedReferences: MutableSet<Shared.Reference>, compile?: boolean) {
+    function computeTransitiveReferenceClosureHelper(ref: Shared.Reference, results: MutableSet<Shared.Binary>, visitedReferences: MutableSet<Shared.Reference>, compile?: boolean) {
         if (visitedReferences.contains(ref))
         {
             return;
@@ -120,4 +136,43 @@ namespace Helpers {
 
         return results.toArray();
     };
+
+    /** TODO: Unofortunately the System.Interactive.Async package exposes IAsyncEnumerable in its own System.Generic.Collection namespace,
+    /*        colliding with .NETCore 3.0 implementation of the same name. For the time being (hopefully once the package maintainers updated their deps),
+    /*        we explicitly create an aliased reference for the code that depends on this.
+    **/
+
+    @@public
+    export function patchReferencesForSystemInteractiveAsync(references: Shared.Reference[]) : Csc.Arguments {
+        const needsSystemInteractiveAsync = references.some(ref =>
+            Shared.isManagedPackage(ref) && !Shared.isAssembly(ref) && ref.name.contains("System.Interactive.Async"));
+
+        if (needsSystemInteractiveAsync) {
+            return <Csc.Arguments> {
+                aliasedReferences: [{
+                    alias: "Async",
+                    assembly: Shared.Factory.createBinary(
+                        importFrom("System.Interactive.Async").pkg.contents,
+                        r`lib/${tfmTargetForSystemInteractiveAsyncPackage()}/System.Interactive.Async.dll`
+                    )
+                }]
+            };
+        }
+
+        return <Csc.Arguments> {};
+    }
+
+    function tfmTargetForSystemInteractiveAsyncPackage() : string {
+        switch (qualifier.targetFramework) {
+            case "net451":
+                return "net45";
+            case "net461":
+            case "net472":
+                return"net46";
+            case "netcoreapp3.0":
+            case "netstandard2.0":
+            default:
+                return "netstandard1.3";
+        }
+    }
 }

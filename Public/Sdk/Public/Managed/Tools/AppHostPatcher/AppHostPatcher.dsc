@@ -2,8 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
-import * as MacOS from "Sdk.MacOS";
+import {CoreRT} from "Sdk.MacOS";
 import * as Managed from "Sdk.Managed";
+import * as Shared from "Sdk.Managed.Shared";
 import * as Frameworks from "Sdk.Managed.Frameworks";
 
 export declare const qualifier: Managed.TargetFrameworks.CurrentMachineQualifier;
@@ -11,10 +12,13 @@ export declare const qualifier: Managed.TargetFrameworks.CurrentMachineQualifier
 const pkgContents = importFrom("BuildXL.Tools.AppHostPatcher").Contents.all;
 
 const patcherExecutable = Context.getCurrentHost().os === "macOS"
-    ? Managed.nativeExecutable({ 
+    ? CoreRT.compileToNative(Managed.executable({ 
         assemblyName: "NativeAppHostPatcher",
-        sources: globR(d`.`, "*.cs")
-      })
+        sources: globR(d`.`, "*.cs"),
+        framework: Frameworks.framework.override<Shared.Framework>({
+            applicationDeploymentStyle: "frameworkDependent"
+        })
+      })).getExecutable()
     : pkgContents.getFile(r`tools/win-x64/AppHostPatcher.exe`);
 
 const patcher: Transformer.ToolDefinition = {

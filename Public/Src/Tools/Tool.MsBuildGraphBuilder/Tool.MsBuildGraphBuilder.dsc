@@ -20,6 +20,7 @@ namespace MsBuildGraphBuilder {
         references:[
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.FrontEnd").MsBuild.Serialization.dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("System.Collections.Immutable").pkg,
             importFrom("DataflowForMSBuildRuntime").pkg,

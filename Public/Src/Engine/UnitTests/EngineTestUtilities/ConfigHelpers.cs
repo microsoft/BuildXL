@@ -29,19 +29,19 @@ namespace Test.BuildXL.EngineTestUtilities
 
             if (testCache != null)
             {
-                engine.TestHooks.CacheFactory = (context) =>
+                engine.TestHooks.CacheFactory = () =>
                     {
                         return new EngineCache(
-                            testCache.GetArtifacts(context),
+                            testCache.GetArtifacts(),
                             testCache.Fingerprints);
                     };
             }
             else
             {
-                engine.TestHooks.CacheFactory = (context) =>
+                engine.TestHooks.CacheFactory = () =>
                     {
                         return new EngineCache(
-                            new InMemoryArtifactContentCache(context),
+                            new InMemoryArtifactContentCache(),
                             new InMemoryTwoPhaseFingerprintStore());
                     };
             }

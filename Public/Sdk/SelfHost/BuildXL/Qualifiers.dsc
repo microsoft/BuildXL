@@ -19,7 +19,7 @@ export interface FullFrameworkQualifier extends Qualifier {
 @@public
 export interface DefaultQualifier extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net472" | "netcoreapp2.2";
+    targetFramework: "net472" | "netcoreapp3.0";
     targetRuntime: "win-x64" | "osx-x64";
 }
 
@@ -29,7 +29,7 @@ export interface DefaultQualifier extends Qualifier {
 @@public
 export interface DefaultQualifierWithNet451 extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net451" | "net461" | "net472" | "netcoreapp2.2";
+    targetFramework: "net451" | "net461" | "net472" | "netcoreapp3.0";
     targetRuntime: "win-x64" | "osx-x64";
 }
 
@@ -40,7 +40,7 @@ export interface DefaultQualifierWithNet451 extends Qualifier {
 @@public
 export interface DefaultQualifierWithNet461 extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net461" | "net472" | "netcoreapp2.2";
+    targetFramework: "net461" | "net472" | "netcoreapp3.0";
     targetRuntime: "win-x64" | "osx-x64";
 }
 
@@ -50,13 +50,13 @@ export interface DefaultQualifierWithNet461 extends Qualifier {
 @@public
 export interface DefaultQualifierWithNet451AndNetStandard20 extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net451" | "net461" | "net472" | "netcoreapp2.2" | "netstandard2.0";
+    targetFramework: "net451" | "net461" | "net472" | "netcoreapp3.0" | "netstandard2.0";
     targetRuntime: "win-x64" | "osx-x64";
 }
 
 export interface AllSupportedQualifiers extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net451" | "net461" | "net472" | "netcoreapp2.2" | "netstandard2.0";
+    targetFramework: "net451" | "net461" | "net472" | "netcoreapp3.0" | "netstandard2.0";
     targetRuntime: "win-x64" | "osx-x64";
 }
 
@@ -72,7 +72,7 @@ export interface PlatformDependentQualifier extends Qualifier {
 @@public
 export interface NetCoreAppQualifier extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "netcoreapp2.2";
+    targetFramework: "netcoreapp3.0";
     targetRuntime: "win-x64" | "osx-x64";
 }
 

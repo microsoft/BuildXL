@@ -37,7 +37,7 @@ namespace BuildXL.FrontEnd.Sdk
 
         /// <nodoc/>
         protected readonly PathTable m_pathTable;
-        
+
 
         /// <summary>
         /// Mount names defined in the configuration (populated during construction).
@@ -87,7 +87,7 @@ namespace BuildXL.FrontEnd.Sdk
             }
 
             stream =  m_fileSystem.OpenText(AbsolutePath.Create(m_pathTable, physicalPath)).BaseStream;
-            
+
             return true;
         }
 
@@ -98,7 +98,10 @@ namespace BuildXL.FrontEnd.Sdk
             if (TryGetFrontEndFile(path, "dummyFrontEnd", out stream))
             {
                 var result = await FileContent.ReadFromAsync(stream);
+#pragma warning disable AsyncFixer02
                 stream?.Dispose();
+#pragma warning restore AsyncFixer02
+
                 return result;
             }
 

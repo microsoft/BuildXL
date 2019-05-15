@@ -116,7 +116,9 @@ namespace Test.BuildXL.Ipc
                         Assert.False(client2PingResponseTask.IsCompleted);
 
                         // close client1 and wait for response to client2
+#pragma warning disable AsyncFixer02
                         client1.Dispose();
+#pragma warning restore AsyncFixer02
                         VerifyPingResponse(client2PingRequest, await client2PingResponseTask);
                     }
                 });

@@ -4,6 +4,7 @@
 import * as Deployment from "Sdk.Deployment";
 import * as ILRepack from "Sdk.Managed.Tools.ILRepack";
 import * as Shared from "Sdk.Managed.Shared";
+import * as NetCoreApp from "Sdk.Managed.Frameworks.NetCoreApp3.0";
 
 namespace Interfaces {
     export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451AndNetStandard20;
@@ -13,9 +14,8 @@ namespace Interfaces {
         assemblyName: "BuildXL.Cache.ContentStore.Interfaces",
         sources: globR(d`.`, "*.cs"),
         references: [
-            UtilitiesCore.dll,
             Hashing.dll,
-            
+            UtilitiesCore.dll,
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Runtime.Serialization.dll,
                 NetFx.System.Xml.dll,
@@ -31,6 +31,6 @@ namespace Interfaces {
             "BuildXL.Cache.ContentStore",
             "BuildXL.Cache.ContentStore.Distributed",
             "BuildXL.Cache.ContentStore.Interfaces.Test",
-        ],
+        ]
     });
 }

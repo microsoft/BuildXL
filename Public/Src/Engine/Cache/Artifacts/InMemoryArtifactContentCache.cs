@@ -31,7 +31,6 @@ namespace BuildXL.Engine.Cache.Artifacts
     /// </remarks>
     public sealed class InMemoryArtifactContentCache : IArtifactContentCacheForTest
     {
-        private readonly PipExecutionContext m_context;
         private readonly object m_lock;
 
         private readonly Dictionary<ContentHash, CacheEntry> m_content;
@@ -55,10 +54,9 @@ namespace BuildXL.Engine.Cache.Artifacts
         }
 
         /// <nodoc />
-        public InMemoryArtifactContentCache(PipExecutionContext context)
-            : this(context, new object(), new Dictionary<ContentHash, CacheEntry>())
+        public InMemoryArtifactContentCache()
+            : this(new object(), new Dictionary<ContentHash, CacheEntry>())
         {
-            Contract.Requires(context != null);
         }
 
         /// <inheritdoc />
@@ -75,26 +73,22 @@ namespace BuildXL.Engine.Cache.Artifacts
 
         /// <nodoc />
         private InMemoryArtifactContentCache(
-            PipExecutionContext context,
             object syncLock,
             Dictionary<ContentHash, CacheEntry> content)
         {
-            Contract.Requires(context != null);
             Contract.Requires(syncLock != null);
             Contract.Requires(content != null);
 
-            m_context = context;
             m_lock = syncLock;
             m_content = content;
-            Analysis.IgnoreArgument(m_context);
         }
 
         /// <summary>
         /// Wraps the content cache's content for use with another execution context
         /// </summary>
-        public InMemoryArtifactContentCache WrapForContext(PipExecutionContext context)
+        public InMemoryArtifactContentCache Wrap()
         {
-            return new InMemoryArtifactContentCache(context, m_lock, m_content);
+            return new InMemoryArtifactContentCache(m_lock, m_content);
         }
 
         /// <inheritdoc />

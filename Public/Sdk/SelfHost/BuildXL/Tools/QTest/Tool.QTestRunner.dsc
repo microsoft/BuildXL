@@ -116,7 +116,26 @@ export function runQTest(args: QTestArguments): Result {
     // If no qTestInputs is specified, use the qTestDirToDeploy
     qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
 
-    let qTestContextInfo = Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo") ? f`${Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo")}` : undefined;
+    // Microsoft internal cloud service use only
+    let qTestContextInfoPath = undefined;
+    let untrackingCBPaths = {};
+    if (Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo")){
+        const qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo");
+        qTestContextInfoPath = qTestContextInfoFile.path;
+        untrackingCBPaths =  {
+            unsafe: {
+                untrackedPaths: [
+                    qTestContextInfoFile,
+                ],
+                untrackedScopes: [
+                    d`d:/data`,
+                    d`d:/app`,
+                    ...addIf(Environment.hasVariable("QAUTHMATERIALROOT"), Environment.getDirectoryValue("QAUTHMATERIALROOT")),
+                ]
+            }
+        };
+    }
+    
     let commandLineArgs: Argument[] = [
         Cmd.option("--testBinary ", args.testAssembly),
         Cmd.option(
@@ -160,41 +179,38 @@ export function runQTest(args: QTestArguments): Result {
         ),
         Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType),
         Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
+        Cmd.flag("--enableVsJitDebugger", Environment.hasVariable("[Sdk.BuildXL]enableVsJitDebugger")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
-        Cmd.option("--qTestContextInfo ", Artifact.input(qTestContextInfo)),
-    ];
+        Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
+    ];          
 
-    let result = Transformer.execute({
-        tool: args.qTestTool ? args.qTestTool : qTestTool,
-        tags: tags,
-        description: args.description,
-        arguments: commandLineArgs,
-        consoleOutput: consolePath,
-        workingDirectory: sandboxDir,
-        tempDirectory: tempDirectory,
-        weight: args.weight,
-        disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
-        additionalTempDirectories : [sandboxDir],
-        privilegeLevel: args.privilegeLevel,
-        unsafe: {
-            untrackedPaths: [
-                qTestContextInfo,
-            ],
-            untrackedScopes: [
-                d`d:/data`,
-                d`d:/app`,
-            ]
-        },
-        dependencies: [
-            //When there are test failures, and PDBs are looked up to generate the stack traces,
-            //the original location of PDBs is used instead of PDBs in test sandbox. This is 
-            //a temporary solution until a permanent fix regarding the lookup is identified
-            ...(args.qTestInputs ? args.qTestInputs.filter(
-                f => f.name.hasExtension && f.name.extension === a`.pdb`
-            ) : []),
-        ],
-    });
+    let result = Transformer.execute(
+        Object.merge<Transformer.ExecuteArguments>(    
+            {
+                tool: args.qTestTool ? args.qTestTool : qTestTool,
+                tags: tags,
+                description: args.description,
+                arguments: commandLineArgs,
+                consoleOutput: consolePath,
+                workingDirectory: sandboxDir,
+                tempDirectory: tempDirectory,
+                weight: args.weight,
+                disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
+                additionalTempDirectories : [sandboxDir],
+                privilegeLevel: args.privilegeLevel,
+                dependencies: [
+                    //When there are test failures, and PDBs are looked up to generate the stack traces,
+                    //the original location of PDBs is used instead of PDBs in test sandbox. This is 
+                    //a temporary solution until a permanent fix regarding the lookup is identified
+                    ...(args.qTestInputs ? args.qTestInputs.filter(
+                        f => f.name.hasExtension && f.name.extension === a`.pdb`
+                    ) : []),
+                ],
+            }, 
+            untrackingCBPaths
+        )
+    );
     const qTestLogsDir: StaticDirectory = result.getOutputDirectory(logDir);
     return <Result>{
         console: result.getOutputFile(consolePath),
@@ -279,10 +295,6 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     vstestSettingsFile?: File;
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
-    /** Describes the type of coverage that QTest should employ. */
-    qCodeCoverageEnumType?: "DynamicCodeCov" | "None";
-    /** When enabled, creates a zip of the sandbox in log directory */
-    zipSandbox? : boolean;
     /** Privilege level required by this process to execute. */
     privilegeLevel?: "standard" | "admin";
 }

@@ -310,7 +310,7 @@ namespace Test.BuildXL.Scheduler
                 PipFragmentRenderer = this.CreatePipFragmentRenderer();
                 IpcProvider = IpcFactory.GetProvider();
                 var tracker = FileChangeTracker.CreateDisabledTracker(LoggingContext);
-                Cache = InMemoryCacheFactory.Create(context);
+                Cache = InMemoryCacheFactory.Create();
                 LocalDiskContentStore = new LocalDiskContentStore(LoggingContext, context.PathTable, FileContentTable, tracker);
 
                 m_sandboxedKextConnection = sandboxedKextConnection;

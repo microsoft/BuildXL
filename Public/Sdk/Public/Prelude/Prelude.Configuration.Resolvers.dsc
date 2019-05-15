@@ -14,12 +14,12 @@ interface DScriptResolver extends ResolverBase {
     /** Root directory where packages are stored. */
     root?: Directory;
 
-    /** List of packages with respecting path where to look for this package. 
+    /** List of packages with respecting path where to look for this package.
      * Obsolete, use 'modules' instead
     */
-    //@@obsolete 
+    //@@obsolete
     packages?: File[];
-    
+
     /** List of modules with respecting path where to look for this module. */
     modules?: File[];
 
@@ -32,26 +32,26 @@ interface DScriptResolver extends ResolverBase {
  */
 interface NuGetResolver extends ResolverBase {
     kind: "Nuget";
-    
+
     /**
      * Optional configuration to fix the version of nuget to use.
      *  When not specified the latest one will be used.
      */
     configuration?: NuGetConfiguration;
-    
+
     /**
      * The list of respositories to use to resolve. Keys are the name, values are the urls
      */
-    repositories?: { [name: string]: string; };  
-    
+    repositories?: { [name: string]: string; };
+
     /**
      * The transitive set of NuGet packages to retrieve
      */
-    packages?: {id: string; version: string; alias?: string; tfm?: string; dependentPackageIdsToSkip?: string[], dependentPackageIdsToIgnore?: string[]}[];
-    
-    /** 
+    packages?: {id: string; version: string; alias?: string; tfm?: string; dependentPackageIdsToSkip?: string[], dependentPackageIdsToIgnore?: string[], forceFullFrameworkQualifiersOnly?: boolean}[];
+
+    /**
      * Whether to enforce that the version range specified for dependencies in a NuGet package
-     * match the package version specified in the configuration file. 
+     * match the package version specified in the configuration file.
      * This is enforced if not specified */
     doNotEnforceDependencyVersions?: boolean;
 }
@@ -99,7 +99,7 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
     kind: "MsBuild";
 
     /**
-     * The enlistment root. This may not be the location where parsing should begin; 
+     * The enlistment root. This may not be the location where parsing should begin;
      * 'rootTraversal' can override that behavior.
      */
     root: Directory;
@@ -123,7 +123,7 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
      */
     additionalOutputDirectories?: Directory[];
 
-    /** 
+    /**
      * Whether pips scheduled by this resolver should run in an isolated container
      * For now running in a container means that outputs will always be created in unique locations
      * and merged back. No merge policies are available at this point, but they will likely be available.
@@ -132,7 +132,7 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
      */
     runInContainer?: boolean;
 
-    /** 
+    /**
      * Collection of directories to search for the required MsBuild assemblies and MsBuild.exe (a.k.a. MSBuild toolset).
      * If not specified, locations in %PATH% are used.
      * Locations are traversed in specification order.
@@ -140,14 +140,14 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
     msBuildSearchLocations?: Directory[];
 
     /**
-     * Optional file paths for the projects or solutions that should be used to start parsing. These are relative 
+     * Optional file paths for the projects or solutions that should be used to start parsing. These are relative
      * paths with respect to the root traversal.
      *
      * If not provided, BuildXL will attempt to find a candidate under the root traversal. If more than one candidate
      * is available, the process will fail.
      */
     fileNameEntryPoints?: RelativePath[];
-    
+
     /**
      * Targets to execute on the entry point project. If not provided, the default targets are used.
      * Initial targets are mapped to /target (or /t) when invoking MSBuild for the entry point project
@@ -157,7 +157,7 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
 
     /**
      * Environment that is exposed to MSBuild. If not defined, the current process environment is exposed
-     * Note: if this field is not specified any change in an environment variable will potentially cause 
+     * Note: if this field is not specified any change in an environment variable will potentially cause
      * cache misses for all pips. This is because there is no way to know which variables were actually used during the build.
      * Therefore, it is recommended to specify the environment explicitly.
      */
@@ -199,16 +199,16 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
     keepProjectGraphFile?: boolean;
 
     /**
-     * Whether each project has implicit access to the transitive closure of its references. 
+     * Whether each project has implicit access to the transitive closure of its references.
      * Turning this option on may imply a decrease in build performance but many existing MSBuild repos rely on an equivalent feature.
      * Defaults to false.
      */
     enableTransitiveProjectReferences?: boolean;
 
     /**
-     * When true, MSBuild projects are not treated as first class citizens and MSBuild is instructed to build each project using the legacy mode, 
+     * When true, MSBuild projects are not treated as first class citizens and MSBuild is instructed to build each project using the legacy mode,
      * which relies on SDK conventions to respect the boundaries of a project and not build dependencies. The legacy mode is less restrictive than the
-     * default mode, where explicit project references to represent project dependencies are strictly enforced, but a decrease in build performance and 
+     * default mode, where explicit project references to represent project dependencies are strictly enforced, but a decrease in build performance and
      * other build failures may occur (e.g. double writes due to overbuilds).
      * Defaults to false.
      */
@@ -218,6 +218,12 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
      * Policy to apply when a double write occurs. By default double writes are only allowed if the produced content is the same.
      */
     doubleWritePolicy?: DoubleWritePolicy;
+
+    /**
+     * Whether projects are allowed to not specify their target protocol.
+     * When true, default targets will be used as heuristics. Defaults to false.
+     */
+    allowProjectsToNotSpecifyTargetProtocol?: boolean;
 }
 
 
@@ -226,25 +232,25 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
  */
 interface NinjaResolver extends ResolverBase {
     kind: "Ninja";
-    
+
     /**
      * High-level targets to explore
-     * TODO: This probably shouldn't be the user's responsibilty 
-     */ 
+     * TODO: This probably shouldn't be the user's responsibilty
+     */
     targets?: string[];
-    
+
     /**
-     * The root of the project. This should be the directory containing the build.ninja file 
+     * The root of the project. This should be the directory containing the build.ninja file
      * (or the corresponding .ninja build file if it's named differently).
      * If not present, specFile should be specified and its parent will be the projectRoot
      */
-    projectRoot?: Directory; 
+    projectRoot?: Directory;
 
     /* The build file, typically build.ninja. If null, f`${projectRoot}/build.ninja` is used */
     specFile?: File;
 
     /**
-     * The name of the module exposed to other DScript projects. 
+     * The name of the module exposed to other DScript projects.
      * This should be unique across modules.
      */
     moduleName: string;
@@ -253,7 +259,7 @@ interface NinjaResolver extends ResolverBase {
      * Preserve intermediate outputs used to construct the graph,
      * that is, the arguments passed to the tools and the JSON reperesentation
      * of the dependency graph. Useful for debugging.
-     * If not present, we don't keep the outputs. 
+     * If not present, we don't keep the outputs.
      */
     keepToolFiles?: boolean;
 
@@ -278,14 +284,14 @@ interface NinjaResolver extends ResolverBase {
  */
 interface CMakeResolver extends ResolverBase {
     kind: "CMake";
-    
-    /**
-     * The root of the project. This should be the directory containing the CMakeLists.txt file 
-     */
-    projectRoot: Directory; 
 
     /**
-     * The name of the module exposed to other DScript projects. 
+     * The root of the project. This should be the directory containing the CMakeLists.txt file
+     */
+    projectRoot: Directory;
+
+    /**
+     * The name of the module exposed to other DScript projects.
      * This should be unique across modules.
      */
     moduleName: string;
@@ -297,17 +303,17 @@ interface CMakeResolver extends ResolverBase {
     buildDirectory: RelativePath;
 
     /**
-     * When cmake is first run in an empty build tree, it creates a CMakeCache.txt file 
-     * and populates it with customizable settings for the project. 
-     * This option may be used to specify a setting that takes priority over the project’s default value. 
+     * When cmake is first run in an empty build tree, it creates a CMakeCache.txt file
+     * and populates it with customizable settings for the project.
+     * This option may be used to specify a setting that takes priority over the project’s default value.
      * [https://cmake.org/cmake/help/v3.6/manual/cmake.1.html]
-     * 
+     *
      * These values will be passed to the CMake generator as -D<name>=<value> arguments
      * The value can be 'undefined', in which case the variable will be unset (-U<name> will be passed as an argument)
      */
     cacheEntries?: { [name: string]: string; };
 
-    /** 
+    /**
      * Collection of directories to search for cmake.exe.
      * If not specified, locations in %PATH% are used.
      * Locations are traversed in specification order.
@@ -334,8 +340,8 @@ interface ToolConfiguration {
 }
 
 interface ResolverBase {
-    /** 
-     * Optional name of the resolver 
+    /**
+     * Optional name of the resolver
      * When provided BuildXL will give better error messages and
      * allows grouping in the viewer
      **/

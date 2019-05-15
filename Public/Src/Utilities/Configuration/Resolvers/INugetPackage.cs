@@ -41,6 +41,11 @@ namespace BuildXL.Utilities.Configuration
         /// Optional dependent Nuget packages to skip when resolving dependencies, a list of Nuget package Ids
         /// </summary>
         List<string> DependentPackageIdsToIgnore { get; }
+
+        /// <summary>
+        /// Optional flag to force package spec generation to use full framework qualifiers only
+        /// </summary>
+        bool ForceFullFrameworkQualifiersOnly { get; }
     }
 
     /// <nodoc/>
@@ -53,7 +58,6 @@ namespace BuildXL.Utilities.Configuration
         public static string GetPackageIdentity(this INugetPackage nugetPackage)
         {
             Contract.Requires(!string.IsNullOrEmpty(nugetPackage.Id), "Every package should have an ID");
-
             return !string.IsNullOrEmpty(nugetPackage.Alias) ? nugetPackage.Alias : nugetPackage.Id;
         }
     }

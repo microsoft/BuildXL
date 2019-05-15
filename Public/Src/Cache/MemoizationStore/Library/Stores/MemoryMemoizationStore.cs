@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+extern alias Async;
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -91,7 +93,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         ///     Enumerate known selectors for a given weak fingerprint.
         /// </summary>
-        internal IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts)
+        internal Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts)
         {
             var result = GetSelectorsCore(context, weakFingerprint, cts);
             if (result)
@@ -164,7 +166,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             CancellationToken cts)
         {
             using (var cancellableContext = TrackShutdown(context, cts))
-            { 
+            {
                 return await AddOrGetContentHashListCall.RunAsync(_tracer, cancellableContext, strongFingerprint, async () =>
                 {
                     using (await _lockSet.AcquireAsync(strongFingerprint.WeakFingerprint).ConfigureAwait(false))
@@ -220,7 +222,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc/>
-        public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             return _records.Select(record => new StructResult<StrongFingerprint>(record.StrongFingerprint)).ToAsyncEnumerable();
         }

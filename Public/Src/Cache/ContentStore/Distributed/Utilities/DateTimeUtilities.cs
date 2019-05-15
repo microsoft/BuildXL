@@ -2,8 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Globalization;
-using System.Threading;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 {
@@ -13,28 +11,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// The Epoch for Unix time.
         /// </summary>
         public static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        private const string LastAccessedFormatString = "yyyyMMdd.HHmmss";
-
-        public static string ToReadableString(this DateTime time)
-        {
-            return time.ToString(LastAccessedFormatString, CultureInfo.InvariantCulture);
-        }
-
-        public static DateTime? FromReadableTimestamp(string timeString)
-        {
-            if (timeString == null)
-            {
-                return null;
-            }
-
-            if (DateTime.TryParseExact(timeString, LastAccessedFormatString, CultureInfo.InvariantCulture, DateTimeStyles.None, out var result))
-            {
-                return result;
-            }
-
-            return null;
-        }
 
         public static long ToUnixTimeSeconds(this DateTime preciseDateTime)
         {
@@ -64,21 +40,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             }
 
             return UnixEpoch.AddSeconds(unixTimeSeconds);
-        }
-
-        public static bool IsRecent(this DateTime lastTouch, DateTime now, TimeSpan recencyInterval)
-        {
-            if (recencyInterval == Timeout.InfiniteTimeSpan)
-            {
-                return true;
-            }
-
-            return lastTouch + recencyInterval >= now;
-        }
-
-        public static TimeSpan Multiply(this TimeSpan timespan, double factor)
-        {
-            return TimeSpan.FromTicks((long)(timespan.Ticks * factor));
         }
     }
 }

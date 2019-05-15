@@ -22,7 +22,7 @@ namespace TestGeneratorDeployment {
                 subfolder: a`MacOs`,
                 contents: $.withQualifier({
                     configuration: qualifier.configuration,
-                    targetFramework: "netcoreapp2.2",
+                    targetFramework: "netcoreapp3.0",
                     targetRuntime: "osx-x64"
                 }).TestGenerator.deploymentContents
             }

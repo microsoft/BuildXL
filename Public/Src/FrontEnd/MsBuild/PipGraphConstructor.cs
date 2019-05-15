@@ -70,8 +70,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 return new ActionBlock<ProjectWithPredictions>(
                     project =>
                     {
-                        // We only schedule the project if targets to execute couldn't be predicted, or the predicted target collection is non-empty
-                        if (!project.PredictedTargetsToExecute.TargetsAreKnownToBeEmpty)
+                        // We only schedule the project if predicted target collection is non-empty
+                        if (project.PredictedTargetsToExecute.Targets.Count != 0)
                         {
                             if (!m_pipConstructor.TrySchedulePipForFile(project, qualifierId, out _, out _))
                             {

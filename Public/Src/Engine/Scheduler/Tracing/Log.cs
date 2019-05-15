@@ -4266,7 +4266,6 @@ namespace BuildXL.Scheduler.Tracing
             string directoryPath,
             string pipDescription,
             string deletedPaths);
-
     }
 }
 #pragma warning restore CA1823 // Unused field

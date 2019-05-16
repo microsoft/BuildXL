@@ -105,7 +105,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 if (preserveOutputs)
                 {
-                    await AssertProcessSucceeds(
+                    await AssertProcessSucceedsAsync(
                         context,
                         sandboxConfiguration,
                         pip);
@@ -188,7 +188,7 @@ namespace Test.BuildXL.Processes.Detours
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true },
                     pip);
@@ -267,7 +267,7 @@ namespace Test.BuildXL.Processes.Detours
                 SandboxConfiguration sandboxConfiguration = new SandboxConfiguration { LogObservedFileAccesses = true };
                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorFileAccesses = false;
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip);
@@ -341,7 +341,7 @@ namespace Test.BuildXL.Processes.Detours
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true },
                     pip);
@@ -401,7 +401,7 @@ namespace Test.BuildXL.Processes.Detours
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true },
                     pip);
@@ -604,7 +604,7 @@ namespace Test.BuildXL.Processes.Detours
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.From(tempDirs));
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true },
                     pip);
@@ -665,7 +665,7 @@ namespace Test.BuildXL.Processes.Detours
                 SandboxConfiguration sandboxConfiguration = new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false, };
                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = false;
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip);
@@ -754,7 +754,7 @@ namespace Test.BuildXL.Processes.Detours
                         allowsCaching: false,
                         name: "name"));
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false },
                     pip,
@@ -843,7 +843,7 @@ namespace Test.BuildXL.Processes.Detours
                         allowsCaching: false,
                         name: "name"));
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false },
                     pip,
@@ -923,7 +923,7 @@ namespace Test.BuildXL.Processes.Detours
                         allowsCaching: false,
                         name: "name"));
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false },
                     pip,
@@ -1151,7 +1151,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorFileAccesses = false;
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip);
@@ -1289,7 +1289,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorFileAccesses = false;
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip);
@@ -1369,7 +1369,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorFileAccesses = false;
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip);
@@ -1438,7 +1438,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorFileAccesses = false;
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip);
@@ -1864,7 +1864,7 @@ namespace Test.BuildXL.Processes.Detours
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true },
                     pip);
@@ -1919,7 +1919,7 @@ namespace Test.BuildXL.Processes.Detours
             return AssertProcessCompletesWithStatus(SandboxedProcessPipExecutionStatus.PreparationFailed, context, config, process, fileAccessWhitelist);
         }
 
-        private static Task AssertProcessSucceeds(
+        private static Task AssertProcessSucceedsAsync(
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,

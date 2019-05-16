@@ -96,8 +96,8 @@ namespace BuildXL.Utilities.VmCommandProxy
             using (var executor = new AsyncProcessExecutor(
                 process,
                 TimeSpan.FromMinutes(InitVmTimeoutInMinute),
-                line => { if (line != null) { stdOutForStartBuild.AppendLine(line); m_logInitExecution?.Invoke($"{provenance} stdOut: {line}"); } },
-                line => { if (line != null) { stdErrForStartBuild.AppendLine(line); m_logInitExecution?.Invoke($"{provenance} stdErr: {line}"); } },
+                line => { if (line != null) { stdOutForStartBuild.AppendLine(line); } },
+                line => { if (line != null) { stdErrForStartBuild.AppendLine(line); } },
                 provenance: provenance,
                 logger: message => m_logInitExecution?.Invoke(message)))
             {

@@ -302,8 +302,6 @@ Versions/sym-sym-A -> sym-A/
                 outputDirArtifact = SealDirectory(rootDirAbsPath, dirKind, dao.Outputs.ToArray());
             }
 
-            System.Diagnostics.Debugger.Launch();
-
             // first run, expect cache miss
             RunScheduler().AssertSuccess().AssertCacheMiss(producerPip.PipId);
             AssertWarningEventLogged(LogEventId.StorageSymlinkDirInOutputDirectoryWarning, count: 2);

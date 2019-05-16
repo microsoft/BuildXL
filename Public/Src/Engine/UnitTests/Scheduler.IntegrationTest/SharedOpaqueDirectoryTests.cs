@@ -365,6 +365,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var builderA = CreatePipBuilder(new Operation[]
                                                    {
                                                        Operation.WriteFileWithRetries(outputArtifactA, doNotInfer: true),
+                                                       Operation.WriteFile(CreateOutputFileArtifact(ObjectRoot))
                                                    });
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             var resA = SchedulePipBuilder(builderA);
@@ -376,7 +377,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                                                    });
             builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             // Let's make B depend on A so we avoid potential file locks on the double write
-            builderB.AddInputDirectory(resA.Process.DirectoryOutputs.Single());
+            builderB.AddInputFile(resA.ProcessOutputs.GetOutputFiles().Single());
             SchedulePipBuilder(builderB);
 
 
@@ -450,6 +451,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var builderA = CreatePipBuilder(new Operation[]
                                                    {
                                                        Operation.WriteFileWithRetries(outputArtifactA, doNotInfer: true),
+                                                       Operation.WriteFile(CreateOutputFileArtifact(ObjectRoot))
                                                    });
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             var resA = SchedulePipBuilder(builderA);
@@ -461,7 +463,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                                                    });
             builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             // Let's make B depend on A so we avoid potential file locks on the double write
-            builderB.AddInputDirectory(resA.Process.DirectoryOutputs.Single());
+            builderB.AddInputFile(resA.ProcessOutputs.GetOutputFiles().Single());
             SchedulePipBuilder(builderB);
 
             RunScheduler().AssertSuccess();
@@ -536,6 +538,69 @@ namespace IntegrationTest.BuildXL.Scheduler
             
             // We are expecting a file monitor violation
             AssertErrorEventLogged(EventId.FileMonitoringError);
+        }
+
+        [Fact]
+        public void RewritingSourceFilesUnderSharedOpaqueWithSamePipIsNotAllowed()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            // Let's write a file that will serve as a source file for the pip below
+            var sourceFile = CreateSourceFile(sharedOpaqueDir);
+
+            // PipA writes to the source file under a shared opaque. 
+            var dummyOutput = CreateOutputFileArtifact();
+            var builderA = CreatePipBuilder(new Operation[]
+                                                   {
+                                                       Operation.WriteFile(sourceFile, doNotInfer: true),
+                                                   });
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            // And it is declared as a source file
+            builderA.AddInputFile(sourceFile);
+
+            SchedulePipBuilder(builderA);
+
+            IgnoreWarnings();
+            RunScheduler().AssertFailure();
+
+            // We are expecting a file monitor violation 
+            AssertErrorEventLogged(EventId.FileMonitoringError);
+            // It gets reported as a double write (between the writing pip and the hash source file pip)
+            AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
+        }
+
+        [Fact]
+        public void RewritingDirectoryDependencyUnderSharedOpaqueIsNotAllowed()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            // The first pip writes a file under a shared opaque
+            var dependencyInOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
+            var builderA = CreatePipBuilder(new Operation[]
+                                                   {
+                                                       Operation.WriteFile(dependencyInOpaque, doNotInfer: true),
+                                                   });
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            var resA = SchedulePipBuilder(builderA);
+
+            // The second pip depends on the shared opaque of the first pip, and tries to write to that same file
+            var builderB = CreatePipBuilder(new Operation[]
+                                                   {
+                                                       Operation.WriteFile(dependencyInOpaque, doNotInfer: true),
+                                                   });
+            builderB.AddInputDirectory(resA.ProcessOutputs.GetOutputDirectories().Single().Root);
+            builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            SchedulePipBuilder(builderB);
+
+            IgnoreWarnings();
+            RunScheduler().AssertFailure();
+
+            // We are expecting a file monitor violation
+            AssertErrorEventLogged(EventId.FileMonitoringError);
+            // It gets reported as a double write
+            AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
         }
 
         [Fact]
@@ -884,16 +949,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = 
                 AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
-            IEnumerable<Operation> writeOperation = 
+            IEnumerable<Operation> writeOperations = 
                 new Operation[]
                 {
                     Operation.WriteFileWithRetries(
                         CreateOutputFileArtifact(sharedOpaqueDir), 
-                        doNotInfer: true),
+                        doNotInfer: true)
                 };
 
             FirstDoubleWriteWinsMakesPipUnCacheableRunner(
-                writeOperation, 
+                writeOperations, 
                 sharedOpaqueDirPath,
                 originalProducerPipCacheHitExpected: false,
                 doubleWriteProducerPipCacheHitExpected: false);
@@ -901,7 +966,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             ResetPipGraphBuilder();
 
             FirstDoubleWriteWinsMakesPipUnCacheableRunner(
-                writeOperation, 
+                writeOperations, 
                 sharedOpaqueDirPath,
                 originalProducerPipCacheHitExpected: true,
                 doubleWriteProducerPipCacheHitExpected: false);
@@ -976,23 +1041,24 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         private void FirstDoubleWriteWinsMakesPipUnCacheableRunner(
-            IEnumerable<Operation> writeOperation, 
+            IEnumerable<Operation> writeOperations, 
             AbsolutePath sharedOpaqueDirPath, 
             bool originalProducerPipCacheHitExpected,
             bool doubleWriteProducerPipCacheHitExpected)
         {
             // originalProducerPip writes an artifact in a shared opaque directory
-            ProcessBuilder originalProducerPipBuilder = CreatePipBuilder(writeOperation);
+            ProcessBuilder originalProducerPipBuilder = CreatePipBuilder(
+                writeOperations.Append(Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "dep")))));
             originalProducerPipBuilder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             originalProducerPipBuilder.DoubleWritePolicy |= DoubleWritePolicy.UnsafeFirstDoubleWriteWins;
             ProcessWithOutputs originalProducerPipResult = SchedulePipBuilder(originalProducerPipBuilder);
 
             // doubleWriteProducerPip writes the same artifact in a shared opaque directory
-            ProcessBuilder doubleWriteProducerPipBuilder = CreatePipBuilder(writeOperation);
+            ProcessBuilder doubleWriteProducerPipBuilder = CreatePipBuilder(writeOperations);
             doubleWriteProducerPipBuilder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
 
             // Let's make doubleWriteProducerPip depend on originalProducerPip so we avoid potential file locks on the double write
-            doubleWriteProducerPipBuilder.AddInputDirectory(originalProducerPipResult.Process.DirectoryOutputs.Single());
+            doubleWriteProducerPipBuilder.AddInputFile(originalProducerPipResult.ProcessOutputs.GetOutputFiles().Single());
 
             // Set UnsafeFirstDoubleWriteWins
             doubleWriteProducerPipBuilder.DoubleWritePolicy |= DoubleWritePolicy.UnsafeFirstDoubleWriteWins;

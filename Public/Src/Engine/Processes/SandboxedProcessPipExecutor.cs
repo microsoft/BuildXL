@@ -1815,7 +1815,11 @@ namespace BuildXL.Processes
             m_fileAccessManifest.AddPath(
                 path,
                 values: FileAccessPolicy.AllowRead | FileAccessPolicy.AllowReadIfNonexistent | FileAccessPolicy.ReportAccess,
-                mask: ~FileAccessPolicy.AllowRealInputTimestamps);
+                // The file dependency may be under the cone of a shared opaque, which will give write access
+                // to it. Explicitly block this (no need to check if this is under a shared opaque, since otherwise
+                // it didn't have write access to begin with). Observe we already know this is not a rewrite since dynamic rewrites
+                // are not allowed by construction under shared opaques.
+                mask: ~FileAccessPolicy.AllowRealInputTimestamps & ~FileAccessPolicy.AllowWrite);
 
             allInputPathsUnderSharedOpaques.Add(path);
 
@@ -1897,10 +1901,21 @@ namespace BuildXL.Processes
             // Note that they would perhaps fail otherwise (simplifies the observed access checks in the first place).
 
             var path = dependency.Path;
+
+            bool pathIsUnderSharedOpaque = TryGetContainingSharedOpaqueRoot(path, getOutmostRoot: true, out var sharedOpaqueRoot);
+
             m_fileAccessManifest.AddPath(
                 path,
                 values: FileAccessPolicy.AllowRead | FileAccessPolicy.AllowReadIfNonexistent,
-                mask: m_excludeReportAccessMask & ~FileAccessPolicy.AllowRealInputTimestamps); // Make sure we fake the input timestamp
+                // Make sure we fake the input timestamp
+                // The file dependency may be under the cone of a shared opaque, which will give write access
+                // to it. Explicitly block this, since we want inputs to not be written. Observe we already know 
+                // this is not a rewrite.
+                mask: m_excludeReportAccessMask &
+                      ~FileAccessPolicy.AllowRealInputTimestamps &
+                      (pathIsUnderSharedOpaque ? 
+                          ~FileAccessPolicy.AllowWrite: 
+                          FileAccessPolicy.MaskNothing)); 
 
             allInputPaths.Add(path);
 
@@ -1908,7 +1923,7 @@ namespace BuildXL.Processes
             // walking that path upwards get added to the manifest explicitly, so timestamp faking happens for them
             // We need the outmost matching root in case shared opaques are nested within each other: timestamp faking
             // needs to happen for all directories under all shared opaques
-            if (TryGetContainingSharedOpaqueRoot(path, getOutmostRoot: true, out var sharedOpaqueRoot))
+            if (pathIsUnderSharedOpaque)
             {
                 AddDirectoryAncestorsToManifest(path, allInputPaths, sharedOpaqueRoot);
             }

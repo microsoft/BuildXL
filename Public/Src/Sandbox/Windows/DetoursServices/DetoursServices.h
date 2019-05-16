@@ -134,24 +134,24 @@ public:
 class ShimProcessMatch
 {
 public:
-    wstring ProcessName;
-    wstring ArgumentMatch;
+    std::unique_ptr<wchar_t> ProcessName;
+    std::unique_ptr<wchar_t> ArgumentMatch;
 
-    ShimProcessMatch(wstring &processName, wstring &argMatch)
+    // Assumes params are heap strings and takes control of their lifetime.
+    ShimProcessMatch(wchar_t *processName, wchar_t *argMatch)
     {
-        ProcessName.assign(processName);
-        ArgumentMatch.assign(argMatch);
+        ProcessName = std::unique_ptr<wchar_t>(processName);
+        ArgumentMatch = std::unique_ptr<wchar_t>(argMatch);
     }
 
     ShimProcessMatch(const ShimProcessMatch &other)
-    {
-        ProcessName = other.ProcessName;
-        ArgumentMatch = other.ArgumentMatch;
-    }
+        : ShimProcessMatch(other.ProcessName.get(), other.ArgumentMatch.get())
+    {}
 
     ShimProcessMatch& operator=(ShimProcessMatch& other)
     {
-        ProcessName = other.ProcessName;
-        ArgumentMatch = other.ArgumentMatch;
+        // Implementing as a move instead of copy, just to satisfy the compiler.
+        ProcessName.reset(other.ProcessName.release());
+        ArgumentMatch.reset(other.ArgumentMatch.release());
     }
 };

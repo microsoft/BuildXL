@@ -14,11 +14,6 @@ namespace ContentStoreTest.Stores
         {
         }
 
-        //public override bool DirectoryExists(AbsolutePath path)
-        //{
-        //    return true;
-        //}
-
         public IEnumerable<FileInfo> EnumerateFilesResult { get; set; }
 
         public override IEnumerable<FileInfo> EnumerateFiles(AbsolutePath path, EnumerateOptions options)
@@ -30,19 +25,5 @@ namespace ContentStoreTest.Stores
 
             return EnumerateFilesResult;
         }
-
-        //public override void MoveDirectory(AbsolutePath sourcePath, AbsolutePath destinationPath)
-        //{
-            
-        //}
-
-        //public override void CreateDirectory(AbsolutePath path)
-        //{
-            
-        //}
-
-        //public override void DeleteDirectory(AbsolutePath path, DeleteOptions deleteOptions)
-        //{
-        //}
     }
 }

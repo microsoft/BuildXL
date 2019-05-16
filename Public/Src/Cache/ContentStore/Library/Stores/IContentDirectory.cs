@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using static BuildXL.Cache.ContentStore.Stores.FileSystemContentStoreInternal;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
@@ -28,7 +29,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Reads the content from content directory.
         /// </summary>
-        IReadOnlyList<KeyValuePair<ContentHash, ContentFileInfo>> Reconstruct(Context context);
+        ContentHashAddressableSnapshot<ContentFileInfo> Reconstruct(Context context);
     }
 
     /// <summary>

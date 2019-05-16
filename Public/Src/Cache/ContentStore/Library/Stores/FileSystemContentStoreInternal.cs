@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -600,7 +601,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public IReadOnlyList<KeyValuePair<ContentHash, ContentFileInfo>> Reconstruct(Context context)
+        public ContentHashAddressableSnapshot<ContentFileInfo> Reconstruct(Context context)
         {
             // NOTE: DO NOT call ContentDirectory from this method as this is called during the initialization of ContentDirectory and calls
             // into ContentDirectory would cause a deadlock.
@@ -611,23 +612,20 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             try
             {
-                var contentHashes = ReadContentHashesFromDisk(context);
-                _tracer.Debug(context, $"Enumerated {contentHashes.Count} entries by {stopwatch.ElapsedMilliseconds}ms.");
+                var contentHashes = ReadSnapshotFromDisk(context);
+                _tracer.Debug(context, $"Enumerated {contentHashes.Count} entries in {stopwatch.ElapsedMilliseconds}ms.");
 
-                var hashInfoPairs = new List<KeyValuePair<ContentHash, ContentFileInfo>>();
-                foreach (var grouping in contentHashes.GroupBy(hash => hash))
+                var hashInfoPairs = new List<PayloadFromDisk<ContentFileInfo>>();
+                foreach (var grouping in contentHashes.GroupByHash())
                 {
-                    var contentFileInfo = new ContentFileInfo(Clock, grouping.First().fileInfo.Length, grouping.Count());
+                    var contentFileInfo = new ContentFileInfo(Clock, grouping.First().Payload.Length, grouping.Count());
                     contentCount++;
                     contentSize += contentFileInfo.TotalSize;
 
-                    hashInfoPairs.Add(
-                        new KeyValuePair<ContentHash, ContentFileInfo>(
-                            grouping.Key.hash,
-                            contentFileInfo));
+                    hashInfoPairs.Add(new PayloadFromDisk<ContentFileInfo>(grouping.Key, contentFileInfo));
                 }
 
-                return hashInfoPairs;
+                return new ContentHashAddressableSnapshot<ContentFileInfo>(hashInfoPairs);
             }
             catch (Exception exception)
             {
@@ -1864,30 +1862,145 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         internal bool TryGetFileInfo(ContentHash contentHash, out ContentFileInfo fileInfo) => ContentDirectory.TryGetFileInfo(contentHash, out fileInfo);
 
-        internal List<(ContentHash hash, FileInfo fileInfo)> ReadContentHashesFromDisk(Context context)
+        /// <summary>
+        /// This class is specifically for usage within <see cref="ContentHashAddressableSnapshot{T}"/>. It is a reference type on purpose, in order to avoid issues
+        /// with the maximum object size limit.
+        /// </summary>
+        /// <typeparam name="T">Type tagged with a hash</typeparam>
+        public class PayloadFromDisk<T> : IComparable<PayloadFromDisk<T>>
         {
-            var contentHashes = new List<(ContentHash hash, FileInfo fileInfo)>();
+            /// <summary>
+            /// Hash for the <see cref="Payload"/>
+            /// </summary>
+            public readonly ContentHash Hash;
+
+            /// <summary>
+            /// Information for which <see cref="Hash"/> applies
+            /// </summary>
+            public readonly T Payload;
+
+            /// <nodoc />
+            public PayloadFromDisk(ContentHash hash, T payload)
+            {
+                Hash = hash;
+                Payload = payload;
+            }
+
+            /// <nodoc />
+            public int CompareTo(PayloadFromDisk<T> other)
+            {
+                return Hash.CompareTo(other.Hash);
+            }
+        }
+
+        /// <summary>
+        /// This class represents an immutable snapshot of a collection of items at an undetermined point in time, used for enumerations of the file
+        /// system. It is made specifically to avoid issues with enumerations of large amounts of files which go over the maximum object size
+        /// restriction.
+        /// </summary>
+        /// <typeparam name="T">Type held inside the snapshot</typeparam>
+        public class ContentHashAddressableSnapshot<T> : IEnumerable<PayloadFromDisk<T>>
+        {
+            private List<PayloadFromDisk<T>>[] _snapshot;
+
+            /// <nodoc />
+            public readonly long Count = 0;
+
+            /// <nodoc />
+            public ContentHashAddressableSnapshot() {
+                InitializeSnapshot();
+            }
+
+            /// <nodoc />
+            public ContentHashAddressableSnapshot(IEnumerable<PayloadFromDisk<T>> snapshot)
+            {
+                InitializeSnapshot();
+
+                foreach (var payload in snapshot)
+                {
+                    var identifier = payload.Hash[0];
+                    _snapshot[identifier].Add(payload);
+                    Count++;
+                }
+            }
+
+            /// <nodoc />
+            private void InitializeSnapshot()
+            {
+                _snapshot = new List<PayloadFromDisk<T>>[256];
+                for (var i = 0; i < _snapshot.Length; i++)
+                {
+                    _snapshot[i] = new List<PayloadFromDisk<T>>();
+                }
+            }
+
+            /// <nodoc />
+            public IEnumerable<PayloadFromDisk<T>> EnumerateOrderedByHash()
+            {
+                foreach (var bucket in _snapshot)
+                {
+                    foreach (var payload in bucket.OrderBy(p => p.Hash))
+                    {
+                        yield return payload;
+                    }
+                }
+            }
+
+            /// <nodoc />
+            public IEnumerable<IGrouping<ContentHash, PayloadFromDisk<T>>> GroupByHash()
+            {
+                foreach (var bucket in _snapshot)
+                {
+                    foreach (var group in bucket.GroupBy(p => p.Hash))
+                    {
+                        yield return group;
+                    }
+                }
+            }
+
+            /// <nodoc />
+            public IEnumerator<PayloadFromDisk<T>> GetEnumerator()
+            {
+                foreach (var bucket in _snapshot)
+                {   
+                    foreach (var payload in bucket)
+                    {
+                        yield return payload;
+                    }
+                }
+            }
+
+            /// <nodoc />
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+        }
+
+        internal ContentHashAddressableSnapshot<FileInfo> ReadSnapshotFromDisk(Context context)
+        {
+            var contentHashes = new List<PayloadFromDisk<FileInfo>>();
             if (_settings.UseNativeBlobEnumeration)
             {
-                EnumerateBlobPathsFromDisk(context, fileInfo => parseAndAccumulateContentHashes(fileInfo));
+                EnumerateBlobPathsFromDisk(context, fileInfo => ParseAndAccumulateContentHashes(fileInfo));
             }
             else
             {
                 foreach (var fileInfo in EnumerateBlobPathsFromDisk())
                 {
-                    parseAndAccumulateContentHashes(fileInfo);
+                    ParseAndAccumulateContentHashes(fileInfo);
                 }
             }
 
-            return contentHashes;
+            return new ContentHashAddressableSnapshot<FileInfo>(contentHashes);
 
-            void parseAndAccumulateContentHashes(FileInfo fileInfo)
+            void ParseAndAccumulateContentHashes(FileInfo fileInfo)
             {
                 // A directory could have an old hash in its name or may be renamed by the user.
                 // This is not an error condition if we can't get the hash out of it.
                 if (TryGetHashFromPath(fileInfo.FullPath, out var contentHash))
                 {
-                    contentHashes.Add((contentHash, fileInfo));
+                    contentHashes.Add(new PayloadFromDisk<FileInfo>(contentHash, fileInfo));
                 }
                 else
                 {

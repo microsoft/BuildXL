@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
+using static BuildXL.Cache.ContentStore.Stores.FileSystemContentStoreInternal;
 
 #pragma warning disable SA1402 // File may only contain a single class
 
@@ -58,10 +59,10 @@ namespace ContentStoreTest.Stores
 
         private class TestHost : IContentDirectoryHost
         {
-            public IReadOnlyList<KeyValuePair<ContentHash, ContentFileInfo>> Content = new List<KeyValuePair<ContentHash, ContentFileInfo>>();
+            public ContentHashAddressableSnapshot<ContentFileInfo> Content = new ContentHashAddressableSnapshot<ContentFileInfo>();
 
             /// <inheritdoc />
-            public IReadOnlyList<KeyValuePair<ContentHash, ContentFileInfo>> Reconstruct(Context context) => Content;
+            public ContentHashAddressableSnapshot<ContentFileInfo> Reconstruct(Context context) => Content;
         }
 
         [Fact]
@@ -102,7 +103,7 @@ namespace ContentStoreTest.Stores
 
                 MemoryClock.Increment();
                 var allContent = priorContent.Concat(reconstructedContent).ToList();
-                Host.Content = allContent;
+                Host.Content = new ContentHashAddressableSnapshot<ContentFileInfo>(allContent.Select(kv => new PayloadFromDisk<ContentFileInfo>(kv.Key, kv.Value)));
 
                 // Update last access time to simulate what would happen after reconstruction
                 allContent.ForEach(hashInfoPair => hashInfoPair.Value.UpdateLastAccessed(MemoryClock));

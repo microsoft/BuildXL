@@ -27,6 +27,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tracing;
+using static BuildXL.Cache.ContentStore.Stores.FileSystemContentStoreInternal;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
@@ -349,11 +350,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                     var backupContentDirectory = loadedContentDirectory;
                     if (_host != null)
                     {
-                        var hashInfoPairs = _host.Reconstruct(context);
                         await AddBulkAsync(
                             contentDirectory: contentDirectory,
                             backupContentDirectory: backupContentDirectory,
-                            hashInfoPairs: hashInfoPairs);
+                            hashInfoPairs: _host.Reconstruct(context));
                     }
                     else
                     {
@@ -567,13 +567,13 @@ namespace BuildXL.Cache.ContentStore.Stores
             return ContentDirectory.TryGetValue(contentHash, out fileInfo);
         }
 
-        private static Task AddBulkAsync(ContentMap contentDirectory, ContentMap backupContentDirectory, IReadOnlyList<KeyValuePair<ContentHash, ContentFileInfo>> hashInfoPairs)
+        private static Task AddBulkAsync(ContentMap contentDirectory, ContentMap backupContentDirectory, ContentHashAddressableSnapshot<ContentFileInfo> hashInfoPairs)
         {
             return hashInfoPairs.ParallelAddToConcurrentDictionaryAsync(
-                contentDirectory, hashInfoPair => hashInfoPair.Key, hashInfoPair =>
+                contentDirectory, hashInfoPair => hashInfoPair.Hash, hashInfoPair =>
                 {
-                    var info = hashInfoPair.Value;
-                    if (backupContentDirectory.TryGetValue(hashInfoPair.Key, out var backupInfo))
+                    var info = hashInfoPair.Payload;
+                    if (backupContentDirectory.TryGetValue(hashInfoPair.Hash, out var backupInfo))
                     {
                         // Recover the last access time from the backup. This has the affect that
                         // content mentioned in the backup will be older than newly discovered content

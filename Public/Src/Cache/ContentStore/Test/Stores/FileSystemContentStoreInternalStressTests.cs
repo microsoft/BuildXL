@@ -46,19 +46,8 @@ namespace ContentStoreTest.Stores
         private MockFileSystem MockFileSystem => (MockFileSystem)FileSystem;
 
         [Fact]
-        public async Task TestAvoidOOMOnEnumeration()
+        public async Task TestAvoidOOMOnLargeEnumeration()
         {
-            //List<(ContentHash, FileInfo)> list = new List<(ContentHash, FileInfo)>();
-            //for (int i = 0; i < OOMEnumerationFiles; i++)
-            //{
-            //    list.Add(default);
-            //}
-
-            //Output.WriteLine(list.Count.ToString());
-            //return;
-            //Output.WriteLine(IntPtr.Size.ToString());
-
-            //return;
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var context = new Context(Logger);
@@ -66,7 +55,7 @@ namespace ContentStoreTest.Stores
                 await store.StartupAsync(context).ThrowIfFailure();
 
                 MockFileSystem.EnumerateFilesResult = EnumerateFiles(testDirectory.Path);
-                store.ReadContentHashesFromDisk(context);
+                store.ReadSnapshotFromDisk(context);
                 MockFileSystem.EnumerateFilesResult = null;
             }
         }

@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using static BuildXL.Cache.ContentStore.Stores.FileSystemContentStoreInternal;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 
@@ -135,7 +136,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             // Enumerating files from disk instead of looking them up from content directory.
             // This is done due to simplicity (we don't have to worry about replicas) and because an additional IO cost is negligible compared to the cost of rehashing.
-            var contentHashes = _contentStoreInternal.ReadContentHashesFromDisk(context).OrderBy(tpl => tpl.hash).ToList();
+            var contentHashes = _contentStoreInternal.ReadSnapshotFromDisk(context).EnumerateOrderedByHash().ToList();
             _tracer.Debug(context, $"SelfCheck: Enumerated {contentHashes.Count} entries from disk by {stopwatch.ElapsedMilliseconds}ms.");
 
             stopwatch.Restart();
@@ -144,7 +145,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             int index = 0;
             if (status == SelfCheckStatus.InProgress)
             {
-                index = findNextIndexToProcess(selfCheckState.LastPosition.Value);
+                index = FindNextIndexToProcess(selfCheckState.LastPosition.Value);
                 _tracer.Debug(context, $"SelfCheck: skipping {index} elements based on previous state '{selfCheckState.ToParseableString()}'.");
             }
             else
@@ -173,16 +174,16 @@ namespace BuildXL.Cache.ContentStore.Stores
                 var hashInfo = contentHashes[index];
                 processedEntries++;
 
-                var (isValid, error) = await ValidateFileAsync(context, hashInfo.hash, hashInfo.fileInfo);
+                var (isValid, error) = await ValidateFileAsync(context, hashInfo.Hash, hashInfo.Payload);
                 if (!isValid)
                 {
-                    _tracer.Warning(context, $"SelfCheck: Found invalid entry in cache. Hash={hashInfo.hash}. {error}. Evicting the file...");
-                    await _contentStoreInternal.RemoveInvalidContentAsync(context, hashInfo.hash);
+                    _tracer.Warning(context, $"SelfCheck: Found invalid entry in cache. Hash={hashInfo.Hash}. {error}. Evicting the file...");
+                    await _contentStoreInternal.RemoveInvalidContentAsync(context, hashInfo.Hash);
                     invalidEntries++;
                 }
 
                 // Tracking the progress if needed.
-                traceProgressIfNeeded(hashInfo.hash, index);
+                traceProgressIfNeeded(hashInfo.Hash, index);
 
                 // If the current entry is not the last one, and we reached the number of invalid files,
                 // then exiting the loop.
@@ -201,17 +202,15 @@ namespace BuildXL.Cache.ContentStore.Stores
             else
             {
                 // The loop was interrupted. Saving an incremental state.
-                var newStatus = selfCheckState.WithEpochAndPosition(_settings.SelfCheckEpoch, contentHashes[index].hash);
+                var newStatus = selfCheckState.WithEpochAndPosition(_settings.SelfCheckEpoch, contentHashes[index].Hash);
                 UpdateSelfCheckStateOnDisk(context, newStatus);
             }
 
             return Result.Success(new SelfCheckResult(invalidHashes: invalidEntries, totalProcessedFiles: processedEntries));
 
-            int findNextIndexToProcess(ContentHash lastProcessedHash)
+            int FindNextIndexToProcess(ContentHash lastProcessedHash)
             {
-                var binarySearchResult = contentHashes.BinarySearch(
-                    (hash: lastProcessedHash, fileInfo: default),
-                    CreateComparer<(ContentHash hash, FileInfo fileInfo)>((x , y) => x.hash.CompareTo(y.hash)));
+                var binarySearchResult = contentHashes.BinarySearch(new PayloadFromDisk<FileInfo>(lastProcessedHash, default));
 
                 int targetIndex = 0;
                 if (binarySearchResult >= 0 && binarySearchResult < contentHashes.Count - 1)
@@ -235,7 +234,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             void traceProgressIfNeeded(ContentHash currentHash, int currentHashIndex)
             {
-                processedBytes += contentHashes[currentHashIndex].fileInfo.Length;
+                processedBytes += contentHashes[currentHashIndex].Payload.Length;
 
                 var swTime = stopwatch.Elapsed;
                 if (swTime - progressTracker > _settings.SelfCheckProgressReportingInterval)
@@ -243,7 +242,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     // It is possible to have multiple replicas with the same hash.
                     // We need to save the state only when *all* the replicas are processed.
                     // So we check if the next item has a different hash.
-                    if (currentHash != contentHashes[currentHashIndex + 1].hash)
+                    if (currentHash != contentHashes[currentHashIndex + 1].Hash)
                     {
                         var speed = ((double)processedBytes / (1024*1024)) / _settings.SelfCheckProgressReportingInterval.TotalSeconds;
                         _tracer.Always(context, $"SelfCheck: processed {index}/{contentHashes.Count}: {new SelfCheckResult(invalidEntries, processedEntries)}. Hashing speed {speed:0.##}Mb/s.");

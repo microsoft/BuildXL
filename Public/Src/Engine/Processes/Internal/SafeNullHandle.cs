@@ -7,9 +7,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Processes.Internal
 {
-#if !DISABLE_FEATURE_SECURITY_ATTRIBUTES
     [SuppressUnmanagedCodeSecurity]
-#endif
     internal sealed class SafeNullHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         private SafeNullHandle()

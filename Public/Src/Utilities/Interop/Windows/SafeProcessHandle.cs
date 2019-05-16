@@ -11,9 +11,7 @@ using Microsoft.Win32.SafeHandles;
 namespace BuildXL.Interop.Windows
 {
     /// <nodoc />
-#if !DISABLE_FEATURE_SECURITY_ATTRIBUTES
     [SuppressUnmanagedCodeSecurity]
-#endif
     public sealed class SafeProcessHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         [DllImport(BuildXL.Interop.Libraries.WindowsKernel32, SetLastError = true)]

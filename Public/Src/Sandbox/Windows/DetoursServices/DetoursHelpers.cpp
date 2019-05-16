@@ -831,7 +831,7 @@ bool ParseFileAccessManifest(
     offset += sizeof(uint32_t);
 #endif
     g_substituteProcessExecutionShimPath = CreateStringFromWriteChars(payloadBytes, offset);
-    if (g_substituteProcessExecutionShimPath != null)
+    if (g_substituteProcessExecutionShimPath != nullptr)
     {
         g_ProcessExecutionShimAllProcesses = ParseUint32(payloadBytes, offset) != 0;
         uint32_t numProcessMatches = ParseUint32(payloadBytes, offset);

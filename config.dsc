@@ -527,13 +527,13 @@ config({
     qualifiers: {
         defaultQualifier: {
             configuration: "debug",
-            targetFramework: Context.getCurrentHost().os === "win" ? "net472" : "netcoreapp3.0",
+            targetFramework: "netcoreapp3.0",
             targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "osx-x64",
         },
         namedQualifiers: {
             Debug: {
                 configuration: "debug",
-                targetFramework: "net472",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "win-x64",
             },
             DebugNet472: {
@@ -555,7 +555,7 @@ config({
             // Release
             Release: {
                 configuration: "release",
-                targetFramework: "net472",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "win-x64",
             },
             ReleaseNet472: {

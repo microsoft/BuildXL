@@ -64,10 +64,11 @@ namespace ContentStoreTest.Stores
         {
             for (var i = 0; i < OOMEnumerationFiles; i++)
             {
+                var hash = ContentHash.Random().ToHex();
                 string text = i.ToString();
                 
                 yield return new FileInfo {
-                    FullPath = root / "VSO0" / "000" / $"{new string('0', 66 - text.Length)}{text}.blob",
+                    FullPath = root / "VSO0" / $"{hash.Substring(0, 3)}" / $"{hash}.blob",
                     Length = 1,
                 };
             }

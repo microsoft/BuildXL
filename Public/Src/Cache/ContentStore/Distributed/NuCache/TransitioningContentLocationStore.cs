@@ -227,6 +227,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _redisContentLocationStore.GarbageCollectAsync(context);
         }
 
+        /// <inheritdoc />
+        public void ReportReputation(MachineLocation location, MachineReputation reputation) =>
+            MachineReputationTracker.ReportReputation(location, reputation);
+
         #region IDistributedLocationStore Members
 
         /// <inheritdoc />

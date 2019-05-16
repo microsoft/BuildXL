@@ -50,6 +50,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
         workingDirectory: testDeployment.contents.root,
         retryExitCodes: Environment.getFlag("RetryXunitTests") ? [1] : [],
         unsafe: args.untrackTestDirectory ? {untrackedScopes: [testDeployment.contents.root]} : undefined,
+        privilegeLevel: args.privilegeLevel,
     };
 
     if (qualifier.targetFramework === "netcoreapp3.0") {

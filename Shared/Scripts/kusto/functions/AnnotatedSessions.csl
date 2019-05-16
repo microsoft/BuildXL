@@ -94,7 +94,8 @@ cluster('cbuild').database('Domino').dominocatastrophicfailure
     isnotempty(Exception), "Crash",
     isnotempty(ErrorBucket_InternalErrorOnly), ErrorBucket_InternalErrorOnly,
     isnotempty(ExitKind), "",
-    "MissingDominoCompletionEvent")
+    // When there are multiple internal error buckets for the same build we arbitrary take the min one. Make sure MissingDominoCompletionEvent is the last choice
+    "zz_MissingDominoCompletionEvent") 
         // Parse the exception for relevant pieces to generate a suggested bug name
 | extend ExceptionDescription = replace(matchNumsRegex, numsReplacement, (replace(matchPathsRegex, pathsReplacement, extract(exceptionRegex, 1, Exception))))
 | extend BuildXlFunctionName = extract(buildXlFuncNameRegex, 1, Exception)

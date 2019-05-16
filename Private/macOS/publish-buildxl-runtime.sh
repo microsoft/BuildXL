@@ -9,7 +9,7 @@ readonly nugetTemplateDir=$MYDIR/runtime.osx-x64.BuildXL.template
 readonly nugetFeed="https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/nuget/v3/index.json"
 
 if [[ ! -d $nugetTemplateDir ]]; then
-    echo "[ERROR] Expected to find nuget template folder at '$nugetTemplateDir' but no such directory exists"
+    echo "[ERROR] Expected to find Nuget template folder at '$nugetTemplateDir' but no such directory exists"
     exit 1
 fi
 
@@ -152,7 +152,7 @@ function prepareNugetDestinationFolder() {
     local _destDir=$1
 
     if [[ -z $_destDir ]]; then
-        echo "[ERROR] must specify nuget destination dir"
+        echo "[ERROR] must specify Nuget destination dir"
         exit 1
     fi
 
@@ -162,7 +162,7 @@ function prepareNugetDestinationFolder() {
     fi
 
     if [[ ! -d $nugetTemplateDir ]]; then
-        echo "[ERROR] nuget template dir not found: '$nugetTemplateDir'"
+        echo "[ERROR] Nuget template dir not found: '$nugetTemplateDir'"
         exit 1
     fi
 
@@ -260,17 +260,24 @@ function prepareKextForSigning() {
     zip -r $_outZipFile $(basename $_kextDir)
     popd > /dev/null
 
-    echo ""
-    echo "---------- optional ----------"
-    echo " Upload"
-    echo "   $_outZipFile"
-    echo " for signing, then replace"
-    echo "   $_replacementDir"
-    echo " with signed kext"
-    echo "------------------------------"
-    echo ">>> press enter when done ..."
+    cat <<EOM
+
+---------- only required if releasing signed + notarized binaries ----------
+
+ Upload
+
+    $_outZipFile
+
+for signing and when done, run the 'notarize.sh' script, then replace
+
+    $_replacementDir
+
+with the signed, notarized and stapled KEXT!
+
+----------------------------------------------------------------------------
+>>> press enter when done ...
+EOM
     read
-    echo ""
 }
 
 function updateNuspecVersion() {

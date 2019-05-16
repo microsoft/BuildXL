@@ -69,6 +69,12 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            AssertWarningEventLogged(EventId.ScrubbingExternalFileOrDirectoryFailed, count: 0, allowMore: true);
+            base.Dispose(disposing);
+        }
+
         /* 
          * Operations which when executed produce the following layout
 

@@ -2868,13 +2868,13 @@ namespace BuildXL.Native.IO.Windows
             }
         }
 
-        private static bool TryGetFileAttributes(string path, out FileAttributes attributes, out int hr)
+        private bool TryGetFileAttributes(string path, out FileAttributes attributes, out int hr)
         {
             return TryGetFileAttributesViaGetFileAttributes(path, out attributes, out hr)
                 || TryGetFileAttributesViaFindFirstFile(path, out attributes, out hr);
         }
 
-        private static bool TryGetFileAttributesViaGetFileAttributes(string path, out FileAttributes attributes, out int hr)
+        private bool TryGetFileAttributesViaGetFileAttributes(string path, out FileAttributes attributes, out int hr)
         {
             Contract.Ensures(Contract.Result<bool>() ^ Contract.ValueAtReturn<int>(out hr) != 0);
 
@@ -2892,7 +2892,7 @@ namespace BuildXL.Native.IO.Windows
             return true;
         }
 
-        private static bool TryGetFileAttributesViaFindFirstFile(string path, out FileAttributes attributes, out int hr)
+        private bool TryGetFileAttributesViaFindFirstFile(string path, out FileAttributes attributes, out int hr)
         {
             WIN32_FIND_DATA findResult;
 
@@ -2909,17 +2909,6 @@ namespace BuildXL.Native.IO.Windows
                 attributes = findResult.DwFileAttributes;
                 return true;
             }
-        }
-
-        public static bool IsPathReparseDirectory(string path)
-        {
-            if (TryGetFileAttributes(path, out var attrs, out int _))
-            {
-                var iReparsePoint = (attrs & FileAttributes.ReparsePoint) != 0;
-                var isDirectory = (attrs & FileAttributes.Directory) != 0;
-                return iReparsePoint && isDirectory;
-            }
-            return false;
         }
 
         /// <inheritdoc />

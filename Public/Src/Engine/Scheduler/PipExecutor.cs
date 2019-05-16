@@ -35,7 +35,6 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
-using BuildXL.Native.IO.Windows;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
@@ -3493,25 +3492,28 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static bool IsWindowsOutputSymlinkDirectoryOrJunction(AbsolutePath outputPath, OperationContext operationContext, string description, PathTable pathTable, ExecutionResult processExecutionResult)
+        private static bool CheckForAllowedDirectorySymlinkOrJunctionProduction(AbsolutePath outputPath, OperationContext operationContext, string description, PathTable pathTable, ExecutionResult processExecutionResult)
         {
-            if (!OperatingSystemHelper.IsUnixOS)
+            if (OperatingSystemHelper.IsUnixOS)
             {
-                var pathstring = outputPath.ToString(pathTable);
-                if (FileSystemWin.IsPathReparseDirectory(pathstring))
-                {
-                    // We don't support storing directory symlinks/junctions to the cache in Windows right now.
-                    // We won't fail the pip
-                    // We won't cache it neither
-                    Logger.Log.StorageSymlinkDirInOutputDirectoryWarning(
-                        operationContext,
-                        description,
-                        pathstring);
-                    processExecutionResult.MustBeConsideredPerpetuallyDirty = true;
-                    return true;
-                }
+                return true;
             }
-            return false;
+
+            var pathstring = outputPath.ToString(pathTable);
+            if (FileUtilities.IsDirectorySymlinkOrJunction(pathstring))
+            {
+                // We don't support storing directory symlinks/junctions to the cache in Windows right now.
+                // We won't fail the pip
+                // We won't cache it either
+                Logger.Log.StorageSymlinkDirInOutputDirectoryWarning(
+                    operationContext,
+                    description,
+                    pathstring);
+                processExecutionResult.MustBeConsideredPerpetuallyDirty = true;
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -3597,7 +3599,7 @@ namespace BuildXL.Scheduler
                 {
                     FileOutputData.UpdateFileData(allOutputData, output.Path, OutputFlags.DeclaredFile);
 
-                    if (IsWindowsOutputSymlinkDirectoryOrJunction(output.Path, operationContext, description, pathTable, processExecutionResult))
+                    if (CheckForAllowedDirectorySymlinkOrJunctionProduction(output.Path, operationContext, description, pathTable, processExecutionResult))
                     {
                         enableCaching = false;
                         continue;
@@ -3631,7 +3633,7 @@ namespace BuildXL.Scheduler
                             directoryArtifact,
                             handleFile: fileArtifact =>
                             {
-                                if (IsWindowsOutputSymlinkDirectoryOrJunction(fileArtifact.Path, operationContext, description, pathTable, processExecutionResult))
+                                if (CheckForAllowedDirectorySymlinkOrJunctionProduction(fileArtifact.Path, operationContext, description, pathTable, processExecutionResult))
                                 {
                                     enableCaching = false;
                                     return;
@@ -3693,7 +3695,7 @@ namespace BuildXL.Scheduler
                                 continue;
                             }
 
-                            if (IsWindowsOutputSymlinkDirectoryOrJunction(access, operationContext, description, pathTable, processExecutionResult))
+                            if (CheckForAllowedDirectorySymlinkOrJunctionProduction(access, operationContext, description, pathTable, processExecutionResult))
                             {
                                 enableCaching = false;
                                 continue;

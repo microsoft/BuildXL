@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Native.IO;
-using BuildXL.Native.IO.Windows;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
@@ -1634,15 +1633,6 @@ namespace BuildXL.Scheduler.Artifacts
                             // during the directory deletion step (they will be replaced by the materialization
                             // step or may have already been replaced if the file was explicitly materialized)
                             state.MaterializedDirectoryContents.Add(file);
-                        }
-
-                        if (!OperatingSystemHelper.IsUnixOS)
-                        {
-                            if (FileSystemWin.IsPathReparseDirectory(file.Path.ToString(Context.PathTable)))
-                            {
-                                //symlink directory in windows was not cached
-                                continue;
-                            }
                         }
 
                         AddFileMaterialization(state, file, directoryAllowReadOnlyOverride, TryGetSymlinkTarget(file));

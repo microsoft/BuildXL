@@ -615,7 +615,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (ushort)Events.Tasks.Storage,
-            Message = "[{pipDescription}] Pip produced a directory symlink '{symlinkPath}', which is not supported. The pip will hence not be stored to cache.")]
+            Message = "[{pipDescription}] Pip produced a directory symlink or junction'{symlinkPath}', which is not supported. The pip will not be cached.")]
         public abstract void StorageSymlinkDirInOutputDirectoryWarning(LoggingContext loggingContext, string pipDescription, string symlinkPath);
 
         [GeneratedEvent(

@@ -273,8 +273,7 @@ Versions/sym-sym-A -> sym-A/
         public void DirectorySymlinksInOutputDirectoryProducerOnlyOnWindows(SealDirectoryKind dirKind)
         {
             XAssert.IsFalse(dirKind.IsSourceSeal());
-
-            
+           
             AbsolutePath rootDirAbsPath = CreateUniqueObjPath($"{dirKind}.framework");
             string rootDir = rootDirAbsPath.ToString(Context.PathTable);
 
@@ -286,12 +285,10 @@ Versions/sym-sym-A -> sym-A/
             // if dirKind is an opaque output, then just declare the root directory as an opaque output;
             // otherwise, add all outputs explicitly and schedule a seal directory pip to seal them.
             Process producerPip;
-            DirectoryArtifact outputDirArtifact;
             if (dirKind.IsOpaqueOutput())
             {
                 producerPipBuilder.AddOutputDirectory(rootDirAbsPath, kind: dirKind);
                 producerPip = SchedulePipBuilder(producerPipBuilder).Process;
-                outputDirArtifact = producerPip.DirectoryOutputs.First();
             }
             else
             {
@@ -299,7 +296,6 @@ Versions/sym-sym-A -> sym-A/
                 foreach (var output in dao.Outputs) producerPipBuilder.AddOutputFile(output.Path);
                 foreach (var input in dao.Dependencies) producerPipBuilder.AddInputFile(input);
                 producerPip = SchedulePipBuilder(producerPipBuilder).Process;
-                outputDirArtifact = SealDirectory(rootDirAbsPath, dirKind, dao.Outputs.ToArray());
             }
 
             // first run, expect cache miss

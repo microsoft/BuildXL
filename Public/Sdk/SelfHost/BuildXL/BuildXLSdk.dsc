@@ -143,7 +143,7 @@ namespace Flags {
 
     /**
      * Temporary flag to exclude building BuildXL.Explorer.
-     * BuildXL.Explorer is broken but building it can take 1h in CB.
+     * BuildXL.Explorer is broken but building it can take a long time in CB environment.
      */
     @@public
     export const excludeBuildXLExplorer = Environment.getFlag("[Sdk.BuildXL]ExcludeBuildXLExplorer");

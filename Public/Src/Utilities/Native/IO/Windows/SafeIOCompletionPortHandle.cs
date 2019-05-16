@@ -10,9 +10,7 @@ namespace BuildXL.Native.IO.Windows
     /// <summary>
     /// Handle for an IO completion port as created by <see cref="FileSystemWin.CreateIOCompletionPort"/>.
     /// </summary>
-#if !DISABLE_FEATURE_SECURITY_ATTRIBUTES
     [SuppressUnmanagedCodeSecurity]
-#endif
     public sealed class SafeIOCompletionPortHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         /// <summary>

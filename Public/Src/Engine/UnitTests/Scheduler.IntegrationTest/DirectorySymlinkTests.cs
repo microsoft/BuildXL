@@ -69,6 +69,12 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            AssertWarningEventLogged(EventId.ScrubbingExternalFileOrDirectoryFailed, count: 0, allowMore: true);
+            base.Dispose(disposing);
+        }
+
         /* 
          * Operations which when executed produce the following layout
 
@@ -545,6 +551,39 @@ Versions/sym-sym-A -> sym-A
                     Operation.ReadFile(hardlink2) * ReadCount,
                     Operation.ReadFile(file2) * ReadCount)));
             RunScheduler().AssertSuccess();
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void EnumerateDirectoryViaDirectorySymlinkShouldBeObservedAsDirectoryEnumeration()
+        {
+            AbsolutePath targetDirectory = CreateUniqueDirectory(ReadonlyRoot, "Target");
+            CreateSourceFile(targetDirectory, "file1");
+            CreateSourceFile(targetDirectory, "file2");
+
+            AbsolutePath directorySymlink = CreateUniquePath("Symlink", ReadonlyRoot);
+            XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(
+                directorySymlink.ToString(Context.PathTable), 
+                targetDirectory.ToString(Context.PathTable), 
+                isTargetFile: false).Succeeded);
+
+            var pipBuilder = CreatePipBuilder(new[]
+            {
+                Operation.EnumerateDir(DirectoryArtifact.CreateWithZeroPartialSealId(directorySymlink)),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                pipBuilder.AddInputFile(directorySymlink);
+            }
+
+            ProcessWithOutputs processWithOutputs = SchedulePipBuilder(pipBuilder);
+
+            RunScheduler().AssertSuccess();
+            RunScheduler().AssertCacheHit(processWithOutputs.Process.PipId);
+
+            CreateSourceFile(targetDirectory, "file3");
+            RunScheduler().AssertCacheMiss(processWithOutputs.Process.PipId);
         }
 
         private static IEnumerable<T> Multiply<T>(int count, T elem) => Enumerable.Range(1, count).Select(_ => elem);

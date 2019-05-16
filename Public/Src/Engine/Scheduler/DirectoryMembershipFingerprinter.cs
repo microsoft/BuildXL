@@ -173,14 +173,13 @@ namespace BuildXL.Scheduler
             switch (existence)
             {
                 case PathExistence.ExistsAsDirectory:
-                    break;
                 case PathExistence.ExistsAsFile:
+                    // The file can be a directory symlink or junction, in which case it is classified as a file.
+                    break;
                 case PathExistence.Nonexistent:
-                    // We return an all-zero fingerprint for a path without children, even if that is because
-                    // the directory path was to a 'leaf' node (file) or to a non-existent path.
+                    // We return an all-zero fingerprint for a non-existent path.
                     // This is equivalent to the static-graph case (see ComputeDirectoryFingerprintFromPipGraph)
-                    // since enumerating the descendants of a file path / arbitary path nonexistent-on-disk path in
-                    // the path table is valid (though doing so returns an empty result).
+                    // since enumerating nonexistent-on-disk path in the path table is valid (though doing so returns an empty result).
                     Contract.Assume(result.Hash == ContentHashingUtilities.ZeroHash);
                     break;
                 default:

@@ -886,6 +886,32 @@ namespace Test.BuildXL.Storage
             XAssert.IsTrue(FileUtilities.TryFindOpenHandlesToFile(fileNameWithCurly, out var diag));
         }
 
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void LongPathAccessControlTest()
+        {
+            var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(TemporaryDirectory, (path, _) => Path.Combine(path, "dir"));
+            var file = Path.Combine(longPath, "fileWithWriteAccess.txt");
+
+            FileUtilities.CreateDirectory(longPath);           
+            SafeFileHandle fileHandle;
+            var result = FileUtilities.TryCreateOrOpenFile(
+                file,
+                FileDesiredAccess.GenericWrite,
+                FileShare.Delete,
+                FileMode.Create,
+                FileFlagsAndAttributes.FileAttributeNormal,
+                out fileHandle);
+            XAssert.IsTrue(result.Succeeded);
+
+            FileUtilities.SetFileAccessControl(file, FileSystemRights.WriteAttributes, true);
+            XAssert.IsTrue(FileUtilities.HasWritableAccessControl(file));
+
+            //Delete the created directory
+            fileHandle.Close();
+            FileUtilities.DeleteDirectoryContents(longPath, deleteRootDirectory: true);
+        }
+
+
         private static void SetReadonlyFlag(string path)
         {
             File.SetAttributes(path, FileAttributes.Normal | FileAttributes.ReadOnly);

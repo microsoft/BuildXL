@@ -171,12 +171,12 @@ config({
                 // xUnit
                 { id: "xunit.abstractions", version: "2.0.3", tfm: ".NETStandard2.0" },
                 { id: "xunit.analyzers", version: "0.10.0" },
-                { id: "xunit.assert", version: "2.4.1" },
-                { id: "xunit.core", version: "2.4.1" },
-                { id: "xunit.extensibility.core", version: "2.4.1" },
-                { id: "xunit.extensibility.execution", version: "2.4.1" },
-                { id: "xunit.runner.utility", version: "2.4.1" },
-                { id: "xunit.runner.console", version: "2.4.1" },
+                { id: "xunit.assert", version: "2.4.1-ms" },
+                { id: "xunit.core", version: "2.4.1-ms" },
+                { id: "xunit.extensibility.core", version: "2.4.1-ms" },
+                { id: "xunit.extensibility.execution", version: "2.4.1-ms" },
+                { id: "xunit.runner.console", version: "2.4.1-ms" },
+                { id: "xunit.runner.utility", version: "2.4.1-ms" },
                 { id: "xunit.runner.visualstudio", version: "2.4.1" },
 
                 { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "3.17.2" },
@@ -191,7 +191,7 @@ config({
                 { id: "Grpc", version: "1.18.0" },
                 { id: "Grpc.Core", version: "1.18.0" },
                 { id: "Grpc.Tools", version: "1.18.0" },
-                { id: "Google.Protobuf", version: "3.6.1" },
+                { id: "Google.Protobuf", version: "3.7.0" },
                 { id: "Redis-64", version: "3.0.503" },
 
                 // Testing
@@ -318,6 +318,7 @@ config({
                 { id: "System.Linq.Expressions", version: "4.3.0" },
                 { id: "System.Linq.Parallel", version: "4.3.0" },
                 { id: "System.Linq.Queryable", version: "4.3.0" },
+                { id: "System.Management", version: "4.6.0-preview5.19224.8" },
                 { id: "System.Net.Http", version: "4.3.0" },
                 { id: "System.Net.NameResolution", version: "4.3.0" },
                 { id: "System.Net.NetworkInformation", version: "4.3.0" },
@@ -527,13 +528,13 @@ config({
     qualifiers: {
         defaultQualifier: {
             configuration: "debug",
-            targetFramework: Context.getCurrentHost().os === "win" ? "net472" : "netcoreapp3.0",
+            targetFramework: "netcoreapp3.0",
             targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "osx-x64",
         },
         namedQualifiers: {
             Debug: {
                 configuration: "debug",
-                targetFramework: "net472",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "win-x64",
             },
             DebugNet472: {
@@ -555,7 +556,7 @@ config({
             // Release
             Release: {
                 configuration: "release",
-                targetFramework: "net472",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "win-x64",
             },
             ReleaseNet472: {

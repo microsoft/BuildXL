@@ -10,7 +10,7 @@ namespace Server {
     export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
 
     @@public
-    export const exe = BuildXLSdk.executable({
+    export const exe = BuildXLSdk.Flags.excludeBuildXLExplorer ? undefined : BuildXLSdk.executable({
         assemblyName: "bxp-server",
         rootNamespace: "BuildXL.Explorer.Server",
         skipDocumentationGeneration: true,

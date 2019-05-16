@@ -360,9 +360,9 @@ namespace BuildXL.Engine.Distribution
             return true;
         }
 
-        internal void AttachCore(BuildStartData buildStartData)
+        internal void AttachCore(BuildStartData buildStartData, string masterName)
         {
-            Logger.Log.DistributionAttachReceived(m_appLoggingContext, buildStartData.SessionId, buildStartData.SenderName, buildStartData.SenderId);
+            Logger.Log.DistributionAttachReceived(m_appLoggingContext, buildStartData.SessionId, masterName);
             BuildStartData = buildStartData;
 
             // The app-level logging context has a wrong session id. Fix it now that we know the right one.

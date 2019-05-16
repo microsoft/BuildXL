@@ -691,8 +691,8 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Informational,
             Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress),
             EventTask = (ushort)Events.Tasks.Distribution,
-            Message = "Received attach request from the master. New session identifier: {sessionId}. Master Name: {masterName}. Master id: {masterId}")]
-        public abstract void DistributionAttachReceived(LoggingContext context, string sessionId, string masterName, string masterId);
+            Message = "Received attach request from the master. New session identifier: {sessionId}. Master Name: {masterName}.")]
+        public abstract void DistributionAttachReceived(LoggingContext context, string sessionId, string masterName);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionExitReceived,

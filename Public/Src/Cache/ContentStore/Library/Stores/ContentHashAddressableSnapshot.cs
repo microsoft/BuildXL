@@ -94,7 +94,10 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        /// <nodoc />
+        /// <summary>
+        /// Generates a similar result to grouping the <see cref="PayloadFromDisk{T}"/> by their hashes. The order of the returned
+        /// groups may not be the same as in GroupBy.
+        /// </summary>
         public IEnumerable<IGrouping<ContentHash, PayloadFromDisk<T>>> GroupByHash()
         {
             foreach (var bucket in _snapshot)

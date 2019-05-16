@@ -277,7 +277,6 @@ namespace BuildXL.Processes
             List<KeyValuePair<string, int>> result = new List<KeyValuePair<string, int>>();
 
             // If we don't have access to get the process tree, we'll still at least get the root process. 
-            // But we need to figure out a way to get the process tree under CoreCLR
             try
             {
                 if (maxTreeDepth > 0)

@@ -34,7 +34,7 @@ namespace BuildXL.Utilities.Collections
         /// Lock to ensure validation does not read from old values.
         /// <remarks>Uses ReaderWriterLock to avoid disposal requirements for ReaderWriterLockSlim.</remarks>
         /// </summary>
-        private readonly ReaderWriterLock m_rwl = new ReaderWriterLock();
+        private readonly ReaderWriterLockSlim m_rwl = new ReaderWriterLockSlim();
 
         /// <summary>
         /// Constructor with element limit <paramref name="capacity"/>.
@@ -57,14 +57,14 @@ namespace BuildXL.Utilities.Collections
         /// </remarks>
         public bool TryAdd(TSort sort, TValue value)
         {
-            m_rwl.AcquireReaderLock(Timeout.Infinite);
+            m_rwl.EnterUpgradeableReadLock();
 
             try
             {
                 // Skip the (hopefully) common case
                 if (m_list.Count == 0 || m_list.Count < Capacity || sort.CompareTo(m_currentMinimum) > 0)
                 {
-                    var lockCookie = m_rwl.UpgradeToWriterLock(Timeout.Infinite);
+                    m_rwl.EnterWriteLock();
 
                     try
                     {
@@ -97,7 +97,7 @@ namespace BuildXL.Utilities.Collections
                     }
                     finally
                     {
-                        m_rwl.DowngradeFromWriterLock(ref lockCookie);
+                        m_rwl.ExitWriteLock();
                     }
                 }
 
@@ -105,7 +105,7 @@ namespace BuildXL.Utilities.Collections
             }
             finally
             {
-                m_rwl.ReleaseReaderLock();
+                m_rwl.ExitUpgradeableReadLock();
             }
         }
 

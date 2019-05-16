@@ -21,9 +21,9 @@ namespace Processes {
             ),
             ...addIf(BuildXLSdk.isDotNetCoreBuild,
                 SysMng.pkg.override<Shared.ManagedNugetPackage>({
-                    runtime: [
+                    runtime: Context.getCurrentHost().os === "win" ? [
                         Shared.Factory.createBinaryFromFiles(SysMng.Contents.all.getFile(r`runtimes/win/lib/netcoreapp2.0/System.Management.dll`))
-                    ]
+                    ] : []
                 })
             ),
             ...importFrom("BuildXL.Utilities").Native.securityDlls,

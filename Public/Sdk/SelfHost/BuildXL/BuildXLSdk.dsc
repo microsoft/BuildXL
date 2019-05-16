@@ -140,6 +140,13 @@ namespace Flags {
      */
     @@public
     export const genVSSolution = Environment.getFlag("[Sdk.BuildXL]GenerateVSSolution");
+
+    /**
+     * Temporary flag to exclude building BuildXL.Explorer.
+     * BuildXL.Explorer is broken but building it can take a long time in CB environment.
+     */
+    @@public
+    export const excludeBuildXLExplorer = Environment.getFlag("[Sdk.BuildXL]ExcludeBuildXLExplorer");
 }
 
 @@public

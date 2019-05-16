@@ -19,7 +19,7 @@ namespace Server {
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
               // TODO: revisit this!
-              Managed.Factory.createBinary(importFrom("Microsoft.NETCore.App").Contents.all, r`ref/netcoreapp2.1/netstandard.dll`)
+              Managed.Factory.createBinary(importFrom("Microsoft.NETCore.App").Contents.all, r`ref/netcoreapp3.0/netstandard.dll`)
             ),
 
             importFrom("BuildXL.Pips").dll,
@@ -47,7 +47,7 @@ namespace Server {
             importFrom("Microsoft.AspNetCore.Mvc.DataAnnotations").pkg,
             importFrom("Microsoft.AspNetCore.Mvc.Formatters.Json").pkg,
             importFrom("Microsoft.AspNetCore.Mvc.ViewFeatures").pkg,
-            importFrom("Microsoft.AspNetCore.Razor.Runtime").pkg,  
+            importFrom("Microsoft.AspNetCore.Razor.Runtime").pkg,
             importFrom("Microsoft.Extensions.Caching.Abstractions").pkg,
             importFrom("Microsoft.Extensions.Caching.Memory").pkg,
             importFrom("Microsoft.Extensions.Configuration").pkg,

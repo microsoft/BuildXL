@@ -134,7 +134,7 @@ namespace Test.BuildXL.Scheduler.Utils
 
             if (Cache == null)
             {
-                Cache = InMemoryCacheFactory.Create(context);
+                Cache = InMemoryCacheFactory.Create();
             }
 
             var tracker = FileChangeTracker.CreateDisabledTracker(LoggingContext);

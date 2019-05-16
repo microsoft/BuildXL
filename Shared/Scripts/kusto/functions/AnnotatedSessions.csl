@@ -43,7 +43,7 @@ cluster('cbuild').database('Domino').dominoinvocation
     EnvironmentShort = extract("([^;]*)", 1 , Environment),
     CBQueue = extract("(cloudBuildQueue=)([^;]*)", 2 , Environment),
     Infra = case(
-        UserName == "_qcloud1" or UserName == "_qcloud2" , "CB",
+        UserName == "_qcloud1" or UserName == "_qcloud2" or UserName startswith "CBA" , "CB",
         (Environment contains "Dev" or Environment contains "WrapItUp") and UserName != "tpctext" and UserName != "y-arnold", "Dev",
         Environment contains "Self" and UserName != "tsebuild", "Dev",
         "Lab")

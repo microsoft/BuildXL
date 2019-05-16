@@ -105,7 +105,10 @@ namespace BuildXL.Cache.Analyzer
             }
 
             long length = possibleStream.Result.Length;
+#pragma warning disable AsyncFixer02
             possibleStream.Result.Dispose();
+#pragma warning restore AsyncFixer02
+
             return new Tuple<CasHash, long>(casHash, length);
         }
 

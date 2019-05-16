@@ -43,7 +43,9 @@ namespace BuildXL.Scheduler
         public DirectoryEnumerationResult(PathExistence existence, IReadOnlyList<(AbsolutePath, string)> members)
         {
             Contract.Requires(members != null);
-            Contract.Requires(members.Count == 0 || existence == PathExistence.ExistsAsDirectory);
+            // The PathExistence can be ExistsAsFile because the directory path is a directory symlink, and the enumeration
+            // is done via that directory symlink. Currently, directory symlinks are classified as files.
+            Contract.Requires(members.Count == 0 || existence != PathExistence.Nonexistent);
 
             Existence = existence;
             Members = members;

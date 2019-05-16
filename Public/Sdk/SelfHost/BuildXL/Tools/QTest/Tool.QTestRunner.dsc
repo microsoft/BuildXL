@@ -179,6 +179,7 @@ export function runQTest(args: QTestArguments): Result {
         ),
         Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType),
         Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
+        Cmd.flag("--enableVsJitDebugger", Environment.hasVariable("[Sdk.BuildXL]enableVsJitDebugger")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
         Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
@@ -294,10 +295,6 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     vstestSettingsFile?: File;
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
-    /** Describes the type of coverage that QTest should employ. */
-    qCodeCoverageEnumType?: "DynamicCodeCov" | "None";
-    /** When enabled, creates a zip of the sandbox in log directory */
-    zipSandbox? : boolean;
     /** Privilege level required by this process to execute. */
     privilegeLevel?: "standard" | "admin";
 }

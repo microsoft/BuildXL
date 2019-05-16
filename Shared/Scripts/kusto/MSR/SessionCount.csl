@@ -10,7 +10,7 @@ dominoinvocation
     CBQueue = extract("(cloudBuildQueue=)([^;]*)", 2 , Environment),
     Role = extract("(distributedBuildRole:)([^ ]*)", 2 , CommandLine),
     Infra = case(
-        UserName == "_qcloud1" or UserName == "_qcloud2" , "CB",
+        UserName == "_qcloud1" or UserName == "_qcloud2" or UserName startswith "CBA" , "CB",
         (Environment contains "Dev" or Environment contains "WrapItUp") and UserName != "tpctext" and UserName != "y-arnold", "Dev",
         Environment contains "Self" and UserName != "tsebuild", "Dev",
         "Lab")
@@ -36,4 +36,5 @@ dominoinvocation
 | summarize UniqueSessions = dcount(UniqueSession), UniqueUsers = dcount(U) by Month, Customer, Infra
 | order by Month asc nulls last, Customer, Infra
 
+ 
  

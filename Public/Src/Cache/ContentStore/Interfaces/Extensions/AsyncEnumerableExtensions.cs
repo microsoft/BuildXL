@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+extern alias Async;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +11,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
 {
+
     /// <summary>
     /// Extension methods for Async Enumerables.
     /// </summary>
@@ -19,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// when there's a single call that produces the enumerable asynchronously followed by the items being enumerated.
         /// The type is a resultbase to guarantee that the producer task will not throw.
         /// </summary>
-        public static IAsyncEnumerable<T> CreateSingleProducerTaskAsyncEnumerable<T>(
+        public static Async::System.Collections.Generic.IAsyncEnumerable<T> CreateSingleProducerTaskAsyncEnumerable<T>(
             Func<Task<IEnumerable<T>>> producerTaskFunc)
             where T : ResultBase
         {
@@ -43,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// <summary>
         /// Converts an enumerable of tasks to an async enumerable of task results
         /// </summary>
-        public static IAsyncEnumerable<T> ToResultsAsyncEnumerable<T>(this IEnumerable<Task<T>> tasks)
+        public static Async::System.Collections.Generic.IAsyncEnumerable<T> ToResultsAsyncEnumerable<T>(this IEnumerable<Task<T>> tasks)
         {
             return AsyncEnumerable.CreateEnumerable(
                 () =>

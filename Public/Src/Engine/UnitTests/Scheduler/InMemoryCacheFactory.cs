@@ -13,10 +13,10 @@ namespace Test.BuildXL.Scheduler
     /// </summary>
     public static class InMemoryCacheFactory
     {
-        public static EngineCache Create(PipExecutionContext context)
+        public static EngineCache Create()
         {
             return new EngineCache(
-                new InMemoryArtifactContentCache(context),
+                new InMemoryArtifactContentCache(),
                 new InMemoryTwoPhaseFingerprintStore());
         }
     }

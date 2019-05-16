@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+extern alias Async;
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -85,14 +87,14 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public virtual async Task<BoolResult> StartupAsync(Context context)
         {
             StartupStarted = true;
-            
+
             var startupContentResult = await _contentReadOnlySession.StartupAsync(context).ConfigureAwait(false);
             if (!startupContentResult.Succeeded)
             {
                 StartupCompleted = true;
                 return new BoolResult(startupContentResult, "Content session startup failed");
             }
-            
+
             var startupMemoizationResult = await _memoizationReadOnlySession.StartupAsync(context).ConfigureAwait(false);
             if (!startupMemoizationResult.Succeeded)
             {
@@ -180,7 +182,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
 
         /// <inheritdoc />
-        public IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        public Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return this.GetSelectorsAsAsyncEnumerable(context, weakFingerprint, cts, urgencyHint);
         }

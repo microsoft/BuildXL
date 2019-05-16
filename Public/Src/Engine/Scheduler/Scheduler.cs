@@ -2201,6 +2201,10 @@ namespace BuildXL.Scheduler
                             m_groupedPipCounters.IncrementCounter(processRunnablePip.Process, PipCountersByGroup.Failed);
                         }
                     }
+
+                    // Keep logging the process stats near the Pip's state transition so we minimize having inconsistent
+                    // stats like having more cache hits than completed process pips
+                    LogProcessStats(runnablePip);
                 }
                 else if (pipType == PipType.Ipc)
                 {
@@ -2254,13 +2258,6 @@ namespace BuildXL.Scheduler
                         result.Status == PipResultStatus.UpToDate ||
                         result.Status == PipResultStatus.Succeeded ||
                         result.Status == PipResultStatus.NotMaterialized, I($"{result.Status} should not be here at this point"));
-
-                    // Keep logging the process stats near the Pip's state transition so we minimize having inconsistent
-                    // stats like having more cache hits than completed process pips
-                    if (pipType == PipType.Process)
-                    {
-                        LogProcessStats(runnablePip);
-                    }
 
                     pipRuntimeInfo.Transition(
                         m_pipStateCounters,
@@ -2803,6 +2800,13 @@ namespace BuildXL.Scheduler
 
             bool inline = false;
 
+            // If the pip should be cancelled, make sure we inline the next step. The pip queue may be also flagged as cancelled and won't dequeue the pip otherwise.
+            // The check for cancellation will then happen on ExecutePipStep and the pip will be transitioned to PipExecutionStep.Cancel
+            if (ShouldCancelPip(runnablePip))
+            {
+                inline = true;
+            }
+
             // If the next queue is none or the same as the previous one, do not change the current queue and inline execution here.
             // However, when choosing worker, we should enqueue again even though the next queue is chooseworker again.
             if (nextQueue == DispatcherKind.None)
@@ -2892,6 +2896,15 @@ namespace BuildXL.Scheduler
             // (a) Execute as inlined here, OR
             // (b) Enqueue the execution of the rest of the steps until another enqueue.
             await ExecuteAsyncOrEnqueue(runnablePip);
+        }
+
+        private void FlagSharedOpaqueOutputsOnCancellation(RunnablePip runnablePip)
+        {
+            Contract.Assert(runnablePip.IsCancelled);
+            if (runnablePip is ProcessRunnablePip processRunnable)
+            {
+                FlagSharedOpaqueOutputs(runnablePip.Environment, processRunnable);
+            }
         }
 
         private static void ReleaseWorkerIfNecessary(RunnablePip runnablePip, PipExecutionStep nextStep)
@@ -3092,7 +3105,7 @@ namespace BuildXL.Scheduler
 
             // If schedule is terminating (e.g., StopOnFirstFailure), cancel the pip
             // as long as (i) 'start' step has been executed, (ii) the pip is in running state, and (iii) the pip has not been cancelled before.
-            if (m_scheduleTerminating && step != PipExecutionStep.Start && GetPipRuntimeInfo(pipId).State == PipState.Running && !runnablePip.IsCancelled)
+            if (ShouldCancelPip(runnablePip))
             {
                 return runnablePip.Cancel();
             }
@@ -3156,6 +3169,9 @@ namespace BuildXL.Scheduler
 
                 case PipExecutionStep.Cancel:
                     {
+                        // Make sure shared opaque outputs are flagged as such.
+                        FlagSharedOpaqueOutputsOnCancellation(runnablePip);
+
                         Logger.Log.ScheduleCancelingPipSinceScheduleIsTerminating(
                             loggingContext,
                             runnablePip.Description);
@@ -3581,6 +3597,11 @@ namespace BuildXL.Scheduler
             }
         }
 
+        private bool ShouldCancelPip(RunnablePip runnablePip)
+        {
+            return m_scheduleTerminating && runnablePip.Step != PipExecutionStep.Start && GetPipRuntimeInfo(runnablePip.PipId).State == PipState.Running && !runnablePip.IsCancelled;
+        }
+
         private void FlagSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)
         {
             // Select all declared output files
@@ -3591,7 +3612,7 @@ namespace BuildXL.Scheduler
 
             // The shared dynamic accesses can be null when the pip failed on preparation, in which case it didn't run at all, so there is
             // nothing to flag
-            if (process.ExecutionResult.SharedDynamicDirectoryWriteAccesses != null)
+            if (process.ExecutionResult?.SharedDynamicDirectoryWriteAccesses != null)
             {
                 // Directory outputs are reported only when the pip is successful. So we need to rely on the raw shared dynamic write accesses,
                 // since flagging also happens on failed pips

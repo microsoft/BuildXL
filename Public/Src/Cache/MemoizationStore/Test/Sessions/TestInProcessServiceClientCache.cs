@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+extern alias Async;
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -94,7 +96,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         public Task<GetStatsResult> GetStatsAsync(Context context) => _client.GetStatsAsync(context);
 
         /// <inheritdoc />
-        public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context) => _client.EnumerateStrongFingerprints(context);
+        public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context) => _client.EnumerateStrongFingerprints(context);
 
         private static void SetThreadPoolSizes()
         {

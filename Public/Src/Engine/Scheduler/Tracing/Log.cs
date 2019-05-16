@@ -615,7 +615,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (ushort)Events.Tasks.Storage,
-            Message = "[{pipDescription}] Cache pip with symlink directory '{symlinkPath}' in output directory resulted in error")]
+            Message = "[{pipDescription}] Pip produced a directory symlink '{symlinkPath}', which is not supported. The pip will hence not be stored to cache.")]
         public abstract void StorageSymlinkDirInOutputDirectoryWarning(LoggingContext loggingContext, string pipDescription, string symlinkPath);
 
         [GeneratedEvent(
@@ -4275,7 +4275,6 @@ namespace BuildXL.Scheduler.Tracing
             string directoryPath,
             string pipDescription,
             string deletedPaths);
-
     }
 }
 #pragma warning restore CA1823 // Unused field

@@ -2868,10 +2868,13 @@ namespace BuildXL.Native.IO.Windows
             }
         }
 
-        /// <summary>
-        /// Thin wrapper for native GetFileAttributesW that checks the win32 error upon failure
-        /// </summary>
-        public static bool TryGetFileAttributes(string path, out FileAttributes attributes, out int hr)
+        private static bool TryGetFileAttributes(string path, out FileAttributes attributes, out int hr)
+        {
+            return TryGetFileAttributesViaGetFileAttributes(path, out attributes, out hr)
+                || TryGetFileAttributesViaFindFirstFile(path, out attributes, out hr);
+        }
+
+        private static bool TryGetFileAttributesViaGetFileAttributes(string path, out FileAttributes attributes, out int hr)
         {
             Contract.Ensures(Contract.Result<bool>() ^ Contract.ValueAtReturn<int>(out hr) != 0);
 
@@ -2889,7 +2892,7 @@ namespace BuildXL.Native.IO.Windows
             return true;
         }
 
-        private bool TryGetFileAttributesViaFindFirstFile(string path, out FileAttributes attributes, out int hr)
+        private static bool TryGetFileAttributesViaFindFirstFile(string path, out FileAttributes attributes, out int hr)
         {
             WIN32_FIND_DATA findResult;
 
@@ -2922,7 +2925,7 @@ namespace BuildXL.Native.IO.Windows
         /// <inheritdoc />
         public Possible<PathExistence, NativeFailure> TryProbePathExistence(string path, bool followSymlink)
         {
-            if (!TryGetFileAttributes(path, out FileAttributes fileAttributes, out int hr))
+            if (!TryGetFileAttributesViaGetFileAttributes(path, out FileAttributes fileAttributes, out int hr))
             {
                 if (IsHresultNonesixtent(hr))
                 {
@@ -3013,7 +3016,7 @@ namespace BuildXL.Native.IO.Windows
         {
             if (!TryGetFileAttributes(path, out FileAttributes attributes, out int hr))
             {
-                ThrowForNativeFailure(hr, "GetFileAttributesW");
+                ThrowForNativeFailure(hr, "FindFirstFileW", nameof(GetFileAttributes));
             }
 
             return attributes;
@@ -3387,10 +3390,9 @@ namespace BuildXL.Native.IO.Windows
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "GetFileAttributesW")]
         public Possible<ReparsePointType> TryGetReparsePointType(string path)
         {
-            // Not calling GetFileAttributes to avoid throwing an exception in the hot path here
             if (!TryGetFileAttributes(path, out FileAttributes attributes, out int hr))
             {
-                return new Possible<ReparsePointType>(new NativeFailure(hr, "GetFileAttributesW"));
+                return new Possible<ReparsePointType>(new NativeFailure(hr));
             }
 
             if ((attributes & FileAttributes.ReparsePoint) == 0)

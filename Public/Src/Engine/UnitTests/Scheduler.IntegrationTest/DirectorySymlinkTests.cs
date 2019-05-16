@@ -71,6 +71,12 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            AssertWarningEventLogged(EventId.ScrubbingExternalFileOrDirectoryFailed, count: 0, allowMore: true);
+            base.Dispose(disposing);
+        }
+
         /* 
          * Operations which when executed produce the following layout
 
@@ -217,7 +223,7 @@ Versions/sym-sym-A -> sym-A/
                 .Select(spec =>
                     spec.Contains("->") ? OpCreateSym(X(spec), spec.EndsWith("/") ? Operation.SymbolicLinkFlag.DIRECTORY : Operation.SymbolicLinkFlag.FILE) :
                     spec.EndsWith("/")  ? OpCreateDir(X(spec)) :
-                                          OpWriteFile(X(spec)));                                          
+                                          OpWriteFile(X(spec)));
         }
 
         private IEnumerable<Operation> GetLayoutProducingOperationsWithDummyReadFile(string rootDir, string dummyFileDescription)
@@ -267,6 +273,7 @@ Versions/sym-sym-A -> sym-A/
         public void DirectorySymlinksInOutputDirectoryProducerOnlyOnWindows(SealDirectoryKind dirKind)
         {
             XAssert.IsFalse(dirKind.IsSourceSeal());
+
             
             AbsolutePath rootDirAbsPath = CreateUniqueObjPath($"{dirKind}.framework");
             string rootDir = rootDirAbsPath.ToString(Context.PathTable);
@@ -295,12 +302,15 @@ Versions/sym-sym-A -> sym-A/
                 outputDirArtifact = SealDirectory(rootDirAbsPath, dirKind, dao.Outputs.ToArray());
             }
 
+            System.Diagnostics.Debugger.Launch();
+
             // first run, expect cache miss
             RunScheduler().AssertSuccess().AssertCacheMiss(producerPip.PipId);
+            AssertWarningEventLogged(LogEventId.StorageSymlinkDirInOutputDirectoryWarning, count: 2);
 
             // rerun, check cache miss, symlink directory in output can't be cached
             RunScheduler().AssertSuccess().AssertCacheMiss(producerPip.PipId);
-            AssertWarningEventLogged(LogEventId.StorageSymlinkDirInOutputDirectoryWarning, count: 4);          
+            AssertWarningEventLogged(LogEventId.StorageSymlinkDirInOutputDirectoryWarning, count: 2);          
         }
 
         [Feature(Features.Symlink)]
@@ -604,6 +614,39 @@ Versions/sym-sym-A -> sym-A/
                     Operation.ReadFile(hardlink2) * ReadCount,
                     Operation.ReadFile(file2) * ReadCount)));
             RunScheduler().AssertSuccess();
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void EnumerateDirectoryViaDirectorySymlinkShouldBeObservedAsDirectoryEnumeration()
+        {
+            AbsolutePath targetDirectory = CreateUniqueDirectory(ReadonlyRoot, "Target");
+            CreateSourceFile(targetDirectory, "file1");
+            CreateSourceFile(targetDirectory, "file2");
+
+            AbsolutePath directorySymlink = CreateUniquePath("Symlink", ReadonlyRoot);
+            XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(
+                directorySymlink.ToString(Context.PathTable), 
+                targetDirectory.ToString(Context.PathTable), 
+                isTargetFile: false).Succeeded);
+
+            var pipBuilder = CreatePipBuilder(new[]
+            {
+                Operation.EnumerateDir(DirectoryArtifact.CreateWithZeroPartialSealId(directorySymlink)),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                pipBuilder.AddInputFile(directorySymlink);
+            }
+
+            ProcessWithOutputs processWithOutputs = SchedulePipBuilder(pipBuilder);
+
+            RunScheduler().AssertSuccess();
+            RunScheduler().AssertCacheHit(processWithOutputs.Process.PipId);
+
+            CreateSourceFile(targetDirectory, "file3");
+            RunScheduler().AssertCacheMiss(processWithOutputs.Process.PipId);
         }
 
         private static IEnumerable<T> Multiply<T>(int count, T elem) => Enumerable.Range(1, count).Select(_ => elem);

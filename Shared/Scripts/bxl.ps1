@@ -524,7 +524,7 @@ if (!$skipFilter){
 
     $AllCacheProjectsFilter = "(spec='Public\Src\Cache\ContentStore\*')or(spec='Public\Src\Cache\MemoizationStore\*')or(spec='Public\Src\Cache\DistributedCache.Host\*')or(spec='Public\Src\Deployment\cache.dsc')";
     $CacheNugetFilter = "spec='Public\Src\Deployment\cache.nugetpackages.dsc'";
-    $CacheOutputFilter = "output='out\bin\$DeployConfig\cache\net472\*'";
+    $CacheOutputFilter = "output='out\bin\$DeployConfig\cache\*'";
     $CacheLongRunningFilter = "tag='LongRunningTest'";
     $PrivateNugetFilter = "spec='Public\src\Deployment\privatePackages.dsc'";
     $IdeFilter = "spec='Public\src\Deployment\ide.dsc'";

@@ -1911,8 +1911,11 @@ namespace BuildXL.Processes
                 // The file dependency may be under the cone of a shared opaque, which will give write access
                 // to it. Explicitly block this, since we want inputs to not be written. Observe we already know 
                 // this is not a rewrite.
-                mask: m_excludeReportAccessMask & ~FileAccessPolicy.AllowRealInputTimestamps 
-                    & (pathIsUnderSharedOpaque ? ~FileAccessPolicy.AllowWrite: FileAccessPolicy.MaskNothing)); 
+                mask: m_excludeReportAccessMask &
+                      ~FileAccessPolicy.AllowRealInputTimestamps &
+                      (pathIsUnderSharedOpaque ? 
+                          ~FileAccessPolicy.AllowWrite: 
+                          FileAccessPolicy.MaskNothing)); 
 
             allInputPaths.Add(path);
 

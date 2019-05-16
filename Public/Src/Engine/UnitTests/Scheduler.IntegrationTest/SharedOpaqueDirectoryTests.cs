@@ -1057,7 +1057,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             ProcessBuilder doubleWriteProducerPipBuilder = CreatePipBuilder(writeOperations);
             doubleWriteProducerPipBuilder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
 
-            // Let's make doubleWriteProducerPip depends on originalProducerPip so we avoid potential file locks on the double write
+            // Let's make doubleWriteProducerPip depend on originalProducerPip so we avoid potential file locks on the double write
             doubleWriteProducerPipBuilder.AddInputFile(originalProducerPipResult.ProcessOutputs.GetOutputFiles().Single());
 
             // Set UnsafeFirstDoubleWriteWins

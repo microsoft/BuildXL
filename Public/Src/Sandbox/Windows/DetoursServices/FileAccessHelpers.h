@@ -304,7 +304,7 @@ inline bool ReportAnyAccess(bool accessDenied) { return CheckReportAnyAccess(g_f
 
 inline LPCTSTR InternalDetoursErrorNotificationFile()
 {
-    return g_internalDetoursErrorNotificationFile.c_str();
+    return g_internalDetoursErrorNotificationFile;
 }
 
 inline bool IsNullOrEmptyA(LPCSTR lpFileName)

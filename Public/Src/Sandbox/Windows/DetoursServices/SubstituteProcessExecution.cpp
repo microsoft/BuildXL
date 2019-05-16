@@ -57,9 +57,9 @@ static BOOL WINAPI InjectShim(
         wcscat_s(fullCommandLine, fullCmdLineSizeInChars, lpCommandLine);
     }
 
-    Dbg(L"Injecting substitute shim '%s' for process command line '%s'", g_substituteProcessExecutionShimPath.c_str(), fullCommandLine);
+    Dbg(L"Injecting substitute shim '%s' for process command line '%s'", g_substituteProcessExecutionShimPath, fullCommandLine);
     BOOL rv = Real_CreateProcessW(
-        /*lpApplicationName:*/ g_substituteProcessExecutionShimPath.c_str(),
+        /*lpApplicationName:*/ g_substituteProcessExecutionShimPath,
         /*lpCommandLine:*/ fullCommandLine,
         lpProcessAttributes,
         lpThreadAttributes,
@@ -201,8 +201,8 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
     {
         ShimProcessMatch *pMatch = *it;
 
-        const wchar_t *processName = pMatch->ProcessName.c_str();
-        size_t processLen = pMatch->ProcessName.size();
+        const wchar_t *processName = pMatch->ProcessName.get();
+        size_t processLen = wcslen(processName);
 
         // lpAppName is longer than e.g. "cmd.exe", see if lpAppName ends with e.g. "\cmd.exe"
         if (processLen < commandLen)
@@ -210,7 +210,7 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
             if (command[commandLen - processLen - 1] == L'\\' &&
                 _wcsicmp(command.c_str() + commandLen - processLen, processName) == 0)
             {
-                if (CommandArgsContainMatch(commandArgs, pMatch->ArgumentMatch.c_str()))
+                if (CommandArgsContainMatch(commandArgs, pMatch->ArgumentMatch.get()))
                 {
                     foundMatch = true;
                     break;
@@ -224,7 +224,7 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
         {
             if (_wcsicmp(processName, command.c_str()) == 0)
             {
-                if (CommandArgsContainMatch(commandArgs, pMatch->ArgumentMatch.c_str()))
+                if (CommandArgsContainMatch(commandArgs, pMatch->ArgumentMatch.get()))
                 {
                     foundMatch = true;
                     break;
@@ -256,7 +256,7 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
     _Out_       LPPROCESS_INFORMATION lpProcessInformation,
     _Out_       bool&                 injectedShim)
 {
-    if (!g_substituteProcessExecutionShimPath.empty())
+    if (g_substituteProcessExecutionShimPath != nullptr)
     {
         wstring command;
         wstring commandArgs;

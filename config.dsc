@@ -171,12 +171,12 @@ config({
                 // xUnit
                 { id: "xunit.abstractions", version: "2.0.3", tfm: ".NETStandard2.0" },
                 { id: "xunit.analyzers", version: "0.10.0" },
-                { id: "xunit.assert", version: "2.4.1" },
-                { id: "xunit.core", version: "2.4.1" },
-                { id: "xunit.extensibility.core", version: "2.4.1" },
-                { id: "xunit.extensibility.execution", version: "2.4.1" },
-                { id: "xunit.runner.utility", version: "2.4.1" },
-                { id: "xunit.runner.console", version: "2.4.1" },
+                { id: "xunit.assert", version: "2.4.1-ms" },
+                { id: "xunit.core", version: "2.4.1-ms" },
+                { id: "xunit.extensibility.core", version: "2.4.1-ms" },
+                { id: "xunit.extensibility.execution", version: "2.4.1-ms" },
+                { id: "xunit.runner.console", version: "2.4.1-ms" },
+                { id: "xunit.runner.utility", version: "2.4.1-ms" },
                 { id: "xunit.runner.visualstudio", version: "2.4.1" },
 
                 { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "3.17.2" },

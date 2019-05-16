@@ -30,17 +30,19 @@ namespace BuildXL {
             ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [{
                 subfolder: r`tools`,
                 contents: [
-                    {
-                        subfolder: r`bxp`,
-                        contents: [
-                            importFrom("BuildXL.Explorer").App.app.appFolder
-                        ]
-                    },
-                    ...(BuildXLSdk.Flags.genVSSolution
+                    ...(BuildXLSdk.Flags.excludeBuildXLExplorer
+                        ? []
+                        : [ {
+                                subfolder: r`bxp`,
+                                contents: [
+                                    importFrom("BuildXL.Explorer").App.app.appFolder
+                                ]
+                            } ] ),
+                    ...(BuildXLSdk.Flags.genVSSolution || BuildXLSdk.Flags.excludeBuildXLExplorer
                         ? []
                         : [ {
                                 subfolder: r`bxp-server`,
-                                    contents: [
+                                contents: [
                                     importFrom("BuildXL.Explorer").Server.withQualifier(
                                         Object.merge<BuildXLSdk.NetCoreAppQualifier>(qualifier, {targetFramework: "netcoreapp3.0"})
                                     ).exe

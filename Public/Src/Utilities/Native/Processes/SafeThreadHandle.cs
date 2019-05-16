@@ -7,9 +7,7 @@ using Microsoft.Win32.SafeHandles;
 namespace BuildXL.Native.Processes
 {
     /// <nodoc />
-#if !DISABLE_FEATURE_SECURITY_ATTRIBUTES
     [SuppressUnmanagedCodeSecurity]
-#endif
     public sealed class SafeThreadHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         // constructor get's called by pinvoke

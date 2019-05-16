@@ -32,7 +32,7 @@ namespace Processes {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
-            ...importFrom("BuildXL.Utilities").Native.securityDlls,
+            ...importFrom("BuildXL.Utilities").Native.securityDlls
         ],
         runtimeContent: [
             ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [

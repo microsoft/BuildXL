@@ -1104,9 +1104,6 @@ namespace Test.BuildXL.Storage
                         mapName: null,
                         capacity: 0,
                         access: MemoryMappedFileAccess.ReadWrite,
-#if !DISABLE_FEATURE_MEMORYMAP_SECURITY
-                        memoryMappedFileSecurity: null,
-#endif
                         inheritability: HandleInheritability.None,
                         leaveOpen: false))
                 {

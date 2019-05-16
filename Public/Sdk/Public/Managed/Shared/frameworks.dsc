@@ -6,7 +6,7 @@ import * as Deployment from "Sdk.Deployment";
 @@public
 export interface Framework {
     /**
-     * The minimum rumtime version supported.
+     * The minimum runtime version supported.
      * See: https://docs.microsoft.com/en-us/dotnet/framework/configure-apps/file-schema/startup/supportedruntime-element
      */
     supportedRuntimeVersion: string,

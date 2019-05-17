@@ -42,17 +42,35 @@ namespace BuildXL.Processes.Containers
         public IReadOnlyDictionary<AbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> OriginalDirectories { get; }
 
         /// <summary>
+        /// On Windows, defines whether the WCI (Windows Container) filter driver is enabled. When false,
+        /// only BindFlt is used for output redirection.
+        /// </summary>
+        public bool IsWciFilterEnabled { get; }
+
+        /// <summary>
+        /// Paths that should not have the bindflt path transformation applied to them.
+        /// </summary>
+        public IReadOnlySet<string> BindFltExcludedPaths { get; }
+
+        /// <summary>
         /// No isolation
         /// </summary>
         public static ContainerConfiguration DisabledIsolation = new ContainerConfiguration(
                 pathTable: null,
                 redirectedDirectories: CollectionUtilities.EmptyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>>(),
-                originalDirectories: CollectionUtilities.EmptyDictionary<AbsolutePath, IReadOnlyList<ExpandedAbsolutePath>>());
+                originalDirectories: CollectionUtilities.EmptyDictionary<AbsolutePath, IReadOnlyList<ExpandedAbsolutePath>>(),
+                isWciFilterEnabled: false);
 
         /// <summary>
         /// Creates a configuration created for a specific process
         /// </summary>
-        public ContainerConfiguration(PathTable pathTable, IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories, IReadOnlyDictionary<AbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> originalDirectories)
+        public ContainerConfiguration(
+            PathTable pathTable,
+            IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
+            IReadOnlyDictionary<AbsolutePath,
+            IReadOnlyList<ExpandedAbsolutePath>> originalDirectories,
+            bool isWciFilterEnabled = true,
+            IReadOnlySet<AbsolutePath> bindFltExcludedPaths = null)
         {
             Contract.Requires(redirectedDirectories.Count == 0 || pathTable != null);
             Contract.Requires(redirectedDirectories != null);
@@ -61,6 +79,10 @@ namespace BuildXL.Processes.Containers
             IsIsolationEnabled = redirectedDirectories.Count > 0;
             RedirectedDirectories = redirectedDirectories;
             OriginalDirectories = originalDirectories;
+            IsWciFilterEnabled = isWciFilterEnabled;
+            BindFltExcludedPaths = bindFltExcludedPaths != null ?
+                CollectionUtilities.ToReadOnlySet(bindFltExcludedPaths.Select(p => p.ToString(pathTable)))
+                : CollectionUtilities.EmptySet<string>();
         }
 
         /// <summary>
@@ -98,6 +120,8 @@ namespace BuildXL.Processes.Containers
         public string ToDisplayString()
         {
             var sb = new StringBuilder(256);
+            sb.AppendLine($"Isolation Enabled: {IsIsolationEnabled}");
+            sb.AppendLine($"Wci Filter Enabled: {IsWciFilterEnabled}");
             if (RedirectedDirectories.Count > 0)
             {
                 sb.AppendLine("Remapped directories:");

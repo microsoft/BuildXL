@@ -40,6 +40,8 @@ namespace BuildXL.Processes.Containers
             Native.Processes.ProcessUtilities.AttachContainerToJobObject(
                             handle,
                             m_containerConfiguration.RedirectedDirectories,
+                            m_containerConfiguration.IsWciFilterEnabled,
+                            m_containerConfiguration.BindFltExcludedPaths,
                             out var warnings);
 
             // Log any warnings when setting up the container (at this point this is just WCI retries)

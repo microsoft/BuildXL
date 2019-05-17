@@ -6,7 +6,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Threading;
 
 namespace BuildXL.Utilities.Collections
 {
@@ -32,9 +31,8 @@ namespace BuildXL.Utilities.Collections
 
         /// <summary>
         /// Lock to ensure validation does not read from old values.
-        /// <remarks>Uses ReaderWriterLock to avoid disposal requirements for ReaderWriterLockSlim.</remarks>
         /// </summary>
-        private readonly ReaderWriterLock m_rwl = new ReaderWriterLock();
+        private readonly object m_lock = new object();
 
         /// <summary>
         /// Constructor with element limit <paramref name="capacity"/>.
@@ -57,62 +55,49 @@ namespace BuildXL.Utilities.Collections
         /// </remarks>
         public bool TryAdd(TSort sort, TValue value)
         {
-            m_rwl.AcquireReaderLock(Timeout.Infinite);
-
-            try
+            // Skip the (hopefully) common case
+            if (m_list.Count == 0 || m_list.Count < Capacity || sort.CompareTo(m_currentMinimum) > 0)
             {
-                // Skip the (hopefully) common case
-                if (m_list.Count == 0 || m_list.Count < Capacity || sort.CompareTo(m_currentMinimum) > 0)
+                lock (m_lock)
                 {
-                    var lockCookie = m_rwl.UpgradeToWriterLock(Timeout.Infinite);
-
-                    try
+                    // Double check locking pattern
+                    if (m_list.Count == 0 || m_list.Count < Capacity || sort.CompareTo(m_currentMinimum) > 0)
                     {
-                        // This check is not required because the SortedList would push low values out when trimming.
-                        // However, omitting this check leads to lock thrashing.
-                        if (m_list.Count == 0 || m_list.Count < Capacity || sort.CompareTo(m_currentMinimum) > 0)
+                        // Avoid overlap
+                        if (m_list.ContainsKey(sort))
                         {
-                            // Avoid overlap
-                            if (m_list.ContainsKey(sort))
-                            {
-                                return false;
-                            }
-
-                            // Insert the new value
-                            m_list.Add(sort, value);
-
-                            // Trim excess
-                            if (m_list.Count > Capacity)
-                            {
-                                m_list.RemoveAt(0);
-                            }
-
-                            if (m_list.Count != 0)
-                            {
-                                m_currentMinimum = m_list.ElementAt(0).Key;
-                            }
-
-                            return true;
+                            return false;
                         }
-                    }
-                    finally
-                    {
-                        m_rwl.DowngradeFromWriterLock(ref lockCookie);
+
+                        // Insert the new value
+                        m_list.Add(sort, value);
+
+                        // Trim excess
+                        if (m_list.Count > Capacity)
+                        {
+                            m_list.RemoveAt(0);
+                        }
+
+                        if (m_list.Count != 0)
+                        {
+                            m_currentMinimum = m_list.ElementAt(0).Key;
+                        }
+
+                        return true;
                     }
                 }
+            }
 
-                return false;
-            }
-            finally
-            {
-                m_rwl.ReleaseReaderLock();
-            }
+            return false;
         }
 
         /// <inheritdoc />
         public IEnumerator<KeyValuePair<TSort, TValue>> GetEnumerator()
         {
-            return m_list.GetEnumerator();
+            lock (m_lock)
+            {
+                return new List<KeyValuePair<TSort, TValue>>(m_list).GetEnumerator();
+            }
         }
 
         /// <inheritdoc />

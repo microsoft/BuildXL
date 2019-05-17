@@ -2,8 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Managed from "Sdk.Managed";
+import * as Deployment from "Sdk.Deployment";
 
-namespace Processes.TestPrograms.SubstituteProcessExecution {
+namespace TestSubstituteProcessExecutionShim {
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "TestSubstituteProcessExecutionShim",

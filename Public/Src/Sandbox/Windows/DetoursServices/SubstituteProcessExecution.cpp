@@ -33,6 +33,8 @@ static BOOL WINAPI InjectShim(
 {
     // Create a final buffer for the original command line - we prepend the original command
     // (if present) in quotes for easier parsing in the shim, ahead of the original argument list if provided.
+    // This is an over-allocation because if lpCommandLine is non-null, lpCommandLine starts with
+    // the contents of lpApplicationName, which we'll remove and replace with a quoted version.
     size_t fullCmdLineSizeInChars =
         (lpApplicationName != nullptr ? wcslen(lpApplicationName) : 0) +
         (lpCommandLine != nullptr ? wcslen(lpCommandLine) : 0) +
@@ -48,13 +50,58 @@ static BOOL WINAPI InjectShim(
     fullCommandLine[0] = L'\0';
     if (lpApplicationName != nullptr)
     {
-        fullCommandLine[0] = L'"';
-        wcscpy_s(fullCommandLine + 1, fullCmdLineSizeInChars, lpApplicationName);
-        wcscat_s(fullCommandLine, fullCmdLineSizeInChars, L"\" ");
+        if (lpApplicationName[0] == L'"')
+        {
+            // App is already quoted, just reuse its quotes.
+            wcscpy_s(fullCommandLine, fullCmdLineSizeInChars, lpApplicationName);
+        }
+        else
+        {
+            fullCommandLine[0] = L'"';
+            wcscpy_s(fullCommandLine + 1, fullCmdLineSizeInChars, lpApplicationName);
+            wcscat_s(fullCommandLine, fullCmdLineSizeInChars, L"\"");
+        }
     }
     if (lpCommandLine != nullptr)
     {
-        wcscat_s(fullCommandLine, fullCmdLineSizeInChars, lpCommandLine);
+        if (lpApplicationName != nullptr)
+        {
+            // If lpApplicationName is specified, lpCommandLine starts with that command, but possibly
+            // without quotes. Skip it in favor of our quoted string added above, and append starting
+            // with the whitespace after the command.
+            size_t appLen = wcslen(lpApplicationName);
+            if (lpApplicationName[0] != L'"' && lpCommandLine[0] == '"')
+            {
+                appLen += 2;  // Account for quotes not present on lpApplicationName but present in lpCommandLine
+            }
+                
+            wcscat_s(fullCommandLine, fullCmdLineSizeInChars, lpCommandLine + appLen);
+        }
+        else
+        {
+            // Ensure the initial command is quoted to ensure consistent parsing for the shim.
+            size_t cmdLineLen = wcslen(lpCommandLine);
+            if (lpCommandLine[0] != L'"')
+            {
+                size_t cmdLen;
+                for (cmdLen = 0; cmdLen < cmdLineLen; cmdLineLen++)
+                {
+                    if (lpCommandLine[cmdLen] == L' ')
+                    {
+                        break;
+                    }
+                }
+
+                fullCommandLine[0] = L'"';
+                wcsncpy_s(fullCommandLine + 1, fullCmdLineSizeInChars, lpCommandLine, cmdLen);
+                fullCommandLine[1 + cmdLen] = L'"';
+                wcscat_s(fullCommandLine, fullCmdLineSizeInChars, lpCommandLine + cmdLen);
+            }
+            else
+            {
+                wcscat_s(fullCommandLine, fullCmdLineSizeInChars, lpCommandLine);
+            }
+        }
     }
 
     Dbg(L"Injecting substitute shim '%s' for process command line '%s'", g_substituteProcessExecutionShimPath, fullCommandLine);
@@ -190,6 +237,7 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
     if (g_pShimProcessMatches == nullptr || g_pShimProcessMatches->empty())
     {
         // Shim everything or shim nothing if there are no matches to compare.
+printf("erik: ShouldSubst easy case %d\n", g_ProcessExecutionShimAllProcesses);
         return g_ProcessExecutionShimAllProcesses;
     }
 
@@ -200,6 +248,7 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
     for (auto it = g_pShimProcessMatches->begin(); it != g_pShimProcessMatches->end(); ++it)
     {
         ShimProcessMatch *pMatch = *it;
+printf("erik: shimprocessmatch %S , %S\n", pMatch->ProcessName.get(), pMatch->ArgumentMatch.get());
 
         const wchar_t *processName = pMatch->ProcessName.get();
         size_t processLen = wcslen(processName);
@@ -272,11 +321,14 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
             lpCommandArgs = lpCommandLine;
         }
 
+printf("erik: Checking ShouldSubt\n");
+
         if (ShouldSubstituteShim(command, lpCommandArgs))
         {
             // Instead of Detouring the child, run the requested shim
             // passing the original command line, but only for appropriate commands.
             injectedShim = true;
+printf("erik: Injecting shim\n");
             return InjectShim(
                 lpApplicationName,
                 lpCommandLine,
@@ -291,6 +343,7 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
         }
     }
 
+printf("erik: returning false for injectedShim\n");
     injectedShim = false;
     return FALSE;
 }

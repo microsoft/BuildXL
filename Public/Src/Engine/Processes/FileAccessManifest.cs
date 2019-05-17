@@ -468,13 +468,15 @@ namespace BuildXL.Processes
 
             if (SubstituteProcessExecutionInfo == null)
             {
-                // Emit just a zero-length substituteProcessExecShimPath when substitution is turned off.
+                writer.Write(0);  // ShimAllProcesses false value.
+
+                // Emit a zero-length substituteProcessExecShimPath when substitution is turned off.
                 WriteChars(writer, null);
                 return;
             }
 
-            WriteChars(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionShimPath.ToString(m_pathTable));
             writer.Write(SubstituteProcessExecutionInfo.ShimAllProcesses ? (uint)1 : (uint)0);
+            WriteChars(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionShimPath.ToString(m_pathTable));
             writer.Write((uint)SubstituteProcessExecutionInfo.ShimProcessMatches.Count);
 
             if (SubstituteProcessExecutionInfo.ShimProcessMatches.Count > 0)

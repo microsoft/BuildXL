@@ -24,17 +24,20 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <nodoc />
         public enum SessionCounters
         {
-            /// <nodoc />
+            /// <summary>
+            /// Pin request had to be made to a remote VSTS store.
+            /// </summary>
             PinSatisfiedFromRemote,
 
-            /// <nodoc />
+            /// <summary>
+            /// Pin was satisfied without reaching VSTS based on existing cached data.
+            /// </summary>
             PinSatisfiedInMemory
         }
 
         private readonly IAbsFileSystem _fileSystem;
         private readonly IArtifactHttpClientFactory _artifactHttpClientFactory;
         private readonly TimeSpan _timeToKeepContent;
-        private readonly BackingContentStoreTracer _backingStoreContentTracer;
         private IArtifactHttpClient _artifactHttpClient;
         private readonly bool _useDedupStore;
 
@@ -67,7 +70,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
             _artifactHttpClientFactory = artifactHttpClientFactory;
             _timeToKeepContent = timeToKeepContent;
             _downloadBlobsThroughBlobStore = downloadBlobsThroughBlobStore;
-            _backingStoreContentTracer = backingStoreContentTracer;
             _useDedupStore = useDedupStore;
         }
 
@@ -144,7 +146,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
 
             return new CreateSessionResult<IReadOnlyContentSession>(new BlobReadOnlyContentSession(
-                _fileSystem, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _timeToKeepContent, _backingStoreContentTracer, _downloadBlobsThroughBlobStore));
+                _fileSystem, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _timeToKeepContent, _downloadBlobsThroughBlobStore));
         }
 
         /// <inheritdoc />
@@ -158,13 +160,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
 
             return new CreateSessionResult<IContentSession>(new BlobContentSession(
-                _fileSystem, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _timeToKeepContent, _backingStoreContentTracer, _downloadBlobsThroughBlobStore));
+                _fileSystem, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _timeToKeepContent, _downloadBlobsThroughBlobStore));
         }
 
         /// <inheritdoc />
-        public Task<GetStatsResult> GetStatsAsync(Context context)
-        {
-            return Task.FromResult(new GetStatsResult(new CounterSet()));
-        }
+        public Task<GetStatsResult> GetStatsAsync(Context context) => Task.FromResult(new GetStatsResult(new CounterSet()));
     }
 }

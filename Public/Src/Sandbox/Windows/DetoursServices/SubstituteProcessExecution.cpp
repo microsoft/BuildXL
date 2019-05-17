@@ -237,7 +237,6 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
     if (g_pShimProcessMatches == nullptr || g_pShimProcessMatches->empty())
     {
         // Shim everything or shim nothing if there are no matches to compare.
-printf("erik: ShouldSubst easy case %d\n", g_ProcessExecutionShimAllProcesses);
         return g_ProcessExecutionShimAllProcesses;
     }
 
@@ -248,7 +247,6 @@ printf("erik: ShouldSubst easy case %d\n", g_ProcessExecutionShimAllProcesses);
     for (auto it = g_pShimProcessMatches->begin(); it != g_pShimProcessMatches->end(); ++it)
     {
         ShimProcessMatch *pMatch = *it;
-printf("erik: shimprocessmatch %S , %S\n", pMatch->ProcessName.get(), pMatch->ArgumentMatch.get());
 
         const wchar_t *processName = pMatch->ProcessName.get();
         size_t processLen = wcslen(processName);
@@ -321,14 +319,11 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
             lpCommandArgs = lpCommandLine;
         }
 
-printf("erik: Checking ShouldSubt\n");
-
         if (ShouldSubstituteShim(command, lpCommandArgs))
         {
             // Instead of Detouring the child, run the requested shim
             // passing the original command line, but only for appropriate commands.
             injectedShim = true;
-printf("erik: Injecting shim\n");
             return InjectShim(
                 lpApplicationName,
                 lpCommandLine,
@@ -343,7 +338,6 @@ printf("erik: Injecting shim\n");
         }
     }
 
-printf("erik: returning false for injectedShim\n");
     injectedShim = false;
     return FALSE;
 }

@@ -17,7 +17,9 @@ function macOSRuntimeExtensions(file: File): boolean {
 function ignoredAssembly(file: File): boolean {
     // We skip deploying those files from the .NET Core package as we need those very assemblies from their dedicated package
     // to compile our platform abstraction layer, which depends on datatypes present only in the dedicated packages
-    return file.name === a`System.Security.AccessControl.dll` || file.name === a`System.Security.Principal.Windows.dll`;
+    return file.name === a`System.IO.FileSystem.AccessControl.dll` ||
+           file.name === a`System.Security.AccessControl.dll` ||
+           file.name === a`System.Security.Principal.Windows.dll`;
 }
 
 const windowsRuntimeFiles = [

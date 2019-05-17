@@ -388,7 +388,6 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     "FEATURE_SAFE_PROCESS_HANDLE",
                     "DISABLE_FEATURE_VSEXTENSION_INSTALL_CHECK",
                     "DISABLE_FEATURE_HTMLWRITER",
-                    "DISABLE_FEATURE_FILES_SYSTEM_RIGHTS",
                     "DISABLE_FEATURE_EXTENDED_ENCODING"
                 ),
                 ...addIf(!Flags.isMicrosoftInternal || isDotNetCoreBuild,

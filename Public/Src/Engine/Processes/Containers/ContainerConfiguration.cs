@@ -58,8 +58,7 @@ namespace BuildXL.Processes.Containers
         public static ContainerConfiguration DisabledIsolation = new ContainerConfiguration(
                 pathTable: null,
                 redirectedDirectories: CollectionUtilities.EmptyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>>(),
-                originalDirectories: CollectionUtilities.EmptyDictionary<AbsolutePath, IReadOnlyList<ExpandedAbsolutePath>>(),
-                isWciFilterEnabled: false);
+                originalDirectories: CollectionUtilities.EmptyDictionary<AbsolutePath, IReadOnlyList<ExpandedAbsolutePath>>());
 
         /// <summary>
         /// Creates a configuration created for a specific process

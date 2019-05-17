@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+using System.IO;
 using Microsoft.Build.Construction;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Execution;
@@ -27,6 +28,18 @@ namespace Microsoft.Build.Prediction.Tests.StandardPredictors
             bool hasPredictions = predictor.TryPredictInputsAndOutputs(project, projectInstance, @"C:\repo", out StaticPredictions predictions);
             Assert.True(hasPredictions);
             predictions.AssertPredictions(null, new[] { new BuildOutputDirectory(IntermediateOutputPath) });
+        }
+
+        [Fact]
+        public void RelativeIntermediateOutputPathFoundAsOutputDir()
+        {
+            const string IntermediateOutputPath = @"bin\x64";
+            Project project = CreateTestProject(IntermediateOutputPath);
+            ProjectInstance projectInstance = project.CreateProjectInstance(ProjectInstanceSettings.ImmutableWithFastItemLookup);
+            var predictor = new IntermediateOutputPathIsOutputDir();
+            bool hasPredictions = predictor.TryPredictInputsAndOutputs(project, projectInstance, @"C:\repo", out StaticPredictions predictions);
+            Assert.True(hasPredictions);
+            predictions.AssertPredictions(null, new[] { new BuildOutputDirectory(Path.Combine(Directory.GetCurrentDirectory(), IntermediateOutputPath)) });
         }
 
         [Fact]

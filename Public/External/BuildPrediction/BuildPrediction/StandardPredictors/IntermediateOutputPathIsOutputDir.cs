@@ -8,7 +8,7 @@ using Microsoft.Build.Execution;
 namespace Microsoft.Build.Prediction.StandardPredictors
 {
     /// <summary>
-    /// Scrapes the $(IntermediateOutputPath) if not found.
+    /// Scrapes the $(IntermediateOutputPath) if found.
     /// </summary>
     internal class IntermediateOutputPathIsOutputDir : IProjectStaticPredictor
     {

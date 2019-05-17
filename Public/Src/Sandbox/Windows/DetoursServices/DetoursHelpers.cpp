@@ -828,7 +828,7 @@ bool ParseFileAccessManifest(
     PCManifestSubstituteProcessExecutionShim pShimInfo = reinterpret_cast<PCManifestSubstituteProcessExecutionShim>(&payloadBytes[offset]);
     pShimInfo->AssertValid();
 #ifdef _DEBUG
-    offset += sizeof(uint32_t);
+    offset += pShimInfo->GetSize();
 #endif
     g_substituteProcessExecutionShimPath = CreateStringFromWriteChars(payloadBytes, offset);
     if (g_substituteProcessExecutionShimPath != nullptr)

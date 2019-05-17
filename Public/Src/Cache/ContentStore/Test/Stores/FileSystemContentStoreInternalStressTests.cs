@@ -76,7 +76,7 @@ namespace ContentStoreTest.Stores
 
         protected override void CorruptContent(TestFileSystemContentStoreInternal store, ContentHash contentHash)
         {
-            throw new NotImplementedException();
+            store.CorruptContent(contentHash);
         }
     }
 }

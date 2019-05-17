@@ -45,7 +45,7 @@ namespace ContentStoreTest.Stores
 
         private MockFileSystem MockFileSystem => (MockFileSystem)FileSystem;
 
-        [Fact]
+        [Fact(Skip = "Stress test, meant to be run by hand as it takes several minutes")]
         public async Task TestAvoidOOMOnLargeEnumeration()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))

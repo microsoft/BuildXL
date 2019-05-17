@@ -85,7 +85,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <nodoc />
         public List<PayloadFromDisk<T>> ListOrderedByHash()
         {
-            return this.OrderBy(p => p.Hash).ToList();
+            var result = this.ToList();
+            result.Sort();
+            return result;
         }
 
         /// <summary>

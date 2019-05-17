@@ -23,6 +23,7 @@ using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 namespace Test.BuildXL.Storage
 {
+    [Trait("Category", "WindowsOSOnly")] // need to investigate if equivalent on Unix
     public sealed class FileUtilitiesUnsafeTests : TemporaryStorageTestBase
     {
         public FileUtilitiesUnsafeTests()
@@ -31,7 +32,6 @@ namespace Test.BuildXL.Storage
         }
 
         [Fact]
-        [Trait("Category", "WindowsOSOnly")] // need to investigate if equivalent on Unix
         public void DeleteDirectoryContentsHandleOpen()
         {
             string directory = Path.Combine(TemporaryDirectory, "directoryToDelete");
@@ -63,7 +63,7 @@ namespace Test.BuildXL.Storage
         }
 
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void CreateReplacementFileRecreatesWhenDenyWriteACLPresent()
         {
             const string Target = @"Target";
@@ -85,7 +85,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void CreateReplacementFileRecreatesAfterRemovingReadonlyFlag()
         {
             const string Target = @"Target";
@@ -107,7 +107,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void CreateReplacementFileReplacesAfterRemovingReadonlyFlagIfDenyWriteACLPresent()
         {
             const string Target = @"Target";
@@ -130,7 +130,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [Fact]
+        [Fact] // This is permitted on unix
         public void RetryEmptyDirectoryDelete()
         {
             // Create an empty directory
@@ -176,7 +176,7 @@ namespace Test.BuildXL.Storage
         /// deletion. In these cases, we should back off and retry.
         /// <see cref="FileUtilities.IsPendingDelete(SafeFileHandle)"/> for more information.
         /// </remarks>
-        [Fact]
+        [Fact] // FileUtilities.IsPendingDelete not implemented on non-Windows
         public void RetryDeleteDirectoryContentsIfContentsPendingDelete()
         {
             try
@@ -848,7 +848,7 @@ namespace Test.BuildXL.Storage
             XAssert.AreEqual(0, Directory.GetFileSystemEntries(originalRoot).Length);
         }
 
-        [Fact]
+        [Fact] // Path too long for unix
         public void CreateHardlinkSupportsLongPath()
         {
             var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(TemporaryDirectory, (path, _) => Path.Combine(path, "dir"));
@@ -882,7 +882,7 @@ namespace Test.BuildXL.Storage
             XAssert.IsTrue(FileUtilities.TryFindOpenHandlesToFile(fileNameWithCurly, out var diag));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void LongPathAccessControlTest()
         {
             var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(TemporaryDirectory, (path, _) => Path.Combine(path, "dir"));

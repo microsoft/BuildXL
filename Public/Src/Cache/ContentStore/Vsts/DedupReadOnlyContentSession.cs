@@ -21,13 +21,17 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using Microsoft.WindowsAzure.Storage;
 using BlobIdentifier = BuildXL.Cache.ContentStore.Hashing.BlobIdentifier;
 using FileInfo = System.IO.FileInfo;
+using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 using VstsDedupIdentifier = Microsoft.VisualStudio.Services.BlobStore.Common.DedupIdentifier;
 using VstsBlobIdentifier = Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifier;
 
@@ -37,8 +41,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
     ///     IReadOnlyContentSession for DedupContentStore.
     /// </summary>
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-    public class DedupReadOnlyContentSession : IReadOnlyContentSession
+    public class DedupReadOnlyContentSession : ContentSessionBase
     {
+        private CounterCollection<BackingContentStore.SessionCounters> _counters { get; } = new CounterCollection<BackingContentStore.SessionCounters>();
+
         /// <summary>
         /// Default number of oustanding connections to throttle Artifact Services.
         /// TODO: Unify cache config - current default taken from IOGate in DistributedReadOnlyContentSession.
@@ -70,10 +76,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// </summary>
         protected readonly ImplicitPin ImplicitPin;
 
-        /// <summary>
-        /// A tracer for tracking blob content calls.
-        /// </summary>
-        protected readonly BackingContentStoreTracer Tracer;
+        /// <inheritdoc />
+        protected override Tracer Tracer { get; } = new Tracer(nameof(DedupContentSession));
+
+        //protected override Tracer Tracer => _tracer;
 
         /// <summary>
         ///     Staging ground for parallel upload/downloads.
@@ -112,7 +118,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="implicitPin">Policy determining whether or not content should be automatically pinned on adds or gets.</param>
         /// <param name="dedupStoreHttpClient">Backing DedupStore http client.</param>
         /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
-        /// <param name="tracer">A tracer for tracking blob content session calls.</param>
         /// <param name="maxConnections">The maximum number of outboud connections to VSTS.</param>
         public DedupReadOnlyContentSession(
             IAbsFileSystem fileSystem,
@@ -120,81 +125,38 @@ namespace BuildXL.Cache.ContentStore.Vsts
             ImplicitPin implicitPin,
             IDedupStoreHttpClient dedupStoreHttpClient,
             TimeSpan timeToKeepContent,
-            BackingContentStoreTracer tracer,
             int maxConnections = DefaultMaxConnections)
+            : base(name)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(name != null);
             Contract.Requires(dedupStoreHttpClient != null);
 
-            Name = name;
             ImplicitPin = implicitPin;
             DedupStoreClient = new DedupStoreClient(dedupStoreHttpClient, DefaultMaxParallelism);
-            Tracer = tracer;
             FileSystem = fileSystem;
             TempDirectory = new DisposableDirectory(fileSystem);
             ConnectionGate = new SemaphoreSlim(maxConnections);
             EndDateTime = DateTime.UtcNow + timeToKeepContent;
-    }
-
-        /// <inheritdoc />
-        public string Name { get; }
-
-        /// <inheritdoc />
-        public Task<BoolResult> StartupAsync(Context context)
-        {
-            StartupStarted = true;
-            StartupCompleted = true;
-            return Task.FromResult(BoolResult.Success);
-        }
-
-        /// <inheritdoc />
-        public bool StartupCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool StartupStarted { get; private set; }
-
-        /// <inheritdoc />
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         /// <summary>
         /// Dispose native resources.
         /// </summary>
         [SuppressMessage("ReSharper", "UnusedParameter.Global")]
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                TempDirectory.Dispose();
-            }
-        }
+        protected override void DisposeCore() => TempDirectory.Dispose();
 
         /// <inheritdoc />
-        public Task<BoolResult> ShutdownAsync(Context context)
-        {
-            ShutdownStarted = true;
-            ShutdownCompleted = true;
-            return Task.FromResult(BoolResult.Success);
-        }
-
-        /// <inheritdoc />
-        public async Task<PinResult> PinAsync(
-            Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        protected override async Task<PinResult> PinCoreAsync(
+            OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
         {
             if (contentHash.HashType != RequiredHashType)
             {
                 return new PinResult($"DedupStore client requires {RequiredHashType}. Cannot take HashType '{contentHash.HashType}'.");
             }
 
-            Stopwatch sw = Stopwatch.StartNew();
             try
             {
-                Tracer.PinBulkStart(context, new[] { contentHash });
-
                 var pinResult = CheckPinInMemory(contentHash);
                 if (pinResult.Succeeded)
                 {
@@ -204,15 +166,16 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 var dedupId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier()).ToDedupIdentifier();
                 if (dedupId.AlgorithmId == Hashing.ChunkDedupIdentifier.ChunkAlgorithmId)
                 {
-                    pinResult = await TryPinChunkAsync(context, dedupId, cts);
+                    pinResult = await TryPinChunkAsync(context, dedupId);
                 }
                 else
                 {
-                    pinResult = await TryPinNodeAsync(context, dedupId, cts);
+                    pinResult = await TryPinNodeAsync(context, dedupId);
                 }
 
                 if (pinResult.Succeeded)
                 {
+                    _counters[BackingContentStore.SessionCounters.PinSatisfiedFromRemote].Increment();
                     BackingContentStoreExpiryCache.Instance.AddExpiry(contentHash, EndDateTime);
                 }
 
@@ -222,15 +185,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
             {
                 return new PinResult(ex);
             }
-            finally
-            {
-                Tracer.PinBulkStop(context, sw.Elapsed);
-            }
         }
 
         /// <inheritdoc />
-        public async Task<OpenStreamResult> OpenStreamAsync(
-            Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        protected override async Task<OpenStreamResult> OpenStreamCoreAsync(
+            OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
         {
             if (contentHash.HashType != RequiredHashType)
             {
@@ -242,7 +201,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             {
                 if (ImplicitPin == ImplicitPin.PutAndGet)
                 {
-                    var pinResult = await PinAsync(context, contentHash, cts, urgencyHint).ConfigureAwait(false);
+                    var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint).ConfigureAwait(false);
                     if (!pinResult.Succeeded)
                     {
                         if (pinResult.Code == PinResult.ResultCode.ContentNotFound)
@@ -259,7 +218,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
                 tempFile = TempDirectory.CreateRandomFileName().Path;
                 var result =
-                    await PlaceFileInternalAsync(context, contentHash, tempFile, FileMode.Create, cts).ConfigureAwait(false);
+                    await PlaceFileInternalAsync(context, contentHash, tempFile, FileMode.Create).ConfigureAwait(false);
 
                 if (result.Succeeded)
                 {
@@ -295,15 +254,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <inheritdoc />
-        public async Task<PlaceFileResult> PlaceFileAsync(
-            Context context,
+        protected override async Task<PlaceFileResult> PlaceFileCoreAsync(
+            OperationContext context,
             ContentHash contentHash,
             AbsolutePath path,
             FileAccessMode accessMode,
             FileReplacementMode replacementMode,
             FileRealizationMode realizationMode,
-            CancellationToken cts,
-            UrgencyHint urgencyHint = UrgencyHint.Nominal)
+            UrgencyHint urgencyHint,
+            Counter retryCount)
         {
             if (contentHash.HashType != RequiredHashType)
             {
@@ -319,7 +278,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
                 if (ImplicitPin == ImplicitPin.PutAndGet)
                 {
-                    var pinResult = await PinAsync(context, contentHash, cts, urgencyHint).ConfigureAwait(false);
+                    var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint).ConfigureAwait(false);
                     if (!pinResult.Succeeded)
                     {
                         return pinResult.Code == PinResult.ResultCode.ContentNotFound
@@ -332,7 +291,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     ? FileMode.Create
                     : FileMode.CreateNew;
                 var placeResult =
-                    await PlaceFileInternalAsync(context, contentHash, path.Path, fileMode, cts).ConfigureAwait(false);
+                    await PlaceFileInternalAsync(context, contentHash, path.Path, fileMode).ConfigureAwait(false);
 
                 if (!placeResult.Succeeded)
                 {
@@ -353,58 +312,43 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <inheritdoc />
-        public async Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
-            Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        protected override async Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(
+            OperationContext context, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
         {
-            Stopwatch sw = Stopwatch.StartNew();
             try
             {
-                Tracer.PinBulkStart(context, contentHashes);
 
                 return await Workflows.RunWithFallback(
                     contentHashes,
                     hashes => CheckInMemoryCache(hashes),
-                    hashes => UpdateDedupStoreAsync(context, hashes, cts),
+                    hashes => UpdateDedupStoreAsync(context, hashes),
                     result => result.Succeeded);
             }
             catch (Exception ex)
             {
-                context.Warning($"Exception when querying pins against the VSTS services {ex}");
+                context.TracingContext.Warning($"Exception when querying pins against the VSTS services {ex}");
                 return contentHashes.Select((_, index) => Task.FromResult(new PinResult(ex).WithIndex(index)));
-            }
-            finally
-            {
-                Tracer.PinBulkStop(context, sw.Elapsed);
             }
         }
 
         /// <inheritdoc />
-        public Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(Context context, IReadOnlyList<ContentHashWithPath> hashesWithPaths, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        protected override Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(OperationContext context, IReadOnlyList<ContentHashWithPath> hashesWithPaths, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)
         {
             // Also not implemented in BlobReadOnlyContentSession.
             throw new NotImplementedException();
         }
 
-        /// <inheritdoc />
-        public bool ShutdownCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool ShutdownStarted { get; private set; }
-
         /// <summary>
         /// Converts a ContentStore BlobId to an Artifact BlobId
         /// </summary>
-        protected static VstsBlobIdentifier ToVstsBlobIdentifier(BlobIdentifier blobIdentifier)
-        {
-            return new VstsBlobIdentifier(blobIdentifier.Bytes);
-        }
+        protected static VstsBlobIdentifier ToVstsBlobIdentifier(BlobIdentifier blobIdentifier) => new VstsBlobIdentifier(blobIdentifier.Bytes);
 
         private Task<BoolResult> PlaceFileInternalAsync(
-            Context context, ContentHash contentHash, string path, FileMode fileMode, CancellationToken cts)
+            OperationContext context, ContentHash contentHash, string path, FileMode fileMode)
         {
             try
             {
-                return GetFileWithDedupAsync(context, contentHash, path, cts);
+                return GetFileWithDedupAsync(context, contentHash, path);
             }
             catch (Exception e) when (fileMode == FileMode.CreateNew && !IsErrorFileExists(e))
             {
@@ -434,7 +378,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         private async Task<IEnumerable<Task<Indexed<PinResult>>>> UpdateDedupStoreAsync(
-            Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts)
+            OperationContext context, IReadOnlyList<ContentHash> contentHashes)
         {
             if (!contentHashes.Any())
             {
@@ -450,11 +394,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
                    if (i.Item.AlgorithmId == Hashing.ChunkDedupIdentifier.ChunkAlgorithmId)
                    {
-                       pinResult = await TryPinChunkAsync(context, i.Item, cts);
+                       pinResult = await TryPinChunkAsync(context, i.Item);
                    }
                    else
                    {
-                       pinResult = await TryPinNodeAsync(context, i.Item, cts);
+                       pinResult = await TryPinNodeAsync(context, i.Item);
                    }
 
                    if (pinResult.Succeeded)
@@ -473,14 +417,14 @@ namespace BuildXL.Cache.ContentStore.Vsts
             return results.AsTasks().ToList();
         }
 
-        private async Task<BoolResult> GetFileWithDedupAsync(Context context, ContentHash contentHash, string path, CancellationToken cts)
+        private async Task<BoolResult> GetFileWithDedupAsync(OperationContext context, ContentHash contentHash, string path)
         {
             VstsBlobIdentifier blobId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier());
             VstsDedupIdentifier dedupId = blobId.ToDedupIdentifier();
 
             try
             {
-                await TryGatedArtifactOperationAsync<Object>(
+                await TryGatedArtifactOperationAsync<object>(
                     context,
                     contentHash.ToString(),
                     "DownloadToFileAsync",
@@ -488,7 +432,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 {
                     await DedupStoreClient.DownloadToFileAsync(dedupId, path, null, null, EdgeCache.Allowed, innerCts);
                     return null;
-                }, cts);
+                });
             }
             catch (NullReferenceException) // Null reference thrown when DedupIdentifier doesn't exist in VSTS.
             {
@@ -518,20 +462,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
                             .AsIndexedTasks());
         }
 
-        private bool IsErrorFileExists(Exception e)
-        {
-            return (Marshal.GetHRForException(e) & ((1 << 16) - 1)) == ErrorFileExists;
-        }
+        private bool IsErrorFileExists(Exception e) => (Marshal.GetHRForException(e) & ((1 << 16) - 1)) == ErrorFileExists;
 
         private PinResult CheckPinInMemory(ContentHash contentHash)
         {
-            DateTime expiryTime;
-
             // TODO: allow cached expiry time to be within some bump threshold (e.g. allow expiryTime = 6 days & endDateTime = 7 days) (bug 1365340)
             if (BackingContentStoreExpiryCache.Instance.TryGetExpiry(
-                contentHash, out expiryTime) && expiryTime > EndDateTime)
+                contentHash, out var expiryTime) && expiryTime > EndDateTime)
             {
-                Tracer.RecordPinSatisfiedInMemory();
+                _counters[BackingContentStore.SessionCounters.PinSatisfiedInMemory].Increment();
                 return PinResult.Success;
             }
 
@@ -549,10 +488,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// Because pinning requires recursing an entire tree, we need to limit the number of simultaneous calls to DedupStore.
         /// </summary>
         protected async Task<TResult> TryGatedArtifactOperationAsync<TResult>(
-            Context context, string content, string operationName, Func<CancellationToken, Task<TResult>> func, CancellationToken token, [CallerMemberName] string caller = null)
+            OperationContext context, string content, string operationName, Func<CancellationToken, Task<TResult>> func, [CallerMemberName] string caller = null)
         {
             var sw = Stopwatch.StartNew();
-            await ConnectionGate.WaitAsync(token);
+            await ConnectionGate.WaitAsync(context.Token);
 
             var elapsed = sw.Elapsed;
 
@@ -567,7 +506,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     context,
                     operationName,
                     innerCts => func(innerCts),
-                    token);
+                    context.Token);
             }
             finally
             {
@@ -579,7 +518,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <summary>
         /// Updates expiry of single chunk in DedupStore if it exists.
         /// </summary>
-        private async Task<PinResult> TryPinChunkAsync(Context context, VstsDedupIdentifier dedupId, CancellationToken cts)
+        private async Task<PinResult> TryPinChunkAsync(OperationContext context, VstsDedupIdentifier dedupId)
         {
             try
             {
@@ -587,8 +526,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     context,
                     dedupId.ValueString,
                     "TryKeepUntilReferenceChunk",
-                    innerCts => DedupStoreClient.Client.TryKeepUntilReferenceChunkAsync(dedupId.CastToChunkDedupIdentifier(), new KeepUntilBlobReference(EndDateTime), innerCts),
-                    cts);
+                    innerCts => DedupStoreClient.Client.TryKeepUntilReferenceChunkAsync(dedupId.CastToChunkDedupIdentifier(), new KeepUntilBlobReference(EndDateTime), innerCts));
 
                 if (receipt == null)
                 {
@@ -609,7 +547,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         ///     2) All children exist and have sufficient TTL
         /// If children have insufficient TTL, attempt to extend the expiry of all children before pinning.
         /// </summary>
-        private async Task<PinResult> TryPinNodeAsync(Context context, VstsDedupIdentifier dedupId, CancellationToken cts)
+        private async Task<PinResult> TryPinNodeAsync(OperationContext context, VstsDedupIdentifier dedupId)
         {
             TryReferenceNodeResponse referenceResult;
             try
@@ -618,8 +556,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     context,
                     dedupId.ValueString,
                     "TryKeepUntilReferenceNode",
-                    innerCts => DedupStoreClient.Client.TryKeepUntilReferenceNodeAsync(dedupId.CastToNodeDedupIdentifier(), new KeepUntilBlobReference(EndDateTime), null, innerCts),
-                    cts);
+                    innerCts => DedupStoreClient.Client.TryKeepUntilReferenceNodeAsync(dedupId.CastToNodeDedupIdentifier(), new KeepUntilBlobReference(EndDateTime), null, innerCts));
             }
             catch (DedupNotFoundException)
             {
@@ -631,7 +568,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return new PinResult(ex);
             }
 
-            PinResult pinResult = PinResult.ContentNotFound;
+            var pinResult = PinResult.ContentNotFound;
 
             referenceResult.Match(
                 (notFound) =>
@@ -640,7 +577,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 },
                 async (needAction) =>
                 {
-                    pinResult = await TryPinChildrenAsync(context, dedupId, needAction.InsufficientKeepUntil, cts);
+                    pinResult = await TryPinChildrenAsync(context, dedupId, needAction.InsufficientKeepUntil);
                 },
                 (added) =>
                 {
@@ -653,7 +590,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <summary>
         /// Attempt to update expiry of all children. Pin parent node if all children were extended successfully.
         /// </summary>
-        private async Task<PinResult> TryPinChildrenAsync(Context context, VstsDedupIdentifier parentNode, IEnumerable<VstsDedupIdentifier> dedupIdentifiers, CancellationToken cts)
+        private async Task<PinResult> TryPinChildrenAsync(OperationContext context, VstsDedupIdentifier parentNode, IEnumerable<VstsDedupIdentifier> dedupIdentifiers)
         {
             var chunks = new List<VstsDedupIdentifier>();
             var nodes = new List<VstsDedupIdentifier>();
@@ -672,11 +609,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             // Attempt to save all children.
             Tracer.Debug(context, $"Pinning children: nodes=[{string.Join(",", nodes.Select(x => x.ValueString))}] chunks=[{string.Join(",", chunks.Select(x => x.ValueString))}]");
-            var result = await TryPinNodesAsync(context, nodes, cts) & await TryPinChunksAsync(context, chunks, cts);
+            var result = await TryPinNodesAsync(context, nodes) & await TryPinChunksAsync(context, chunks);
             if (result == PinResult.Success)
             {
                 // If all children are saved, pin parent.
-                result = await TryPinNodeAsync(context, parentNode, cts);
+                result = await TryPinNodeAsync(context, parentNode);
             }
 
             return result;
@@ -686,7 +623,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// Recursively attempt to update expiry of all nodes and their children.
         /// Returns success only if all children of each node are found and extended.
         /// </summary>
-        private async Task<PinResult> TryPinNodesAsync(Context context, IEnumerable<VstsDedupIdentifier> dedupIdentifiers, CancellationToken cts)
+        private async Task<PinResult> TryPinNodesAsync(OperationContext context, IEnumerable<VstsDedupIdentifier> dedupIdentifiers)
         {
             if (!dedupIdentifiers.Any())
             {
@@ -695,7 +632,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             // TODO: Support batched TryKeepUntilReferenceNodeAsync in Artifact. (bug 1428612)
             var tryReferenceBlock = new TransformBlock<VstsDedupIdentifier, PinResult>(
-                async dedupId => await TryPinNodeAsync(context, dedupId, cts),
+                async dedupId => await TryPinNodeAsync(context, dedupId),
                 new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = DefaultMaxParallelism });
 
             tryReferenceBlock.PostAll(dedupIdentifiers);
@@ -716,7 +653,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <summary>
         /// Update all chunks if they exist. Returns success only if all chunks are found and extended.
         /// </summary>
-        private async Task<PinResult> TryPinChunksAsync(Context context, IEnumerable<VstsDedupIdentifier> dedupIdentifiers, CancellationToken cts)
+        private async Task<PinResult> TryPinChunksAsync(OperationContext context, IEnumerable<VstsDedupIdentifier> dedupIdentifiers)
         {
             if (!dedupIdentifiers.Any())
             {
@@ -725,7 +662,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             // TODO: Support batched TryKeepUntilReferenceChunkAsync in Artifact. (bug 1428612)
             var tryReferenceBlock = new TransformBlock<VstsDedupIdentifier, PinResult>(
-                async dedupId => await TryPinChunkAsync(context, dedupId, cts),
+                async dedupId => await TryPinChunkAsync(context, dedupId),
                 new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = DefaultMaxParallelism });
 
             tryReferenceBlock.PostAll(dedupIdentifiers);
@@ -743,5 +680,12 @@ namespace BuildXL.Cache.ContentStore.Vsts
             return PinResult.Success;
         }
         #endregion
+
+        /// <inheritdoc />
+        protected override CounterSet GetCounters()
+        {
+            var set = base.GetCounters();
+            return set.Merge(_counters.ToCounterSet());
+        }
     }
 }

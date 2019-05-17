@@ -21,6 +21,16 @@ namespace BuildXL.Cache.ContentStore.Vsts
     /// </summary>
     public sealed class BackingContentStore : IContentStore
     {
+        /// <nodoc />
+        public enum SessionCounters
+        {
+            /// <nodoc />
+            PinSatisfiedFromRemote,
+
+            /// <nodoc />
+            PinSatisfiedInMemory
+        }
+
         private readonly IAbsFileSystem _fileSystem;
         private readonly IArtifactHttpClientFactory _artifactHttpClientFactory;
         private readonly TimeSpan _timeToKeepContent;
@@ -130,7 +140,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             if (_useDedupStore)
             {
                 return new CreateSessionResult<IReadOnlyContentSession>(new DedupReadOnlyContentSession(
-                    _fileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _timeToKeepContent, _backingStoreContentTracer));
+                    _fileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _timeToKeepContent));
             }
 
             return new CreateSessionResult<IReadOnlyContentSession>(new BlobReadOnlyContentSession(
@@ -144,7 +154,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             if (_useDedupStore)
             {
                 return new CreateSessionResult<IContentSession>(new DedupContentSession(
-                    context, _fileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _timeToKeepContent, _backingStoreContentTracer));
+                    context, _fileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _timeToKeepContent));
             }
 
             return new CreateSessionResult<IContentSession>(new BlobContentSession(

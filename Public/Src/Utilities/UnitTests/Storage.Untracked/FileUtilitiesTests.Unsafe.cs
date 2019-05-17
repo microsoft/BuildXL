@@ -23,7 +23,7 @@ using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 namespace Test.BuildXL.Storage
 {
-    [Trait("Category", "WindowsOSOnly")] // need to investigate if equivalent on Unix
+    [Trait("Category", "WindowsOSOnly")]
     public sealed class FileUtilitiesUnsafeTests : TemporaryStorageTestBase
     {
         public FileUtilitiesUnsafeTests()
@@ -130,7 +130,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [Fact] // This is permitted on unix
+        [Fact]
         public void RetryEmptyDirectoryDelete()
         {
             // Create an empty directory
@@ -176,7 +176,7 @@ namespace Test.BuildXL.Storage
         /// deletion. In these cases, we should back off and retry.
         /// <see cref="FileUtilities.IsPendingDelete(SafeFileHandle)"/> for more information.
         /// </remarks>
-        [Fact] // FileUtilities.IsPendingDelete not implemented on non-Windows
+        [Fact]
         public void RetryDeleteDirectoryContentsIfContentsPendingDelete()
         {
             try
@@ -848,7 +848,7 @@ namespace Test.BuildXL.Storage
             XAssert.AreEqual(0, Directory.GetFileSystemEntries(originalRoot).Length);
         }
 
-        [Fact] // Path too long for unix
+        [Fact]
         public void CreateHardlinkSupportsLongPath()
         {
             var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(TemporaryDirectory, (path, _) => Path.Combine(path, "dir"));

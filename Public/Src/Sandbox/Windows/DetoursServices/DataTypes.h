@@ -546,6 +546,11 @@ typedef struct ManifestSubstituteProcessExecutionShim_t
 {
     GENERATE_TAG("ManifestSubstituteProcessExecutionShim", 0xABCDEF04)
 
+    // When nonzero and process substitution is active, determines whether
+    // all processes are shimmed except any in the ShimProcessMatch entries,
+    // or whether to shim all except the matches.
+    uint32_t ProcessExecutionShimAllProcesses;
+
     // Followed by WriteChars string and a custom collection consisting of N
     // entries where each entry is 2 WriteChars strings.
 

@@ -833,7 +833,7 @@ bool ParseFileAccessManifest(
     g_substituteProcessExecutionShimPath = CreateStringFromWriteChars(payloadBytes, offset);
     if (g_substituteProcessExecutionShimPath != nullptr)
     {
-        g_ProcessExecutionShimAllProcesses = ParseUint32(payloadBytes, offset) != 0;
+        g_ProcessExecutionShimAllProcesses = pShimInfo->ProcessExecutionShimAllProcesses != 0;
         uint32_t numProcessMatches = ParseUint32(payloadBytes, offset);
         g_pShimProcessMatches = new vector<ShimProcessMatch*>(numProcessMatches);
         for (uint32_t i = 0; i < numProcessMatches; i++)

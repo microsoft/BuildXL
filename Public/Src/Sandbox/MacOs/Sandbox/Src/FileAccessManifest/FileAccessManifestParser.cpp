@@ -134,7 +134,6 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
         uint32_t shimPathLength = SkipOverCharArray(payloadCursor);  // SubstituteProcessExecutionShimPath
         if (shimPathLength > 0)
         {
-            uint32_t shimAllProcesses = ParseUint32(payloadCursor);
             uint32_t numProcessMatches = ParseUint32(payloadCursor);
             for (uint32_t i = 0; i < numProcessMatches; i++)
             {

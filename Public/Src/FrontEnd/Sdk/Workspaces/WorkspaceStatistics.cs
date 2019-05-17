@@ -146,7 +146,9 @@ namespace BuildXL.FrontEnd.Workspaces
     public class WeightedCounter
     {
         private const int TopListMaxLength = 10;
-        internal readonly ConcurrentBoundedSortedCollection<long, string> SortedList = new ConcurrentBoundedSortedCollection<long, string>(TopListMaxLength);
+
+        private readonly ConcurrentBoundedSortedCollection<long, string> m_sortedList = new ConcurrentBoundedSortedCollection<long, string>(TopListMaxLength);
+
         private int m_count;
         private long m_aggregateWeight;
 
@@ -171,7 +173,7 @@ namespace BuildXL.FrontEnd.Workspaces
 
             if (!string.IsNullOrEmpty(path))
             {
-                SortedList.TryAdd(weight, path);
+                m_sortedList.TryAdd(weight, path);
             }
 
             return result;
@@ -193,22 +195,22 @@ namespace BuildXL.FrontEnd.Workspaces
         /// <summary>
         /// Returns a user-friendly description of the most heavy-weight elements.
         /// </summary>
-        public string RenderMostHeavyWeight() => CollapseDictionaryTimeLogs(SortedList, (weight) => I($"{weight}"));
+        public string RenderMostHeavyWeight() => CollapseDictionaryTimeLogs((weight) => I($"{weight}"));
 
         /// <summary>
-        /// Renders all alements found in <paramref name="sortedList"/>.
+        /// Renders all alements found in <see cref="m_sortedList"/>
         /// Elements are sorted by weight (in descending order).
         /// Each element is rendered on a separate line using the following format string: $"[{weight}] {path}.
         /// The 'weigth' fragment is padded so that all 'path's are aligned on the left.
         /// </summary>
-        protected static string CollapseDictionaryTimeLogs(ConcurrentBoundedSortedCollection<long, string> sortedList, Func<long, string> weightRenderer)
+        protected string CollapseDictionaryTimeLogs(Func<long, string> weightRenderer)
         {
-            var maxRenderedWeightLength = sortedList.Any()
-                ? sortedList.Max(kvp => weightRenderer(kvp.Key).Length)
+            var maxRenderedWeightLength = m_sortedList.Any()
+                ? m_sortedList.Max(kvp => weightRenderer(kvp.Key).Length)
                 : 0;
 
             StringBuilder stringBuilder = new StringBuilder();
-            foreach (KeyValuePair<long, string> pair in sortedList.Reverse())
+            foreach (KeyValuePair<long, string> pair in m_sortedList.Reverse())
             {
                 var renderedWeight = weightRenderer(pair.Key);
                 var paddedDurationStr = renderedWeight.PadLeft(maxRenderedWeightLength);
@@ -246,7 +248,7 @@ namespace BuildXL.FrontEnd.Workspaces
         /// <summary>
         /// Returns a string of the most time-consuming elements.
         /// </summary>
-        public string RenderSlowest => CollapseDictionaryTimeLogs(SortedList, RenderTicks);
+        public string RenderSlowest => CollapseDictionaryTimeLogs(RenderTicks);
 
         private static string RenderTicks(long ticks) => I($"{(long)TimeSpan.FromTicks(ticks).TotalMilliseconds}ms");
 

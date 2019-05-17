@@ -170,7 +170,9 @@ endlocal && exit /b 0
         REM Incremental scheduling is disabled so we can deterministically get all pip fingerprints exported.
         REM This build and the next are disconnected from the shared cache to ensure that they don't converge with a remote build happening at the same time.
         set COMPARE_FINGERPRINTS_LOGS_DIR=%ENLISTMENTROOT%\Out\Logs\CompareFingerprints\
-        call :RunBxl /cacheGraph- -Use RunCheckinTests -minimal %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints1 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable
+        REM Neither /cacheGraph- nor /scriptShowSlowest need be used here (and in the next step).
+        REM The reason why they are used here is to exercise DScript front end on .NET Core
+        call :RunBxl /cacheGraph- /scriptShowSlowest -Use RunCheckinTests -minimal %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints1 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
 
         REM Produce a fingerprint file of the first run.
@@ -187,7 +189,7 @@ endlocal && exit /b 0
         REM Graph caching is disabled in case there is nondeterminism during graph construction.
         REM We use the same logs directory but with different prefix.
         set SECOND_PREFIX=BuildXL.2
-        call :RunBxl /cacheGraph- -Use RunCheckinTests -minimal %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints2 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable /logPrefix:!SECOND_PREFIX!
+        call :RunBxl /cacheGraph- /scriptShowSlowest -Use RunCheckinTests -minimal %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints2 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable /logPrefix:!SECOND_PREFIX!
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
 
         REM Produce a fingerprint file of the second run.

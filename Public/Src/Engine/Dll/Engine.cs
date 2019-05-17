@@ -2879,7 +2879,7 @@ namespace BuildXL.Engine
             {
                 Logger.Log.FrontEndStatsBanner(loggingContext);
 
-                var scriptStats = FrontEndController.LogStatistics(Configuration.FrontEnd.ShowSlowestElementsStatistics, Configuration.FrontEnd.ShowLargestFilesStatistics);
+                var scriptStats = FrontEndController.LogStatistics();
 
                 m_enginePerformanceInfo.FrontEndIOWeight = scriptStats.IOWeight;
             }

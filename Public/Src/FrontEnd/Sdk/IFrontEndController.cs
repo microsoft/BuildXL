@@ -51,7 +51,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Log some statistics with an option to show statistcs about the slowest procceses. The defaul is false.
         /// </summary>
-        FrontEndControllerStatistics LogStatistics(bool showSlowestElementsStatistics, bool showLargestFilesStatistics);
+        FrontEndControllerStatistics LogStatistics();
 
         /// <summary>
         /// Returns the list of paths that shouldn't be scrubbed by the engine

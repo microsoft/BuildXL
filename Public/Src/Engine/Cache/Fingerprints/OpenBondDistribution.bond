@@ -11,20 +11,8 @@ struct ServiceLocation
     2: int32 Port;
 }
 
-struct RpcMessageBase
-{
-	/// The name of the sender of the message
-    1: string SenderName;
-
-	/// The id of the sender of the message
-    2: string SenderId;
-
-	//. The id of the build
-	3: string BuildId;
-}
-
 /// Defines initialization information needed by workers to participate in a build
-struct BuildStartData : RpcMessageBase
+struct BuildStartData
 {
     /// Scheduler State and associated data structures
     1: BuildXL.Engine.Cache.Fingerprints.PipGraphCacheDescriptor CachedGraphDescriptor;
@@ -49,7 +37,7 @@ struct BuildStartData : RpcMessageBase
 }
 
 /// Defines finalization information passed to workers at the end of the build
-struct BuildEndData : RpcMessageBase
+struct BuildEndData
 {
     /// Indicates if worker should report build fail the build and that the worker due to the given failure
     1: nullable<string> Failure;
@@ -142,7 +130,7 @@ struct EventMessage
 }
 
 /// Information about completed pips and events logged on worker
-struct WorkerNotificationArgs : RpcMessageBase
+struct WorkerNotificationArgs
 {
     /// Identifies the worker which executed the pips
     1: uint32 WorkerId;
@@ -185,7 +173,7 @@ struct SinglePipBuildRequest
 }
 
 /// A request to build pips on a worker
-struct PipBuildRequest : RpcMessageBase
+struct PipBuildRequest 
 {
     /// The pips to execute
     1: vector<SinglePipBuildRequest> Pips;
@@ -195,7 +183,7 @@ struct PipBuildRequest : RpcMessageBase
 }
 
 /// The response from an Attach event
-struct AttachCompletionInfo : RpcMessageBase
+struct AttachCompletionInfo
 {
     /// Identifies the worker which makes the callback
     1: uint32 WorkerId;

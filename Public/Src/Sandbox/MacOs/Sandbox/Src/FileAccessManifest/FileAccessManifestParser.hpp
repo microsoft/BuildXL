@@ -19,6 +19,7 @@ private:
     PCManifestPipId pipId_;
     PCManifestReport report_;
     PCManifestDllBlock dllBlock_;
+    PCManifestSubstituteProcessExecutionShim shim_;
     PCManifestRecord root_;
     const char *error_;
 

@@ -22,6 +22,7 @@ using std::vector;
 // FORWARD DECLARATIONS
 // ----------------------------------------------------------------------------
 class TranslatePathTuple;
+class ShimProcessMatch;
 
 // ----------------------------------------------------------------------------
 // GLOBALS
@@ -59,6 +60,10 @@ extern bool g_BreakOnAccessDenied;
 
 extern LPCSTR g_lpDllNameX86;
 extern LPCSTR g_lpDllNameX64;
+
+extern wchar_t *g_substituteProcessExecutionShimPath;
+extern bool g_ProcessExecutionShimAllProcesses;
+extern vector<ShimProcessMatch*>* g_pShimProcessMatches;
 
 extern DetouredProcessInjector* g_pDetouredProcessInjector;
 

@@ -15,7 +15,6 @@ namespace BuildXL.Engine.Distribution.Grpc
     {
         private readonly Master.MasterClient m_client;
         private readonly ClientConnectionManager m_connectionManager;
-        private readonly SenderInfo m_senderInfo;
         private readonly LoggingContext m_loggingContext;
 
         public GrpcMasterClient(LoggingContext loggingContext, string buildId, string ipAddress, int port)
@@ -23,12 +22,6 @@ namespace BuildXL.Engine.Distribution.Grpc
             m_loggingContext = loggingContext;
             m_connectionManager = new ClientConnectionManager(m_loggingContext, ipAddress, port, buildId);
             m_client = new Master.MasterClient(m_connectionManager.Channel);
-            m_senderInfo = new SenderInfo()
-            {
-                BuildId = buildId,
-                SenderName = DistributionHelpers.MachineName,
-                SenderId = Guid.NewGuid().ToString()
-            };
         }
 
         public void Close()
@@ -38,7 +31,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         public Task<RpcCallResult<Unit>> AttachCompletedAsync(OpenBond.AttachCompletionInfo message)
         {
-            var grpcMessage = message.ToGrpc(m_senderInfo);
+            var grpcMessage = message.ToGrpc();
             return m_connectionManager.CallAsync(
                 (callOptions) => m_client.AttachCompletedAsync(grpcMessage, options: callOptions),
                 "AttachCompleted",
@@ -47,7 +40,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         public Task<RpcCallResult<Unit>> NotifyAsync(OpenBond.WorkerNotificationArgs message, IList<long> semiStableHashes)
         {
-            var grpcMessage = message.ToGrpc(m_senderInfo);
+            var grpcMessage = message.ToGrpc();
             return m_connectionManager.CallAsync(
                (callOptions) => m_client.NotifyAsync(grpcMessage, options: callOptions),
                DistributionHelpers.GetNotifyDescription(message, semiStableHashes));

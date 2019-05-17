@@ -122,9 +122,8 @@ namespace NugetPackages {
                 cacheHashing,
             ]),
             sdks,
-            osxX64,
+            ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, toolsOrchestrator),
             toolsSandBoxExec,
-            toolsOrchestrator,
         ]
     };
 

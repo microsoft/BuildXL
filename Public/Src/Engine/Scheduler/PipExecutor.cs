@@ -3492,6 +3492,30 @@ namespace BuildXL.Scheduler
             }
         }
 
+        private static bool CheckForAllowedDirectorySymlinkOrJunctionProduction(AbsolutePath outputPath, OperationContext operationContext, string description, PathTable pathTable, ExecutionResult processExecutionResult)
+        {
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                return true;
+            }
+
+            var pathstring = outputPath.ToString(pathTable);
+            if (FileUtilities.IsDirectorySymlinkOrJunction(pathstring))
+            {
+                // We don't support storing directory symlinks/junctions to the cache in Windows right now.
+                // We won't fail the pip
+                // We won't cache it either
+                Logger.Log.StorageSymlinkDirInOutputDirectoryWarning(
+                    operationContext,
+                    description,
+                    pathstring);
+                processExecutionResult.MustBeConsideredPerpetuallyDirty = true;
+                return false;
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Discovers the content hashes of a process pip's outputs, which must now be on disk.
         /// The pip's outputs will be stored into the <see cref="IArtifactContentCache"/> of <see cref="IPipExecutionEnvironment.Cache"/>,
@@ -3575,6 +3599,12 @@ namespace BuildXL.Scheduler
                 {
                     FileOutputData.UpdateFileData(allOutputData, output.Path, OutputFlags.DeclaredFile);
 
+                    if (!CheckForAllowedDirectorySymlinkOrJunctionProduction(output.Path, operationContext, description, pathTable, processExecutionResult))
+                    {
+                        enableCaching = false;
+                        continue;
+                    }
+
                     // If the directory containing the output file was redirected, then we want to cache the content of the redirected output instead.
                     if (outputFilesAreRedirected && environment.ProcessInContainerManager.TryGetRedirectedDeclaredOutputFile(output.Path, containerConfiguration, out AbsolutePath redirectedOutputPath))
                     {
@@ -3603,6 +3633,12 @@ namespace BuildXL.Scheduler
                             directoryArtifact,
                             handleFile: fileArtifact =>
                             {
+                                if (!CheckForAllowedDirectorySymlinkOrJunctionProduction(fileArtifact.Path, operationContext, description, pathTable, processExecutionResult))
+                                {
+                                    enableCaching = false;
+                                    return;
+                                }
+
                                 fileList.Add(fileArtifact);
                                 FileOutputData.UpdateFileData(allOutputData, fileArtifact.Path, OutputFlags.DynamicFile, index);
                                 var fileArtifactWithAttributes = fileArtifact.WithAttributes(FileExistence.Required);
@@ -3656,6 +3692,12 @@ namespace BuildXL.Scheduler
                             // But we could do this here in the future
                             if (maybeResult.Result == PathExistence.ExistsAsDirectory)
                             {
+                                continue;
+                            }
+
+                            if (!CheckForAllowedDirectorySymlinkOrJunctionProduction(access, operationContext, description, pathTable, processExecutionResult))
+                            {
+                                enableCaching = false;
                                 continue;
                             }
 

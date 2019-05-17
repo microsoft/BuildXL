@@ -59,7 +59,7 @@ namespace BuildXL.Engine.Distribution.InternalBond
             {
                 var openBondMessage = message.ToOpenBond();
 
-                m_workerService.AttachCore(openBondMessage);
+                m_workerService.AttachCore(openBondMessage, message.SenderName);
             });
         }
 

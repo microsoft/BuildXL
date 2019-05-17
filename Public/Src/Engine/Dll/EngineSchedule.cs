@@ -282,7 +282,11 @@ namespace BuildXL.Engine
                     pipTwoPhaseCache: twoPhaseCache,
                     symlinkDefinitions: symlinkDefinitions,
                     buildEngineFingerprint: buildEngineFingerprint,
-                    vmInitializer: VmInitializer.CreateFromEngine(configuration.Layout.BuildEngineDirectory.ToString(context.PathTable)));
+                    vmInitializer: VmInitializer.CreateFromEngine(
+                        configuration.Layout.BuildEngineDirectory.ToString(context.PathTable),
+                        message => Logger.Log.StartInitializingVm(loggingContext, message),
+                        message => Logger.Log.EndInitializingVm(loggingContext, message),
+                        message => Logger.Log.InitializingVm(loggingContext, message)));
             }
             catch (BuildXLException e)
             {
@@ -1655,7 +1659,11 @@ namespace BuildXL.Engine
                         pipTwoPhaseCache: pipTwoPhaseCache,
                         symlinkDefinitions: await symlinkDefinitionsTask,
                         buildEngineFingerprint: buildEngineFingerprint,
-                        vmInitializer: VmInitializer.CreateFromEngine(newConfiguration.Layout.BuildEngineDirectory.ToString(pathTable)));
+                        vmInitializer: VmInitializer.CreateFromEngine(
+                            configuration.Layout.BuildEngineDirectory.ToString(pathTable),
+                            message => Logger.Log.StartInitializingVm(loggingContext, message),
+                            message => Logger.Log.EndInitializingVm(loggingContext, message),
+                            message => Logger.Log.InitializingVm(loggingContext, message)));
                 }
                 catch (BuildXLException e)
                 {

@@ -723,16 +723,7 @@ namespace BuildXL.FrontEnd.Core
                 {
                     return LogAndReturnDownloadFailure(e);
                 }
-#if !DISABLE_FEATURE_HTTPEXCEPTION
-                catch (HttpException e)
-                {
-                    return LogAndReturnDownloadFailure(e);
-                }
                 catch (HttpRequestException e)
-#else
-                // Catch all exceptions since we can't do any better when HttpException is not available
-                catch (Exception e)
-#endif
                 {
                     return LogAndReturnDownloadFailure(e);
                 }

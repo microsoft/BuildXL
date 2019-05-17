@@ -300,17 +300,17 @@ namespace BuildXL.Native.Processes
         /// <param name="hJob">A pointer to a job object where a specific filter configuration will be associated with. 
         /// This is the result of calling CreateJobObject <see href="https://msdn.microsoft.com/en-us/library/windows/desktop/ms682409(v=vs.85).aspx"/></param>
         /// <param name="redirectedDirectories">The collection of source paths to be virtualize to destination paths</param>
-        /// <param name="isWciFilterEnabled">Enables WCI filter for inpuit virtualization</param>
+        /// <param name="enableWciFilter">Enables WCI filter for input virtualization</param>
         /// <param name="bindFltExclusions">Paths to not apply the bindflt path transformation to.</param>
         /// <param name="warnings">Any warnings that happened during the creation of the container. The container was created successfully regardless of these.</param>
         /// <exception cref="BuildXLException">If any unrecoverable error occurs when setting up the container</exception>
         public static void AttachContainerToJobObject(
             IntPtr hJob,
             IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
-            bool isWciFilterEnabled,
+            bool enableWciFilter,
             IEnumerable<string> bindFltExclusions,
             out IEnumerable<string> warnings)
-            => s_nativeMethods.AttachContainerToJobObject(hJob, redirectedDirectories, isWciFilterEnabled, bindFltExclusions, out warnings);
+            => s_nativeMethods.AttachContainerToJobObject(hJob, redirectedDirectories, enableWciFilter, bindFltExclusions, out warnings);
 
         /// <summary>
         /// Tries to cleans up the already attached Helium container to the given job object for all the volumes

@@ -87,7 +87,7 @@ namespace BuildXL.Native.Processes.Windows
         public void AttachContainerToJobObject(
             IntPtr hJob,
             IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
-            bool isWciFilterEnabled,
+            bool enableWciFilter,
             IEnumerable<string> bindFltExclusions,
             out IEnumerable<string> warnings)
         {
@@ -106,7 +106,7 @@ namespace BuildXL.Native.Processes.Windows
                 NativeContainerUtilities.WcDestroyDescription(description);
 
                 var wciRetries = new List<string>();
-                ConfigureContainer(hJob, redirectedDirectories, isWciFilterEnabled, wciRetries, bindFltExclusions);
+                ConfigureContainer(hJob, redirectedDirectories, enableWciFilter, wciRetries, bindFltExclusions);
 
                 warnings = wciRetries;
             }
@@ -140,7 +140,7 @@ namespace BuildXL.Native.Processes.Windows
         private static void ConfigureContainer(
             IntPtr hJob,
             IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> mapping,
-            bool isWciFilterEnabled,
+            bool enableWciFilter,
             List<string> wciRetries,
             IEnumerable<string> bindFltExclusions)
         {
@@ -149,7 +149,7 @@ namespace BuildXL.Native.Processes.Windows
                 IReadOnlyCollection<ExpandedAbsolutePath> sourcePaths = kvp.Value;
                 string destinationPath = kvp.Key.ExpandedPath;
 
-                if (isWciFilterEnabled)
+                if (enableWciFilter)
                 {
                     ConfigureWciFilter(hJob, sourcePaths, destinationPath, wciRetries);
                 }

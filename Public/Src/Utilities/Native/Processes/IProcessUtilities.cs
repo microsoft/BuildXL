@@ -106,7 +106,7 @@ namespace BuildXL.Native.Processes
         void AttachContainerToJobObject(
             IntPtr hJob,
             IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
-            bool isWciFilterEnabled,
+            bool enableWciFilter,
             IEnumerable<string> bindFltExclusions,
             out IEnumerable<string> warnings);
 

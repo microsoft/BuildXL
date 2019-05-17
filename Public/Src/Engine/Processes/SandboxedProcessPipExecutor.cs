@@ -182,7 +182,8 @@ namespace BuildXL.Processes
             int remainingUserRetryCount = 0,
             bool isQbuildIntegrated = false,
             VmInitializer vmInitializer = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            SubstituteProcessExecutionInfo shimInfo = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -225,6 +226,7 @@ namespace BuildXL.Processes
                     // since multiple pips can have no provenance, SemiStableHash is not always unique across all pips
                     PipId = m_pip.SemiStableHash != 0 ? m_pip.SemiStableHash : m_pip.PipId.Value,
                     QBuildIntegrated = isQbuildIntegrated,
+                    SubstituteProcessExecutionInfo = shimInfo,
                 };
 
             if (!sandBoxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses)

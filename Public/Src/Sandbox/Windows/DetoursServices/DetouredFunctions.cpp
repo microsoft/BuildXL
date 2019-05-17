@@ -16,6 +16,7 @@
 #include "UnicodeConverter.h"
 #include "MetadataOverrides.h"
 #include "HandleOverlay.h"
+#include "SubstituteProcessExecution.h"
 
 using std::wstring;
 using std::unique_ptr;
@@ -1791,6 +1792,24 @@ BOOL WINAPI Detoured_CreateProcessW(
     _In_        LPSTARTUPINFOW        lpStartupInfo,
     _Out_       LPPROCESS_INFORMATION lpProcessInformation)
 {
+    bool injectedShim = false;
+    BOOL ret = MaybeInjectSubstituteProcessShim(
+        lpApplicationName,
+        lpCommandLine,
+        lpProcessAttributes,
+        lpThreadAttributes,
+        bInheritHandles,
+        dwCreationFlags,
+        lpEnvironment,
+        lpCurrentDirectory,
+        lpStartupInfo,
+        lpProcessInformation,
+        injectedShim);
+    if (injectedShim)
+    {
+        return ret;
+    }
+
     if (!MonitorChildProcesses())
     {
         return Real_CreateProcessW(

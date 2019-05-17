@@ -468,7 +468,7 @@ namespace BuildXL.Processes
 
             if (SubstituteProcessExecutionInfo == null)
             {
-                writer.Write(0);  // ShimAllProcesses false value.
+                writer.Write((uint)0);  // ShimAllProcesses false value.
 
                 // Emit a zero-length substituteProcessExecShimPath when substitution is turned off.
                 WriteChars(writer, null);

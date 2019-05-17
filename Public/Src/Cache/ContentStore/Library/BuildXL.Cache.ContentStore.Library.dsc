@@ -15,7 +15,7 @@ namespace Library {
                 importFrom("System.Data.SQLite.Core").withQualifier({targetFramework: "net461"}).pkg,
                 importFrom("System.IO.Pipes.AccessControl").pkg,
                 importFrom("System.Threading.AccessControl").pkg,
-                importFrom("System.Security.AccessControl.NetCore").pkg,
+                importFrom("System.Security.AccessControl").pkg,
             ] :
             [
                 importFrom("System.Data.SQLite.Core").pkg,

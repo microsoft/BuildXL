@@ -365,14 +365,14 @@ config({
                 { id: "System.Security.Cryptography.Primitives", version: "4.3.0" },
                 { id: "System.Security.Cryptography.X509Certificates", version: "4.3.0" },
                 { id: "System.Security.Principal", version: "4.3.0" },
-                { id: "System.Security.Principal.Windows", version: "4.5.1" },
+                { id: "System.Security.Principal.Windows", version: "4.6.0-preview5.19224.8" },
                 { id: "System.Security.SecureString", version: "4.3.0" },
                 { id: "System.Text.Encoding", version: "4.3.0" },
                 { id: "System.Text.Encoding.CodePages", version: "4.3.0" },
                 { id: "System.Text.Encoding.Extensions", version: "4.3.0" },
                 { id: "System.Text.RegularExpressions", version: "4.3.0" },
                 { id: "System.Threading", version: "4.3.0" },
-                { id: "System.Threading.AccessControl", version: "4.5.0" },
+                { id: "System.Threading.AccessControl", version: "4.6.0-preview5.19224.8" },
                 { id: "System.Threading.Overlapped", version: "4.3.0" },
                 { id: "System.Threading.Tasks", version: "4.3.0" },
                 { id: "System.Threading.Tasks.Extensions", version: "4.3.0" },
@@ -388,11 +388,6 @@ config({
                 { id: "System.Xml.XPath", version: "4.3.0" },
                 { id: "System.Xml.XPath.XDocument", version: "4.3.0" },
                 { id: "System.Xml.XPath.XmlDocument", version: "4.3.0" },
-
-                // latest AccessControl deps for .NET Core (TODO: remove once we update these across the board)
-                { id: "System.IO.FileSystem.AccessControl", version: "4.6.0-preview5.19224.8", alias: "System.IO.FileSystem.AccessControl.NetCore" },
-                { id: "System.Security.AccessControl", version: "4.6.0-preview5.19224.8", alias: "System.Security.AccessControl.NetCore" },
-                { id: "System.Security.Principal.Windows", version: "4.6.0-preview5.19224.8", alias: "System.Security.Principal.Windows.NetCore" },
 
                 // Non-standard version ones
                 { id: "Microsoft.NETCore.Targets", version: "2.0.0" },

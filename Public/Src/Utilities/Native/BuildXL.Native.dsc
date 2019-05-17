@@ -12,12 +12,12 @@ namespace Native {
     @@public
     export const securityDlls = BuildXLSdk.isDotNetCoreBuild ? [
         // In netCoreApp2.2 accesscontrol is missing enum: System.Security.AccessControl.AccessControlType
-        importFrom("System.Security.AccessControl.NetCore").pkg,
-        importFrom("System.IO.FileSystem.AccessControl.NetCore").pkg,
+        importFrom("System.Security.AccessControl").pkg,
+        importFrom("System.IO.FileSystem.AccessControl").pkg,
 
         BuildXLSdk.isTargetRuntimeOsx
-            ? Managed.Factory.createBinary(importFrom("System.Security.Principal.Windows.NetCore").Contents.all, r`runtimes/unix/lib/netcoreapp2.0/System.Security.Principal.Windows.dll`)
-            : Managed.Factory.createBinary(importFrom("System.Security.Principal.Windows.NetCore").Contents.all, r`runtimes/win/lib/netcoreapp2.0/System.Security.Principal.Windows.dll`)
+            ? Managed.Factory.createBinary(importFrom("System.Security.Principal.Windows").Contents.all, r`runtimes/unix/lib/netcoreapp2.0/System.Security.Principal.Windows.dll`)
+            : Managed.Factory.createBinary(importFrom("System.Security.Principal.Windows").Contents.all, r`runtimes/win/lib/netcoreapp2.0/System.Security.Principal.Windows.dll`)
     ] : [];
 
     @@public

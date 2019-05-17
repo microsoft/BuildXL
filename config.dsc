@@ -305,7 +305,7 @@ config({
                 { id: "System.IO.Compression", version: "4.3.0" },
                 { id: "System.IO.Compression.ZipFile", version: "4.3.0" },
                 { id: "System.IO.FileSystem", version: "4.3.0" },
-                { id: "System.IO.FileSystem.AccessControl", version: "4.6.0-preview5.19224.8" },
+                { id: "System.IO.FileSystem.AccessControl", version: "4.3.0" },
                 { id: "System.IO.FileSystem.DriveInfo", version: "4.3.0" },
                 { id: "System.IO.FileSystem.Primitives", version: "4.3.0" },
                 { id: "System.IO.FileSystem.Watcher", version: "4.3.0" },
@@ -357,7 +357,7 @@ config({
                 { id: "System.Runtime.Serialization.Json", version: "4.3.0" },
                 { id: "System.Runtime.Serialization.Primitives", version: "4.3.0" },
                 { id: "System.Runtime.Serialization.Xml", version: "4.3.0" },
-                { id: "System.Security.AccessControl", version: "4.6.0-preview5.19224.8", dependentPackageIdsToSkip: ["System.Security.Principal.Windows"] },
+                { id: "System.Security.AccessControl", version: "4.5.0", dependentPackageIdsToSkip: ["System.Security.Principal.Windows"] },
                 { id: "System.Security.Cryptography.Algorithms", version: "4.3.0" },
                 { id: "System.Security.Cryptography.Cng", version: "4.3.0" },
                 { id: "System.Security.Cryptography.Csp", version: "4.3.0" },
@@ -365,7 +365,7 @@ config({
                 { id: "System.Security.Cryptography.Primitives", version: "4.3.0" },
                 { id: "System.Security.Cryptography.X509Certificates", version: "4.3.0" },
                 { id: "System.Security.Principal", version: "4.3.0" },
-                { id: "System.Security.Principal.Windows", version: "4.6.0-preview5.19224.8" },
+                { id: "System.Security.Principal.Windows", version: "4.5.1" },
                 { id: "System.Security.SecureString", version: "4.3.0" },
                 { id: "System.Text.Encoding", version: "4.3.0" },
                 { id: "System.Text.Encoding.CodePages", version: "4.3.0" },
@@ -388,6 +388,11 @@ config({
                 { id: "System.Xml.XPath", version: "4.3.0" },
                 { id: "System.Xml.XPath.XDocument", version: "4.3.0" },
                 { id: "System.Xml.XPath.XmlDocument", version: "4.3.0" },
+
+                // latest AccessControl deps for .NET Core (TODO: remove once we update these across the board)
+                { id: "System.IO.FileSystem.AccessControl", version: "4.6.0-preview5.19224.8", alias: "System.IO.FileSystem.AccessControl.NetCore" },
+                { id: "System.Security.AccessControl", version: "4.6.0-preview5.19224.8", alias: "System.Security.AccessControl.NetCore" },
+                { id: "System.Security.Principal.Windows", version: "4.6.0-preview5.19224.8", alias: "System.Security.Principal.Windows.NetCore" },
 
                 // Non-standard version ones
                 { id: "Microsoft.NETCore.Targets", version: "2.0.0" },

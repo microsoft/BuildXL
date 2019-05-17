@@ -19,10 +19,11 @@ namespace Storage.Untracked {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
-            
-            importFrom("System.IO.FileSystem.AccessControl").pkg,
-            importFrom("System.Security.AccessControl").pkg,
-            importFrom("System.Security.Principal.Windows").pkg,
+            ...addIf(BuildXLSdk.isDotNetCoreBuild,
+                importFrom("System.IO.FileSystem.AccessControl.NetCore").pkg,
+                importFrom("System.Security.AccessControl.NetCore").pkg,
+                importFrom("System.Security.Principal.Windows.NetCore").pkg
+            ),
             Storage.dll,
         ],
     });

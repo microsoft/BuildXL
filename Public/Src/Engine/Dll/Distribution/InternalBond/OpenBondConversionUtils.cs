@@ -16,10 +16,7 @@ namespace BuildXL.Engine.Distribution.InternalBond
             return new AttachCompletionInfo()
             {
                 AvailableRamMb = message.AvailableRamMb,
-                BuildId = message.BuildId,
                 MaxConcurrency = message.MaxConcurrency,
-                SenderId = message.SenderId,
-                SenderName = message.SenderName,
                 WorkerCacheValidationContentHash = message.WorkerCacheValidationContentHash.ToDistributedContentHash(),
                 WorkerId = message.WorkerId
             };
@@ -29,11 +26,7 @@ namespace BuildXL.Engine.Distribution.InternalBond
         {
             return new OpenBond.AttachCompletionInfo()
             {
-                BuildId = message.BuildId,
-                SenderId = message.SenderId,
-                SenderName = message.SenderName,
                 WorkerId = message.WorkerId,
-
                 AvailableRamMb = message.AvailableRamMb,
                 MaxConcurrency = message.MaxConcurrency,
                 WorkerCacheValidationContentHash = message.WorkerCacheValidationContentHash.ToBondContentHash(),
@@ -47,9 +40,6 @@ namespace BuildXL.Engine.Distribution.InternalBond
         {
             var workerNotificationArgs = new WorkerNotificationArgs()
             {
-                BuildId = message.BuildId,
-                SenderId = message.SenderId,
-                SenderName = message.SenderName,
                 WorkerId = message.WorkerId,
                 ExecutionLogBlobSequenceNumber = message.ExecutionLogBlobSequenceNumber,
                 ExecutionLogData = new BondBlob(message.ExecutionLogData),
@@ -120,11 +110,7 @@ namespace BuildXL.Engine.Distribution.InternalBond
 
             return new OpenBond.WorkerNotificationArgs()
             {
-                BuildId = message.BuildId,
-                SenderId = message.SenderId,
-                SenderName = message.SenderName,
                 WorkerId = message.WorkerId,
-
                 CompletedPips = completedPips,
                 ExecutionLogBlobSequenceNumber = message.ExecutionLogBlobSequenceNumber,
                 ExecutionLogData = message.ExecutionLogData.Data,
@@ -157,9 +143,6 @@ namespace BuildXL.Engine.Distribution.InternalBond
         {
             return new OpenBond.BuildStartData()
             {
-                BuildId = message.BuildId,
-                SenderId = message.SenderId,
-                SenderName = message.SenderName,
                 WorkerId = message.WorkerId,
                 CachedGraphDescriptor = message.CachedGraphDescriptor.ToPipGraphCacheDescriptor(),
                 EnvironmentVariables = message.EnvironmentVariables,
@@ -285,9 +268,6 @@ namespace BuildXL.Engine.Distribution.InternalBond
 
             return new OpenBond.PipBuildRequest()
             {
-                BuildId = message.BuildId,
-                SenderId = message.SenderId,
-                SenderName = message.SenderName,
                 Hashes = hashes,
                 Pips = pips
             };

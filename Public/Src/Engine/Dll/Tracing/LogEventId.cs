@@ -220,6 +220,11 @@ namespace BuildXL.Engine.Tracing
         GrpcSettings = 7121,
 
         FailedToGetJournalAccessor = 7122,
+
+        StartInitializingVm = 7123,
+        EndInitializingVm = 7124,
+        InitializingVm = 7125
+
         // max 7200
     }
 }

@@ -74,7 +74,7 @@ namespace BuildXL.Processes
         /// </summary>
         protected void ThrowBuildXLException(string message, Exception inner = null)
         {
-            throw new BuildXLException($"[Pip{SandboxedProcessInfo.PipSemiStableHash:X16} -- {SandboxedProcessInfo.PipDescription}] {message}", inner);
+            throw new BuildXLException($"{SandboxedProcessInfo.Provenance} {message}", inner);
         }
 
         /// <summary>
@@ -247,6 +247,20 @@ namespace BuildXL.Processes
 
                 return process;
             });
+        }
+
+        /// <summary>
+        /// Logs external execution.
+        /// </summary>
+        protected void LogExternalExecution(string message)
+        {
+            if (SandboxedProcessInfo.LoggingContext != null)
+            {
+                Tracing.Logger.Log.PipProcessExternalExecution(
+                    SandboxedProcessInfo.LoggingContext, 
+                    SandboxedProcessInfo.PipSemiStableHash, 
+                    SandboxedProcessInfo.PipDescription, message);
+            }
         }
     }
 }

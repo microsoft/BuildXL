@@ -102,8 +102,8 @@ namespace BuildXL.Utilities.Tracing
         PipProcessFinishedExternalTool = 79,
         PipProcessStartExternalVm = 80,
         PipProcessFinishedExternalVm = 81,
+        PipProcessExternalExecution = 82,
 
-        // Free = 82,
         MappedRoot = 83,
         PipTableDeserializationContext = 84,
         RetryStartPipDueToErrorPartialCopyDuringDetours = 85,

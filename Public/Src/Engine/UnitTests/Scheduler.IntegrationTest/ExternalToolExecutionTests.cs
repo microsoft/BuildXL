@@ -29,18 +29,34 @@ namespace IntegrationTest.BuildXL.Scheduler
             ProcessBuilder builder = CreatePipBuilder(new[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) });
             builder.Options |= Process.Options.RequiresAdmin;
             ProcessWithOutputs process = SchedulePipBuilder(builder);
-
             RunScheduler().AssertSuccess();
             RunScheduler().AssertCacheHit(process.Process.PipId);
         }
 
         [Fact]
-        public void RunMultipleProcesses()
+        public void RunMultipleAdminRequiredProcesses()
         {
             for (int i = 0; i < 5; ++i)
             {
                 ProcessBuilder builder = CreatePipBuilder(new[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) });
                 builder.Options |= Process.Options.RequiresAdmin;
+                ProcessWithOutputs process = SchedulePipBuilder(builder);
+            }
+
+            RunScheduler().AssertSuccess();
+        }
+
+        [Fact]
+        public void RunMultipleMixedProcesses()
+        {
+            for (int i = 0; i < 5; ++i)
+            {
+                ProcessBuilder builder = CreatePipBuilder(new[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) });
+                if ((i % 2) == 0)
+                {
+                    builder.Options |= Process.Options.RequiresAdmin;
+                }
+
                 ProcessWithOutputs process = SchedulePipBuilder(builder);
             }
 

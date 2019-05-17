@@ -1549,7 +1549,10 @@ namespace BuildXL.Processes
                 m_detoursFailuresFile = GetDetoursInternalErrorFilePath(loggingContext);
 
                 // Delete the file
-                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(m_detoursFailuresFile, tempDirectoryCleaner: m_tempDirectoryCleaner));
+                if (FileUtilities.FileExistsNoFollow(m_detoursFailuresFile))
+                {
+                    Analysis.IgnoreResult(FileUtilities.TryDeleteFile(m_detoursFailuresFile, tempDirectoryCleaner: m_tempDirectoryCleaner));
+                }
 
                 if (!string.IsNullOrEmpty(m_detoursFailuresFile))
                 {
@@ -1559,8 +1562,8 @@ namespace BuildXL.Processes
                     }
 
                     // TODO: named semaphores are not supported in NetStandard2.0
-                    if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal
-                        && checkMessageCount
+                    if ((!m_pip.RequiresAdmin || m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal) 
+                        && checkMessageCount 
                         && !OperatingSystemHelper.IsUnixOS)
                     {
                         // Semaphore names don't allow '\\' chars.

@@ -17,10 +17,11 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly ClientConnectionManager m_connectionManager;
         private readonly LoggingContext m_loggingContext;
 
-        public GrpcMasterClient(LoggingContext loggingContext, string buildId, string ipAddress, int port)
+        public GrpcMasterClient(LoggingContext loggingContext, string buildId, string ipAddress, int port, EventHandler onConnectionTimeOut)
         {
             m_loggingContext = loggingContext;
             m_connectionManager = new ClientConnectionManager(m_loggingContext, ipAddress, port, buildId);
+            m_connectionManager.OnConnectionTimeOut += onConnectionTimeOut;
             m_client = new Master.MasterClient(m_connectionManager.Channel);
         }
 

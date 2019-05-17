@@ -109,7 +109,7 @@ namespace BuildXL.Engine.Distribution
 
             if (isGrpcEnabled)
             {
-                m_workerClient = new Grpc.GrpcWorkerClient(m_appLoggingContext, masterService.DistributionServices.BuildId, serviceLocation.IpAddress, serviceLocation.Port);
+                m_workerClient = new Grpc.GrpcWorkerClient(m_appLoggingContext, masterService.DistributionServices.BuildId, serviceLocation.IpAddress, serviceLocation.Port, OnConnectionTimeOut);
             }
             else
             {

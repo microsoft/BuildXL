@@ -394,7 +394,7 @@ namespace BuildXL.Engine.Distribution
 
             if (m_isGrpcEnabled)
             {
-                m_masterClient = new Grpc.GrpcMasterClient(m_appLoggingContext, m_services.BuildId, buildStartData.MasterLocation.IpAddress, buildStartData.MasterLocation.Port);
+                m_masterClient = new Grpc.GrpcMasterClient(m_appLoggingContext, m_services.BuildId, buildStartData.MasterLocation.IpAddress, buildStartData.MasterLocation.Port, OnConnectionTimeOut);
             }
             else
             {

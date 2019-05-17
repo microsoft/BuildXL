@@ -19,10 +19,11 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly ClientConnectionManager m_connectionManager;
         private readonly Worker.WorkerClient m_client;
 
-        public GrpcWorkerClient(LoggingContext loggingContext, string buildId, string ipAddress, int port)
+        public GrpcWorkerClient(LoggingContext loggingContext, string buildId, string ipAddress, int port, EventHandler onConnectionTimeOut)
         {
             m_loggingContext = loggingContext;
             m_connectionManager = new ClientConnectionManager(loggingContext, ipAddress, port, buildId);
+            m_connectionManager.OnConnectionTimeOut += onConnectionTimeOut;
             m_client = new Worker.WorkerClient(m_connectionManager.Channel);
         }
 

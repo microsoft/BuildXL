@@ -56,8 +56,8 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             var bondMessage = message.ToOpenBond();
 
-            GrpcSettings.ParseHeader(context.RequestHeaders, out string sender, out string senderBuildId, out string traceId);
-
+            GrpcSettings.ParseHeader(context.RequestHeaders, out string sender, out string _, out string _);
+            
             m_workerService.AttachCore(bondMessage, sender);
 
             return Task.FromResult(new RpcResponse());

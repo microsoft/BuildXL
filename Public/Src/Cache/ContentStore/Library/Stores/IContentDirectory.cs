@@ -10,7 +10,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using static BuildXL.Cache.ContentStore.Stores.FileSystemContentStoreInternal;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {

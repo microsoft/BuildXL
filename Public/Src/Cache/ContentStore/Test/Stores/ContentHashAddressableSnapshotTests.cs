@@ -21,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Test.Stores
             var store = new ContentHashAddressableSnapshot<int>(snapshot);
 
             store.Count.Should().Be(snapshotSize);
-            var hashesFromStore = store.EnumerateOrderedByHash().Select(x => x.Hash).ToList();
+            var hashesFromStore = store.ListOrderedByHash().Select(x => x.Hash).ToList();
             hashesFromStore.SequenceEqual(snapshot.Select(x => x.Hash)).Should().BeTrue();
 
         }

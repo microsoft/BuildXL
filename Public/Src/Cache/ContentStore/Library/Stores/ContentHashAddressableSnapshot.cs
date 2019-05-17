@@ -83,15 +83,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <nodoc />
-        public IEnumerable<PayloadFromDisk<T>> EnumerateOrderedByHash()
+        public List<PayloadFromDisk<T>> ListOrderedByHash()
         {
-            foreach (var bucket in _snapshot)
-            {
-                foreach (var payload in bucket.OrderBy(p => p.Hash))
-                {
-                    yield return payload;
-                }
-            }
+            return this.OrderBy(p => p.Hash).ToList();
         }
 
         /// <summary>

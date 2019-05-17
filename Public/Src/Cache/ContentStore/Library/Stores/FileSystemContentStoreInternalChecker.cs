@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -16,7 +15,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
-using static BuildXL.Cache.ContentStore.Stores.FileSystemContentStoreInternal;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 
@@ -136,7 +134,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             // Enumerating files from disk instead of looking them up from content directory.
             // This is done due to simplicity (we don't have to worry about replicas) and because an additional IO cost is negligible compared to the cost of rehashing.
-            var contentHashes = _contentStoreInternal.ReadSnapshotFromDisk(context).EnumerateOrderedByHash().ToList();
+            var contentHashes = _contentStoreInternal.ReadSnapshotFromDisk(context).ListOrderedByHash();
             _tracer.Debug(context, $"SelfCheck: Enumerated {contentHashes.Count} entries from disk by {stopwatch.ElapsedMilliseconds}ms.");
 
             stopwatch.Restart();
@@ -183,7 +181,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
 
                 // Tracking the progress if needed.
-                traceProgressIfNeeded(hashInfo.Hash, index);
+                TraceProgressIfNeeded(hashInfo.Hash, index);
 
                 // If the current entry is not the last one, and we reached the number of invalid files,
                 // then exiting the loop.
@@ -232,7 +230,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 return targetIndex;
             }
 
-            void traceProgressIfNeeded(ContentHash currentHash, int currentHashIndex)
+            void TraceProgressIfNeeded(ContentHash currentHash, int currentHashIndex)
             {
                 processedBytes += contentHashes[currentHashIndex].Payload.Length;
 
@@ -242,7 +240,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                     // It is possible to have multiple replicas with the same hash.
                     // We need to save the state only when *all* the replicas are processed.
                     // So we check if the next item has a different hash.
-                    if (currentHash != contentHashes[currentHashIndex + 1].Hash)
+                    // No check is performed on the last element because the state will be saved immediately after
+                    if (currentHashIndex + 1 < contentHashes.Count && currentHash != contentHashes[currentHashIndex + 1].Hash)
                     {
                         var speed = ((double)processedBytes / (1024*1024)) / _settings.SelfCheckProgressReportingInterval.TotalSeconds;
                         _tracer.Always(context, $"SelfCheck: processed {index}/{contentHashes.Count}: {new SelfCheckResult(invalidEntries, processedEntries)}. Hashing speed {speed:0.##}Mb/s.");

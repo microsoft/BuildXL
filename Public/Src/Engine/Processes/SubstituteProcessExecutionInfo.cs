@@ -69,7 +69,7 @@ namespace BuildXL.Processes
         public PathAtom ProcessName { get; }
 
         /// <summary>
-        /// An optional string to match in the argument of the process to further refine the match.
+        /// An optional string to match in the arguments of the process to further refine the match.
         /// Can be used for example with ProcessName="node.exe" ArgumentMatch="gulp.js" to match the
         /// Gulp build engine process.
         /// </summary>

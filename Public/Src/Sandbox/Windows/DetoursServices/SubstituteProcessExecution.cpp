@@ -244,7 +244,7 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
 
     bool foundMatch = false;
 
-    for (auto it = g_pShimProcessMatches->begin(); it != g_pShimProcessMatches->end(); ++it)
+    for (std::vector<ShimProcessMatch*>::iterator it = g_pShimProcessMatches->begin(); it != g_pShimProcessMatches->end(); ++it)
     {
         ShimProcessMatch *pMatch = *it;
 

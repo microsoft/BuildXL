@@ -37,7 +37,7 @@ namespace Test.BuildXL.Processes.Detours
         [Theory]
 // TODO: erikmav fails on netcore, need an unmanaged shim to avoid exe/dll       [InlineData(false, null)]
 // TODO: erikmav        [InlineData(true, null)]
-// TODO: erikmav filtering broken generally       [InlineData(true, "cmd.exe")]  // Filter should match child
+// TODO: erikmav        [InlineData(true, "cmd.exe")]  // Filter should match child
 // TODO: erikmav        [InlineData(false, "cmd.exe")]  // Filter should match child
         public async Task CmdWithTestShim(bool useQuotesForChildCmdExe, string processMatch)
         {

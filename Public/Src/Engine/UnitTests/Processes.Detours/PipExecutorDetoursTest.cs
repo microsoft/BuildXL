@@ -6163,8 +6163,10 @@ namespace Test.BuildXL.Processes.Detours
             return FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, expandedPath));
         }
 
-        [Fact]
-        public async Task CallDeleteWithoutSharing()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CallDeleteWithoutSharing(bool untracked)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
@@ -6181,9 +6183,11 @@ namespace Test.BuildXL.Processes.Detours
                     argumentStr: "CallDeleteWithoutSharing",
                     inputFiles: ReadOnlyArray<FileArtifact>.Empty,
                     inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
-                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputFiles: untracked 
+                        ? ReadOnlyArray<FileArtifactWithAttributes>.Empty 
+                        : ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateSourceFile(untrackedFile), FileExistence.Optional)),
                     outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
-                    untrackedScopes: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(untrackedFile.GetParent(pathTable)));
+                    untrackedScopes: untracked ? ReadOnlyArray<AbsolutePath>.FromWithoutCopy(untrackedFile.GetParent(pathTable)) : ReadOnlyArray<AbsolutePath>.Empty);
 
                 string errorString = null;
                 SandboxedProcessPipExecutionResult result = await RunProcessAsync(
@@ -6197,7 +6201,11 @@ namespace Test.BuildXL.Processes.Detours
                     pip: process,
                     errorString: out errorString);
 
-                VerifyNoFileAccesses(result);
+                if (untracked)
+                {
+                    VerifyNoFileAccesses(result);
+                }
+
                 VerifySharingViolation(context, result);
                 SetExpectedFailures(1, 0);
             }

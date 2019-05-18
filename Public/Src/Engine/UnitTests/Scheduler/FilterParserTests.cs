@@ -450,15 +450,9 @@ namespace Test.BuildXL.Scheduler
         public void SpecFilterInvalidPath()
         {
             // Invalid character in path
-#if FEATURE_CORECLR
-            // Unfortunately the GetFullPath() CoreCLR implementation is different from the full framework one and thus
-            // only fails at AbsolutePath creation not before - but it is important to get an exception at least because the path is invalid
-            RunNegativeFilterParserTest("spec=\'c:\\users?\\John Doe\\src\\foo.ds\'", 6, "Failed to create absolute path from expanded path");
-            RunNegativeFilterParserTest("spec=\'c:\\users\\c:\\John Doe\\src\\foo.ds\'", 6, "Failed to create absolute path from expanded path");
-#else
-            RunNegativeFilterParserTest("spec=\'c:\\users?\\John Doe\\src\\foo.ds\'", 6, "Failed to get full path for string");
-            RunNegativeFilterParserTest("spec=\'c:\\users\\c:\\John Doe\\src\\foo.ds\'", 6, "Failed to get full path for string");
-#endif
+            var errMsg = "Failed"; // it doesn't matter what the error message is, what matters is the error position.
+            RunNegativeFilterParserTest("spec=\'c:\\users?\\John Doe\\src\\foo.ds\'", 6, errMsg);
+            RunNegativeFilterParserTest("spec=\'c:\\users\\c:\\John Doe\\src\\foo.ds\'", 6, errMsg);
         }
 
         [Fact]

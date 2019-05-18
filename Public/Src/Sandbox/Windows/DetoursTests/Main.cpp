@@ -1070,6 +1070,43 @@ int CallOpenFileById()
     return (int)RtlNtStatusToDosError(status);
 }
 
+int CallDeleteWithoutSharing()
+{
+    HANDLE hFile1 = CreateFile(
+        L"untracked.txt",
+        DELETE,
+        0,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
+        NULL);
+
+    if (hFile1 == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    HANDLE hFile2 = CreateFile(
+        L"untracked.txt",
+        DELETE,
+        FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
+        NULL);
+
+    int lastError = (int)GetLastError();
+
+    if (hFile2 != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(hFile2);
+    }
+
+    CloseHandle(hFile1);
+
+    return lastError;
+}
+
 // ----------------------------------------------------------------------------
 // STATIC FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
@@ -1102,6 +1139,7 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallCreateFileWithZeroAccessOnDirectory);
     IF_COMMAND(CallCreateFileOnNtEscapedPath);
     IF_COMMAND(CallOpenFileById);
+    IF_COMMAND(CallDeleteWithoutSharing);
 
 #undef IF_COMMAND1
 #undef IF_COMMAND2

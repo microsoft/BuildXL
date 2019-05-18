@@ -20,6 +20,7 @@ using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using BuildXL.Native.IO;
 
 #pragma warning disable AsyncFixer02
 
@@ -2034,14 +2035,19 @@ namespace Test.BuildXL.Processes.Detours
         private static void VerifyNormalSuccess(BuildXLContext context, SandboxedProcessPipExecutionResult result)
         {
             VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.Succeeded);
-            VerifyExitCode(context, result, 0);
+            VerifyExitCode(context, result, NativeIOConstants.ErrorSuccess);
         }
 
         private static void VerifyAccessDenied(BuildXLContext context, SandboxedProcessPipExecutionResult result)
         {
             VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.ExecutionFailed);
-            VerifyExitCode(context, result, 5);
+            VerifyExitCode(context, result, NativeIOConstants.ErrorAccessDenied);
         }
 
+        private static void VerifySharingViolation(BuildXLContext context, SandboxedProcessPipExecutionResult result)
+        {
+            VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.ExecutionFailed);
+            VerifyExitCode(context, result, NativeIOConstants.ErrorSharingViolation);
+        }
     }
 }

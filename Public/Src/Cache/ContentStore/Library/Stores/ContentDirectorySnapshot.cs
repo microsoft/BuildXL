@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         private List<PayloadFromDisk<T>>[] InitializeSnapshot()
         {
             var snapshot = new List<PayloadFromDisk<T>>[byte.MaxValue];
-            for (var i = 0; i < _snapshot.Length; i++)
+            for (var i = 0; i < snapshot.Length; i++)
             {
                 snapshot[i] = new List<PayloadFromDisk<T>>();
             }

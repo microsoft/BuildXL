@@ -67,8 +67,7 @@ namespace BuildXL.Processes.Containers
         public ContainerConfiguration(
             PathTable pathTable,
             IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
-            IReadOnlyDictionary<AbsolutePath,
-            IReadOnlyList<ExpandedAbsolutePath>> originalDirectories,
+            IReadOnlyDictionary<AbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> originalDirectories,
             bool enableWciFilter = true,
             IReadOnlySet<ExpandedAbsolutePath> bindFltExcludedPaths = null)
         {

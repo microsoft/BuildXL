@@ -430,7 +430,7 @@ namespace BuildXL.Processes
         /// in <see cref="SandboxedProcessInfo"/>.
         /// </remarks>
         [CanBeNull]
-        internal SubstituteProcessExecutionInfo SubstituteProcessExecutionInfo { get; set; }
+        public SubstituteProcessExecutionInfo SubstituteProcessExecutionInfo { get; set; }
 
         /// <summary>
         /// Adds a policy to an entire scope

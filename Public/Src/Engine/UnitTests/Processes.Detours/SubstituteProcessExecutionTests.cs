@@ -132,7 +132,7 @@ namespace Test.BuildXL.Processes.Detours
         /// </summary>
         [Theory]
         [InlineData(false, null)]
-y       [InlineData(true, "foo.exe")]  // Filter should not match
+        [InlineData(true, "foo.exe")]  // Filter should not match
         public async Task CmdWithTestShim_ShimNothingRunsChildProcessWithoutShim(bool shimAllProcesses, string processMatch)
         {
             var context = BuildXLContext.CreateInstanceForTesting();

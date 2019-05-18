@@ -14,6 +14,9 @@
 /examples/Python/Out/
 /examples/Python/script_out/
 /examples/HybridBuild/Out/
+/examples/CMakeHelloWorld/Out/
+/examples/MsBuildHelloWorld/Out/
+/examples/MsBuildHelloWorld/Debug/
 bin/
 obj/
 contentcache/

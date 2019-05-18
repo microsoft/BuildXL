@@ -15,7 +15,6 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
-using static BuildXL.Cache.ContentStore.Stores.FileSystemContentStoreInternal;
 
 #pragma warning disable SA1402 // File may only contain a single class
 

@@ -614,6 +614,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                 var contentHashes = ReadSnapshotFromDisk(context);
                 _tracer.Debug(context, $"Enumerated {contentHashes.Count} entries in {stopwatch.ElapsedMilliseconds}ms.");
 
+                // We are using a list of classes instead of structs due to the maximum object size restriction
+                // When the contents on disk grow large, a list of structs surpasses the limit and forces OOM
                 var hashInfoPairs = new List<PayloadFromDisk<ContentFileInfo>>();
                 foreach (var grouping in contentHashes.GroupByHash())
                 {
@@ -1863,6 +1865,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         internal ContentHashAddressableSnapshot<FileInfo> ReadSnapshotFromDisk(Context context)
         {
+            // We are using a list of classes instead of structs due to the maximum object size restriction
+            // When the contents on disk grow large, a list of structs surpasses the limit and forces OOM
             var contentHashes = new List<PayloadFromDisk<FileInfo>>();
             if (_settings.UseNativeBlobEnumeration)
             {

@@ -18,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Test.Stores
         public void OrderedEnumerationIsCorrect(int snapshotSize)
         {
             var snapshot = Enumerable.Range(0, snapshotSize).Select(i => new PayloadFromDisk<int>(ContentHash.Random(), i)).OrderBy(x => x.Hash).ToList();
-            var store = new ContentHashAddressableSnapshot<int>(snapshot);
+            var store = new ContentDirectorySnapshot<int>(snapshot);
 
             store.Count.Should().Be(snapshotSize);
             var hashesFromStore = store.ListOrderedByHash().Select(x => x.Hash).ToList();
@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Test.Stores
         public void GroupsByHashProperly(int snapshotSize)
         {
             var snapshot = Enumerable.Range(0, snapshotSize).Select(i => new PayloadFromDisk<int>(ContentHash.Random(), i)).ToList();
-            var store = new ContentHashAddressableSnapshot<int>(snapshot);
+            var store = new ContentDirectorySnapshot<int>(snapshot);
 
             // We have to add these into a Dictionary because the ordering of the groups is not guaranteed to be equivalent to
             // GroupBy, nor the ordering inside the groups.

@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Reads the content from content directory.
         /// </summary>
-        ContentHashAddressableSnapshot<ContentFileInfo> Reconstruct(Context context);
+        ContentDirectorySnapshot<ContentFileInfo> Reconstruct(Context context);
     }
 
     /// <summary>

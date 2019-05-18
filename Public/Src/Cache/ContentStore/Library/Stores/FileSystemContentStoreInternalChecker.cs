@@ -143,7 +143,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             int index = 0;
             if (status == SelfCheckStatus.InProgress)
             {
-                index = FindNextIndexToProcess(selfCheckState.LastPosition.Value);
+                index = findNextIndexToProcess(selfCheckState.LastPosition.Value);
                 _tracer.Debug(context, $"SelfCheck: skipping {index} elements based on previous state '{selfCheckState.ToParseableString()}'.");
             }
             else
@@ -181,7 +181,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
 
                 // Tracking the progress if needed.
-                TraceProgressIfNeeded(hashInfo.Hash, index);
+                traceProgressIfNeeded(hashInfo.Hash, index);
 
                 // If the current entry is not the last one, and we reached the number of invalid files,
                 // then exiting the loop.
@@ -206,7 +206,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             return Result.Success(new SelfCheckResult(invalidHashes: invalidEntries, totalProcessedFiles: processedEntries));
 
-            int FindNextIndexToProcess(ContentHash lastProcessedHash)
+            int findNextIndexToProcess(ContentHash lastProcessedHash)
             {
                 var binarySearchResult = contentHashes.BinarySearch(new PayloadFromDisk<FileInfo>(lastProcessedHash, default));
 
@@ -230,7 +230,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 return targetIndex;
             }
 
-            void TraceProgressIfNeeded(ContentHash currentHash, int currentHashIndex)
+            void traceProgressIfNeeded(ContentHash currentHash, int currentHashIndex)
             {
                 processedBytes += contentHashes[currentHashIndex].Payload.Length;
 

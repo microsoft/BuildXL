@@ -600,7 +600,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public ContentHashAddressableSnapshot<ContentFileInfo> Reconstruct(Context context)
+        public ContentDirectorySnapshot<ContentFileInfo> Reconstruct(Context context)
         {
             // NOTE: DO NOT call ContentDirectory from this method as this is called during the initialization of ContentDirectory and calls
             // into ContentDirectory would cause a deadlock.
@@ -626,7 +626,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     hashInfoPairs.Add(new PayloadFromDisk<ContentFileInfo>(grouping.Key, contentFileInfo));
                 }
 
-                return new ContentHashAddressableSnapshot<ContentFileInfo>(hashInfoPairs);
+                return new ContentDirectorySnapshot<ContentFileInfo>(hashInfoPairs);
             }
             catch (Exception exception)
             {
@@ -1863,7 +1863,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         internal bool TryGetFileInfo(ContentHash contentHash, out ContentFileInfo fileInfo) => ContentDirectory.TryGetFileInfo(contentHash, out fileInfo);
 
-        internal ContentHashAddressableSnapshot<FileInfo> ReadSnapshotFromDisk(Context context)
+        internal ContentDirectorySnapshot<FileInfo> ReadSnapshotFromDisk(Context context)
         {
             // We are using a list of classes instead of structs due to the maximum object size restriction
             // When the contents on disk grow large, a list of structs surpasses the limit and forces OOM
@@ -1880,7 +1880,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
             }
 
-            return new ContentHashAddressableSnapshot<FileInfo>(contentHashes);
+            return new ContentDirectorySnapshot<FileInfo>(contentHashes);
 
             void ParseAndAccumulateContentHashes(FileInfo fileInfo)
             {

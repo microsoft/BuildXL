@@ -567,7 +567,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             return ContentDirectory.TryGetValue(contentHash, out fileInfo);
         }
 
-        private static Task AddBulkAsync(ContentMap contentDirectory, ContentMap backupContentDirectory, ContentHashAddressableSnapshot<ContentFileInfo> hashInfoPairs)
+        private static Task AddBulkAsync(ContentMap contentDirectory, ContentMap backupContentDirectory, ContentDirectorySnapshot<ContentFileInfo> hashInfoPairs)
         {
             return hashInfoPairs.ParallelAddToConcurrentDictionaryAsync(
                 contentDirectory, hashInfoPair => hashInfoPair.Hash, hashInfoPair =>

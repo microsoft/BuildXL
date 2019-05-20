@@ -164,6 +164,7 @@ public:
 	bool AllowRealInputTimestamps() const { return (m_policy & FileAccessPolicy_AllowRealInputTimestamps) != 0; }
     bool ReportUsnAfterOpen() const { return (m_policy & FileAccessPolicy_ReportUsnAfterOpen) != 0; }
     bool ReportDirectoryEnumeration() const { return (m_policy & FileAccessPolicy_ReportDirectoryEnumerationAccess) != 0; }
+    bool IndicateUntracked() const { return ((m_policy & FileAccessPolicy_AllowAll) == FileAccessPolicy_AllowAll) && ((m_policy & FileAccessPolicy_ReportAccess) == 0); }
     DWORD GetPathId() const { return m_policySearchCursor.IsValid() ? m_policySearchCursor.Record->GetPathId() : 0; }
     FileAccessPolicy GetPolicy() const { return m_policy; }
     USN GetExpectedUsn() const { return m_policySearchCursor.GetExpectedUsn(); }
@@ -171,7 +172,7 @@ public:
     bool IsIndeterminate() const { return m_isIndeterminate; }
 
     // Indicates if a file-open should have FILE_SHARE_READ implicitly added (as a hack to workaround tools accidentally
-    // asking for exclusive read. We are conservative here:
+    // asking for exclusive read). We are conservative here:
     // - If the process is allowed to write the file, we leave it to their discretion (even if they did not ask for write access on a particular handle).
     // - If the access result is Warn or Deny, we leave it to their discretion (maybe the access is whitelisted, and the policy should really have AllowWrite).
     bool ShouldForceReadSharing(AccessCheckResult const& accessCheck) {

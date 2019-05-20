@@ -15,27 +15,27 @@ void OverrideTimestampsForInputFile(TResult* result) {
     static_assert(std::is_same<decltype(result->ftLastAccessTime), FILETIME>::value, "result->ftLastAccessTime must be a FILETIME");
     static_assert(std::is_same<decltype(result->ftLastWriteTime), FILETIME>::value, "result->ftLastWriteTime must be a FILETIME");
     
-	if (NormalizeReadTimestamps())
-	{
-		result->ftCreationTime = NewInputTimestamp;
-		result->ftLastAccessTime = NewInputTimestamp;
-		result->ftLastWriteTime = NewInputTimestamp;
-	}
-	else
-	{
-		if (CompareFileTime(&(result->ftCreationTime), &NewInputTimestamp) == -1)
-		{
-			result->ftCreationTime = NewInputTimestamp;
-		}
-		if (CompareFileTime(&(result->ftLastAccessTime), &NewInputTimestamp) == -1)
-		{
-			result->ftLastAccessTime = NewInputTimestamp;
-		}
-		if (CompareFileTime(&(result->ftLastWriteTime), &NewInputTimestamp) == -1)
-		{
-			result->ftLastWriteTime = NewInputTimestamp;
-		}
-	}
+    if (NormalizeReadTimestamps())
+    {
+        result->ftCreationTime = NewInputTimestamp;
+        result->ftLastAccessTime = NewInputTimestamp;
+        result->ftLastWriteTime = NewInputTimestamp;
+    }
+    else
+    {
+        if (CompareFileTime(&(result->ftCreationTime), &NewInputTimestamp) == -1)
+        {
+            result->ftCreationTime = NewInputTimestamp;
+        }
+        if (CompareFileTime(&(result->ftLastAccessTime), &NewInputTimestamp) == -1)
+        {
+            result->ftLastAccessTime = NewInputTimestamp;
+        }
+        if (CompareFileTime(&(result->ftLastWriteTime), &NewInputTimestamp) == -1)
+        {
+            result->ftLastWriteTime = NewInputTimestamp;
+        }
+    }
 }
 
 void OverrideTimestampsForInputFile(FILE_BASIC_INFO* result);

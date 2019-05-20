@@ -6163,6 +6163,54 @@ namespace Test.BuildXL.Processes.Detours
             return FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, expandedPath));
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CallDeleteWithoutSharing(bool untracked)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var untrackedFile = tempFiles.GetFileName(pathTable, "untracked.txt");
+                WriteFile(pathTable, untrackedFile, "real");
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallDeleteWithoutSharing",
+                    inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: untracked 
+                        ? ReadOnlyArray<FileArtifactWithAttributes>.Empty 
+                        : ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateSourceFile(untrackedFile), FileExistence.Optional)),
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: untracked ? ReadOnlyArray<AbsolutePath>.FromWithoutCopy(untrackedFile.GetParent(pathTable)) : ReadOnlyArray<AbsolutePath>.Empty);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreRepPoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString);
+
+                if (untracked)
+                {
+                    VerifyNoFileAccesses(result);
+                }
+
+                VerifySharingViolation(context, result);
+                SetExpectedFailures(1, 0);
+            }
+        }
+
         [FactIfSupported(requiresSymlinkPermission: true)]
         public async Task CallDetouredCreateFileWForProbingOnly()
         {

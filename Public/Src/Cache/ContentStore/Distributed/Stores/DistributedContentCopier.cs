@@ -376,7 +376,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
-                                badContentLocations.Add(location);
+                                // Not tracking the source as a machine with bad reputation, because it is possible that we provided the wrong size.
+
                                 continue;
                             }
 

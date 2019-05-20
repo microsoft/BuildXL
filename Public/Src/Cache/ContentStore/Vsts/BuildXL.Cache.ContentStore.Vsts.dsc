@@ -20,6 +20,7 @@ namespace Vsts {
             Hashing.dll,
             Interfaces.dll,
             Library.dll,
+            importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
         ],
         internalsVisibleTo: [

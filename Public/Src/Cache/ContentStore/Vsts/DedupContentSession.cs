@@ -13,6 +13,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using VstsDedupIdentifier = Microsoft.VisualStudio.Services.BlobStore.Common.DedupIdentifier;
@@ -38,9 +40,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             ImplicitPin implicitPin,
             IDedupStoreHttpClient dedupStoreHttpClient,
             TimeSpan timeToKeepContent,
-            BackingContentStoreTracer tracer,
             int maxConnections = DefaultMaxConnections)
-            : base(fileSystem, name, implicitPin, dedupStoreHttpClient, timeToKeepContent, tracer, maxConnections)
+            : base(fileSystem, name, implicitPin, dedupStoreHttpClient, timeToKeepContent, maxConnections)
         {
             _artifactFileSystem = VstsFileSystem.Instance;
             _uploadSession = DedupStoreClient.CreateUploadSession(
@@ -51,13 +52,13 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <inheritdoc />
-        public async Task<PutResult> PutFileAsync(
-            Context context,
+        protected override async Task<PutResult> PutFileCoreAsync(
+            OperationContext context,
             ContentHash contentHash,
             AbsolutePath path,
             FileRealizationMode realizationMode,
-            CancellationToken cts,
-            UrgencyHint urgencyHint = UrgencyHint.Nominal)
+            UrgencyHint urgencyHint,
+            Counter retryCounter)
         {
             if (contentHash.HashType != RequiredHashType)
             {
@@ -69,7 +70,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             try
             {
                 long contentSize = GetContentSize(path);
-                PinResult pinResult = await PinAsync(context, contentHash, cts, urgencyHint);
+                var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint);
 
                 if (pinResult.Succeeded)
                 {
@@ -81,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     return new PutResult(pinResult, contentHash);
                 }
 
-                var dedupNode = await GetDedupNodeFromFileAsync(path.Path, cts);
+                var dedupNode = await GetDedupNodeFromFileAsync(path.Path, context.Token);
                 var calculatedHash = dedupNode.ToContentHash();
 
                 if (contentHash != calculatedHash)
@@ -91,7 +92,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                         $"Failed to add a DedupStore reference due to hash mismatch: provided=[{contentHash}] calculated=[{calculatedHash}]");
                 }
 
-                var putResult = await UploadWithDedupAsync(context, path, dedupNode, cts, urgencyHint).ConfigureAwait(false);
+                var putResult = await UploadWithDedupAsync(context, path, dedupNode).ConfigureAwait(false);
                 if (!putResult.Succeeded)
                 {
                     return new PutResult(
@@ -109,13 +110,13 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <inheritdoc />
-        public async Task<PutResult> PutFileAsync(
-            Context context,
+        protected override async Task<PutResult> PutFileCoreAsync(
+            OperationContext context,
             HashType hashType,
             AbsolutePath path,
             FileRealizationMode realizationMode,
-            CancellationToken cts,
-            UrgencyHint urgencyHint = UrgencyHint.Nominal)
+            UrgencyHint urgencyHint,
+            Counter retryCounter)
         {
             if (hashType != RequiredHashType)
             {
@@ -127,7 +128,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             try
             {
                 var contentSize = GetContentSize(path);
-                var dedupNode = await GetDedupNodeFromFileAsync(path.Path, cts);
+                var dedupNode = await GetDedupNodeFromFileAsync(path.Path, context.Token);
                 var contentHash = dedupNode.ToContentHash();
 
                 if (contentHash.HashType != hashType)
@@ -137,7 +138,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                         $"Failed to add a DedupStore reference due to hash type mismatch: provided=[{hashType}] calculated=[{contentHash.HashType}]");
                 }
 
-                PinResult pinResult = await PinAsync(context, contentHash, cts, urgencyHint);
+                var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint);
 
                 if (pinResult.Succeeded)
                 {
@@ -149,7 +150,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     return new PutResult(pinResult, contentHash);
                 }
 
-                var putResult = await UploadWithDedupAsync(context, path, dedupNode, cts, urgencyHint).ConfigureAwait(false);
+                var putResult = await UploadWithDedupAsync(context, path, dedupNode).ConfigureAwait(false);
 
                 if (!putResult.Succeeded)
                 {
@@ -168,7 +169,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <inheritdoc />
-        public async Task<PutResult> PutStreamAsync(Context context, ContentHash contentHash, Stream stream, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        protected override async Task<PutResult> PutStreamCoreAsync(OperationContext context, ContentHash contentHash, Stream stream, UrgencyHint urgencyHint, Counter retryCounter)
         {
             if (contentHash.HashType != RequiredHashType)
             {
@@ -185,7 +186,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     await stream.CopyToAsync(writer);
                 }
 
-                return await PutFileAsync(context, contentHash, new AbsolutePath(tempFile), FileRealizationMode.None, cts, urgencyHint);
+                // Cast is necessary because ContentSessionBase implements IContentSession explicitly
+                return await (this as IContentSession).PutFileAsync(context, contentHash, new AbsolutePath(tempFile), FileRealizationMode.None, context.Token, urgencyHint);
             }
             catch (Exception e)
             {
@@ -194,7 +196,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <inheritdoc />
-        public async Task<PutResult> PutStreamAsync(Context context, HashType hashType, Stream stream, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        protected override async Task<PutResult> PutStreamCoreAsync(OperationContext context, HashType hashType, Stream stream, UrgencyHint urgencyHint, Counter retryCounter)
         {
             if (hashType != RequiredHashType)
             {
@@ -211,7 +213,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     await stream.CopyToAsync(writer);
                 }
 
-                return await PutFileAsync(context, hashType, new AbsolutePath(tempFile), FileRealizationMode.None, cts, urgencyHint);
+                // Cast is necessary because ContentSessionBase implements IContentSession explicitly
+                return await (this as IContentSession).PutFileAsync(context, hashType, new AbsolutePath(tempFile), FileRealizationMode.None, context.Token, urgencyHint);
             }
             catch (Exception e)
             {
@@ -220,22 +223,20 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         private async Task<BoolResult> UploadWithDedupAsync(
-            Context context,
+            OperationContext context,
             AbsolutePath path,
-            DedupNode dedupNode,
-            CancellationToken cts,
-            UrgencyHint urgencyHint)
+            DedupNode dedupNode)
         {
             // Puts are effectively implicitly pinned regardless of configuration.
             try
             {
                 if (dedupNode.Type == DedupNode.NodeType.ChunkLeaf)
                 {
-                    await PutChunkAsync(context, dedupNode, path, cts);
+                    await PutChunkAsync(context, dedupNode, path);
                 }
                 else
                 {
-                    await PutNodeAsync(context, dedupNode, path, cts);
+                    await PutNodeAsync(context, dedupNode, path);
                 }
 
                 BackingContentStoreExpiryCache.Instance.AddExpiry(dedupNode.ToContentHash(), EndDateTime);
@@ -247,11 +248,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
         }
 
-        private async Task PutNodeAsync(Context context, DedupNode dedupNode, AbsolutePath path, CancellationToken cts)
+        private async Task PutNodeAsync(OperationContext context, DedupNode dedupNode, AbsolutePath path)
         {
             var dedupIdentifier = dedupNode.GetDedupId();
 
-            await TryGatedArtifactOperationAsync<Object>(
+            await TryGatedArtifactOperationAsync<object>(
                 context,
                 dedupIdentifier.ValueString,
                 "DedupUploadSession.UploadAsync",
@@ -259,10 +260,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 {
                     await _uploadSession.UploadAsync(dedupNode, new Dictionary<VstsDedupIdentifier, string> { { dedupIdentifier, path.Path } }, innerCts);
                     return null;
-                }, cts);
+                });
         }
 
-        private Task PutChunkAsync(Context context, DedupNode dedupNode, AbsolutePath path, CancellationToken cts)
+        private Task PutChunkAsync(OperationContext context, DedupNode dedupNode, AbsolutePath path)
         {
             var dedupIdentifier = dedupNode.GetDedupId();
             return TryGatedArtifactOperationAsync(
@@ -273,16 +274,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
                                 dedupIdentifier.CastToChunkDedupIdentifier(),
                                 DedupCompressedBuffer.FromUncompressed(File.ReadAllBytes(path.Path)),
                                 new KeepUntilBlobReference(EndDateTime),
-                                innerCts),
-                cts);
+                                innerCts));
         }
 
-        private async Task<DedupNode> GetDedupNodeFromFileAsync(string path, CancellationToken cts)
+        private async Task<DedupNode> GetDedupNodeFromFileAsync(string path, CancellationToken token)
         {
             var dedupNode = await ChunkerHelper.CreateFromFileAsync(
                 fileSystem: _artifactFileSystem,
                 path: path,
-                cancellationToken: cts,
+                cancellationToken: token,
                 configureAwait: false);
 
             return dedupNode;

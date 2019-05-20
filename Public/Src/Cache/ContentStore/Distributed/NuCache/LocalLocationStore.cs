@@ -27,7 +27,6 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
@@ -111,12 +110,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// So the initialization process is split into two pieces: core initialization and post-initialization that should be checked in every public method.
         /// </summary>
         private Task<BoolResult> _postInitializationTask;
-
-        /// <summary>
-        /// This field represents a task that is finishes when the initialization is fully done.
-        /// This allows some functions to "await" for the initialization to finish even when StartupAsync method has not been called yet.
-        /// </summary>
-        private readonly TaskSourceSlim<BoolResult> _fullInitializationTaskSource = TaskSourceSlim.Create<BoolResult>();
 
         private readonly Interfaces.FileSystem.AbsolutePath _reconcileFilePath;
 
@@ -311,9 +304,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _postInitializationTask = Task.Run(() => ProcessStateAsync(context, inline: true));
             }
 
-            // Linking task source with a newly created task to finish the source once the post initialization task is done.
-            _fullInitializationTaskSource.LinkToTask(_postInitializationTask);
-
             return BoolResult.Success;
         }
 
@@ -340,11 +330,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     result &= postInitializationResult;
                 }
-            }
-            else
-            {
-                // Completing the initialization task in case another thread is blocked waiting on it.
-                _fullInitializationTaskSource.TrySetResult(BoolResult.Success);
             }
 
 #pragma warning disable AsyncFixer02
@@ -859,7 +844,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private Task<BoolResult> EnsureInitializedAsync()
         {
-            return _fullInitializationTaskSource.Task;
+            Contract.Assert(_postInitializationTask != null);
+
+            return _postInitializationTask;
         }
 
         /// <summary>

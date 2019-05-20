@@ -209,6 +209,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                    exception is ArgumentException ||
                    exception is IndexOutOfRangeException ||
                    exception is UnauthorizedAccessException || 
+                   exception is OutOfMemoryException || 
                    exception.GetType().Name == "ContractException" ||
                    exception is InvalidOperationException ||
                    (exception is AggregateException ae && ae.Flatten().InnerExceptions.Any(e => IsCritical(e)));

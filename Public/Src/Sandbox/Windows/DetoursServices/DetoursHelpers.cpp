@@ -822,7 +822,6 @@ bool ParseFileAccessManifest(
 
     // Update the injector with the DLLs
     g_pDetouredProcessInjector->SetDlls(g_lpDllNameX86, g_lpDllNameX64);
-
     offset += dllBlock->GetSize();
 
     PCManifestSubstituteProcessExecutionShim pShimInfo = reinterpret_cast<PCManifestSubstituteProcessExecutionShim>(&payloadBytes[offset]);
@@ -833,7 +832,7 @@ bool ParseFileAccessManifest(
     {
         g_ProcessExecutionShimAllProcesses = pShimInfo->ShimAllProcesses != 0;
         uint32_t numProcessMatches = ParseUint32(payloadBytes, offset);
-        g_pShimProcessMatches = new vector<ShimProcessMatch*>(numProcessMatches);
+        g_pShimProcessMatches = new vector<ShimProcessMatch*>();
         for (uint32_t i = 0; i < numProcessMatches; i++)
         {
             wchar_t *processName = CreateStringFromWriteChars(payloadBytes, offset);

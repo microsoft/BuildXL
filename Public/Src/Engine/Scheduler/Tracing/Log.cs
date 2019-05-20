@@ -1195,7 +1195,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (int)LogEventId.PipCacheMetadataBelongToAnotherPip,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,

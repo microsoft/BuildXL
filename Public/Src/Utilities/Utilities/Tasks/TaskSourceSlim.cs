@@ -109,15 +109,15 @@ namespace BuildXL.Utilities.Tasks
                 {
                     if (continuation.IsFaulted)
                     {
-                        @this.SetException(task.Exception);
+                        @this.TrySetException(task.Exception);
                     }
                     else if (continuation.IsCanceled)
                     {
-                        @this.SetCanceled();
+                        @this.TrySetCanceled();
                     }
                     else
                     {
-                        @this.SetResult(task.Result);
+                        @this.TrySetResult(task.Result);
                     }
                 }
             );

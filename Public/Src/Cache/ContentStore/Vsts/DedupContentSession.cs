@@ -186,7 +186,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     await stream.CopyToAsync(writer);
                 }
 
-                // Weird cast is necessary because ContentSessionBase implements IContentSession explicitly
+                // Cast is necessary because ContentSessionBase implements IContentSession explicitly
                 return await (this as IContentSession).PutFileAsync(context, contentHash, new AbsolutePath(tempFile), FileRealizationMode.None, context.Token, urgencyHint);
             }
             catch (Exception e)
@@ -213,6 +213,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     await stream.CopyToAsync(writer);
                 }
 
+                // Cast is necessary because ContentSessionBase implements IContentSession explicitly
                 return await (this as IContentSession).PutFileAsync(context, hashType, new AbsolutePath(tempFile), FileRealizationMode.None, context.Token, urgencyHint);
             }
             catch (Exception e)

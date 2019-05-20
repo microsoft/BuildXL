@@ -452,8 +452,10 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             {
                 return TryOpenFileUnix(path, accessMode, mode, share, options, bufferSize);
             }
-
-            return TryOpenFileWin(path, accessMode, mode, share, options, bufferSize);
+            else
+            {
+                return TryOpenFileWin(path, accessMode, mode, share, options, bufferSize);
+            }
         }
 
         private Stream TryOpenFileUnix(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
@@ -470,7 +472,16 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
             return new FileStream(path.Path, mode, accessMode, share, bufferSize, options);
         }
-        
+
+        /// <summary>
+        /// Tries opening a file with a given <paramref name="path"/>.
+        /// </summary>
+        /// <return>
+        /// Method returns null if file or directory is not found.
+        /// </return>
+        /// <remarks>
+        /// The method throws similar exception that <see cref="FileStream"/> constructor.
+        /// </remarks>
         private Stream TryOpenFileWin(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
         {
             options = GetOptions(path, options);

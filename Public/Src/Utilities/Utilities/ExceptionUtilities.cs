@@ -279,7 +279,8 @@ namespace BuildXL.Utilities
 
             if (ex is FileLoadException ||
                 (ex is FileNotFoundException && ex.Message.Contains(Strings.ExceptionUtilities_MissingDependencyPattern)) ||
-                ex is DllNotFoundException)
+                ex is DllNotFoundException ||
+                ex is TypeLoadException)
             {
                 return ExceptionRootCause.MissingRuntimeDependency;
             }

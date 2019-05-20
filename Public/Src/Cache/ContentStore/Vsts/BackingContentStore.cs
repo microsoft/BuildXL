@@ -52,20 +52,17 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="fileSystem">Filesystem used to read/write files.</param>
         /// <param name="artifactHttpClientFactory">Backing Store HTTP client factory.</param>
         /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
-        /// <param name="backingStoreContentTracer">A tracer for tracking calls to the backing Content Store.</param>
         /// <param name="downloadBlobsThroughBlobStore">Flag for BlobStore: If enabled, gets blobs through BlobStore. If false, gets blobs from the Azure Uri.</param>
         /// <param name="useDedupStore">Determines whether or not DedupStore is used for content. Must be used in tandem with Dedup hashes.</param>
         public BackingContentStore(
             IAbsFileSystem fileSystem,
             IArtifactHttpClientFactory artifactHttpClientFactory,
             TimeSpan timeToKeepContent,
-            BackingContentStoreTracer backingStoreContentTracer,
             bool downloadBlobsThroughBlobStore = false,
             bool useDedupStore = false)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(artifactHttpClientFactory != null);
-            Contract.Requires(backingStoreContentTracer != null);
             _fileSystem = fileSystem;
             _artifactHttpClientFactory = artifactHttpClientFactory;
             _timeToKeepContent = timeToKeepContent;

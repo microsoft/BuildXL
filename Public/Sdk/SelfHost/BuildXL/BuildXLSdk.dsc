@@ -401,7 +401,8 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     "FEATURE_ARIA_TELEMETRY"
                 ),
                 ...addIf(isTargetRuntimeOsx,
-                    "PLATFORM_OSX"
+                    "PLATFORM_OSX",
+                    "FEATURE_THROTTLE_EVAL_SCHEDULER"
                 ),
             ],
             references: [

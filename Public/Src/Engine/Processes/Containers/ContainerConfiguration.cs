@@ -26,10 +26,11 @@ namespace BuildXL.Processes.Containers
         public bool IsIsolationEnabled { get; }
 
         /// <summary>
-        /// Map from redirected directories to collection of original directories to be virtualized from
+        /// Map from redirected directories to collection of original directories to be virtualized from.
         /// </summary>
         /// <remarks>
-        /// Each value in this map points to the upmost de-duplicated (so directories are never pairwise nested) original directory that is either an opaque directory or the containing directory of a declared file
+        /// Each value in this map points to the upmost de-duplicated (so directories are never pairwise nested) original directory
+        /// that is either an opaque directory or the containing directory of a declared file.
         /// </remarks>
         public IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> RedirectedDirectories { get; }
 
@@ -48,7 +49,7 @@ namespace BuildXL.Processes.Containers
         public bool EnableWciFilter { get; }
 
         /// <summary>
-        /// Paths that should not have the bindflt path transformation applied to them.
+        /// Paths that should not have BindFlt output path transformations applied to them.
         /// </summary>
         public IReadOnlySet<ExpandedAbsolutePath> BindFltExcludedPaths { get; }
 
@@ -66,8 +67,7 @@ namespace BuildXL.Processes.Containers
         public ContainerConfiguration(
             PathTable pathTable,
             IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
-            IReadOnlyDictionary<AbsolutePath,
-            IReadOnlyList<ExpandedAbsolutePath>> originalDirectories,
+            IReadOnlyDictionary<AbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> originalDirectories,
             bool enableWciFilter = true,
             IReadOnlySet<ExpandedAbsolutePath> bindFltExcludedPaths = null)
         {

@@ -48,7 +48,8 @@ namespace BuildXL.FrontEnd.MsBuild
             "/m:1", // Tells MsBuild not to create child processes for building, but instead to simply execute the specified project file within a single process
             "/IgnoreProjectExtensions:.sln", // Tells MSBuild to avoid scanning the local file system for sln files to build, but instead to simply use the provided project file.
             "/ConsoleLoggerParameters:Verbosity=Minimal", // Minimize the console logger
-            "/noAutoResponse" // do not include any MSBuild.rsp file automatically
+            "/noAutoResponse", // do not include any MSBuild.rsp file automatically,
+            "/nodeReuse:false" // Even though we are already passing /m:1, when an MSBuild task is requested with an architecture that doesn't match the one of the host process, /nodeReuse will be true unless set otherwise
         };
 
         private AbsolutePath Root => m_resolverSettings.Root;

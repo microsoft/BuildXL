@@ -289,8 +289,10 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             Assert.Contains("/p:buildprojectreferences=false", arguments);
         }
 
-        [Fact]
-        public void AutoResponseOptionIsTurnedOff()
+        [Theory]
+        [InlineData("/noAutoResponse")]
+        [InlineData("/nodeReuse:false")]
+        public void CommonArgumentsAreSet(string argument)
         {
             var project = CreateProjectWithPredictions("A.proj");
 
@@ -303,7 +305,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             var arguments = RetrieveProcessArguments(testProj);
 
             // The auto-response option should be always off
-            Assert.Contains("/noAutoResponse", arguments);
+            Assert.Contains(argument, arguments);
         }
     }
 }

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Cache.ContentStore.Stores
@@ -11,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// with the maximum object size limit.
     /// </summary>
     /// <typeparam name="T">Type tagged with a hash</typeparam>
-    public class PayloadFromDisk<T> : IComparable<PayloadFromDisk<T>>
+    public class PayloadFromDisk<T>
     {
         /// <summary>
         /// Hash for the <see cref="Payload"/>
@@ -29,11 +30,14 @@ namespace BuildXL.Cache.ContentStore.Stores
             Hash = hash;
             Payload = payload;
         }
+    }
 
+    /// <summary>
+    /// Compares two PayloadFromDisk instances by checking at their hashes
+    /// </summary>
+    public class ByHashPayloadFromDiskComparer<T> : IComparer<PayloadFromDisk<T>>
+    {
         /// <inheritdoc />
-        public int CompareTo(PayloadFromDisk<T> other)
-        {
-            return Hash.CompareTo(other.Hash);
-        }
+        public int Compare(PayloadFromDisk<T> left, PayloadFromDisk<T> right) => left.Hash.CompareTo(right.Hash);
     }
 }

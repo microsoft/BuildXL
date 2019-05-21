@@ -208,7 +208,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             int findNextIndexToProcess(ContentHash lastProcessedHash)
             {
-                var binarySearchResult = contentHashes.BinarySearch(new PayloadFromDisk<FileInfo>(lastProcessedHash, default));
+                var binarySearchResult = contentHashes.BinarySearch(new PayloadFromDisk<FileInfo>(lastProcessedHash, default), new ByHashPayloadFromDiskComparer<FileInfo>());
 
                 int targetIndex = 0;
                 if (binarySearchResult >= 0 && binarySearchResult < contentHashes.Count - 1)

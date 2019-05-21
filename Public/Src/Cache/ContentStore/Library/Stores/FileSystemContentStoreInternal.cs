@@ -616,7 +616,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 // We are using a list of classes instead of structs due to the maximum object size restriction
                 // When the contents on disk grow large, a list of structs surpasses the limit and forces OOM
-                var hashInfoPairs = new List<PayloadFromDisk<ContentFileInfo>>();
+                var hashInfoPairs = new ContentDirectorySnapshot<ContentFileInfo>();
                 foreach (var grouping in contentHashes.GroupByHash())
                 {
                     var contentFileInfo = new ContentFileInfo(Clock, grouping.First().Payload.Length, grouping.Count());
@@ -626,7 +626,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     hashInfoPairs.Add(new PayloadFromDisk<ContentFileInfo>(grouping.Key, contentFileInfo));
                 }
 
-                return new ContentDirectorySnapshot<ContentFileInfo>(hashInfoPairs);
+                return hashInfoPairs;
             }
             catch (Exception exception)
             {
@@ -1867,7 +1867,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             // We are using a list of classes instead of structs due to the maximum object size restriction
             // When the contents on disk grow large, a list of structs surpasses the limit and forces OOM
-            var contentHashes = new List<PayloadFromDisk<FileInfo>>();
+            var contentHashes = new ContentDirectorySnapshot<FileInfo>();
             if (_settings.UseNativeBlobEnumeration)
             {
                 EnumerateBlobPathsFromDisk(context, fileInfo => ParseAndAccumulateContentHashes(fileInfo));
@@ -1880,7 +1880,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
             }
 
-            return new ContentDirectorySnapshot<FileInfo>(contentHashes);
+            return contentHashes;
 
             void ParseAndAccumulateContentHashes(FileInfo fileInfo)
             {

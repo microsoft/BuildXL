@@ -102,7 +102,9 @@ namespace ContentStoreTest.Stores
 
                 MemoryClock.Increment();
                 var allContent = priorContent.Concat(reconstructedContent).ToList();
-                Host.Content = new ContentDirectorySnapshot<ContentFileInfo>(allContent.Select(kv => new PayloadFromDisk<ContentFileInfo>(kv.Key, kv.Value)));
+
+                Host.Content = new ContentDirectorySnapshot<ContentFileInfo>();
+                Host.Content.Add(allContent.Select(kv => new PayloadFromDisk<ContentFileInfo>(kv.Key, kv.Value)));
 
                 // Update last access time to simulate what would happen after reconstruction
                 allContent.ForEach(hashInfoPair => hashInfoPair.Value.UpdateLastAccessed(MemoryClock));

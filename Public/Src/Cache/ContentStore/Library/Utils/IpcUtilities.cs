@@ -97,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             try
             {
-                while (!EventWaitHandle.TryOpenExisting(eventname, out readyEvent))
+                while (!EventWaitHandleTryOpenExisting(eventname, out readyEvent))
                 {
                     if (stopwatch.ElapsedMilliseconds > waitMs)
                     {
@@ -123,12 +123,21 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             try
             {
-                return EventWaitHandle.TryOpenExisting(GetShutdownEventName(scenario), out handle);
+                return EventWaitHandleTryOpenExisting(GetShutdownEventName(scenario), out handle);
             }
             catch (Exception e)
             {
                 throw new CacheException(e.ToString(), e);
             }
+        }
+
+        private static bool EventWaitHandleTryOpenExisting(string name, out EventWaitHandle handle)
+        {
+#if FEATURE_CORECLR
+            return EventWaitHandle.TryOpenExisting(name, out handle);
+#else
+            return EventWaitHandle.TryOpenExisting(name, EventWaitHandleRights.Synchronize, out handle);
+#endif
         }
 
         /// <summary>

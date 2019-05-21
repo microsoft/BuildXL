@@ -60,6 +60,8 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                 var ret = new EventWaitHandle(false, EventResetMode.ManualReset, eventName, out bool created);
 
+                Console.WriteLine($"========== Created EWH ({created}): {eventName}");
+
                 var security = new EventWaitHandleSecurity();
 
                 // Allow any client to wait on the event.
@@ -67,6 +69,9 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                 // Give full control to current user.
                 security.AddAccessRule(EventWaitHandleAccessRules.CurrentUserFullControlRule());
+                
+                
+
                 ret.SetAccessControl(security);
 
                 return ret;
@@ -177,10 +182,9 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             public static EventWaitHandleAccessRule PublicSynchronizeAccessRule()
             {
-                var currentUser = UserUtilities.CurrentUserName();
                 return new EventWaitHandleAccessRule(
                     new SecurityIdentifier(WellKnownSidType.WorldSid, null),
-                    EventWaitHandleRights.Synchronize,
+                    EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify,
                     AccessControlType.Allow);
             }
 

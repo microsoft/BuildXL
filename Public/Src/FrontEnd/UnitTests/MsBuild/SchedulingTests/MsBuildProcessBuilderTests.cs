@@ -288,5 +288,22 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             // A project that is not built in isolation has to rely on /p:buildprojectreferences=false
             Assert.Contains("/p:buildprojectreferences=false", arguments);
         }
+
+        [Fact]
+        public void AutoResponseOptionIsTurnedOff()
+        {
+            var project = CreateProjectWithPredictions("A.proj");
+
+            var testProj = Start(new MsBuildResolverSettings { UseLegacyProjectIsolation = true })
+                .Add(project)
+                .ScheduleAll()
+                .AssertSuccess().
+                RetrieveSuccessfulProcess(project);
+
+            var arguments = RetrieveProcessArguments(testProj);
+
+            // The auto-response option should be always off
+            Assert.Contains("/noAutoResponse", arguments);
+        }
     }
 }

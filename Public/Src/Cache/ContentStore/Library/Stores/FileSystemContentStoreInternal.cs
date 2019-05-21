@@ -1870,19 +1870,19 @@ namespace BuildXL.Cache.ContentStore.Stores
             var contentHashes = new ContentDirectorySnapshot<FileInfo>();
             if (_settings.UseNativeBlobEnumeration)
             {
-                EnumerateBlobPathsFromDisk(context, fileInfo => ParseAndAccumulateContentHashes(fileInfo));
+                EnumerateBlobPathsFromDisk(context, fileInfo => parseAndAccumulateContentHashes(fileInfo));
             }
             else
             {
                 foreach (var fileInfo in EnumerateBlobPathsFromDisk())
                 {
-                    ParseAndAccumulateContentHashes(fileInfo);
+                    parseAndAccumulateContentHashes(fileInfo);
                 }
             }
 
             return contentHashes;
 
-            void ParseAndAccumulateContentHashes(FileInfo fileInfo)
+            void parseAndAccumulateContentHashes(FileInfo fileInfo)
             {
                 // A directory could have an old hash in its name or may be renamed by the user.
                 // This is not an error condition if we can't get the hash out of it.

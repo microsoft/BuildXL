@@ -27,7 +27,6 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tracing;
-using static BuildXL.Cache.ContentStore.Stores.FileSystemContentStoreInternal;
 
 namespace BuildXL.Cache.ContentStore.Stores
 {

@@ -1,27 +1,17 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
-using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
-using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
-using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Test;
-using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
-using static BuildXL.Cache.ContentStore.Stores.FileSystemContentStoreInternalChecker;
 
 namespace ContentStoreTest.Stores
 {

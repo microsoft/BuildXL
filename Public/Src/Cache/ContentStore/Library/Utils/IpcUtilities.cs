@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             try
             {
                 string eventName = GetShutdownEventName(scenario);
-#if !FEATURE_CORECLR
+
                 EventWaitHandle ret = new EventWaitHandle(false, EventResetMode.AutoReset, eventName, out bool created);
 
                 var security = new EventWaitHandleSecurity();
@@ -39,9 +39,6 @@ namespace BuildXL.Cache.ContentStore.Utils
                 // Give full control to current user.
                 security.AddAccessRule(EventWaitHandleAccessRules.CurrentUserFullControlRule());
                 ret.SetAccessControl(security);
-#else
-                EventWaitHandle ret = new EventWaitHandle(false, EventResetMode.AutoReset);
-#endif
 
                 return ret;
             }
@@ -61,7 +58,6 @@ namespace BuildXL.Cache.ContentStore.Utils
             {
                 var eventName = GetReadyEventName(scenario);
 
-#if !FEATURE_CORECLR
                 var ret = new EventWaitHandle(false, EventResetMode.ManualReset, eventName, out bool created);
 
                 var security = new EventWaitHandleSecurity();
@@ -72,9 +68,6 @@ namespace BuildXL.Cache.ContentStore.Utils
                 // Give full control to current user.
                 security.AddAccessRule(EventWaitHandleAccessRules.CurrentUserFullControlRule());
                 ret.SetAccessControl(security);
-#else
-                var ret = new EventWaitHandle(false, EventResetMode.ManualReset);
-#endif
 
                 return ret;
             }
@@ -104,11 +97,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             try
             {
-#if !FEATURE_CORECLR
-                while (!EventWaitHandle.TryOpenExisting(eventname, EventWaitHandleRights.Synchronize, out readyEvent))
-#else
                 while (!EventWaitHandle.TryOpenExisting(eventname, out readyEvent))
-#endif
                 {
                     if (stopwatch.ElapsedMilliseconds > waitMs)
                     {
@@ -134,11 +123,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             try
             {
-#if !FEATURE_CORECLR
-                return EventWaitHandle.TryOpenExisting(GetShutdownEventName(scenario), EventWaitHandleRights.Synchronize, out handle);
-#else
                 return EventWaitHandle.TryOpenExisting(GetShutdownEventName(scenario), out handle);
-#endif
             }
             catch (Exception e)
             {

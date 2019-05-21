@@ -450,7 +450,10 @@ namespace BuildXL.Cache.ContentStore.Service
 
             _portDisposer?.Dispose();
 
-            await _grpcServer.KillAsync();
+            if (_grpcServer != null)
+            {
+                await _grpcServer.KillAsync();
+            }
 
             _logIncrementalStatsTimer?.Dispose();
             await LogIncrementalStatsAsync(context);

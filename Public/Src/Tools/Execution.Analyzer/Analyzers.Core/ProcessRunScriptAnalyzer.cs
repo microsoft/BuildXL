@@ -344,6 +344,8 @@ namespace BuildXL.Execution.Analyzer
                 new Tuple<string, string>(@"(", @"^("),
                 new Tuple<string, string>(@")", @"^)"),
                 new Tuple<string, string>(@"&", @"^&"),
+                new Tuple<string, string>(@">", @"^>"),
+                new Tuple<string, string>(@"<", @"^<"),
             };
 
             foreach (var replacement in replacements)

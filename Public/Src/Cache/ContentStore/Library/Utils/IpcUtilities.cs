@@ -148,14 +148,14 @@ namespace BuildXL.Cache.ContentStore.Utils
             // return EventWaitHandle.TryOpenExisting(name, out handle);
 
 #if FEATURE_CORECLR
-            result = null;
+            handle = null;
             SafeWaitHandle myHandle = OpenEvent((uint)EventWaitHandleRights.Synchronize, false, name);
             if (myHandle.IsInvalid)
             {
                 throw Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error());
             }
 
-            result = (EventWaitHandle) EventWaitHandleConstructor.Invoke(new[] { myHandle });
+            handle = (EventWaitHandle) EventWaitHandleConstructor.Invoke(new[] { myHandle });
             return true;
 #else
             return EventWaitHandle.TryOpenExisting(name, EventWaitHandleRights.Synchronize, out handle);

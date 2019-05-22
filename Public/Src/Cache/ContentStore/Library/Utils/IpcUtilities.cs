@@ -3,11 +3,14 @@
 
 using System;
 using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Native.Users;
+using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
@@ -28,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             try
             {
                 string eventName = GetShutdownEventName(scenario);
-#if !FEATURE_CORECLR
+
                 EventWaitHandle ret = new EventWaitHandle(false, EventResetMode.AutoReset, eventName, out bool created);
 
                 var security = new EventWaitHandleSecurity();
@@ -39,9 +42,6 @@ namespace BuildXL.Cache.ContentStore.Utils
                 // Give full control to current user.
                 security.AddAccessRule(EventWaitHandleAccessRules.CurrentUserFullControlRule());
                 ret.SetAccessControl(security);
-#else
-                EventWaitHandle ret = new EventWaitHandle(false, EventResetMode.AutoReset);
-#endif
 
                 return ret;
             }
@@ -61,7 +61,6 @@ namespace BuildXL.Cache.ContentStore.Utils
             {
                 var eventName = GetReadyEventName(scenario);
 
-#if !FEATURE_CORECLR
                 var ret = new EventWaitHandle(false, EventResetMode.ManualReset, eventName, out bool created);
 
                 var security = new EventWaitHandleSecurity();
@@ -72,9 +71,6 @@ namespace BuildXL.Cache.ContentStore.Utils
                 // Give full control to current user.
                 security.AddAccessRule(EventWaitHandleAccessRules.CurrentUserFullControlRule());
                 ret.SetAccessControl(security);
-#else
-                var ret = new EventWaitHandle(false, EventResetMode.ManualReset);
-#endif
 
                 return ret;
             }
@@ -104,11 +100,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             try
             {
-#if !FEATURE_CORECLR
-                while (!EventWaitHandle.TryOpenExisting(eventname, EventWaitHandleRights.Synchronize, out readyEvent))
-#else
-                while (!EventWaitHandle.TryOpenExisting(eventname, out readyEvent))
-#endif
+                while (!EventWaitHandleTryOpenExisting(eventname, out readyEvent))
                 {
                     if (stopwatch.ElapsedMilliseconds > waitMs)
                     {
@@ -134,16 +126,41 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             try
             {
-#if !FEATURE_CORECLR
-                return EventWaitHandle.TryOpenExisting(GetShutdownEventName(scenario), EventWaitHandleRights.Synchronize, out handle);
-#else
-                return EventWaitHandle.TryOpenExisting(GetShutdownEventName(scenario), out handle);
-#endif
+                return EventWaitHandleTryOpenExisting(GetShutdownEventName(scenario), out handle);
             }
             catch (Exception e)
             {
                 throw new CacheException(e.ToString(), e);
             }
+        }
+
+        [DllImport("kernel32", EntryPoint = "OpenEventW", SetLastError = true, CharSet = CharSet.Unicode)]
+        internal static extern SafeWaitHandle OpenEvent(uint desiredAccess, bool inheritHandle, string name);
+
+        private static ConstructorInfo EventWaitHandleConstructor =
+            typeof(EventWaitHandle).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(SafeWaitHandle) }, null);
+
+        private static bool EventWaitHandleTryOpenExisting(string name, out EventWaitHandle handle)
+        {
+            // TODO: once the new BuildXL bits (i.e,. where PublicSynchronizeAccessRule() requests both
+            //       Synchronize and Modify) make it to CloudBuild, replace this whole method with the
+            //       following (which works both in .NET Core and .NET Frameworks)
+            //
+            // return EventWaitHandle.TryOpenExisting(name, out handle);
+
+#if FEATURE_CORECLR
+            handle = null;
+            SafeWaitHandle myHandle = OpenEvent((uint)EventWaitHandleRights.Synchronize, false, name);
+            if (myHandle.IsInvalid)
+            {
+                throw Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error());
+            }
+
+            handle = (EventWaitHandle) EventWaitHandleConstructor.Invoke(new[] { myHandle });
+            return true;
+#else
+            return EventWaitHandle.TryOpenExisting(name, EventWaitHandleRights.Synchronize, out handle);
+#endif
         }
 
         /// <summary>
@@ -183,10 +200,13 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             public static EventWaitHandleAccessRule PublicSynchronizeAccessRule()
             {
-                var currentUser = UserUtilities.CurrentUserName();
+                // In CoreCLR, EventWaitHandle.TryOpenExisting() does not support setting access rights explicitly.
+                // Instead, a handle is always opened with EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify
+                // (see: https://github.com/dotnet/corefx/blob/b86783ef9525f22b0576278939264897464f9bbd/src/Common/src/CoreLib/System/Threading/EventWaitHandle.Windows.cs#L14)
+                // Because of that, here we have to request both Synchronize and Modify rights.
                 return new EventWaitHandleAccessRule(
                     new SecurityIdentifier(WellKnownSidType.WorldSid, null),
-                    EventWaitHandleRights.Synchronize,
+                    EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify,
                     AccessControlType.Allow);
             }
 

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
@@ -229,6 +230,27 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             {
                 return new CacheConstructionFailure(cacheConfig.CacheId, e);
             }
+        }
+
+        /// <inheritdoc />
+        public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
+        {
+            Contract.Requires(cacheData != null);
+
+            var possibleCacheConfig = cacheData.Create<Config>();
+            if (!possibleCacheConfig.Succeeded)
+            {
+                return new[] { possibleCacheConfig.Failure };
+            }
+
+            Config cacheConfig = possibleCacheConfig.Result;
+
+            var failures = new List<Failure>();
+            failures.AddFailureIfNullOrEmpty(cacheConfig.CacheId, nameof(cacheConfig.CacheId));
+            failures.AddFailureIfNullOrEmpty(cacheConfig.CacheName, nameof(cacheConfig.CacheName));
+            failures.AddFailureIfNullOrEmpty(cacheConfig.MetadataLogPath, nameof(cacheConfig.MetadataLogPath));
+
+            return failures;
         }
     }
 }

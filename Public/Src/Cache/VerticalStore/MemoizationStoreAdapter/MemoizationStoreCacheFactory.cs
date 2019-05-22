@@ -428,6 +428,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 configurationModelForPath);
         }
 
+        /// <inheritdoc />
         public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
         {
             Contract.Requires(cacheData != null);

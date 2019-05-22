@@ -1334,7 +1334,7 @@ namespace BuildXL.Native.IO.Windows
                         Contract.Assume(
                             currentRecordHeader->RecordLength >= NativeUsnRecordV3.MinimumSize &&
                             currentRecordHeader->RecordLength <= NativeUsnRecordV3.MaximumSize,
-                            "Size in record header does not correspond to a valid USN_RECORD_V3.");
+                            "Size in record header does not correspond to a valid USN_RECORD_V3. Header record length:" + currentRecordHeader->RecordLength);
 
                         NativeUsnRecordV3* record = (NativeUsnRecordV3*) currentRecordBase;
                         recordsToReturn.Add(
@@ -1349,7 +1349,7 @@ namespace BuildXL.Native.IO.Windows
                         Contract.Assume(
                             currentRecordHeader->RecordLength >= NativeUsnRecordV2.MinimumSize &&
                             currentRecordHeader->RecordLength <= NativeUsnRecordV2.MaximumSize,
-                            "Size in record header does not correspond to a valid USN_RECORD_V2.");
+                            "Size in record header does not correspond to a valid USN_RECORD_V2. Header record length:" + currentRecordHeader->RecordLength);
 
                         NativeUsnRecordV2* record = (NativeUsnRecordV2*) currentRecordBase;
                         recordsToReturn.Add(

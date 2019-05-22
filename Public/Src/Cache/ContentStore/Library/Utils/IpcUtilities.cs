@@ -3,11 +3,14 @@
 
 using System;
 using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Native.Users;
+using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
@@ -131,10 +134,29 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
         }
 
+        [DllImport("kernel32", EntryPoint = "OpenEventW", SetLastError = true, CharSet = CharSet.Unicode)]
+        internal static extern SafeWaitHandle OpenEvent(uint desiredAccess, bool inheritHandle, string name);
+
+        private static ConstructorInfo EventWaitHandleConstructor =
+            typeof(EventWaitHandle).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(SafeWaitHandle) }, null);
+
         private static bool EventWaitHandleTryOpenExisting(string name, out EventWaitHandle handle)
         {
+            // TODO: replace this whole method with the following (which works both in .NET Core and .NET Frameworks)
+            //       once the new BuildXL bits (i.e,. where PublicSynchronizeAccessRule() requests both Synchronize and Modify)
+            //       make it to CloudBuild.
+            // return EventWaitHandle.TryOpenExisting(name, out handle);
+
 #if FEATURE_CORECLR
-            return EventWaitHandle.TryOpenExisting(name, out handle);
+            result = null;
+            SafeWaitHandle myHandle = OpenEvent((uint)EventWaitHandleRights.Synchronize, false, name);
+            if (myHandle.IsInvalid)
+            {
+                throw Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error());
+            }
+
+            result = (EventWaitHandle) EventWaitHandleConstructor.Invoke(new[] { myHandle });
+            return true;
 #else
             return EventWaitHandle.TryOpenExisting(name, EventWaitHandleRights.Synchronize, out handle);
 #endif
@@ -177,9 +199,13 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             public static EventWaitHandleAccessRule PublicSynchronizeAccessRule()
             {
+                // In CoreCLR, EventWaitHandle.TryOpenExisting() does not support setting access rights explicitly.
+                // Instead, a handle is always opened with EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify
+                // (see: https://github.com/dotnet/corefx/blob/b86783ef9525f22b0576278939264897464f9bbd/src/Common/src/CoreLib/System/Threading/EventWaitHandle.Windows.cs#L14)
+                // Because of that, here we have to request both Synchronize and Modify rights.
                 return new EventWaitHandleAccessRule(
                     new SecurityIdentifier(WellKnownSidType.WorldSid, null),
-                    EventWaitHandleRights.Synchronize,
+                    EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify,
                     AccessControlType.Allow);
             }
 

@@ -170,7 +170,7 @@ config({
                 { id: "Microsoft.Data.Edm", version: "5.8.2" },
 
                 // xUnit
-                { id: "xunit.abstractions", version: "2.0.3", tfm: ".NETStandard2.0" },
+                { id: "xunit.abstractions", version: "2.0.3" },
                 { id: "xunit.analyzers", version: "0.10.0" },
                 { id: "xunit.assert", version: "2.4.1-ms" },
                 { id: "xunit.core", version: "2.4.1-ms" },

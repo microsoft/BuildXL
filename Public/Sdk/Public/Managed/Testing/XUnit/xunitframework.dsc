@@ -64,6 +64,7 @@ function additionalRuntimeContent(args: Managed.TestArguments) : Deployment.Depl
                 xunitReferences,
                 undefined, // appConfig
                 true)),
+        xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.utility.netcoreapp10.dll`),
         xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`),
     ];
 }

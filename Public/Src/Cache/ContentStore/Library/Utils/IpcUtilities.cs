@@ -142,12 +142,11 @@ namespace BuildXL.Cache.ContentStore.Utils
 
         private static bool EventWaitHandleTryOpenExisting(string name, out EventWaitHandle handle)
         {
-            // TODO: once the new BuildXL bits (i.e,. where PublicSynchronizeAccessRule() requests both
-            //       Synchronize and Modify) make it to CloudBuild, replace this whole method with the
-            //       following (which works both in .NET Core and .NET Frameworks)
+            // In .NET Core, only EventWaitHandle.TryOpenExisting(name, out handle) is supported,
+            // which requires both Synchronize and Modify rights on the handle (see: https://github.com/dotnet/corefx/blob/b86783ef9525f22b0576278939264897464f9bbd/src/Common/src/CoreLib/System/Threading/EventWaitHandle.Windows.cs#L14)
             //
-            // return EventWaitHandle.TryOpenExisting(name, out handle);
-
+            // When we create this handle, we grant only Synchronize, which is why here we have
+            // to work around this issue by directly p-invoking OpenEvent from kernel32.dll.
 #if FEATURE_CORECLR
             handle = null;
             SafeWaitHandle myHandle = OpenEvent((uint)EventWaitHandleRights.Synchronize, false, name);
@@ -200,13 +199,9 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             public static EventWaitHandleAccessRule PublicSynchronizeAccessRule()
             {
-                // In CoreCLR, EventWaitHandle.TryOpenExisting() does not support setting access rights explicitly.
-                // Instead, a handle is always opened with EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify
-                // (see: https://github.com/dotnet/corefx/blob/b86783ef9525f22b0576278939264897464f9bbd/src/Common/src/CoreLib/System/Threading/EventWaitHandle.Windows.cs#L14)
-                // Because of that, here we have to request both Synchronize and Modify rights.
                 return new EventWaitHandleAccessRule(
                     new SecurityIdentifier(WellKnownSidType.WorldSid, null),
-                    EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify,
+                    EventWaitHandleRights.Synchronize,
                     AccessControlType.Allow);
             }
 

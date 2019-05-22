@@ -184,7 +184,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             {
                 return new EventWaitHandleAccessRule(
                     new SecurityIdentifier(WellKnownSidType.WorldSid, null),
-                    EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify,
+                    EventWaitHandleRights.FullControl,
                     AccessControlType.Allow);
             }
 

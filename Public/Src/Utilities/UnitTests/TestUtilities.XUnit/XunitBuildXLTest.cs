@@ -26,7 +26,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         Justification = "Test follow different pattern with Initialize and Cleanup.")]
     public abstract class XunitBuildXLTest : BuildXLTestBase, IDisposable
     {
-        private static Lazy<IKextConnection> s_sandboxedKextConnection =  new Lazy<IKextConnection>(() =>
+        private static readonly Lazy<IKextConnection> s_sandboxedKextConnection =  new Lazy<IKextConnection>(() =>
             OperatingSystemHelper.IsUnixOS
                 ? new KextConnection(
                     skipDisposingForTests: true, 

@@ -2997,6 +2997,16 @@ namespace BuildXL.Engine
             Logger.Log.ObjectCacheStats(loggingContext, "StringTable Expansion Cache", stringTable.CacheHits, stringTable.CacheMisses);
             Logger.Log.ObjectCacheStats(loggingContext, "TokenTextTable Expansion Cache", tokenTextTable.CacheHits, tokenTextTable.CacheMisses);
 
+            Dictionary<string, long> tableSizeStats = new Dictionary<string, long>()
+            {
+                {"PathTableBytes", pathTable.SizeInBytes },
+                {"SymbolTableBytes", symbolTable.SizeInBytes },
+                {"StringTableBytes", stringTable.SizeInBytes },
+                {"TokenTextTableBytes", tokenTextTable.SizeInBytes },
+            };
+
+            BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, tableSizeStats);
+
             // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
             cacheInitializationTask?.GetAwaiter().GetResult().Then(
                 cacheInitializer =>

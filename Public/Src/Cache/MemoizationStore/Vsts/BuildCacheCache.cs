@@ -99,7 +99,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _tracer = new BuildCacheCacheTracer(logger, nameof(BuildCacheCache));
 
             _backingContentStore = new BackingContentStore(
-                fileSystem, backingContentStoreHttpClientFactory, timeToKeepUnreferencedContent, _tracer.ContentSessionTracer, downloadBlobsThroughBlobStore, useDedupStore);
+                fileSystem, backingContentStoreHttpClientFactory, timeToKeepUnreferencedContent, downloadBlobsThroughBlobStore, useDedupStore);
 
             if (useDedupStore)
             {

@@ -1,0 +1,10 @@
+config({
+    resolvers: [
+        {
+            kind: "CMake",
+            projectRoot: d`.`,
+            moduleName: "Project",
+            buildDirectory: r`Example`,
+        }
+    ]
+});

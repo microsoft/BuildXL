@@ -162,7 +162,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         /// <inheritdoc />
-        public IEnumerable<FileInfo> EnumerateFiles(AbsolutePath path, EnumerateOptions options)
+        public virtual IEnumerable<FileInfo> EnumerateFiles(AbsolutePath path, EnumerateOptions options)
         {
             var infos = new List<FileInfo>();
             lock (_drives)

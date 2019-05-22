@@ -27,6 +27,7 @@ namespace Processes.Detours {
                 f`ValidationDataCreator.cs`,
                 f`FileAccessManifestTreeTest.cs`,
                 f`SandboxedProcessInfoTest.cs`,
+                f`SubstituteProcessExecutionTests.cs`,
             ],
             references: [
                 EngineTestUtilities.dll,
@@ -41,6 +42,7 @@ namespace Processes.Detours {
                 Processes.test_BuildXL_Processes_dll,
             ],
             runtimeContent: [
+                TestSubstituteProcessExecutionShim.exe,
                 ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
                     importFrom("BuildXL.Sandbox.Windows").Deployment.definition,
                     {

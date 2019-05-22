@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.Utilities.Configuration;
+using Grpc.Core;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -10,6 +11,8 @@ namespace BuildXL.Engine.Distribution.Grpc
     {
         public const string TraceIdKey = "traceid-bin";
         public const string BuildIdKey = "buildid";
+        public const string SenderKey = "sender";
+
         public const int MaxRetry = 4;
 
         /// <summary>
@@ -43,5 +46,28 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// Default: false
         /// </remarks>
         public static bool HandlerInliningEnabled => EngineEnvironmentSettings.GrpcHandlerInliningEnabled;
+
+        public static void ParseHeader(Metadata header, out string sender, out string senderBuildId, out string traceId)
+        {
+            sender = string.Empty;
+            senderBuildId = string.Empty;
+            traceId = string.Empty;
+
+            foreach (var kvp in header)
+            {
+                if (kvp.Key == GrpcSettings.TraceIdKey)
+                {
+                    traceId = new Guid(kvp.ValueBytes).ToString();
+                }
+                else if (kvp.Key == GrpcSettings.BuildIdKey)
+                {
+                    senderBuildId = kvp.Value;
+                }
+                else if (kvp.Key == GrpcSettings.SenderKey)
+                {
+                    sender = kvp.Value;
+                }
+            }
+        }
     }
 }

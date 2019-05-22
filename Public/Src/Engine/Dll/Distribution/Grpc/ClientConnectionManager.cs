@@ -82,6 +82,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             var headers = new Metadata();
             headers.Add(GrpcSettings.TraceIdKey, traceId.ToByteArray());
             headers.Add(GrpcSettings.BuildIdKey, m_buildId);
+            headers.Add(GrpcSettings.SenderKey, DistributionHelpers.MachineName);
 
             RpcCallResultState state = RpcCallResultState.Succeeded;
             Failure failure = null;

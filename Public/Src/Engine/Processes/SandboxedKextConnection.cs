@@ -63,7 +63,7 @@ namespace BuildXL.Processes
         /// Until some automation for kernel extension building and deployment is in place, this number has to be kept in sync with the 'CFBundleVersion'
         /// inside the Info.plist file of the kernel extension code base. BuildXL will not work if a version mismatch is detected!
         /// </summary>
-        public const string RequiredKextVersionNumber = "1.89.99";
+        public const string RequiredKextVersionNumber = "1.92.99";
 
         /// <summary>
         /// See TN2420 (https://developer.apple.com/library/archive/technotes/tn2420/_index.html) on how versioning numbers are formatted in the Apple ecosystem

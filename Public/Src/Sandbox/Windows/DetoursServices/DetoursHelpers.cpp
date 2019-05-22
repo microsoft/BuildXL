@@ -512,6 +512,36 @@ void WriteToInternalErrorsFile(PCWSTR format, ...)
     }
 }
 
+inline uint32_t ParseUint32(const byte *payloadBytes, size_t &offset)
+{
+    uint32_t i = *(uint32_t*)(&payloadBytes[offset]);
+    offset += sizeof(uint32_t);
+    return i;
+}
+
+/// Decodes a length plus UTF-16 non-null-terminated string written by FileAccessManifest.WriteChars()
+/// into an allocated, null-terminated string. Returns nullptr if the encoded string length is zero.
+wchar_t *CreateStringFromWriteChars(const byte *payloadBytes, size_t &offset, uint32_t *pStrLen = nullptr)
+{
+    uint32_t len = ParseUint32(payloadBytes, offset);
+    if (pStrLen != nullptr)
+    {
+        *pStrLen = len;
+    }
+
+    WCHAR *pStr = nullptr;
+    if (len != 0)
+    {
+        pStr = new wchar_t[len + 1]; // Reserve some space for \0 terminator at end.
+        uint32_t strSizeBytes = sizeof(wchar_t) * (len + 1);
+        ZeroMemory((void*)pStr, strSizeBytes);
+        memcpy_s((void*)pStr, strSizeBytes, (wchar_t*)(&payloadBytes[offset]), sizeof(wchar_t) * len);
+        offset += sizeof(wchar_t) * len;
+    }
+
+    return pStr;
+}
+
 bool ParseFileAccessManifest(
     const void* payload,
     DWORD)
@@ -642,18 +672,13 @@ bool ParseFileAccessManifest(
 
     g_manifestTranslatePathsStrings = reinterpret_cast<const PManifestTranslatePathsStrings>(&payloadBytes[offset]);
     g_manifestTranslatePathsStrings->AssertValid();
-
 #ifdef _DEBUG
     offset += sizeof(uint32_t);
 #endif
-
-    uint32_t manifestTranslatePathsSize = *(uint32_t*)(&payloadBytes[offset]);
-    offset += sizeof(uint32_t);
-
+    uint32_t manifestTranslatePathsSize = ParseUint32(payloadBytes, offset);
     for (uint32_t i = 0; i < manifestTranslatePathsSize; i++)
     {
-        uint32_t manifestTranslatePathsFromSize = *(uint32_t*)(&payloadBytes[offset]);
-        offset += sizeof(uint32_t);
+        uint32_t manifestTranslatePathsFromSize = ParseUint32(payloadBytes, offset);
         std::wstring translateFrom;
         translateFrom.assign(L"");
         if (manifestTranslatePathsFromSize > 0)
@@ -669,8 +694,7 @@ bool ParseFileAccessManifest(
             offset += sizeof(WCHAR) * manifestTranslatePathsFromSize;
         }
 
-        uint32_t manifestTranslatePathsToSize = *(uint32_t*)(&payloadBytes[offset]);
-        offset += sizeof(uint32_t);
+        uint32_t manifestTranslatePathsToSize = ParseUint32(payloadBytes, offset);
         std::wstring translateTo;
         translateTo.assign(L"");
         if (manifestTranslatePathsToSize > 0)
@@ -687,33 +711,15 @@ bool ParseFileAccessManifest(
 
     g_manifestInternalDetoursErrorNotificationFileString = reinterpret_cast<const PManifestInternalDetoursErrorNotificationFileString>(&payloadBytes[offset]);
     g_manifestInternalDetoursErrorNotificationFileString->AssertValid();
-
 #ifdef _DEBUG
     offset += sizeof(uint32_t);
 #endif
-    uint32_t manifestInternalDetoursErrorNotificationFileSize = *(uint32_t*)(&payloadBytes[offset]);
-    offset += sizeof(uint32_t);
-
-    if (manifestInternalDetoursErrorNotificationFileSize != 0)
-    {
-        g_internalDetoursErrorNotificationFile = new wchar_t[manifestInternalDetoursErrorNotificationFileSize + 1]; // Reserve some space for \0 terminator at end.
-        ZeroMemory((void*)g_internalDetoursErrorNotificationFile, sizeof(wchar_t) * (manifestInternalDetoursErrorNotificationFileSize + 1));
-        memcpy_s((void*)g_internalDetoursErrorNotificationFile, sizeof(wchar_t) * (manifestInternalDetoursErrorNotificationFileSize + 1), (wchar_t*)(&payloadBytes[offset]), sizeof(wchar_t) * manifestInternalDetoursErrorNotificationFileSize);
-    }
-    
-    if (g_internalDetoursErrorNotificationFile != nullptr && g_internalDetoursErrorNotificationFile[0] == L'\0')
-    {
-        manifestInternalDetoursErrorNotificationFileSize = 0;
-        delete[] g_internalDetoursErrorNotificationFile;
-        g_internalDetoursErrorNotificationFile = nullptr;
-    }
-
-    offset += sizeof(wchar_t) * manifestInternalDetoursErrorNotificationFileSize;
+    uint32_t manifestInternalDetoursErrorNotificationFileSize;
+    g_internalDetoursErrorNotificationFile = CreateStringFromWriteChars(payloadBytes, offset, &manifestInternalDetoursErrorNotificationFileSize);
 
     PCManifestFlags flags = reinterpret_cast<PCManifestFlags>(&payloadBytes[offset]);
     flags->AssertValid();
     g_fileAccessManifestFlags = static_cast<FileAccessManifestFlag>(flags->Flags);
-
     offset += flags->GetSize();
 
     PCManifestExtraFlags extraFlags = reinterpret_cast<PCManifestExtraFlags>(&payloadBytes[offset]);
@@ -750,9 +756,9 @@ bool ParseFileAccessManifest(
         {
             WriteToInternalErrorsFile(L"Detours Error: Failed opening semaphore for tracking message count - %s\r\n", helperString);
             DWORD error = GetLastError();
-            Dbg(L"Failed opening semaphore for tracking message count - %d. Error Code: %d", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
-            wprintf(L"Detours Error: Failed opening semaphore for tracking message count - %d. Error Code: %d", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
-            fwprintf(stderr, L"Detours Error: Failed opening semaphore for tracking message count - %d. Error Code: %d", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
+            Dbg(L"Failed opening semaphore for tracking message count - Last error: %d, Detours error code: %d\r\n", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
+            wprintf(L"Detours Error: Failed opening semaphore for tracking message count - Last error: %d, Detours error code: %d\r\n", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
+            fwprintf(stderr, L"Detours Error: Failed opening semaphore for tracking message count - Last error: %d, Detours error code: %d\r\n", (int)error, DETOURS_SEMAPHOREOPEN_ERROR_6);
             HandleDetoursInjectionAndCommunicationErrors(DETOURS_SEMAPHOREOPEN_ERROR_6, L"Detours Error : Failed opening semaphore for tracking message count. exit(-48).", DETOURS_WINDOWS_LOG_MESSAGE_6);
         }
 
@@ -816,8 +822,24 @@ bool ParseFileAccessManifest(
 
     // Update the injector with the DLLs
     g_pDetouredProcessInjector->SetDlls(g_lpDllNameX86, g_lpDllNameX64);
-
     offset += dllBlock->GetSize();
+
+    PCManifestSubstituteProcessExecutionShim pShimInfo = reinterpret_cast<PCManifestSubstituteProcessExecutionShim>(&payloadBytes[offset]);
+    pShimInfo->AssertValid();
+    offset += pShimInfo->GetSize();
+    g_substituteProcessExecutionShimPath = CreateStringFromWriteChars(payloadBytes, offset);
+    if (g_substituteProcessExecutionShimPath != nullptr)
+    {
+        g_ProcessExecutionShimAllProcesses = pShimInfo->ShimAllProcesses != 0;
+        uint32_t numProcessMatches = ParseUint32(payloadBytes, offset);
+        g_pShimProcessMatches = new vector<ShimProcessMatch*>();
+        for (uint32_t i = 0; i < numProcessMatches; i++)
+        {
+            wchar_t *processName = CreateStringFromWriteChars(payloadBytes, offset);
+            wchar_t *argumentMatch = CreateStringFromWriteChars(payloadBytes, offset);
+            g_pShimProcessMatches->push_back(new ShimProcessMatch(processName, argumentMatch));
+        }
+    }
 
     g_manifestTreeRoot = reinterpret_cast<PCManifestRecord>(&payloadBytes[offset]);
     VerifyManifestRoot(g_manifestTreeRoot);

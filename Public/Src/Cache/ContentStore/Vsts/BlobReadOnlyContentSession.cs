@@ -21,6 +21,11 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using Microsoft.VisualStudio.Services.Content.Common;
@@ -28,6 +33,7 @@ using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using BlobIdentifier = BuildXL.Cache.ContentStore.Hashing.BlobIdentifier;
 using ByteArrayPool = Microsoft.VisualStudio.Services.BlobStore.Common.ByteArrayPool;
+using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 using VstsBlobIdentifier = Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifier;
 
 namespace BuildXL.Cache.ContentStore.Vsts
@@ -36,8 +42,25 @@ namespace BuildXL.Cache.ContentStore.Vsts
     ///     IReadOnlyContentSession for BlobBuildXL.ContentStore.
     /// </summary>
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-    public class BlobReadOnlyContentSession : IReadOnlyContentSession
+    public class BlobReadOnlyContentSession : ContentSessionBase
     {
+        /// <nodoc />
+        private enum BlobContentSessionCounters
+        {
+            /// <summary>
+            /// Download URI had to be obtained from calling a remote VSTS service.
+            /// </summary>
+            VstsDownloadUriFetchedFromRemote,
+
+            /// <summary>
+            /// DownloadUri was fetched from the in-memory cache.
+            /// </summary>
+            VstsDownloadUriFetchedInMemory
+        }
+
+        private CounterCollection<BackingContentStore.SessionCounters> _counters { get; } = new CounterCollection<BackingContentStore.SessionCounters>();
+        private CounterCollection<BlobContentSessionCounters> _blobCounters { get; } = new CounterCollection<BlobContentSessionCounters>();
+
         /// <summary>
         ///     The only HashType recognizable by the server.
         /// </summary>
@@ -67,7 +90,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <summary>
         /// A tracer for tracking blob content calls.
         /// </summary>
-        protected readonly BackingContentStoreTracer Tracer;
+        protected override Tracer Tracer { get; } = new Tracer(nameof(BlobContentSession));
 
         /// <summary>
         ///     Staging ground for parallel upload/downloads.
@@ -106,7 +129,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="implicitPin">Policy determining whether or not content should be automatically pinned on adds or gets.</param>
         /// <param name="blobStoreHttpClient">Backing BlobStore http client.</param>
         /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
-        /// <param name="tracer">A tracer for tracking blob content session calls.</param>
         /// <param name="downloadBlobsThroughBlobStore">If true, gets blobs through BlobStore. If false, gets blobs from the Azure Uri.</param>
         public BlobReadOnlyContentSession(
             IAbsFileSystem fileSystem,
@@ -114,18 +136,16 @@ namespace BuildXL.Cache.ContentStore.Vsts
             ImplicitPin implicitPin,
             IBlobStoreHttpClient blobStoreHttpClient,
             TimeSpan timeToKeepContent,
-            BackingContentStoreTracer tracer,
             bool downloadBlobsThroughBlobStore)
+            : base(name)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(name != null);
             Contract.Requires(blobStoreHttpClient != null);
 
-            Name = name;
             ImplicitPin = implicitPin;
             BlobStoreHttpClient = blobStoreHttpClient;
             TimeToKeepContent = timeToKeepContent;
-            Tracer = tracer;
             _downloadBlobsThroughBlobStore = downloadBlobsThroughBlobStore;
             _parallelSegmentDownloadConfig = new ParallelHttpDownload
                 .Configuration(
@@ -148,62 +168,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <inheritdoc />
-        public string Name { get; }
+        protected override void DisposeCore() => TempDirectory.Dispose();
 
         /// <inheritdoc />
-        public Task<BoolResult> StartupAsync(Context context)
-        {
-            StartupStarted = true;
-            StartupCompleted = true;
-            return Task.FromResult(BoolResult.Success);
-        }
-
-        /// <inheritdoc />
-        public bool StartupCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool StartupStarted { get; private set; }
-
-        /// <inheritdoc />
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// Dispose native resources.
-        /// </summary>
-        [SuppressMessage("ReSharper", "UnusedParameter.Global")]
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                TempDirectory.Dispose();
-            }
-        }
-
-        /// <inheritdoc />
-        public Task<BoolResult> ShutdownAsync(Context context)
-        {
-            ShutdownStarted = true;
-            ShutdownCompleted = true;
-            return Task.FromResult(BoolResult.Success);
-        }
-
-        /// <inheritdoc />
-        public bool ShutdownCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool ShutdownStarted { get; private set; }
-
-        /// <inheritdoc />
-        public async Task<PinResult> PinAsync(
-            Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint)
+        protected override async Task<PinResult> PinCoreAsync(
+            OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
         {
             try
             {
-                var bulkResults = await PinAsync(context, new[] { contentHash }, cts, urgencyHint);
+                var bulkResults = await PinAsync(context, new[] { contentHash }, context.Token, urgencyHint);
                 return await bulkResults.SingleAwaitIndexed();
             }
             catch (Exception e)
@@ -213,8 +186,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <inheritdoc />
-        public async Task<OpenStreamResult> OpenStreamAsync(
-            Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint)
+        protected override async Task<OpenStreamResult> OpenStreamCoreAsync(
+            OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
         {
             if (contentHash.HashType != RequiredHashType)
             {
@@ -227,7 +200,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             {
                 if (ImplicitPin == ImplicitPin.PutAndGet)
                 {
-                    var pinResult = await PinAsync(context, contentHash, cts, urgencyHint).ConfigureAwait(false);
+                    var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint).ConfigureAwait(false);
                     if (!pinResult.Succeeded)
                     {
                         if (pinResult.Code == PinResult.ResultCode.ContentNotFound)
@@ -241,7 +214,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
                 tempFile = TempDirectory.CreateRandomFileName().Path;
                 var possibleLength =
-                    await PlaceFileInternalAsync(context, contentHash, tempFile, FileMode.Create, cts).ConfigureAwait(false);
+                    await PlaceFileInternalAsync(context, contentHash, tempFile, FileMode.Create).ConfigureAwait(false);
 
                 if (possibleLength.HasValue)
                 {
@@ -277,15 +250,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <inheritdoc />
-        public async Task<PlaceFileResult> PlaceFileAsync(
-            Context context,
+        protected override async Task<PlaceFileResult> PlaceFileCoreAsync(
+            OperationContext context,
             ContentHash contentHash,
             AbsolutePath path,
             FileAccessMode accessMode,
             FileReplacementMode replacementMode,
             FileRealizationMode realizationMode,
-            CancellationToken cts,
-            UrgencyHint urgencyHint)
+            UrgencyHint urgencyHint,
+            Counter retryCounter)
         {
             try
             {
@@ -296,7 +269,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
                 if (ImplicitPin == ImplicitPin.PutAndGet)
                 {
-                    var pinResult = await PinAsync(context, contentHash, cts, urgencyHint).ConfigureAwait(false);
+                    var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint).ConfigureAwait(false);
                     if (!pinResult.Succeeded)
                     {
                         return pinResult.Code == PinResult.ResultCode.ContentNotFound
@@ -309,7 +282,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     ? FileMode.Create
                     : FileMode.CreateNew;
                 var possibleLength =
-                    await PlaceFileInternalAsync(context, contentHash, path.Path, fileMode, cts).ConfigureAwait(false);
+                    await PlaceFileInternalAsync(context, contentHash, path.Path, fileMode).ConfigureAwait(false);
                 return possibleLength.HasValue
                     ? new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy, possibleLength.Value)
                     : new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound);
@@ -326,46 +299,35 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes")]
-        public async Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        protected override async Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
         {
-            Stopwatch sw = Stopwatch.StartNew();
             try
             {
-                Tracer.PinBulkStart(context, contentHashes);
-                DateTime endDateTime = DateTime.UtcNow + TimeToKeepContent;
+                var endDateTime = DateTime.UtcNow + TimeToKeepContent;
 
                 return await Workflows.RunWithFallback(
                     contentHashes,
                     hashes => CheckInMemoryCaches(hashes, endDateTime),
-                    hashes => UpdateBlobStoreAsync(context, hashes, endDateTime, cts),
+                    hashes => UpdateBlobStoreAsync(context, hashes, endDateTime),
                     result => result.Succeeded);
             }
             catch (Exception ex)
             {
-                context.Warning($"Exception when querying pins against the VSTS services {ex}");
+                context.TracingContext.Warning($"Exception when querying pins against the VSTS services {ex}");
                 return contentHashes.Select((_, index) => Task.FromResult(new PinResult(ex).WithIndex(index)));
-            }
-            finally
-            {
-                Tracer.PinBulkStop(context, sw.Elapsed);
             }
         }
 
         /// <inheritdoc />
-        public Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(Context context, IReadOnlyList<ContentHashWithPath> hashesWithPaths, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
-        {
-            throw new NotImplementedException();
-        }
+        protected override Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(OperationContext context, IReadOnlyList<ContentHashWithPath> hashesWithPaths, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)
+            => throw new NotImplementedException();
 
         /// <summary>
         /// Converts a ContentStore blob id to an artifact BlobId
         /// </summary>
-        protected static VstsBlobIdentifier ToVstsBlobIdentifier(BlobIdentifier blobIdentifier)
-        {
-            return new VstsBlobIdentifier(blobIdentifier.Bytes);
-        }
+        protected static VstsBlobIdentifier ToVstsBlobIdentifier(BlobIdentifier blobIdentifier) => new VstsBlobIdentifier(blobIdentifier.Bytes);
 
-        private async Task<IEnumerable<Task<Indexed<PinResult>>>> UpdateBlobStoreAsync(Context context, IReadOnlyList<ContentHash> contentHashes, DateTime endDateTime, CancellationToken cts)
+        private async Task<IEnumerable<Task<Indexed<PinResult>>>> UpdateBlobStoreAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, DateTime endDateTime)
         {
             // Convert missing content hashes to blob Ids
             var blobIds = contentHashes.Select(c => ToVstsBlobIdentifier(c.ToBlobIdentifier())).ToList();
@@ -380,15 +342,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 context,
                 "UpdateBlobStore",
                 innerCts => BlobStoreHttpClient.TryReferenceAsync(references, cancellationToken: innerCts),
-                cts).ConfigureAwait(false);
+                context.Token).ConfigureAwait(false);
 
-            Tracer.RecordPinSatisfiedFromRemote();
+            _counters[BackingContentStore.SessionCounters.PinSatisfiedFromRemote].Increment();
 
             // There's 1-1 mapping between given content hashes and blob ids
             var remoteResults = blobIds
                 .Select((blobId, i) =>
                 {
-                    PinResult pinResult = referenceResults.ContainsKey(blobId)
+                    var pinResult = referenceResults.ContainsKey(blobId)
                         ? PinResult.ContentNotFound
                         : PinResult.Success;
                     if (pinResult.Succeeded)
@@ -412,21 +374,19 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         private PinResult CheckPinInMemory(ContentHash contentHash, DateTime endDateTime)
         {
-            DateTime expiryTime;
 
             // TODO: allow cached expiry time to be within some bump threshold (e.g. allow expiryTime = 6 days & endDateTime = 7 days) (bug 1365340)
-            if (BackingContentStoreExpiryCache.Instance.TryGetExpiry(contentHash, out expiryTime) &&
+            if (BackingContentStoreExpiryCache.Instance.TryGetExpiry(contentHash, out var expiryTime) &&
                 expiryTime > endDateTime)
             {
-                Tracer.RecordPinSatisfiedInMemory();
+                _counters[BackingContentStore.SessionCounters.PinSatisfiedInMemory].Increment();
                 return PinResult.Success;
             }
 
-            PreauthenticatedUri authenticatedUri;
-            if (DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out authenticatedUri) &&
+            if (DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out var authenticatedUri) &&
                 authenticatedUri.ExpiryTime > endDateTime)
             {
-                Tracer.RecordPinSatisfiedInMemory();
+                _counters[BackingContentStore.SessionCounters.PinSatisfiedInMemory].Increment();
                 return PinResult.Success;
             }
 
@@ -434,7 +394,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         private Task<long?> PlaceFileInternalAsync(
-            Context context, ContentHash contentHash, string path, FileMode fileMode, CancellationToken cts)
+            OperationContext context, ContentHash contentHash, string path, FileMode fileMode)
         {
             return AsyncHttpRetryHelper<long?>.InvokeAsync(
                 async () =>
@@ -442,7 +402,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     Stream httpStream = null;
                     try
                     {
-                        httpStream = await GetStreamInternalAsync(context, contentHash, null, cts).ConfigureAwait(false);
+                        httpStream = await GetStreamInternalAsync(context, contentHash, null).ConfigureAwait(false);
                         if (httpStream == null)
                         {
                             return null;
@@ -450,7 +410,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
                         try
                         {
-                            var success = DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out PreauthenticatedUri preauthUri);
+                            var success = DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out var preauthUri);
                             var uri = success ? preauthUri.NotNullUri : new Uri("http://empty.com");
 
                             Directory.CreateDirectory(Directory.GetParent(path).FullName);
@@ -463,7 +423,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                                 null,
                                 path,
                                 fileMode,
-                                cts,
+                                context.Token,
                                 (destinationPath, offset, endOffset) =>
                                     Tracer.Debug(context, $"Download {destinationPath} [{offset}, {endOffset}) start."),
                                 (destinationPath, offset, endOffset) =>
@@ -475,8 +435,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                                     var offsetStream = await GetStreamInternalAsync(
                                         context,
                                         contentHash,
-                                        _parallelSegmentDownloadConfig.SegmentSizeInBytes,
-                                        cts).ConfigureAwait(false);
+                                        _parallelSegmentDownloadConfig.SegmentSizeInBytes).ConfigureAwait(false);
                                     offsetStream.Position = offset;
                                     return offsetStream;
                                 },
@@ -537,17 +496,14 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     }
                     return false;
                 },
-                cancellationToken: cts,
+                cancellationToken: context.Token,
                 continueOnCapturedContext: false,
-                context: context.Id.ToString());
+                context: context.TracingContext.Id.ToString());
         }
 
-        private bool IsErrorFileExists(Exception e)
-        {
-            return (Marshal.GetHRForException(e) & ((1 << 16) - 1)) == ErrorFileExists;
-        }
+        private bool IsErrorFileExists(Exception e) => (Marshal.GetHRForException(e) & ((1 << 16) - 1)) == ErrorFileExists;
 
-        private async Task<Stream> GetStreamInternalAsync(Context context, ContentHash contentHash, int? overrideStreamMinimumReadSizeInBytes, CancellationToken cts)
+        private async Task<Stream> GetStreamInternalAsync(OperationContext context, ContentHash contentHash, int? overrideStreamMinimumReadSizeInBytes)
         {
             if (_downloadBlobsThroughBlobStore)
             {
@@ -555,24 +511,23 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     context,
                     "GetStreamInternalThroughBlobStore",
                     innerCts => BlobStoreHttpClient.GetBlobAsync(ToVstsBlobIdentifier(contentHash.ToBlobIdentifier()), cancellationToken: innerCts),
-                    cts).ConfigureAwait(false);
+                    context.Token).ConfigureAwait(false);
             }
             else
             {
-                PreauthenticatedUri uri;
-                if (!DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out uri))
+                if (!DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out var uri))
                 {
-                    Tracer.RecordDownloadUriFetchedFromRemote();
-                    BlobIdentifier blobId = contentHash.ToBlobIdentifier();
+                    _blobCounters[BlobContentSessionCounters.VstsDownloadUriFetchedFromRemote].Increment();
+                    var blobId = contentHash.ToBlobIdentifier();
 
-                    IDictionary<VstsBlobIdentifier, PreauthenticatedUri> mappings = await ArtifactHttpClientErrorDetectionStrategy.ExecuteWithTimeoutAsync(
+                    var mappings = await ArtifactHttpClientErrorDetectionStrategy.ExecuteWithTimeoutAsync(
                         context,
                         "GetStreamInternal",
                         innerCts => BlobStoreHttpClient.GetDownloadUrisAsync(
-                            new[] {ToVstsBlobIdentifier(blobId)},
+                            new[] { ToVstsBlobIdentifier(blobId) },
                             EdgeCache.NotAllowed,
                             cancellationToken: innerCts),
-                        cts).ConfigureAwait(false);
+                        context.Token).ConfigureAwait(false);
 
                     if (mappings == null || !mappings.TryGetValue(ToVstsBlobIdentifier(blobId), out uri))
                     {
@@ -583,14 +538,14 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 }
                 else
                 {
-                    Tracer.RecordDownloadUriFetchedFromCache();
+                    _blobCounters[BlobContentSessionCounters.VstsDownloadUriFetchedInMemory].Increment();
                 }
 
                 return await GetStreamThroughAzureBlobs(
                     uri.NotNullUri,
                     overrideStreamMinimumReadSizeInBytes,
                     _parallelSegmentDownloadConfig.SegmentDownloadTimeout,
-                    cts).ConfigureAwait(false);
+                    context.Token).ConfigureAwait(false);
             }
         }
 
@@ -614,6 +569,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     // ServerTimeout
                 },
                 null, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        protected override CounterSet GetCounters()
+        {
+            return base.GetCounters()
+                .Merge(_counters.ToCounterSet())
+                .Merge(_blobCounters.ToCounterSet());
+            
         }
     }
 }

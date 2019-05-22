@@ -103,7 +103,12 @@ namespace BuildXL.Native.Processes
         bool OSSupportsNestedJobs();
 
         /// <summary><see cref="ProcessUtilities.AttachContainerToJobObject"/></summary>
-        void AttachContainerToJobObject(IntPtr hJob, IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories, out IEnumerable<string> warnings);
+        void AttachContainerToJobObject(
+            IntPtr hJob,
+            IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
+            bool enableWciFilter,
+            IEnumerable<string> bindFltExclusions,
+            out IEnumerable<string> warnings);
 
         /// <summary><see cref="ProcessUtilities.TryCleanUpContainer"/></summary>
         bool TryCleanUpContainer(IntPtr hJob, out IEnumerable<string> errors);

@@ -1075,6 +1075,17 @@ namespace BuildXL.Scheduler
                             VersionDisposition.Latest,
                             new DependencyOrderingFilter(DependencyOrderingFilterType.PossiblyPrecedingInWallTime, pip));
 
+                        // If there was not a static producer, check if there is a dynamic one so we can refine
+                        // the report as a double write if found. 
+                        // Otherwise the case where the pip writes to a path that is part of a shared opaque dependency 
+                        // gets flagged as an undeclared write, with no connection to the original producer
+                        if (maybeProducer == null && 
+                            m_dynamicReadersAndWriters.TryGetValue(violation.Path, out var kvp) && 
+                            kvp.accessType == DynamicFileAccessType.Write)
+                        {
+                            maybeProducer = m_graph.HydratePip(kvp.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                        }
+
                         if (maybeProducer != null)
                         {
                             // AllowSameContentDoubleWrites is not actually supported for statically declared files, since the double write may not have occurred yet, and the content

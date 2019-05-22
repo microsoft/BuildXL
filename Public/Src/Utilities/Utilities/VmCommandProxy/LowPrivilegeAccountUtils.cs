@@ -12,7 +12,7 @@ using JetBrains.Annotations;
 namespace BuildXL.Utilities.VmCommandProxy
 {
     /// <summary>
-    /// Class EngineSchedule.
+    /// Utilities for low privilege account.
     /// </summary>
     public static class LowPrivilegeAccountUtils
     {
@@ -45,7 +45,7 @@ namespace BuildXL.Utilities.VmCommandProxy
         }
 
         /// <summary>
-        /// Convert SecureString to normal string
+        /// Converts an instance of <see cref="SecureString"/> to an instance of <see cref="string"/>.
         /// </summary>
         public static string GetUnsecuredString(this SecureString secured)
         {
@@ -67,7 +67,7 @@ namespace BuildXL.Utilities.VmCommandProxy
         }
 
         /// <summary>
-        /// Get the low privilege build account from environment variable
+        /// Gets the low privilege build account from environment variable.
         /// </summary>
         public static string GetLowPrivilegeBuildAccount()
         {
@@ -75,13 +75,13 @@ namespace BuildXL.Utilities.VmCommandProxy
         }
 
         /// <summary>
-        /// Get the low privilege build password from environment variable and decrypt it.
+        /// Gets the low privilege build password from environment variable and decrypt it.
         /// </summary>
         public static SecureString GetLowPrivilegeBuildPassword()
         {
             var encryptedSecret = Environment.GetEnvironmentVariable("LowPrivilegeBuildPassword");
 
-            if (String.IsNullOrEmpty(encryptedSecret))
+            if (string.IsNullOrEmpty(encryptedSecret))
             {
                 return null;
             }
@@ -91,6 +91,7 @@ namespace BuildXL.Utilities.VmCommandProxy
                     Convert.FromBase64String(encryptedSecret),
                     null,
                     DataProtectionScope.LocalMachine);
+
                 return ConvertToSecureString(Encoding.UTF8.GetString(clearText));
             }
         }              

@@ -5411,6 +5411,20 @@ namespace BuildXL.Scheduler
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        void IFileContentManagerHost.ReportDynamicContent(FileArtifact artifact, PipOutputOrigin origin)
+        {
+            Contract.Requires(artifact.IsValid);
+            Contract.Requires(artifact.IsOutputFile);
+
+            if (origin != PipOutputOrigin.NotMaterialized)
+            {
+                State.FileSystemView.ReportRealFileSystemExistence(artifact.Path, PathExistence.ExistsAsFile);
+            }
+
+            State.FileSystemView.ReportOutputFileSystemExistence(artifact.Path, PathExistence.ExistsAsFile);
+        }
+
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         void IFileContentManagerHost.ReportMaterializedArtifact(in FileOrDirectoryArtifact artifact)
         {
             if (artifact.IsDirectory && IncrementalSchedulingState != null)

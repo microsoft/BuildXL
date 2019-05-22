@@ -137,13 +137,17 @@ namespace BuildXL.Cache.ContentStore.Utils
         [DllImport("kernel32", EntryPoint = "OpenEventW", SetLastError = true, CharSet = CharSet.Unicode)]
         internal static extern SafeWaitHandle OpenEvent(uint desiredAccess, bool inheritHandle, string name);
 
-        private static ConstructorInfo EventWaitHandleConstructor =
-            typeof(EventWaitHandle).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(SafeWaitHandle) }, null);
+        private static ConstructorInfo EventWaitHandleConstructor = typeof(EventWaitHandle).GetConstructor(
+            BindingFlags.NonPublic | BindingFlags.Instance,
+            null,
+            new[] { typeof(SafeWaitHandle) },
+            null);
 
         private static bool EventWaitHandleTryOpenExisting(string name, out EventWaitHandle handle)
         {
             // In .NET Core, only EventWaitHandle.TryOpenExisting(name, out handle) is supported,
-            // which requires both Synchronize and Modify rights on the handle (see: https://github.com/dotnet/corefx/blob/b86783ef9525f22b0576278939264897464f9bbd/src/Common/src/CoreLib/System/Threading/EventWaitHandle.Windows.cs#L14)
+            // which requires both Synchronize and Modify rights on the handle
+            // (see: https://github.com/dotnet/corefx/blob/b86783ef9525f22b0576278939264897464f9bbd/src/Common/src/CoreLib/System/Threading/EventWaitHandle.Windows.cs#L14)
             //
             // When we create this handle, we grant only Synchronize, which is why here we have
             // to work around this issue by directly p-invoking OpenEvent from kernel32.dll.

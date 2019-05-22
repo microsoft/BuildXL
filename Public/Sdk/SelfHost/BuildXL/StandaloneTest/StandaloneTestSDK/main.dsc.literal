@@ -6,6 +6,7 @@ import * as XUnitRunnerConsole from "xunit.runner.console";
 import * as NETCoreSDK from "NETCoreSDK";
 
 const xunitConsolePackage = importFrom("xunit.runner.console").pkg.contents;
+const xunitNetCoreConsolePackage = importFrom("microsoft.dotnet.xunitconsolerunner").Contents.all;
 const netCoreSdkContents = importFrom("NETCoreSDK").pkg.contents;
 
 const unsupportedTraits = ["MiniBuildTester"];
@@ -55,7 +56,7 @@ function wrapInDotNetExe(args: Transformer.ExecuteArguments): Transformer.Execut
 
 function wrapInUntrackedCmdExe(args: Transformer.ExecuteArguments): Transformer.ExecuteArguments {
     return Object.merge<Transformer.ExecuteArguments>(
-        args, 
+        args,
         {
             tool: {
                 exe: Environment.getFileValue("COMSPEC"),
@@ -128,10 +129,10 @@ export function runSingleUnitTest(args: TestArguments): DerivedFile[] {
 
     const tool : Transformer.ToolDefinition = {
         exe: args.wrapInDotNet
-            ? f`${testRoot}/xunit.console.dll`
+            ? f`${xunitNetCoreConsolePackage.root}/lib/netcoreapp2.0/xunit.console.dll`
             : f`${xunitConsolePackage.root}/tools/net452/xunit.console.exe`,
         runtimeDirectoryDependencies: [
-            xunitConsolePackage,
+            ...(args.wrapInDotNet ? [xunitNetCoreConsolePackage] : [ xunitConsolePackage ]),
         ],
         dependsOnWindowsDirectories: true,
         prepareTempDirectory: true,
@@ -148,7 +149,7 @@ export function runSingleUnitTest(args: TestArguments): DerivedFile[] {
 
     let commandLineArgs : Argument[] = CreateCommandLineArgument(args.testAssembly, consoleArgs);
     commandLineArgs = [...commandLineArgs, ...((args.classes || []).map(c => Cmd.option("-class ",   c)))];
-    
+
     let execArguments : Transformer.ExecuteArguments = {
         tool: tool,
         arguments: commandLineArgs,

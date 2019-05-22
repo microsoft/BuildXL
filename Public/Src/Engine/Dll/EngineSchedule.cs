@@ -162,7 +162,7 @@ namespace BuildXL.Engine
                        maxDegreeOfParallelism: PipTableMaxDegreeOfParallelismDuringConstruction,
                        debug: false);
         }
-        
+
         /// <summary>
         /// Creates an EngineSchedule for an immutable pip graph.
         /// </summary>
@@ -220,9 +220,9 @@ namespace BuildXL.Engine
             runtimeTableTask.Forget();
 
             PipTwoPhaseCache twoPhaseCache = InitTwoPhaseCache(
-                loggingContext, 
-                context, 
-                configuration, 
+                loggingContext,
+                context,
+                configuration,
                 scheduleCache,
                 performanceDataFingerprint: performanceDataFingerprint,
                 pathExpander: mountPathExpander,
@@ -423,11 +423,11 @@ namespace BuildXL.Engine
                 if (directoryPath != null)
                 {
                     var historicMetadataCache = new HistoricMetadataCache(
-                        loggingContext, 
-                        cache, 
-                        context, 
-                        pathExpander, 
-                        AbsolutePath.Create(context.PathTable, directoryPath), 
+                        loggingContext,
+                        cache,
+                        context,
+                        pathExpander,
+                        AbsolutePath.Create(context.PathTable, directoryPath),
                         prepareAsync: hmc =>
                         {
                             return TryLoadHistoricMetadataCache(loggingContext, hmc, context, configuration, cache, performanceDataFingerprint);
@@ -446,7 +446,7 @@ namespace BuildXL.Engine
         private bool ShouldSerializeOptimizationDataStructurePostExecution()
         {
             // Check if the build has run for required time in order to make serializing the optimizing data structures worthwhile.
-            return m_schedulerStartTime != null && 
+            return m_schedulerStartTime != null &&
                 (TimestampUtilities.Timestamp - m_schedulerStartTime.Value) > MinExecutionTimeForSerializingOptimizationDataStructures;
         }
 
@@ -532,7 +532,7 @@ namespace BuildXL.Engine
                     // The reason for invalidation should have already been logged
                     //
                     // This is different than the case where there is content that should be saved,
-                    // and the save fails. In that case, we log an error as that could 
+                    // and the save fails. In that case, we log an error as that could
                     // leave the historic metadata cache in a bad state for future runs.
                     return true;
                 }
@@ -795,8 +795,8 @@ namespace BuildXL.Engine
             }
 
             // Shared opaque content is always deleted, regardless of what configuration.Engine.Scrub says
-            // We need to delete shared opaques because otherwise hardlinks can't be used (content will remain readonly, which will 
-            // block the next build from modifying them) and to increase consistency in tool behavior and make them more agnostic to 
+            // We need to delete shared opaques because otherwise hardlinks can't be used (content will remain readonly, which will
+            // block the next build from modifying them) and to increase consistency in tool behavior and make them more agnostic to
             // the state of the disk that past builds could have produced.
             // TODO: This nuclear deletion is a temporary measure to deal with the fact that shared opaque directory outputs are not known
             // in advance. We need a better solution.
@@ -810,7 +810,7 @@ namespace BuildXL.Engine
                 var scrubber = new DirectoryScrubber(
                     loggingContext: loggingContext,
                     loggingConfiguration: configuration.Logging,
-                    // Everything that is not an output under a shared opaque is considered part of the build. 
+                    // Everything that is not an output under a shared opaque is considered part of the build.
                     isPathInBuild: path =>
                         !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path) ||
                         ShouldRemoveEmptyDirectories(configuration, path),
@@ -835,8 +835,8 @@ namespace BuildXL.Engine
 
         internal static IReadOnlyList<string> GetNonScrubbablePaths(
             PathTable pathTable,
-            IConfiguration configuration, 
-            IEnumerable<string> extraNonScrubbablePaths, 
+            IConfiguration configuration,
+            IEnumerable<string> extraNonScrubbablePaths,
             [CanBeNull] ITempDirectoryCleaner tempCleaner)
         {
             var nonScrubbablePaths = new List<string>(new[]
@@ -867,9 +867,9 @@ namespace BuildXL.Engine
 
             if (OperatingSystemHelper.IsUnixOS)
             {
-                // Don't scrub the .NET Core lock file when running the CoreCLR on Unix even if its parent directory is specified as scrubabble. 
-                // Some build tools use the '/tmp' folder as temporary file location (e.g. xcodebuild, clang, etc.) for dumping state and reports. 
-                // Unfortunately scrubbing the dotnet state files can lead to a missbehaving CoreCLR in subsequent or parallel runs where several 
+                // Don't scrub the .NET Core lock file when running the CoreCLR on Unix even if its parent directory is specified as scrubbable.
+                // Some build tools use the '/tmp' folder as temporary file location (e.g. xcodebuild, clang, etc.) for dumping state and reports.
+                // Unfortunately scrubbing the dotnet state files can lead to a miss-behaving CoreCLR in subsequent or parallel runs where several
                 // dotnet invocations happen, so lets avoid scrubbing that folder explicitly!
                 nonScrubbablePaths.AddRange(new[]
                 {
@@ -1846,9 +1846,9 @@ namespace BuildXL.Engine
         /// Synchronously saves the subset of scheduling state needed for execution analyzers.
         /// </summary>
         internal static async Task<bool> SaveExecutionStateToDiskAsync(
-            EngineSerializer serializer, 
-            BuildXLContext context, 
-            PipTable pipTable, 
+            EngineSerializer serializer,
+            BuildXLContext context,
+            PipTable pipTable,
             PipGraph pipGraph,
             MountPathExpander mountPathExpander,
             HistoricTableSizes historicTableSizes)
@@ -2101,10 +2101,10 @@ namespace BuildXL.Engine
         internal static Task DuplicateScheduleFiles(LoggingContext loggingContext, EngineSerializer serializer, string destinationFolder)
         {
             return DuplicateFiles(
-                loggingContext, 
-                serializer, 
+                loggingContext,
+                serializer,
                 destinationFolder,
-                new[] 
+                new[]
                 {
                     EngineSerializer.StringTableFile,
                     EngineSerializer.PathTableFile,

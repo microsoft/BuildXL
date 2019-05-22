@@ -6,6 +6,7 @@ import * as Deployment from "Sdk.Deployment";
 import * as Managed from "Sdk.Managed";
 
 export const xunitConsolePackage = importFrom("xunit.runner.console").Contents.all;
+export const xunitNetCoreConsolePackage = importFrom("microsoft.dotnet.xunitconsolerunner").Contents.all;
 
 /**
  * Evaluate (i.e. schedule) xUnit test runner invocation with specified arguments.
@@ -25,12 +26,12 @@ export function runConsoleTest(args: TestRunArguments): Result {
 
     const tool : Transformer.ToolDefinition = Managed.Factory.createTool({
         exe: qualifier.targetFramework === "netcoreapp3.0"
-            ? testDeployment.contents.getFile(r`xunit.console.dll`)
+            ? xunitNetCoreConsolePackage.getFile(r`lib/netcoreapp2.0/xunit.console.dll`)
             // Using xunit executable from different folders depending on the target framework.
             // This allow us to actually to run tests targeting different frameworks.
             : xunitConsolePackage.getFile( r`tools/${qualifier.targetFramework}/xunit.console.exe`),
         runtimeDirectoryDependencies: [
-            xunitConsolePackage,
+            ...(qualifier.targetFramework === "netcoreapp3.0" ? [ xunitNetCoreConsolePackage ] : [ xunitConsolePackage ]),
         ],
     });
 

@@ -15,6 +15,7 @@ export const dotnetTool: Transformer.ToolDefinition = {
     dependsOnAppDataDirectory: true,
     prepareTempDirectory: true,
     untrackedDirectoryScopes: [
+        d`${Environment.getDirectoryValue("HOME")}/.dotnet/`,
         d`${dotnetExecutable.parent}`,
         d`/usr/local/share/dotnet`,
         d`/etc`,

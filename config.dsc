@@ -55,7 +55,8 @@ config({
                     "nuget.org" : "http://api.nuget.org/v3/index.json",
                     "roslyn-tools" : "https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json",
                     "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json",
-                    "dotnet-core" : "https://dotnet.myget.org/F/dotnet-core/api/v3/index.json"
+                    "dotnet-core" : "https://dotnet.myget.org/F/dotnet-core/api/v3/index.json",
+                    "dotnet-arcade" : "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json",
                   },
 
             packages: [
@@ -173,10 +174,12 @@ config({
                 { id: "xunit.analyzers", version: "0.10.0" },
                 { id: "xunit.assert", version: "2.4.1-ms" },
                 { id: "xunit.core", version: "2.4.1-ms" },
-                { id: "xunit.extensibility.core", version: "2.4.1-ms" },
-                { id: "xunit.extensibility.execution", version: "2.4.1-ms" },
-                { id: "xunit.runner.console", version: "2.4.1-ms" },
-                { id: "xunit.runner.utility", version: "2.4.1-ms" },
+                { id: "xunit.extensibility.core", version: "2.4.1" },
+                { id: "xunit.extensibility.execution", version: "2.4.1" },
+                { id: "xunit.runner.console", version: "2.4.1" },
+                { id: "microsoft.dotnet.xunitconsolerunner", version: "2.5.1-beta.19270.4" },
+                { id: "xunit.runner.reporters", version: "2.4.1-pre.build.4059" },
+                { id: "xunit.runner.utility", version: "2.4.1" },
                 { id: "xunit.runner.visualstudio", version: "2.4.1" },
 
                 { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "3.17.2" },

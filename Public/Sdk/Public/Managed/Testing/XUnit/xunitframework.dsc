@@ -21,8 +21,9 @@ export const xunitReferences : Managed.Reference[] = qualifier.targetFramework =
     ? [
         importFrom("xunit.assert").pkg,
         importFrom("xunit.abstractions").pkg,
+        importFrom("xunit.runner.reporters").pkg,
         importFrom("xunit.extensibility.core").pkg,
-        importFrom("xunit.extensibility.execution").pkg,
+        importFrom("xunit.extensibility.execution").pkg
     ]
     : [
         Managed.Factory.createBinary(importFrom("xunit.assert").Contents.all, r`lib/netstandard1.1/xunit.assert.dll`),
@@ -44,7 +45,7 @@ const netStandardFramework = importFrom("Sdk.Managed.Frameworks.NetCoreApp3.0").
 const xunitNetStandardRuntimeConfigFiles: File[] = Managed.RuntimeConfigFiles.createFiles(
     netStandardFramework,
     "xunit.console",
-    Managed.Factory.createBinary(xunitConsolePackage, r`tools/netcoreapp2.0/xunit.console.dll`),
+    Managed.Factory.createBinary(xunitNetCoreConsolePackage, r`/lib/netcoreapp2.0/xunit.console.dll`),
     xunitReferences,
     undefined, // appconfig
     true);
@@ -59,13 +60,11 @@ function additionalRuntimeContent(args: Managed.TestArguments) : Deployment.Depl
             : Managed.RuntimeConfigFiles.createFiles(
                 args.framework,
                 "xunit.console",
-                Managed.Factory.createBinary(xunitConsolePackage, r`tools/${args.framework.targetFramework}/xunit.console.dll`),
+                Managed.Factory.createBinary(xunitNetCoreConsolePackage, r`/lib/netcoreapp2.0/xunit.console.dll`),
                 xunitReferences,
                 undefined, // appConfig
                 true)),
-        xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.console.dll`),
-        xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.reporters.netcoreapp10.dll`),
-        xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.utility.netcoreapp10.dll`),
+        xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`),
     ];
 }
 

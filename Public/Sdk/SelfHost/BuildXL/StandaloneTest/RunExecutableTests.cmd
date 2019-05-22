@@ -4,16 +4,16 @@ SETLOCAL ENABLEDELAYEDEXPANSION
 
 REM Description:
 REM     Uses the Xunit console to run tests that call the BuildXL executable directly
-REM 
-REM Prerequisities: 
+REM
+REM Prerequisities:
 REM     Run "bxl.cmd -DeployStandaloneTest /q:<qualifier> Out\bin\tests\standalonetest\*" to build and deploy test dlls.
 REM     The executable tests are deployed separately from the StandaloneTest deployment (see StandaloneTest.dsc),
 REM     but re-use the tools deployed alongside the standalone tests (see StadaloneTestSupport.dsc) to execute the executable tests using Xunit.
-REM 
-REM Usage: 
-REM     RunExecutableTests.cmd /configuration <release|debug> /framework <net472|win-x64|etc..> 
-REM 
-REM Example: 
+REM
+REM Usage:
+REM     RunExecutableTests.cmd /configuration <release|debug> /framework <net472|win-x64|etc..>
+REM
+REM Example:
 REM     RunExecutableTests.cmd /configuration release /framework net472
 
 SET TEST_CONFIGURATION=

@@ -50,7 +50,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
 
             VssCredentialsFactory credentialsFactory;
 
-#if !FEATURE_CORECLR
+#if !PLATFORM_OSX
             credentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper(s => logger.Debug(s)));
 #else
             var secPat = new SecureString();

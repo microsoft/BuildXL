@@ -313,7 +313,7 @@ namespace BuildXL.Execution.Analyzer
                 writer.WriteLine(":: Setting PIP Environment Variables");
                 foreach (var environmentVariable in environment)
                 {
-                    writer.WriteLine("set {0}={1}", environmentVariable.Key, SanitizeEnvironmentVariableValue(environmentVariable.Value));
+                    writer.WriteLine("set {0}={1}", SanitizeEnvironmentVariableValue(environmentVariable.Key), SanitizeEnvironmentVariableValue(environmentVariable.Value));
                 }
             }
             else

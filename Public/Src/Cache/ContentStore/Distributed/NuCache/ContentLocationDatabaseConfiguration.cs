@@ -27,6 +27,42 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Indicates whether reading/writing cluster state from local db is supported.
         /// </summary>
         public bool StoreClusterState { get; set; } = true;
+
+        /// <summary>
+        /// When activated, the requests effectively sent to the database will be initally done in memory and later on
+        /// flushed to the underlying store.
+        /// </summary>
+        public bool CacheEnabled { get; set; } = false;
+
+        /// <summary>
+        /// The maximum number of updates that we are willing to perform in memory before flushing.
+        /// 
+        /// Only effective when <see cref="CacheEnabled"/> is activated.
+        /// </summary>
+        public int CacheMaximumUpdatesPerFlush { get; set; } = 1000000;
+
+        /// <summary>
+        /// The maximum amount of time that can pass without a flush.
+        /// 
+        /// Only effective when <see cref="CacheEnabled"/> is activated.
+        /// </summary>
+        public TimeSpan CacheFlushingMaximumInterval { get; set; } = TimeSpan.FromMinutes(1);
+
+        /// <summary>
+        /// Number of threads to use when flushing updates to the underlying storage
+        ///
+        /// Only effective when <see cref="CacheEnabled"/> is activated.
+        /// </summary>
+        public int CacheFlushDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
+
+        /// <summary>
+        /// Whether to use a single transaction to the underlying store when flushing instead of one transaction per
+        /// change.
+        ///
+        /// Only effective when <see cref="CacheEnabled"/> is activated. When this setting is on, there is no
+        /// parallelism done, regardless of <see cref="CacheFlushDegreeOfParallelism"/>.
+        /// </summary>
+        public bool CacheFlushSingleTransaction { get; set; } = true;
     }
 
     /// <summary>

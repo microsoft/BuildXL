@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -1589,6 +1590,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCleanedEntries].Value.Should().Be(0, "No entries should be cleaned before GC is called");
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(0, "No entries should be cleaned before GC is called");
 
+                    master.LocalLocationStore.Database.FlushIfEnabled(context);
+
                     master.LocalLocationStore.Database.GarbageCollect(context);
 
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(1, "After GC, the entry with only a location from the expired machine should be collected");
@@ -1940,13 +1943,13 @@ namespace ContentStoreTest.Distributed.Sessions
             };
         }
 
-        private void ConfigureRocksDbContentLocationBasedTest(bool configureInMemoryEventStore = false, Action<int, AbsolutePath, RedisContentLocationStoreConfiguration> configurationPostProcessor = null, bool configurePin = true)
+        private void ConfigureRocksDbContentLocationBasedTest(bool configureInMemoryEventStore = false, Action<int, AbsolutePath, RedisContentLocationStoreConfiguration> configurationPostProcessor = null, bool configurePin = true, AbsolutePath overrideContentLocationStoreDirectory = null)
         {
             var eventStoreConfiguration = configureInMemoryEventStore ? new MemoryContentLocationEventStoreConfiguration() : null;
             CreateContentLocationStoreConfiguration = (testRootDirectory, index) =>
             {
                 var result = CreateRedisContentLocationStoreConfiguration(
-                    testRootDirectory,
+                    overrideContentLocationStoreDirectory ?? testRootDirectory,
                     eventStoreConfiguration);
 
                 configurationPostProcessor?.Invoke(index, testRootDirectory, result);
@@ -2044,6 +2047,433 @@ namespace ContentStoreTest.Distributed.Sessions
 
             Output.WriteLine("The test is configured correctly.");
             return true;
+        }
+
+        [Fact(Skip = "For manual usage only")]
+        public async Task MultiThreadedStressTestRocksDbContentLocationDatabaseOnNewEntries()
+        {
+            bool useIncrementalCheckpointing = true;
+            int numberOfMachines = 100;
+            int addsPerMachine = 25000;
+            int maximumBatchSize = 1000;
+            int warmupBatches = 10000;
+
+            var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
+            var masterLeaseExpiryTime = TimeSpan.FromMinutes(3);
+
+            MemoryContentLocationEventStoreConfiguration memoryContentLocationEventStore = null;
+            ConfigureRocksDbContentLocationBasedTest(
+                configureInMemoryEventStore: true,
+                (index, testRootDirectory, config) =>
+                {
+                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
+                    {
+                        /* Set role to null to automatically choose role using master election */
+                        Role = null,
+                        UseIncrementalCheckpointing = useIncrementalCheckpointing,
+                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
+                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
+                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
+                        MasterLeaseExpiryTime = masterLeaseExpiryTime
+                    };
+                    config.CentralStore = centralStoreConfiguration;
+                    memoryContentLocationEventStore = (MemoryContentLocationEventStoreConfiguration)config.EventStore;
+                });
+
+            var events = GenerateAddEvents(numberOfMachines, addsPerMachine, maximumBatchSize);
+
+            await RunTestAsync(
+                new Context(Logger),
+                2,
+                async context =>
+                {
+                    var sessions = context.Sessions;
+                    Warmup(maximumBatchSize, warmupBatches, memoryContentLocationEventStore);
+                    context.GetMaster().LocalLocationStore.Database.FlushIfEnabled(context);
+                    PrintCacheStatistics(context);
+
+                    {
+                        var stopWatch = new Stopwatch();
+                        Output.WriteLine("[Benchmark] Starting in 5s (use this when analyzing with dotTrace)");
+                        await Task.Delay(5000);
+
+                        // Benchmark
+                        stopWatch.Restart();
+                        Parallel.ForEach(Enumerable.Range(0, numberOfMachines), machineId => {
+                            var eventHub = memoryContentLocationEventStore.Hub;
+
+                            foreach (var ev in events[machineId])
+                            {
+                                eventHub.LockFreeSend(ev);
+                            }
+                        });
+                        context.GetMaster().LocalLocationStore.Database.FlushIfEnabled(context);
+                        stopWatch.Stop();
+
+                        var ts = stopWatch.Elapsed;
+                        var elapsedTime = string.Format("{0:00}:{1:00}:{2:00}.{3:00}",
+                            ts.Hours, ts.Minutes, ts.Seconds,
+                            ts.Milliseconds / 10);
+                        Output.WriteLine("[Benchmark] Total Time: " + ts);
+                    }
+
+                    PrintCacheStatistics(context);
+                    await Task.Delay(5000);
+                });
+        }
+
+        private void Warmup(int maximumBatchSize, int warmupBatches, MemoryContentLocationEventStoreConfiguration memoryContentLocationEventStore)
+        {
+            Output.WriteLine("[Warmup] Starting");
+            var warmupEventHub = memoryContentLocationEventStore.Hub;
+            var warmupRng = new Random(Environment.TickCount);
+
+            var stopWatch = new Stopwatch();
+            stopWatch.Start();
+            foreach (var _ in Enumerable.Range(0, warmupBatches))
+            {
+                var machineId = new MachineId(warmupRng.Next());
+                var batch = Enumerable.Range(0, maximumBatchSize).Select(x => new ShortHash(ContentHash.Random())).ToList();
+                warmupEventHub.Send(new RemoveContentLocationEventData(machineId, batch));
+            }
+            stopWatch.Stop();
+
+            var ts = stopWatch.Elapsed;
+            var elapsedTime = string.Format("{0:00}:{1:00}:{2:00}.{3:00}",
+                ts.Hours, ts.Minutes, ts.Seconds,
+                ts.Milliseconds / 10);
+            Output.WriteLine("[Warmup] Total Time: " + ts);
+        }
+
+        private static List<List<ContentLocationEventData>> GenerateAddEvents(int numberOfMachines, int addsPerMachine, int maximumBatchSize)
+        {
+            var randomSeed = Environment.TickCount;
+            var events = new List<List<ContentLocationEventData>>(numberOfMachines);
+            events.AddRange(Enumerable.Range(0, numberOfMachines).Select(x => (List<ContentLocationEventData>)null));
+
+            Parallel.ForEach(Enumerable.Range(0, numberOfMachines), machineId =>
+            {
+                var machineIdObject = new MachineId(machineId);
+                var rng = new Random(Interlocked.Increment(ref randomSeed));
+
+                var addedContent = Enumerable.Range(0, addsPerMachine).Select(_ => ContentHash.Random()).ToList();
+
+                var machineEvents = new List<ContentLocationEventData>();
+                for (var pendingHashes = addedContent.Count; pendingHashes > 0;)
+                {
+                    // Add the hashes in random batches
+                    var batchSize = rng.Next(1, Math.Min(maximumBatchSize, pendingHashes));
+                    var batch = addedContent.GetRange(addedContent.Count - pendingHashes, batchSize).Select(hash => new ShortHashWithSize(new ShortHash(hash), 200)).ToList();
+                    machineEvents.Add(new AddContentLocationEventData(machineIdObject, batch));
+                    pendingHashes -= batchSize;
+                }
+                events[machineId] = machineEvents;
+            });
+
+            return events;
+        }
+
+        [Fact(Skip = "For manual usage only")]
+        public async Task MultiThreadedStressTestRocksDbContentLocationDatabaseOnMixedAddAndDelete()
+        {
+            bool useIncrementalCheckpointing = true;
+            int numberOfMachines = 100;
+            int deletesPerMachine = 25000;
+            int maximumBatchSize = 2000;
+            int warmupBatches = 10000;
+
+            var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
+            var masterLeaseExpiryTime = TimeSpan.FromMinutes(3);
+
+            MemoryContentLocationEventStoreConfiguration memoryContentLocationEventStore = null;
+            ConfigureRocksDbContentLocationBasedTest(
+                configureInMemoryEventStore: true,
+                (index, testRootDirectory, config) =>
+                {
+                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
+                    {
+                        /* Set role to null to automatically choose role using master election */
+                        Role = null,
+                        UseIncrementalCheckpointing = useIncrementalCheckpointing,
+                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
+                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
+                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
+                        MasterLeaseExpiryTime = masterLeaseExpiryTime
+                    };
+                    config.CentralStore = centralStoreConfiguration;
+                    memoryContentLocationEventStore = (MemoryContentLocationEventStoreConfiguration)config.EventStore;
+                });
+
+            var events = GenerateMixedAddAndDeleteEvents(numberOfMachines, deletesPerMachine, maximumBatchSize);
+
+            await RunTestAsync(
+                new Context(Logger),
+                2,
+                async context =>
+                {
+                    var sessions = context.Sessions;
+                    Warmup(maximumBatchSize, warmupBatches, memoryContentLocationEventStore);
+                    context.GetMaster().LocalLocationStore.Database.FlushIfEnabled(context);
+                    PrintCacheStatistics(context);
+
+                    {
+                        var stopWatch = new Stopwatch();
+                        Output.WriteLine("[Benchmark] Starting in 5s (use this when analyzing with dotTrace)");
+                        await Task.Delay(5000);
+
+                        // Benchmark
+                        stopWatch.Restart();
+                        Parallel.ForEach(Enumerable.Range(0, numberOfMachines), machineId => {
+                            var eventHub = memoryContentLocationEventStore.Hub;
+
+                            foreach (var ev in events[machineId])
+                            {
+                                eventHub.LockFreeSend(ev);
+                            }
+                        });
+                        context.GetMaster().LocalLocationStore.Database.FlushIfEnabled(context);
+                        stopWatch.Stop();
+
+                        var ts = stopWatch.Elapsed;
+                        var elapsedTime = string.Format("{0:00}:{1:00}:{2:00}.{3:00}",
+                            ts.Hours, ts.Minutes, ts.Seconds,
+                            ts.Milliseconds / 10);
+                        Output.WriteLine("[Benchmark] Total Time: " + ts);
+
+                        PrintCacheStatistics(context);
+                    }
+
+                    await Task.Delay(5000);
+                });
+        }
+
+        private class FstComparer<T> : IComparer<(int, T)>
+        {
+            public int Compare((int, T) x, (int, T) y)
+            {
+                return x.Item1.CompareTo(y.Item1);
+            }
+        }
+
+        private static List<List<ContentLocationEventData>> GenerateMixedAddAndDeleteEvents(int numberOfMachines, int deletesPerMachine, int maximumBatchSize)
+        {
+            var randomSeed = Environment.TickCount;
+
+            var events = new List<List<ContentLocationEventData>>(numberOfMachines);
+            events.AddRange(Enumerable.Range(0, numberOfMachines).Select(x => (List<ContentLocationEventData>)null));
+
+            Parallel.ForEach(Enumerable.Range(0, numberOfMachines), machineId =>
+            {
+                var machineIdObject = new MachineId(machineId);
+                var rng = new Random(Interlocked.Increment(ref randomSeed));
+
+                // We want deletes to be performed in any arbitrary order, so the first in the pair is a random integer
+                // This distribution is obviously not uniform at the end, but it doesn't matter, all we want is for
+                // add -> delete pairs not to be contiguous.
+                var addedPool = new BuildXL.Cache.ContentStore.Utils.PriorityQueue<(int, ShortHash)>(deletesPerMachine, new FstComparer<ShortHash>());
+
+                var machineEvents = new List<ContentLocationEventData>();
+                var totalAddsPerfomed = 0;
+                // We can only delete after we have added, so we only reach the condition at the end
+                for (var totalDeletesPerformed = 0; totalDeletesPerformed < deletesPerMachine; )
+                {
+                    bool addEnabled = totalAddsPerfomed < deletesPerMachine;
+                    // We can only delete when it is causally consistent to do so
+                    bool deleteEnabled = totalDeletesPerformed < deletesPerMachine && addedPool.Count > 0;
+                    bool performDelete = deleteEnabled && rng.Next(0, 10) > 8 || !addEnabled;
+
+                    if (performDelete)
+                    {
+                        var batchSize = Math.Min(deletesPerMachine - totalDeletesPerformed, addedPool.Count);
+                        batchSize = rng.Next(1, batchSize);
+                        batchSize = Math.Min(batchSize, maximumBatchSize);
+
+                        var batch = new List<ShortHash>(batchSize);
+                        foreach (var _ in Enumerable.Range(0, batchSize))
+                        {
+                            var shortHash = addedPool.Top.Item2;
+                            addedPool.Pop();
+                            batch.Add(shortHash);
+                        }
+
+                        machineEvents.Add(new RemoveContentLocationEventData(machineIdObject, batch));
+                        totalDeletesPerformed += batch.Count;
+                    } else
+                    {
+                        var batchSize = Math.Min(deletesPerMachine - totalAddsPerfomed, maximumBatchSize);
+                        batchSize = rng.Next(1, batchSize);
+
+                        var batch = new List<ShortHashWithSize>(batchSize);
+                        foreach (var x in Enumerable.Range(0, batchSize))
+                        {
+                            var shortHash = new ShortHash(ContentHash.Random());
+                            batch.Add(new ShortHashWithSize(shortHash, 200));
+                            addedPool.Push((rng.Next(), shortHash));
+                        }
+
+                        machineEvents.Add(new AddContentLocationEventData(machineIdObject, batch));
+                        totalAddsPerfomed += batch.Count;
+                    }
+                }
+
+                events[machineId] = machineEvents;
+            });
+
+            return events;
+        }
+
+        [Fact(Skip = "For manual usage only")]
+        public async Task MultiThreadedStressTestRocksDbContentLocationDatabaseOnUniqueAddsWithCacheHit()
+        {
+            bool useIncrementalCheckpointing = true;
+            int warmupBatches = 10000;
+            int numberOfMachines = 100;
+            int operationsPerMachine = 25000;
+            float cacheHitRatio = 0.5f;
+            int maximumBatchSize = 1000;
+
+            var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
+            var masterLeaseExpiryTime = TimeSpan.FromMinutes(3);
+
+            MemoryContentLocationEventStoreConfiguration memoryContentLocationEventStore = null;
+            ConfigureRocksDbContentLocationBasedTest(
+                configureInMemoryEventStore: true,
+                (index, testRootDirectory, config) =>
+                {
+                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
+                    {
+                        /* Set role to null to automatically choose role using master election */
+                        Role = null,
+                        UseIncrementalCheckpointing = useIncrementalCheckpointing,
+                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
+                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
+                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
+                        MasterLeaseExpiryTime = masterLeaseExpiryTime
+                    };
+                    config.CentralStore = centralStoreConfiguration;
+                    memoryContentLocationEventStore = (MemoryContentLocationEventStoreConfiguration)config.EventStore;
+                });
+
+            var events = GenerateUniquenessWorkload(numberOfMachines, cacheHitRatio, maximumBatchSize, operationsPerMachine, randomSeedOverride: 42);
+
+            await RunTestAsync(
+                new Context(Logger),
+                2,
+                async context =>
+                {
+                    var sessions = context.Sessions;
+                    Warmup(maximumBatchSize, warmupBatches, memoryContentLocationEventStore);
+                    context.GetMaster().LocalLocationStore.Database.FlushIfEnabled(context);
+                    PrintCacheStatistics(context);
+
+                    {
+                        var stopWatch = new Stopwatch();
+                        Output.WriteLine("[Benchmark] Starting in 5s (use this when analyzing with dotTrace)");
+                        await Task.Delay(5000);
+
+                        // Benchmark
+                        stopWatch.Restart();
+                        Parallel.ForEach(Enumerable.Range(0, numberOfMachines), machineId => {
+                            var eventHub = memoryContentLocationEventStore.Hub;
+
+                            foreach (var ev in events[machineId])
+                            {
+                                eventHub.LockFreeSend(ev);
+                            }
+                        });
+                        context.GetMaster().LocalLocationStore.Database.FlushIfEnabled(context);
+                        stopWatch.Stop();
+
+                        var ts = stopWatch.Elapsed;
+                        var elapsedTime = string.Format("{0:00}:{1:00}:{2:00}.{3:00}",
+                            ts.Hours, ts.Minutes, ts.Seconds,
+                            ts.Milliseconds / 10);
+                        Output.WriteLine("[Benchmark] Total Time: " + ts);
+
+                        PrintCacheStatistics(context);
+                    }
+
+                    await Task.Delay(5000);
+                });
+        }
+
+        private void PrintCacheStatistics(TestContext context)
+        {
+            var db = context.GetMaster().LocalLocationStore.Database;
+            var counters = db.Counters;
+
+            if (db.IsInMemoryCacheEnabled)
+            {
+                Output.WriteLine("CACHE ENABLED");
+            }
+            else
+            {
+                Output.WriteLine("CACHE DISABLED");
+            }
+
+            Output.WriteLine("[Statistics] TotalNumberOfCacheHit: " + counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].ToString());
+            Output.WriteLine("[Statistics] TotalNumberOfCacheMiss: " + counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].ToString());
+            Output.WriteLine("[Statistics] CacheFlush: " + counters[ContentLocationDatabaseCounters.CacheFlush].ToString());
+            Output.WriteLine("[Statistics] TotalNumberOfCacheFlushes: " + counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].ToString());
+            Output.WriteLine("[Statistics] NumberOfCacheFlushesTriggeredByUpdates: " + counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByUpdates].ToString());
+            Output.WriteLine("[Statistics] NumberOfCacheFlushesTriggeredByTimer: " + counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByTimer].ToString());
+            Output.WriteLine("[Statistics] NumberOfCacheFlushesTriggeredByGarbageCollection: " + counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByGarbageCollection].ToString());
+            Output.WriteLine("[Statistics] NumberOfCacheFlushesTriggeredByCheckpoint: " + counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByCheckpoint].ToString());
+        }
+
+        private static List<List<ContentLocationEventData>> GenerateUniquenessWorkload(int numberOfMachines, float cacheHitRatio, int maximumBatchSize, int operationsPerMachine, int? randomSeedOverride = null)
+        {
+            var randomSeed = randomSeedOverride ?? Environment.TickCount;
+
+            var events = new List<List<ContentLocationEventData>>(numberOfMachines);
+            events.AddRange(Enumerable.Range(0, numberOfMachines).Select(x => (List<ContentLocationEventData>)null));
+            
+            var cacheHitHashPool = new ConcurrentBigSet<ShortHash>();
+            Parallel.ForEach(Enumerable.Range(0, numberOfMachines), machineId =>
+            {
+                var machineIdObject = new MachineId(machineId);
+                var rng = new Random(Interlocked.Increment(ref randomSeed));
+
+                var machineEvents = new List<ContentLocationEventData>();
+                for (var operations = 0; operations < operationsPerMachine; )
+                {
+                    // Done this way to ensure batches don't get progressively smaller and hog memory
+                    var batchSize = rng.Next(1, maximumBatchSize);
+                    batchSize = Math.Min(batchSize, operationsPerMachine - operations);
+
+                    var hashes = new List<ShortHashWithSize>();
+                    while (hashes.Count < batchSize)
+                    {
+                        var shouldHitCache = rng.NextDouble() < cacheHitRatio;
+
+                        ShortHash hashToUse;
+                        if (cacheHitHashPool.Count > 0 && shouldHitCache)
+                        {
+                            // Since this set is grow-only, this should always work
+                            hashToUse = cacheHitHashPool[rng.Next(0, cacheHitHashPool.Count)];
+                        }
+                        else
+                        {
+                            do
+                            {
+                                hashToUse = new ShortHash(ContentHash.Random());
+                            } while (cacheHitHashPool.Contains(hashToUse) || !cacheHitHashPool.Add(hashToUse));
+                        }
+
+                        hashes.Add(new ShortHashWithSize(hashToUse, 200));
+                    }
+                    
+                    machineEvents.Add(new AddContentLocationEventData(
+                        machineIdObject,
+                        hashes));
+
+                    operations += batchSize;
+                }
+
+                events[machineId] = machineEvents;
+            });
+
+            return events;
         }
     }
 }

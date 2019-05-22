@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Reflection;
@@ -22,12 +21,12 @@ namespace Test.BuildXL.Processes.Detours
     /// </summary>
     public sealed class SubstituteProcessExecutionTests : XunitBuildXLTest
     {
-        private readonly ITestOutputHelper _output;
+        private readonly ITestOutputHelper m_output;
 
         public SubstituteProcessExecutionTests(ITestOutputHelper output)
             : base(output)
         {
-            _output = output;
+            m_output = output;
         }
 
         /// <summary>
@@ -68,8 +67,8 @@ namespace Test.BuildXL.Processes.Detours
                     MonitorChildProcesses = false,
                     SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
                         shimProgramPath,
-                        shimAllProcesses: true,
-                        processMatch == null ? new ShimProcessMatch[0] : new ShimProcessMatch[] { new ShimProcessMatch(PathAtom.Create(context.StringTable, processMatch), PathAtom.Invalid) })
+                        shimAllProcesses: processMatch == null,  // When we have a process to match, make the shim list opt-in to ensure a match
+                        processMatch == null ? new ShimProcessMatch[0] : new[] { new ShimProcessMatch(PathAtom.Create(context.StringTable, processMatch), PathAtom.Invalid) })
                 };
 
             Guid sessionId = Guid.NewGuid();
@@ -80,7 +79,7 @@ namespace Test.BuildXL.Processes.Detours
             string childArgs = $"{childExecutable} /D /C @echo {childOutput}";
 
             // Detours logic should wrap the initial cmd in quotes for easier parsing by shim logic.
-            string childShimArgs = $"{quotedExecutable}  /D /C @echo {childOutput}";
+            string childShimArgs = $"{quotedExecutable} /D /C @echo {childOutput}";
 
             string args = "/D /C echo Top-level cmd. Running child process && " + childArgs;
 
@@ -115,16 +114,18 @@ namespace Test.BuildXL.Processes.Detours
                     .ConfigureAwait(false);
             SandboxedProcessResult result = await sandboxedProcess.GetResultAsync().ConfigureAwait(false);
 
+            Assert.Equal(0, result.ExitCode);
+
             string stdout = stdoutSb.ToString();
-            _output.WriteLine($"stdout: {stdout}");
+            m_output.WriteLine($"stdout: {stdout}");
 
             string stderr = stderrSb.ToString();
-            _output.WriteLine($"stderr: {stderr}");
+            m_output.WriteLine($"stderr: {stderr}");
             Assert.Equal(0, stderr.Length);
 
             string shimOutput = "TestShim: Entered with command line: " + childShimArgs;
             int indexOfShim = stdout.IndexOf(shimOutput, StringComparison.Ordinal);
-            Assert.True(indexOfShim > 0);
+            Assert.True(indexOfShim > 0, shimOutput);
         }
 
         /// <summary>
@@ -157,7 +158,7 @@ namespace Test.BuildXL.Processes.Detours
                     SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
                         shimProgramPath,
                         shimAllProcesses: false,
-                        processMatch == null ? new ShimProcessMatch[0] : new ShimProcessMatch[] { new ShimProcessMatch(PathAtom.Create(context.StringTable, processMatch), PathAtom.Invalid) })
+                        processMatch == null ? new ShimProcessMatch[0] : new[] { new ShimProcessMatch(PathAtom.Create(context.StringTable, processMatch), PathAtom.Invalid) })
                 };
 
             Guid sessionId = Guid.NewGuid();
@@ -199,11 +200,13 @@ namespace Test.BuildXL.Processes.Detours
                     .ConfigureAwait(false);
             SandboxedProcessResult result = await sandboxedProcess.GetResultAsync().ConfigureAwait(false);
 
+            Assert.Equal(0, result.ExitCode);
+
             string stdout = stdoutSb.ToString();
-            _output.WriteLine($"stdout: {stdout}");
+            m_output.WriteLine($"stdout: {stdout}");
 
             string stderr = stderrSb.ToString();
-            _output.WriteLine($"stderr: {stderr}");
+            m_output.WriteLine($"stderr: {stderr}");
             Assert.Equal(0, stderr.Length);
 
             string shimOutput = "TestShim: Entered with command line";

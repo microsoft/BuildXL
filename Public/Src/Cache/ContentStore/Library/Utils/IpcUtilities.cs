@@ -22,6 +22,9 @@ namespace BuildXL.Cache.ContentStore.Utils
         private const string DefaultReadyEventName = @"Global\ContentServerReadyEvent";
         private const string DefaultShutdownEventName = @"Global\ContentServerShutdownEvent";
 
+        private const int ERROR_FILE_NOT_FOUND = 0x2;
+        private const int ERROR_PATH_NOT_FOUND = 0x3;
+
         /// <summary>
         /// Get the shutdown handle for the given scenario.
         /// </summary>
@@ -156,6 +159,9 @@ namespace BuildXL.Cache.ContentStore.Utils
             SafeWaitHandle myHandle = OpenEvent((uint)EventWaitHandleRights.Synchronize, false, name);
             if (myHandle.IsInvalid)
             {
+                var errorCode = Marshal.GetLastWin32Error();
+                if (errorCode == ERROR_FILE_NOT_FOUND || errorCode == ERROR_PATH_NOT_FOUND)
+                    return false;
                 throw Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error());
             }
 

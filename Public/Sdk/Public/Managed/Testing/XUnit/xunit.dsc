@@ -6,6 +6,9 @@ import * as Deployment from "Sdk.Deployment";
 import * as Managed from "Sdk.Managed";
 
 export const xunitConsolePackage = importFrom("xunit.runner.console").Contents.all;
+
+// This package is published by Dotnet Arcade and contains some important fixes we need, when
+// running on .NETCoreApp 3.0, see: https://github.com/dotnet/arcade/tree/master/src/Microsoft.DotNet.XUnitConsoleRunner
 export const xunitNetCoreConsolePackage = importFrom("microsoft.dotnet.xunitconsolerunner").Contents.all;
 
 /**

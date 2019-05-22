@@ -6,7 +6,6 @@ import * as XUnitRunnerConsole from "xunit.runner.console";
 import * as NETCoreSDK from "NETCoreSDK";
 
 const xunitConsolePackage = importFrom("xunit.runner.console").pkg.contents;
-const xunitNetCoreConsolePackage = importFrom("microsoft.dotnet.xunitconsolerunner").Contents.all;
 const netCoreSdkContents = importFrom("NETCoreSDK").pkg.contents;
 
 const unsupportedTraits = ["MiniBuildTester"];
@@ -129,10 +128,10 @@ export function runSingleUnitTest(args: TestArguments): DerivedFile[] {
 
     const tool : Transformer.ToolDefinition = {
         exe: args.wrapInDotNet
-            ? f`${xunitNetCoreConsolePackage.root}/lib/netcoreapp2.0/xunit.console.dll`
+            ? f`${testRoot}/xunit.console.dll`
             : f`${xunitConsolePackage.root}/tools/net452/xunit.console.exe`,
         runtimeDirectoryDependencies: [
-            ...(args.wrapInDotNet ? [xunitNetCoreConsolePackage] : [ xunitConsolePackage ]),
+            xunitConsolePackage,
         ],
         dependsOnWindowsDirectories: true,
         prepareTempDirectory: true,

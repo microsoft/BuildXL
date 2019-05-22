@@ -54,32 +54,29 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <exception cref="CacheException"/>
         public static EventWaitHandle GetReadyWaitHandle(string scenario)
         {
-            try
-            {
-                var eventName = GetReadyEventName(scenario);
+            throw new Exception($"Someone called GetReadyWaitHandle for scenario '{scenario}'");
+            //try
+            //{
+            //    var eventName = GetReadyEventName(scenario);
 
-                var ret = new EventWaitHandle(false, EventResetMode.ManualReset, eventName, out bool created);
+            //    var ret = new EventWaitHandle(false, EventResetMode.ManualReset, eventName, out bool created);
 
-                Console.WriteLine($"========== Created EWH ({created}): {eventName}");
+            //    var security = new EventWaitHandleSecurity();
 
-                var security = new EventWaitHandleSecurity();
+            //    // Allow any client to wait on the event.
+            //    security.AddAccessRule(EventWaitHandleAccessRules.PublicSynchronizeAccessRule());
 
-                // Allow any client to wait on the event.
-                security.AddAccessRule(EventWaitHandleAccessRules.PublicSynchronizeAccessRule());
+            //    // Give full control to current user.
+            //    security.AddAccessRule(EventWaitHandleAccessRules.CurrentUserFullControlRule());
 
-                // Give full control to current user.
-                security.AddAccessRule(EventWaitHandleAccessRules.CurrentUserFullControlRule());
-                
-                
+            //    ret.SetAccessControl(security);
 
-                ret.SetAccessControl(security);
-
-                return ret;
-            }
-            catch (Exception e)
-            {
-                throw new CacheException(e.ToString(), e);
-            }
+            //    return ret;
+            //}
+            //catch (Exception e)
+            //{
+            //    throw new CacheException(e.ToString(), e);
+            //}
         }
 
         /// <summary>

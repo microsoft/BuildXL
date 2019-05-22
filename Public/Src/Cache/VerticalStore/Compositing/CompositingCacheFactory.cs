@@ -2,8 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
@@ -106,6 +108,30 @@ namespace BuildXL.Cache.Compositing
                 Analysis.IgnoreResult(await cas.ShutdownAsync(), justification: "Okay to ignore shutdown status");
                 throw;
             }
+        }
+
+        /// <inheritdoc />
+        public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
+        {
+            Contract.Requires(cacheData != null);
+
+            var possibleCacheConfig = cacheData.Create<Config>();
+            if (!possibleCacheConfig.Succeeded)
+            {
+                return new[] { possibleCacheConfig.Failure };
+            }
+
+            Config compositingConfig = possibleCacheConfig.Result;
+
+            var metadataCacheFailures =
+                CacheFactory.ValidateConfig(compositingConfig.MetadataCache)
+                    .Select(failure => new Failure<string>($"{nameof(compositingConfig.MetadataCache)} validation failed", failure));
+
+            var casCacheFailures =
+                CacheFactory.ValidateConfig(compositingConfig.CasCache)
+                    .Select(failure => new Failure<string>($"{nameof(compositingConfig.CasCache)} validation failed", failure));
+
+            return metadataCacheFailures.Concat(casCacheFailures).ToArray();
         }
     }
 }

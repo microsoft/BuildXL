@@ -869,7 +869,7 @@ namespace BuildXL.Engine
             {
                 // Don't scrub the .NET Core lock file when running the CoreCLR on Unix even if its parent directory is specified as scrubbable.
                 // Some build tools use the '/tmp' folder as temporary file location (e.g. xcodebuild, clang, etc.) for dumping state and reports.
-                // Unfortunately scrubbing the dotnet state files can lead to a miss-behaving CoreCLR in subsequent or parallel runs where several
+                // Unfortunately scrubbing the dotnet state files can lead to a misbehaving CoreCLR in subsequent or parallel runs where several
                 // dotnet invocations happen, so lets avoid scrubbing that folder explicitly!
                 nonScrubbablePaths.AddRange(new[]
                 {

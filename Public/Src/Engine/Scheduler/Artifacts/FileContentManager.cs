@@ -281,6 +281,10 @@ namespace BuildXL.Scheduler.Artifacts
             Contract.Assert(IsDistributedWorker);
 
             SetFileArtifactContentHashResult result = SetFileArtifactContentHash(artifact, info, PipOutputOrigin.NotMaterialized);
+
+            // Notify the host with content that was reported
+            m_host.ReportContent(artifact, info, PipOutputOrigin.NotMaterialized);
+
             if (result == SetFileArtifactContentHashResult.HasConflictingExistingEntry)
             {
                 var existingInfo = m_fileArtifactContentHashes[artifact];

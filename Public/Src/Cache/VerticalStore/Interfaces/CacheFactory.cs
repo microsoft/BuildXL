@@ -151,10 +151,10 @@ namespace BuildXL.Cache.Interfaces
                 instantiationException = ex;
             }
 
-            // Make sure that the cache factory is an ICacheFactory.
+            // Build error message for failed ICacheFactory construction 
             if (factoryObject == null)
             {
-                string message = $"{assembly}:{type} cannot be loaded or it is not a valid ICacheFactory type";
+                string message = $"{assembly}:{type} cannot be loaded or it is not a valid {nameof(ICacheFactory)} type";
                 if (instantiationException != null)
                 {
                     message += $". Searched for {assembly} in {Path.GetFullPath(".")}. Exception: {instantiationException}";

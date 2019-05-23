@@ -1794,7 +1794,6 @@ BOOL WINAPI Detoured_CreateProcessW(
 {
     bool injectedShim = false;
     BOOL ret = MaybeInjectSubstituteProcessShim(
-        lpApplicationName,
         lpCommandLine,
         lpProcessAttributes,
         lpThreadAttributes,

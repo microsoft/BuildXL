@@ -253,7 +253,7 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
     {
         // lpCommandLine contains the command, possibly with quotes containing spaces,
         // as the first whitespace-delimited token. We can ignore lpApplicationName
-        // and just always parse that command line.
+        // and just always parse that command line. 
         wstring command;
         wstring commandArgs;
         FindApplicationNameFromCommandLine(lpCommandLine, command, commandArgs);

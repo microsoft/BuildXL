@@ -163,6 +163,42 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             }
         }
 
+        /// <nodoc />
+        public async Task<T> PerformNonResultOperationAsync<T>(
+            Tracer operationTracer,
+            Func<Task<T>> operation,
+            Counter? counter = default,
+            bool traceErrorsOnly = false,
+            bool traceOperationStarted = true,
+            bool traceOperationFinished = true,
+            string extraStartMessage = null,
+            Func<T, string> extraEndMessage = null,
+            Func<T, ResultBase> resultBaseFactory = null,
+            [CallerMemberName]string caller = null)
+        {
+            var self = this;
+
+            var operationStartedAction = traceOperationStarted
+                ? () => operationTracer?.OperationStarted(self, caller, enabled: !traceErrorsOnly, additionalInfo: extraStartMessage)
+                : (Action)null;
+
+            using (counter?.Start())
+            {
+                var tracer = Trace(operationStartedAction);
+
+                var result = await operation();
+
+                var message = extraEndMessage?.Invoke(result) ?? string.Empty;
+
+                var operationFinishedAction = traceOperationFinished
+                    ? duration => operationTracer?.OperationFinished(self, resultBaseFactory?.Invoke(result) ?? BoolResult.Success, duration, message, caller, traceErrorsOnly: traceErrorsOnly)
+                    : (Action<TimeSpan>)null;
+
+                tracer.OperationFinished(operationFinishedAction);
+                return result;
+            }
+        }
+
         private T RunOperationAndConvertExceptionToError<T>(Func<T> operation)
             where T : ResultBase
         {

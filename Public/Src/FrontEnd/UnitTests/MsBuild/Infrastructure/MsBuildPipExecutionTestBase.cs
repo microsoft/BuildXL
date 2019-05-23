@@ -218,7 +218,8 @@ $@"<?xml version='1.0' encoding='utf-8'?>
             Dictionary<string, string> globalProperties = null,
             bool enableBinLogTracing = false,
             bool enableEngineTracing = false,
-            string logVerbosity = null) => $@"
+            string logVerbosity = null,
+            bool allowProjectsToNotSpecifyTargetProtocol = true) => $@"
 config({{
     disableDefaultSourceResolver: true,
     resolvers: [
@@ -227,6 +228,7 @@ config({{
             moduleName: 'Test',
             msBuildSearchLocations: [d`{TestDeploymentDir}`],
             root: d`.`,
+            allowProjectsToNotSpecifyTargetProtocol: {(allowProjectsToNotSpecifyTargetProtocol ? "true" : "false")},
             runInContainer: {(runInContainer ? "true" : "false")},
             {DictionaryToExpression("environment", environment)}
             {DictionaryToExpression("globalProperties", globalProperties)}
@@ -247,6 +249,7 @@ config({{
             moduleName: 'Test',
             msBuildSearchLocations: [d`{TestDeploymentDir}`],
             root: d`.`,
+            allowProjectsToNotSpecifyTargetProtocol: true,
             {DictionaryToExpression("environment", new Dictionary<string, string>())}
             {extraArguments ?? string.Empty}
         }},

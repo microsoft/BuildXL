@@ -27,22 +27,9 @@ namespace BuildXL.Engine.Distribution
 
         private (string, string) InterceptCallContext(ServerCallContext context)
         {
-            string sender = context.Host;
-            string traceId = string.Empty;
             string method = context.Method;
-            string senderBuildId = string.Empty;
 
-            foreach (var kvp in context.RequestHeaders)
-            {
-                if (kvp.Key == GrpcSettings.TraceIdKey)
-                {
-                    traceId = new Guid(kvp.ValueBytes).ToString();
-                }
-                else if (kvp.Key == GrpcSettings.BuildIdKey)
-                {
-                    senderBuildId = kvp.Value;
-                }
-            }
+            GrpcSettings.ParseHeader(context.RequestHeaders, out string sender, out string senderBuildId, out string traceId);
 
             if (!string.IsNullOrEmpty(senderBuildId) && senderBuildId != m_buildId)
             {

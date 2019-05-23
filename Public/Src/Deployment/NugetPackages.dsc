@@ -33,7 +33,7 @@ namespace NugetPackages {
         id: `${packageNamePrefix}.win-x64`,
         deployment: BuildXL.withQualifier({
             configuration: qualifier.configuration,
-            targetFramework: "netcoreapp2.2",
+            targetFramework: "netcoreapp3.0",
             targetRuntime: "win-x64"
         }).deployment,
     });
@@ -42,7 +42,7 @@ namespace NugetPackages {
         id: `${packageNamePrefix}.osx-x64`,
         deployment: BuildXL.withQualifier({
             configuration: qualifier.configuration,
-            targetFramework: "netcoreapp2.2",
+            targetFramework: "netcoreapp3.0",
             targetRuntime: "osx-x64"
         }).deployment,
     });
@@ -93,7 +93,7 @@ namespace NugetPackages {
         id: `${packageNamePrefix}.Tools.SandboxExec.osx-x64`,
         deployment: Tools.SandboxExec.withQualifier({
             configuration: qualifier.configuration,
-            targetFramework: "netcoreapp2.2",
+            targetFramework: "netcoreapp3.0",
             targetRuntime: "osx-x64"
         }).deployment
     });
@@ -103,7 +103,7 @@ namespace NugetPackages {
         id: `${packageNamePrefix}.Tools.Orchestrator.osx-x64`,
         deployment: Tools.Orchestrator.withQualifier({
             configuration: qualifier.configuration,
-            targetFramework: "netcoreapp2.2",
+            targetFramework: "netcoreapp3.0",
             targetRuntime: "osx-x64"
         }).deployment
     });
@@ -122,9 +122,8 @@ namespace NugetPackages {
                 cacheHashing,
             ]),
             sdks,
-            osxX64,
+            ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, toolsOrchestrator),
             toolsSandBoxExec,
-            toolsOrchestrator,
         ]
     };
 

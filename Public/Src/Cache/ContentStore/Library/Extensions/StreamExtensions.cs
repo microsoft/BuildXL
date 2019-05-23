@@ -28,7 +28,9 @@ namespace BuildXL.Cache.ContentStore.Extensions
 
                 if (dispose)
                 {
+#pragma warning disable AsyncFixer02
                     stream.Dispose();
+#pragma warning restore AsyncFixer02
                 }
 
                 return content.ToArray();

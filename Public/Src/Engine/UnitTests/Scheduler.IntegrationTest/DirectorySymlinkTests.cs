@@ -7,8 +7,10 @@ using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Unix;
+using BuildXL.Native.IO.Windows;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
@@ -69,6 +71,12 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            AssertWarningEventLogged(EventId.ScrubbingExternalFileOrDirectoryFailed, count: 0, allowMore: true);
+            base.Dispose(disposing);
+        }
+
         /* 
          * Operations which when executed produce the following layout
 
@@ -88,9 +96,19 @@ sym-Versions_sym-A_file -> Versions/sym-A/file
 Versions/
 Versions/A/
 Versions/A/file
-Versions/A/sym-loop -> ../sym-A
-Versions/sym-A -> A
-Versions/sym-sym-A -> sym-A
+Versions/A/sym-loop -> ../sym-A/
+Versions/sym-A -> A/
+Versions/sym-sym-A -> sym-A/
+";
+
+        private const string DirectoryLayoutWinTest = @"
+sym-Versions_A_file -> Versions/A/file
+sym-Versions_sym-A_file -> Versions/sym-A/file
+Versions/
+Versions/A/
+Versions/A/file
+Versions/sym-A -> A/
+Versions/sym-sym-A -> sym-A/
 ";
 
 
@@ -198,11 +216,12 @@ Versions/sym-sym-A -> sym-A
 
         private IEnumerable<Operation> GetLayoutProducingOperations(string rootDir)
         {
-            return DirectoryLayout
+            var layout = OperatingSystemHelper.IsUnixOS ? DirectoryLayout : DirectoryLayoutWinTest;
+            return layout
                 .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(spec => $"{rootDir}/{spec.Trim()}")
                 .Select(spec =>
-                    spec.Contains("->") ? OpCreateSym(X(spec)) :
+                    spec.Contains("->") ? OpCreateSym(X(spec), spec.EndsWith("/") ? Operation.SymbolicLinkFlag.DIRECTORY : Operation.SymbolicLinkFlag.FILE) :
                     spec.EndsWith("/")  ? OpCreateDir(X(spec)) :
                                           OpWriteFile(X(spec)));
         }
@@ -242,6 +261,50 @@ Versions/sym-sym-A -> sym-A
                 reportedFilePaths,
                 comparer: StringComparer.InvariantCultureIgnoreCase,
                 expectedResult: true);
+        }
+
+        [Feature(Features.Symlink)]
+        [Feature(Features.OpaqueDirectory)]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true, requiresSymlinkPermission: true)]
+        [InlineData(SealDirectoryKind.Full)]
+        [InlineData(SealDirectoryKind.Partial)]
+        [InlineData(SealDirectoryKind.Opaque)]
+        [InlineData(SealDirectoryKind.SharedOpaque)]
+        public void DirectorySymlinksInOutputDirectoryProducerOnlyOnWindows(SealDirectoryKind dirKind)
+        {
+            XAssert.IsFalse(dirKind.IsSourceSeal());
+           
+            AbsolutePath rootDirAbsPath = CreateUniqueObjPath($"{dirKind}.framework");
+            string rootDir = rootDirAbsPath.ToString(Context.PathTable);
+
+            // schedule producer pip: produce opaque directory with a bunch of symlinks
+            var operations = GetLayoutProducingOperationsWithDummyReadFile(rootDir, "producer");
+            var producerPipBuilder = CreatePipBuilder(operations);
+            producerPipBuilder.ToolDescription = StringId.Create(Context.StringTable, "producer");
+
+            // if dirKind is an opaque output, then just declare the root directory as an opaque output;
+            // otherwise, add all outputs explicitly and schedule a seal directory pip to seal them.
+            Process producerPip;
+            if (dirKind.IsOpaqueOutput())
+            {
+                producerPipBuilder.AddOutputDirectory(rootDirAbsPath, kind: dirKind);
+                producerPip = SchedulePipBuilder(producerPipBuilder).Process;
+            }
+            else
+            {
+                var dao = InferIOFromOperations(operations, force: true);
+                foreach (var output in dao.Outputs) producerPipBuilder.AddOutputFile(output.Path);
+                foreach (var input in dao.Dependencies) producerPipBuilder.AddInputFile(input);
+                producerPip = SchedulePipBuilder(producerPipBuilder).Process;
+            }
+
+            // first run, expect cache miss
+            RunScheduler().AssertSuccess().AssertCacheMiss(producerPip.PipId);
+            AssertWarningEventLogged(LogEventId.StorageSymlinkDirInOutputDirectoryWarning, count: 2);
+
+            // rerun, check cache miss, symlink directory in output can't be cached
+            RunScheduler().AssertSuccess().AssertCacheMiss(producerPip.PipId);
+            AssertWarningEventLogged(LogEventId.StorageSymlinkDirInOutputDirectoryWarning, count: 2);          
         }
 
         [Feature(Features.Symlink)]
@@ -547,6 +610,39 @@ Versions/sym-sym-A -> sym-A
             RunScheduler().AssertSuccess();
         }
 
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void EnumerateDirectoryViaDirectorySymlinkShouldBeObservedAsDirectoryEnumeration()
+        {
+            AbsolutePath targetDirectory = CreateUniqueDirectory(ReadonlyRoot, "Target");
+            CreateSourceFile(targetDirectory, "file1");
+            CreateSourceFile(targetDirectory, "file2");
+
+            AbsolutePath directorySymlink = CreateUniquePath("Symlink", ReadonlyRoot);
+            XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(
+                directorySymlink.ToString(Context.PathTable), 
+                targetDirectory.ToString(Context.PathTable), 
+                isTargetFile: false).Succeeded);
+
+            var pipBuilder = CreatePipBuilder(new[]
+            {
+                Operation.EnumerateDir(DirectoryArtifact.CreateWithZeroPartialSealId(directorySymlink)),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                pipBuilder.AddInputFile(directorySymlink);
+            }
+
+            ProcessWithOutputs processWithOutputs = SchedulePipBuilder(pipBuilder);
+
+            RunScheduler().AssertSuccess();
+            RunScheduler().AssertCacheHit(processWithOutputs.Process.PipId);
+
+            CreateSourceFile(targetDirectory, "file3");
+            RunScheduler().AssertCacheMiss(processWithOutputs.Process.PipId);
+        }
+
         private static IEnumerable<T> Multiply<T>(int count, T elem) => Enumerable.Range(1, count).Select(_ => elem);
         private static IEnumerable<T> Concat<T>(T elem, params IEnumerable<T>[] rest) => new[] { elem }.Concat(rest.SelectMany(e => e));
         private static IEnumerable<T> Shuffle<T>(IEnumerable<T> col) => col.OrderBy(e => new Random().Next());
@@ -668,7 +764,7 @@ Versions/sym-sym-A -> sym-A
         private Operation OpWriteFile(string filePath)
             => Operation.WriteFile(OutFile(filePath), doNotInfer: true);
 
-        private Operation OpCreateSym(string spec)
+        private Operation OpCreateSym(string spec, Operation.SymbolicLinkFlag flag)
         {
             var splits = spec
                 .Split(new string[] { "->" }, StringSplitOptions.RemoveEmptyEntries)
@@ -677,7 +773,7 @@ Versions/sym-sym-A -> sym-A
             XAssert.AreEqual(2, splits.Length);
             string path = splits[0];
             string reparsePoint = splits[1];
-            return Operation.CreateSymlink(OutFile(path), reparsePoint, Operation.SymbolicLinkFlag.FILE, doNotInfer: true);
+            return Operation.CreateSymlink(OutFile(path), reparsePoint, flag, doNotInfer: true);
         }
 
         private void ValidateDirectoryExists(string dir)

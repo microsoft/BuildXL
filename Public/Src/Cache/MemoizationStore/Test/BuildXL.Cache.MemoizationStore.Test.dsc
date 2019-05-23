@@ -20,7 +20,7 @@ namespace Test {
             ...(BuildXLSdk.isDotNetCoreBuild
                 // TODO: This is to get a .Net Core build, but it may not pass tests
                 ? [importFrom("System.Data.SQLite.Core").withQualifier({targetFramework: "net461"}).pkg]
-                // Gets around issue of 461 needed netstandard 2.0 lib 
+                // Gets around issue of 461 needed netstandard 2.0 lib
                 : [importFrom("System.Data.SQLite.Core").pkg]
             ),
             ContentStore.Hashing.dll,
@@ -35,7 +35,6 @@ namespace Test {
             Library.dll,
 
             importFrom("BuildXL.Utilities").dll,
-
             importFrom("System.Interactive.Async").pkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],

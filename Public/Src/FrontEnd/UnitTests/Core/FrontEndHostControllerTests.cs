@@ -296,7 +296,7 @@ namespace Test.BuildXL.FrontEnd.Core
                 });
 
             var inMemoryCache = new EngineCache(
-                new InMemoryArtifactContentCache(context),
+                new InMemoryArtifactContentCache(),
                 new InMemoryTwoPhaseFingerprintStore());
             controller.InitializeInternalForTesting(
                 Task.FromResult(new Possible<EngineCache>(inMemoryCache)),

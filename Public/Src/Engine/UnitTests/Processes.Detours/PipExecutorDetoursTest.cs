@@ -211,7 +211,7 @@ namespace Test.BuildXL.Processes.Detours
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = true },
                     pip);
@@ -1595,7 +1595,7 @@ namespace Test.BuildXL.Processes.Detours
                     }
                 };
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip);
@@ -3619,7 +3619,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = true;
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip);
@@ -3770,7 +3770,7 @@ namespace Test.BuildXL.Processes.Detours
                 };
 
                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = true;
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip,
@@ -3850,7 +3850,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = true;
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip);
@@ -4415,7 +4415,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = true;
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip);
@@ -4493,7 +4493,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = true;
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip);
@@ -4885,7 +4885,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = true;
 
-                await AssertProcessSucceeds(
+                await AssertProcessSucceedsAsync(
                     context,
                     sandboxConfiguration,
                     pip);

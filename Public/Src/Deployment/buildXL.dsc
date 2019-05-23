@@ -20,7 +20,7 @@ namespace BuildXL {
             ...(qualifier.targetFramework !== "net472" ? [] : [
                 importFrom("BuildXL.Cache.ContentStore").VfsApplication.exe,
             ]),
-            
+
             // analyzers
             importFrom("BuildXL.Tools").Execution.Analyzer.exe,
             importFrom("BuildXL.Tools").BxlScriptAnalyzer.exe,
@@ -30,25 +30,27 @@ namespace BuildXL {
             ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [{
                 subfolder: r`tools`,
                 contents: [
-                    {
-                        subfolder: r`bxp`,
-                        contents: [
-                            importFrom("BuildXL.Explorer").App.app.appFolder
-                        ]
-                    },
-                    ...(BuildXLSdk.Flags.genVSSolution
+                    ...(BuildXLSdk.Flags.excludeBuildXLExplorer
+                        ? []
+                        : [ {
+                                subfolder: r`bxp`,
+                                contents: [
+                                    importFrom("BuildXL.Explorer").App.app.appFolder
+                                ]
+                            } ] ),
+                    ...(BuildXLSdk.Flags.genVSSolution || BuildXLSdk.Flags.excludeBuildXLExplorer
                         ? []
                         : [ {
                                 subfolder: r`bxp-server`,
-                                    contents: [
+                                contents: [
                                     importFrom("BuildXL.Explorer").Server.withQualifier(
-                                        Object.merge<BuildXLSdk.NetCoreAppQualifier>(qualifier, {targetFramework: "netcoreapp2.2"})
+                                        Object.merge<BuildXLSdk.NetCoreAppQualifier>(qualifier, {targetFramework: "netcoreapp3.0"})
                                     ).exe
                                 ]
                             } ] ),
                     {
                         subfolder: r`MsBuildGraphBuilder`,
-                        contents: qualifier.targetFramework === "netcoreapp2.2" ? [] : [
+                        contents: BuildXLSdk.isDotNetCoreBuild ? [] : [
                             // If the current qualifier is full framework, this tool has to be built with 472
                             importFrom("BuildXL.Tools").MsBuildGraphBuilder.withQualifier(
                                 Object.merge<(typeof qualifier) & {targetFramework: "net472"}>(qualifier, {targetFramework: "net472"})).exe
@@ -86,7 +88,7 @@ namespace BuildXL {
         ]
     };
 
-    const frameworkSpecificPart = qualifier.targetFramework === "netcoreapp2.2"
+    const frameworkSpecificPart = BuildXLSdk.isDotNetCoreBuild
         ? qualifier.targetRuntime
         : qualifier.targetFramework;
 

@@ -610,6 +610,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void StorageCacheCleanDirectoryOutputError(LoggingContext loggingContext, string pipDescription, string destinationPath, string errorMessage);
 
         [GeneratedEvent(
+            (ushort)LogEventId.StorageSymlinkDirInOutputDirectoryWarning,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.Storage,
+            Message = "[{pipDescription}] Pip produced a directory symlink or junction'{symlinkPath}', which is not supported. The pip will not be cached.")]
+        public abstract void StorageSymlinkDirInOutputDirectoryWarning(LoggingContext loggingContext, string pipDescription, string symlinkPath);
+
+        [GeneratedEvent(
             (ushort)LogEventId.StorageRemoveAbsentFileOutputWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
@@ -4266,7 +4275,6 @@ namespace BuildXL.Scheduler.Tracing
             string directoryPath,
             string pipDescription,
             string deletedPaths);
-
     }
 }
 #pragma warning restore CA1823 // Unused field

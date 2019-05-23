@@ -673,6 +673,12 @@ namespace BuildXL
                 Contract.Assert(rootAssembly != null, "Could not look up entry assembly");
 
                 string pathToProcess = Path.Combine(serverDeployment.DeploymentPath, new FileInfo(AssemblyHelper.GetAssemblyLocation(rootAssembly)).Name);
+                if (pathToProcess.EndsWith(".dll"))
+                {
+                    pathToProcess = OperatingSystemHelper.IsUnixOS
+                        ? Path.GetFileNameWithoutExtension(pathToProcess)
+                        : Path.ChangeExtension(pathToProcess, "exe");
+                }
 
                 StartupParameters newServerParameters = StartupParameters.CreateForNewAppServer(
                     uniqueAppName,

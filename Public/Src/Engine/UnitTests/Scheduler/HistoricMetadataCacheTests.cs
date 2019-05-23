@@ -183,7 +183,7 @@ namespace Test.BuildXL.Scheduler
             Func<HistoricMetadataCache, Task> loadTask = null)
         {
             context = BuildXLContext.CreateInstanceForTesting();
-            memoryCache = new InMemoryArtifactContentCache(context);
+            memoryCache = new InMemoryArtifactContentCache();
             cache = new HistoricMetadataCache(
                 loggingContext,
                 new EngineCache(

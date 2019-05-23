@@ -37,7 +37,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Specifies the factory for creating the cache to use.
         /// </summary>
-        public Func<PipExecutionContext, EngineCache> CacheFactory { get; set; }
+        public Func<EngineCache> CacheFactory { get; set; }
 
         /// <summary>
         /// The scheduler used by the Engine

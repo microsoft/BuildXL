@@ -136,13 +136,16 @@ export function isBinary(item: Reference) : item is Binary {
 @@public
 export function isAssembly(item: Reference) : item is Assembly {
     return item["name"] !== undefined &&
-    (item["compile"] !== undefined || item["runtime"] !== undefined) &&
-    item["contents"] === undefined; // Exclude nuget packages
+           (item["compile"] !== undefined || item["runtime"] !== undefined) &&
+           item["contents"] === undefined; // Exclude nuget packages
 }
 
 @@public
-export function isManagedPackage(item: NugetPackage) : item is ManagedNugetPackage {
-    return item["compile"] !== undefined || item["runtime"] !== undefined || item["runtimeContent"] !== undefined || item["analyzers"] !== undefined;
+export function isManagedPackage(item: any) : item is ManagedNugetPackage {
+    return item["compile"] !== undefined ||
+           item["runtime"] !== undefined ||
+           item["runtimeContent"] !== undefined ||
+           item["analyzers"] !== undefined;
 }
 
 @@public

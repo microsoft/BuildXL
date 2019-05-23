@@ -171,7 +171,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 if (expectSuccess)
                 {
-                    await AssertProcessSucceeds(
+                    await AssertProcessSucceedsAsync(
                         context,
                         config,
                         pip);

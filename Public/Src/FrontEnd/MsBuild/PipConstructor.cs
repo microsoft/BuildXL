@@ -250,6 +250,37 @@ namespace BuildXL.FrontEnd.MsBuild
                     projectOutputs = MSBuildProjectOutputs.CreateIsolated(outputDirectories, cacheFileArtifact);
                 }
                 
+                // If the project is not implementing the target protocol, emit corresponding warn/verbose 
+                if (!project.ImplementsTargetProtocol)
+                {
+                    if (project.ProjectReferences.Count != 0)
+                    {
+                        // Let's warn about this. Targets of the referenced projects may not be accurate
+                        Tracing.Logger.Log.ProjectIsNotSpecifyingTheProjectReferenceProtocol(
+                            m_context.LoggingContext,
+                            Location.FromFile(project.FullPath.ToString(PathTable)),
+                            project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
+                    }
+                    else
+                    { 
+                        // Just a verbose message in this case
+                        Tracing.Logger.Log.LeafProjectIsNotSpecifyingTheProjectReferenceProtocol(
+                            m_context.LoggingContext,
+                            Location.FromFile(project.FullPath.ToString(PathTable)),
+                            project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
+                    }
+                }
+
+                // Warn if default targets were appended to the targets to execute
+                if (project.PredictedTargetsToExecute.IsDefaultTargetsAppended)
+                {
+                    Tracing.Logger.Log.ProjectPredictedTargetsAlsoContainDefaultTargets(
+                            m_context.LoggingContext,
+                            Location.FromFile(project.FullPath.ToString(PathTable)),
+                            project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable),
+                            $"[{string.Join(";", project.PredictedTargetsToExecute.AppendedDefaultTargets)}]");
+                }
+
                 m_processOutputsPerProject[project] = projectOutputs;
 
                 failureDetail = string.Empty;
@@ -311,7 +342,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 // Add all known explicit inputs from project references. But rule out
                 // projects that have a known empty list of targets: those projects are not scheduled, so
                 // there is nothing to consume from them.
-                references = project.ProjectReferences.Where(projectReference => !projectReference.PredictedTargetsToExecute.TargetsAreKnownToBeEmpty);
+                references = project.ProjectReferences.Where(projectReference => projectReference.PredictedTargetsToExecute.Targets.Count != 0);
             }
 
             var argumentsBuilder = processBuilder.ArgumentsBuilder;
@@ -354,7 +385,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 return;
             }
 
-            foreach (ProjectWithPredictions dependency in project.ProjectReferences.Where(projectReference => !projectReference.PredictedTargetsToExecute.TargetsAreKnownToBeEmpty))
+            foreach (ProjectWithPredictions dependency in project.ProjectReferences.Where(projectReference => projectReference.PredictedTargetsToExecute.Targets.Count != 0))
             {
                 accumulatedDependencies.Add(dependency);
                 ComputeTransitiveDependenciesFor(dependency, accumulatedDependencies);
@@ -570,39 +601,13 @@ namespace BuildXL.FrontEnd.MsBuild
             }
 
             // Targets to execute.
-            // If the prediction is available, there should be at least one target (otherwise it makes no sense to schedule the project, and we should have caught this earlier)
-            // If the prediction is not available, we fallback to call default targets (which means not passing any specific /t:). A more strict policy would be to bail out
-            // here saying that the project is not complying to the target protocol specification. We leave it relaxed for now, but we log it.
-            // https://github.com/Microsoft/msbuild/blob/master/documentation/specs/static-graph.md
-            if (project.PredictedTargetsToExecute.IsPredictionAvailable)
+            var targets = project.PredictedTargetsToExecute.Targets;
+            Contract.Assert(targets.Count > 0);
+            foreach (string target in targets)
             {
-                var targets = project.PredictedTargetsToExecute.Targets;
-                Contract.Assert(targets.Count > 0);
-                foreach (string target in targets)
-                {
-                    pipDataBuilder.Add(PipDataAtom.FromString($"/t:{target}"));
-                }
+                pipDataBuilder.Add(PipDataAtom.FromString($"/t:{target}"));
             }
-            else
-            {
-                // The prediction for the targets to execute is not available. We need to log this.
-                if (project.ProjectReferences.Count > 0)
-                {
-                    Tracing.Logger.Log.ProjectIsNotSpecifyingTheProjectReferenceProtocol(
-                        m_context.LoggingContext,
-                        Location.FromFile(project.FullPath.ToString(PathTable)),
-                        project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
-                }
-                else
-                {
-                    // If the project has no references, then we log it as an informational message rather than a warning.
-                    Tracing.Logger.Log.LeafProjectIsNotSpecifyingTheProjectReferenceProtocol(
-                        m_context.LoggingContext,
-                        Location.FromFile(project.FullPath.ToString(PathTable)),
-                        project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
-                }
 
-            }
 
             // Pass the output result cache file if present
             if (outputResultCacheFile != AbsolutePath.Invalid)
@@ -829,12 +834,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 StringBuilder builder = builderWrapper.Instance;
                 builder.Append(projectWithPredictions.FullPath.ToString(PathTable));
                 builder.Append("|");
-                var predictionsAvailable = projectWithPredictions.PredictedTargetsToExecute.IsPredictionAvailable;
-                builder.Append(predictionsAvailable);
-                if (predictionsAvailable)
-                {
-                    builder.Append(string.Join("|", projectWithPredictions.PredictedTargetsToExecute.Targets));
-                }
+                builder.Append(projectWithPredictions.PredictedTargetsToExecute.IsDefaultTargetsAppended);
+                builder.Append(string.Join("|", projectWithPredictions.PredictedTargetsToExecute.Targets));
  
                 builder.Append("|");
                 builder.Append(string.Join("|", projectWithPredictions.GlobalProperties.Select(kvp => kvp.Key + "|" + kvp.Value)));

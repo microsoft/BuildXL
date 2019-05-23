@@ -62,7 +62,8 @@ namespace Test.BuildXL.FrontEnd.Ninja
             Assert.True(File.Exists(Path.Combine(SourceRoot, DefaultProjectRoot, "second.txt")));
         }
 
-        [Fact]
+        [Fact (Skip = "This test needs the double write policy to be set to unsafe. Deleting from a shared opaque is blocked," +
+            "this was working before just because a bug was there.")]
         public void EndToEndExecutionWithDeletion()
         {
             var config = BuildAndGetConfiguration(CreateWriteReadDeleteProject("first.txt", "second.txt"));
@@ -74,8 +75,6 @@ namespace Test.BuildXL.FrontEnd.Ninja
             // We should find two process pips
             var processPips = pipGraph.RetrievePipsOfType(PipType.Process).ToList();
             Assert.Equal(2, processPips.Count);
-
-
 
             // Make sure pips ran and did its job
             Assert.False(File.Exists(Path.Combine(SourceRoot, DefaultProjectRoot, "first.txt")));

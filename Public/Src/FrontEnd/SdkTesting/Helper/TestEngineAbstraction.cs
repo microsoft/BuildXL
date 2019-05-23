@@ -71,7 +71,9 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
             if (TryGetFrontEndFile(path, "dummyFrontEnd", out stream))
             {
                 var result = await FileContent.ReadFromAsync(stream);
+#pragma warning disable AsyncFixer02
                 stream?.Dispose();
+#pragma warning restore AsyncFixer02
                 return result;
             }
 

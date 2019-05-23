@@ -27,7 +27,7 @@ namespace BuildXL.FrontEnd.Utilities
             string frontEnd,
             FrontEndContext context,
             FrontEndEngineAbstraction engine,
-            IReadOnlyCollection<AbsolutePath> explicitCandidates, 
+            IReadOnlyCollection<AbsolutePath> explicitCandidates,
             out IEnumerable<AbsolutePath> searchLocations,
             Action onEmptyResult = null,
             Action<string> onPathParseFailure = null)
@@ -74,9 +74,9 @@ namespace BuildXL.FrontEnd.Utilities
         ///     beforeLaunch is invoked right before the process is launched
         ///     onResult is invoked after getting a successful result
         /// </summary>>
-        public static async Task<SandboxedProcessResult> RunSandboxedToolAsync(FrontEndContext context, 
-            string pathToTool, 
-            string buildStorageDirectory, 
+        public static async Task<SandboxedProcessResult> RunSandboxedToolAsync(FrontEndContext context,
+            string pathToTool,
+            string buildStorageDirectory,
             FileAccessManifest fileAccessManifest,
             string arguments,
             string workingDirectory,
@@ -125,9 +125,12 @@ namespace BuildXL.FrontEnd.Utilities
                 r =>
                 {
                     // Dispose the registration for the cancellation token once the process is done
+#pragma warning disable AsyncFixer02
                     registration.Dispose();
+#pragma warning restore AsyncFixer02
 
-                    // 
+
+                    //
                     onResult?.Invoke();
 
                     return r.GetAwaiter().GetResult();
@@ -146,7 +149,7 @@ namespace BuildXL.FrontEnd.Utilities
 
             foreach (string environmentVariable in environment.Keys)
             {
-                // Expose as much of the environment as we can -- use the ones overriden by the Engine 
+                // Expose as much of the environment as we can -- use the ones overriden by the Engine
                 if (engine.TryGetBuildParameter(environmentVariable, frontEndName, out var value))
                 {
                     engineEnvironment[environmentVariable] = value;
@@ -229,7 +232,7 @@ namespace BuildXL.FrontEnd.Utilities
                         // Two things are happening here: we want to register if the file is present or absent. Engine.FileExists takes
                         // care of that. And in the case the file exists, record the content.
                         // There are apparently some repos that create and delete files during graph construction :(
-                        // So we cannot trust detours and check for IsNonexistent on the access itself. Even though there were read/write accesses on a given file, 
+                        // So we cannot trust detours and check for IsNonexistent on the access itself. Even though there were read/write accesses on a given file,
                         // the file may not exist at this point
                         if (engine.FileExists(path))
                         {

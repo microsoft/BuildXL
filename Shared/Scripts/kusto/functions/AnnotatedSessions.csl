@@ -43,7 +43,7 @@ cluster('cbuild').database('Domino').dominoinvocation
     EnvironmentShort = extract("([^;]*)", 1 , Environment),
     CBQueue = extract("(cloudBuildQueue=)([^;]*)", 2 , Environment),
     Infra = case(
-        UserName == "_qcloud1" or UserName == "_qcloud2" , "CB",
+        UserName == "_qcloud1" or UserName == "_qcloud2" or UserName startswith "CBA" , "CB",
         (Environment contains "Dev" or Environment contains "WrapItUp") and UserName != "tpctext" and UserName != "y-arnold", "Dev",
         Environment contains "Self" and UserName != "tsebuild", "Dev",
         "Lab")
@@ -94,7 +94,8 @@ cluster('cbuild').database('Domino').dominocatastrophicfailure
     isnotempty(Exception), "Crash",
     isnotempty(ErrorBucket_InternalErrorOnly), ErrorBucket_InternalErrorOnly,
     isnotempty(ExitKind), "",
-    "MissingDominoCompletionEvent")
+    // When there are multiple internal error buckets for the same build we arbitrary take the min one. Make sure MissingDominoCompletionEvent is the last choice
+    "zz_MissingDominoCompletionEvent") 
         // Parse the exception for relevant pieces to generate a suggested bug name
 | extend ExceptionDescription = replace(matchNumsRegex, numsReplacement, (replace(matchPathsRegex, pathsReplacement, extract(exceptionRegex, 1, Exception))))
 | extend BuildXlFunctionName = extract(buildXlFuncNameRegex, 1, Exception)

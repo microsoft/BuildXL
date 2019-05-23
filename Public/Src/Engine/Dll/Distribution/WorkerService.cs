@@ -202,22 +202,31 @@ namespace BuildXL.Engine.Distribution
 
                 using (m_services.Counters.StartStopwatch(DistributionCounter.ReportPipsCompletedDuration))
                 {
-                    m_masterClient.NotifyAsync(new WorkerNotificationArgs
+                    var callResult = m_masterClient.NotifyAsync(new WorkerNotificationArgs
                     {
                         WorkerId = WorkerId,
                         CompletedPips = m_executionResultList.Select(a => a.SerializedData).ToList()
                     },
                     m_executionResultList.Select(a => a.SemiStableHash).ToList()).GetAwaiter().GetResult();
 
-                    foreach (var result in m_executionResultList)
+                    if (callResult.Succeeded)
                     {
-                        m_workerPipStateManager.Transition(result.PipId, WorkerPipState.Reported);
-                        Tracing.Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, result.SemiStableHash, ((PipExecutionStep)result.SerializedData.Step).ToString());
-                    }
+                        foreach (var result in m_executionResultList)
+                        {
+                            m_workerPipStateManager.Transition(result.PipId, WorkerPipState.Reported);
+                            Tracing.Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, result.SemiStableHash, ((PipExecutionStep)result.SerializedData.Step).ToString());
+                        }
 
-                    numBatchesSent++;
+                        numBatchesSent++;
+                    }
+                    else
+                    {
+                        // Fire-forget exit call with failure.
+                        // If we fail to send notification to master, the worker should fail.
+                        ExitAsync(timedOut: false, failure: "Notify event failed to send to master");
+                        break;
+                    }
                 }
-                
             }
 
             m_services.Counters.AddToCounter(DistributionCounter.BuildResultBatchesSentToMaster, numBatchesSent);
@@ -309,6 +318,16 @@ namespace BuildXL.Engine.Distribution
             m_notifyMasterExecutionLogTarget?.Dispose();
         }
 
+
+        /// <nodoc/>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
+        public async void ExitAsync(bool timedOut, string failure)
+        {
+            await Task.Yield();
+            Exit(timedOut, failure);
+        }
+
         /// <nodoc/>
         public void Exit(bool timedOut, string failure)
         {
@@ -360,9 +379,9 @@ namespace BuildXL.Engine.Distribution
             return true;
         }
 
-        internal void AttachCore(BuildStartData buildStartData)
+        internal void AttachCore(BuildStartData buildStartData, string masterName)
         {
-            Logger.Log.DistributionAttachReceived(m_appLoggingContext, buildStartData.SessionId, buildStartData.SenderName, buildStartData.SenderId);
+            Logger.Log.DistributionAttachReceived(m_appLoggingContext, buildStartData.SessionId, masterName);
             BuildStartData = buildStartData;
 
             // The app-level logging context has a wrong session id. Fix it now that we know the right one.
@@ -391,6 +410,7 @@ namespace BuildXL.Engine.Distribution
             m_attachCompletionSource.TrySetResult(true);
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
         private async Task<bool> SendAttachCompletedAfterProcessBuildRequestStartedAsync()
         {
             if (!m_isGrpcEnabled)

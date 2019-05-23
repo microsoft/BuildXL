@@ -182,7 +182,8 @@ namespace BuildXL.Processes
             int remainingUserRetryCount = 0,
             bool isQbuildIntegrated = false,
             VmInitializer vmInitializer = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            SubstituteProcessExecutionInfo shimInfo = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -225,6 +226,7 @@ namespace BuildXL.Processes
                     // since multiple pips can have no provenance, SemiStableHash is not always unique across all pips
                     PipId = m_pip.SemiStableHash != 0 ? m_pip.SemiStableHash : m_pip.PipId.Value,
                     QBuildIntegrated = isQbuildIntegrated,
+                    SubstituteProcessExecutionInfo = shimInfo,
                 };
 
             if (!sandBoxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses)
@@ -840,7 +842,7 @@ namespace BuildXL.Processes
                     Tracing.Logger.Log.PipProcessStartExternalTool(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), externalSandboxedProcessExecutor.ExecutablePath);
 
                     process = await ExternalSandboxedProcess.StartAsync(
-                        info, 
+                        info,
                         spi => new ExternalToolSandboxedProcess(spi, externalSandboxedProcessExecutor));
                 }
                 else
@@ -925,7 +927,9 @@ namespace BuildXL.Processes
                 finally
                 {
                     m_activeProcess = null;
+#pragma warning disable AsyncFixer02
                     cancellationTokenRegistration.Dispose();
+#pragma warning restore AsyncFixer02
                     process.Dispose();
                 }
 
@@ -950,7 +954,7 @@ namespace BuildXL.Processes
         /// These various validations that the detours communication channel
         /// </summary>
         private SandboxedProcessPipExecutionResult ValidateDetoursCommunication(
-            SandboxedProcessPipExecutionResult result, 
+            SandboxedProcessPipExecutionResult result,
             int lastMessageCount,
             bool isMessageSemaphoreCountCreated)
         {
@@ -1547,7 +1551,10 @@ namespace BuildXL.Processes
                 m_detoursFailuresFile = GetDetoursInternalErrorFilePath(loggingContext);
 
                 // Delete the file
-                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(m_detoursFailuresFile, tempDirectoryCleaner: m_tempDirectoryCleaner));
+                if (FileUtilities.FileExistsNoFollow(m_detoursFailuresFile))
+                {
+                    Analysis.IgnoreResult(FileUtilities.TryDeleteFile(m_detoursFailuresFile, tempDirectoryCleaner: m_tempDirectoryCleaner));
+                }
 
                 if (!string.IsNullOrEmpty(m_detoursFailuresFile))
                 {
@@ -1557,7 +1564,7 @@ namespace BuildXL.Processes
                     }
 
                     // TODO: named semaphores are not supported in NetStandard2.0
-                    if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal 
+                    if ((!m_pip.RequiresAdmin || m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal) 
                         && checkMessageCount 
                         && !OperatingSystemHelper.IsUnixOS)
                     {
@@ -1813,7 +1820,11 @@ namespace BuildXL.Processes
             m_fileAccessManifest.AddPath(
                 path,
                 values: FileAccessPolicy.AllowRead | FileAccessPolicy.AllowReadIfNonexistent | FileAccessPolicy.ReportAccess,
-                mask: ~FileAccessPolicy.AllowRealInputTimestamps);
+                // The file dependency may be under the cone of a shared opaque, which will give write access
+                // to it. Explicitly block this (no need to check if this is under a shared opaque, since otherwise
+                // it didn't have write access to begin with). Observe we already know this is not a rewrite since dynamic rewrites
+                // are not allowed by construction under shared opaques.
+                mask: ~FileAccessPolicy.AllowRealInputTimestamps & ~FileAccessPolicy.AllowWrite);
 
             allInputPathsUnderSharedOpaques.Add(path);
 
@@ -1895,10 +1906,21 @@ namespace BuildXL.Processes
             // Note that they would perhaps fail otherwise (simplifies the observed access checks in the first place).
 
             var path = dependency.Path;
+
+            bool pathIsUnderSharedOpaque = TryGetContainingSharedOpaqueRoot(path, getOutmostRoot: true, out var sharedOpaqueRoot);
+
             m_fileAccessManifest.AddPath(
                 path,
                 values: FileAccessPolicy.AllowRead | FileAccessPolicy.AllowReadIfNonexistent,
-                mask: m_excludeReportAccessMask & ~FileAccessPolicy.AllowRealInputTimestamps); // Make sure we fake the input timestamp
+                // Make sure we fake the input timestamp
+                // The file dependency may be under the cone of a shared opaque, which will give write access
+                // to it. Explicitly block this, since we want inputs to not be written. Observe we already know 
+                // this is not a rewrite.
+                mask: m_excludeReportAccessMask &
+                      ~FileAccessPolicy.AllowRealInputTimestamps &
+                      (pathIsUnderSharedOpaque ? 
+                          ~FileAccessPolicy.AllowWrite: 
+                          FileAccessPolicy.MaskNothing)); 
 
             allInputPaths.Add(path);
 
@@ -1906,7 +1928,7 @@ namespace BuildXL.Processes
             // walking that path upwards get added to the manifest explicitly, so timestamp faking happens for them
             // We need the outmost matching root in case shared opaques are nested within each other: timestamp faking
             // needs to happen for all directories under all shared opaques
-            if (TryGetContainingSharedOpaqueRoot(path, getOutmostRoot: true, out var sharedOpaqueRoot))
+            if (pathIsUnderSharedOpaque)
             {
                 AddDirectoryAncestorsToManifest(path, allInputPaths, sharedOpaqueRoot);
             }
@@ -3123,7 +3145,7 @@ namespace BuildXL.Processes
             var maybeResult = FileUtilities.TryProbePathExistence(path, followSymlink: false);
             var existsAsFile = maybeResult.Succeeded && maybeResult.Result == PathExistence.ExistsAsFile;
 
-            // If file outputs are not redirected, this is simply file existence. Otherwise, we have 
+            // If file outputs are not redirected, this is simply file existence. Otherwise, we have
             // to check that the file is not a WCI tombstone, since this means the file is not really there.
             return existsAsFile && !(fileOutputsAreRedirected && FileUtilities.IsWciTombstoneFile(path));
         }

@@ -178,25 +178,20 @@ namespace BuildXL.Cache.VerticalAggregator
         /// <inheritdoc />
         public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
         {
-            Contract.Requires(cacheData != null);
-            var possibleCacheConfig = cacheData.Create<Config>();
-
-            if (!possibleCacheConfig.Succeeded)
+            return CacheConfigDataValidator.ValidateConfiguration<Config>(cacheData, cacheAggregatorConfig =>
             {
-                return new[] { possibleCacheConfig.Failure };
-            }
+                var failures = new List<Failure>();
 
-            Config cacheAggregatorConfig = possibleCacheConfig.Result;
+                failures.AddRange(
+                    CacheFactory.ValidateConfig(cacheAggregatorConfig.LocalCache)
+                        .Select(failure => new Failure<string>($"{nameof(cacheAggregatorConfig.LocalCache)} validation failed", failure)));
 
-            var localCacheFailures =
-                CacheFactory.ValidateConfig(cacheAggregatorConfig.LocalCache)
-                    .Select(failure => new Failure<string>("LocalCache validation failed", failure));
+                failures.AddRange(
+                    CacheFactory.ValidateConfig(cacheAggregatorConfig.RemoteCache)
+                        .Select(failure => new Failure<string>($"{nameof(cacheAggregatorConfig.RemoteCache)} validation failed", failure)));
 
-            var remoteCacheFailures =
-                CacheFactory.ValidateConfig(cacheAggregatorConfig.RemoteCache)
-                    .Select(failure => new Failure<string>("RemoteCache validation failed", failure));
-
-            return localCacheFailures.Concat(remoteCacheFailures).ToArray();
+                return failures;
+            });
         }
     }
 }

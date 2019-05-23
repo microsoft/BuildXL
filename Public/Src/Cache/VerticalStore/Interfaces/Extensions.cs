@@ -208,11 +208,11 @@ namespace BuildXL.Cache.Interfaces
         /// <summary>
         /// Adds a failure if the object is null.
         /// </summary>
-        public static void AddFailureIfNullOrEmpty(this IList<Failure> list, string str, string name)
+        public static void AddFailureIfNullOrWhitespace(this IList<Failure> list, string str, string name)
         {
-            if (string.IsNullOrEmpty(str))
+            if (string.IsNullOrWhiteSpace(str))
             {
-                list.Add(new Failure<string>($"{name} cannot be null or empty."));
+                list.Add(new Failure<string>($"{name} cannot be null or whitespace."));
             }
         }
     }

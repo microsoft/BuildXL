@@ -113,25 +113,20 @@ namespace BuildXL.Cache.Compositing
         /// <inheritdoc />
         public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
         {
-            Contract.Requires(cacheData != null);
-
-            var possibleCacheConfig = cacheData.Create<Config>();
-            if (!possibleCacheConfig.Succeeded)
+            return CacheConfigDataValidator.ValidateConfiguration<Config>(cacheData, compositingConfig =>
             {
-                return new[] { possibleCacheConfig.Failure };
-            }
+                var failures = new List<Failure>();
 
-            Config compositingConfig = possibleCacheConfig.Result;
+                failures.AddRange(
+                    CacheFactory.ValidateConfig(compositingConfig.MetadataCache)
+                        .Select(failure => new Failure<string>($"{nameof(compositingConfig.MetadataCache)} validation failed", failure)));
 
-            var metadataCacheFailures =
-                CacheFactory.ValidateConfig(compositingConfig.MetadataCache)
-                    .Select(failure => new Failure<string>($"{nameof(compositingConfig.MetadataCache)} validation failed", failure));
+                failures.AddRange(
+                    CacheFactory.ValidateConfig(compositingConfig.CasCache)
+                        .Select(failure => new Failure<string>($"{nameof(compositingConfig.CasCache)} validation failed", failure)));
 
-            var casCacheFailures =
-                CacheFactory.ValidateConfig(compositingConfig.CasCache)
-                    .Select(failure => new Failure<string>($"{nameof(compositingConfig.CasCache)} validation failed", failure));
-
-            return metadataCacheFailures.Concat(casCacheFailures).ToArray();
+                return failures;
+            });
         }
     }
 }

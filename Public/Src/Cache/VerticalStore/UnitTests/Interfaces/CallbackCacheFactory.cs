@@ -46,19 +46,7 @@ namespace BuildXL.Cache.Interfaces.Test
         }
         
         /// <inheritdoc />
-        public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData) 
-        {
-            Contract.Requires(cacheData != null);
-
-            var possibleCacheConfig = cacheData.Create<Config>();
-            if (!possibleCacheConfig.Succeeded)
-            {
-                return new [] { possibleCacheConfig.Failure };
-            }
-
-            Config cacheConfig = possibleCacheConfig.Result;
-
-            return CacheFactory.ValidateConfig(cacheConfig.EncapsulatedCache);
-        }
+        public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
+            => CacheConfigDataValidator.ValidateConfiguration<Config>(cacheData, cacheConfig => CacheFactory.ValidateConfig(cacheConfig.EncapsulatedCache));
     }
 }

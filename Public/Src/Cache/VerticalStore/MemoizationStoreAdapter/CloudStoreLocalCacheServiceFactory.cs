@@ -235,22 +235,14 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <inheritdoc />
         public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
         {
-            Contract.Requires(cacheData != null);
-
-            var possibleCacheConfig = cacheData.Create<Config>();
-            if (!possibleCacheConfig.Succeeded)
+            return CacheConfigDataValidator.ValidateConfiguration<Config>(cacheData, cacheConfig =>
             {
-                return new[] { possibleCacheConfig.Failure };
-            }
-
-            Config cacheConfig = possibleCacheConfig.Result;
-
-            var failures = new List<Failure>();
-            failures.AddFailureIfNullOrEmpty(cacheConfig.CacheId, nameof(cacheConfig.CacheId));
-            failures.AddFailureIfNullOrEmpty(cacheConfig.CacheName, nameof(cacheConfig.CacheName));
-            failures.AddFailureIfNullOrEmpty(cacheConfig.MetadataLogPath, nameof(cacheConfig.MetadataLogPath));
-
-            return failures;
+                var failures = new List<Failure>();
+                failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheId, nameof(cacheConfig.CacheId));
+                failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheName, nameof(cacheConfig.CacheName));
+                failures.AddFailureIfNullOrWhitespace(cacheConfig.MetadataLogPath, nameof(cacheConfig.MetadataLogPath));
+                return failures;
+            });
         }
     }
 }

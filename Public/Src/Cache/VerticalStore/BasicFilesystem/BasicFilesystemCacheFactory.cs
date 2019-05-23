@@ -173,27 +173,20 @@ namespace BuildXL.Cache.BasicFilesystem
         /// <inheritdoc />
         public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
         {
-            Contract.Requires(cacheData != null);
-
-            var possibleCacheConfig = cacheData.Create<Config>();
-            if (!possibleCacheConfig.Succeeded)
+            return CacheConfigDataValidator.ValidateConfiguration<Config>(cacheData, cacheConfig =>
             {
-                return new[] { possibleCacheConfig.Failure };
-            }
+                var failures = new List<Failure>();
 
-            Config cacheConfig = possibleCacheConfig.Result;
+                failures.AddFailureIfNull(cacheConfig.CacheId, nameof(cacheConfig.CacheId));
+                failures.AddFailureIfNull(cacheConfig.CacheRootPath, nameof(cacheConfig.CacheRootPath));
 
-            var failures = new List<Failure>();
+                if (cacheConfig.IsAuthoritative && !cacheConfig.StrictMetadataCasCoupling)
+                {
+                    failures.Add(new IncorrectJsonConfigDataFailure($"If {nameof(cacheConfig.IsAuthoritative)} is enabled, {nameof(cacheConfig.StrictMetadataCasCoupling)} must be enabled as well."));
+                }
 
-            failures.AddFailureIfNull(cacheConfig.CacheId, nameof(cacheConfig.CacheId));
-            failures.AddFailureIfNull(cacheConfig.CacheRootPath, nameof(cacheConfig.CacheRootPath));
-
-            if (cacheConfig.IsAuthoritative && !cacheConfig.StrictMetadataCasCoupling)
-            {
-                failures.Add(new IncorrectJsonConfigDataFailure("If IsAuthoritative is enabled, StrictMetadataCasCoupling must be enabled as well."));
-            }
-
-            return failures;
+                return failures;
+            });
         }
     }
 }

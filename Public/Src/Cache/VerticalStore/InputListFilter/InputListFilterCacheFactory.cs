@@ -144,46 +144,39 @@ namespace BuildXL.Cache.InputListFilter
         /// <inheritdoc />
         public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
         {
-            Contract.Requires(cacheData != null);
-
-            var possibleCacheConfig = cacheData.Create<Config>();
-            if (!possibleCacheConfig.Succeeded)
+            return CacheConfigDataValidator.ValidateConfiguration<Config>(cacheData, config =>
             {
-                return new[] { possibleCacheConfig.Failure };
-            }
-
-            Config config = possibleCacheConfig.Result;
-
-            var failures = new List<Failure>();
-            if (!string.IsNullOrWhiteSpace(config.MustInclude))
-            {
-                try
+                var failures = new List<Failure>();
+                if (!string.IsNullOrWhiteSpace(config.MustInclude))
                 {
-                    var mustIncludeRegex = new Regex(config.MustInclude, RegexOptions.Compiled);
+                    try
+                    {
+                        var mustIncludeRegex = new Regex(config.MustInclude, RegexOptions.Compiled);
+                    }
+                    catch (Exception e)
+                    {
+                        failures.Add(new RegexFailure(config.MustInclude, e));
+                    }
                 }
-                catch (Exception e)
-                {
-                    failures.Add(new RegexFailure(config.MustInclude, e));
-                }
-            }
 
-            if (!string.IsNullOrWhiteSpace(config.MustNotInclude))
-            {
-                try
+                if (!string.IsNullOrWhiteSpace(config.MustNotInclude))
                 {
-                    var mustNotIncludeRegex = new Regex(config.MustNotInclude, RegexOptions.Compiled);
+                    try
+                    {
+                        var mustNotIncludeRegex = new Regex(config.MustNotInclude, RegexOptions.Compiled);
+                    }
+                    catch (Exception e)
+                    {
+                        failures.Add(new RegexFailure(config.MustNotInclude, e));
+                    }
                 }
-                catch (Exception e)
-                {
-                    failures.Add(new RegexFailure(config.MustNotInclude, e));
-                }
-            }
 
-            return CacheFactory.ValidateConfig(config.FilteredCache)
-                .Select(failure => new Failure<string>($"{nameof(config.FilteredCache)} validation failed.", failure))
-                .Concat(failures)
-                .ToArray();
+                failures.AddRange(
+                    CacheFactory.ValidateConfig(config.FilteredCache)
+                        .Select(failure => new Failure<string>($"{nameof(config.FilteredCache)} validation failed.", failure)));
 
+                return failures;
+            });
         }
     }
 }

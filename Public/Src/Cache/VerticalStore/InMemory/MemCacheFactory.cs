@@ -69,6 +69,6 @@ namespace BuildXL.Cache.InMemory
         }
 
         /// <inheritdoc />
-        public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData) => new Failure[] { };
+        public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData) => CacheConfigDataValidator.ValidateConfiguration<Config>(cacheData, cacheConfig => new Failure[] { });
     }
 }

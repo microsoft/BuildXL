@@ -11,10 +11,10 @@ using FluentAssertions;
 
 namespace BuildXL.Cache.ContentStore.Test.Stores
 {
-    public class ContentDirectorySnapshotTests
+    // TODO: fix bug 1541363
+    class ContentDirectorySnapshotTests
     {
-        // TODO: fix bug 1541363
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Theory]
         [InlineData(100)]
         public void OrderedEnumerationIsCorrect(int snapshotSize)
         {
@@ -27,8 +27,7 @@ namespace BuildXL.Cache.ContentStore.Test.Stores
             hashesFromStore.SequenceEqual(snapshot.Select(x => x.Hash)).Should().BeTrue();
         }
 
-        // TODO: fix bug 1541363
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Theory]
         [InlineData(100)]
         public void GroupsByHashProperly(int snapshotSize)
         {

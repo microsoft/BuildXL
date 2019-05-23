@@ -161,7 +161,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             Counter retryCounter);
 
         /// <inheritdoc />
-        public async Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(
+        public Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(
             Context context,
             IReadOnlyList<ContentHashWithPath> hashesWithPaths,
             FileAccessMode accessMode,
@@ -170,15 +170,15 @@ namespace BuildXL.Cache.ContentStore.Sessions
             CancellationToken token,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            // TODO: add support for PerformOperation with Task<IEnumerable<Task<Indexed<ResultBase>>>>
-
-            using (var cancellableContext = TrackShutdown(context, token))
-            {
-                using (_counters[ContentSessionBaseCounters.PlaceFileBulk].Start())
-                {
-                    return await PlaceFileCoreAsync(cancellableContext, hashesWithPaths, accessMode, replacementMode, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PlaceFileBulkRetries]);
-                }
-            }
+            return WithOperationContext(
+                context,
+                token,
+                operationContext => operationContext.PerformNonResultOperationAsync(
+                    Tracer,
+                    () => PlaceFileCoreAsync(operationContext, hashesWithPaths, accessMode, replacementMode, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PlaceFileBulkRetries]),
+                    traceOperationStarted: false,
+                    traceOperationFinished: false,
+                    counter: _counters[ContentSessionBaseCounters.PlaceFileBulk]));
         }
 
         /// <nodoc />

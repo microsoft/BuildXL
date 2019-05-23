@@ -10,8 +10,8 @@ namespace Vsts {
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Net.Http.dll,
             ]),
-                importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
-                importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
+            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
+            importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
             importFrom("WindowsAzure.Storage").pkg,

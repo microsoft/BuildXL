@@ -13,7 +13,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Vsts;
 using BuildXL.Storage;
-#if !FEATURE_CORECLR
+#if !PLATFORM_OSX
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 #else
 using System.Net;
@@ -50,7 +50,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
 
             VssCredentialsFactory credentialsFactory;
 
-#if !FEATURE_CORECLR
+#if !PLATFORM_OSX
             credentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper(s => logger.Debug(s)));
 #else
             var secPat = new SecureString();

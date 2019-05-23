@@ -123,7 +123,7 @@ namespace Test.BuildXL.Processes.Detours
             m_output.WriteLine($"stderr: {stderr}");
             Assert.Equal(0, stderr.Length);
 
-            string shimOutput = "TestShim: Entered with command line: " + childShimArgs;
+            string shimOutput = "TestShim: Entered with command line: ";
             int indexOfShim = stdout.IndexOf(shimOutput, StringComparison.Ordinal);
             Assert.True(indexOfShim > 0, shimOutput);
         }

@@ -123,6 +123,8 @@ namespace Test.BuildXL.Processes.Detours
             m_output.WriteLine($"stderr: {stderr}");
             Assert.Equal(0, stderr.Length);
 
+            // Not worth trying to match on the expected tool command line,
+            // the test shim on netcore appears as a .dll instead of a .exe.
             string shimOutput = "TestShim: Entered with command line: ";
             int indexOfShim = stdout.IndexOf(shimOutput, StringComparison.Ordinal);
             Assert.True(indexOfShim > 0, shimOutput);

@@ -10,7 +10,6 @@ namespace BuildXL.Cache.ContentStore.Test.Stores
     // TODO: fix bug 1541363
     public class ContentDirectorySnapshotTests
     {
-        
         [Fact]
         public void SnapshotShouldNotFailWithOutOfRange()
         {

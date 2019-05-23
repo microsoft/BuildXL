@@ -344,8 +344,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 innerCts => BlobStoreHttpClient.TryReferenceAsync(references, cancellationToken: innerCts),
                 context.Token).ConfigureAwait(false);
 
-            _counters[BackingContentStore.SessionCounters.PinSatisfiedFromRemote].Increment();
-
             // There's 1-1 mapping between given content hashes and blob ids
             var remoteResults = blobIds
                 .Select((blobId, i) =>
@@ -354,12 +352,13 @@ namespace BuildXL.Cache.ContentStore.Vsts
                         ? PinResult.ContentNotFound
                         : PinResult.Success;
                     if (pinResult.Succeeded)
-                        {
-                            BackingContentStoreExpiryCache.Instance.AddExpiry(contentHashes[i], endDateTime);
-                        }
+                    {
+                        BackingContentStoreExpiryCache.Instance.AddExpiry(contentHashes[i], endDateTime);
+                        _counters[BackingContentStore.SessionCounters.PinSatisfiedFromRemote].Increment();
+                    }
 
-                        return pinResult.WithIndex(i);
-                    });
+                    return pinResult.WithIndex(i);
+                });
 
             return remoteResults.AsTasks();
         }

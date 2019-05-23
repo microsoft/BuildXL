@@ -36,7 +36,7 @@ namespace BuildXL.Engine.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.FilterDetails,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Events.Tasks.Engine,
             Message = "PipFilter IsEmpty:{filterStatistics.IsEmpty}, ValuesToSelectivelyEvaluate:{filterStatistics.ValuesToSelectivelyEvaluate}. PathsToSelectivelyEvaluate:{filterStatistics.PathsToSelectivelyEvaluate}. ModulesToSelectivelyEvaluate:{filterStatistics.ModulesToSelectivelyEvaluate}. Negation: Total:{filterStatistics.NegatingFilterCount}, OutputFile:{filterStatistics.OutputFileFilterCount}, PipId:{filterStatistics.PipIdFilterCount}, Spec:{filterStatistics.SpecFileFilterCount}, Tag:{filterStatistics.TagFilterCount}, Value:{filterStatistics.ValueFilterCount}, Module:{filterStatistics.ModuleFilterCount}")]

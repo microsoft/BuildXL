@@ -532,7 +532,7 @@ namespace BuildXL
                     ServerModeStatusAndPerf serverModeStatusAndPerf = m_serverModeStatusAndPerf.Value;
 
                     // There is always an up to date check related to starting server mode
-                    Logger.Log.DeploymentUpToDateCheckPerformed(pm.LoggingContext, serverModeStatusAndPerf.UpToDateCheck);
+                    Logger.Log.DeploymentUpToDateCheckPerformed(pm.LoggingContext, serverModeStatusAndPerf.UpToDateCheck, serverModeStatusAndPerf.CacheCreated.HasValue, serverModeStatusAndPerf.CacheCreated.HasValue ? serverModeStatusAndPerf.CacheCreated.Value : default(ServerDeploymentCacheCreated));
 
                     // We maybe created a deployment cache
                     if (serverModeStatusAndPerf.CacheCreated.HasValue)

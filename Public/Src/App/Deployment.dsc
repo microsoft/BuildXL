@@ -23,13 +23,12 @@ function createDeploymentManifest(isServerDeployment: boolean) : Deployment.Defi
         contents: [
             // Use the operating system specific BuildXL binary for deployments
             Main.exe,
-            ...(BuildXLSdk.isDotNetCoreBuild ? [
-                f`DefaultCacheConfigDotNetCore.json`,
-            ] : [
-                importFrom("BuildXL.Cache.MemoizationStore").deploymentForBuildXL,
+            f`DefaultCacheConfig.json`,
+
+            ...addIfLazy(!BuildXLSdk.isDotNetCoreBuild, () => [
+                importFrom("BuildXL.Cache.MemoizationStore").deploymentForBuildXL
             ]),
 
-            f`DefaultCacheConfig.json`,
             importFrom("BuildXL.Cache.VerticalStore").Deployment.deployment,
             importFrom("BuildXL.Cache.ContentStore").deploymentForBuildXL,
 

@@ -142,7 +142,7 @@ endlocal && exit /b 0
     call :StatusMessage !stepName!
         echo Running BuildXL on the CoreCLR, preparing a few things...
         robocopy %ENLISTMENTROOT%\Out\Bin\debug\win-x64 %NETCOREROOT% /E /MT:8 /NS /NC /NFL /NDL /NP
-        call :RunBxlCoreClr /p:[Sdk.BuildXL]microsoftInternal=1 /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Collections\*' /c:%ENLISTMENTROOT%\config.dsc /server- /cacheGraph- /cacheConfigFilePath:%NETCOREROOT%\DefaultCacheConfigDotNetCore.json
+        call :RunBxlCoreClr /p:[Sdk.BuildXL]microsoftInternal=1 /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Collections\*' /c:%ENLISTMENTROOT%\config.dsc /server- /cacheGraph-
         set CORECLR_ERRORLEVEL=%ERRORLEVEL%
         rmdir /s /q %NETCOREROOT%
         if !CORECLR_ERRORLEVEL! NEQ 0 (exit /b 1)
@@ -242,7 +242,7 @@ endlocal && exit /b 0
     :SkipSymLinkTest
 
     if "!MINIMAL_LAB!" == "0" (
-    
+
         REM populate Release\*
         set start=!time!
         set stepName=Populating release for distribution tests
@@ -254,7 +254,7 @@ endlocal && exit /b 0
                 exit /b 1
             )
         call :RecordStep "!stepName!" !start!
-        
+
         set BUILDXL_BIN_DIRECTORY=%~dp0out\Bin\release\net472
         set start=!time!
         set stepName=Building Test Project Distributed
@@ -324,21 +324,21 @@ endlocal && exit /b 0
         set RUN_PART_B=1
         echo ***Running only Part B***
         shift
-    ) 
-    
+    )
+
     if /I "%1" == "/full" (
         rem Set this to perform the full suite
         set FULL=1
         echo ***Running full suite, including very expensive tests***
         shift
-    ) 
+    )
 
     if /I "%1" == "/internal" (
         set BUILDXL_ARGS=%INTERNAL_BUILD_ARGS% %BUILDXL_ARGS%
         echo ***Running internal build***
         shift
     )
-    
+
     if "%1" NEQ "" (
         echo Unrecognized argument: %1 1>&2
         exit /b 1

@@ -110,11 +110,6 @@ namespace BuildXL.Scheduler.Artifacts
         void ReportContent(FileArtifact artifact, in FileMaterializationInfo trackedFileContentInfo, PipOutputOrigin origin);
 
         /// <summary>
-        /// Callback to host to report dynamic output content
-        /// </summary>
-        void ReportDynamicContent(FileArtifact artifact, PipOutputOrigin origin);
-
-        /// <summary>
         /// Callback to host to report materialized artifact.
         /// </summary>
         void ReportMaterializedArtifact(in FileOrDirectoryArtifact artifact);

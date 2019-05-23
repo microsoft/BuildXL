@@ -584,12 +584,6 @@ namespace BuildXL.Scheduler.Artifacts
 
             RegisterDirectoryContents(directoryArtifact);
 
-            foreach(var content in contents)
-            {
-                // Notify the host to get the existence reported for FileSystemView
-                m_host.ReportDynamicContent(content, outputOrigin);
-            }
-
             if (outputOrigin != PipOutputOrigin.NotMaterialized)
             {
                 // Mark directory as materialized and ensure no deletions for the directory

@@ -68,7 +68,7 @@ namespace NugetPackages {
             importFrom("Grpc.Core").withQualifier({ targetFramework: "net461" }).pkg,
             importFrom("Google.Protobuf").withQualifier({ targetFramework: "net461" }).pkg,
             importFrom("StackExchange.Redis.StrongName").withQualifier({ targetFramework: "net461" }).pkg,
-            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier({ targetFramework: "net461" }).pkg,
+            ...BuildXLSdk.visualStudioServicesArtifactServicesSharedPkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").withQualifier({ targetFramework: "net461" }).pkg,
         ]
     });

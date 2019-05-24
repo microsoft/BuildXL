@@ -141,7 +141,7 @@ function runTest(args : TestRunArguments) : File[] {
         useVsTest150:true,
         vstestSettingsFile: f`test.runsettings`,
         qTestTool: Environment.hasVariable("QTEST_DEPLOYMENT_PATH") ? undefined : qTestTool,
-        qTestLogs: logDir,
+        qTestLogs: qtestLogDir,
         tags: args.tags,
         weight: args.weight,
         privilegeLevel: args.privilegeLevel,

@@ -89,11 +89,6 @@ Transformer.execute({
         ],
         hasUntrackedChildProcesses: true,
         allowPreservedOutputs: true,
-        preserveOutputWhitelist: [
-            f`./Out/outputFile1.txt`,
-            f`./Out/outputFile2.txt`,
-            d`./Out/dynamicSealedDirectory`,
-        ],
     },
     keepOutputsWritable: true,
 });

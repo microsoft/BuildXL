@@ -2613,6 +2613,22 @@ namespace BuildXL.Scheduler.Tracing
             string pipValueId);
 
         [GeneratedEvent(
+            (int)EventId.ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
+            EventTask = (int)Events.Tasks.Scheduler,
+            Message = "The pip '{pipDescription}' could not be added because PreserveOutputWhitelist is set even though AllowPreserveOutputs is false for the pip).")]
+        public abstract void ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId);
+
+        [GeneratedEvent(
             (int)EventId.InvalidCopyFilePipDueToSameSourceAndDestinationPath,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

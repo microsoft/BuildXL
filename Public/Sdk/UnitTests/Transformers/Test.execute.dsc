@@ -77,10 +77,6 @@ namespace Sdk.Tests {
                 hasUntrackedChildProcesses: true,
                 allowPreservedOutputs: true,
                 passThroughEnvironmentVariables: ["env1"],
-                preserveOutputWhitelist: [
-                    p`out/outputFile1.txt`,
-                    d`out/dynamicSealedDirectory`,
-                ],
             },
             keepOutputsWritable: true,
         });

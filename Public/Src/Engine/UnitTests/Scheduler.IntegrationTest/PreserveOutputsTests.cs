@@ -611,7 +611,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheMiss(preservingProcess.PipId, dynamicOutputProducer.PipId);
 
             // Delete dynamic output.
-            //FileUtilities.DeleteDirectoryContents(ArtifactToString(outputDirectory), deleteRootDirectory: true);
+            FileUtilities.DeleteDirectoryContents(ArtifactToString(outputDirectory), deleteRootDirectory: true);
+
+            // Cache miss as the output is gone.
+            RunScheduler().AssertCacheMiss(dynamicOutputProducer.PipId);
 
             // Dynamic output producer should result in cache hit.
             RunScheduler().AssertCacheHit(dynamicOutputProducer.PipId);

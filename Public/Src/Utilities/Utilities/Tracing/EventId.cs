@@ -291,6 +291,7 @@ namespace BuildXL.Utilities.Tracing
 
         ProcessPipProcessWeight = 301,
         ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist = 302,
+        ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag = 303,
 
         // Reserved = 306,
         // Reserved = 307,

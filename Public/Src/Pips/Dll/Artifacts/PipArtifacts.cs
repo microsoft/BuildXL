@@ -47,8 +47,12 @@ namespace BuildXL.Pips.Artifacts
         }
 
         /// <summary>
-        /// Checks if a pip can preserved its outputs.
+        /// Checks if a pip can preserve the given output path
         /// </summary>
+        /// <remarks>
+        /// If the given output path represents a dynamic file output, 
+        /// then we check whether the given path is within any whitelistedpath.
+        /// </remarks>
         public static bool IsPreservedOutputByPip(Pip pip, AbsolutePath outputPath, PathTable pathTable, bool isDynamicFileOutput = false)
         {
             var process = pip as Process;

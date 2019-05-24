@@ -98,7 +98,7 @@ namespace BuildXL.Processes
 
         private readonly Func<FileArtifact, Task<bool>> m_makeInputPrivate;
 
-        private readonly Func<FileArtifact, Task<bool>> m_makeOutputPrivate;
+        private readonly Func<string, Task<bool>> m_makeOutputPrivate;
 
         private readonly bool m_warningRegexIsDefault;
 
@@ -168,7 +168,7 @@ namespace BuildXL.Processes
             ProcessInContainerManager processInContainerManager,
             FileAccessWhitelist whitelist,
             Func<FileArtifact, Task<bool>> makeInputPrivate,
-            Func<FileArtifact, Task<bool>> makeOutputPrivate,
+            Func<string, Task<bool>> makeOutputPrivate,
             SemanticPathExpander semanticPathExpander,
             bool disableConHostSharing,
             PipEnvironment pipEnvironment,
@@ -2157,14 +2157,14 @@ namespace BuildXL.Processes
                     {
                         if (!dependencies.Contains(output.Path))
                         {
-                            if (ShouldPreserveOutput(output.Path, preserveOutputWhitelist))
+                            if (ShouldPreserveDeclaredOutput(output.Path, preserveOutputWhitelist))
                             {
                                 Contract.Assume(m_makeOutputPrivate != null);
 
                                 // A process may be configured to allow its prior outputs to be seen by future
                                 // invocations. In this case we must make sure the outputs are no longer hardlinked to
                                 // the cache to allow them to be writeable.
-                                if (!await m_makeOutputPrivate(output.ToFileArtifact()))
+                                if (!await m_makeOutputPrivate(output.Path.ToString(m_pathTable)))
                                 {
                                     // Delete the file if it exists.
                                     PreparePathForOutputFile(output.Path, outputDirectories);
@@ -2259,11 +2259,11 @@ namespace BuildXL.Processes
                     }
                     else
                     {
-                        if (dirExist && ShouldPreserveOutput(directoryOutput.Path, preserveOutputWhitelist))
+                        if (dirExist && ShouldPreserveDeclaredOutput(directoryOutput.Path, preserveOutputWhitelist))
                         {
-                            using (var wrapper = Pools.GetFileArtifactList())
+                            using (var wrapper = Pools.GetStringList())
                             {
-                                var files = wrapper.Instance;
+                                var filePaths = wrapper.Instance;
                                 FileUtilities.EnumerateDirectoryEntries(
                                     directoryPathStr,
                                     recursive: true,
@@ -2271,15 +2271,14 @@ namespace BuildXL.Processes
                                     {
                                         if ((attributes & FileAttributes.Directory) == 0)
                                         {
-                                            var path = AbsolutePath.Create(m_pathTable, currentDir).Combine(m_pathTable, name);
-                                            var fileArtifact = FileArtifact.CreateOutputFile(path);
-                                            files.Add(fileArtifact);
+                                            var path = Path.Combine(currentDir, name);
+                                            filePaths.Add(path);
                                         }
                                     });
 
-                                foreach (var fileArtifact in files)
+                                foreach (var path in filePaths)
                                 {
-                                    if (!await m_makeOutputPrivate(fileArtifact))
+                                    if (!await m_makeOutputPrivate(path))
                                     {
                                         throw new BuildXLException("Failed to create a private, writeable copy of an output file from a previous invocation.");
                                     }
@@ -3774,7 +3773,10 @@ namespace BuildXL.Processes
             }
         }
 
-        private bool ShouldPreserveOutput(AbsolutePath path, HashSet<AbsolutePath> whitelist)
+        /// <summary>
+        /// Whether we should preserve the given declared static file or directory output.
+        /// </summary>
+        private bool ShouldPreserveDeclaredOutput(AbsolutePath path, HashSet<AbsolutePath> whitelist)
         {
             if (!m_shouldPreserveOutputs)
             {

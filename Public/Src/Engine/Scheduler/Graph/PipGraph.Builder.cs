@@ -1308,11 +1308,17 @@ namespace BuildXL.Scheduler.Graph
                     return false;
                 }
 
-                if (process.PreserveOutputWhitelist.IsValid)
+                if (process.PreserveOutputWhitelist.IsValid && process.PreserveOutputWhitelist.Length > 0)
                 {
+                    if (!process.AllowPreserveOutputs)
+                    {
+                        LogEventWithPipProvenance(Logger.ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag, process);
+                        return false;
+                    }
+
                     foreach (var whitelistPath in process.PreserveOutputWhitelist)
                     {
-                        if (!outputsByPath.ContainsKey(whitelistPath) && outputDirectorySet.Contains(whitelistPath))
+                        if (!outputsByPath.ContainsKey(whitelistPath) && !outputDirectorySet.Contains(whitelistPath))
                         {
                             LogEventWithPipProvenance(Logger.ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist, process);
                             return false;

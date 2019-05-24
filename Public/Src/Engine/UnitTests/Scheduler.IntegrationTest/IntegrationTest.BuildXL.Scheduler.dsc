@@ -15,7 +15,7 @@ namespace Scheduler.IntegrationTest {
         "AllowedUndeclaredReadsTests",
         "LazyMaterializationTests",
         "WhitelistTests",
-        // "PreserveOutputsTests",
+        "PreserveOutputsTests",
         "NonStandardOptionsTests",
         "StoreNoOutputsToCacheTests",
         // "IncrementalSchedulingTests", TODO: Some shared tests (IS vs. non-IS) create substs, and this can cause race.

@@ -287,21 +287,30 @@ namespace BuildXL.Native.Processes
         /// The Helium container is configured using the provided path mapping. The mapping is expected to 
         /// contain destination -> [source]. For each entry in the dictionary, two file 
         /// drivers are setup, Wci and Bind:
+        ///
         /// - WCI filter is able to virtualize source folders into destination folders via reparse points: processes
         /// running in a container will see the content of the destination folder as containing the files of the source
         /// folder. Plus, it provides full isolation from the source folder (copy-on-write semantics, tombstone files for deletion)
         /// - Bind filter is able to map a source folder into a target folder, so any process running in a container will get every access
         /// to the source path translated into an access to the target path
+        ///
         /// Working together, these filters can provide full virtualization: a process accessing a source path will be redirected under the hood
         /// to the target path, and the content that it will see there is fully controlled.
         /// </remarks>
         /// <param name="hJob">A pointer to a job object where a specific filter configuration will be associated with. 
         /// This is the result of calling CreateJobObject <see href="https://msdn.microsoft.com/en-us/library/windows/desktop/ms682409(v=vs.85).aspx"/></param>
         /// <param name="redirectedDirectories">The collection of source paths to be virtualize to destination paths</param>
+        /// <param name="enableWciFilter">Enables WCI filter for input virtualization</param>
+        /// <param name="bindFltExclusions">Paths to not apply the bindflt path transformation to.</param>
         /// <param name="warnings">Any warnings that happened during the creation of the container. The container was created successfully regardless of these.</param>
         /// <exception cref="BuildXLException">If any unrecoverable error occurs when setting up the container</exception>
-        public static void AttachContainerToJobObject(IntPtr hJob, IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories, out IEnumerable<string> warnings) 
-            => s_nativeMethods.AttachContainerToJobObject(hJob, redirectedDirectories, out warnings);
+        public static void AttachContainerToJobObject(
+            IntPtr hJob,
+            IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
+            bool enableWciFilter,
+            IEnumerable<string> bindFltExclusions,
+            out IEnumerable<string> warnings)
+            => s_nativeMethods.AttachContainerToJobObject(hJob, redirectedDirectories, enableWciFilter, bindFltExclusions, out warnings);
 
         /// <summary>
         /// Tries to cleans up the already attached Helium container to the given job object for all the volumes

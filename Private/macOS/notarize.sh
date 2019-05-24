@@ -2,8 +2,6 @@
 
 # For detailed explanation see: https://developer.apple.com/documentation/security/notarizing_your_app_before_distribution/customizing_the_notarization_workflow
 
-set -e
-
 usage() {
     cat <<EOM
 
@@ -13,7 +11,7 @@ Usage: $(basename $0) -id <apple_id> -p <password> -k <path_to_kext>
 
         -id or --appleid         # A valid Apple ID email address, account must have correct certificates available
         -p  or --password        # The password for the specified Apple ID or Apple One-Time password (to avoid 2FA)
-        -k  or --kext            # The path to the kernel extension .kext file
+        -k  or --kext            # The path to an already signed kernel extension .kext file
 
 EOM
     exit 0
@@ -94,6 +92,8 @@ if [[ $? -eq 0 ]]; then
     exit 0
 fi
 
+set -e
+
 echo "Creating zip file..."
 ditto -c -k --rsrc --keepParent "$arg_KextPath" "$kext_zip"
 
@@ -156,6 +156,6 @@ if [[ $request_id =~ ^\{?[A-F0-9a-f]{8}-[A-F0-9a-f]{4}-[A-F0-9a-f]{4}-[A-F0-9a-f
         echo -e "Stapler exit code: $? (must be zero on success!)\n"
     fi
 else
-    echo "Invalid request id" >&2
+    echo "Invalid request id found in 'altool' output, aborting!" >&2
     exit 1
 fi

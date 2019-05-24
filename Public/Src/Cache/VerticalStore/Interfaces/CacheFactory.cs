@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
@@ -150,10 +151,10 @@ namespace BuildXL.Cache.Interfaces
                 instantiationException = ex;
             }
 
-            // Make sure that the cache factory is an ICacheFactory.
+            // Build error message for failed ICacheFactory construction 
             if (factoryObject == null)
             {
-                string message = $"{assembly}:{type} cannot be loaded or it is not a valid ICacheFactory type";
+                string message = $"{assembly}:{type} cannot be loaded or it is not a valid {nameof(ICacheFactory)} type";
                 if (instantiationException != null)
                 {
                     message += $". Searched for {assembly} in {Path.GetFullPath(".")}. Exception: {instantiationException}";
@@ -163,6 +164,69 @@ namespace BuildXL.Cache.Interfaces
 
             // call the loaded cache factory and create new cache object
             return await factoryObject.InitializeCacheAsync(cacheData, activityId);
+        }
+
+        /// <summary>
+        /// Validates that the config data is valid.
+        /// It loads cache factory assemblies and calls the right validation method.
+        /// </summary>
+        public static IEnumerable<Failure> ValidateConfig(ICacheConfigData cacheData)
+        {
+            Contract.Requires(cacheData != null);
+
+            var failures = new List<Failure>();
+            object value;
+            if (!cacheData.TryGetValue(DictionaryKeyFactoryAssemblyName, out value))
+            {
+                failures.Add(new IncorrectJsonConfigDataFailure("Cache factory Assembly name is required, but it was not specified"));
+            }
+
+            string assembly = value.ToString();
+
+            if (!cacheData.TryGetValue(DictionaryKeyFactoryTypeName, out value))
+            {
+                failures.Add(new IncorrectJsonConfigDataFailure("Cache factory Type name is required, but it was not specified"));
+            }
+
+            if (failures.Any())
+            {
+                return failures;
+            }
+
+            string type = value.ToString();
+
+            ICacheFactory factoryObject;
+            Exception instantiationException = null;
+            try
+            {
+                Assembly assemblyFile = Assembly.Load(assembly);
+                Type myType = assemblyFile.GetType(type);
+                if (myType == null)
+                {
+                    throw new ArgumentException($"Typename {type} could not be found in {assembly}");
+                }
+                factoryObject = Activator.CreateInstance(myType) as ICacheFactory;
+            }
+            catch (Exception ex)
+            {
+                // We failed to produce an instance of the specified type. We will return a Failure from the next if statement
+                factoryObject = null;
+                instantiationException = ex;
+            }
+
+            // Make sure that the cache factory is an ICacheFactory.
+            if (factoryObject == null)
+            {
+                string message = $"{assembly}:{type} cannot be loaded or it is not a valid ICacheFactory type";
+                if (instantiationException != null)
+                {
+                    message += $". Searched for {assembly} in {Path.GetFullPath(".")}. Exception: {instantiationException}";
+                }
+                return new[] { new IncorrectJsonConfigDataFailure(message) };
+            }
+
+            // call the loaded cache factory and create new cache object
+            return factoryObject.ValidateConfiguration(cacheData);
         }
 
         /// <summary>

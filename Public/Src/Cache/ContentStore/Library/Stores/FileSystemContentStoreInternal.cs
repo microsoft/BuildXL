@@ -600,7 +600,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public IReadOnlyList<KeyValuePair<ContentHash, ContentFileInfo>> Reconstruct(Context context)
+        public ContentDirectorySnapshot<ContentFileInfo> Reconstruct(Context context)
         {
             // NOTE: DO NOT call ContentDirectory from this method as this is called during the initialization of ContentDirectory and calls
             // into ContentDirectory would cause a deadlock.
@@ -611,20 +611,19 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             try
             {
-                var contentHashes = ReadContentHashesFromDisk(context);
-                _tracer.Debug(context, $"Enumerated {contentHashes.Count} entries by {stopwatch.ElapsedMilliseconds}ms.");
+                var contentHashes = ReadSnapshotFromDisk(context);
+                _tracer.Debug(context, $"Enumerated {contentHashes.Count} entries in {stopwatch.ElapsedMilliseconds}ms.");
 
-                var hashInfoPairs = new List<KeyValuePair<ContentHash, ContentFileInfo>>();
-                foreach (var grouping in contentHashes.GroupBy(hash => hash))
+                // We are using a list of classes instead of structs due to the maximum object size restriction
+                // When the contents on disk grow large, a list of structs surpasses the limit and forces OOM
+                var hashInfoPairs = new ContentDirectorySnapshot<ContentFileInfo>();
+                foreach (var grouping in contentHashes.GroupByHash())
                 {
-                    var contentFileInfo = new ContentFileInfo(Clock, grouping.First().fileInfo.Length, grouping.Count());
+                    var contentFileInfo = new ContentFileInfo(Clock, grouping.First().Payload.Length, grouping.Count());
                     contentCount++;
                     contentSize += contentFileInfo.TotalSize;
 
-                    hashInfoPairs.Add(
-                        new KeyValuePair<ContentHash, ContentFileInfo>(
-                            grouping.Key.hash,
-                            contentFileInfo));
+                    hashInfoPairs.Add(new PayloadFromDisk<ContentFileInfo>(grouping.Key, contentFileInfo));
                 }
 
                 return hashInfoPairs;
@@ -1864,9 +1863,11 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         internal bool TryGetFileInfo(ContentHash contentHash, out ContentFileInfo fileInfo) => ContentDirectory.TryGetFileInfo(contentHash, out fileInfo);
 
-        internal List<(ContentHash hash, FileInfo fileInfo)> ReadContentHashesFromDisk(Context context)
+        internal ContentDirectorySnapshot<FileInfo> ReadSnapshotFromDisk(Context context)
         {
-            var contentHashes = new List<(ContentHash hash, FileInfo fileInfo)>();
+            // We are using a list of classes instead of structs due to the maximum object size restriction
+            // When the contents on disk grow large, a list of structs surpasses the limit and forces OOM
+            var contentHashes = new ContentDirectorySnapshot<FileInfo>();
             if (_settings.UseNativeBlobEnumeration)
             {
                 EnumerateBlobPathsFromDisk(context, fileInfo => parseAndAccumulateContentHashes(fileInfo));
@@ -1887,7 +1888,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // This is not an error condition if we can't get the hash out of it.
                 if (TryGetHashFromPath(fileInfo.FullPath, out var contentHash))
                 {
-                    contentHashes.Add((contentHash, fileInfo));
+                    contentHashes.Add(new PayloadFromDisk<FileInfo>(contentHash, fileInfo));
                 }
                 else
                 {

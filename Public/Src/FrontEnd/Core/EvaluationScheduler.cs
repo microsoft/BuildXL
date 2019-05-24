@@ -27,7 +27,7 @@ namespace BuildXL.FrontEnd.Core
         private readonly int m_degreeOfParallelism;
         private readonly CancellationTokenSource m_cancellationSource;
 
-#if FEATURE_CORECLR
+#if FEATURE_THROTTLE_EVAL_SCHEDULER
         private readonly ActionBlock<QueueItem> m_queue;
 
         private class QueueItem
@@ -79,7 +79,7 @@ namespace BuildXL.FrontEnd.Core
             m_degreeOfParallelism = degreeOfParallelism;
             m_cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-#if FEATURE_CORECLR
+#if FEATURE_THROTTLE_EVAL_SCHEDULER
             m_queue = new ActionBlock<QueueItem>(
                 item => item.Execute(),
                 new ExecutionDataflowBlockOptions
@@ -93,7 +93,7 @@ namespace BuildXL.FrontEnd.Core
         }
 
         /// <inheritdoc/>
-#if FEATURE_CORECLR
+#if FEATURE_THROTTLE_EVAL_SCHEDULER
         public async Task<object> EvaluateValue(Func<Task<object>> evaluateValueFunction)
         {
             if (m_degreeOfParallelism == 1)

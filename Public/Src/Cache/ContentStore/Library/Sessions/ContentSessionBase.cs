@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -91,21 +92,31 @@ namespace BuildXL.Cache.ContentStore.Sessions
             Counter retryCounter);
 
         /// <inheritdoc />
-        public async Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
             Context context,
             IReadOnlyList<ContentHash> contentHashes,
             CancellationToken token,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            // TODO: add support for PerformOperation with Task<IEnumerable<Task<Indexed<ResultBase>>>>
+            return WithOperationContext(
+                context,
+                token,
+                operationContext => operationContext.PerformNonResultOperationAsync(
+                    Tracer,
+                    () => PinCoreAsync(operationContext, contentHashes, urgencyHint, _counters[ContentSessionBaseCounters.PinBulkRetries], _counters[ContentSessionBaseCounters.PinBulkFileCount]),
+                    extraEndMessage: results =>
+                    {
+                        var resultString = string.Join(",", results.Select(task =>
+                        {
+                            // Since all bulk operations are constructed with Task.FromResult, it is safe to just access the result;
+                            var result = task.Result;
+                            return $"{contentHashes[result.Index]}:{result.Item}";
+                        }));
 
-            using (var cancellableContext = TrackShutdown(context, token))
-            {
-                using (_counters[ContentSessionBaseCounters.PinBulk].Start())
-                {
-                    return await PinCoreAsync(cancellableContext, contentHashes, urgencyHint, _counters[ContentSessionBaseCounters.PinBulkRetries], _counters[ContentSessionBaseCounters.PinBulkFileCount]);
-                }
-            }
+                        return $"Hashes=[{resultString}]";
+                    },
+                    traceOperationStarted: false,
+                    counter: _counters[ContentSessionBaseCounters.PinBulk]));
         }
 
         /// <nodoc />
@@ -150,7 +161,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             Counter retryCounter);
 
         /// <inheritdoc />
-        public async Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(
+        public Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(
             Context context,
             IReadOnlyList<ContentHashWithPath> hashesWithPaths,
             FileAccessMode accessMode,
@@ -159,15 +170,15 @@ namespace BuildXL.Cache.ContentStore.Sessions
             CancellationToken token,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            // TODO: add support for PerformOperation with Task<IEnumerable<Task<Indexed<ResultBase>>>>
-
-            using (var cancellableContext = TrackShutdown(context, token))
-            {
-                using (_counters[ContentSessionBaseCounters.PlaceFileBulk].Start())
-                {
-                    return await PlaceFileCoreAsync(cancellableContext, hashesWithPaths, accessMode, replacementMode, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PlaceFileBulkRetries]);
-                }
-            }
+            return WithOperationContext(
+                context,
+                token,
+                operationContext => operationContext.PerformNonResultOperationAsync(
+                    Tracer,
+                    () => PlaceFileCoreAsync(operationContext, hashesWithPaths, accessMode, replacementMode, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PlaceFileBulkRetries]),
+                    traceOperationStarted: false,
+                    traceOperationFinished: false,
+                    counter: _counters[ContentSessionBaseCounters.PlaceFileBulk]));
         }
 
         /// <nodoc />

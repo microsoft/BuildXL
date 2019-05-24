@@ -29,7 +29,7 @@ namespace Processes.TestPrograms.DetoursCrossBitTests {
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
-			importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
+            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
         ],
     });
 }

@@ -18,19 +18,12 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly LoggingContext m_loggingContext;
         private readonly ClientConnectionManager m_connectionManager;
         private readonly Worker.WorkerClient m_client;
-        private readonly SenderInfo m_senderInfo;
 
         public GrpcWorkerClient(LoggingContext loggingContext, string buildId, string ipAddress, int port)
         {
             m_loggingContext = loggingContext;
             m_connectionManager = new ClientConnectionManager(loggingContext, ipAddress, port, buildId);
             m_client = new Worker.WorkerClient(m_connectionManager.Channel);
-            m_senderInfo = new SenderInfo()
-            {
-                BuildId = buildId,
-                SenderName = MachineName,
-                SenderId = Guid.NewGuid().ToString()
-            };
         }
 
         public void Close()
@@ -43,7 +36,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         public Task<RpcCallResult<Unit>> AttachAsync(OpenBond.BuildStartData message)
         {
-            var grpcMessage = message.ToGrpc(m_senderInfo);
+            var grpcMessage = message.ToGrpc();
 
             return m_connectionManager.CallAsync(
                 (callOptions) => m_client.AttachAsync(grpcMessage, options: callOptions),
@@ -53,7 +46,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         public Task<RpcCallResult<Unit>> ExecutePipsAsync(OpenBond.PipBuildRequest message, IList<long> semiStableHashes)
         {
-            var grpcMessage = message.ToGrpc(m_senderInfo);
+            var grpcMessage = message.ToGrpc();
 
             return m_connectionManager.CallAsync(
                (callOptions) => m_client.ExecutePipsAsync(grpcMessage, options: callOptions),
@@ -62,10 +55,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         public Task<RpcCallResult<Unit>> ExitAsync(OpenBond.BuildEndData message, CancellationToken cancellationToken)
         {
-            var grpcBuildEndData = new BuildEndData()
-            {
-                Sender = m_senderInfo,
-            };
+            var grpcBuildEndData = new BuildEndData();
 
             if (message.Failure != null)
             {

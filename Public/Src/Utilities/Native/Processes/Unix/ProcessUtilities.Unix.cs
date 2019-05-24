@@ -162,7 +162,13 @@ namespace BuildXL.Native.Processes.Unix
         public bool OSSupportsNestedJobs() => true;
 
         /// <inheritdoc />
-        public void AttachContainerToJobObject(IntPtr hJob, IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories, out IEnumerable<string> warnings) => throw new NotImplementedException();
+        public void AttachContainerToJobObject(
+            IntPtr hJob,
+            IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
+            bool enableWciFilter,
+            IEnumerable<string> bindFltExclusions,
+            out IEnumerable<string> warnings)
+            => throw new NotImplementedException();
 
         /// <inheritdoc />
         public bool TryCleanUpContainer(IntPtr hJob, out IEnumerable<string> errors) => throw new NotImplementedException();

@@ -12,7 +12,7 @@ namespace Native {
     @@public
     export const securityDlls = BuildXLSdk.isDotNetCoreBuild ? [
         // In netCoreApp2.2 accesscontrol is missing enum: System.Security.AccessControl.AccessControlType
-        importFrom("System.Security.AccessControl").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Security.AccessControl").pkg,
         importFrom("System.IO.FileSystem.AccessControl").pkg,
 
         BuildXLSdk.isTargetRuntimeOsx

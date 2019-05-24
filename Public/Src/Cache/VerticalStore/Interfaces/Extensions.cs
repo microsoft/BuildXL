@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Utilities;
 
 namespace BuildXL.Cache.Interfaces
 {
@@ -190,6 +191,28 @@ namespace BuildXL.Cache.Interfaces
             while (queue.Count > 0)
             {
                 yield return queue.Dequeue();
+            }
+        }
+
+        /// <summary>
+        /// Adds a failure if the object is null.
+        /// </summary>
+        public static void AddFailureIfNull(this IList<Failure> list, object obj, string name)
+        {
+            if (obj is null)
+            {
+                list.Add(new Failure<string>($"{name} cannot be null."));
+            }
+        }
+
+        /// <summary>
+        /// Adds a failure if the object is null.
+        /// </summary>
+        public static void AddFailureIfNullOrWhitespace(this IList<Failure> list, string str, string name)
+        {
+            if (string.IsNullOrWhiteSpace(str))
+            {
+                list.Add(new Failure<string>($"{name} cannot be null or whitespace."));
             }
         }
     }

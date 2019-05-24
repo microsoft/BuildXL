@@ -19,6 +19,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
@@ -4011,15 +4012,12 @@ namespace BuildXL.Scheduler
 
             if (requiredOrExistent)
             {
-                bool isProcessPreservingOutputs = IsProcessPreservingOutputs(environment, process);
-                bool isDynamicOutputFile = outputData.HasAnyFlag(OutputFlags.DynamicFile);
+                bool isProcessPreservingOutputs = IsProcessPreservingOutputFile(environment, process, outputArtifact, outputData);
                 bool isRewrittenOutputFile = IsRewriteOutputFile(environment, outputArtifact);
 
                 bool shouldOutputBePreserved =
                     // Process is marked for allowing preserved output.
                     isProcessPreservingOutputs &&
-                    // Preserving dynamic output is currently not supported.
-                    !isDynamicOutputFile &&
                     // Rewritten output is stored to the cache.
                     !isRewrittenOutputFile;
 
@@ -4061,6 +4059,26 @@ namespace BuildXL.Scheduler
 
             return process.AllowPreserveOutputs &&
                    environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled;
+        }
+
+        private static bool IsProcessPreservingOutputFile (IPipExecutionEnvironment environment, Process process, FileArtifact fileArtifact, FileOutputData fileOutputData)
+        {
+            Contract.Requires(environment != null);
+            Contract.Requires(process != null);
+
+            if (!IsProcessPreservingOutputs(environment, process))
+            {
+                return false;
+            }
+
+            AbsolutePath declaredArtifactPath = fileArtifact.Path;
+            if (fileOutputData.HasAnyFlag(OutputFlags.DynamicFile))
+            {
+                // If it is a dynamic file, let's find the declared directory path.
+                declaredArtifactPath = process.DirectoryOutputs[fileOutputData.OpaqueDirectoryIndex].Path;
+            }
+
+            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable); 
         }
 
         private static bool IsRewriteOutputFile(IPipExecutionEnvironment environment, FileArtifact file)

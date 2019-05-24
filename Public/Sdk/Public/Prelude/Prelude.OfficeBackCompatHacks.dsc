@@ -151,6 +151,8 @@ namespace Transformer {
         allowPreservedOutputs?: boolean;
         /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
         passThroughEnvironmentVariables?: string[];
+        /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
+        preserveOutputWhitelist?: (File | Directory)[];
     }
     /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
     export interface EnvironmentVariable {

@@ -162,6 +162,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_unsafeHasUntrackedChildProcesses;
         private SymbolAtom m_unsafeAllowPreservedOutputs;
         private SymbolAtom m_unsafePassThroughEnvironmentVariables;
+        private SymbolAtom m_unsafePreserveOutputWhitelist;
 
         private SymbolAtom m_semaphoreInfoLimit;
         private SymbolAtom m_semaphoreInfoName;
@@ -308,6 +309,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_unsafeHasUntrackedChildProcesses = Symbol("hasUntrackedChildProcesses");
             m_unsafeAllowPreservedOutputs = Symbol("allowPreservedOutputs");
             m_unsafePassThroughEnvironmentVariables = Symbol("passThroughEnvironmentVariables");
+            m_unsafePreserveOutputWhitelist = Symbol("preserveOutputWhitelist");
 
             // Semaphore info.
             m_semaphoreInfoLimit = Symbol("limit");
@@ -1186,6 +1188,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                     processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(context.StringTable, passThroughEnvironmentVariable));
                 }
             }
+
+            processBuilder.PreserveOutputWhitelist = ProcessOptionalPathArray(unsafeOptionsObjLit, m_unsafePreserveOutputWhitelist, strict: false, skipUndefined: true);
         }
 
         private PipId InterpretFinalizationPipArguments(Context context, ObjectLiteral obj)

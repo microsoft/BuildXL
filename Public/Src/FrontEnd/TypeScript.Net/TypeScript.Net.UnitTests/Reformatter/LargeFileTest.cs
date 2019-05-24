@@ -104,6 +104,11 @@ namespace Test.DScript.Reformatter
             ],
             hasUntrackedChildProcesses: true,
             allowPreservedOutputs: true,
+            preserveOutputWhitelist: [
+                f`./Out/outputFile.txt`,
+                f`./Out/outputFile1.txt`,
+                d`./Out/dynamicSealedDirectory`,
+            ],
         },
         keepOutputsWritable: true,
     });

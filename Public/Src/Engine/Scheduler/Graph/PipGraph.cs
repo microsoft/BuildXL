@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
+using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Filter;
 using BuildXL.Tracing;
@@ -945,12 +946,6 @@ namespace BuildXL.Scheduler.Graph
         {
             Contract.Requires(artifact.IsValid);
 
-            if (artifact.IsDirectory)
-            {
-                // Output directory is currently not preserved.
-                return false;
-            }
-
             if (artifact.IsFile && artifact.FileArtifact.IsSourceFile)
             {
                 // Shortcut, source file is not preserved.
@@ -960,7 +955,14 @@ namespace BuildXL.Scheduler.Graph
             PipId pipId = TryGetProducer(artifact);
             Contract.Assert(pipId.IsValid);
 
-            return PipTable.GetMutable(pipId).IsPreservedOutputsPip();
+            if (!PipTable.GetMutable(pipId).IsPreservedOutputsPip())
+            {
+                // If AllowPreserveOutputs is disabled for the pip, return false before hydrating pip. 
+                return false;
+            }
+
+            Process process = PipTable.HydratePip(pipId, PipQueryContext.PreserveOutput) as Process;
+            return PipArtifacts.IsPreservedOutputByPip(process, artifact.Path, Context.PathTable);
         }
 
         #endregion Queries

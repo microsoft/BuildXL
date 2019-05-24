@@ -427,5 +427,24 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 configurationModelForStreams,
                 configurationModelForPath);
         }
+
+        /// <inheritdoc />
+        public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
+        {
+            return CacheConfigDataValidator.ValidateConfiguration<Config>(cacheData, cacheConfig =>
+            {
+                var failures = new List<Failure>();
+                failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheId, nameof(cacheConfig.CacheId));
+                failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheLogPath, nameof(cacheConfig.CacheLogPath));
+                failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheRootPath, nameof(cacheConfig.CacheRootPath));
+
+                if (cacheConfig.UseStreamCAS && string.IsNullOrEmpty(cacheConfig.StreamCAS.CacheRootPath))
+                {
+                    failures.Add(new IncorrectJsonConfigDataFailure($"If {nameof(cacheConfig.UseStreamCAS)} is enabled, {nameof(cacheConfig.StreamCAS)}.{nameof(cacheConfig.StreamCAS.CacheRootPath)} cannot be null or empty."));
+                }
+
+                return failures;
+            });
+        }
     }
 }

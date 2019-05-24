@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
@@ -159,6 +160,34 @@ namespace BuildXL.Cache.BuildCacheAdapter
 
             ReadThroughMode readThroughMode = cacheConfig.SealUnbackedContentHashLists ? ReadThroughMode.ReadThrough : ReadThroughMode.None;
             return new DistributedCache(logger, innerCache, metadataCache, metadataTracer, readThroughMode);
+        }
+
+        /// <inheritdoc />
+        public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
+        {
+            return CacheConfigDataValidator.ValidateConfiguration<Config>(cacheData, cacheConfig =>
+            {
+                var failures = new List<Failure>();
+                failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheLogPath, nameof(cacheConfig.CacheLogPath));
+                failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheId, nameof(cacheConfig.CacheId));
+
+                if (cacheConfig.CacheKeyBumpTimeMins <= 0)
+                {
+                    failures.Add(new IncorrectJsonConfigDataFailure($"{nameof(cacheConfig.CacheKeyBumpTimeMins)} must be greater than 0"));
+                }
+
+                if (!Uri.IsWellFormedUriString(cacheConfig.CacheServiceContentEndpoint, UriKind.Absolute))
+                {
+                    failures.Add(new IncorrectJsonConfigDataFailure($"{nameof(cacheConfig.CacheServiceContentEndpoint)}=[{cacheConfig.CacheServiceContentEndpoint}] is not a valid Uri."));
+                }
+
+                if (!Uri.IsWellFormedUriString(cacheConfig.CacheServiceFingerprintEndpoint, UriKind.Absolute))
+                {
+                    failures.Add(new IncorrectJsonConfigDataFailure($"{nameof(cacheConfig.CacheServiceFingerprintEndpoint)}=[{cacheConfig.CacheServiceFingerprintEndpoint}] is not a valid Uri."));
+                }
+
+                return failures;
+            });
         }
     }
 }

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
@@ -43,5 +44,9 @@ namespace BuildXL.Cache.Interfaces.Test
 
             return new CallbackCacheWrapper(cache.Result);
         }
+        
+        /// <inheritdoc />
+        public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
+            => CacheConfigDataValidator.ValidateConfiguration<Config>(cacheData, cacheConfig => CacheFactory.ValidateConfig(cacheConfig.EncapsulatedCache));
     }
 }

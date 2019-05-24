@@ -1,19 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Stores;
 using Xunit;
-using Xunit.Abstractions;
 using FluentAssertions;
 
 namespace BuildXL.Cache.ContentStore.Test.Stores
 {
     // TODO: fix bug 1541363
-    class ContentDirectorySnapshotTests
+    public class ContentDirectorySnapshotTests
     {
+        [Fact]
+        public void SnapshotShouldNotFailWithOutOfRange()
+        {
+            var snapshot = new ContentDirectorySnapshot<int>();
+
+            for (short b = 0; b <= byte.MaxValue; b++)
+            {
+                var data = new byte[33];
+                data[0] = (byte)b;
+                var hash = new ContentHash(HashType.Vso0, data);
+                snapshot.Add(new PayloadFromDisk<int>(hash, 42));
+            }
+        }
+
         [Theory]
         [InlineData(100)]
         public void OrderedEnumerationIsCorrect(int snapshotSize)

@@ -146,7 +146,7 @@ function runTest(args : TestRunArguments) : File[] {
         weight: args.weight,
         privilegeLevel: args.privilegeLevel,
         coverageLogsDir: coverageLogDir,
-        qTestBuildType: qualifier.configuration === "release" ? "retail" : qualifier.configuration
+        qTestBuildType: qualifier.configuration
     });
 
     return [

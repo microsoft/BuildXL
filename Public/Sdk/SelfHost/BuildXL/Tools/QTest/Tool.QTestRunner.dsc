@@ -183,7 +183,7 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
         Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
-        Cmd.option("--qTestBuildType ", args.qTestBuildType)
+        Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset")
     ];          
 
     let result = Transformer.execute(
@@ -219,16 +219,11 @@ export function runQTest(args: QTestArguments): Result {
     if (qCodeCoverageEnumType === "DynamicCodeCov"){
         let coverageLogDir = args.coverageLogsDir || Context.getNewOutputDirectory("coverageLogs");
         let coverageConsolePath = p`${coverageLogDir}/coverageUpload.stdout`;
-        let coverageSandboxDir = Context.getNewOutputDirectory("coverageSandbox");
-
-        Debug.writeLine("Obtained coverageDirectory as " + qTestLogsDir);
-        Debug.writeLine("Obtained logs dirs as " + coverageLogDir);
 
         let commandLineArgsForUploadPip: Argument[] = [
             Cmd.option("--qTestLogsDir ", Artifact.output(coverageLogDir)),
             Cmd.option("--qTestContextInfo ", Artifact.input(qTestContextInfoPath)),
             Cmd.option("--coverageDirectory ", Artifact.input(qTestLogsDir)),
-            Cmd.option("--sandbox ", Artifact.none(coverageSandboxDir)),
             Cmd.option("--qTestBuildType ", args.qTestBuildType),
             Cmd.option("--qtestPlatform ", qTestPlatformToString(args.qTestPlatform))
         ];
@@ -241,11 +236,8 @@ export function runQTest(args: QTestArguments): Result {
                     description: "QTest Coverage Upload",
                     arguments: commandLineArgsForUploadPip,
                     consoleOutput: coverageConsolePath,
-                    workingDirectory: coverageSandboxDir,
-                    tempDirectory: tempDirectory,
-                    weight: args.weight,
+                    workingDirectory: tempDirectory,
                     disableCacheLookup: true,
-                    additionalTempDirectories : [coverageSandboxDir],
                     privilegeLevel: args.privilegeLevel,
                 },
                 untrackingCBPaths
@@ -342,7 +334,7 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     privilegeLevel?: "standard" | "admin";
      /** Directory to write coverage logs in */
     coverageLogsDir?: Directory;
-    /** Specifies whether this is a debug or retail build */
+    /** Specifies the build type */
     qTestBuildType?: string;
 }
 /**

@@ -149,6 +149,8 @@ namespace BuildXL.Processes
 
         private readonly VmInitializer m_vmInitializer;
 
+        private readonly List<(AbsolutePath source, AbsolutePath target)> m_tempFolderRedirectionForVm = new List<(AbsolutePath source, AbsolutePath target)>();
+
         /// <summary>
         /// The active sandboxed process (if any)
         /// </summary>
@@ -615,7 +617,7 @@ namespace BuildXL.Processes
                         return SandboxedProcessPipExecutionResult.PreparationFailure();
                     }
 
-                    if (!await PrepareOutputs())
+                    if (!await PrepareOutputsAsync())
                     {
                         return SandboxedProcessPipExecutionResult.PreparationFailure();
                     }
@@ -649,18 +651,9 @@ namespace BuildXL.Processes
                         NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
                     };
 
-                    if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal
-                        || !m_pip.RequiresAdmin
-                        || m_processIdListener != null
-                        || m_containerConfiguration.IsIsolationEnabled
-                        || OperatingSystemHelper.IsUnixOS)
-                    {
-                        return await RunInternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
-                    }
-                    else
-                    {
-                        return await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
-                    }
+                    return ShouldSandboxedProcessExecuteExternal
+                        ? await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken) 
+                        : await RunInternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
                 }
             }
             finally
@@ -670,6 +663,20 @@ namespace BuildXL.Processes
                 m_fileAccessManifest.UnsetMessageCountSemaphore();
             }
         }
+
+        private bool ShouldSandboxedProcessExecuteExternal
+            => // Execution mode is external
+               m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternal()
+               // Only pip that requires admin privilege.
+               && m_pip.RequiresAdmin
+               // Process does not talk to BuildXL server.
+               && m_processIdListener == null
+               // Container is disabled.
+               && !m_containerConfiguration.IsIsolationEnabled
+               // Windows only.
+               && !OperatingSystemHelper.IsUnixOS;
+
+        private bool ShouldSandboxedProcessExecuteInVm => ShouldSandboxedProcessExecuteExternal && m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalVM;
 
         private async Task<SandboxedProcessPipExecutionResult> RunInternalAsync(
             SandboxedProcessInfo info,
@@ -826,6 +833,8 @@ namespace BuildXL.Processes
 
                 info.StandardObserverDescriptor = observerDescriptor;
             }
+
+            info.RedirectedTempFolders = m_tempFolderRedirectionForVm.Select(p => (p.source.ToString(m_pathTable), p.target.ToString(m_pathTable))).ToArray();
 
             // Preparation should be finished.
             sandboxPrepTime.Stop();
@@ -1934,9 +1943,6 @@ namespace BuildXL.Processes
             }
         }
 
-        [SuppressMessage("Microsoft.Performance", "CA1802:FxCopIsBuggy")]
-        private static readonly int s_maxTempDirectoryLength = FileUtilities.MaxDirectoryPathLength(); // IsOSVersionGreaterOrEqual(6, 2) ? 260 : 130;
-
         /// <summary>
         /// Tests to see if the semantic path info is invalid (path was not under a mount) or writable
         /// (path is under a writable mount). Paths not under mounts don't have any enforcement around them
@@ -2021,67 +2027,58 @@ namespace BuildXL.Processes
             // If specified, clean the pip specific temp directory.
             if (m_pip.TempDirectory.IsValid)
             {
-                if (!CleanTempDirectory(m_pip.TempDirectory))
+                if (!PreparePath(m_pip.TempDirectory))
                 {
                     return false;
                 }
-
-                Contract.Assert(m_fileAccessManifest != null);
-
-                // Allow creation of symlinks in temp directories.
-                m_fileAccessManifest.AddScope(m_pip.TempDirectory, values: FileAccessPolicy.AllowSymlinkCreation, mask: m_excludeReportAccessMask);
             }
 
             // Clean all specified temp directories.
             foreach (var additionalTempDirectory in m_pip.AdditionalTempDirectories)
             {
-                if (!CleanTempDirectory(additionalTempDirectory))
+                if (!PreparePath(additionalTempDirectory))
                 {
                     return false;
                 }
-
-                Contract.Assert(m_fileAccessManifest != null);
-
-                // Allow creation of symlinks in temp directories.
-                m_fileAccessManifest.AddScope(additionalTempDirectory, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowSymlinkCreation);
             }
 
-            try
+            if (!ShouldSandboxedProcessExecuteInVm)
             {
-                // Many things get angry if temp directories don't exist so ensure they're created regardless of
-                // what they're set to.
-                // TODO:Bug 75124 - should validate these paths
-                foreach (var tmpEnvVar in DisallowedTempVariables)
+                try
                 {
-                    path = environmentVariables[tmpEnvVar];
-                    FileUtilities.CreateDirectory(path);
+                    // Many things get angry if temp directories don't exist so ensure they're created regardless of
+                    // what they're set to.
+                    // TODO:Bug 75124 - should validate these paths
+                    foreach (var tmpEnvVar in DisallowedTempVariables)
+                    {
+                        path = environmentVariables[tmpEnvVar];
+                        FileUtilities.CreateDirectory(path);
+                    }
                 }
-            }
-            catch (BuildXLException ex)
-            {
-                Tracing.Logger.Log.PipTempDirectorySetupError(m_loggingContext, path, ex.Message);
-                return false;
+                catch (BuildXLException ex)
+                {
+                    Tracing.Logger.Log.PipTempDirectorySetupError(m_loggingContext, path, ex.Message);
+                    return false;
+                }
             }
 
             return true;
+
+            bool PreparePath(AbsolutePath pathToPrepare)
+            {
+                return !ShouldSandboxedProcessExecuteInVm ? CleanTempDirectory(pathToPrepare) : PrepareTempDirectoryForVm(pathToPrepare);
+            }
         }
 
         private bool CleanTempDirectory(AbsolutePath tempDirectoryPath)
         {
             Contract.Requires(tempDirectoryPath.IsValid);
 
-            string path = tempDirectoryPath.ToString(m_pathTable);
-
-            if (path.Length > s_maxTempDirectoryLength)
-            {
-                LogTempDirectoryTooLong(path);
-            }
-
             try
             {
                 // Temp directories are lazily, best effort cleaned after the pip finished. The previous build may not
                 // have finished this work before exiting so we must double check.
-                PreparePathForOutputDirectory(tempDirectoryPath);
+                PreparePathForOutputDirectory(tempDirectoryPath, createIfNonExistent: true);
             }
             catch (BuildXLException ex)
             {
@@ -2089,7 +2086,7 @@ namespace BuildXL.Processes
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.GetDescription(m_context),
-                    path,
+                    tempDirectoryPath.ToString(m_pathTable),
                     ex.LogEventMessage);
 
                 return false;
@@ -2098,13 +2095,54 @@ namespace BuildXL.Processes
             return true;
         }
 
-        private void LogTempDirectoryTooLong(string directory)
+        private bool PrepareTempDirectoryForVm(AbsolutePath tempDirectoryPath)
         {
-            Tracing.Logger.Log.PipProcessTempDirectoryTooLong(
-                m_loggingContext,
-                m_pip.SemiStableHash,
-                m_pip.GetDescription(m_context),
-                directory);
+            string path = tempDirectoryPath.ToString(m_pathTable);
+
+            try
+            {
+                if (FileUtilities.FileExistsNoFollow(path))
+                {
+                    // Path exists as a file or a symlink (directory/file symlink).
+                    FileUtilities.DeleteFile(path, waitUntilDeletionFinished: true, tempDirectoryCleaner: m_tempDirectoryCleaner);
+                }
+
+                if (FileUtilities.DirectoryExistsNoFollow(path))
+                {
+                    // Path exists as a real directory: wipe out that directory.
+                    FileUtilities.DeleteDirectoryContents(path, deleteRootDirectory: true, tempDirectoryCleaner: m_tempDirectoryCleaner);
+                }
+            }
+            catch (BuildXLException ex)
+            {
+                Tracing.Logger.Log.PipTempDirectorySetupError(m_loggingContext, path, ex.Message);
+                return false;
+            }
+
+            string redirectedTempRoot = m_sandboxConfig.RedirectedTempFolderRootForVmExecution.IsValid
+                ? m_sandboxConfig.RedirectedTempFolderRootForVmExecution.ToString(m_pathTable)
+                : VmIOConstants.Temp.Root;
+
+            string redirectedPath = Path.Combine(redirectedTempRoot, m_pip.FormattedSemiStableHash, m_tempFolderRedirectionForVm.Count.ToString());
+            AbsolutePath tempRedirectedPath = AbsolutePath.Create(m_pathTable, redirectedPath);
+
+            m_tempFolderRedirectionForVm.Add((tempDirectoryPath, tempRedirectedPath));
+
+            var createDirectorySymlink = FileUtilities.TryCreateSymbolicLink(path, redirectedPath, isTargetFile: false);
+
+            if (!createDirectorySymlink.Succeeded)
+            {
+                Tracing.Logger.Log.PipTempSymlinkRedirectionError(m_loggingContext, redirectedPath, path, createDirectorySymlink.Failure.Describe());
+                return false;
+            }
+
+            Contract.Assert(m_fileAccessManifest != null);
+
+            m_fileAccessManifest.AddScope(tempRedirectedPath, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+
+            Tracing.Logger.Log.PipTempSymlinkRedirection(m_loggingContext, redirectedPath, path);
+
+            return true;
         }
 
         /// <summary>
@@ -2114,7 +2152,7 @@ namespace BuildXL.Processes
         /// Note that this function is also responsible for stamping private outputs such that the tool sees
         /// <see cref="WellKnownTimestamps.OldOutputTimestamp"/>.
         /// </summary>
-        private async Task<bool> PrepareOutputs()
+        private async Task<bool> PrepareOutputsAsync()
         {
             if (!PrepareDirectoryOutputs())
             {

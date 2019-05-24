@@ -45,4 +45,26 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// </summary>
         public const string DefaultRelativePath = @"tools\VmCommandProxy\tools\VmCommandProxy.exe";
     }
+
+    /// <summary>
+    /// Constants for IO in Vm.
+    /// </summary>
+    public static class VmIOConstants
+    {
+        /// <summary>
+        /// IO for temporary folder.
+        /// </summary>
+        public static class Temp
+        {
+            /// <summary>
+            /// Drive for temporary folder.
+            /// </summary>
+            public const string Drive = "T:";
+
+            /// <summary>
+            /// Root for temporary folder.
+            /// </summary>
+            public static readonly string Root = $@"{Drive}\BxlInt\Temp";
+        }
+    }
 }

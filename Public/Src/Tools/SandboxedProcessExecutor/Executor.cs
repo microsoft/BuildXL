@@ -190,6 +190,23 @@ namespace BuildXL.SandboxedProcessExecutor
             info.StandardOutputObserver = m_outputErrorObserver.ObserveStandardOutputForWarning;
             info.StandardErrorObserver = m_outputErrorObserver.ObserveStandardErrorForWarning;
 
+            if (info.RedirectedTempFolders != null)
+            {
+                foreach (var redirection in info.RedirectedTempFolders)
+                {
+                    try
+                    {
+                        FileUtilities.DeleteDirectoryContents(redirection.target, deleteRootDirectory: false);
+                        FileUtilities.CreateDirectory(redirection.target);
+                    }
+                    catch (BuildXLException e)
+                    {
+                        m_logger.LogError($"Failed to prepare temporary folder '{redirection.target}': {e.Message}");
+                        return false;
+                    }
+                }
+            }
+
             return true;
         }
 

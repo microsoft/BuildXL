@@ -127,20 +127,6 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessTempDirectoryTooLong,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message =
-                Events.PipPrefix + "Temp directory too long: '{2}'")]
-        public abstract void PipProcessTempDirectoryTooLong(
-            LoggingContext context,
-            long pipSemiStableHash,
-            string pipDescription,
-            string directory);
-
-        [GeneratedEvent(
             (int)EventId.PipOutputNotAccessed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -724,6 +710,24 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Events.Tasks.PipExecutor,
             Message = "Failed to create temp directory at '{0}'. Reason: {1}")]
         public abstract void PipTempDirectorySetupError(LoggingContext context, string directory, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)EventId.PipTempSymlinkRedirectionError,
+            EventLevel = Level.Error,
+            EventGenerators = EventGenerators.LocalOnly,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = "Failed to create directory symlink '{0}' as a redirection for temp directory '{1}'. Reason: {2}")]
+        public abstract void PipTempSymlinkRedirectionError(LoggingContext context, string directorySymlink, string tempDirectory, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)EventId.PipTempSymlinkRedirection,
+            EventLevel = Level.Verbose,
+            EventGenerators = EventGenerators.LocalOnly,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = "Create directory symlink '{0}' as a redirection for temp directory '{1}'")]
+        public abstract void PipTempSymlinkRedirection(LoggingContext context, string directorySymlink, string tempDirectory);
 
         [GeneratedEvent(
             (ushort)EventId.PipFailedToCreateDumpFile,

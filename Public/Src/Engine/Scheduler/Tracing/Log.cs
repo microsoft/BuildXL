@@ -175,7 +175,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)EventId.PipCopyFileSourceFileDoesNotExist,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
             EventTask = (ushort)Events.Tasks.PipExecutor,
             Message = "[{pipDescription}] Copy file '{source}' to '{destination}' failed because '{source}' does not exist")]
         internal abstract void PipCopyFileSourceFileDoesNotExist(

@@ -961,6 +961,13 @@ namespace BuildXL.Scheduler.Graph
                 return false;
             }
 
+            if (!PipTable.GetMutable(pipId).HasPreserveOutputWhitelist())
+            {
+                // If whitelist is not given, we preserve all outputs of the given pip.
+                // This is shortcut to avoid hydrating pip in order to get the whitelist.
+                return true;
+            }
+
             Process process = PipTable.HydratePip(pipId, PipQueryContext.PreserveOutput) as Process;
             return PipArtifacts.IsPreservedOutputByPip(process, artifact.Path, Context.PathTable);
         }

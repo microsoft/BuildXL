@@ -2597,6 +2597,22 @@ namespace BuildXL.Scheduler.Tracing
             string pipValueId);
 
         [GeneratedEvent(
+            (int)EventId.ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
+            EventTask = (int)Events.Tasks.Scheduler,
+            Message = "The pip '{pipDescription}' could not be added because one of PreserveOutputWhitelist is neither static file output nor directory output).")]
+        public abstract void ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId);
+
+        [GeneratedEvent(
             (int)EventId.InvalidCopyFilePipDueToSameSourceAndDestinationPath,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

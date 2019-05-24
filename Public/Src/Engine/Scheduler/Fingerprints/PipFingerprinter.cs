@@ -259,6 +259,8 @@ namespace BuildXL.Scheduler.Fingerprints
             fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("UntrackedPaths", process.UntrackedPaths, (h, p) => h.Add(p));
             fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("UntrackedScopes", process.UntrackedScopes, (h, p) => h.Add(p));
 
+            fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("PreserveOutputWhitelist", process.PreserveOutputWhitelist, (h, p) => h.Add(p));
+
             fingerprinter.Add("HasUntrackedChildProcesses", process.HasUntrackedChildProcesses ? 1 : 0);
             fingerprinter.Add("AllowUndeclaredSourceReads", process.AllowUndeclaredSourceReads ? 1 : 0);
             fingerprinter.Add("AbsentPathProbeUnderOpaquesMode", (byte)process.ProcessAbsentPathProbeInUndeclaredOpaquesMode);

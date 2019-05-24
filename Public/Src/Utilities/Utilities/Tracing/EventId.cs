@@ -290,6 +290,7 @@ namespace BuildXL.Utilities.Tracing
         ScheduleProcessConfiguredUncacheable = 300,
 
         ProcessPipProcessWeight = 301,
+        ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist = 302,
 
         // Reserved = 306,
         // Reserved = 307,

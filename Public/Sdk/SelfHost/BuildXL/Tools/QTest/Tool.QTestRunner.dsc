@@ -215,7 +215,7 @@ export function runQTest(args: QTestArguments): Result {
     );
     const qTestLogsDir: StaticDirectory = result.getOutputDirectory(logDir);
 
-    // If code coverage is enabled, start a pip that will perform coverage file upload.
+    // If code coverage is enabled, schedule a pip that will perform coverage file upload.
     if (qCodeCoverageEnumType === "DynamicCodeCov"){
         let coverageLogDir = args.coverageLogsDir || Context.getNewOutputDirectory("coverageLogs");
         let coverageConsolePath = p`${coverageLogDir}/coverageUpload.stdout`;

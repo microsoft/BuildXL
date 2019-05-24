@@ -81,6 +81,7 @@ param(
     [Parameter(Mandatory=$false)]
     [switch]$DeployStandaloneTest = $false,
 
+    # Task 544796 to enable this
     [Parameter(Mandatory=$false)]
     [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
     [string]$SharedCacheMode = "Disable",
@@ -239,7 +240,7 @@ if ($DeployStandaloneTest) {
 }
 
 if ($Vs) {
-    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /vs";
+    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /p:[Sdk.BuildXL]ExcludeBuildXLExplorer=1 /q:DebugNet472 /vs";
 }
 
 # WARNING: CloudBuild selfhost builds do NOT use this script file. When adding a new argument below, we should add the argument to selfhost queues in CloudBuild. Please contact bxl team. 

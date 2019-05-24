@@ -221,7 +221,7 @@ export function runQTest(args: QTestArguments): Result {
         let coverageConsolePath = p`${coverageLogDir}/coverageUpload.stdout`;
         let coverageSandboxDir = Context.getNewOutputDirectory("coverageSandbox");
 
-        Debug.writeLine("Obtained coverageDirectory as:" + qTestLogsDir);
+        Debug.writeLine("Obtained coverageDirectory as " + qTestLogsDir);
         Debug.writeLine("Obtained logs dirs as " + coverageLogDir);
 
         let commandLineArgsForUploadPip: Argument[] = [

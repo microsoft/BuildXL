@@ -62,6 +62,17 @@ function runMultipleQTests(args: TestRunArguments) : File[]
     ];
 }
 
+function getLogDirectory(args:TestRunArguments, pipType: string) : Directory
+{
+    const baseDir = Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")
+        ? d`${Context.getMount("LogsDirectory").path}/${pipType}/${args.testDeployment.primaryFile.name}`
+        : d`${Context.getNewOutputDirectory(pipType + "Log")}`;
+
+    const dllLogDir = args.limitGroups ? p`${baseDir}/${args.limitGroups[0]}` : p`${baseDir}`;
+    const logDir = d`${dllLogDir}/${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`;
+    return logDir;
+}
+
 function runTest(args : TestRunArguments) : File[] {  
     const testMethod = Environment.getStringValue("[UnitTest]Filter.testMethod");
     const testClass  = Environment.getStringValue("[UnitTest]Filter.testClass");
@@ -109,12 +120,8 @@ function runTest(args : TestRunArguments) : File[] {
     // because the junction's target changes in every build, incremental scheduling can unnecesarily
     // makes the pips dirty. However, if we don't use a stable junction, then we won't get any cache
     // hit because the log directory can change in every build.
-    const qtestLogDir = Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")
-        ? d`${Context.getMount("LogsDirectory").path}/QTest/${args.testDeployment.primaryFile.name}`
-        : d`${Context.getNewOutputDirectory("QTestLog")}`;
-
-    const qtestDllLogDir = args.limitGroups ? p`${qtestLogDir}/${args.limitGroups[0]}` : p`${qtestLogDir}`;
-    const logDir = d`${qtestDllLogDir}/${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`;
+    const qtestLogDir = getLogDirectory(args, "QTest");
+    const coverageLogDir = getLogDirectory(args, "QCodeCoverage");
     
     let result = Qtest.runQTest({
         testAssembly: args.testDeployment.primaryFile.path,
@@ -138,6 +145,8 @@ function runTest(args : TestRunArguments) : File[] {
         tags: args.tags,
         weight: args.weight,
         privilegeLevel: args.privilegeLevel,
+        coverageLogsDir: coverageLogDir,
+        qTestBuildType: qualifier.configuration === "release" ? "retail" : qualifier.configuration
     });
 
     return [

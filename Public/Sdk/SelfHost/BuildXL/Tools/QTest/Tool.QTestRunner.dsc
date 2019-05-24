@@ -183,6 +183,7 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
         Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
+        Cmd.option("--qTestBuildType ", args.qTestBuildType)
     ];          
 
     let result = Transformer.execute(
@@ -213,6 +214,45 @@ export function runQTest(args: QTestArguments): Result {
         )
     );
     const qTestLogsDir: StaticDirectory = result.getOutputDirectory(logDir);
+
+    // If code coverage is enabled, start a pip that will perform coverage file upload.
+    if (qCodeCoverageEnumType === "DynamicCodeCov"){
+        let coverageLogDir = args.coverageLogsDir || Context.getNewOutputDirectory("coverageLogs");
+        let coverageConsolePath = p`${coverageLogDir}/coverageUpload.stdout`;
+        let coverageSandboxDir = Context.getNewOutputDirectory("coverageSandbox");
+
+        Debug.writeLine("Obtained coverageDirectory as:" + qTestLogsDir);
+        Debug.writeLine("Obtained logs dirs as " + coverageLogDir);
+
+        let commandLineArgsForUploadPip: Argument[] = [
+            Cmd.option("--qTestLogsDir ", Artifact.output(coverageLogDir)),
+            Cmd.option("--qTestContextInfo ", Artifact.input(qTestContextInfoPath)),
+            Cmd.option("--coverageDirectory ", Artifact.input(qTestLogsDir)),
+            Cmd.option("--sandbox ", Artifact.none(coverageSandboxDir)),
+            Cmd.option("--qTestBuildType ", args.qTestBuildType),
+            Cmd.option("--qtestPlatform ", qTestPlatformToString(args.qTestPlatform))
+        ];
+
+        Transformer.execute(
+            Object.merge<Transformer.ExecuteArguments>(
+                {
+                    tool: args.qTestTool ? args.qTestTool : qTestTool,
+                    tags: tags,
+                    description: "QTest Coverage Upload",
+                    arguments: commandLineArgsForUploadPip,
+                    consoleOutput: coverageConsolePath,
+                    workingDirectory: coverageSandboxDir,
+                    tempDirectory: tempDirectory,
+                    weight: args.weight,
+                    disableCacheLookup: true,
+                    additionalTempDirectories : [coverageSandboxDir],
+                    privilegeLevel: args.privilegeLevel,
+                },
+                untrackingCBPaths
+            )
+        );
+    }
+
     return <Result>{
         console: result.getOutputFile(consolePath),
         qTestLogs: qTestLogsDir,
@@ -300,6 +340,10 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     weight?: number;
     /** Privilege level required by this process to execute. */
     privilegeLevel?: "standard" | "admin";
+     /** Directory to write coverage logs in */
+    coverageLogsDir?: Directory;
+    /** Specifies whether this is a debug or retail build */
+    qTestBuildType?: string;
 }
 /**
  * Test results from a vstest.console.exe run

@@ -19,6 +19,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
@@ -1164,34 +1165,30 @@ namespace BuildXL.Scheduler
             }
 
             // When preserving outputs, we need to make sure to remove any hardlinks to the cache.
-            Func<FileArtifact, Task<bool>> makeOutputPrivate =
-                async artifactNeededPrivate =>
+            Func<string, Task<bool>> makeOutputPrivate =
+                async path =>
                 {
-                    string originalPath = artifactNeededPrivate.Path.ToString(pathTable);
-
                     try
                     {
-                        if (!FileUtilities.FileExistsNoFollow(originalPath))
+                        if (!FileUtilities.FileExistsNoFollow(path))
                         {
                             // Output file doesn't exist. No need to make it private, 
                             // but return false so BuildXL ensures the output directory is created.
                             return false;
                         }
 
-                        if (FileUtilities.GetHardLinkCount(originalPath) == 1 &&
-                            FileUtilities.HasWritableAccessControl(originalPath))
+                        if (FileUtilities.GetHardLinkCount(path) == 1 &&
+                            FileUtilities.HasWritableAccessControl(path))
                         {
                             // Output file is already private. File will not be deleted.
                             return true;
                         }
 
                         // We want to use a temp filename that's as short as the original filename.
-                        // To achieve this, we use the original filename and the PathId which is unique across all files in the build. 
-                        // This ensures uniquness, keeps the temp file as short as the original, and tends to keep the file in the same directory 
-                        // as the original.
+                        // To achieve this, we use the random filename generator from System.IO
                         var maybePrivate = await FileUtilities.TryMakeExclusiveLinkAsync(
-                            artifactNeededPrivate.Path.ToString(pathTable),
-                            optionalTemporaryFileName: artifactNeededPrivate.Path.Value.Value.ToString(CultureInfo.InvariantCulture),
+                            path,
+                            optionalTemporaryFileName: Path.GetRandomFileName(),
                             preserveOriginalTimestamp: true);
 
                         if (!maybePrivate.Succeeded)
@@ -1206,7 +1203,7 @@ namespace BuildXL.Scheduler
                         Logger.Log.PreserveOutputsFailedToMakeOutputPrivate(
                             operationContext,
                             processDescription,
-                            originalPath,
+                            path,
                             ex.GetLogEventMessage());
                         return false;
                     }
@@ -4011,15 +4008,12 @@ namespace BuildXL.Scheduler
 
             if (requiredOrExistent)
             {
-                bool isProcessPreservingOutputs = IsProcessPreservingOutputs(environment, process);
-                bool isDynamicOutputFile = outputData.HasAnyFlag(OutputFlags.DynamicFile);
+                bool isProcessPreservingOutputs = IsProcessPreservingOutputFile(environment, process, outputArtifact, outputData);
                 bool isRewrittenOutputFile = IsRewriteOutputFile(environment, outputArtifact);
 
                 bool shouldOutputBePreserved =
                     // Process is marked for allowing preserved output.
                     isProcessPreservingOutputs &&
-                    // Preserving dynamic output is currently not supported.
-                    !isDynamicOutputFile &&
                     // Rewritten output is stored to the cache.
                     !isRewrittenOutputFile;
 
@@ -4061,6 +4055,26 @@ namespace BuildXL.Scheduler
 
             return process.AllowPreserveOutputs &&
                    environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled;
+        }
+
+        private static bool IsProcessPreservingOutputFile(IPipExecutionEnvironment environment, Process process, FileArtifact fileArtifact, FileOutputData fileOutputData)
+        {
+            Contract.Requires(environment != null);
+            Contract.Requires(process != null);
+
+            if (!IsProcessPreservingOutputs(environment, process))
+            {
+                return false;
+            }
+
+            AbsolutePath declaredArtifactPath = fileArtifact.Path;
+            if (fileOutputData.HasAnyFlag(OutputFlags.DynamicFile))
+            {
+                // If it is a dynamic file, let's find the declared directory path.
+                declaredArtifactPath = process.DirectoryOutputs[fileOutputData.OpaqueDirectoryIndex].Path;
+            }
+
+            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable); 
         }
 
         private static bool IsRewriteOutputFile(IPipExecutionEnvironment environment, FileArtifact file)

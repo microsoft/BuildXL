@@ -3168,15 +3168,6 @@ namespace BuildXL.Scheduler.Artifacts
             return m_host.AllowArtifactReadOnly(declaredArtifact);
         }
 
-        private bool IsPreservedOutputFile(FileArtifact file)
-        {
-            Contract.Requires(file.IsValid);
-
-            // File can be a dynamic output. First get the declared artifact.
-            FileOrDirectoryArtifact declaredArtifact = GetDeclaredArtifact(file);
-            return m_host.IsPreservedOutputArtifact(declaredArtifact);
-        }
-
         private bool IsPreservedOutputFile(Pip pip, bool materializingOutput, FileArtifact file)
         {
             Contract.Requires(file.IsValid);
@@ -3188,18 +3179,17 @@ namespace BuildXL.Scheduler.Artifacts
 
             if (!materializingOutput)
             {
-                return IsPreservedOutputFile(file);
+                // File can be a dynamic output. First get the declared artifact.
+                FileOrDirectoryArtifact declaredArtifact = GetDeclaredArtifact(file);
+                return m_host.IsPreservedOutputArtifact(declaredArtifact);
             }
 
             var pipId = m_host.TryGetProducerId(file);
-            if (pipId.IsValid)
-            {
-                Contract.Assert(pipId == pip.PipId);
-                return PipArtifacts.IsPreservedOutputsPip(pip);
-            }
+            // If the producer is invalid, the file is a dynamic output under a directory output.
+            // As the pip did not run yet and sealContents is not populated, we cannot easily get 
+            // declared directory artifact for the given dynamic file.
 
-            // Invalid pip id indicates that the file is a dynamic output.
-            return false;
+            return PipArtifacts.IsPreservedOutputByPip(pip, file, Context.PathTable, isDynamicFileOutput: !pipId.IsValid);
         }
 
         /// <summary>

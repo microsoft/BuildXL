@@ -19,16 +19,17 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly ClientConnectionManager m_connectionManager;
         private readonly Worker.WorkerClient m_client;
 
-        public GrpcWorkerClient(LoggingContext loggingContext, string buildId, string ipAddress, int port)
+        public GrpcWorkerClient(LoggingContext loggingContext, string buildId, string ipAddress, int port, EventHandler onConnectionTimeOutAsync)
         {
             m_loggingContext = loggingContext;
             m_connectionManager = new ClientConnectionManager(loggingContext, ipAddress, port, buildId);
+            m_connectionManager.OnConnectionTimeOutAsync += onConnectionTimeOutAsync;
             m_client = new Worker.WorkerClient(m_connectionManager.Channel);
         }
 
-        public void Close()
+        public Task CloseAsync()
         {
-            m_connectionManager.Close();
+            return m_connectionManager.CloseAsync();
         }
 
         public void Dispose()

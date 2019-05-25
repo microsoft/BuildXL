@@ -25,6 +25,8 @@ namespace BuildXL.Engine.Distribution.Grpc
         internal readonly Channel Channel;
         private readonly LoggingContext m_loggingContext;
         private readonly string m_buildId;
+        private readonly Task m_monitorConnectionTask;
+        public event EventHandler OnConnectionTimeOutAsync;
 
         private string GenerateLog(string traceId, string status, uint numTry, string description)
         {
@@ -43,11 +45,34 @@ namespace BuildXL.Engine.Distribution.Grpc
                     port,
                     ChannelCredentials.Insecure,
                     DefaultChannelOptions);
+            m_monitorConnectionTask = MonitorConnectionAsync();
         }
 
-        public void Close()
+        public async Task MonitorConnectionAsync()
         {
-            Channel.ShutdownAsync().GetAwaiter().GetResult();
+            await Task.Yield();
+
+            ChannelState state = ChannelState.Idle;
+            while (state != ChannelState.Shutdown)
+            {
+                await Channel.WaitForStateChangedAsync(state);
+
+                Logger.Log.GrpcTrace(m_loggingContext, $"[{Channel.Target}] Channel state: {state} -> {Channel.State}");
+
+                state = Channel.State;
+
+                if (state == ChannelState.Idle)
+                {
+                    OnConnectionTimeOutAsync?.Invoke(this, EventArgs.Empty);
+                    break;
+                }
+            }
+        }
+
+        public async Task CloseAsync()
+        {
+            await Channel.ShutdownAsync();
+            await m_monitorConnectionTask;
         }
 
         public async Task<RpcCallResult<Unit>> CallAsync(
@@ -63,19 +88,13 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             if (waitForConnection)
             {
-                try
-                {
-                    Logger.Log.GrpcTrace(m_loggingContext, $"Attempt to connect to {Channel.Target}. ChannelState {Channel.State}. Operation {operation}");
-                    await Channel.ConnectAsync(DateTime.UtcNow.Add(GrpcSettings.InactiveTimeout));
-                    Logger.Log.GrpcTrace(m_loggingContext, $"Connected to {Channel.Target}. Duration {watch.ElapsedMilliseconds}ms");
-                }
-                catch (OperationCanceledException e)
-                {
-                    Logger.Log.GrpcTrace(m_loggingContext, $"Failed to connect to {Channel.Target}. Duration {watch.ElapsedMilliseconds}ms. Failure {e.Message}");
-                    return new RpcCallResult<Unit>(RpcCallResultState.Cancelled, attempts: 1, duration: TimeSpan.Zero, waitForConnectionDuration: watch.Elapsed);
-                }
-
+                bool connectionSucceeded = await TryConnectChannelAsync(operation, watch);
                 waitForConnectionDuration = watch.Elapsed;
+
+                if (!connectionSucceeded)
+                {
+                    return new RpcCallResult<Unit>(RpcCallResultState.Cancelled, attempts: 1, duration: TimeSpan.Zero, waitForConnectionDuration);
+                }
             }
 
             Guid traceId = Guid.NewGuid();
@@ -98,7 +117,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     var callOptions = new CallOptions(
                         deadline: DateTime.UtcNow.Add(GrpcSettings.CallTimeout),
                         cancellationToken: cancellationToken,
-                        headers: headers);
+                        headers: headers).WithWaitForReady();
 
                     Logger.Log.GrpcTrace(m_loggingContext, GenerateLog(traceId.ToString(), "Call", numTry, operation));
                     await func(callOptions);
@@ -111,7 +130,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 {
                     state = e.Status.StatusCode == StatusCode.Cancelled ? RpcCallResultState.Cancelled : RpcCallResultState.Failed;
 
-                    Logger.Log.GrpcTrace(m_loggingContext, GenerateLog(traceId.ToString(), "Fail", numTry, $"Duration: {watch.ElapsedMilliseconds}ms. Failure: {e.Message}"));
+                    Logger.Log.GrpcTrace(m_loggingContext, GenerateLog(traceId.ToString(), "Fail", numTry, $"Duration: {watch.ElapsedMilliseconds}ms. Failure: {e.Message}. ChannelState: {Channel.State}."));
 
                     failure = state == RpcCallResultState.Failed ? new RecoverableExceptionFailure(new BuildXLException(e.Message, e)) : null;
 
@@ -119,6 +138,16 @@ namespace BuildXL.Engine.Distribution.Grpc
                     if (state == RpcCallResultState.Cancelled)
                     {
                         break;
+                    }
+
+                    if (numTry == GrpcSettings.MaxRetry - 1)
+                    {
+                        // If this is the last retry, try to attempt reconnecting. If the connection fails, do not attempt to retry the call.
+                        bool connectionSucceeded = await TryConnectChannelAsync(operation);
+                        if (!connectionSucceeded)
+                        {
+                            break;
+                        }
                     }
                 }
                 finally
@@ -138,6 +167,25 @@ namespace BuildXL.Engine.Distribution.Grpc
                 duration: totalCallDuration,
                 waitForConnectionDuration: waitForConnectionDuration,
                 lastFailure: failure);
+        }
+
+        private async Task<bool> TryConnectChannelAsync(string operation, Stopwatch watch = null)
+        {
+            watch = watch ?? Stopwatch.StartNew();
+
+            try
+            {
+                Logger.Log.GrpcTrace(m_loggingContext, $"Attempt to connect to {Channel.Target}. ChannelState {Channel.State}. Operation {operation}");
+                await Channel.ConnectAsync(DateTime.UtcNow.Add(GrpcSettings.InactiveTimeout));
+                Logger.Log.GrpcTrace(m_loggingContext, $"Connected to {Channel.Target}. Duration {watch.ElapsedMilliseconds}ms");
+            }
+            catch (OperationCanceledException e)
+            {
+                Logger.Log.GrpcTrace(m_loggingContext, $"Failed to connect to {Channel.Target}. Duration {watch.ElapsedMilliseconds}ms. Failure {e.Message}");
+                return false;
+            }
+
+            return true;
         }
     }
 }

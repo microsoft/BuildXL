@@ -26,7 +26,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly LoggingContext m_loggingContext;
         private readonly string m_buildId;
         private readonly Task m_monitorConnectionTask;
-        public event EventHandler OnConnectionTimeOut;
+        public event EventHandler OnConnectionTimeOutAsync;
 
         private string GenerateLog(string traceId, string status, uint numTry, string description)
         {
@@ -57,22 +57,22 @@ namespace BuildXL.Engine.Distribution.Grpc
             {
                 await Channel.WaitForStateChangedAsync(state);
 
-                Logger.Log.GrpcTrace(m_loggingContext, $"Channel state: {state} -> {Channel.State}");
+                Logger.Log.GrpcTrace(m_loggingContext, $"[{Channel.Target}] Channel state: {state} -> {Channel.State}");
 
                 state = Channel.State;
 
                 if (state == ChannelState.Idle)
                 {
-                    OnConnectionTimeOut?.Invoke(this, EventArgs.Empty);
+                    OnConnectionTimeOutAsync?.Invoke(this, EventArgs.Empty);
                     break;
                 }
             }
         }
 
-        public void Close()
+        public async Task CloseAsync()
         {
-            Channel.ShutdownAsync().GetAwaiter().GetResult();
-            m_monitorConnectionTask.GetAwaiter().GetResult();
+            await Channel.ShutdownAsync();
+            await m_monitorConnectionTask;
         }
 
         public async Task<RpcCallResult<Unit>> CallAsync(

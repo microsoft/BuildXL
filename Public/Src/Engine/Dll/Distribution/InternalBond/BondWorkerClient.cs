@@ -89,19 +89,19 @@ namespace BuildXL.Engine.Distribution.InternalBond
             m_proxyManager.Start(ipAddress, port, this);
         }
 
-        public void Close()
+        public async Task CloseAsync()
         {
+            await Task.Yield();
+
             lock (m_proxyManagerLock)
             {
                 // The proxy manager may be null if the RemoteWorker has been disposed. This can happen if everything
                 // happened on the master and the Scheduler & Engine are disposed before the worker's acknowledgement for
                 // the final state transition comes in. If that happens, just noop here.
-                if (m_proxyManager == null)
+                if (m_proxyManager != null)
                 {
-                    return;
+                    m_proxyManager.Terminate();
                 }
-
-                m_proxyManager.Terminate();
             }
         }
 

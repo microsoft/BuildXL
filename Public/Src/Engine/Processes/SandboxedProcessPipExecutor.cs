@@ -1177,7 +1177,7 @@ namespace BuildXL.Processes
                 // The build needs to fail in this case(s) as well and log that we had injection failure.
                 if (result.HasDetoursInjectionFailures)
                 {
-                    BuildXL.Processes.Tracing.Logger.Log.PipProcessFinishedDetourFailures(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
+                    Tracing.Logger.Log.PipProcessFinishedDetourFailures(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
                 }
 
                 if (exitedSuccessfullyAndGracefully)
@@ -1275,7 +1275,7 @@ namespace BuildXL.Processes
             bool shouldPersistStandardOutput = errorOrWarnings || m_pip.StandardOutput.IsValid;
             if (shouldPersistStandardOutput)
             {
-                if (!await TrySaveAndLogStandardOutput(result))
+                if (!await TrySaveAndLogStandardOutputAsync(result))
                 {
                     loggingSuccess = false;
                 }
@@ -1284,7 +1284,7 @@ namespace BuildXL.Processes
             bool shouldPersistStandardError = errorOrWarnings || m_pip.StandardError.IsValid;
             if (shouldPersistStandardError)
             {
-                if (!await TrySaveAndLogStandardError(result))
+                if (!await TrySaveAndLogStandardErrorAsync(result))
                 {
                     loggingSuccess = false;
                 }
@@ -2057,7 +2057,12 @@ namespace BuildXL.Processes
                 }
                 catch (BuildXLException ex)
                 {
-                    Tracing.Logger.Log.PipTempDirectorySetupError(m_loggingContext, path, ex.Message);
+                    Tracing.Logger.Log.PipTempDirectorySetupError(
+                        m_loggingContext,
+                        m_pip.SemiStableHash,
+                        m_pip.GetDescription(m_context), 
+                        path, 
+                        ex.ToStringDemystified());
                     return false;
                 }
             }
@@ -2115,7 +2120,12 @@ namespace BuildXL.Processes
             }
             catch (BuildXLException ex)
             {
-                Tracing.Logger.Log.PipTempDirectorySetupError(m_loggingContext, path, ex.Message);
+                Tracing.Logger.Log.PipTempDirectorySetupError(
+                    m_loggingContext, 
+                    m_pip.SemiStableHash, 
+                    m_pip.GetDescription(m_context), 
+                    path, 
+                    ex.ToStringDemystified());
                 return false;
             }
 
@@ -2132,7 +2142,13 @@ namespace BuildXL.Processes
 
             if (!createDirectorySymlink.Succeeded)
             {
-                Tracing.Logger.Log.PipTempSymlinkRedirectionError(m_loggingContext, redirectedPath, path, createDirectorySymlink.Failure.Describe());
+                Tracing.Logger.Log.PipTempSymlinkRedirectionError(
+                    m_loggingContext, 
+                    m_pip.SemiStableHash,
+                    m_pip.GetDescription(m_context),
+                    redirectedPath, 
+                    path, 
+                    createDirectorySymlink.Failure.Describe());
                 return false;
             }
 
@@ -2140,7 +2156,12 @@ namespace BuildXL.Processes
 
             m_fileAccessManifest.AddScope(tempRedirectedPath, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
 
-            Tracing.Logger.Log.PipTempSymlinkRedirection(m_loggingContext, redirectedPath, path);
+            Tracing.Logger.Log.PipTempSymlinkRedirection(
+                m_loggingContext,
+                m_pip.SemiStableHash,
+                m_pip.GetDescription(m_context), 
+                redirectedPath, 
+                path);
 
             return true;
         }
@@ -3038,12 +3059,12 @@ namespace BuildXL.Processes
 
         private void LogFinishedFailed(SandboxedProcessResult result)
         {
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessFinishedFailed(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), result.ExitCode);
+            Tracing.Logger.Log.PipProcessFinishedFailed(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), result.ExitCode);
         }
 
         private void LogTookTooLongWarning(TimeSpan timeout, TimeSpan time, TimeSpan warningTimeout)
         {
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessTookTooLongWarning(
+            Tracing.Logger.Log.PipProcessTookTooLongWarning(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context),
@@ -3058,7 +3079,7 @@ namespace BuildXL.Processes
             Analysis.IgnoreArgument(result);
             string dumpString = result.DumpFileDirectory ?? string.Empty;
 
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessTookTooLongError(
+            Tracing.Logger.Log.PipProcessTookTooLongError(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context),
@@ -3067,7 +3088,7 @@ namespace BuildXL.Processes
                 dumpString);
         }
 
-        private async Task<bool> TrySaveAndLogStandardError(SandboxedProcessResult result)
+        private async Task<bool> TrySaveAndLogStandardErrorAsync(SandboxedProcessResult result)
         {
             try
             {
@@ -3080,11 +3101,11 @@ namespace BuildXL.Processes
             }
 
             string standardErrorPath = result.StandardError.FileName;
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessStandardError(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), standardErrorPath);
+            Tracing.Logger.Log.PipProcessStandardError(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), standardErrorPath);
             return true;
         }
 
-        private async Task<bool> TrySaveAndLogStandardOutput(SandboxedProcessResult result)
+        private async Task<bool> TrySaveAndLogStandardOutputAsync(SandboxedProcessResult result)
         {
             try
             {
@@ -3387,7 +3408,7 @@ namespace BuildXL.Processes
                 out outputTolog,
                 out outputPathsToLog);
 
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessError(
+            Tracing.Logger.Log.PipProcessError(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context),

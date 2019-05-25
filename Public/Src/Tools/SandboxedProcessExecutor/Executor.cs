@@ -201,7 +201,7 @@ namespace BuildXL.SandboxedProcessExecutor
                     }
                     catch (BuildXLException e)
                     {
-                        m_logger.LogError($"Failed to prepare temporary folder '{redirection.target}': {e.Message}");
+                        m_logger.LogError($"Failed to prepare temporary folder '{redirection.target}': {e.ToStringDemystified()}");
                         return false;
                     }
                 }

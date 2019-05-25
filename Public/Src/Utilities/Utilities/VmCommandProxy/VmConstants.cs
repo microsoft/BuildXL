@@ -11,12 +11,12 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// <summary>
         /// Initialize VM.
         /// </summary>
-        public const string StartBuild = "StartBuild";
+        public const string InitializeVm = nameof(InitializeVm);
 
         /// <summary>
         /// Run process in VM.
         /// </summary>
-        public const string Run = "Run";
+        public const string Run = nameof(Run);
 
         /// <summary>
         /// Commands' parameters.

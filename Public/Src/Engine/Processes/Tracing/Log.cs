@@ -699,7 +699,7 @@ namespace BuildXL.Processes.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Failed to clean temp directory at '{2}'. Pip will not be executed. Reason: {3}")]
+            Message = Events.PipPrefix + "Failed to clean temp directory at '{directory}'. Pip will not be executed. {exceptionMessage}")]
         public abstract void PipTempDirectoryCleanupError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);
 
         [GeneratedEvent(
@@ -708,8 +708,8 @@ namespace BuildXL.Processes.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
-            Message = "Failed to create temp directory at '{0}'. Reason: {1}")]
-        public abstract void PipTempDirectorySetupError(LoggingContext context, string directory, string exceptionMessage);
+            Message = Events.PipPrefix + "Failed to create temp directory at '{directory}'. {exceptionMessage}")]
+        public abstract void PipTempDirectorySetupError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);
 
         [GeneratedEvent(
             (ushort)EventId.PipTempSymlinkRedirectionError,
@@ -717,8 +717,8 @@ namespace BuildXL.Processes.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
-            Message = "Failed to create directory symlink '{0}' as a redirection for temp directory '{1}'. Reason: {2}")]
-        public abstract void PipTempSymlinkRedirectionError(LoggingContext context, string directorySymlink, string tempDirectory, string exceptionMessage);
+            Message = Events.PipPrefix + "Failed to create directory symlink '{directorySymlink}' as a redirection for temp directory '{tempDirectory}'. {exceptionMessage}")]
+        public abstract void PipTempSymlinkRedirectionError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directorySymlink, string tempDirectory, string exceptionMessage);
 
         [GeneratedEvent(
             (ushort)EventId.PipTempSymlinkRedirection,
@@ -726,8 +726,8 @@ namespace BuildXL.Processes.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
-            Message = "Create directory symlink '{0}' as a redirection for temp directory '{1}'")]
-        public abstract void PipTempSymlinkRedirection(LoggingContext context, string directorySymlink, string tempDirectory);
+            Message = Events.PipPrefix + "Create directory symlink '{directorySymlink}' as a redirection for temp directory '{tempDirectory}'")]
+        public abstract void PipTempSymlinkRedirection(LoggingContext context, long pipSemiStableHash, string pipDescription, string directorySymlink, string tempDirectory);
 
         [GeneratedEvent(
             (ushort)EventId.PipFailedToCreateDumpFile,

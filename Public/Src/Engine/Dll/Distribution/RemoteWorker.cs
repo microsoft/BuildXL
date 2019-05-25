@@ -932,7 +932,7 @@ namespace BuildXL.Engine.Distribution
 
         private void Stop(bool isLostConnection)
         {
-            m_workerClient.CloseAsync();
+            Analysis.IgnoreResult(m_workerClient.CloseAsync(), justification: "Okay to ignore close");
 
             // The worker goes in a stopped state either by a scheduler request or because it lost connection with the
             // remote machine. Check which one applies.

@@ -1334,7 +1334,7 @@ namespace BuildXL.Native.IO.Windows
                         if (!(currentRecordHeader->RecordLength >= NativeUsnRecordV3.MinimumSize &&
                              currentRecordHeader->RecordLength <= NativeUsnRecordV3.MaximumSize))
                         {
-                            Contract.Assert(false, "Size in record header does not correspond to a valid USN_RECORD_V3. Header record length:" + currentRecordHeader->RecordLength);
+                            Contract.Assert(false, "Size in record header does not correspond to a valid USN_RECORD_V3. Header record length: " + currentRecordHeader->RecordLength);
                         }
 
                         NativeUsnRecordV3* record = (NativeUsnRecordV3*) currentRecordBase;
@@ -1350,7 +1350,7 @@ namespace BuildXL.Native.IO.Windows
                         if (!(currentRecordHeader->RecordLength >= NativeUsnRecordV2.MinimumSize &&
                               currentRecordHeader->RecordLength <= NativeUsnRecordV2.MaximumSize))
                         {
-                            Contract.Assert(false, "Size in record header does not correspond to a valid USN_RECORD_V2. Header record length:" + currentRecordHeader->RecordLength);
+                            Contract.Assert(false, "Size in record header does not correspond to a valid USN_RECORD_V2. Header record length: " + currentRecordHeader->RecordLength);
                         }
 
                         NativeUsnRecordV2* record = (NativeUsnRecordV2*) currentRecordBase;

@@ -100,6 +100,7 @@ export function install(args: Arguments) : Result {
                         d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetUrlCache`,
                         d`${Context.getMount("AppData").path}/Microsoft/Crypto/RSA`, // Windows uses this location as a certificate cache
                         d`${Context.getMount("AppData").path}/Microsoft/SystemCertificates/My/Certificates`, // Cache for certificats
+                        d`${Context.getMount("AppData").path}/Microsoft/SystemCertificates/My/Keys`, // Cache for certificats
                         d`${Context.getMount("AppData").path}/Microsoft/VisualStudio Services/7.0/Cache`, // Cache for visaul studio services
                     ],
                 },

@@ -2557,6 +2557,30 @@ namespace Test.BuildXL.Scheduler
             XAssert.AreEqual(5, global::BuildXL.Scheduler.Scheduler.ComputeUnresponsivenessFactor(2000, baseTime, baseTime.AddSeconds(10.1)));
         }
 
+        [Fact]
+        public void TestInvalidPreserveOutputsFlag()
+        {
+            Setup();
+            CreateSourceFile(NonHashableRoot);
+
+            var output = CreateOutputFileArtifact();
+            var processPipBuilder = NewProcessBuilderWithPreDeterminedArgumentsFactory()
+                .WithOutputs(output)
+                .WithPreserveOutputWhitelist(output.Path);
+
+            XAssert.IsFalse(PipGraphBuilder.AddProcess(processPipBuilder.Build()));
+            AssertSchedulerErrorEventLogged(EventId.ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag);
+
+            var processPipBuilder2 = NewProcessBuilderWithPreDeterminedArgumentsFactory()
+                .WithOutputs(CreateOutputFileArtifact())
+                .WithOptions(Process.Options.AllowPreserveOutputs)
+                .WithPreserveOutputWhitelist(CreateOutputFileArtifact().Path);
+
+            XAssert.IsFalse(PipGraphBuilder.AddProcess(processPipBuilder2.Build()));
+            AssertSchedulerErrorEventLogged(EventId.ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist);
+
+        }
+
         private async Task<ConcurrentDictionary<PipId, PipResultStatus>> DeserializeScheduleAndRun(Stream stream, EngineCache cache, RootFilter filter, bool disableLazyOutputMaterialization = false)
         {
             stream.Position = 0;

@@ -37,6 +37,7 @@ namespace Test.BuildXL.Scheduler.Utils
         private PipProvenance m_pipProvenance;
         private IEnumerable<FileArtifact> m_directoryDependenciesToConsume;
         private Func<ProcessBuilder, PipData> m_argumentsFactory;
+        private IEnumerable<AbsolutePath> m_preserveOutputWhitelist;
 
         public IEnumerable<FileArtifactWithAttributes> Outputs
         {
@@ -110,6 +111,12 @@ namespace Test.BuildXL.Scheduler.Utils
         public ProcessBuilder WithDirectoryDependencies(IEnumerable<DirectoryArtifact> directoryDependencies)
         {
             m_directoryDependencies = directoryDependencies;
+            return this;
+        }
+
+        public ProcessBuilder WithPreserveOutputWhitelist(params AbsolutePath[] paths)
+        {
+            m_preserveOutputWhitelist = paths;
             return this;
         }
 
@@ -210,7 +217,8 @@ namespace Test.BuildXL.Scheduler.Utils
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
                     options: m_options, 
-                    serviceInfo: m_serviceInfo);
+                    serviceInfo: m_serviceInfo,
+                    preserveOutputWhitelist: ReadOnlyArray<AbsolutePath>.From(m_preserveOutputWhitelist ?? Enumerable.Empty<AbsolutePath>()));
         }
 
         private IEnumerable<FileArtifact> CreateDependencies()

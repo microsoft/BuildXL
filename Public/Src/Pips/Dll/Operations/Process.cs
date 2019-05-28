@@ -321,6 +321,17 @@ namespace BuildXL.Pips.Operations
         public bool IsStartOrShutdownKind => ServiceInfo != null && ServiceInfo.IsStartOrShutdownKind;
 
         /// <summary>
+        /// File/directory output paths that are preserved if <see cref="AllowPreserveOutputs"/> is enabled. 
+        /// </summary>
+        /// <remarks>
+        /// If the list is empty, all file and directory outputs are preserved. If the list is not empty,
+        /// only given paths are preserved and the rest is deleted.
+        /// </remarks>
+        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public ReadOnlyArray<AbsolutePath> PreserveOutputWhitelist { get; }
+
+        /// <summary>
         /// Class constructor
         /// </summary>
         public Process(
@@ -364,7 +375,8 @@ namespace BuildXL.Pips.Operations
             DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
-            int? priority = null)
+            int? priority = null,
+            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -456,7 +468,6 @@ namespace BuildXL.Pips.Operations
             TempDirectory = tempDirectory;
             TestRetries = testRetries;
             ServiceInfo = serviceInfo;
-            ProcessOptions = options;
             AdditionalTempDirectories = additionalTempDirectories;
             AllowedSurvivingChildProcessNames = allowedSurvivingChildProcessNames ?? ReadOnlyArray<PathAtom>.Empty;
             NestedProcessTerminationTimeout = nestedProcessTerminationTimeout;
@@ -465,6 +476,13 @@ namespace BuildXL.Pips.Operations
             ContainerIsolationLevel = containerIsolationLevel;
             Weight = weight.HasValue && weight.Value >= MinWeight ? weight.Value : MinWeight;
             Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
+            PreserveOutputWhitelist = preserveOutputWhitelist ?? ReadOnlyArray<AbsolutePath>.Empty;
+            if (PreserveOutputWhitelist.Length != 0)
+            {
+                options |= Options.HasPreserveOutputWhitelist;
+            }
+
+            ProcessOptions = options;
         }
 
         /// <summary>
@@ -511,7 +529,8 @@ namespace BuildXL.Pips.Operations
             DoubleWritePolicy doubleWritePolicy = DoubleWritePolicy.DoubleWritesAreErrors,
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
-            int? priority = null)
+            int? priority = null,
+            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null)
         {
             return new Process(
                 executable ?? Executable,
@@ -554,7 +573,8 @@ namespace BuildXL.Pips.Operations
                 doubleWritePolicy,
                 containerIsolationLevel,
                 weight,
-                priority);
+                priority,
+                preserveOutputWhitelist ?? PreserveOutputWhitelist);
         }
 
         /// <inheritdoc />
@@ -780,7 +800,8 @@ namespace BuildXL.Pips.Operations
                 doubleWritePolicy: (DoubleWritePolicy)reader.ReadByte(),
                 containerIsolationLevel: (ContainerIsolationLevel)reader.ReadByte(),
                 weight: reader.ReadInt32Compact(),
-                priority: reader.ReadInt32Compact()
+                priority: reader.ReadInt32Compact(),
+                preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath())
                 );
         }
 
@@ -827,6 +848,7 @@ namespace BuildXL.Pips.Operations
             writer.Write((byte)ContainerIsolationLevel);
             writer.WriteCompact(Weight);
             writer.WriteCompact(Priority);
+            writer.Write(PreserveOutputWhitelist, (w, v) => w.Write(v));
         }
         #endregion
     }

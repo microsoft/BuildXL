@@ -175,7 +175,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)EventId.PipCopyFileSourceFileDoesNotExist,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
             EventTask = (ushort)Events.Tasks.PipExecutor,
             Message = "[{pipDescription}] Copy file '{source}' to '{destination}' failed because '{source}' does not exist")]
         internal abstract void PipCopyFileSourceFileDoesNotExist(
@@ -1204,7 +1204,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (int)LogEventId.PipCacheMetadataBelongToAnotherPip,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
@@ -2588,6 +2588,38 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Events.Tasks.Scheduler,
             Message = "The pip '{pipDescription}' could not be added because one of its service pip dependencies is not a service pip).")]
         public abstract void ScheduleFailAddPipDueToInvalidServicePipDependency(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId);
+
+        [GeneratedEvent(
+            (int)EventId.ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
+            EventTask = (int)Events.Tasks.Scheduler,
+            Message = "The pip '{pipDescription}' could not be added because one of PreserveOutputWhitelist is neither static file output nor directory output).")]
+        public abstract void ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId);
+
+        [GeneratedEvent(
+            (int)EventId.ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
+            EventTask = (int)Events.Tasks.Scheduler,
+            Message = "The pip '{pipDescription}' could not be added because PreserveOutputWhitelist is set even though AllowPreserveOutputs is false for the pip).")]
+        public abstract void ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag(
             LoggingContext context,
             string file,
             int line,

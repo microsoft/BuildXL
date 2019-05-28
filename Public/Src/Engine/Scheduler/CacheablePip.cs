@@ -17,12 +17,11 @@ namespace BuildXL.Scheduler
         protected CacheablePip(
             Pip pip,
             PipExecutionContext context,
-            bool allowPreserveOutputs,
             ReadOnlyArray<FileArtifactWithAttributes> outputs,
             ReadOnlyArray<FileArtifact> dependencies,
             ReadOnlyArray<DirectoryArtifact> directoryOutputs,
             ReadOnlyArray<DirectoryArtifact> directoryDependencies)
-            : base(pip, context, allowPreserveOutputs, outputs, dependencies, directoryOutputs, directoryDependencies)
+            : base(pip, context, outputs, dependencies, directoryOutputs, directoryDependencies)
         {
         }
 

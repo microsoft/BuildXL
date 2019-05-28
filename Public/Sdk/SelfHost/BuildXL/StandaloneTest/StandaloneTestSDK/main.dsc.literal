@@ -55,7 +55,7 @@ function wrapInDotNetExe(args: Transformer.ExecuteArguments): Transformer.Execut
 
 function wrapInUntrackedCmdExe(args: Transformer.ExecuteArguments): Transformer.ExecuteArguments {
     return Object.merge<Transformer.ExecuteArguments>(
-        args, 
+        args,
         {
             tool: {
                 exe: Environment.getFileValue("COMSPEC"),
@@ -148,7 +148,7 @@ export function runSingleUnitTest(args: TestArguments): DerivedFile[] {
 
     let commandLineArgs : Argument[] = CreateCommandLineArgument(args.testAssembly, consoleArgs);
     commandLineArgs = [...commandLineArgs, ...((args.classes || []).map(c => Cmd.option("-class ",   c)))];
-    
+
     let execArguments : Transformer.ExecuteArguments = {
         tool: tool,
         arguments: commandLineArgs,

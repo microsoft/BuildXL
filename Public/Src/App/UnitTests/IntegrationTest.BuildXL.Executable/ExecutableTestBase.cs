@@ -160,7 +160,7 @@ namespace IntegrationTest.BuildXL.Executable
 #region test-created paths
             CacheDirectory = Path.Combine(TestBuildRoot, "Out", "Cache");
             Directory.CreateDirectory(CacheDirectory);
-            // Test cache config will be different than the normal default config because not all test enviornments will be able to connect to the remote cache
+            // Test cache config will be different than the normal default config because not all test environments will be able to connect to the remote cache
             // Lazily write the config itself the first time it is used
             m_defaultCacheConfig = new Lazy<string>(() =>
             {
@@ -234,7 +234,7 @@ namespace IntegrationTest.BuildXL.Executable
 
             // The logs directory location must be specified so it's easy to find them later
             var logsDirectory = CreateUniqueLogsDirectory();
-            string argsToUse = $"/c:{configToBuild} /logsDirectory:{logsDirectory} /cacheConfigFilePath:{cacheConfigToUse} " 
+            string argsToUse = $"/c:{configToBuild} /logsDirectory:{logsDirectory} /cacheConfigFilePath:{cacheConfigToUse} "
                                 + args;
 
             var bxlProcess = ExecuteProcess(BxlExecutable, argsToUse);
@@ -304,7 +304,7 @@ namespace IntegrationTest.BuildXL.Executable
             }
 
             /* Default remote cache config included here for completeness
-             
+
             var remoteCache = new Dictionary<string, string>()
             {
                 { "Assembly", "BuildXL.Cache.BuildCacheAdapter" },

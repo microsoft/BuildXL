@@ -630,6 +630,7 @@ namespace Test.BuildXL.Scheduler
             DoubleWritePolicy doubleWritePolicy = source.Vary(p => p.DoubleWritePolicy);
             ContainerIsolationLevel containerIsolationLevel = source.Vary(p => p.ContainerIsolationLevel);
             var uniqueRedirectedDirectoryRoot = source.Vary(p => p.UniqueRedirectedDirectoryRoot);
+            var preserveOutputWhitelist = source.Vary(p => p.PreserveOutputWhitelist);
 
             Process.Options options = Process.Options.None;
             if (hasUntrackedChildProcesses)
@@ -702,7 +703,8 @@ namespace Test.BuildXL.Scheduler
                 additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
                 options: options,
                 doubleWritePolicy: doubleWritePolicy,
-                containerIsolationLevel: containerIsolationLevel);
+                containerIsolationLevel: containerIsolationLevel,
+                preserveOutputWhitelist: preserveOutputWhitelist);
         }
 
         private CopyFile CreateCopyFileVariant(VariationSource<CopyFile> source)

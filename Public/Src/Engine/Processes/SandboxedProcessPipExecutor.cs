@@ -98,7 +98,7 @@ namespace BuildXL.Processes
 
         private readonly Func<FileArtifact, Task<bool>> m_makeInputPrivate;
 
-        private readonly Func<FileArtifact, Task<bool>> m_makeOutputPrivate;
+        private readonly Func<string, Task<bool>> m_makeOutputPrivate;
 
         private readonly bool m_warningRegexIsDefault;
 
@@ -170,7 +170,7 @@ namespace BuildXL.Processes
             ProcessInContainerManager processInContainerManager,
             FileAccessWhitelist whitelist,
             Func<FileArtifact, Task<bool>> makeInputPrivate,
-            Func<FileArtifact, Task<bool>> makeOutputPrivate,
+            Func<string, Task<bool>> makeOutputPrivate,
             SemanticPathExpander semanticPathExpander,
             bool disableConHostSharing,
             PipEnvironment pipEnvironment,
@@ -2083,7 +2083,7 @@ namespace BuildXL.Processes
             {
                 // Temp directories are lazily, best effort cleaned after the pip finished. The previous build may not
                 // have finished this work before exiting so we must double check.
-                PreparePathForOutputDirectory(tempDirectoryPath, createIfNonExistent: true);
+                PreparePathForDirectory(tempDirectoryPath.ToString(m_pathTable), createIfNonExistent: true);
             }
             catch (BuildXLException ex)
             {
@@ -2175,19 +2175,26 @@ namespace BuildXL.Processes
         /// </summary>
         private async Task<bool> PrepareOutputsAsync()
         {
-            if (!PrepareDirectoryOutputs())
-            {
-                return false;
-            }
-
-            if (!PrepareInContainerPaths())
-            {
-                return false;
-            }
-
+            using (var preserveOutputWhitelistWrapper = Pools.GetAbsolutePathSet())
             using (var dependenciesWrapper = Pools.GetAbsolutePathSet())
             using (var outputDirectoriesWrapper = Pools.GetAbsolutePathSet())
             {
+                var preserveOutputWhitelist = preserveOutputWhitelistWrapper.Instance;
+                foreach (AbsolutePath path in m_pip.PreserveOutputWhitelist)
+                {
+                    preserveOutputWhitelist.Add(path);
+                }
+
+                if (!await PrepareDirectoryOutputs(preserveOutputWhitelist))
+                {
+                    return false;
+                }
+
+                if (!PrepareInContainerPaths())
+                {
+                    return false;
+                }
+
                 var dependencies = dependenciesWrapper.Instance;
 
                 foreach (FileArtifact dependency in m_pip.Dependencies)
@@ -2209,14 +2216,14 @@ namespace BuildXL.Processes
                     {
                         if (!dependencies.Contains(output.Path))
                         {
-                            if (m_shouldPreserveOutputs)
+                            if (ShouldPreserveDeclaredOutput(output.Path, preserveOutputWhitelist))
                             {
                                 Contract.Assume(m_makeOutputPrivate != null);
 
                                 // A process may be configured to allow its prior outputs to be seen by future
                                 // invocations. In this case we must make sure the outputs are no longer hardlinked to
                                 // the cache to allow them to be writeable.
-                                if (!await m_makeOutputPrivate(output.ToFileArtifact()))
+                                if (!await m_makeOutputPrivate(output.Path.ToString(m_pathTable)))
                                 {
                                     // Delete the file if it exists.
                                     PreparePathForOutputFile(output.Path, outputDirectories);
@@ -2292,24 +2299,54 @@ namespace BuildXL.Processes
             return true;
         }
 
-        private bool PrepareDirectoryOutputs()
+        private async Task<bool> PrepareDirectoryOutputs(HashSet<AbsolutePath> preserveOutputWhitelist)
         {
             foreach (var directoryOutput in m_pip.DirectoryOutputs)
             {
                 try
                 {
-                    if (!directoryOutput.IsSharedOpaque)
+                    string directoryPathStr = directoryOutput.Path.ToString(m_pathTable);
+                    bool dirExist = FileUtilities.DirectoryExistsNoFollow(directoryPathStr);
+
+                    if (directoryOutput.IsSharedOpaque)
                     {
-                        PreparePathForOutputDirectory(directoryOutput.Path, createIfNonExistent: true);
+                        // Ensure it exists.
+                        if (!dirExist)
+                        {
+                            FileUtilities.CreateDirectory(directoryPathStr);
+                        }
                     }
                     else
                     {
-                        // Ensure it exists.
-                        string directoryPath = directoryOutput.Path.ToString(m_pathTable);
-
-                        if (!FileUtilities.DirectoryExistsNoFollow(directoryPath))
+                        if (dirExist && ShouldPreserveDeclaredOutput(directoryOutput.Path, preserveOutputWhitelist))
                         {
-                            FileUtilities.CreateDirectory(directoryPath);
+                            using (var wrapper = Pools.GetStringList())
+                            {
+                                var filePaths = wrapper.Instance;
+                                FileUtilities.EnumerateDirectoryEntries(
+                                    directoryPathStr,
+                                    recursive: true,
+                                    handleEntry: (currentDir, name, attributes) =>
+                                    {
+                                        if ((attributes & FileAttributes.Directory) == 0)
+                                        {
+                                            var path = Path.Combine(currentDir, name);
+                                            filePaths.Add(path);
+                                        }
+                                    });
+
+                                foreach (var path in filePaths)
+                                {
+                                    if (!await m_makeOutputPrivate(path))
+                                    {
+                                        throw new BuildXLException("Failed to create a private, writeable copy of an output file from a previous invocation.");
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            PreparePathForDirectory(directoryPathStr, createIfNonExistent: true);
                         }
                     }
                 }
@@ -3769,12 +3806,6 @@ namespace BuildXL.Processes
             }
         }
 
-        private void PreparePathForOutputDirectory(AbsolutePath directoryPath, bool createIfNonExistent = false)
-        {
-            string expandedDirectoryPath = directoryPath.ToString(m_pathTable);
-            PreparePathForDirectory(expandedDirectoryPath, createIfNonExistent);
-        }
-
         private void PreparePathForDirectory(string expandedDirectoryPath, bool createIfNonExistent)
         {
             bool exists = false;
@@ -3794,6 +3825,32 @@ namespace BuildXL.Processes
             {
                 FileUtilities.CreateDirectory(expandedDirectoryPath);
             }
+        }
+
+        /// <summary>
+        /// Whether we should preserve the given declared static file or directory output.
+        /// </summary>
+        private bool ShouldPreserveDeclaredOutput(AbsolutePath path, HashSet<AbsolutePath> whitelist)
+        {
+            if (!m_shouldPreserveOutputs)
+            {
+                // If the pip does not allow preserve outputs, return false
+                return false;
+            }
+
+            if (whitelist.Count == 0)
+            {
+                // If the whitelist is empty, every output is preserved
+                return true;
+            }
+
+            if (whitelist.Contains(path))
+            {
+                // Only preserve the file or directories that are given in the whitelist.
+                return true;
+            }
+
+            return false;
         }
     }
 }

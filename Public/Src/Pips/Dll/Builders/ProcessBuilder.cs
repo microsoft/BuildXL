@@ -122,6 +122,9 @@ namespace BuildXL.Pips.Builders
         /// <nodoc />
         public Options Options { get; set; }
 
+        /// <nodoc />
+        public ReadOnlyArray<AbsolutePath> PreserveOutputWhitelist { get; set; } = ReadOnlyArray<AbsolutePath>.Empty;
+
         // Container related
 
         /// <summary>
@@ -634,7 +637,8 @@ namespace BuildXL.Pips.Builders
                 containerIsolationLevel: ContainerIsolationLevel,
                 absentPathProbeMode: AbsentPathProbeUnderOpaquesMode,
                 weight: Weight,
-                priority: Priority);
+                priority: Priority,
+                preserveOutputWhitelist: PreserveOutputWhitelist);
 
             return true;
         }

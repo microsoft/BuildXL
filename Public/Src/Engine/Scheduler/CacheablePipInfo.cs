@@ -20,7 +20,6 @@ namespace BuildXL.Scheduler
         public CacheablePipInfo(
             Pip pip,
             PipExecutionContext context,
-            bool allowPreserveOutputs,
             ReadOnlyArray<FileArtifactWithAttributes> outputs,
             ReadOnlyArray<FileArtifact> dependencies,
             ReadOnlyArray<DirectoryArtifact> directoryOutputs,
@@ -28,7 +27,6 @@ namespace BuildXL.Scheduler
             : base(pip, context)
         {
             CacheableStaticOutputsCount = ProcessExtensions.GetCacheableOutputsCount(outputs);
-            AllowPreserveOutputs = allowPreserveOutputs;
             Outputs = outputs;
             Dependencies = dependencies;
             DirectoryOutputs = directoryOutputs;
@@ -39,11 +37,6 @@ namespace BuildXL.Scheduler
         /// Gets number of items in the outputs that should be presented in cache.
         /// </summary>
         public int CacheableStaticOutputsCount { get; private set; }
-
-        /// <summary>
-        /// Indicates the process may run without deleting prior outputs from a previous run.
-        /// </summary>
-        public bool AllowPreserveOutputs { get; private set; }
 
         /// <summary>
         /// File outputs. Each member of the array is distinct.
@@ -103,7 +96,6 @@ namespace BuildXL.Scheduler
             return new CacheablePipInfo(
                 pip: pip,
                 context: context,
-                allowPreserveOutputs: false,
                 outputs: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(pip.OutputFile.WithAttributes()),
                 dependencies: fileDependencies,
                 directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,

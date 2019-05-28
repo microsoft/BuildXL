@@ -18,7 +18,7 @@ if exist %~dp0sdk\Sdk.Transformers (
 )
 mklink /D /J %~dp0sdk\Sdk.Transformers %BUILDXL_BIN%\Sdk\Sdk.Transformers
 
-set buildCmd=%BUILDXL_BIN%\bxl.exe /server- /cacheGraph- /remoteTelemetry+ /nowarn:0909,2840 /cacheConfigFilePath:%BUILDXL_BIN%\DefaultCacheConfigDotNetCore.json /c:%~dp0config.dsc
+set buildCmd=%BUILDXL_BIN%\bxl.exe /server- /cacheGraph- /remoteTelemetry+ /nowarn:0909,2840 /c:%~dp0config.dsc
 echo Executing: %buildCmd%
 %buildCmd%
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%

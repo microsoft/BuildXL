@@ -17,11 +17,11 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// <typeparam name="T">Type held inside the snapshot</typeparam>
     public class ContentDirectorySnapshot<T> : IEnumerable<PayloadFromDisk<T>>
     {
-        private List<PayloadFromDisk<T>>[] _snapshot;
-        private BitArray _sorted;
+        private readonly List<PayloadFromDisk<T>>[] _snapshot;
+        private readonly BitArray _sorted;
 
         /// <nodoc />
-        public long Count { get; private set; } = 0;
+        public long Count { get; private set; }
 
         /// <nodoc />
         public ContentDirectorySnapshot()
@@ -34,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         
         private List<PayloadFromDisk<T>>[] InitializeSnapshot()
         {
-            var snapshot = new List<PayloadFromDisk<T>>[byte.MaxValue];
+            var snapshot = new List<PayloadFromDisk<T>>[byte.MaxValue + 1];
             for (var i = 0; i < snapshot.Length; i++)
             {
                 snapshot[i] = new List<PayloadFromDisk<T>>();

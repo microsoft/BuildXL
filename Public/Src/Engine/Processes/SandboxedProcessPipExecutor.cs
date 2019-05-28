@@ -149,7 +149,7 @@ namespace BuildXL.Processes
 
         private readonly VmInitializer m_vmInitializer;
 
-        private readonly List<(AbsolutePath source, AbsolutePath target)> m_tempFolderRedirectionForVm = new List<(AbsolutePath source, AbsolutePath target)>();
+        private readonly Dictionary<AbsolutePath, AbsolutePath> m_tempFolderRedirectionForVm = new Dictionary<AbsolutePath, AbsolutePath>();
 
         /// <summary>
         /// The active sandboxed process (if any)
@@ -587,7 +587,7 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
-                if (!PrepareTempDirectory(environmentVariables))
+                if (!PrepareTempDirectory(ref environmentVariables))
                 {
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
@@ -834,7 +834,7 @@ namespace BuildXL.Processes
                 info.StandardObserverDescriptor = observerDescriptor;
             }
 
-            info.RedirectedTempFolders = m_tempFolderRedirectionForVm.Select(p => (p.source.ToString(m_pathTable), p.target.ToString(m_pathTable))).ToArray();
+            info.RedirectedTempFolders = m_tempFolderRedirectionForVm.Select(kvp => (kvp.Key.ToString(m_pathTable), kvp.Value.ToString(m_pathTable))).ToArray();
 
             // Preparation should be finished.
             sandboxPrepTime.Stop();
@@ -1073,7 +1073,7 @@ namespace BuildXL.Processes
 
         private void PipStandardIOFailed(string path, Exception ex)
         {
-            BuildXL.Processes.Tracing.Logger.Log.PipStandardIOFailed(
+            Tracing.Logger.Log.PipStandardIOFailed(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context),
@@ -1084,7 +1084,7 @@ namespace BuildXL.Processes
 
         private void LogOutputPreparationFailed(string path, BuildXLException ex)
         {
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessOutputPreparationFailed(
+            Tracing.Logger.Log.PipProcessOutputPreparationFailed(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context),
@@ -1096,7 +1096,7 @@ namespace BuildXL.Processes
 
         private void LogInvalidWarningRegex()
         {
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessInvalidWarningRegex(
+            Tracing.Logger.Log.PipProcessInvalidWarningRegex(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context),
@@ -1106,7 +1106,7 @@ namespace BuildXL.Processes
 
         private void LogInvalidErrorRegex()
         {
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessInvalidErrorRegex(
+            Tracing.Logger.Log.PipProcessInvalidErrorRegex(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context),
@@ -1116,7 +1116,7 @@ namespace BuildXL.Processes
 
         private void LogCommandLineTooLong(SandboxedProcessInfo info)
         {
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessCommandLineTooLong(
+            Tracing.Logger.Log.PipProcessCommandLineTooLong(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context),
@@ -1193,6 +1193,11 @@ namespace BuildXL.Processes
 
                         if (exitedButCanBeRetried)
                         {
+                            if (await TrySaveAndLogStandardOutputAsync(result) && await TrySaveAndLogStandardErrorAsync(result))
+                            {
+                                await TryLogErrorAsync(result, exitedWithSuccessExitCode);
+                            }
+
                             return SandboxedProcessPipExecutionResult.RetryProcessDueToExitCode(
                                 result.NumberOfProcessLaunchRetries,
                                 result.ExitCode,
@@ -1426,7 +1431,7 @@ namespace BuildXL.Processes
                     if ((isFile = FileUtilities.FileExistsNoFollow(expandedOutputPath)) ||
                         FileUtilities.DirectoryExistsNoFollow(expandedOutputPath))
                     {
-                        BuildXL.Processes.Tracing.Logger.Log.PipOutputNotAccessed(
+                        Tracing.Logger.Log.PipOutputNotAccessed(
                           m_loggingContext,
                           m_pip.SemiStableHash,
                           m_pip.GetDescription(m_context),
@@ -2018,7 +2023,7 @@ namespace BuildXL.Processes
         /// Creates and cleans the Process's temp directory if necessary
         /// </summary>
         /// <param name="environmentVariables">Environment</param>
-        private bool PrepareTempDirectory(IBuildParameters environmentVariables)
+        private bool PrepareTempDirectory(ref IBuildParameters environmentVariables)
         {
             Contract.Requires(environmentVariables != null);
 
@@ -2067,6 +2072,22 @@ namespace BuildXL.Processes
                 }
             }
 
+            // Override environment variable.
+            if (ShouldSandboxedProcessExecuteInVm)
+            {
+                if (m_pip.TempDirectory.IsValid
+                    && m_tempFolderRedirectionForVm.TryGetValue(m_pip.TempDirectory, out AbsolutePath redirectedTempDirectory))
+                {
+                    // When running in VM, a pip often queries TMP or TEMP to get the path to the temp directory.
+                    // For most cases, the original path is sufficient because the path is redirected to the one in VM.
+                    // However, a number of operations, like creating/accessing/enumerating junctions, will fail.
+                    // Recall that junctions are evaluated locally, so that creating junction using host path is like creating junctions 
+                    // on the host from the VM.
+                    var overridenEnvVars = DisallowedTempVariables.Select(v => new KeyValuePair<string, string>(v, redirectedTempDirectory.ToString(m_pathTable)));
+                    environmentVariables = environmentVariables.Override(overridenEnvVars);
+                }
+            }
+
             return true;
 
             bool PreparePath(AbsolutePath pathToPrepare)
@@ -2102,8 +2123,10 @@ namespace BuildXL.Processes
 
         private bool PrepareTempDirectoryForVm(AbsolutePath tempDirectoryPath)
         {
+            // Suppose that the temp directory is D:\Bxl\Out\Object\Pip123\Temp\t_0.
             string path = tempDirectoryPath.ToString(m_pathTable);
 
+            // Delete any existence of path D:\Bxl\Out\Object\Pip123\Temp\t_0.
             try
             {
                 if (FileUtilities.FileExistsNoFollow(path))
@@ -2129,15 +2152,24 @@ namespace BuildXL.Processes
                 return false;
             }
 
+            // Suppose that the root of temp directory in VM is T:\BxlInt\Temp.
+            // Users can also set the root, but currently that mechanism is used by unit tests.
             string redirectedTempRoot = m_sandboxConfig.RedirectedTempFolderRootForVmExecution.IsValid
                 ? m_sandboxConfig.RedirectedTempFolderRootForVmExecution.ToString(m_pathTable)
                 : VmIOConstants.Temp.Root;
 
+            // Create a target temp folder in VM, e.g., T:\BxlInt\Temp\Pip123\0
+            // Note that this folder may not exist yet in VM. The sandboxed process executor that runs in the VM is responsible for
+            // creating (or ensuring the existence) of the folder.
             string redirectedPath = Path.Combine(redirectedTempRoot, m_pip.FormattedSemiStableHash, m_tempFolderRedirectionForVm.Count.ToString());
             AbsolutePath tempRedirectedPath = AbsolutePath.Create(m_pathTable, redirectedPath);
 
-            m_tempFolderRedirectionForVm.Add((tempDirectoryPath, tempRedirectedPath));
+            m_tempFolderRedirectionForVm.Add(tempDirectoryPath, tempRedirectedPath);
 
+            // Create a directory symlink D:\Bxl\Out\Object\Pip123\Temp\t_0 -> T:\BxlInt\Temp\Pip123\0.
+            // Any access to D:\Bxl\Out\Object\Pip123\Temp\t_0 will be redirected to T:\BxlInt\Temp\Pip123\0.
+            // To make this access work, one needs to ensure that symlink evaluation behaviors R2R and R2L are enabled in VM.
+            // VmCommandProxy is ensuring that such symlink evaluation behaviors are enabled during VM initialization.
             var createDirectorySymlink = FileUtilities.TryCreateSymbolicLink(path, redirectedPath, isTargetFile: false);
 
             if (!createDirectorySymlink.Succeeded)
@@ -2154,6 +2186,7 @@ namespace BuildXL.Processes
 
             Contract.Assert(m_fileAccessManifest != null);
 
+            // Ensure that T:\BxlInt\Temp\Pip123\0 is untracked. Thus, there is no need for a directory translation.
             m_fileAccessManifest.AddScope(tempRedirectedPath, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
 
             Tracing.Logger.Log.PipTempSymlinkRedirection(
@@ -3155,13 +3188,13 @@ namespace BuildXL.Processes
             }
 
             string standardOutputPath = result.StandardOutput.FileName;
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessStandardOutput(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), standardOutputPath);
+            Tracing.Logger.Log.PipProcessStandardOutput(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), standardOutputPath);
             return true;
         }
 
         private void LogChildrenSurvivedKilled()
         {
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessChildrenSurvivedKilled(
+            Tracing.Logger.Log.PipProcessChildrenSurvivedKilled(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context));
@@ -3545,7 +3578,7 @@ namespace BuildXL.Processes
                             (!stdOutEmpty && !stdErrorEmpty ? Environment.NewLine : string.Empty) +
                             (stdErrorEmpty ? string.Empty : stdError);
 
-                        BuildXL.Processes.Tracing.Logger.Log.PipProcessOutput(
+                        Tracing.Logger.Log.PipProcessOutput(
                             m_loggingContext,
                             m_pip.SemiStableHash,
                             m_pip.GetDescription(m_context),
@@ -3635,7 +3668,7 @@ namespace BuildXL.Processes
                 out string outputTolog,
                 out string outputPathsToLog);
 
-            BuildXL.Processes.Tracing.Logger.Log.PipProcessWarning(
+            Tracing.Logger.Log.PipProcessWarning(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pip.GetDescription(m_context),
@@ -3725,7 +3758,7 @@ namespace BuildXL.Processes
             // Instead of logging each line, consider storing manifest and logging file name
             foreach (string line in m_fileAccessManifest.Describe())
             {
-                BuildXL.Processes.Tracing.Logger.Log.PipProcessFileAccessTableEntry(
+                Tracing.Logger.Log.PipProcessFileAccessTableEntry(
                     m_loggingContext,
                     pip.SemiStableHash,
                     pip.GetDescription(m_context),

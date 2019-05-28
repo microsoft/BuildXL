@@ -79,6 +79,9 @@ namespace BuildXL.Storage
         /// <summary>
         /// Length of the file in bytes.
         /// </summary>
+        /// <remarks>
+        /// Do not use this value for serialization (use FileContentInfo.RawLength)
+        /// </remarks>
         public long Length => FileContentInfo.Length;
 
         /// <inheritdoc />

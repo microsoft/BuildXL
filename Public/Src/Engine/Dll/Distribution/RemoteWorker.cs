@@ -109,12 +109,12 @@ namespace BuildXL.Engine.Distribution
 
             if (isGrpcEnabled)
             {
-                m_workerClient = new Grpc.GrpcWorkerClient(m_appLoggingContext, masterService.DistributionServices.BuildId, serviceLocation.IpAddress, serviceLocation.Port);
+                m_workerClient = new Grpc.GrpcWorkerClient(m_appLoggingContext, masterService.DistributionServices.BuildId, serviceLocation.IpAddress, serviceLocation.Port, OnConnectionTimeOutAsync);
             }
             else
             {
 #if !DISABLE_FEATURE_BOND_RPC
-                m_workerClient = new InternalBond.BondWorkerClient(m_appLoggingContext, Name, serviceLocation.IpAddress, serviceLocation.Port, masterService.DistributionServices, OnActivateConnection, OnDeactivateConnection, OnConnectionTimeOut);
+                m_workerClient = new InternalBond.BondWorkerClient(m_appLoggingContext, Name, serviceLocation.IpAddress, serviceLocation.Port, masterService.DistributionServices, OnActivateConnection, OnDeactivateConnection, OnConnectionTimeOutAsync);
 #endif
             }
 
@@ -311,8 +311,11 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        private void OnConnectionTimeOut(object sender, EventArgs e)
-        {
+        private async void OnConnectionTimeOutAsync(object sender, EventArgs e)
+        {           
+            // Unblock caller to make it a fire&forget event handler.
+            await Task.Yield();
+
             // Stop using the worker if the connect times out
             while (!ChangeStatus(Status, WorkerNodeStatus.Stopped) && Status != WorkerNodeStatus.Stopped)
             {
@@ -929,7 +932,7 @@ namespace BuildXL.Engine.Distribution
 
         private void Stop(bool isLostConnection)
         {
-            m_workerClient.Close();
+            Analysis.IgnoreResult(m_workerClient.CloseAsync(), justification: "Okay to ignore close");
 
             // The worker goes in a stopped state either by a scheduler request or because it lost connection with the
             // remote machine. Check which one applies.

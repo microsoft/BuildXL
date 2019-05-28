@@ -118,6 +118,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private readonly int _maxDegreeOfParallelismForIncorporateRequests;
         private readonly int _maxFingerprintsPerIncorporateRequest;
         private int _sealingErrorCount;
+        private readonly bool _overrideUnixFileAccessMode;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="BuildCacheReadOnlySession"/> class.
@@ -137,6 +138,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="maxFingerprintsPerIncorporateRequest">Max fingerprints allowed per chunk</param>
         /// <param name="writeThroughContentSession">Optional write-through session to allow writing-behind to BlobStore</param>
         /// <param name="sealUnbackedContentHashLists">If true, the client will attempt to seal any unbacked ContentHashLists that it sees.</param>
+        /// <param name="overrideUnixFileAccessMode">If true, overrides default Unix file access modes when placing files.</param>
         /// <param name="tracer">A tracer for logging and perf counters.</param>
         public BuildCacheReadOnlySession(
             IAbsFileSystem fileSystem,
@@ -154,6 +156,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             int maxFingerprintsPerIncorporateRequest,
             IContentSession writeThroughContentSession,
             bool sealUnbackedContentHashLists,
+            bool overrideUnixFileAccessMode,
             BuildCacheCacheTracer tracer)
         {
             Contract.Requires(name != null);
@@ -177,6 +180,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _fingerprintIncorporationEnabled = fingerprintIncorporationEnabled;
             _maxDegreeOfParallelismForIncorporateRequests = maxDegreeOfParallelismForIncorporateRequests;
             _maxFingerprintsPerIncorporateRequest = maxFingerprintsPerIncorporateRequest;
+            _overrideUnixFileAccessMode = overrideUnixFileAccessMode;
 
             FingerprintTracker = new FingerprintTracker(DateTime.UtcNow + minimumTimeToKeepContentHashLists, rangeOfTimeToKeepContentHashLists);
         }
@@ -549,6 +553,20 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 });
         }
 
+        /// <nodoc />
+        [DllImport("libc", SetLastError = true)]
+        private static extern int chmod(string path, int mode);
+
+        private void OverrideFileAccessMode(AbsolutePath path)
+        {
+            if (!OperatingSystemHelper.IsWindowsOS && _overrideUnixFileAccessMode)
+            {
+                // Force 0777 on the file at 'path' - this is a temporary hack when placing files as our VSTS cache layer
+                // currently does not track Unix file access flags
+                Chmod.chmod(path.Path, 0x0001 | 0x0002 | 0x0004 | 0x0040 | 0x0080 | 0x0100 | 0x0008 | 0x0010 | 0x0020);
+            }
+        }
+
         /// <inheritdoc />
         public Task<PlaceFileResult> PlaceFileAsync(
             Context context,
@@ -567,11 +585,14 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         var result = await WriteThroughContentSession.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint).ConfigureAwait(false);
                         if (result.Succeeded || result.Code != PlaceFileResult.ResultCode.NotPlacedContentNotFound)
                         {
+                            OverrideFileAccessMode(path);
                             return result;
                         }
                     }
 
-                    return await BackingContentSession.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint);
+                    var result = await BackingContentSession.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint);
+                    OverrideFileAccessMode(path);
+                    return result;
                 });
         }
 

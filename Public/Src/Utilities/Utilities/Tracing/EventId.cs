@@ -115,7 +115,7 @@ namespace BuildXL.Utilities.Tracing
         PipProcessInvalidErrorRegex = 89,
         // Reserved  = 90,
         // Reserved  = 91,
-        // Free = 92,
+        PipProcessNeedsExecuteExternalButExecuteInternal = 92,
         // Reserved  = 93,
         EnvironmentValueForTempDisallowed = 94,
         CannotHonorLowPriority = 95,

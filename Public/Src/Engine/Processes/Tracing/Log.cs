@@ -931,5 +931,22 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Events.Tasks.PipExecutor,
             Message = Events.PipPrefix + "External execution: {message}")]
         public abstract void PipProcessExternalExecution(LoggingContext context, long pipSemiStableHash, string pipDescription, string message);
+
+        [GeneratedEvent(
+            (int)EventId.PipProcessNeedsExecuteExternalButExecuteInternal,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "Process needs to be executed externally because (require admin privilege: {requiredAdminPrivilege} | execution mode: {executionMode}), but instead it executes internally because (Win OS: {isWinOS} | container enabled: {isContainerEnabled} | listener existence: {existsListener})")]
+        public abstract void PipProcessNeedsExecuteExternalButExecuteInternal(
+            LoggingContext context, 
+            long pipSemiStableHash, 
+            string pipDescription, 
+            bool requiredAdminPrivilege,
+            string executionMode,
+            bool isWinOS,
+            bool isContainerEnabled,
+            bool existsListener);
     }
 }

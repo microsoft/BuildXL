@@ -664,11 +664,14 @@ namespace BuildXL.Processes
             }
         }
 
-        private bool ShouldSandboxedProcessExecuteExternal
+        private bool SandboxedProcessNeedsExecuteExternal
             => // Execution mode is external
                m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternal()
                // Only pip that requires admin privilege.
-               && m_pip.RequiresAdmin
+               && m_pip.RequiresAdmin;
+
+        private bool ShouldSandboxedProcessExecuteExternal
+            => SandboxedProcessNeedsExecuteExternal
                // Process does not talk to BuildXL server.
                && m_processIdListener == null
                // Container is disabled.
@@ -676,7 +679,7 @@ namespace BuildXL.Processes
                // Windows only.
                && !OperatingSystemHelper.IsUnixOS;
 
-        private bool ShouldSandboxedProcessExecuteInVm => ShouldSandboxedProcessExecuteExternal && m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalVM;
+        private bool ShouldSandboxedProcessExecuteInVm => ShouldSandboxedProcessExecuteExternal && m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternalVm();
 
         private async Task<SandboxedProcessPipExecutionResult> RunInternalAsync(
             SandboxedProcessInfo info,
@@ -684,6 +687,19 @@ namespace BuildXL.Processes
             System.Diagnostics.Stopwatch sandboxPrepTime,
             CancellationToken cancellationToken = default)
         {
+            if (SandboxedProcessNeedsExecuteExternal)
+            {
+                Tracing.Logger.Log.PipProcessNeedsExecuteExternalButExecuteInternal(
+                    m_loggingContext,
+                    m_pip.SemiStableHash,
+                    m_pip.GetDescription(m_context),
+                    m_pip.RequiresAdmin,
+                    m_sandboxConfig.AdminRequiredProcessExecutionMode.ToString(),
+                    !OperatingSystemHelper.IsUnixOS,
+                    m_containerConfiguration.IsIsolationEnabled,
+                    m_processIdListener != null);
+            }
+
             using (Stream standardInputStream = TryOpenStandardInputStream(out bool openStandardInputStreamSuccess))
             {
                 if (!openStandardInputStreamSuccess)
@@ -2218,7 +2234,7 @@ namespace BuildXL.Processes
                     preserveOutputWhitelist.Add(path);
                 }
 
-                if (!await PrepareDirectoryOutputs(preserveOutputWhitelist))
+                if (!await PrepareDirectoryOutputsAsync(preserveOutputWhitelist))
                 {
                     return false;
                 }
@@ -2332,7 +2348,7 @@ namespace BuildXL.Processes
             return true;
         }
 
-        private async Task<bool> PrepareDirectoryOutputs(HashSet<AbsolutePath> preserveOutputWhitelist)
+        private async Task<bool> PrepareDirectoryOutputsAsync(HashSet<AbsolutePath> preserveOutputWhitelist)
         {
             foreach (var directoryOutput in m_pip.DirectoryOutputs)
             {
@@ -3432,8 +3448,8 @@ namespace BuildXL.Processes
 
                         while (errorReader.Peek() != -1 || outReader.Peek() != -1)
                         {
-                            string stdError = await ReadNextChunk(errorReader, result.StandardError, filterPredicate);
-                            string stdOut = await ReadNextChunk(outReader, result.StandardOutput, filterPredicate);
+                            string stdError = await ReadNextChunkAsync(errorReader, result.StandardError, filterPredicate);
+                            string stdOut = await ReadNextChunkAsync(outReader, result.StandardOutput, filterPredicate);
 
                             if (stdError == null || stdOut == null)
                             {
@@ -3546,8 +3562,8 @@ namespace BuildXL.Processes
 
                     while (errorReader.Peek() != -1 || outReader.Peek() != -1)
                     {
-                        string stdError = await ReadNextChunk(errorReader, result.StandardError);
-                        string stdOut = await ReadNextChunk(outReader, result.StandardOutput);
+                        string stdError = await ReadNextChunkAsync(errorReader, result.StandardError);
+                        string stdOut = await ReadNextChunkAsync(outReader, result.StandardOutput);
 
                         if (stdError == null || stdOut == null)
                         {
@@ -3609,7 +3625,7 @@ namespace BuildXL.Processes
         /// Reads chunk of output from reader, with optional filtering:
         /// the result will only contain lines, that satisfy provided predicate (if it is non-null).
         /// </summary>
-        private async Task<string> ReadNextChunk(TextReader reader, SandboxedProcessOutput output, Predicate<string> filterPredicate = null)
+        private async Task<string> ReadNextChunkAsync(TextReader reader, SandboxedProcessOutput output, Predicate<string> filterPredicate = null)
         {
             try
             {

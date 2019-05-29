@@ -123,11 +123,8 @@ namespace BuildXL.Scheduler
         {
             if (!m_disposed)
             {
-                m_disposed = true;
-
                 m_cancellationSource.Cancel();
-                m_pathsToDelete.CompleteAdding();
-                m_cleanerThread.Join();
+                WaitPendingTasksForCompletion();
 
                 Tracing.Logger.Log.PipTempCleanerSummary(
                     Events.StaticContext,
@@ -140,6 +137,8 @@ namespace BuildXL.Scheduler
 
                 m_pathsToDelete.Dispose();
                 m_cancellationSource.Dispose();
+
+                m_disposed = true;
             }
         }
 

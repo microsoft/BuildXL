@@ -6,12 +6,13 @@ using Xunit.Abstractions;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true, requiresSymlinkPermission: true)]
     public class ExternalVmExecutionTests : ExternalToolExecutionTests
     {
         public ExternalVmExecutionTests(ITestOutputHelper output) : base(output)
         {
             Configuration.Sandbox.AdminRequiredProcessExecutionMode = global::BuildXL.Utilities.Configuration.AdminRequiredProcessExecutionMode.ExternalVM;
+            Configuration.Sandbox.RedirectedTempFolderRootForVmExecution = CreateUniqueDirectory(ObjectRootPath);
         }
     }
 }

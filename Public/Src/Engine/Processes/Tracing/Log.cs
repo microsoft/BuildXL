@@ -127,20 +127,6 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessTempDirectoryTooLong,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message =
-                Events.PipPrefix + "Temp directory too long: '{2}'")]
-        public abstract void PipProcessTempDirectoryTooLong(
-            LoggingContext context,
-            long pipSemiStableHash,
-            string pipDescription,
-            string directory);
-
-        [GeneratedEvent(
             (int)EventId.PipOutputNotAccessed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -713,7 +699,7 @@ namespace BuildXL.Processes.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Failed to clean temp directory at '{2}'. Pip will not be executed. Reason: {3}")]
+            Message = Events.PipPrefix + "Failed to clean temp directory at '{directory}'. Pip will not be executed. {exceptionMessage}")]
         public abstract void PipTempDirectoryCleanupError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);
 
         [GeneratedEvent(
@@ -722,8 +708,26 @@ namespace BuildXL.Processes.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
-            Message = "Failed to create temp directory at '{0}'. Reason: {1}")]
-        public abstract void PipTempDirectorySetupError(LoggingContext context, string directory, string exceptionMessage);
+            Message = Events.PipPrefix + "Failed to create temp directory at '{directory}'. {exceptionMessage}")]
+        public abstract void PipTempDirectorySetupError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)EventId.PipTempSymlinkRedirectionError,
+            EventLevel = Level.Error,
+            EventGenerators = EventGenerators.LocalOnly,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "Failed to create directory symlink '{directorySymlink}' as a redirection for temp directory '{tempDirectory}'. {exceptionMessage}")]
+        public abstract void PipTempSymlinkRedirectionError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directorySymlink, string tempDirectory, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)EventId.PipTempSymlinkRedirection,
+            EventLevel = Level.Verbose,
+            EventGenerators = EventGenerators.LocalOnly,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "Create directory symlink '{directorySymlink}' as a redirection for temp directory '{tempDirectory}'")]
+        public abstract void PipTempSymlinkRedirection(LoggingContext context, long pipSemiStableHash, string pipDescription, string directorySymlink, string tempDirectory);
 
         [GeneratedEvent(
             (ushort)EventId.PipFailedToCreateDumpFile,
@@ -927,5 +931,22 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Events.Tasks.PipExecutor,
             Message = Events.PipPrefix + "External execution: {message}")]
         public abstract void PipProcessExternalExecution(LoggingContext context, long pipSemiStableHash, string pipDescription, string message);
+
+        [GeneratedEvent(
+            (int)EventId.PipProcessNeedsExecuteExternalButExecuteInternal,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "Process needs to be executed externally because (require admin privilege: {requiredAdminPrivilege} | execution mode: {executionMode}), but instead it executes internally because (Win OS: {isWinOS} | container enabled: {isContainerEnabled} | listener existence: {existsListener})")]
+        public abstract void PipProcessNeedsExecuteExternalButExecuteInternal(
+            LoggingContext context, 
+            long pipSemiStableHash, 
+            string pipDescription, 
+            bool requiredAdminPrivilege,
+            string executionMode,
+            bool isWinOS,
+            bool isContainerEnabled,
+            bool existsListener);
     }
 }

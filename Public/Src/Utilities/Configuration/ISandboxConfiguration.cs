@@ -212,5 +212,13 @@ namespace BuildXL.Utilities.Configuration
         /// Execution mode for processes that require admin privilege.
         /// </summary>
         AdminRequiredProcessExecutionMode AdminRequiredProcessExecutionMode { get; }
+
+        /// <summary>
+        /// Root of redirected temporary folders for VM execution.
+        /// </summary>
+        /// <remarks>
+        /// This is used mainly for testing.
+        /// </remarks>
+        AbsolutePath RedirectedTempFolderRootForVmExecution { get; }
     }
 }

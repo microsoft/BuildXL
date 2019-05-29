@@ -166,5 +166,28 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(EventId.PipProcessTookTooLongError, count: 1);
             AssertErrorEventLogged(EventId.PipProcessError, count: 1);
         }
+
+        [Fact]
+        public void ExecutionUntrackTempFolder()
+        {
+            AbsolutePath tempDirectory = CreateUniqueDirectory(ObjectRoot);
+            FileArtifact tempFile = CreateOutputFileArtifact(tempDirectory);
+
+            ProcessBuilder builder = CreatePipBuilder(new[]
+            {
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.WriteFile(tempFile, doNotInfer: true),
+                Operation.ReadFile(tempFile, doNotInfer: true)
+            });
+
+            builder.Options |= Process.Options.RequiresAdmin;
+            builder.SetTempDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(tempDirectory));
+
+            ProcessWithOutputs process = SchedulePipBuilder(builder);
+
+            RunScheduler().AssertSuccess();
+            RunScheduler().AssertCacheHit(process.Process.PipId);
+        }
     }
 }

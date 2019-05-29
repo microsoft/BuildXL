@@ -1974,48 +1974,6 @@ namespace BuildXL.Processes
             return !semanticPathInfo.IsValid || semanticPathInfo.IsWritable;
         }
 
-        /// <summary>
-        /// Returns the list of necessary directories to exist before the given pip can be executed
-        /// </summary>
-        /// <param name="pip">The process pip to analyze</param>
-        /// <param name="pathTable">The PathTable</param>
-        /// <param name="semanticPathExpander">the semantic expander</param>
-        /// <returns>List of directories to be created before a pip can execute</returns>
-        public static IEnumerable<string> GetDirectoriesToCreate(Process pip, PathTable pathTable, SemanticPathExpander semanticPathExpander)
-        {
-            Contract.Requires(pip != null);
-            Contract.Requires(pathTable != null);
-
-            var directories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (semanticPathExpander == null || IsInvalidOrWritable(semanticPathExpander.GetSemanticPathInfo(pip.WorkingDirectory)))
-            {
-                // Only write the working directory if its not under read-only root.
-                directories.Add(pip.WorkingDirectory.ToString(pathTable));
-            }
-
-            // Support for (opaque) output directories.
-            foreach (DirectoryArtifact outputDirectory in pip.DirectoryOutputs)
-            {
-                directories.Add(outputDirectory.Path.ToString(pathTable));
-            }
-
-            using (var wrapper = Pools.GetAbsolutePathSet())
-            {
-                var outputDirectoryIds = wrapper.Instance;
-                foreach (FileArtifactWithAttributes output in pip.FileOutputs)
-                {
-                    outputDirectoryIds.Add(output.Path.GetParent(pathTable));
-                }
-
-                foreach (AbsolutePath outputDirectoryId in outputDirectoryIds)
-                {
-                    directories.Add(outputDirectoryId.ToString(pathTable));
-                }
-            }
-
-            return directories;
-        }
-
         private bool PrepareWorkingDirectory()
         {
             if (m_semanticPathExpander == null || IsInvalidOrWritable(m_semanticPathExpander.GetSemanticPathInfo(m_pip.WorkingDirectory)))

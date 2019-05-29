@@ -626,11 +626,11 @@ namespace BuildXL.Utilities.Tracing
         IncrementalFrontendCache = 2108,
 
         // Temp files/directory cleanup
-        PipTempDirectoryCleanupWarning = 2200,
+        PipFailedTempDirectoryCleanup = 2200,
         PipTempDirectoryCleanupError = 2201,
         PipTempCleanerThreadSummary = 2202,
         PipTempDirectorySetupError = 2203,
-        PipTempFileCleanupWarning = 2204,
+        PipFailedTempFileCleanup = 2204,
         PipTempSymlinkRedirectionError = 2205,
         PipTempSymlinkRedirection = 2206,
 

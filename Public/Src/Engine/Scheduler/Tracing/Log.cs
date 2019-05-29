@@ -2181,22 +2181,22 @@ namespace BuildXL.Scheduler.Tracing
         #endregion
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempDirectoryCleanupWarning,
-            EventLevel = Level.Warning,
+            (ushort)EventId.PipFailedTempDirectoryCleanup,
+            EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            EventTask = (int)Events.Tasks.Scheduler,
             Message = "Failed to clean temp directory at '{0}'. Reason: {1}")]
-        public abstract void PipTempDirectoryCleanupWarning(LoggingContext context, string directory, string exceptionMessage);
+        public abstract void PipFailedTempDirectoryCleanup(LoggingContext context, string directory, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempFileCleanupWarning,
-            EventLevel = Level.Warning,
+            (ushort)EventId.PipFailedTempFileCleanup,
+            EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            EventTask = (int)Events.Tasks.Scheduler,
             Message = "Failed to clean temp file at '{0}'. Reason: {1}")]
-        public abstract void PipTempFileCleanupWarning(LoggingContext context, string file, string exceptionMessage);
+        public abstract void PipFailedTempFileCleanup(LoggingContext context, string file, string exceptionMessage);
 
         [GeneratedEvent(
             (ushort)EventId.PipTempCleanerThreadSummary,
@@ -2204,8 +2204,8 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
-            Message = "Temp cleaner thread exited with {0} cleaned, {1} remaining and {2} failed temp directories, {3} cleaned, {4} remaining and {5} failed temp files. (timed out: {6})")]
-        public abstract void PipTempCleanerSummary(LoggingContext context, long cleanedDirs, long remainingDirs, long failedDirs, long cleanedFiles, long remainingFiles, long failedFiles, bool timedout);
+            Message = "Temp cleaner thread exited with {0} cleaned, {1} remaining and {2} failed temp directories, {3} cleaned, {4} remaining and {5} failed temp files")]
+        public abstract void PipTempCleanerSummary(LoggingContext context, long cleanedDirs, long remainingDirs, long failedDirs, long cleanedFiles, long remainingFiles, long failedFiles);
 
         [GeneratedEvent(
             (int)EventId.RunningTimeAdded,

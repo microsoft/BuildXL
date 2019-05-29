@@ -218,7 +218,7 @@ export function runQTest(args: QTestArguments): Result {
         const coverageLogDir = d`${parentDir}\CoverageLogs\${leafDir}`;
         const coverageConsolePath = p`${coverageLogDir}/coverageUpload.stdout`;
 
-        let commandLineArgsForUploadPip: Argument[] = [
+        const commandLineArgsForUploadPip: Argument[] = [
             Cmd.option("--qTestLogsDir ", Artifact.output(coverageLogDir)),
             Cmd.option("--qTestContextInfo ", Artifact.input(qTestContextInfoPath)),
             Cmd.option("--coverageDirectory ", Artifact.input(qTestLogsDir)),

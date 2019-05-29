@@ -122,18 +122,6 @@ export function runQTest(args: QTestArguments): Result {
     if (Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo")){
         const qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo");
         qTestContextInfoPath = qTestContextInfoFile.path;
-        untrackingCBPaths =  {
-            unsafe: {
-                untrackedPaths: [
-                    qTestContextInfoFile,
-                ],
-                untrackedScopes: [
-                    d`d:/data`,
-                    d`d:/app`,
-                    ...addIf(Environment.hasVariable("QAUTHMATERIALROOT"), Environment.getDirectoryValue("QAUTHMATERIALROOT")),
-                ]
-            }
-        };
     }
     
     let commandLineArgs: Argument[] = [
@@ -186,63 +174,69 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset")
     ];          
 
-    let result = Transformer.execute(
-        Object.merge<Transformer.ExecuteArguments>(    
-            {
-                tool: args.qTestTool ? args.qTestTool : qTestTool,
-                tags: tags,
-                description: args.description,
-                arguments: commandLineArgs,
-                consoleOutput: consolePath,
-                workingDirectory: sandboxDir,
-                tempDirectory: tempDirectory,
-                weight: args.weight,
-                disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
-                additionalTempDirectories : [sandboxDir],
-                privilegeLevel: args.privilegeLevel,
-                dependencies: [
-                    //When there are test failures, and PDBs are looked up to generate the stack traces,
-                    //the original location of PDBs is used instead of PDBs in test sandbox. This is 
-                    //a temporary solution until a permanent fix regarding the lookup is identified
-                    ...(args.qTestInputs ? args.qTestInputs.filter(
-                        f => f.name.hasExtension && f.name.extension === a`.pdb`
-                    ) : []),
-                    ...(args.qTestRuntimeDependencies || []),
-                ],
-            }, 
-            untrackingCBPaths
-        )
-    );
+    let unsafeOptions = {
+        untrackedPaths: [
+            qTestContextInfoPath,
+        ],
+        untrackedScopes: [
+            d`d:/data`,
+            d`d:/app`,
+            ...addIf(Environment.hasVariable("QAUTHMATERIALROOT"), Environment.getDirectoryValue("QAUTHMATERIALROOT")),
+        ]
+    };
+
+    let result = Transformer.execute({
+        tool: args.qTestTool ? args.qTestTool : qTestTool,
+        tags: tags,
+        description: args.description,
+        arguments: commandLineArgs,
+        consoleOutput: consolePath,
+        workingDirectory: sandboxDir,
+        tempDirectory: tempDirectory,
+        weight: args.weight,
+        environmentVariables: [{ name: "[Sdk.BuildXL]qCodeCoverageEnumType", value: qCodeCoverageEnumType }],
+        disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
+        additionalTempDirectories : [sandboxDir],
+        privilegeLevel: args.privilegeLevel,
+        dependencies: [
+            //When there are test failures, and PDBs are looked up to generate the stack traces,
+            //the original location of PDBs is used instead of PDBs in test sandbox. This is
+            //a temporary solution until a permanent fix regarding the lookup is identified
+            ...(args.qTestInputs ? args.qTestInputs.filter(
+                f => f.name.hasExtension && f.name.extension === a`.pdb`
+            ) : []),
+        ],
+        unsafe: unsafeOptions
+    });
+
     const qTestLogsDir: StaticDirectory = result.getOutputDirectory(logDir);
 
     // If code coverage is enabled, schedule a pip that will perform coverage file upload.
     if (qCodeCoverageEnumType === "DynamicCodeCov"){
-        let coverageLogDir = args.coverageLogsDir || Context.getNewOutputDirectory("coverageLogs");
-        let coverageConsolePath = p`${coverageLogDir}/coverageUpload.stdout`;
+        const parentDir = d`${logDir}`.parent;
+        const leafDir = d`${logDir}`.nameWithoutExtension;
+        const coverageLogDir = d`${parentDir}\CoverageLogs\${leafDir}`;
+        const coverageConsolePath = p`${coverageLogDir}/coverageUpload.stdout`;
 
         let commandLineArgsForUploadPip: Argument[] = [
             Cmd.option("--qTestLogsDir ", Artifact.output(coverageLogDir)),
             Cmd.option("--qTestContextInfo ", Artifact.input(qTestContextInfoPath)),
             Cmd.option("--coverageDirectory ", Artifact.input(qTestLogsDir)),
-            Cmd.option("--qTestBuildType ", args.qTestBuildType),
+            Cmd.option("--qTestBuildType ", args.qTestBuildType || "Unset"),
             Cmd.option("--qtestPlatform ", qTestPlatformToString(args.qTestPlatform))
         ];
 
-        Transformer.execute(
-            Object.merge<Transformer.ExecuteArguments>(
-                {
-                    tool: args.qTestTool ? args.qTestTool : qTestTool,
-                    tags: tags,
-                    description: "QTest Coverage Upload",
-                    arguments: commandLineArgsForUploadPip,
-                    consoleOutput: coverageConsolePath,
-                    workingDirectory: tempDirectory,
-                    disableCacheLookup: true,
-                    privilegeLevel: args.privilegeLevel,
-                },
-                untrackingCBPaths
-            )
-        );
+        Transformer.execute({
+            tool: args.qTestTool ? args.qTestTool : qTestTool,
+            tags: tags,
+            description: "QTest Coverage Upload",
+            arguments: commandLineArgsForUploadPip,
+            consoleOutput: coverageConsolePath,
+            workingDirectory: tempDirectory,
+            disableCacheLookup: true,
+            privilegeLevel: args.privilegeLevel,
+            unsafe: unsafeOptions
+        });
     }
 
     return <Result>{
@@ -332,8 +326,6 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     weight?: number;
     /** Privilege level required by this process to execute. */
     privilegeLevel?: "standard" | "admin";
-     /** Directory to write coverage logs in */
-    coverageLogsDir?: Directory;
     /** Specifies the build type */
     qTestBuildType?: string;
 }

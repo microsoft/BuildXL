@@ -215,7 +215,7 @@ export function runQTest(args: QTestArguments): Result {
     if (qCodeCoverageEnumType === "DynamicCodeCov"){
         const parentDir = d`${logDir}`.parent;
         const leafDir = d`${logDir}`.nameWithoutExtension;
-        const coverageLogDir = d`${parentDir}\CoverageLogs\${leafDir}`;
+        const coverageLogDir = d`${parentDir}/CoverageLogs/${leafDir}`;
         const coverageConsolePath = p`${coverageLogDir}/coverageUpload.stdout`;
 
         const commandLineArgsForUploadPip: Argument[] = [

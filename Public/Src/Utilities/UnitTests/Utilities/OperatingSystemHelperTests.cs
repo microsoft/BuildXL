@@ -4,7 +4,6 @@
 //  
 // --------------------------------------------------------------------
 
-using System.IO;
 using BuildXL.Utilities;
 using Xunit;
 

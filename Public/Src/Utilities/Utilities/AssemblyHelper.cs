@@ -98,7 +98,7 @@ namespace BuildXL.Utilities
             if (entryAssemblyLocation.EndsWith(".dll"))
             {
                 return OperatingSystemHelper.IsUnixOS
-                    ? Path.GetFileNameWithoutExtension(entryAssemblyLocation)
+                    ? entryAssemblyLocation.Substring(0, entryAssemblyLocation.Length - 4)
                     : Path.ChangeExtension(entryAssemblyLocation, "exe");
             }
             else

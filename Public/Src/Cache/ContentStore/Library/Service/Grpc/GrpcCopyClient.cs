@@ -2,11 +2,13 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -24,27 +26,84 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// </summary>
     public sealed class GrpcCopyClient : IShutdown<BoolResult>
     {
+        // Link to DistributedContentStoreSettings.MaxConcurrentCopyOperations
+        private const int _maxClientCount = 512;
+
+        private static readonly object lockObject = new object();
+        internal static readonly ConcurrentDictionary<(string, int, bool), GrpcCopyClient> _clientDict = new ConcurrentDictionary<(string, int, bool), GrpcCopyClient>(Environment.ProcessorCount, _maxClientCount);
+        private static Task _backgroundCleaningTask;
+        private static CancellationTokenSource _backgroundCleaningTaskTokenSource;
+
         private readonly Channel _channel;
         private readonly ContentServer.ContentServerClient _client;
         private readonly string _host;
         private readonly int _grpcPort;
         private bool _useCompression;
+        internal DateTime _lastUseTime;
+        internal int _uses;
+
+        static GrpcCopyClient()
+        {
+            RestartBackgroundCleanup();
+        }
+
+        private async static Task BackgroundCleanupAsync(CancellationTokenSource cts)
+        {
+            _backgroundCleaningTaskTokenSource = cts;
+            var ct = _backgroundCleaningTaskTokenSource.Token;
+
+            while (!ct.IsCancellationRequested)
+            {
+                if (!_clientDict.IsEmpty)
+                {
+                    var oneHourAgo = DateTime.UtcNow - TimeSpan.FromHours(1);
+
+                    foreach (var kvp in _clientDict)
+                    {
+                        var client = kvp.Value;
+                        if (client._uses == 0 && client._lastUseTime < oneHourAgo)
+                        {
+                            lock (lockObject)
+                            {
+                                if (_clientDict.TryRemove((client._host, client._grpcPort, client._useCompression), out GrpcCopyClient removedClient))
+                                {
+                                    // Cannot await within a lock
+                                    client._channel.ShutdownAsync().Start();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                await Task.Delay(1000 * 60 * 30, ct);
+            }
+        }
+
+        internal static void RestartBackgroundCleanup()
+        {
+            lock (lockObject)
+            {
+                if (_backgroundCleaningTask != null)
+                {
+                    _backgroundCleaningTaskTokenSource.Cancel();
+                    try
+                    {
+                        _backgroundCleaningTask.Wait();
+                    }
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+                    catch (AggregateException) { }
+#pragma warning restore ERP022  // Unobserved exception in generic exception handler
+                }
+
+                _backgroundCleaningTask = Task.Run(() => BackgroundCleanupAsync(new CancellationTokenSource()));
+            }
+        }
 
         /// <inheritdoc />
         public bool ShutdownCompleted { get; private set; }
 
         /// <inheritdoc />
         public bool ShutdownStarted { get; private set; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
-        /// </summary>
-        private GrpcCopyClient(Channel channel, bool useCompression)
-        {
-            GrpcEnvironment.InitializeIfNeeded();
-            _client = new ContentServer.ContentServerClient(channel);
-            _useCompression = useCompression;
-        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
@@ -57,6 +116,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _host = host;
             _grpcPort = grpcPort;
             _useCompression = useCompression;
+
+            _lastUseTime = DateTime.UtcNow;
+            _uses = 0;
         }
 
         /// <summary>
@@ -67,9 +129,27 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <param name="useCompression">Whether or not GZip is enabled for copies.</param>
         public static GrpcCopyClient Create(string host, int grpcPort, bool useCompression = false)
         {
-            // TODO: Add caching of GrpcCopyClient objects
-            // TODO: Add case where _clientPool has exceeded some maximum count
-            return new GrpcCopyClient(host, grpcPort, useCompression);
+            if (_clientDict.TryGetValue((host, grpcPort, useCompression), out GrpcCopyClient existingClient))
+            {
+                Interlocked.Increment(ref existingClient._uses);
+                existingClient._lastUseTime = DateTime.UtcNow;
+                return existingClient;
+            }
+            else if (_clientDict.Count > _maxClientCount)
+            {
+                throw new CacheException($"Attempting to create {nameof(GrpcCopyClient)} to increase cached count above maximum allowed ({_maxClientCount})");
+            }
+            else
+            {
+                // TODO: Replace `tup` with named tuple when allowed by C# compiler
+                var foundClient = _clientDict.GetOrAdd((host, grpcPort, useCompression), tup => {
+                    var newClient = new GrpcCopyClient(tup.Item1, tup.Item2, tup.Item3);
+                    newClient._lastUseTime = DateTime.UtcNow;
+                    return newClient;
+                    });
+                Interlocked.Increment(ref foundClient._uses);
+                return foundClient;
+            }
         }
 
         /// <inheritdoc />
@@ -307,7 +387,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         public void Dispose()
         {
-            // noop for now
+            Interlocked.Decrement(ref _uses);
         }
 
         /// <inheritdoc />

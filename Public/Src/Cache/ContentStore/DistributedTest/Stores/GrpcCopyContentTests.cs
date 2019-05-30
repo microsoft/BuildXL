@@ -32,12 +32,46 @@ namespace ContentStoreTest.Distributed.Stores
     {
         private const int FileSize = 1000;
         private const HashType DefaultHashType = HashType.Vso0;
+        private const string LocalHost = "localhost";
         private Context _context;
 
         public GrpcCopyContentTests()
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
         {
             _context = new Context(Logger);
+        }
+
+        [Fact]
+        public void DuplicateClientsAreTheSameObject()
+        {
+            using (var client1 = GrpcCopyClient.Create(LocalHost, 10, true))
+            using (var client2 = GrpcCopyClient.Create(LocalHost, 10, true))
+            {
+                Assert.Same(client1, client2);
+            }
+        }
+
+        [Fact]
+        public void ValidateBackgroundCleanup()
+        {
+            using (var client = GrpcCopyClient.Create(LocalHost, 11, true))
+            { 
+                client._lastUseTime = DateTime.UtcNow - TimeSpan.FromHours(2);
+            }
+            
+            GrpcCopyClient.RestartBackgroundCleanup();
+            var endTime = DateTime.UtcNow + TimeSpan.FromMinutes(1);
+            while (DateTime.UtcNow < endTime)
+            {
+                if (!GrpcCopyClient._clientDict.TryGetValue((LocalHost, 11, true), out GrpcCopyClient foundClient))
+                {
+                    return;
+                }
+
+                Task.Delay(1000).GetAwaiter().GetResult();
+            }
+
+            Assert.True(false, $"{nameof(GrpcCopyClient)} was not removed");
         }
 
         [Fact]
@@ -115,9 +149,8 @@ namespace ContentStoreTest.Distributed.Stores
             await RunTestCase(nameof(WrongPort), async (rootPath, session, client) =>
             {
                 // Copy fake file out via GRPC
-                var host = "localhost";
                 var bogusPort = PortExtensions.GetNextAvailablePort();
-                using (client = GrpcCopyClient.Create(host, bogusPort))
+                using (client = GrpcCopyClient.Create(LocalHost, bogusPort))
                 {
                     var copyFileResult = await client.CopyFileAsync(_context, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
                     Assert.Equal(CopyFileResult.ResultCode.SourcePathError, copyFileResult.Code);
@@ -163,7 +196,7 @@ namespace ContentStoreTest.Distributed.Stores
 
                 // Create a GRPC client to connect to the server
                 var port = new MemoryMappedFilePortReader(grpcPortFileName, Logger).ReadPort();
-                using (var client = GrpcCopyClient.Create("localhost", port))
+                using (var client = GrpcCopyClient.Create(LocalHost, port))
                 {
                     // Run validation
                     await testAct(rootPath, session, client);

@@ -220,7 +220,7 @@ export function runQTest(args: QTestArguments): Result {
 
         const commandLineArgsForUploadPip: Argument[] = [
             Cmd.option("--qTestLogsDir ", Artifact.output(coverageLogDir)),
-            Cmd.option("--qTestContextInfo ", Artifact.input(qTestContextInfoPath)),
+            Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
             Cmd.option("--coverageDirectory ", Artifact.input(qTestLogsDir)),
             Cmd.option("--qTestBuildType ", args.qTestBuildType || "Unset"),
             Cmd.option("--qtestPlatform ", qTestPlatformToString(args.qTestPlatform))

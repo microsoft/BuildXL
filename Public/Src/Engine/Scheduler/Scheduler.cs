@@ -81,10 +81,15 @@ namespace BuildXL.Scheduler
         private const int CompletedRefCount = -1;
 
         /// <summary>
+        /// How many bits of priority are assigned to critical path portion.  The rest are assigned to the priority in the spec files
+        /// </summary>
+        private const int CriticalPathPriorityBitCount = 24;
+
+        /// <summary>
         /// The max priority assigned to pips in the initial critical path
         /// prioritization
         /// </summary>
-        private const int MaxInitialPipPriority = (1 << 24) - 1;
+        private const int MaxInitialPipPriority = (1 << CriticalPathPriorityBitCount) - 1;
 
         /// <summary>
         /// The priority of IPC pips when entering the ChooseWorker queue. This is greater than
@@ -5023,8 +5028,11 @@ namespace BuildXL.Scheduler
                                     var otherPriority = GetPipRuntimeInfo(edge.OtherNode).Priority;
 
                                     // Priority consists of given priority in the specs (bits 24-31, and the critical path priority (bits 0-23)
-                                    criticalPath = Math.Max(criticalPath, otherPriority & ((1 << 24) - 1));
-                                    priorityBase = Math.Max(priorityBase, otherPriority >> 24);
+                                    unchecked
+                                    {
+                                        criticalPath = Math.Max(criticalPath, otherPriority & MaxInitialPipPriority);
+                                        priorityBase = Math.Max(priorityBase, otherPriority >> CriticalPathPriorityBitCount);
+                                    }
                                 }
                             }
 
@@ -5086,9 +5094,9 @@ namespace BuildXL.Scheduler
                                 }
                             }
 
-                            priorityBase = Math.Max(m_pipTable.GetPipPriority(pipId), priorityBase) << 24;
+                            priorityBase = Math.Max(m_pipTable.GetPipPriority(pipId), priorityBase) << CriticalPathPriorityBitCount;
                             int criticalPathPriority = (criticalPath < 0 || criticalPath > MaxInitialPipPriority) ? MaxInitialPipPriority : unchecked((int)criticalPath);
-                            pipRuntimeInfo.Priority = priorityBase + criticalPathPriority;
+                            pipRuntimeInfo.Priority = unchecked(priorityBase + criticalPathPriority);
 
                             Contract.Assert(pipType != PipType.HashSourceFile);
                             pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Waiting);

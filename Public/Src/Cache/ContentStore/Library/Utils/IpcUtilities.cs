@@ -37,6 +37,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                 EventWaitHandle ret = new EventWaitHandle(false, EventResetMode.AutoReset, eventName, out bool created);
 
+//#if !FEATURE_CORECLR
                 var security = new EventWaitHandleSecurity();
 
                 // Allow any client to wait on the event.
@@ -45,6 +46,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 // Give full control to current user.
                 security.AddAccessRule(EventWaitHandleAccessRules.CurrentUserFullControlRule());
                 ret.SetAccessControl(security);
+//#endif
 
                 return ret;
             }
@@ -66,6 +68,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                 var ret = new EventWaitHandle(false, EventResetMode.ManualReset, eventName, out bool created);
 
+//#if !FEATURE_CORECLR
                 var security = new EventWaitHandleSecurity();
 
                 // Allow any client to wait on the event.
@@ -74,6 +77,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 // Give full control to current user.
                 security.AddAccessRule(EventWaitHandleAccessRules.CurrentUserFullControlRule());
                 ret.SetAccessControl(security);
+//#endif
 
                 return ret;
             }

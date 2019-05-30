@@ -4,6 +4,7 @@
 //  
 // --------------------------------------------------------------------
 
+using System.IO;
 using BuildXL.Utilities;
 using Xunit;
 
@@ -25,7 +26,20 @@ namespace Test.BuildXL.Utilities
             {
                 Assert.NotEqual(noNetFrameworkIsDetected, frameworkAsText);
             }
+        }
 
+        [Fact]
+        public void TestExeName()
+        {
+            var ext = Path.GetExtension(AssemblyHelper.GetThisProgramExeLocation());
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                Assert.Equal("", ext);
+            }
+            else
+            {
+                Assert.Equal(".exe", ext);
+            }
         }
     }
 }

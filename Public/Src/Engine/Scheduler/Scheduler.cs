@@ -81,10 +81,15 @@ namespace BuildXL.Scheduler
         private const int CompletedRefCount = -1;
 
         /// <summary>
+        /// How many bits of priority are assigned to critical path portion.  The rest are assigned to the priority in the spec files
+        /// </summary>
+        private const int CriticalPathPriorityBitCount = 24;
+
+        /// <summary>
         /// The max priority assigned to pips in the initial critical path
         /// prioritization
         /// </summary>
-        private const int MaxInitialPipPriority = int.MaxValue - 1;
+        private const int MaxInitialPipPriority = (1 << CriticalPathPriorityBitCount) - 1;
 
         /// <summary>
         /// The priority of IPC pips when entering the ChooseWorker queue. This is greater than
@@ -5013,14 +5018,21 @@ namespace BuildXL.Scheduler
                             // Below, we add one or more quanitites in the uint range.
                             // We use a long here to trivially avoid any overflow, and saturate to uint.MaxValue if needed as the last step.
                             long criticalPath = 0;
+                            int priorityBase = 0;
 
                             // quick check to avoid allocation of enumerator (as we are going through an interface, and where everything gets boxed!)
                             if (!graph.IsSinkNode(node))
                             {
                                 foreach (var edge in graph.GetOutgoingEdges(node))
                                 {
-                                    var otherCriticalPath = GetPipRuntimeInfo(edge.OtherNode).Priority;
-                                    criticalPath = Math.Max(criticalPath, otherCriticalPath);
+                                    var otherPriority = GetPipRuntimeInfo(edge.OtherNode).Priority;
+
+                                    // Priority consists of given priority in the specs (bits 24-31, and the critical path priority (bits 0-23)
+                                    unchecked
+                                    {
+                                        criticalPath = Math.Max(criticalPath, otherPriority & MaxInitialPipPriority);
+                                        priorityBase = Math.Max(priorityBase, otherPriority >> CriticalPathPriorityBitCount);
+                                    }
                                 }
                             }
 
@@ -5082,10 +5094,9 @@ namespace BuildXL.Scheduler
                                 }
                             }
 
-                            int priorityBase = m_pipTable.GetPipPriority(pipId) << 24;
+                            priorityBase = Math.Max(m_pipTable.GetPipPriority(pipId), priorityBase) << CriticalPathPriorityBitCount;
                             int criticalPathPriority = (criticalPath < 0 || criticalPath > MaxInitialPipPriority) ? MaxInitialPipPriority : unchecked((int)criticalPath);
-                            criticalPathPriority = Math.Min(criticalPathPriority, (1 << 24) - 1);
-                            pipRuntimeInfo.Priority = priorityBase | criticalPathPriority;
+                            pipRuntimeInfo.Priority = unchecked(priorityBase + criticalPathPriority);
 
                             Contract.Assert(pipType != PipType.HashSourceFile);
                             pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Waiting);

@@ -109,7 +109,7 @@ namespace BuildXL.Utilities
 
         /// <summary>
         /// Returns the same as <see cref="Environment.GetCommandLineArgs"/> except that the first
-        /// element (which is executable name) has its extension adjusted by calling
+        /// element (which is the name of the executable) is adjusted by calling
         /// <see cref="AdjustExeExtension(string)"/> on it.
         /// </summary>
         public static string[] GetCommandLineArgs()

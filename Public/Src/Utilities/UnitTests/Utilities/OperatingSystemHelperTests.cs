@@ -31,15 +31,11 @@ namespace Test.BuildXL.Utilities
         [Fact]
         public void TestExeName()
         {
-            var ext = Path.GetExtension(AssemblyHelper.GetThisProgramExeLocation());
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                Assert.Equal("", ext);
-            }
-            else
-            {
-                Assert.Equal(".exe", ext);
-            }
+            var name = AssemblyHelper.AdjustExeExtension("bxl.dll");
+            var expected = OperatingSystemHelper.IsUnixOS
+                ? "bxl"
+                : "bxl.exe";
+            Assert.Equal(expected, name);
         }
     }
 }

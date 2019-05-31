@@ -321,49 +321,57 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 _contentLocationStore.ReportReputation(location, MachineReputation.Good);
                                 break;
                             case CopyFileResult.ResultCode.FileNotFoundError:
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
-                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult} Trying another replica.");
+                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 missingContentLocations.Add(location);
                                 _contentLocationStore.ReportReputation(location, MachineReputation.Missing);
                                 break;
                             case CopyFileResult.ResultCode.SourcePathError:
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
-                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult} Trying another replica.");
+                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 _contentLocationStore.ReportReputation(location, MachineReputation.Bad);
                                 badContentLocations.Add(location);
                                 break;
                             case CopyFileResult.ResultCode.DestinationPathError:
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to temp path {tempLocation} due to an error with the destination path: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
-                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to temp path {tempLocation} due to an error with the destination path: {copyFileResult} Not trying another replica.");
+                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Not trying another replica.");
                                 return (result: new ErrorResult(copyFileResult).AsResult<PutResult>(), retry: true);
                             case CopyFileResult.ResultCode.CopyTimeoutError:
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
-                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult} Trying another replica.");
+                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 _contentLocationStore.ReportReputation(location, MachineReputation.Timeout);
                                 break;
                             case CopyFileResult.ResultCode.CopyBandwidthTimeoutError:
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
-                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult} Trying another replica.");
+                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 _contentLocationStore.ReportReputation(location, MachineReputation.Timeout);
                                 break;
                             case CopyFileResult.ResultCode.InvalidHash:
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to invalid hash: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
-                                    $"{AttemptTracePrefix(attemptCount)} {copyFileResult}");
+                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} {copyFileResult}");
                                 break;
                             case CopyFileResult.ResultCode.Unknown:
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to temp path {tempLocation} due to an internal error: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
-                                    $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to temp path {tempLocation} due to an internal error: {copyFileResult} Not trying another replica.");
+                                    $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Not trying another replica.");
                                 _contentLocationStore.ReportReputation(location, MachineReputation.Bad);
                                 break;
                             default:
-                                return (result: new ErrorResult(copyFileResult, $"{AttemptTracePrefix(attemptCount)} File copier result code {copyFileResult.Code} is not recognized").AsResult<PutResult>(), retry: true);
+                                lastErrorMessage = $"File copier result code {copyFileResult.Code} is not recognized";
+                                return (result: new ErrorResult(copyFileResult, $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage}").AsResult<PutResult>(), retry: true);
                         }
 
                         if (copyFileResult.Succeeded)

@@ -307,6 +307,9 @@ namespace BuildXL
                             "diag",
                             opt => loggingConfiguration.Diagnostic |= CommandLineUtilities.ParseEnumOption<DiagnosticLevels>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "earlyWorkerRelease",
+                            sign => schedulingConfiguration.EarlyWorkerRelease = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "enforceAccessPoliciesOnDirectoryCreation",
                             sign => sandboxConfiguration.EnforceAccessPoliciesOnDirectoryCreation = sign),
                         OptionHandlerFactory.CreateBoolOption(

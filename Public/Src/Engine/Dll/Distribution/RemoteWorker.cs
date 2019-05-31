@@ -59,7 +59,7 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         private string m_exitFailure;
 
-        public override WorkerNodeStatus Status => (WorkerNodeStatus)m_status;
+        public override WorkerNodeStatus Status => (WorkerNodeStatus) Volatile.Read(ref m_status);
 
         public override bool EverAvailable => Volatile.Read(ref m_everAvailable);
 
@@ -381,58 +381,112 @@ namespace BuildXL.Engine.Distribution
         /// <inheritdoc />
         public override async Task FinishAsync(string buildFailure)
         {
+            while (true)
+            {
+                WorkerNodeStatus status = Status;
+                if (status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped)
+                {
+                    // We already initiated the stop for the worker.
+                    return;
+                }
+
+                if (ChangeStatus(status, WorkerNodeStatus.Stopping))
+                {
+                    break;
+                }
+            }
+
+            await DisconnectAsync(buildFailure);
+        }
+
+        /// <inheritdoc />
+        public override async Task EarlyReleaseAsync()
+        {
+            // Unblock scheduler
+            await Task.Yield();
+
+            while (true)
+            {
+                WorkerNodeStatus status = Status;
+                if (status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped)
+                {
+                    // Already stopped, no need to continue.
+                    return;
+                }
+
+                if (ChangeStatus(status, WorkerNodeStatus.Stopping))
+                {
+                    break;
+                }
+            }
+
+            var drainStopwatch = new StopwatchVar();
+
+            using (drainStopwatch.Start())
+            {
+                if (AcquiredSlots != 0)
+                {
+                    await DrainCompletion.Task;
+                }
+            }
+
+            Contract.Assert(m_pipCompletionTasks.IsEmpty, "There cannot be pending completion tasks when AcquiredSlots is 0");
+
+            var disconnectStopwatch = new StopwatchVar();
+
+            using (disconnectStopwatch.Start())
+            {
+                await DisconnectAsync();
+            }
+
+            Scheduler.Tracing.Logger.Log.WorkerReleasedEarly(
+                m_appLoggingContext,
+                Name,
+                (long)drainStopwatch.TotalElapsed.TotalMilliseconds,
+                (long)disconnectStopwatch.TotalElapsed.TotalMilliseconds);
+        }
+
+        private async Task DisconnectAsync(string buildFailure = null)
+        {
+            Contract.Assert(Status == WorkerNodeStatus.Stopping, $"Disconnect cannot be called for {Status} status");
+
+            // Before we disconnect the worker, we mark it as 'stopping'; 
+            // so it does not accept any requests. We can safely close the 
+            // thread which is responsible for sending build requests to the
+            // remote worker.
             m_buildRequests.CompleteAdding();
             if (m_sendThread.IsAlive)
             {
                 m_sendThread.Join();
             }
 
-            bool initiatedStop = false;
-            while (true)
-            {
-                WorkerNodeStatus status = Status;
-                if (status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped)
-                {
-                    break;
-                }
+            CancellationTokenSource exitCancellation = new CancellationTokenSource();
 
-                if (ChangeStatus(status, WorkerNodeStatus.Stopping))
+            // Only wait a short amount of time for exit (15 seconds) if worker is not successfully attached.
+            if (m_attachCompletion.Task.Status != TaskStatus.RanToCompletion || !await m_attachCompletion.Task)
+            {
+                exitCancellation.CancelAfter(TimeSpan.FromSeconds(15));
+            }
+
+            var buildEndData = new BuildEndData()
+            {
+                Failure = buildFailure ?? m_exitFailure
+            };
+
+            await m_workerClient.ExitAsync(buildEndData, exitCancellation.Token);
+
+            m_executionBlobQueue.CompleteAdding();
+
+            using (m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_AwaitExecutionBlobCompletionDuration))
+            {
+                if (!m_executionBlobQueue.IsCompleted)
                 {
-                    initiatedStop = true;
-                    break;
+                    // Wait for execution blobs to be processed.
+                    await m_executionBlobCompletion.Task;
                 }
             }
 
-            if (initiatedStop)
-            {
-                CancellationTokenSource exitCancellation = new CancellationTokenSource();
-
-                // Only wait a short amount of time for exit (15 seconds) if worker is not successfully attached.
-                if (m_attachCompletion.Task.Status != TaskStatus.RanToCompletion || !await m_attachCompletion.Task)
-                {
-                    exitCancellation.CancelAfter(TimeSpan.FromSeconds(15));
-                }
-
-                var buildEndData = new BuildEndData()
-                {
-                    Failure = buildFailure ?? m_exitFailure
-                };
-
-                await m_workerClient.ExitAsync(buildEndData, exitCancellation.Token);
-
-                m_executionBlobQueue.CompleteAdding();
-
-                using (m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_AwaitExecutionBlobCompletionDuration))
-                {
-                    if (!m_executionBlobQueue.IsCompleted)
-                    {
-                        // Wait for execution blobs to be processed.
-                        await m_executionBlobCompletion.Task;
-                    }
-                }
-
-                ChangeStatus(WorkerNodeStatus.Stopping, WorkerNodeStatus.Stopped);
-            }
+            ChangeStatus(WorkerNodeStatus.Stopping, WorkerNodeStatus.Stopped);
         }
 
         /// <inheritdoc />

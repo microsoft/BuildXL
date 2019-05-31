@@ -1205,6 +1205,12 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public int UnresponsivenessFactor;
 
+        /// <nodoc />
+        public long ProcessPipsPending;
+
+        /// <nodoc />
+        public long ProcessPipsRunning;
+        
         /// <inheritdoc />
         public ExecutionLogEventMetadata<StatusEventData> Metadata => ExecutionLogMetadata.ResourceUsageReported;
 

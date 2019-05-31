@@ -134,6 +134,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipHashSourceFile = template.SkipHashSourceFile;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = template.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing;
+            EarlyWorkerRelease = template.EarlyWorkerRelease;
         }
 
         /// <inheritdoc />
@@ -314,5 +315,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool UseHistoricalCpuUsageInfo { get; set; }
+
+        /// <inheritdoc />
+        public bool EarlyWorkerRelease { get; set; }
     }
 }

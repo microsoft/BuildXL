@@ -14,6 +14,7 @@ using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tasks;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Distribution
@@ -48,6 +49,11 @@ namespace BuildXL.Scheduler.Distribution
         private WorkerNodeStatus m_status;
         private OperationContext m_workerStatusOperation;
         private OperationContext m_currentStatusOperation;
+
+        /// <summary>
+        /// Whether the worker has finished all pending requests after stop is initiated.
+        /// </summary>
+        protected readonly TaskSourceSlim<bool> DrainCompletion;
 
         internal static readonly OperationKind WorkerStatusParentOperationKind = OperationKind.Create("Distribution.WorkerStatus");
 
@@ -249,6 +255,7 @@ namespace BuildXL.Scheduler.Distribution
             PipStateSnapshot = m_workerPipStateManager.GetSnapshot();
 
             m_workerOperationKind = OperationKind.Create("Worker " + Name);
+            DrainCompletion = TaskSourceSlim.Create<bool>();
         }
 
         /// <summary>
@@ -270,6 +277,16 @@ namespace BuildXL.Scheduler.Distribution
 #pragma warning restore 1998
 
         /// <summary>
+        /// Release worker before build is finished due to the insufficient amount of work left
+        /// </summary>
+#pragma warning disable 1998 // Disable the warning for "This async method lacks 'await'"
+        public virtual async Task EarlyReleaseAsync()
+        {
+            throw new NotImplementedException("Local worker does not support early release");
+        }
+#pragma warning restore 1998
+
+        /// <summary>
         /// Returns if true if the worker holds a local node; false otherwise.
         /// </summary>
         public bool IsLocal => WorkerId == LocalWorkerIndex;
@@ -283,6 +300,16 @@ namespace BuildXL.Scheduler.Distribution
         /// Whether the worker is available to acquire work items
         /// </summary>
         public bool IsAvailable => Status == WorkerNodeStatus.Running;
+
+        /// <summary>
+        /// Gets the currently acquired slots for all operations that can be done on a worker.
+        /// </summary>
+        public int AcquiredSlots => AcquiredProcessSlots + AcquiredCacheLookupSlots + AcquiredIpcSlots;
+
+        /// <summary>
+        /// Gets the currently acquired slots for process pips.
+        /// </summary>
+        public int AcquiredSlotsForProcessPips => AcquiredProcessSlots + AcquiredCacheLookupSlots;
 
         /// <summary>
         /// Gets the currently acquired process slots
@@ -525,6 +552,11 @@ namespace BuildXL.Scheduler.Distribution
             if (runnablePip.PipType == PipType.Ipc)
             {
                 Interlocked.Decrement(ref m_acquiredIpcSlots);
+            }
+
+            if (AcquiredSlots == 0 && Status == WorkerNodeStatus.Stopping)
+            {
+                DrainCompletion.TrySetResult(true);
             }
         }
 

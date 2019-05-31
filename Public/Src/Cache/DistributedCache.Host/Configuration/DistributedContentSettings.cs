@@ -387,10 +387,16 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int MaxConcurrentCopyOperations { get; set; } = 512;
 
+        /// <summary>
+        /// Gets or sets whether to override Unix file access modes.
+        /// </summary>
+        [DataMember]
+        public bool OverrideUnixFileAccessMode { get; set; } = false;
+
         #endregion
 
         /// <summary>
-        /// Gets the secret name to connect to redis for a particular CloudBuild stamp.
+        /// Gets the secret name to connect to Redis for a particular CloudBuild stamp.
         /// </summary>
         /// <param name="stampId">The ID of the stamp.</param>
         /// <returns>The secret name in the AP secret store.</returns>

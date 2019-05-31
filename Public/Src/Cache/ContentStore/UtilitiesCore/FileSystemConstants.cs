@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -12,6 +13,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
     /// </summary>
     public static class FileSystemConstants
     {
+        private static class LibC
+        {
+            /// <nodoc />
+            [DllImport("libc", SetLastError = true)]
+            public static extern int chmod(string path, int mode);
+        }
+
         /// <summary>
         /// Returns true if the current platform is a Windows platform.
         /// </summary>
@@ -72,6 +80,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// The same as MaxPathUnix for unix platform.
         /// </summary>
         public const int MaxShortPath = MaxPathUnix;
+
+        /// <nodoc />
+        public static void OverrideFileAccessMode(bool changePermissions, string path)
+        {
+            if (changePermissions)
+            {
+                // Force 0777 on the file at 'path' - this is a temporary hack when placing files as our cache layer
+                // currently does not track Unix file access flags when putting / placing files
+                LibC.chmod(path, 0x0001 | 0x0002 | 0x0004 | 0x0040 | 0x0080 | 0x0100 | 0x0008 | 0x0010 | 0x0020);
+            }
+        }
 #else
         /// <summary>
         /// Maximum path length when long paths are not supported.
@@ -141,6 +160,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         ///     File modes that are not supported.
         /// </summary>
-        public static readonly IReadOnlyCollection<FileMode> UnsupportedFileModes = new[] {FileMode.Truncate, FileMode.Append};
+        public static readonly IReadOnlyCollection<FileMode> UnsupportedFileModes = new[] { FileMode.Truncate, FileMode.Append };
     }
 }

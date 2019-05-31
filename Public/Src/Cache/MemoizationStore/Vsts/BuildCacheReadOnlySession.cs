@@ -553,20 +553,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 });
         }
 
-        /// <nodoc />
-        [DllImport("libc", SetLastError = true)]
-        private static extern int chmod(string path, int mode);
-
-        private void OverrideFileAccessMode(AbsolutePath path)
-        {
-            if (!OperatingSystemHelper.IsWindowsOS && _overrideUnixFileAccessMode)
-            {
-                // Force 0777 on the file at 'path' - this is a temporary hack when placing files as our VSTS cache layer
-                // currently does not track Unix file access flags
-                Chmod.chmod(path.Path, 0x0001 | 0x0002 | 0x0004 | 0x0040 | 0x0080 | 0x0100 | 0x0008 | 0x0010 | 0x0020);
-            }
-        }
-
         /// <inheritdoc />
         public Task<PlaceFileResult> PlaceFileAsync(
             Context context,
@@ -582,17 +568,17 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 {
                     if (WriteThroughContentSession != null)
                     {
-                        var result = await WriteThroughContentSession.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint).ConfigureAwait(false);
-                        if (result.Succeeded || result.Code != PlaceFileResult.ResultCode.NotPlacedContentNotFound)
+                        var writeThroughResult = await WriteThroughContentSession.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint).ConfigureAwait(false);
+                        if (writeThroughResult.Succeeded || writeThroughResult.Code != PlaceFileResult.ResultCode.NotPlacedContentNotFound)
                         {
-                            OverrideFileAccessMode(path);
-                            return result;
+                            FileSystemConstants.OverrideFileAccessMode(_overrideUnixFileAccessMode, path.Path);
+                            return writeThroughResult;
                         }
                     }
 
-                    var result = await BackingContentSession.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint);
-                    OverrideFileAccessMode(path);
-                    return result;
+                    var backingResult = await BackingContentSession.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint);
+                    FileSystemConstants.OverrideFileAccessMode(_overrideUnixFileAccessMode, path.Path);
+                    return backingResult;
                 });
         }
 

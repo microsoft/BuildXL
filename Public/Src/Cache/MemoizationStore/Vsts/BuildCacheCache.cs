@@ -369,6 +369,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         _maxFingerprintsPerIncorporateRequest,
                         writeThroughContentSession,
                         _sealUnbackedContentHashLists,
+                        _overrideUnixFileAccessMode,
                         _tracer));
             });
         }

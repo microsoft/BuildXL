@@ -1248,7 +1248,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
 
             _tracer.Always(context, "Validating local CAS content file ACLs...");
-         
+
             int missingDenyAclCount = 0;
 
             foreach (var blobPath in EnumerateBlobPathsFromDisk())
@@ -1271,7 +1271,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                     rule.InheritanceFlags == InheritanceFlags.None &&
                                     rule.IsInherited == false &&
                                     rule.PropagationFlags == PropagationFlags.None
-                                    );               
+                                    );
 #endif
 
                 if (!denyAclExists)
@@ -2326,6 +2326,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                             if (hardLinkResult == CreateHardLinkResult.Success)
                             {
                                 code = PlaceFileResult.ResultCode.PlacedWithHardLink;
+                                FileSystemConstants.OverrideFileAccessMode(_settings.OverrideUnixFileAccessMode, destinationPath.Path);
                             }
                             else if (hardLinkResult == CreateHardLinkResult.FailedDestinationExists)
                             {
@@ -2344,6 +2345,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     if (code != PlaceFileResult.ResultCode.Unknown)
                     {
+                        FileSystemConstants.OverrideFileAccessMode(_settings.OverrideUnixFileAccessMode, destinationPath.Path);
                         return new PlaceFileResult(code, contentSize)
                             .WithLockAcquisitionDuration(contentHashHandle);
                     }
@@ -2366,6 +2368,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                         result.FileSize = contentSize;
                         result.LastAccessTime = lastAccessTime;
+                        FileSystemConstants.OverrideFileAccessMode(_settings.OverrideUnixFileAccessMode, destinationPath.Path);
+
                         return result
                             .WithLockAcquisitionDuration(contentHashHandle);
                     }
@@ -2872,7 +2876,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             try
             {
                 _tracer.PinBulkStart(context, contentHashes);
-                
+
                 var pinRequest = new PinRequest(pinContext);
 
                 // TODO: This is still relatively inefficient. We're taking a lock per hash and pinning each individually. (bug 1365340)

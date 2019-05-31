@@ -95,6 +95,11 @@ namespace BuildXL.FrontEnd.Sdk
         /// </summary>
         public IPipGraph PipGraph { get; protected set; }
 
+        /// <summary>
+        /// Handles adding pip fragments to the build.
+        /// </summary>
+        public IPipGraphFragmentManager PipGraphFragmentManager { get; protected set; }
+
         /// <nodoc />
         public IEvaluationScheduler DefaultEvaluationScheduler { get; protected set; }
 

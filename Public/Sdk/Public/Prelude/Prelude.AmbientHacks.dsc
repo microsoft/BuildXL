@@ -105,4 +105,6 @@ namespace _PreludeAmbientHack_Transformer {
     export declare function sealSourceDirectory(rootOrArgs: (Directory | Object), option?: number, tags?: string[], description?: string, patterns?: string[]): SourceDirectory;
     export declare function sealPartialDirectory(rootOrArgs: (Directory | Object), files: File[], tags?: string[], description?: string): PartialStaticContentDirectory;
     export declare function composeSharedOpaqueDirectories(rootOrArgs: (Directory | Object), directories: SharedOpaqueDirectory[]): SharedOpaqueDirectory;
+
+    export declare function readPipGraphFragment(name: string, file: SourceFile, dependencyNames: string[]): string;
 }

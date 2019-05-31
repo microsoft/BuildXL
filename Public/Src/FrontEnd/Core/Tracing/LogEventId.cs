@@ -130,5 +130,6 @@ namespace BuildXL.FrontEnd.Core.Tracing
 
         // Note: DownloadPackageCannotCacheError = 11224,
         DownloadPackageCannotCacheWarning = 11293,
+        FrontEndEvaluateFragmentsProgress = 11294,
     }
 }

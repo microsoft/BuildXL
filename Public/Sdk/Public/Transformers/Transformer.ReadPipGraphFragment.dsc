@@ -4,7 +4,7 @@
 namespace Transformer {
 
     /**
-     * Read in a fragment of the graph as a binary file and all all pip from it to the pip graph.
+     * Read in a fragment of the graph as a binary file and add all pips from it to the pip graph.
      * name: Name of this pip graph fragment, used to return a handle to it.
      * file: Binary file to read.
      * dependencyNames: All other pip graph fragments this one depends on.

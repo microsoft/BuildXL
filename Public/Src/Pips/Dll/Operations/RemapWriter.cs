@@ -1,4 +1,7 @@
-﻿using System.IO;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
 
@@ -14,7 +17,7 @@ namespace BuildXL.Pips.Operations
         private SymbolTable m_symbolTable;
 
         /// <summary>
-        /// RemapWriter
+        /// Creates a new RemapWriter
         /// </summary>
         public RemapWriter(Stream stream, PipExecutionContext context, bool debug = false, bool leaveOpen = true, bool logStats = false)
             : base(debug, stream, leaveOpen, logStats)
@@ -24,7 +27,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// RemapWriter
+        /// Writes an absolute path
         /// </summary>
         public override void Write(AbsolutePath value)
         {
@@ -32,7 +35,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// RemapWriter
+        /// Writes a path atom
         /// </summary>
         public override void Write(PathAtom value)
         {
@@ -40,7 +43,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// RemapWriter
+        /// Writes a string id
         /// </summary>
         public override void Write(StringId value)
         {
@@ -48,7 +51,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// RemapWriter
+        /// Writes a pip data id
         /// </summary>
         public override void WritePipDataId(in StringId value)
         {
@@ -56,7 +59,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// RemapWriter
+        /// Writes a full symbol
         /// </summary>
         public override void Write(FullSymbol value)
         {

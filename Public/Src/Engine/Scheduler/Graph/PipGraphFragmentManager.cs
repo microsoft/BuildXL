@@ -1,4 +1,7 @@
-﻿using System;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -121,6 +124,13 @@ namespace BuildXL.Scheduler.Graph
                         sealDirectory.ResetDirectoryArtifact();
                         var mappedDirectory = m_pipGraph.AddSealDirectory(sealDirectory, default);
                         m_fragmentContext.AddDirectoryMapping(oldDirectory, mappedDirectory);
+                        break;
+                    case PipType.Ipc:
+                        var ipcPip = pip as IpcPip;
+                        m_pipGraph.AddIpcPip(ipcPip, default);
+                        break;
+                    default:
+                        Contract.Assert(false, "Pip graph fragment tried to add an unknown pip type to the graph: " + pip.PipType);
                         break;
                 }
 

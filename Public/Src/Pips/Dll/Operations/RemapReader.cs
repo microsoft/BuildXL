@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System.Collections.Generic;
 using System.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
@@ -19,7 +22,7 @@ namespace BuildXL.Pips.Operations
         private InliningReader m_inliningReader;
 
         /// <summary>
-        /// RemapReader
+        /// Create a new RemapReader
         /// </summary>
         public RemapReader(PipGraphFragmentContext fragmentContext, Stream stream, PipExecutionContext context, bool debug = false, bool leaveOpen = true)
             : base(debug, context.StringTable, stream, leaveOpen)
@@ -31,7 +34,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// RemapReader
+        /// Read a directory artifact
         /// </summary>
         public override DirectoryArtifact ReadDirectoryArtifact()
         {
@@ -40,7 +43,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// RemapReader
+        /// Reads an absolute path
         /// </summary>
         public override AbsolutePath ReadAbsolutePath()
         {
@@ -48,7 +51,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// RemapReader
+        /// Reads a string id
         /// </summary>
         public override StringId ReadStringId()
         {
@@ -56,7 +59,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// RemapReader
+        /// Reads a path atom
         /// </summary>
         public override PathAtom ReadPathAtom()
         {
@@ -64,7 +67,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// RemapReader
+        /// Reads a directory artifact
         /// </summary>
         public DirectoryArtifact ReadUnmappedDirectoryArtifact()
         {
@@ -72,7 +75,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// RemapReader
+        /// Reads a full symbol
         /// </summary>
         public override FullSymbol ReadFullSymbol()
         {
@@ -80,7 +83,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// RemapReader
+        /// Reads a pip data id
         /// </summary>
         public override StringId ReadPipDataId()
         {
@@ -88,7 +91,7 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// RemapReader
+        /// Reads the value of a pip id
         /// </summary>
         public override uint ReadPipIdValue()
         {

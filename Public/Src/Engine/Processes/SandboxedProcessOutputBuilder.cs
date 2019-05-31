@@ -95,10 +95,7 @@ namespace BuildXL.Processes
             }
             else
             {
-                if (m_observer != null)
-                {
-                    m_observer(data);
-                }
+                m_observer?.Invoke(data);
 
                 m_length += data.Length + Environment.NewLine.Length;
                 if (m_textWriter != null)

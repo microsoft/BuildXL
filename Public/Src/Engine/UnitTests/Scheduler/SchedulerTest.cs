@@ -263,13 +263,6 @@ namespace Test.BuildXL.Scheduler
                 outputs: new[] { CreateOutputFileArtifact() },
                 workingDirectory: AbsolutePath.Create(Context.PathTable, workingDirectory));
 
-            var directories = SandboxedProcessPipExecutor.GetDirectoriesToCreate(
-                processWithNonWritableWorkingDirectory,
-                Context.PathTable,
-                Expander);
-
-            XAssert.IsFalse(directories.Contains(workingDirectory, StringComparer.OrdinalIgnoreCase));
-
             foreach (var tmpVar in BuildParameters.DisallowedTempVariables)
             {
                 // Test setting TEMP environment variable to non-writable root

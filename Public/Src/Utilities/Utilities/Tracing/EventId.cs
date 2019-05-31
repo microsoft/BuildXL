@@ -115,7 +115,7 @@ namespace BuildXL.Utilities.Tracing
         PipProcessInvalidErrorRegex = 89,
         // Reserved  = 90,
         // Reserved  = 91,
-        // Free = 92,
+        PipProcessNeedsExecuteExternalButExecuteInternal = 92,
         // Reserved  = 93,
         EnvironmentValueForTempDisallowed = 94,
         CannotHonorLowPriority = 95,
@@ -626,11 +626,13 @@ namespace BuildXL.Utilities.Tracing
         IncrementalFrontendCache = 2108,
 
         // Temp files/directory cleanup
-        PipTempDirectoryCleanupWarning = 2200,
+        PipFailedTempDirectoryCleanup = 2200,
         PipTempDirectoryCleanupError = 2201,
         PipTempCleanerThreadSummary = 2202,
         PipTempDirectorySetupError = 2203,
-        PipTempFileCleanupWarning = 2204,
+        PipFailedTempFileCleanup = 2204,
+        PipTempSymlinkRedirectionError = 2205,
+        PipTempSymlinkRedirection = 2206,
 
         PipFailedToCreateDumpFile = 2210,
 
@@ -646,7 +648,7 @@ namespace BuildXL.Utilities.Tracing
 
         // Dealing with MAX_PATH issues
         PathHashed = 2600,
-        PipProcessTempDirectoryTooLong = 2601,
+        // was: PipProcessTempDirectoryTooLong = 2601,
         FailPipOutputWithNoAccessed = 2602,
         PipOutputNotAccessed = 2603,
         PipWillBeRetriedDueToExitCode = 2604,

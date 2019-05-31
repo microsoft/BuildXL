@@ -89,4 +89,38 @@ namespace Factory {
             tool
         );
     }
+
+    @@public
+    export function addRuntimeSpecificBinaries(nuget: ManagedNugetPackage, paths: (RelativePath | File)[]): ManagedNugetPackage {
+        const oldRuntimeBinaries: Binary[] = nuget.runtime;
+        const runtimeSpecificBinaries: Binary[] = paths.map(path => createBinary(nuget.contents, path));
+        const runtimeSpecificFileNames: PathAtom[] = runtimeSpecificBinaries.mapMany(binaryFileNames);
+        return nuget.override<ManagedNugetPackage>({
+            runtime: [
+                // filter out old binaries that clash with the runtime specific ones
+                ...oldRuntimeBinaries.filter(b => intersect(binaryFileNames(b), runtimeSpecificFileNames).length === 0),
+                // add runtime specific ones
+                ...runtimeSpecificBinaries
+            ]
+        });
+    }
+
+    @@public
+    export function addRuntimeSpecificBinariesFromRootDir(nuget: ManagedNugetPackage, relativeRootDir: RelativePath): ManagedNugetPackage {
+        const rootDir = nuget.contents.root.combine(relativeRootDir);
+        const runtimeSpecificFiles = nuget.contents
+            .getContent()
+            .filter(f => f.path.isWithin(rootDir) && f.path.extension !== a`.pdb` && f.path.extension !== a`.xml`); // .pdb and .xml will be picked up automatically by createBinary
+        return addRuntimeSpecificBinaries(nuget, runtimeSpecificFiles);
+    }
+
+    function binaryFileNames(b: Binary): PathAtom[] {
+        return [b.binary, b.pdb, b.documentation]
+            .filter(f => f !== undefined)
+            .map(f => f.name);
+    }
+
+    function intersect<T>(arr1: T[], arr2: T[]): T[] {
+        return arr1.filter(e => arr2.indexOf(e) !== -1);
+    }
 }

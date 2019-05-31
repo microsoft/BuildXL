@@ -34,18 +34,20 @@ namespace ContentStoreTest.Distributed.Stores
         private const HashType DefaultHashType = HashType.Vso0;
         private const string LocalHost = "localhost";
         private Context _context;
+        private GrpcCopyClientCache _clientCache;
 
         public GrpcCopyContentTests()
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
         {
             _context = new Context(Logger);
+            _clientCache = new GrpcCopyClientCache(_context);
         }
 
         [Fact]
         public void DuplicateClientsAreTheSameObject()
         {
-            using (var client1 = GrpcCopyClient.Create(LocalHost, 10, true))
-            using (var client2 = GrpcCopyClient.Create(LocalHost, 10, true))
+            using (var client1 = _clientCache.Create(LocalHost, 10, true))
+            using (var client2 = _clientCache.Create(LocalHost, 10, true))
             {
                 Assert.Same(client1, client2);
             }
@@ -54,16 +56,17 @@ namespace ContentStoreTest.Distributed.Stores
         [Fact]
         public void ValidateBackgroundCleanup()
         {
-            using (var client = GrpcCopyClient.Create(LocalHost, 11, true))
+            var key = new GrpcCopyClientKey(LocalHost, 11, true);
+            using (var client = _clientCache.Create(key.Host, key.GrpcPort, key.UseCompression))
             { 
                 client._lastUseTime = DateTime.UtcNow - TimeSpan.FromHours(2);
             }
-            
-            GrpcCopyClient.RestartBackgroundCleanup();
+
+            _clientCache.StartBackgroundCleanup();
             var endTime = DateTime.UtcNow + TimeSpan.FromMinutes(1);
             while (DateTime.UtcNow < endTime)
             {
-                if (!GrpcCopyClient._clientDict.TryGetValue((LocalHost, 11, true), out GrpcCopyClient foundClient))
+                if (!_clientCache._clientDict.TryGetValue(key, out GrpcCopyClient foundClient))
                 {
                     return;
                 }
@@ -72,6 +75,24 @@ namespace ContentStoreTest.Distributed.Stores
             }
 
             Assert.True(false, $"{nameof(GrpcCopyClient)} was not removed");
+        }
+
+        [Fact]
+        public void IssueSameClientManyTimes()
+        {
+            GrpcCopyClient sameClient = null;
+            for (int i = 0; i < 1000; i++)
+            {
+                using (var client = _clientCache.Create(LocalHost, 42, false))
+                {
+                    if (i == 0)
+                    {
+                        sameClient = client;
+                    }
+
+                    Assert.Same(client, sameClient);
+                }
+            }
         }
 
         [Fact]
@@ -150,7 +171,7 @@ namespace ContentStoreTest.Distributed.Stores
             {
                 // Copy fake file out via GRPC
                 var bogusPort = PortExtensions.GetNextAvailablePort();
-                using (client = GrpcCopyClient.Create(LocalHost, bogusPort))
+                using (client = _clientCache.Create(LocalHost, bogusPort))
                 {
                     var copyFileResult = await client.CopyFileAsync(_context, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
                     Assert.Equal(CopyFileResult.ResultCode.SourcePathError, copyFileResult.Code);
@@ -196,7 +217,7 @@ namespace ContentStoreTest.Distributed.Stores
 
                 // Create a GRPC client to connect to the server
                 var port = new MemoryMappedFilePortReader(grpcPortFileName, Logger).ReadPort();
-                using (var client = GrpcCopyClient.Create(LocalHost, port))
+                using (var client = _clientCache.Create(LocalHost, port))
                 {
                     // Run validation
                     await testAct(rootPath, session, client);

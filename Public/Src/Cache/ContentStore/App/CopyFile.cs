@@ -49,7 +49,8 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                using (var rpcClient = GrpcCopyClient.Create(host, grpcPort, useCompressionForCopies))
+                var clientCache = new GrpcCopyClientCache(context);
+                using (var rpcClient = clientCache.Create(host, grpcPort, useCompressionForCopies))
                 {
                     var finalPath = new AbsolutePath(destinationPath);
 

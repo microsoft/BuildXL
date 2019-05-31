@@ -138,6 +138,7 @@ function runTest(args : TestRunArguments) : File[] {
         tags: args.tags,
         weight: args.weight,
         privilegeLevel: args.privilegeLevel,
+        qTestBuildType: qualifier.configuration
     });
 
     return [

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -78,6 +79,45 @@ namespace BuildXL.Utilities
         public static string GetLocation(this Assembly assembly, bool computeAssemblyLocation = false)
         {
             return GetAssemblyLocation(assembly, computeAssemblyLocation);
+        }
+
+        /// <summary>
+        /// Calls <see cref="AdjustExeExtension(string)"/> for the location of the entry assembly
+        /// </summary>
+        public static string GetThisProgramExeLocation() => AdjustExeExtension(Assembly.GetEntryAssembly().GetLocation());
+
+        /// <summary>
+        /// Adjusts the extension of the supplied path:
+        ///   - if the extension is .dll and we are running on Windows --> change extension to .exe
+        ///   - if the extension is .dll and we are running on non-Windows --> drop the extension
+        ///   - else --> return as is
+        /// </summary>
+        /// <param name="entryAssemblyLocation">Absolute path the the executing assembly</param>
+        public static string AdjustExeExtension(string entryAssemblyLocation)
+        {
+            if (entryAssemblyLocation.EndsWith(".dll"))
+            {
+                return OperatingSystemHelper.IsUnixOS
+                    ? entryAssemblyLocation.Substring(0, entryAssemblyLocation.Length - 4)
+                    : Path.ChangeExtension(entryAssemblyLocation, "exe");
+            }
+            else
+            {
+                return entryAssemblyLocation;
+            }
+        }
+
+        /// <summary>
+        /// Returns the same as <see cref="Environment.GetCommandLineArgs"/> except that the first
+        /// element (which is the name of the executable) is adjusted by calling
+        /// <see cref="AdjustExeExtension(string)"/> on it.
+        /// </summary>
+        public static string[] GetCommandLineArgs()
+        {
+            var cmdLineArgs = Environment.GetCommandLineArgs();
+            return new[] { AdjustExeExtension(cmdLineArgs[0]) }
+                .Concat(cmdLineArgs.Skip(1))
+                .ToArray();
         }
     }
 }

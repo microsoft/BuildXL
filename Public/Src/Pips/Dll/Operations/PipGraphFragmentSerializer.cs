@@ -1,4 +1,7 @@
-﻿using System;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -27,20 +30,19 @@ namespace BuildXL.Pips.Operations
         public int PipsSerialized { get; private set; }
 
         /// <summary>
-        /// Name of the fragment, for printing on the console
+        /// Description of the fragment, for printing on the console
         /// </summary>
-        public string FragmentName { get; private set; }
+        public string FragmentDescription { get; private set; }
 
         /// <summary>
         /// Deserialize a pip graph fragment and call the given handleDeserializedPip function on each pip deserialized
         /// Returns true if successfully handled all pips.
         /// </summary>
-        public bool Deserialize(string fragmentName, PipExecutionContext context, PipGraphFragmentContext pipFragmentContext, AbsolutePath filePath, Func<Pip, bool> handleDeserializedPip)
+        public bool Deserialize(string fragmentDescription, PipExecutionContext context, PipGraphFragmentContext pipFragmentContext, AbsolutePath filePath, Func<Pip, bool> handleDeserializedPip)
         {
-            FragmentName = fragmentName;
+            FragmentDescription = fragmentDescription;
             PipsDeserialized = 0;
             string fileName = filePath.ToString(context.PathTable);
-            Contract.Assert(File.Exists(fileName), "Pip graph fragment file doesn't exist");
             using (FileStream stream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (RemapReader reader = new RemapReader(pipFragmentContext, stream, context))
             {
@@ -67,7 +69,7 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public void Serialize(string fragmentName, PipExecutionContext context, AbsolutePath filePath, IEnumerable<Pip> pipsToSerialize)
         {
-            FragmentName = fragmentName;
+            FragmentDescription = fragmentName;
             PipsSerialized = 0;
             string fileName = filePath.ToString(context.PathTable);
             Contract.Assert(!File.Exists(fileName), "Pip graph fragment file to write to already exists");

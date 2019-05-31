@@ -20,12 +20,18 @@ namespace BuildXL.Execution.Analyzer
         public Analyzer InitializePipExecutionPerformanceAnalyzer()
         {
             string outputFilePath = null;
+            bool isSimplifiedCsv = false;
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("outputFile", StringComparison.OrdinalIgnoreCase) ||
                     opt.Name.Equals("o", StringComparison.OrdinalIgnoreCase))
                 {
                     outputFilePath = ParseSingletonPathOption(opt, outputFilePath);
+                }
+                else if (opt.Name.Equals("csv", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("c", StringComparison.OrdinalIgnoreCase))
+                {
+                    isSimplifiedCsv = true;
                 }
                 else
                 {
@@ -38,7 +44,7 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("outputFile parameter is required");
             }
 
-            return new PipExecutionPerformanceAnalyzer(GetAnalysisInput(), outputFilePath);
+            return new PipExecutionPerformanceAnalyzer(GetAnalysisInput(), outputFilePath, isSimplifiedCsv);
         }
 
         private static void WritePipExecutionPerformanceAnalyzerHelp(HelpWriter writer)
@@ -46,6 +52,7 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteBanner("Pip Performance Analysis");
             writer.WriteModeOption(nameof(AnalysisMode.PipExecutionPerformance), "Generates a JSON file containing PipExecutionPerformance as discovered at build progress");
             writer.WriteOption("outputFile", "Required. The location of the output file for pip performance analysis.", shortName: "o");
+            writer.WriteOption("csv", "Optional. The output will be simplified and written to a csv file.", shortName: "c");
         }
     }
 
@@ -56,23 +63,72 @@ namespace BuildXL.Execution.Analyzer
     {
         private const string Indentation = "    ";
         private readonly StreamWriter m_writer;
+        private readonly bool m_isCsvFormat;
+
         private readonly Dictionary<PipId, ProcessPipExecutionPerformance> m_processPerformance =
             new Dictionary<PipId, ProcessPipExecutionPerformance>();
+
+        private Dictionary<PipId, TimeSpan> m_cpuStepDurations = new Dictionary<PipId, TimeSpan>();
 
         private string m_indent = string.Empty;
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        public PipExecutionPerformanceAnalyzer(AnalysisInput input, string outputFilePath)
+        public PipExecutionPerformanceAnalyzer(AnalysisInput input, string outputFilePath, bool isCsvFormat)
             : base(input)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(outputFilePath));
 
+            System.Diagnostics.Debugger.Launch();
             m_writer = new StreamWriter(outputFilePath);
+            m_isCsvFormat = isCsvFormat;
         }
 
-        /// <inheritdoc />
         public override int Analyze()
+        {
+            if (m_isCsvFormat)
+            {
+                WriteSimplifiedCsvFile();
+            }
+            else
+            {
+                WriteDetailedJsonFile();
+            }
+
+            return 0;
+        }
+
+        private void WriteSimplifiedCsvFile()
+        {
+            m_writer.WriteLine("Description,Step,Wall,User,Kernel,User/Wall,ReadByes,WriteBytes,OtherBytes,Processes,Memory");
+            foreach (var processIdAndExecutionPerformance in m_processPerformance.OrderByDescending(pip => pip.Value.ProcessExecutionTime.TotalMilliseconds))
+            {
+                var performance = processIdAndExecutionPerformance.Value;
+
+                m_cpuStepDurations.TryGetValue(processIdAndExecutionPerformance.Key, out TimeSpan cpuStepDuration);
+
+                var process = CachedGraph.PipGraph.GetPipFromPipId(processIdAndExecutionPerformance.Key) as Process;
+                Contract.Assert(process != null);
+
+                WriteColumn(process.GetDescription(CachedGraph.Context));
+                WriteColumn(Math.Round(cpuStepDuration.TotalMinutes, 1).ToString());
+                WriteColumn(Math.Round(performance.ProcessExecutionTime.TotalMinutes, 1).ToString());
+                WriteColumn(Math.Round(performance.UserTime.TotalMinutes, 1).ToString());
+                WriteColumn(Math.Round(performance.KernelTime.TotalMinutes, 1).ToString());
+                WriteColumn(Math.Round(performance.UserTime.TotalMinutes / performance.ProcessExecutionTime.TotalMinutes, 1).ToString());
+                WriteColumn(Math.Round(performance.IO.ReadCounters.TransferCount / 1024 / 1024 / 1024.0, 1).ToString());
+                WriteColumn(Math.Round(performance.IO.WriteCounters.TransferCount / 1024 / 1024 / 1024.0, 1).ToString());
+                WriteColumn(Math.Round(performance.IO.OtherCounters.TransferCount / 1024 / 1024 / 1024.0, 1).ToString());
+                WriteColumn(performance.NumberOfProcesses.ToString());
+                m_writer.Write(performance.PeakMemoryUsage.ToString());
+
+                m_writer.WriteLine();
+            }
+
+            m_writer.Flush();
+        }
+
+        private void WriteDetailedJsonFile()
         {
             WriteLineIndented("{");
             IncrementIndent();
@@ -154,8 +210,6 @@ namespace BuildXL.Execution.Analyzer
 
             DecrementIndent();
             WriteIndented("}");
-
-            return 0;
         }
 
         /// <inheritdoc />
@@ -170,6 +224,23 @@ namespace BuildXL.Execution.Analyzer
                     m_processPerformance.Add(data.PipId, processPerformance);
                 }
             }
+        }
+
+        public override void PipExecutionStepPerformanceReported(PipExecutionStepPerformanceEventData data)
+        {
+            if (data.Step == Scheduler.PipExecutionStep.ExecuteProcess)
+            {
+                if (data.Dispatcher == Scheduler.WorkDispatcher.DispatcherKind.CPU)
+                {
+                    m_cpuStepDurations[data.PipId] = data.Duration;
+                }
+            }
+        }
+
+        private void WriteColumn(string s)
+        {
+            m_writer.Write(s);
+            m_writer.Write(',');
         }
 
         /// <inheritdoc />

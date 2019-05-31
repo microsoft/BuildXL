@@ -31,8 +31,8 @@ namespace VstsTest {
 
             importFrom("Newtonsoft.Json.v10").pkg,
             importFrom("StackExchange.Redis.StrongName").pkg,
-            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
+            ...BuildXLSdk.visualStudioServicesArtifactServicesSharedPkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],
         deploymentOptions: {

@@ -12,17 +12,15 @@ namespace VstsApp {
                 ? [importFrom("CLAP").withQualifier({targetFramework:"net451"}).pkg]
                 : [importFrom("CLAP").pkg]
             ),
-            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
-            importFrom("Microsoft.VisualStudio.Services.Client").pkg,
+            Vsts.dll,
+            Interfaces.dll,
             ContentStore.Hashing.dll,
             ContentStore.UtilitiesCore.dll,
             ContentStore.Interfaces.dll,
             ContentStore.Library.dll,
             ContentStore.Vsts.dll,
-            Interfaces.dll,
-            Vsts.dll,
-            
-            
+            importFrom("Microsoft.VisualStudio.Services.Client").pkg,
+            ...BuildXLSdk.visualStudioServicesArtifactServicesSharedPkg,
         ],
         appConfig: f`App.config`,
         tools: {

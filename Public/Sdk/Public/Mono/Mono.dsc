@@ -27,9 +27,9 @@ const monoTool: Transformer.ToolDefinition = {
     untrackedDirectoryScopes: [
         ...addIfLazy(Context.getCurrentHost().os !== "win", () => [
             d`${Context.getMount("DeploymentRoot").path.parent}`,
+            d`${Context.getMount("UserProfile").path}/.mono`,
+            d`/Library/Frameworks/Mono.framework`
         ]),
-        d`${Context.getMount("UserProfile").path}/.mono`,
-        d`/Library/Frameworks/Mono.framework`,
     ],
 };
 

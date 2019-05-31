@@ -146,7 +146,7 @@ namespace BuildXL
                     return ExitKind.InvalidCommandLine;
                 }
 
-                string clientPath = Environment.GetCommandLineArgs()[0];
+                string clientPath = AssemblyHelper.GetThisProgramExeLocation();
                 var rawArgsWithExe = new List<string>(rawArgs.Count + 1) { clientPath };
                 rawArgsWithExe.AddRange(rawArgs);
 

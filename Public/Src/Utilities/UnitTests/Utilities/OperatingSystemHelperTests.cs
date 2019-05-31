@@ -25,7 +25,16 @@ namespace Test.BuildXL.Utilities
             {
                 Assert.NotEqual(noNetFrameworkIsDetected, frameworkAsText);
             }
+        }
 
+        [Fact]
+        public void TestExeName()
+        {
+            var name = AssemblyHelper.AdjustExeExtension("bxl.dll");
+            var expected = OperatingSystemHelper.IsUnixOS
+                ? "bxl"
+                : "bxl.exe";
+            Assert.Equal(expected, name);
         }
     }
 }

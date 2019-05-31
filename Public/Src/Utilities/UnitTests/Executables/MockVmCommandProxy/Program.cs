@@ -30,20 +30,9 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
             string outputFile = null;
             string command = args[0];
 
-            if (string.Equals(VmCommand.StartBuild, command, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(VmCommand.InitializeVm, command, StringComparison.OrdinalIgnoreCase))
             {
-                if (!TryParseArgs(args, out inputFile, out _))
-                {
-                    return -1;
-                }
-
-                if (string.IsNullOrWhiteSpace(inputFile))
-                {
-                    Console.Error.WriteLine($"{VmCommand.StartBuild} command requires input");
-                    return -1;
-                }
-
-                return StartBuild(inputFile);
+                return InitializeVm();
             }
             else if (string.Equals(VmCommand.Run, command, StringComparison.OrdinalIgnoreCase))
             {
@@ -94,18 +83,7 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
             return true;
         }
 
-        private static int StartBuild(string inputFile)
-        {
-            Console.WriteLine($"Read request from '{inputFile}'");
-
-            StartBuildRequest request = VmSerializer.DeserializeFromFile<StartBuildRequest>(inputFile);
-
-            Console.WriteLine($"Start build request: ");
-            Console.WriteLine($"    - HostLowPrivilegeUsername: {request.HostLowPrivilegeUsername ?? string.Empty}");
-            Console.WriteLine($"    - HostLowPrivilegePassword: {request.HostLowPrivilegePassword ?? string.Empty}");
-
-            return 0;
-        }
+        private static int InitializeVm() => 0;
 
         private static int Run(string inputFile, string outputFile)
         {

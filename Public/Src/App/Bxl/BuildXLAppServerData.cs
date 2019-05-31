@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.App.Tracing;
+using BuildXL.Utilities;
 
 namespace BuildXL
 {
@@ -94,7 +95,7 @@ namespace BuildXL
                 environmentVariables,
                 serverModeStatusAndPerf,
                 Directory.GetCurrentDirectory(),
-                Environment.GetCommandLineArgs()[0],
+                AssemblyHelper.GetThisProgramExeLocation(),
                 Process.GetCurrentProcess().StartTime);
         }
 

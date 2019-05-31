@@ -8,6 +8,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
@@ -254,8 +255,42 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(CONTENT_TWICE, outputContent);
         }
 
+        [Fact]
+        public void PreserveOutputsTestWithWhitelist()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+            var input = CreateSourceFile();
+            var outputPreserved = CreateOutputFileArtifact(Path.Combine(ObjectRoot, @"nested\out\filePreserved"));
+            var outputUnpreserved = CreateOutputFileArtifact(Path.Combine(ObjectRoot, @"nested\out\fileUnpreserved"));
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(input),
+                Operation.WriteFile(outputPreserved, CONTENT),
+                Operation.WriteFile(outputUnpreserved, CONTENT)
+            });
+
+            builder.Options |= Process.Options.AllowPreserveOutputs;
+            builder.PreserveOutputWhitelist = ReadOnlyArray<AbsolutePath>.FromWithoutCopy(outputPreserved);
+            var processAndOutputs = SchedulePipBuilder(builder);
+
+            var outputContent = RunSchedulerAndGetOutputContents(outputPreserved, false, processAndOutputs.Process.PipId);
+            XAssert.AreEqual(CONTENT, outputContent);
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputUnpreserved)));
+            
+            ModifyFile(input);
+
+            outputContent = RunSchedulerAndGetOutputContents(outputPreserved, false, processAndOutputs.Process.PipId);
+            XAssert.AreEqual(CONTENT_TWICE, outputContent);
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputUnpreserved)));
+
+            outputContent = RunSchedulerAndGetOutputContents(outputPreserved, true, processAndOutputs.Process.PipId);
+            XAssert.AreEqual(CONTENT_TWICE, outputContent);
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputUnpreserved)));
+        }
+
         /// <summary>
-        /// Testing preserve outputs in an opaque dir which is not supported
+        /// Testing preserve outputs in an opaque dir
         /// </summary>
         [Fact]
         public void PreserveOutputsOpaqueTest()
@@ -275,8 +310,65 @@ namespace IntegrationTest.BuildXL.Scheduler
             // No cache hit
             outputContents = RunSchedulerAndGetOutputContents(output, cacheHitAssert: false, id: pipA.Process.PipId);
             
-            // Preserve outputs is not supported for opaque dirs
+            // As the opaque output is preserved, the pip appended the existing file.
+            XAssert.AreEqual(CONTENT_TWICE, outputContents);
+
+            outputContents = RunSchedulerAndGetOutputContents(output, cacheHitAssert: true, id: pipA.Process.PipId);
+
+            // Cache hit and the appended file (CONTENT_TWICE) should remain the same.
+            XAssert.AreEqual(CONTENT_TWICE, outputContents);
+        }
+
+        /// <summary>
+        /// Testing preserve outputs in an opaque dir with preserveoutputwhitelist
+        /// </summary>
+        [Fact]
+        public void PreserveOutputsOpaqueTestWithWhitelist()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+
+            var input = CreateSourceFile();
+            var opaquePreservedPath = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "opaquePreservedDir"));
+            var outputUnderPreservedOpaque = CreateOutputFileArtifact(opaquePreservedPath);
+
+            var opaqueUnpreservedPath = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "opaqueUnpreservedDir"));
+            var outputUnderUnpreservedOpaque = CreateOutputFileArtifact(opaqueUnpreservedPath);
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(input),
+                Operation.WriteFile(outputUnderPreservedOpaque, CONTENT, doNotInfer: true),
+                Operation.WriteFile(outputUnderUnpreservedOpaque, CONTENT, doNotInfer: true)
+            });
+
+            builder.AddOutputDirectory(opaquePreservedPath);
+            builder.AddOutputDirectory(opaqueUnpreservedPath);
+            builder.Options |= Process.Options.AllowPreserveOutputs;
+            builder.PreserveOutputWhitelist = ReadOnlyArray<AbsolutePath>.FromWithoutCopy(opaquePreservedPath);
+            var processAndOutputs = SchedulePipBuilder(builder);
+
+            // No cache hit
+            string outputContents = RunSchedulerAndGetOutputContents(outputUnderPreservedOpaque, cacheHitAssert: false, id: processAndOutputs.Process.PipId);
             XAssert.AreEqual(CONTENT, outputContents);
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputUnderUnpreservedOpaque)));
+
+            // Change input
+            ModifyFile(input);
+
+            // No cache hit
+            outputContents = RunSchedulerAndGetOutputContents(outputUnderPreservedOpaque, cacheHitAssert: false, id: processAndOutputs.Process.PipId);
+
+            // As the opaque output is preserved, the pip appended the existing file.
+            XAssert.AreEqual(CONTENT_TWICE, outputContents);
+            // For the file under unpreserved opaque directory, the file was created, so we did not append.
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputUnderUnpreservedOpaque)));
+
+            // Cache hit
+            outputContents = RunSchedulerAndGetOutputContents(outputUnderPreservedOpaque, cacheHitAssert: true, id: processAndOutputs.Process.PipId);
+
+            // The appended file (CONTENT_TWICE) should remain the same.
+            XAssert.AreEqual(CONTENT_TWICE, outputContents);
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputUnderUnpreservedOpaque)));
         }
 
         /// <summary>
@@ -520,6 +612,9 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Delete dynamic output.
             FileUtilities.DeleteDirectoryContents(ArtifactToString(outputDirectory), deleteRootDirectory: true);
+
+            // Cache miss as the output is gone.
+            RunScheduler().AssertCacheMiss(dynamicOutputProducer.PipId);
 
             // Dynamic output producer should result in cache hit.
             RunScheduler().AssertCacheHit(dynamicOutputProducer.PipId);

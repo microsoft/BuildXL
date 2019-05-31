@@ -66,24 +66,9 @@ namespace BuildXL.Utilities.VmCommandProxy
 
         private async Task InitVmAsync()
         {
-            // (1) Create and serialize 'StartBuild' request.
-            string startBuildRequestPath = Path.GetTempFileName();
-
-            using (var password = LowPrivilegeAccountUtils.GetLowPrivilegeBuildPassword())
-            {
-                //This will be temporary, will fix the problem exposing the password
-                var startBuildRequest = new StartBuildRequest
-                {
-                    HostLowPrivilegeUsername = LowPrivilegeAccountUtils.GetLowPrivilegeBuildAccount(),
-                    HostLowPrivilegePassword = LowPrivilegeAccountUtils.GetUnsecuredString(password)
-                };
-
-                VmSerializer.SerializeToFile(startBuildRequestPath, startBuildRequest);
-            }
-
-            // (2) Create a process to execute VmCommandProxy.
-            string arguments = $"{VmCommand.StartBuild} /{VmCommand.Param.InputJsonFile}:\"{startBuildRequestPath}\"";
-            var process = CreateVmCommandProxyProcess(arguments, Path.GetDirectoryName(startBuildRequestPath));
+            // (1) Create a process to execute VmCommandProxy.
+            string arguments = $"{VmCommand.InitializeVm}";
+            var process = CreateVmCommandProxyProcess(arguments, Path.GetDirectoryName(Path.GetTempFileName()));
 
             m_logStartInit?.Invoke($"{VmCommandProxy} {arguments}");
 
@@ -92,7 +77,7 @@ namespace BuildXL.Utilities.VmCommandProxy
 
             string provenance = $"[{nameof(VmInitializer)}]";
 
-            // (3) Run VmCommandProxy to start build.
+            // (2) Run VmCommandProxy to start build.
             using (var executor = new AsyncProcessExecutor(
                 process,
                 TimeSpan.FromMinutes(InitVmTimeoutInMinute),

@@ -1168,6 +1168,8 @@ namespace BuildXL.Scheduler.Graph
                 var semanticPathExpander = SemanticPathExpander.GetModuleExpander(process.Provenance.ModuleId);
                 dependenciesByPath = new Dictionary<AbsolutePath, FileArtifact>(process.Dependencies.Length);
                 outputsByPath = new Dictionary<AbsolutePath, FileArtifact>(process.FileOutputs.Length);
+                var outputDirectorySet = new HashSet<AbsolutePath>();
+
 
                 // Process dependencies.
                 foreach (FileArtifact dependency in process.Dependencies)
@@ -1204,7 +1206,7 @@ namespace BuildXL.Scheduler.Graph
                 }
 
                 // Process outputs
-                
+
                 // Every pip must have at least one output artifact
                 if (process.FileOutputs.Length == 0 && process.DirectoryOutputs.Length == 0)
                 {
@@ -1279,6 +1281,8 @@ namespace BuildXL.Scheduler.Graph
                     {
                         return false;
                     }
+
+                    outputDirectorySet.Add(directory.Path);
                 }
 
                 // TODO: no explicit inputs are allowed in OD dependencies.
@@ -1302,6 +1306,24 @@ namespace BuildXL.Scheduler.Graph
                 {
                     LogEventWithPipProvenance(Logger.ScheduleFailAddPipDueToInvalidServicePipDependency, process);
                     return false;
+                }
+
+                if (process.PreserveOutputWhitelist.IsValid && process.PreserveOutputWhitelist.Length > 0)
+                {
+                    if (!process.AllowPreserveOutputs)
+                    {
+                        LogEventWithPipProvenance(Logger.ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag, process);
+                        return false;
+                    }
+
+                    foreach (var whitelistPath in process.PreserveOutputWhitelist)
+                    {
+                        if (!outputsByPath.ContainsKey(whitelistPath) && !outputDirectorySet.Contains(whitelistPath))
+                        {
+                            LogEventWithPipProvenance(Logger.ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist, process);
+                            return false;
+                        }
+                    }
                 }
 
                 Contract.Assert(

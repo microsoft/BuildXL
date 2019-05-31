@@ -31,11 +31,11 @@ This repo uses DScript files for its own build. From the root of the enlistment 
 1. Download the latest self-host engine release.
 1. Pull all needed packages from NuGet.org and other package sources.
 1. Run a debug build as well as the unit tests locally.
-1. Deploy a runnable bxl.exe to: `out\bin\debug\net472`.
+1. Deploy a runnable bxl.exe to: `out\bin\debug\win-x64`.
 
 Note you do not need administrator (elevated) privileges for your console window.
 
-If you just want to do a 'compile' without running tests you can use: `bxl.cmd -minimal` after which you can find the binaries in `out\bin\debug\net472`.
+If you just want to compile BuildXL without running tests you can use: `bxl.cmd -minimal` after which you can find the binaries in `out\bin\debug\win-x64`.
 
 Other build types can be performed as well:
 * `bxl -deployConfig release` : Retail build

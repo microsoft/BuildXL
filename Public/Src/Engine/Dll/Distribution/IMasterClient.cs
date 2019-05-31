@@ -12,6 +12,6 @@ namespace BuildXL.Engine.Distribution
     {
         Task<RpcCallResult<Unit>> AttachCompletedAsync(AttachCompletionInfo attachCompletionInfo);
         Task<RpcCallResult<Unit>> NotifyAsync(WorkerNotificationArgs notificationArgs, IList<long> semiStableHashes);
-        void Close();
+        Task CloseAsync();
     }
 }

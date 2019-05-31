@@ -20,25 +20,24 @@ using std::vector;
 /// original command and arguments to the shim along with, implicitly,
 /// the current working directory and environment.
 static BOOL WINAPI InjectShim(
-    _In_opt_    LPCWSTR               lpApplicationName,
-    _Inout_opt_ LPWSTR                lpCommandLine,
-    _In_opt_    LPSECURITY_ATTRIBUTES lpProcessAttributes,
-    _In_opt_    LPSECURITY_ATTRIBUTES lpThreadAttributes,
-    _In_        BOOL                  bInheritHandles,
-    _In_        DWORD                 dwCreationFlags,
-    _In_opt_    LPVOID                lpEnvironment,
-    _In_opt_    LPCWSTR               lpCurrentDirectory,
-    _In_        LPSTARTUPINFOW        lpStartupInfo,
-    _Out_       LPPROCESS_INFORMATION lpProcessInformation)
+    wstring               &commandWithoutQuotes,
+    wstring               &argumentsWithoutCommand,
+    LPSECURITY_ATTRIBUTES lpProcessAttributes,
+    LPSECURITY_ATTRIBUTES lpThreadAttributes,
+    BOOL                  bInheritHandles,
+    DWORD                 dwCreationFlags,
+    LPVOID                lpEnvironment,
+    LPCWSTR               lpCurrentDirectory,
+    LPSTARTUPINFOW        lpStartupInfo,
+    LPPROCESS_INFORMATION lpProcessInformation)
 {
     // Create a final buffer for the original command line - we prepend the original command
     // (if present) in quotes for easier parsing in the shim, ahead of the original argument list if provided.
     // This is an over-allocation because if lpCommandLine is non-null, lpCommandLine starts with
     // the contents of lpApplicationName, which we'll remove and replace with a quoted version.
     size_t fullCmdLineSizeInChars =
-        (lpApplicationName != nullptr ? wcslen(lpApplicationName) : 0) +
-        (lpCommandLine != nullptr ? wcslen(lpCommandLine) : 0) +
-        4;  // Quotes and space and trailing null
+        commandWithoutQuotes.length() + argumentsWithoutCommand.length() +
+        4;  // Command quotes and space and trailing null
     wchar_t *fullCommandLine = new wchar_t[fullCmdLineSizeInChars];
     if (fullCommandLine == nullptr)
     {
@@ -47,62 +46,10 @@ static BOOL WINAPI InjectShim(
         return FALSE;
     }
 
-    fullCommandLine[0] = L'\0';
-    if (lpApplicationName != nullptr)
-    {
-        if (lpApplicationName[0] == L'"')
-        {
-            // App is already quoted, just reuse its quotes.
-            wcscpy_s(fullCommandLine, fullCmdLineSizeInChars, lpApplicationName);
-        }
-        else
-        {
-            fullCommandLine[0] = L'"';
-            wcscpy_s(fullCommandLine + 1, fullCmdLineSizeInChars, lpApplicationName);
-            wcscat_s(fullCommandLine, fullCmdLineSizeInChars, L"\"");
-        }
-    }
-    if (lpCommandLine != nullptr)
-    {
-        if (lpApplicationName != nullptr)
-        {
-            // If lpApplicationName is specified, lpCommandLine starts with that command, but possibly
-            // without quotes. Skip it in favor of our quoted string added above, and append starting
-            // with the whitespace after the command.
-            size_t appLen = wcslen(lpApplicationName);
-            if (lpApplicationName[0] != L'"' && lpCommandLine[0] == '"')
-            {
-                appLen += 2;  // Account for quotes not present on lpApplicationName but present in lpCommandLine
-            }
-                
-            wcscat_s(fullCommandLine, fullCmdLineSizeInChars, lpCommandLine + appLen);
-        }
-        else
-        {
-            // Ensure the initial command is quoted to ensure consistent parsing for the shim.
-            size_t cmdLineLen = wcslen(lpCommandLine);
-            if (lpCommandLine[0] != L'"')
-            {
-                size_t cmdLen;
-                for (cmdLen = 0; cmdLen < cmdLineLen; cmdLineLen++)
-                {
-                    if (lpCommandLine[cmdLen] == L' ')
-                    {
-                        break;
-                    }
-                }
-
-                fullCommandLine[0] = L'"';
-                wcsncpy_s(fullCommandLine + 1, fullCmdLineSizeInChars, lpCommandLine, cmdLen);
-                fullCommandLine[1 + cmdLen] = L'"';
-                wcscat_s(fullCommandLine, fullCmdLineSizeInChars, lpCommandLine + cmdLen);
-            }
-            else
-            {
-                wcscat_s(fullCommandLine, fullCmdLineSizeInChars, lpCommandLine);
-            }
-        }
-    }
+    fullCommandLine[0] = L'"';
+    wcscpy_s(fullCommandLine + 1, fullCmdLineSizeInChars, commandWithoutQuotes.c_str());
+    wcscat_s(fullCommandLine, fullCmdLineSizeInChars, L"\" ");
+    wcscat_s(fullCommandLine, fullCmdLineSizeInChars, argumentsWithoutCommand.c_str());
 
     Dbg(L"Injecting substitute shim '%s' for process command line '%s'", g_substituteProcessExecutionShimPath, fullCommandLine);
     BOOL rv = Real_CreateProcessW(
@@ -148,7 +95,7 @@ static inline void trim_inplace(std::wstring& str)
         trim_end(str.c_str() + str.length()));
 }
 
-// Returns new value for lpCommandLine pointing to the remainder of the string
+// Returns in 'command' a new value for lpCommandLine pointing to the remainder of the string
 // to use as the command line parameters.
 static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLine, _Out_ wstring &command, _Out_ wstring &commandArgs)
 {
@@ -291,8 +238,7 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
 }
 
 BOOL WINAPI MaybeInjectSubstituteProcessShim(
-    _In_opt_    LPCWSTR               lpApplicationName,
-    _Inout_opt_ LPWSTR                lpCommandLine,
+    _In_opt_    LPCWSTR               lpCommandLine,
     _In_opt_    LPSECURITY_ATTRIBUTES lpProcessAttributes,
     _In_opt_    LPSECURITY_ATTRIBUTES lpThreadAttributes,
     _In_        BOOL                  bInheritHandles,
@@ -305,28 +251,21 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
 {
     if (g_substituteProcessExecutionShimPath != nullptr)
     {
+        // lpCommandLine contains the command, possibly with quotes containing spaces,
+        // as the first whitespace-delimited token. We can ignore lpApplicationName
+        // and just always parse that command line. 
         wstring command;
         wstring commandArgs;
-        const wchar_t *lpCommandArgs;
-        if (lpApplicationName == nullptr)
-        {
-            FindApplicationNameFromCommandLine(lpCommandLine, command, commandArgs);
-            lpCommandArgs = commandArgs.c_str();
-        }
-        else
-        {
-            command = wstring(lpApplicationName);
-            lpCommandArgs = lpCommandLine;
-        }
+        FindApplicationNameFromCommandLine(lpCommandLine, command, commandArgs);
 
-        if (ShouldSubstituteShim(command, lpCommandArgs))
+        if (ShouldSubstituteShim(command, commandArgs.c_str()))
         {
             // Instead of Detouring the child, run the requested shim
             // passing the original command line, but only for appropriate commands.
             injectedShim = true;
             return InjectShim(
-                lpApplicationName,
-                lpCommandLine,
+                command,
+                commandArgs,
                 lpProcessAttributes,
                 lpThreadAttributes,
                 bInheritHandles,

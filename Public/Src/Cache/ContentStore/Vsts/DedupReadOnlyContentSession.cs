@@ -317,7 +317,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
         {
             try
             {
-
                 return await Workflows.RunWithFallback(
                     contentHashes,
                     hashes => CheckInMemoryCache(hashes),

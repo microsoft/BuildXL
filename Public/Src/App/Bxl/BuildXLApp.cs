@@ -224,14 +224,16 @@ namespace BuildXL
             m_startTimeUtc = startTimeUtc ?? Process.GetCurrentProcess().StartTime.ToUniversalTime();
 
             // Allow the client to override the command line that gets logged which will be different from the server
-            m_commandLineArguments = commandLineArguments ?? Environment.GetCommandLineArgs();
+            m_commandLineArguments = commandLineArguments ?? AssemblyHelper.GetCommandLineArgs();
             m_pathTable = pathTable;
 
             // This app was requested to be launched in server mode, but the server cannot be started
             // We store this to log it once the appropriate listeners are set up
             m_serverModeStatusAndPerf = serverModeStatusAndPerf;
 
-            m_crashCollector = OperatingSystemHelper.IsUnixOS ? new CrashCollectorMacOS(new[] { CrashType.BuildXL, CrashType.Kernel }) : null;
+            m_crashCollector = OperatingSystemHelper.IsUnixOS 
+                ? new CrashCollectorMacOS(new[] { CrashType.BuildXL, CrashType.Kernel })
+                : null;
         }
 
         private static void ConfigureCacheMissLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
@@ -532,7 +534,7 @@ namespace BuildXL
                     ServerModeStatusAndPerf serverModeStatusAndPerf = m_serverModeStatusAndPerf.Value;
 
                     // There is always an up to date check related to starting server mode
-                    Logger.Log.DeploymentUpToDateCheckPerformed(pm.LoggingContext, serverModeStatusAndPerf.UpToDateCheck);
+                    Logger.Log.DeploymentUpToDateCheckPerformed(pm.LoggingContext, serverModeStatusAndPerf.UpToDateCheck, serverModeStatusAndPerf.CacheCreated.HasValue, serverModeStatusAndPerf.CacheCreated.HasValue ? serverModeStatusAndPerf.CacheCreated.Value : default(ServerDeploymentCacheCreated));
 
                     // We maybe created a deployment cache
                     if (serverModeStatusAndPerf.CacheCreated.HasValue)

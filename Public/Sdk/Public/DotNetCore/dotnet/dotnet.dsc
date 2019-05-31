@@ -16,8 +16,11 @@ export const dotnetTool: Transformer.ToolDefinition = {
     prepareTempDirectory: true,
     untrackedDirectoryScopes: [
         d`${dotnetExecutable.parent}`,
-        d`/usr/local/share/dotnet`,
-        d`/etc`,
+        ...addIfLazy(Context.getCurrentHost().os !== "win", () => [
+            d`${Environment.getDirectoryValue("HOME")}/.dotnet`,
+            d`/usr/local/share/dotnet`,
+            d`/etc`
+        ]),
     ]
 };
 

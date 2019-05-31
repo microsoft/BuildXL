@@ -47,11 +47,51 @@ namespace BuildXL.Pips.Artifacts
         }
 
         /// <summary>
-        /// Checks if a pip can preserved its outputs.
+        /// Checks if a pip can preserve the given output path
         /// </summary>
-        public static bool IsPreservedOutputsPip(Pip pip)
+        /// <remarks>
+        /// If the given output path represents a dynamic file output, 
+        /// then we check whether the given path is within any whitelistedpath.
+        /// </remarks>
+        public static bool IsPreservedOutputByPip(Pip pip, AbsolutePath outputPath, PathTable pathTable, bool isDynamicFileOutput = false)
         {
-            return (pip as Process)?.AllowPreserveOutputs ?? false;
+            var process = pip as Process;
+            if (process == null || !process.AllowPreserveOutputs)
+            {
+                return false;
+            }
+
+            if (process.PreserveOutputWhitelist.Length == 0)
+            {
+                // If whitelist is not given, we preserve all outputs of the given pip.
+                return true;
+            }
+
+            Func<AbsolutePath, bool> checkFunc;
+            if (isDynamicFileOutput)
+            {
+                // If the given path represents the dynamic file output, we cannot compare
+                // that path with the paths in the whitelist as only declared outputs are specified
+                // in the whitelist. Declared outputs are static file outputs and directory outputs.
+                // That's why, we need to check whether the given file path is under one of the 
+                // directory paths in the whitelist.
+                checkFunc = (p) => outputPath.IsWithin(pathTable, p);
+            }
+            else
+            {
+                checkFunc = (p) => outputPath == p;
+            }
+
+            foreach (var path in process.PreserveOutputWhitelist)
+            {
+                if (checkFunc(path))
+                {
+                    // If the outputPath exists in the array, return true.
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

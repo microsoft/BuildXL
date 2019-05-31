@@ -570,7 +570,7 @@ namespace BuildXL.Scheduler.Distribution
         public virtual Task<ExecutionResult> ExecuteProcessAsync(ProcessRunnablePip runnablePip)
         {
             Contract.Requires(runnablePip.Step == PipExecutionStep.ExecuteProcess);
-            throw Contract.AssertFailure(I($"ExecuteIpcAsync is not supported for worker {Name}"));
+            throw Contract.AssertFailure(I($"ExecuteProcessAsync is not supported for worker {Name}"));
         }
 
         /// <summary>

@@ -1024,6 +1024,12 @@ namespace BuildXL.Scheduler
         RemoteWorker_AwaitExecutionBlobCompletionDuration,
 
         /// <nodoc/>
+        RemoteWorker_EarlyReleaseDrainDurationMs,
+
+        /// <nodoc/>
+        RemoteWorker_EarlyReleaseSavingDurationMs,
+
+        /// <nodoc/>
         BuildRequestBatchesSentToWorkers,
 
         /// <nodoc/>

@@ -378,8 +378,7 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        /// <inheritdoc />
-        public override async Task FinishAsync(string buildFailure)
+        private bool TryInitiateStop()
         {
             while (true)
             {
@@ -387,7 +386,7 @@ namespace BuildXL.Engine.Distribution
                 if (status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped)
                 {
                     // We already initiated the stop for the worker.
-                    return;
+                    return false;
                 }
 
                 if (ChangeStatus(status, WorkerNodeStatus.Stopping))
@@ -396,7 +395,16 @@ namespace BuildXL.Engine.Distribution
                 }
             }
 
-            await DisconnectAsync(buildFailure);
+            return true;
+        }
+
+        /// <inheritdoc />
+        public override async Task FinishAsync(string buildFailure)
+        {
+            if (TryInitiateStop())
+            {
+                await DisconnectAsync(buildFailure);
+            }
         }
 
         /// <inheritdoc />
@@ -405,30 +413,29 @@ namespace BuildXL.Engine.Distribution
             // Unblock scheduler
             await Task.Yield();
 
-            while (true)
+            using (EarlyReleaseLock.AcquireWriteLock())
             {
-                WorkerNodeStatus status = Status;
-                if (status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped)
+                if (!TryInitiateStop())
                 {
                     // Already stopped, no need to continue.
                     return;
                 }
-
-                if (ChangeStatus(status, WorkerNodeStatus.Stopping))
-                {
-                    break;
-                }
             }
-
+            
             var drainStopwatch = new StopwatchVar();
 
             using (drainStopwatch.Start())
             {
+                // We only await DrainCompletion if the total acquired slots is not zero
+                // because the worker can acquire a slot after we decide to release it but before we attempt to stop it. 
+                // We only set DrainCompletion in case of Stopping state.
                 if (AcquiredSlots != 0)
                 {
                     await DrainCompletion.Task;
                 }
             }
+
+            m_masterService.Environment.Counters.AddToCounter(PipExecutorCounter.RemoteWorker_EarlyReleaseDrainDurationMs, (long)drainStopwatch.TotalElapsed.TotalMilliseconds);
 
             Contract.Assert(m_pipCompletionTasks.IsEmpty, "There cannot be pending completion tasks when AcquiredSlots is 0");
 
@@ -439,6 +446,7 @@ namespace BuildXL.Engine.Distribution
                 await DisconnectAsync();
             }
 
+            WorkerEarlyReleasedTime = DateTime.UtcNow;
             Scheduler.Tracing.Logger.Log.WorkerReleasedEarly(
                 m_appLoggingContext,
                 Name,

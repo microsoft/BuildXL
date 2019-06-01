@@ -1601,6 +1601,10 @@ namespace BuildXL.Scheduler
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MaxPathSetsDownloadedForMiss, cacheLookupPerfInfosForMisses.Max(a => a?.NumPathSetsDownloaded) ?? -1);
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MinPathSetsDownloadedForMiss, cacheLookupPerfInfosForMisses.Min(a => a?.NumPathSetsDownloaded) ?? -1);
 
+            var currentTime = DateTime.UtcNow;
+            var earlyReleaseSavingDurationMs = Workers.Where(a => a.WorkerEarlyReleasedTime != null).Select(a => (currentTime - a.WorkerEarlyReleasedTime.Value).TotalMilliseconds).Sum();
+            PipExecutionCounters.AddToCounter(PipExecutorCounter.RemoteWorker_EarlyReleaseSavingDurationMs, (long)earlyReleaseSavingDurationMs);
+
             PipExecutionCounters.LogAsStatistics("PipExecution", loggingContext);
 
             m_groupedPipCounters.LogAsPipCounters();
@@ -1828,8 +1832,8 @@ namespace BuildXL.Scheduler
                 },
 
                 { "ProcessPipsPending", data => data.ProcessPipsPending },
-                { "ProcessPipsRunning", data => data.ProcessPipsRunning },
-                { "ProcessPipsWaiting", data => data.ProcessPipsPending - data.ProcessPipsRunning },
+                { "ProcessPipsAllocatedSlots", data => data.ProcessPipsAllocatedSlots },
+                { "ProcessPipsWaiting", data => data.ProcessPipsPending - data.ProcessPipsAllocatedSlots },
                 { "TotalAcquiredProcessSlots", data => Workers.Where(a => a.IsAvailable).Sum(a => a.AcquiredProcessSlots) },
                 { "AvailableWorkersCount", data => AvailableWorkersCount },
 
@@ -2004,7 +2008,8 @@ namespace BuildXL.Scheduler
                 long numProcessPipsPending = m_processStateCountersSnapshot[PipState.Waiting] + m_processStateCountersSnapshot[PipState.Ready] + m_processStateCountersSnapshot[PipState.Running];
 
                 // PipState.Running does not mean that the pip is actually running. The pip might be waiting for a slot.
-                long numProcessPipsRunning = Workers.Sum(a => a.AcquiredSlotsForProcessPips);
+                // That's why, we need to get the actual number of process pips that were allocated a slot on the workers (including localworker).
+                long numProcessPipsAllocatedSlots = Workers.Sum(a => a.AcquiredSlotsForProcessPips);
 
                 var data = new StatusEventData
                 {
@@ -2029,7 +2034,7 @@ namespace BuildXL.Scheduler
                     PipsSucceededAllTypes = m_pipStateCountersSnapshots.SelectArray(a => a.DoneCount),
                     UnresponsivenessFactor = m_unresponsivenessFactor,
                     ProcessPipsPending = numProcessPipsPending,
-                    ProcessPipsRunning = numProcessPipsRunning,
+                    ProcessPipsAllocatedSlots = numProcessPipsAllocatedSlots,
                 };
 
                 // Send resource usage to the execution log
@@ -2051,9 +2056,9 @@ namespace BuildXL.Scheduler
                     m_pipQueue.AdjustIOParallelDegree(m_perfInfo);
                 }
 
-                if (m_scheduleConfiguration.EarlyWorkerRelease)
+                if (m_scheduleConfiguration.EarlyWorkerRelease && IsDistributedMaster)
                 {
-                    PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsRunning);
+                    PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
                 }
             }
         }
@@ -2061,34 +2066,36 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Decide whether we can release a remote worker. This method is executed every 2 seconds depending on the frequency of LogStatus timer.
         /// </summary>
-        private void PerformEarlyReleaseWorker(long numProcessPipsPending, long numProcessPipsRunning)
+        private void PerformEarlyReleaseWorker(long numProcessPipsPending, long numProcessPipsAllocatedSlots)
         {
-            long numProcessPipsWaiting = numProcessPipsPending - numProcessPipsRunning;
+            long numProcessPipsWaiting = numProcessPipsPending - numProcessPipsAllocatedSlots;
 
-            // If the available remote workers perform at half capacity in future, how many process pips we can concurrently execute:
-            int totalSlots = (int)Math.Ceiling(Workers.Where(a => a.IsRemote && a.IsAvailable).Sum(a => a.TotalProcessSlots * 0.5) + LocalWorker.TotalProcessSlots);
-
-            // If that slots is larger than the number of process pips waiting, then we can release a worker.
-            // We do not need to release all redundant workers at one time because this 'cheap' method is executed every ~2 seconds.
-            if (numProcessPipsWaiting > 0 && numProcessPipsWaiting < totalSlots)
+            // Try releasing the remote  worker which has the lowest acquired slots for process execution.
+            // It is intentional that we do not include cachelookup slots here as cachelookup step is a lot faster than execute step.
+            var workerToReleaseCandidate = Workers.Where(a => a.IsRemote && a.IsAvailable).OrderBy(a => a.AcquiredProcessSlots).FirstOrDefault();
+            if (workerToReleaseCandidate == null)
             {
-                // Release the remote  worker which has the lowest acquired slots for process execution.
-                // It is intentional that we do not include cachelookup slots here as cachelookup step is a lot faster than execute step.
-                var worker = Workers.Where(a => a.IsRemote && a.IsAvailable).OrderBy(a => a.AcquiredProcessSlots).FirstOrDefault();
-                if (worker != null)
-                {
-                    Logger.Log.InitiateWorkerRelease(
-                        m_loggingContext, 
-                        worker.Name, 
-                        numProcessPipsWaiting, 
-                        totalSlots, 
-                        worker.AcquiredCacheLookupSlots, 
-                        worker.AcquiredProcessSlots,
-                        worker.AcquiredIpcSlots);
+                return;
+            }
 
-                    var task = worker.EarlyReleaseAsync();
-                    Analysis.IgnoreResult(task);
-                }
+            // If the available remote workers perform at that multiplier capacity in future, how many process pips we can concurrently execute:
+            int totalProcessSlots = LocalWorker.TotalProcessSlots +
+               (int)Math.Ceiling(m_scheduleConfiguration.EarlyWorkerReleaseMultiplier * Workers.Where(a => a.IsRemote && a.IsAvailable).Sum(a => a.TotalProcessSlots));
+
+            // Release worker if numProcessPipsWaiting can be satisfied by remaining workers
+            if (numProcessPipsWaiting > 0 && (numProcessPipsWaiting < totalProcessSlots - workerToReleaseCandidate.TotalProcessSlots))
+            {
+                Logger.Log.InitiateWorkerRelease(
+                        m_loggingContext,
+                        workerToReleaseCandidate.Name,
+                        numProcessPipsWaiting,
+                        totalProcessSlots,
+                        workerToReleaseCandidate.AcquiredCacheLookupSlots,
+                        workerToReleaseCandidate.AcquiredProcessSlots,
+                        workerToReleaseCandidate.AcquiredIpcSlots);
+
+                var task = workerToReleaseCandidate.EarlyReleaseAsync();
+                Analysis.IgnoreResult(task);
             }
         }
 

@@ -1107,6 +1107,11 @@ namespace BuildXL.Engine
                 mutableConfig.Schedule.EarlyWorkerRelease = false;
             }
 
+            if (mutableConfig.Distribution.ReplicateOutputsToWorkers == true)
+            {
+                mutableConfig.Schedule.EarlyWorkerRelease = false;
+            }
+
             return success;
         }
 

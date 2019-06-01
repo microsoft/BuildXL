@@ -720,6 +720,24 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void DistributionMasterWorkerProcessOutputContent(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath, string hash, string reparsePointInfo, string workerName);
 
         [GeneratedEvent(
+            (ushort)LogEventId.InitiateWorkerRelease,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "{workerName} will be released because {numProcessPipsWaiting} (numProcessPipsWaiting) < {totalSlots} (totalSlots). Worker's Acquired Slots: {cachelookup} (cachelookup), {execute} (execute), {ipc} (ipc).",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Events.Tasks.Distribution,
+            Keywords = (int)Events.Keywords.UserMessage)]
+        public abstract void InitiateWorkerRelease(LoggingContext context, string workerName, long numProcessPipsWaiting, int totalSlots, int cachelookup, int execute, int ipc);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.WorkerReleasedEarly,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "{workerName} is released. Drain duration: {drainDurationMs}ms. Disconnect duration: {disconnectDurationMs}ms.",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Events.Tasks.Distribution,
+            Keywords = (int)Events.Keywords.UserMessage)]
+        public abstract void WorkerReleasedEarly(LoggingContext context, string workerName, long drainDurationMs, long disconnectDurationMs);
+
+        [GeneratedEvent(
             (ushort)EventId.StorageCacheGetContentError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

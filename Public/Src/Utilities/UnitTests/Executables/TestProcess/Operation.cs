@@ -404,9 +404,9 @@ namespace Test.BuildXL.Executables.TestProcess
         /// <summary>
         /// Creates a create directory operation (uses WinAPI)
         /// </summary>
-        public static Operation CreateDir(FileOrDirectoryArtifact path, bool doNotInfer = false)
+        public static Operation CreateDir(FileOrDirectoryArtifact path, bool doNotInfer = false, string additionalArgs = null)
         {
-            return new Operation(Type.CreateDir, path, doNotInfer: doNotInfer);
+            return new Operation(Type.CreateDir, path, doNotInfer: doNotInfer, additionalArgs: additionalArgs);
         }
 
         /// <summary>
@@ -629,6 +629,28 @@ namespace Test.BuildXL.Executables.TestProcess
         private void DoCreateDir()
         {
             string directoryPath = FileOrDirectoryToString(Path);
+
+            bool failedIfExists = false;
+
+            if (!string.IsNullOrEmpty(AdditionalArgs))
+            {
+                string[] args = AdditionalArgs.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var arg in args)
+                {
+                    if (string.Equals(arg, "--failedIfExists", StringComparison.OrdinalIgnoreCase))
+                    {
+                        failedIfExists = true;
+                    }
+                }
+            }
+
+            if (FileUtilities.DirectoryExistsNoFollow(directoryPath) || FileUtilities.FileExistsNoFollow(directoryPath))
+            {
+                if (failedIfExists)
+                {
+                    throw new InvalidOperationException($"Directory creation failed because '{directoryPath}' exists");
+                }
+            }
 
             if (OperatingSystemHelper.IsUnixOS)
             {

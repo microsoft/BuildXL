@@ -25,14 +25,12 @@ using BuildXL.Utilities;
 namespace Bazel
 {
     /// <summary>
-    /// A given directory is enumerated under the sandbox, where some directory can be blocked
+    /// A program is runned in the sandbox, where only file access to some directories/files are allowed
     /// </summary>
     public class Program
     {
         /// <summary>
-        /// Expected arguments: 
-        /// - args[0]: directory to enumerate recursively
-        /// - args[1..n]: optional paths representing directories to recursively block accesses from
+        /// Main entry
         /// </summary>
         public static int Main(string[] args)
         {

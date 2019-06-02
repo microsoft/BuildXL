@@ -91,7 +91,6 @@ namespace Bazel {
         /// <param name="pathTable"></param>
         public void ParseOptions(string[] args, PathTable pathTable)
         {
-            Console.WriteLine(args.ToString());
             int i = 0;
             for (; i < args.Length && args[i] != "--"; i++)
             {
@@ -200,7 +199,7 @@ namespace Bazel {
                     ExitWithError($"Unknown argument: {arg}");
                 }
             }
-            if (args[i] != "--" || i == args.Length)
+            if (i >= args.Length - 1 || args[i] != "--")
             {
                 ExitWithError("Command to sandboxed not specified");
             }

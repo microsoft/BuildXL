@@ -967,6 +967,38 @@ namespace Test.BuildXL.Storage
             }
         }
 
+        [Trait("Category", "WindowsOSOnly")]
+        [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TestDeleteDirectorySymlink(bool useFileDelete)
+        {
+            string directoryPath = GetFullPath(nameof(TestDeleteDirectorySymlink));
+            string fileInDirectoryPath = Path.Combine(directoryPath, "file");
+            string directorySymlinkPath = directoryPath + ".lnk";
+
+            FileUtilities.CreateDirectory(directoryPath);
+            File.WriteAllText(fileInDirectoryPath, "test");
+
+            XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(directorySymlinkPath, directoryPath, isTargetFile: false).Succeeded);
+
+            if (useFileDelete)
+            {
+                FileUtilities.DeleteFile(directorySymlinkPath, waitUntilDeletionFinished: true);
+                XAssert.IsTrue(FileUtilities.DirectoryExistsNoFollow(directoryPath));
+                XAssert.IsTrue(FileUtilities.FileExistsNoFollow(fileInDirectoryPath));
+            }
+            else
+            {
+                FileUtilities.DeleteDirectoryContents(directorySymlinkPath, deleteRootDirectory: true);
+                XAssert.IsTrue(FileUtilities.DirectoryExistsNoFollow(directoryPath));
+                XAssert.IsFalse(FileUtilities.FileExistsNoFollow(fileInDirectoryPath));
+            }
+
+            XAssert.IsFalse(FileUtilities.FileExistsNoFollow(directorySymlinkPath));
+            XAssert.IsFalse(FileUtilities.DirectoryExistsNoFollow(directorySymlinkPath));
+        }
+
         private void AssertNonexistent(Possible<PathExistence, NativeFailure> maybeFileExistence)
             => AssertPathExistence(PathExistence.Nonexistent, maybeFileExistence);
 

@@ -203,6 +203,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                              SelfCheckEpoch = settings.SelfCheckEpoch,
                              StartSelfCheckInStartup = settings.StartSelfCheckAtStartup,
                              SelfCheckFrequency = TimeSpan.FromMinutes(settings.SelfCheckFrequencyInMinutes),
+                             OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode
                          };
         }
 
@@ -445,7 +446,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     // This is a recoverable error.
                     return true;
                 }
-                
+
                 if (message.Contains("429"))
                 {
                     // This is a throttling response which is recoverable as well.

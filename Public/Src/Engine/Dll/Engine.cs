@@ -1066,6 +1066,7 @@ namespace BuildXL.Engine
                 }
 
                 mutableConfig.Logging.StoreFingerprints = initialCommandLineConfiguration.Logging.StoreFingerprints ?? false;
+                mutableConfig.Sandbox.RetryOnAzureWatsonExitCode = true;
             }
             else
             {
@@ -1098,6 +1099,18 @@ namespace BuildXL.Engine
             if (mutableConfig.Logging.CacheMissAnalysisOption.Mode != CacheMissMode.Disabled)
             {
                 mutableConfig.Logging.StoreFingerprints = true;
+            }
+
+            // EarlyWorkerRelease is only enabled for Office ProductBuild lab and OSG lab builds.
+            if (mutableConfig.Logging.Environment != ExecutionEnvironment.OfficeProductBuildLab &&
+                mutableConfig.Logging.Environment != ExecutionEnvironment.OsgLab)
+            {
+                mutableConfig.Schedule.EarlyWorkerRelease = false;
+            }
+
+            if (mutableConfig.Distribution.ReplicateOutputsToWorkers == true)
+            {
+                mutableConfig.Schedule.EarlyWorkerRelease = false;
             }
 
             return success;

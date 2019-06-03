@@ -7,14 +7,12 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using BuildXL.Native.Processes;
-using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.BuildParameters;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace BuildXL.Processes
 {
@@ -253,6 +251,11 @@ namespace BuildXL.Processes
         public string[] AllowedSurvivingChildProcessNames { get; set; }
 
         /// <summary>
+        /// Temp folder redirection.
+        /// </summary>
+        public (string source, string target)[] RedirectedTempFolders { get; set; }
+
+        /// <summary>
         /// Max. number of characters buffered in memory before output is streamed to disk
         /// </summary>
         public int MaxLengthInMemory
@@ -443,6 +446,9 @@ namespace BuildXL.Processes
 
                 writer.Write(StandardInputSourceInfo, (w, v) => v.Serialize(w));
                 writer.Write(StandardObserverDescriptor, (w, v) => v.Serialize(w));
+                writer.Write(
+                    RedirectedTempFolders,
+                    (w, v) => w.WriteReadOnlyList(v, (w2, v2) => { w2.Write(v2.source); w2.Write(v2.target); }));
 
                 // File access manifest should be serialize the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
@@ -480,6 +486,7 @@ namespace BuildXL.Processes
                 SandboxedProcessStandardFiles sandboxedProcessStandardFiles = SandboxedProcessStandardFiles.Deserialize(reader);
                 StandardInputInfo standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
                 SandboxObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => SandboxObserverDescriptor.Deserialize(r));
+                (string source, string target)[] redirectedTempFolder = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => (source: r2.ReadString(), target: r2.ReadString())))?.ToArray();
 
                 FileAccessManifest fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
 
@@ -511,7 +518,8 @@ namespace BuildXL.Processes
                     PipDescription = pipDescription,
                     SandboxedProcessStandardFiles = sandboxedProcessStandardFiles,
                     StandardInputSourceInfo = standardInputSourceInfo,
-                    StandardObserverDescriptor = standardObserverDescriptor
+                    StandardObserverDescriptor = standardObserverDescriptor,
+                    RedirectedTempFolders = redirectedTempFolder
                 };
             }
         }

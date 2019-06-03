@@ -190,6 +190,45 @@ namespace BuildXL.SandboxedProcessExecutor
             info.StandardOutputObserver = m_outputErrorObserver.ObserveStandardOutputForWarning;
             info.StandardErrorObserver = m_outputErrorObserver.ObserveStandardErrorForWarning;
 
+            return TryPrepareTemporaryFolders(info);
+        }
+
+        private bool TryPrepareTemporaryFolders(SandboxedProcessInfo info)
+        {
+            Contract.Requires(info != null);
+
+            if (info.RedirectedTempFolders != null)
+            {
+                foreach (var redirection in info.RedirectedTempFolders)
+                {
+                    try
+                    {
+                        FileUtilities.DeleteDirectoryContents(redirection.target, deleteRootDirectory: false);
+                        FileUtilities.CreateDirectory(redirection.target);
+                    }
+                    catch (BuildXLException e)
+                    {
+                        m_logger.LogError($"Failed to prepare temporary folder '{redirection.target}': {e.ToStringDemystified()}");
+                        return false;
+                    }
+                }
+            }
+
+            foreach (var tmpEnvVar in BuildParameters.DisallowedTempVariables)
+            {
+                string tempPath = info.EnvironmentVariables[tmpEnvVar];
+
+                try
+                {
+                    FileUtilities.CreateDirectory(tempPath);
+                }
+                catch (BuildXLException e)
+                {
+                    m_logger.LogError($"Failed to prepare temporary folder '{tempPath}': {e.ToStringDemystified()}");
+                    return false;
+                }
+            }
+
             return true;
         }
 

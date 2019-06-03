@@ -81,10 +81,15 @@ namespace BuildXL.Scheduler
         private const int CompletedRefCount = -1;
 
         /// <summary>
+        /// How many bits of priority are assigned to critical path portion.  The rest are assigned to the priority in the spec files
+        /// </summary>
+        private const int CriticalPathPriorityBitCount = 24;
+
+        /// <summary>
         /// The max priority assigned to pips in the initial critical path
         /// prioritization
         /// </summary>
-        private const int MaxInitialPipPriority = int.MaxValue - 1;
+        private const int MaxInitialPipPriority = (1 << CriticalPathPriorityBitCount) - 1;
 
         /// <summary>
         /// The priority of IPC pips when entering the ChooseWorker queue. This is greater than
@@ -1601,6 +1606,10 @@ namespace BuildXL.Scheduler
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MaxPathSetsDownloadedForMiss, cacheLookupPerfInfosForMisses.Max(a => a?.NumPathSetsDownloaded) ?? -1);
             PipExecutionCounters.AddToCounter(PipExecutorCounter.MinPathSetsDownloadedForMiss, cacheLookupPerfInfosForMisses.Min(a => a?.NumPathSetsDownloaded) ?? -1);
 
+            var currentTime = DateTime.UtcNow;
+            var earlyReleaseSavingDurationMs = Workers.Where(a => a.WorkerEarlyReleasedTime != null).Select(a => (currentTime - a.WorkerEarlyReleasedTime.Value).TotalMilliseconds).Sum();
+            PipExecutionCounters.AddToCounter(PipExecutorCounter.RemoteWorker_EarlyReleaseSavingDurationMs, (long)earlyReleaseSavingDurationMs);
+
             PipExecutionCounters.LogAsStatistics("PipExecution", loggingContext);
 
             m_groupedPipCounters.LogAsPipCounters();
@@ -1806,8 +1815,10 @@ namespace BuildXL.Scheduler
                 {
                     EnumTraits<PipType>.EnumerateValues().Where(pipType => pipType != PipType.Max), (rows, pipType) =>
                     {
-                        rows.Add(I($"{pipType} Running"), _ => m_pipStateCountersSnapshots[(int)pipType].RunningCount);
-                        rows.Add(I($"{pipType} Done"), _ => m_pipStateCountersSnapshots[(int)pipType].DoneCount);
+                        rows.Add(I($"{pipType} Waiting"), _ => m_pipStateCountersSnapshots[(int)pipType][PipState.Waiting]);
+                        rows.Add(I($"{pipType} Ready"), _ => m_pipStateCountersSnapshots[(int)pipType][PipState.Ready]);
+                        rows.Add(I($"{pipType} Running"), _ => m_pipStateCountersSnapshots[(int)pipType][PipState.Running]);
+                        rows.Add(I($"{pipType} Done"), _ => m_pipStateCountersSnapshots[(int)pipType][PipState.Done]);
                     }
                 },
 
@@ -1825,6 +1836,10 @@ namespace BuildXL.Scheduler
                     }
                 },
 
+                { "ProcessPipsPending", data => data.ProcessPipsPending },
+                { "ProcessPipsAllocatedSlots", data => data.ProcessPipsAllocatedSlots },
+                { "ProcessPipsWaiting", data => data.ProcessPipsPending - data.ProcessPipsAllocatedSlots },
+                { "TotalAcquiredProcessSlots", data => Workers.Where(a => a.IsAvailable).Sum(a => a.AcquiredProcessSlots) },
                 { "AvailableWorkersCount", data => AvailableWorkersCount },
 
                 // Worker Pip State counts and status
@@ -1994,6 +2009,13 @@ namespace BuildXL.Scheduler
                     writeFileDone: writeFileStats.DoneCount,
                     writeFileNotDone: writeFileStats.Total - writeFileStats.DoneCount - writeFileStats.IgnoredCount);
 
+                // Number of process pips that are not completed yet.
+                long numProcessPipsPending = m_processStateCountersSnapshot[PipState.Waiting] + m_processStateCountersSnapshot[PipState.Ready] + m_processStateCountersSnapshot[PipState.Running];
+
+                // PipState.Running does not mean that the pip is actually running. The pip might be waiting for a slot.
+                // That's why, we need to get the actual number of process pips that were allocated a slot on the workers (including localworker).
+                long numProcessPipsAllocatedSlots = Workers.Sum(a => a.AcquiredSlotsForProcessPips);
+
                 var data = new StatusEventData
                 {
                     Time = DateTime.UtcNow,
@@ -2016,6 +2038,8 @@ namespace BuildXL.Scheduler
                     ExternalProcesses = LocalWorker.CurrentlyExecutingPips.Count,
                     PipsSucceededAllTypes = m_pipStateCountersSnapshots.SelectArray(a => a.DoneCount),
                     UnresponsivenessFactor = m_unresponsivenessFactor,
+                    ProcessPipsPending = numProcessPipsPending,
+                    ProcessPipsAllocatedSlots = numProcessPipsAllocatedSlots,
                 };
 
                 // Send resource usage to the execution log
@@ -2036,6 +2060,47 @@ namespace BuildXL.Scheduler
                     Contract.Assert(m_performanceAggregator != null, "Adaptive IO requires non-null performanceAggregator");
                     m_pipQueue.AdjustIOParallelDegree(m_perfInfo);
                 }
+
+                if (m_scheduleConfiguration.EarlyWorkerRelease && IsDistributedMaster)
+                {
+                    PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Decide whether we can release a remote worker. This method is executed every 2 seconds depending on the frequency of LogStatus timer.
+        /// </summary>
+        private void PerformEarlyReleaseWorker(long numProcessPipsPending, long numProcessPipsAllocatedSlots)
+        {
+            long numProcessPipsWaiting = numProcessPipsPending - numProcessPipsAllocatedSlots;
+
+            // Try releasing the remote  worker which has the lowest acquired slots for process execution.
+            // It is intentional that we do not include cachelookup slots here as cachelookup step is a lot faster than execute step.
+            var workerToReleaseCandidate = Workers.Where(a => a.IsRemote && a.IsAvailable).OrderBy(a => a.AcquiredProcessSlots).FirstOrDefault();
+            if (workerToReleaseCandidate == null)
+            {
+                return;
+            }
+
+            // If the available remote workers perform at that multiplier capacity in future, how many process pips we can concurrently execute:
+            int totalProcessSlots = LocalWorker.TotalProcessSlots +
+               (int)Math.Ceiling(m_scheduleConfiguration.EarlyWorkerReleaseMultiplier * Workers.Where(a => a.IsRemote && a.IsAvailable).Sum(a => a.TotalProcessSlots));
+
+            // Release worker if numProcessPipsWaiting can be satisfied by remaining workers
+            if (numProcessPipsWaiting > 0 && (numProcessPipsWaiting < totalProcessSlots - workerToReleaseCandidate.TotalProcessSlots))
+            {
+                Logger.Log.InitiateWorkerRelease(
+                        m_loggingContext,
+                        workerToReleaseCandidate.Name,
+                        numProcessPipsWaiting,
+                        totalProcessSlots,
+                        workerToReleaseCandidate.AcquiredCacheLookupSlots,
+                        workerToReleaseCandidate.AcquiredProcessSlots,
+                        workerToReleaseCandidate.AcquiredIpcSlots);
+
+                var task = workerToReleaseCandidate.EarlyReleaseAsync();
+                Analysis.IgnoreResult(task);
             }
         }
 
@@ -2911,11 +2976,13 @@ namespace BuildXL.Scheduler
         {
             if (runnablePip.AcquiredResourceWorker != null)
             {
-                // These steps run on the chosen worker so don't release the resources until they are completed
+                // These steps run on the chosen worker so don't release the resources until they are completed.
+                // MaterializeOutputs can be also run on the workers; but we can release resources before that. 
                 if (nextStep != PipExecutionStep.CacheLookup &&
                     nextStep != PipExecutionStep.ExecuteNonProcessPip &&
                     nextStep != PipExecutionStep.ExecuteProcess &&
-                    nextStep != PipExecutionStep.MaterializeInputs)
+                    nextStep != PipExecutionStep.MaterializeInputs &&
+                    nextStep != PipExecutionStep.PostProcess)
                 {
                     runnablePip.AcquiredResourceWorker.ReleaseResources(runnablePip);
                 }
@@ -5013,14 +5080,21 @@ namespace BuildXL.Scheduler
                             // Below, we add one or more quanitites in the uint range.
                             // We use a long here to trivially avoid any overflow, and saturate to uint.MaxValue if needed as the last step.
                             long criticalPath = 0;
+                            int priorityBase = 0;
 
                             // quick check to avoid allocation of enumerator (as we are going through an interface, and where everything gets boxed!)
                             if (!graph.IsSinkNode(node))
                             {
                                 foreach (var edge in graph.GetOutgoingEdges(node))
                                 {
-                                    var otherCriticalPath = GetPipRuntimeInfo(edge.OtherNode).Priority;
-                                    criticalPath = Math.Max(criticalPath, otherCriticalPath);
+                                    var otherPriority = GetPipRuntimeInfo(edge.OtherNode).Priority;
+
+                                    // Priority consists of given priority in the specs (bits 24-31, and the critical path priority (bits 0-23)
+                                    unchecked
+                                    {
+                                        criticalPath = Math.Max(criticalPath, otherPriority & MaxInitialPipPriority);
+                                        priorityBase = Math.Max(priorityBase, otherPriority >> CriticalPathPriorityBitCount);
+                                    }
                                 }
                             }
 
@@ -5082,10 +5156,9 @@ namespace BuildXL.Scheduler
                                 }
                             }
 
-                            int priorityBase = m_pipTable.GetPipPriority(pipId) << 24;
+                            priorityBase = Math.Max(m_pipTable.GetPipPriority(pipId), priorityBase) << CriticalPathPriorityBitCount;
                             int criticalPathPriority = (criticalPath < 0 || criticalPath > MaxInitialPipPriority) ? MaxInitialPipPriority : unchecked((int)criticalPath);
-                            criticalPathPriority = Math.Min(criticalPathPriority, (1 << 24) - 1);
-                            pipRuntimeInfo.Priority = priorityBase | criticalPathPriority;
+                            pipRuntimeInfo.Priority = unchecked(priorityBase + criticalPathPriority);
 
                             Contract.Assert(pipType != PipType.HashSourceFile);
                             pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Waiting);

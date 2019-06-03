@@ -88,6 +88,7 @@ namespace BuildXL.Pips
         PipGraphGetSealDirectoryByKind,
         GetSealDirectoryFingerprint,
         Explorer,
+        PreserveOutput,
         End,
 #pragma warning restore 1591
     }

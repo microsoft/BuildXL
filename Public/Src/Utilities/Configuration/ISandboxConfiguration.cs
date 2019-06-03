@@ -212,5 +212,36 @@ namespace BuildXL.Utilities.Configuration
         /// Execution mode for processes that require admin privilege.
         /// </summary>
         AdminRequiredProcessExecutionMode AdminRequiredProcessExecutionMode { get; }
+
+        /// <summary>
+        /// Root of redirected temporary folders for VM execution.
+        /// </summary>
+        /// <remarks>
+        /// This is used mainly for testing.
+        /// </remarks>
+        AbsolutePath RedirectedTempFolderRootForVmExecution { get; }
+
+        /// <summary>
+        /// Retries process whose exit code or its children's exit code is Azure Watson's special exit code, i.e., 0xDEAD.
+        /// </summary>
+        /// <remarks>
+        /// When running in CloudBuild, Process nondeterministically sometimes exits with 0xDEAD exit code. This is the exit code
+        /// returned by Azure Watson dump after catching the process crash. The root cause of the crash is unknown,
+        /// but the primary suspect is the way Detours handle NtClose.
+        /// </remarks>
+        bool RetryOnAzureWatsonExitCode { get; }
+
+        /// <summary>
+        /// Ensures temp directories existence before pip execution.
+        /// </summary>
+        /// <remarks>
+        /// This is a temporary flag for enforcing consistent behavior in temp directories creation.
+        /// If this flag is set to false, then only directories specified in %TMP% and %TEMP% are 
+        /// ensured to exist, but additional temp directories are not. The current default is false. 
+        /// Eventually, BuildXL will always ensure temp directory creation. However, currently, such a change
+        /// can break customers who assume that additional temp directories are not created before the pip executes.
+        /// Thus, this enforcement is made opt-in.
+        /// </remarks>
+        bool EnsureTempDirectoriesExistenceBeforePipExecution { get; }
     }
 }

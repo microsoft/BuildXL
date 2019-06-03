@@ -18,6 +18,7 @@ namespace Core {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("BuildXL.Utilities").Configuration.dll,
         ],
     });
 }

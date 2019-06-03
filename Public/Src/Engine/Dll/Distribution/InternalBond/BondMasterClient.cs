@@ -80,8 +80,9 @@ namespace BuildXL.Engine.Distribution.InternalBond
         }
 
         /// <nodoc/>
-        public void Close()
+        public async Task CloseAsync()
         {
+            await Task.Yield();
             m_proxyManager?.Terminate();
         }
 

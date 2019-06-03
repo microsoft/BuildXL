@@ -66,13 +66,16 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
                  _database.LocationAdded(context, hash, machine, 200);
 
+                 _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
+                 _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(0);
+
                  _database.TryGetEntry(context, hash, out var entry).Should().BeTrue();
                  entry.ContentSize.Should().Be(200);
                  entry.Locations.Count.Should().Be(1);
                  entry.Locations[machine].Should().BeTrue();
 
-                 _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Should().Be(0);
-                 _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Should().Be(1);
+                 _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
+                 _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(1);
              });
         }
 
@@ -85,12 +88,19 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 var hash = new ShortHash(ContentHash.Random());
 
                 _database.LocationAdded(context, hash, machine, 200);
+
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(0);
+
                 _database.LocationRemoved(context, hash, machine);
+
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(1);
 
                 _database.TryGetEntry(context, hash, out var entry).Should().BeFalse();
 
-                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Should().Be(0);
-                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(2);
             });
         }
 
@@ -104,7 +114,12 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 var hash = new ShortHash(ContentHash.Random());
 
                 _database.LocationAdded(context, hash, machine, 200);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(0);
+
                 _database.LocationAdded(context, hash, machine2, 200);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(1);
 
                 _database.TryGetEntry(context, hash, out var entry).Should().BeTrue();
                 entry.ContentSize.Should().Be(200);
@@ -112,8 +127,8 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 entry.Locations[machine].Should().BeTrue();
                 entry.Locations[machine2].Should().BeTrue();
 
-                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Should().Be(0);
-                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(2);
             });
         }
 
@@ -127,7 +142,12 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 var hash = new ShortHash(ContentHash.Random());
 
                 _database.LocationAdded(context, hash, machine, 200);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(0);
+
                 _database.LocationAdded(context, hash, machine2, 400);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(1);
 
                 _database.TryGetEntry(context, hash, out var entry).Should().BeTrue();
                 entry.ContentSize.Should().Be(400);
@@ -135,8 +155,8 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 entry.Locations[machine].Should().BeTrue();
                 entry.Locations[machine2].Should().BeTrue();
 
-                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Should().Be(0);
-                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(2);
             });
         }
 
@@ -149,10 +169,12 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 var hash = new ShortHash(ContentHash.Random());
 
                 _database.LocationRemoved(context, hash, machine);
-                _database.TryGetEntry(context, hash, out var entry).Should().BeFalse();
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(0);
 
-                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Should().Be(1);
-                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Should().Be(0);
+                _database.TryGetEntry(context, hash, out var entry).Should().BeFalse();
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(2);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(0);
             });
         }
 
@@ -165,13 +187,15 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 var hash = new ShortHash(ContentHash.Random());
 
                 _database.LocationAdded(context, hash, machine, 200);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(0);
 
                 _database.FlushIfEnabled(context);
-                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].Should().Be(1);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].Value.Should().Be(1);
 
                 _database.TryGetEntry(context, hash, out var entry).Should().BeTrue();
-                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Should().Be(1);
-                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Should().Be(0);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(2);
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(0);
             });
         }
     }

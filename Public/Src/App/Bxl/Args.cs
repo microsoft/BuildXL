@@ -307,6 +307,13 @@ namespace BuildXL
                             "diag",
                             opt => loggingConfiguration.Diagnostic |= CommandLineUtilities.ParseEnumOption<DiagnosticLevels>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "earlyWorkerRelease",
+                            sign => schedulingConfiguration.EarlyWorkerRelease = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "earlyWorkerReleaseMultiplier",
+                            opt =>
+                            schedulingConfiguration.EarlyWorkerReleaseMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 5)),
+                        OptionHandlerFactory.CreateBoolOption(
                             "enforceAccessPoliciesOnDirectoryCreation",
                             sign => sandboxConfiguration.EnforceAccessPoliciesOnDirectoryCreation = sign),
                         OptionHandlerFactory.CreateBoolOption(
@@ -359,6 +366,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "enableGrpc",
                             sign => distributionConfiguration.IsGrpcEnabled = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "enableIncrementalFrontEnd",
+                            sign => frontEndConfiguration.EnableIncrementalFrontEnd = sign),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "enableLazyOutputs",
                             (opt, sign) => HandleLazyOutputMaterializationOption(opt, sign, schedulingConfiguration)),
@@ -366,11 +376,8 @@ namespace BuildXL
                             "engineCacheDirectory",
                             opt => layoutConfiguration.EngineCacheDirectory = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateBoolOption(
-                            "enableIncrementalFrontEnd",
-                            sign => frontEndConfiguration.EnableIncrementalFrontEnd = sign),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "respectWeakFingerprintForNugetUpToDateCheck",
-                            sign => frontEndConfiguration.RespectWeakFingerprintForNugetUpToDateCheck = sign),
+                            "ensureTempDirectoriesExistenceBeforePipExecution",
+                            sign => sandboxConfiguration.EnsureTempDirectoriesExistenceBeforePipExecution = sign),
                         OptionHandlerFactory.CreateOption(
                             "environment",
                             opt => loggingConfiguration.Environment = CommandLineUtilities.ParseEnumOption<ExecutionEnvironment>(opt)),
@@ -715,7 +722,7 @@ namespace BuildXL
                             "redirectUserProfile",
                             opt => enableProfileRedirect = opt),
                         OptionHandlerFactory.CreateOption(
-                            "RedirectedUserProfileJunctionRoot",
+                            "redirectedUserProfileJunctionRoot",
                             opt => layoutConfiguration.RedirectedUserProfileJunctionRoot = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateOption(
                             "relatedActivityId",
@@ -735,6 +742,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "replicateOutputsToWorkers",
                             sign => distributionConfiguration.ReplicateOutputsToWorkers = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "respectWeakFingerprintForNugetUpToDateCheck",
+                            sign => frontEndConfiguration.RespectWeakFingerprintForNugetUpToDateCheck = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "reuseEngineState",
                             sign => engineConfiguration.ReuseEngineState = sign),

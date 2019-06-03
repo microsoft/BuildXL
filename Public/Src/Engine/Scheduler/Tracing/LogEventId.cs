@@ -133,6 +133,8 @@ namespace BuildXL.Scheduler.Tracing
 
         AllowedSameContentDoubleWrite = 5044,
 
+        InitiateWorkerRelease = 5045,
+        WorkerReleasedEarly = 5046, 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

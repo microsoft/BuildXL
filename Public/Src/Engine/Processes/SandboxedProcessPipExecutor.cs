@@ -38,6 +38,15 @@ namespace BuildXL.Processes
         /// </summary>
         public const int MaxConsoleLength = 2048; // around 30 lines
 
+        /// <summary>
+        /// Azure Watson's dead exit code.
+        /// </summary>
+        /// <remarks>
+        /// When running in CloudBuild, Process nondeterministically sometimes exits with 0xDEAD exit code. This is the exit code
+        /// returned by Azure Watson dump after catching the process crash.
+        /// </remarks>
+        private const uint AzureWatsonExitCode = 0xDEAD;
+
         private static readonly string s_appDataLocalMicrosoftClrPrefix =
             Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "CLR");
 
@@ -1207,14 +1216,38 @@ namespace BuildXL.Processes
                     {
                         LogFinishedFailed(result);
 
-                        if (exitedButCanBeRetried)
+                        if (m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0)
                         {
+                            // Retry if user specifies that the exit code can be retried.
                             if (await TrySaveAndLogStandardOutputAsync(result) && await TrySaveAndLogStandardErrorAsync(result))
                             {
                                 await TryLogErrorAsync(result, exitedWithSuccessExitCode);
                             }
 
-                            return SandboxedProcessPipExecutionResult.RetryProcessDueToExitCode(
+                            return SandboxedProcessPipExecutionResult.RetryProcessDueToUserSpecifiedExitCode(
+                                result.NumberOfProcessLaunchRetries,
+                                result.ExitCode,
+                                primaryProcessTimes,
+                                jobAccounting,
+                                result.DetouringStatuses,
+                                sandboxPrepMs,
+                                sw.ElapsedMilliseconds,
+                                result.ProcessStartTime,
+                                maxDetoursHeapSize,
+                                m_containerConfiguration);
+                        }
+                        else if (m_sandboxConfig.RetryOnAzureWatsonExitCode && result.Processes.Any(p => p.ExitCode == AzureWatsonExitCode))
+                        {
+                            // Retry if the exit code is 0xDEAD.
+                            var deadProcess = result.Processes.Where(p => p.ExitCode == AzureWatsonExitCode).First();
+                            Tracing.Logger.Log.PipRetryDueToExitedWithAzureWatsonExitCode(
+                                m_loggingContext,
+                                m_pip.SemiStableHash,
+                                m_pip.GetDescription(m_context),
+                                deadProcess.Path,
+                                deadProcess.ProcessId);
+
+                            return SandboxedProcessPipExecutionResult.RetryProcessDueToAzureWatsonExitCode(
                                 result.NumberOfProcessLaunchRetries,
                                 result.ExitCode,
                                 primaryProcessTimes,
@@ -2078,7 +2111,9 @@ namespace BuildXL.Processes
             {
                 // Temp directories are lazily, best effort cleaned after the pip finished. The previous build may not
                 // have finished this work before exiting so we must double check.
-                PreparePathForDirectory(tempDirectoryPath.ToString(m_pathTable), createIfNonExistent: true);
+                PreparePathForDirectory(
+                    tempDirectoryPath.ToString(m_pathTable), 
+                    createIfNonExistent: m_sandboxConfig.EnsureTempDirectoriesExistenceBeforePipExecution);
             }
             catch (BuildXLException ex)
             {

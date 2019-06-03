@@ -1205,6 +1205,16 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public int UnresponsivenessFactor;
 
+        /// <summary>
+        /// Number of process pips that have not completed yet
+        /// </summary>
+        public long ProcessPipsPending;
+
+        /// <summary>
+        /// Number of process pips allocated a slot on workers (including localworker)
+        /// </summary>
+        public long ProcessPipsAllocatedSlots;
+        
         /// <inheritdoc />
         public ExecutionLogEventMetadata<StatusEventData> Metadata => ExecutionLogMetadata.ResourceUsageReported;
 

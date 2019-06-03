@@ -720,6 +720,24 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void DistributionMasterWorkerProcessOutputContent(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath, string hash, string reparsePointInfo, string workerName);
 
         [GeneratedEvent(
+            (ushort)LogEventId.InitiateWorkerRelease,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "{workerName} will be released because {numProcessPipsWaiting} (numProcessPipsWaiting) < {totalSlots} (totalSlots). Worker's Acquired Slots: {cachelookup} (cachelookup), {execute} (execute), {ipc} (ipc).",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Events.Tasks.Distribution,
+            Keywords = (int)Events.Keywords.UserMessage)]
+        public abstract void InitiateWorkerRelease(LoggingContext context, string workerName, long numProcessPipsWaiting, int totalSlots, int cachelookup, int execute, int ipc);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.WorkerReleasedEarly,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "{workerName} is released. Drain duration: {drainDurationMs}ms. Disconnect duration: {disconnectDurationMs}ms.",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Events.Tasks.Distribution,
+            Keywords = (int)Events.Keywords.UserMessage)]
+        public abstract void WorkerReleasedEarly(LoggingContext context, string workerName, long drainDurationMs, long disconnectDurationMs);
+
+        [GeneratedEvent(
             (ushort)EventId.StorageCacheGetContentError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -1191,6 +1209,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Events.Tasks.PipExecutor,
             Message = Events.PipPrefix + "The number of messages sent by detoured processes did not match the number received by the {MainExecutableName} process. Refer to the {ShortProductName} log for more information.")]
         public abstract void LogMismatchedDetoursErrorCount(LoggingContext context, long pipSemiStableHash, string pipDescription);
+
+        [GeneratedEvent(
+            (int)EventId.PipExitedWithAzureWatsonExitCode,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "Pip exited with Azure Watson's 0xDEAD exit code. Refer to the {ShortProductName} log for more information.")]
+        public abstract void PipExitedWithAzureWatsonExitCode(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
             (int)EventId.FailPipOutputWithNoAccessed,

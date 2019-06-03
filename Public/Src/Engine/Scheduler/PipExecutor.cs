@@ -1397,7 +1397,8 @@ namespace BuildXL.Scheduler
                                 }
 
                                 if (result.Status == SandboxedProcessPipExecutionStatus.OutputWithNoFileAccessFailed ||
-                                    result.Status == SandboxedProcessPipExecutionStatus.MismatchedMessageCount)
+                                    result.Status == SandboxedProcessPipExecutionStatus.MismatchedMessageCount ||
+                                    result.Status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToDeadExitCode)
                                 {
                                     if (remainingInternalSandboxedProcessExecutionFailureRetries > 0)
                                     {
@@ -1411,6 +1412,10 @@ namespace BuildXL.Scheduler
 
                                             case SandboxedProcessPipExecutionStatus.MismatchedMessageCount:
                                                 counters.IncrementCounter(PipExecutorCounter.MismatchMessageRetriesCount);
+                                                break;
+
+                                            case SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToDeadExitCode:
+                                                counters.IncrementCounter(PipExecutorCounter.DeadExitCodeRetriesCount);
                                                 break;
 
                                             default:
@@ -1437,6 +1442,13 @@ namespace BuildXL.Scheduler
                                                 processDescription);
                                             break;
 
+                                        case SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToDeadExitCode:
+                                            Logger.Log.PipExitedWithDeadExitCode(
+                                                operationContext,
+                                                pip.SemiStableHash,
+                                                processDescription);
+                                            break;
+
                                         default:
                                             Contract.Assert(false, "Unexpected result error type gotten.");
                                             break;
@@ -1445,7 +1457,7 @@ namespace BuildXL.Scheduler
                                     // Just break the loop below. The result is already set properly.
                                 }
 
-                                if (result.Status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToExitCode)
+                                if (result.Status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode)
                                 {
                                     Contract.Assert(remainingUserRetries > 0);
 

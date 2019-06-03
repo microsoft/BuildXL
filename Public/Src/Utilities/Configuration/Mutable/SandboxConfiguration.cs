@@ -42,6 +42,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ContainerConfiguration = new SandboxContainerConfiguration();
             AdminRequiredProcessExecutionMode = AdminRequiredProcessExecutionMode.Internal;
             RedirectedTempFolderRootForVmExecution = AbsolutePath.Invalid;
+            RetryOnDeadExitCode = false;
         }
 
         /// <nodoc />
@@ -85,6 +86,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ContainerConfiguration = new SandboxContainerConfiguration(template.ContainerConfiguration);
             AdminRequiredProcessExecutionMode = template.AdminRequiredProcessExecutionMode;
             RedirectedTempFolderRootForVmExecution = pathRemapper.Remap(template.RedirectedTempFolderRootForVmExecution);
+            RetryOnDeadExitCode = template.RetryOnDeadExitCode;
         }
 
         /// <inheritdoc />
@@ -222,5 +224,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath RedirectedTempFolderRootForVmExecution { get; set; }
+
+        /// <inheritdoc />
+        public bool RetryOnDeadExitCode { get; set; }
     }
 }

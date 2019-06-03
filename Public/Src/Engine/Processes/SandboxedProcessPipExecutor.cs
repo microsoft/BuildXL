@@ -38,6 +38,8 @@ namespace BuildXL.Processes
         /// </summary>
         public const int MaxConsoleLength = 2048; // around 30 lines
 
+        private const uint DeadExitCode = 0xDEAD;
+
         private static readonly string s_appDataLocalMicrosoftClrPrefix =
             Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "CLR");
 
@@ -1207,14 +1209,38 @@ namespace BuildXL.Processes
                     {
                         LogFinishedFailed(result);
 
-                        if (exitedButCanBeRetried)
+                        if (m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0)
                         {
+                            // Retry if user specifies that the exit code can be retried.
                             if (await TrySaveAndLogStandardOutputAsync(result) && await TrySaveAndLogStandardErrorAsync(result))
                             {
                                 await TryLogErrorAsync(result, exitedWithSuccessExitCode);
                             }
 
-                            return SandboxedProcessPipExecutionResult.RetryProcessDueToExitCode(
+                            return SandboxedProcessPipExecutionResult.RetryProcessDueToUserSpecifiedExitCode(
+                                result.NumberOfProcessLaunchRetries,
+                                result.ExitCode,
+                                primaryProcessTimes,
+                                jobAccounting,
+                                result.DetouringStatuses,
+                                sandboxPrepMs,
+                                sw.ElapsedMilliseconds,
+                                result.ProcessStartTime,
+                                maxDetoursHeapSize,
+                                m_containerConfiguration);
+                        }
+                        else if (m_sandboxConfig.RetryOnDeadExitCode && result.Processes.Any(p => p.ExitCode == DeadExitCode))
+                        {
+                            // Retry if the exit code is 0xDEAD.
+                            var deadProcess = result.Processes.Where(p => p.ExitCode == DeadExitCode).First();
+                            Tracing.Logger.Log.PipRetryDueToExitedWithDeadExitCode(
+                                m_loggingContext,
+                                m_pip.SemiStableHash,
+                                m_pip.GetDescription(m_context),
+                                deadProcess.Path,
+                                deadProcess.ProcessId);
+
+                            return SandboxedProcessPipExecutionResult.RetryProcessDueToDeadExitCode(
                                 result.NumberOfProcessLaunchRetries,
                                 result.ExitCode,
                                 primaryProcessTimes,

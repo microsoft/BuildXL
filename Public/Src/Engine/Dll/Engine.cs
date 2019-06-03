@@ -1066,6 +1066,7 @@ namespace BuildXL.Engine
                 }
 
                 mutableConfig.Logging.StoreFingerprints = initialCommandLineConfiguration.Logging.StoreFingerprints ?? false;
+                mutableConfig.Sandbox.RetryOnDeadExitCode = true;
             }
             else
             {

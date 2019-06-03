@@ -612,9 +612,14 @@ namespace BuildXL.Scheduler
         OutputsWithNoFileAccessRetriesCount,
 
         /// <summary>
-        /// Counts the number of retries for pips because of mismatche of detours message count.
+        /// Counts the number of retries for pips because of mismatches of detours message count.
         /// </summary>
         MismatchMessageRetriesCount,
+
+        /// <summary>
+        /// Counts the number of retries for pips because of dead exit code.
+        /// </summary>
+        DeadExitCodeRetriesCount,
 
         /// <summary>
         /// Counts the number of retries for pips because users allow them to be retried, e.g., based on their exit codes.

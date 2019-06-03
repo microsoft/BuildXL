@@ -603,6 +603,20 @@ namespace BuildXL.Processes.Tracing
             int numSurvivingChildErrors);
 
         [GeneratedEvent(
+            (int)EventId.PipRetryDueToExitedWithDeadExitCode,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "Pip will be retried because its reported process '{process}' with pid '{processId}' exited with 0xDEAD exit code")]
+        public abstract void PipRetryDueToExitedWithDeadExitCode(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string process,
+            uint processId);
+
+        [GeneratedEvent(
             (int)EventId.PipProcessStandardInputException,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

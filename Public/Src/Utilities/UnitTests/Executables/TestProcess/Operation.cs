@@ -630,23 +630,23 @@ namespace Test.BuildXL.Executables.TestProcess
         {
             string directoryPath = FileOrDirectoryToString(Path);
 
-            bool failedIfExists = false;
+            bool failIfExists = false;
 
             if (!string.IsNullOrEmpty(AdditionalArgs))
             {
                 string[] args = AdditionalArgs.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var arg in args)
                 {
-                    if (string.Equals(arg, "--failedIfExists", StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(arg, "--failIfExists", StringComparison.OrdinalIgnoreCase))
                     {
-                        failedIfExists = true;
+                        failIfExists = true;
                     }
                 }
             }
 
             if (FileUtilities.DirectoryExistsNoFollow(directoryPath) || FileUtilities.FileExistsNoFollow(directoryPath))
             {
-                if (failedIfExists)
+                if (failIfExists)
                 {
                     throw new InvalidOperationException($"Directory creation failed because '{directoryPath}' exists");
                 }

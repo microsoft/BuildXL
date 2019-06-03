@@ -448,7 +448,7 @@ namespace IntegrationTest.Domino.Scheduler
             var pipBuilder = CreatePipBuilder(new[]
             {
                 Operation.ReadFile(CreateSourceFile()),
-                Operation.CreateDir(DirectoryArtifact.CreateWithZeroPartialSealId(additionalTempDirectory), additionalArgs: "--failedIfExists"),
+                Operation.CreateDir(DirectoryArtifact.CreateWithZeroPartialSealId(additionalTempDirectory), additionalArgs: "--failIfExists"),
                 Operation.WriteFile(CreateOutputFileArtifact())
             });
 

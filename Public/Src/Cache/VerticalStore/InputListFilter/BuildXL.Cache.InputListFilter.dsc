@@ -15,6 +15,7 @@ namespace InputListFilter {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
         ],
     });
 }

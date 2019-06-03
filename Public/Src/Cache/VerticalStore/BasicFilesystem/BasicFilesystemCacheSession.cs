@@ -8,10 +8,12 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using UrgencyHint = BuildXL.Cache.Interfaces.UrgencyHint;
 
 namespace BuildXL.Cache.BasicFilesystem
 {
@@ -452,7 +454,8 @@ namespace BuildXL.Cache.BasicFilesystem
             string filename,
             FileState fileState,
             UrgencyHint urgencyHint,
-            Guid activityId)
+            Guid activityId,
+            FileReplacementMode fileReplacementMode = FileReplacementMode.FailIfExists)
         {
             Contract.Requires(!IsClosed);
             Contract.Requires(filename != null);

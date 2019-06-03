@@ -15,6 +15,7 @@ namespace VerticalAggregator {
             ImplementationSupport.dll,
             Interfaces.dll,
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
         ],
         internalsVisibleTo: [
             "bxlcacheanalyzer",

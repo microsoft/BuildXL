@@ -5,8 +5,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
+using UrgencyHint = BuildXL.Cache.Interfaces.UrgencyHint;
 
 namespace BuildXL.Cache.InputListFilter
 {
@@ -69,9 +71,15 @@ namespace BuildXL.Cache.InputListFilter
             return m_session.PinToCasAsync(hash, urgencyHint, activityId);
         }
 
-        public Task<Possible<string, Failure>> ProduceFileAsync(CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<string, Failure>> ProduceFileAsync(
+            CasHash hash,
+            string filename,
+            FileState fileState,
+            UrgencyHint urgencyHint,
+            Guid activityId,
+            FileReplacementMode fileReplacementMode = FileReplacementMode.FailIfExists)
         {
-            return m_session.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId);
+            return m_session.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId, fileReplacementMode);
         }
     }
 }

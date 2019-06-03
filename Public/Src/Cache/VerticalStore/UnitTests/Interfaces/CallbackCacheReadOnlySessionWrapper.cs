@@ -5,8 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Utilities;
+using UrgencyHint = BuildXL.Cache.Interfaces.UrgencyHint;
 
 namespace BuildXL.Cache.Interfaces.Test
 {
@@ -228,7 +229,8 @@ namespace BuildXL.Cache.Interfaces.Test
             string filename,
             FileState fileState,
             UrgencyHint urgencyHint,
-            Guid activityId)
+            Guid activityId,
+            FileReplacementMode fileReplacementMode = FileReplacementMode.FailIfExists)
         {
             var callback = ProduceFileAsyncCallback;
             if (callback != null)
@@ -248,7 +250,8 @@ namespace BuildXL.Cache.Interfaces.Test
                     filename,
                     fileState,
                     urgencyHint,
-                    activityId);
+                    activityId,
+                    fileReplacementMode);
             }
         }
     }

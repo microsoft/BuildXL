@@ -6,9 +6,11 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
+using UrgencyHint = BuildXL.Cache.Interfaces.UrgencyHint;
 
 // ReSharper disable InconsistentNaming
 namespace BuildXL.Cache.VerticalAggregator
@@ -1204,7 +1206,8 @@ namespace BuildXL.Cache.VerticalAggregator
             string filename,
             FileState fileState,
             UrgencyHint urgencyHint,
-            Guid activityId)
+            Guid activityId,
+            FileReplacementMode fileReplacementMode = FileReplacementMode.FailIfExists)
         {
             using (var counters = m_sessionCounters.ProduceFileCounter())
             {
@@ -1223,7 +1226,7 @@ namespace BuildXL.Cache.VerticalAggregator
                         bool secondTry = false;
                         while (true)
                         {
-                            var localResult = await m_localSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, eventing.Id);
+                            var localResult = await m_localSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, eventing.Id, fileReplacementMode);
                             if (localResult.Succeeded)
                             {
                                 counters.HitLocal();
@@ -1231,7 +1234,7 @@ namespace BuildXL.Cache.VerticalAggregator
                             }
 
                             // Download to the final location.
-                            var remoteProduceFileResult = await m_remoteROSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId);
+                            var remoteProduceFileResult = await m_remoteROSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId, fileReplacementMode);
 
                             if (!remoteProduceFileResult.Succeeded)
                             {

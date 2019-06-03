@@ -197,14 +197,15 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             string filename,
             FileState fileState,
             UrgencyHint urgencyHint,
-            Guid activityId)
+            Guid activityId,
+            FileReplacementMode fileReplacementMode = FileReplacementMode.FailIfExists)
         {
             var result = await ReadOnlyCacheSession.PlaceFileAsync(
                 new Context(Logger),
                 hash.ToMemoization(),
                 new BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath(filename),
                 fileState == FileState.ReadOnly ? FileAccessMode.ReadOnly : FileAccessMode.Write,
-                FileReplacementMode.FailIfExists,
+                fileReplacementMode,
                 fileState.ToMemoization(),
                 CancellationToken.None);
 

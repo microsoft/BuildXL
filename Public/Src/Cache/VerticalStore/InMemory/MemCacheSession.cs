@@ -8,9 +8,11 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using UrgencyHint = BuildXL.Cache.Interfaces.UrgencyHint;
 
 namespace BuildXL.Cache.InMemory
 {
@@ -273,7 +275,8 @@ namespace BuildXL.Cache.InMemory
             string filename,
             FileState fileState,
             UrgencyHint urgencyHint,
-            Guid activityId)
+            Guid activityId,
+            FileReplacementMode fileReplacementMode = FileReplacementMode.FailIfExists)
         {
             Possible<Stream, Failure> casStream = await GetStreamAsync(hash, urgencyHint, activityId);
 

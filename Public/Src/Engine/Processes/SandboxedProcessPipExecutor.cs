@@ -2078,7 +2078,7 @@ namespace BuildXL.Processes
             {
                 // Temp directories are lazily, best effort cleaned after the pip finished. The previous build may not
                 // have finished this work before exiting so we must double check.
-                PreparePathForDirectory(tempDirectoryPath.ToString(m_pathTable), createIfNonExistent: true);
+                PreparePathForDirectory(tempDirectoryPath.ToString(m_pathTable), createIfNonExistent: false /* Temporarily set to false for testing private bits */);
             }
             catch (BuildXLException ex)
             {

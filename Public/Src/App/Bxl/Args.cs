@@ -736,6 +736,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "replayWarnings",
                             sign => loggingConfiguration.ReplayWarnings = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "replaceExistingFileOnMaterialization",
+                            sign => cacheConfiguration.ReplaceExistingFileOnMaterialization = sign),
                         OptionHandlerFactory.CreateOption(
                             "replicaRefreshProbability",
                             opt => cacheConfiguration.StrongContentGuaranteeRefreshProbability = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),

@@ -6,9 +6,11 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
+using UrgencyHint = BuildXL.Cache.Interfaces.UrgencyHint;
 
 namespace BuildXL.Cache.Compositing
 {
@@ -167,12 +169,18 @@ namespace BuildXL.Cache.Compositing
             }
         }
 
-        public async Task<Possible<string, Failure>> ProduceFileAsync(CasHash hash, string filename, FileState fileState, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<string, Failure>> ProduceFileAsync(
+            CasHash hash,
+            string filename,
+            FileState fileState,
+            UrgencyHint urgencyHint,
+            Guid activityId,
+            FileReplacementMode fileReplacementMode = FileReplacementMode.FailIfExists)
         {
             using (var eventing = new ProduceFileActivity(CompositingCache.EventSource, activityId, this))
             {
                 eventing.Start(hash, filename, fileState, urgencyHint);
-                return eventing.Returns(await m_casSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId));
+                return eventing.Returns(await m_casSession.ProduceFileAsync(hash, filename, fileState, urgencyHint, activityId, fileReplacementMode));
             }
         }
     }

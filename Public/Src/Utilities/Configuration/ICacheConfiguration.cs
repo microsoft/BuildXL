@@ -121,5 +121,10 @@ namespace BuildXL.Utilities.Configuration
         /// When enabled, the remote cache uses DedupStore instead of BlobStore.
         /// </summary>
         bool UseDedupStore { get; }
+
+        /// <summary>
+        /// Replaces existing file on materialzation.
+        /// </summary>
+        bool ReplaceExistingFileOnMaterialization { get; }
     }
 }

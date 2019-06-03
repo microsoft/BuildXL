@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 
@@ -157,6 +158,7 @@ namespace BuildXL.Cache.Interfaces
         /// <param name="fileState">Provides information on what state the build engine requires the files is in when produced.</param>
         /// <param name="urgencyHint">Optional hint as to how urgent this request is</param>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
+        /// <param name="fileReplacementMode">File replacement mode.</param>
         /// <returns>The filename or a failure</returns>
         /// <remarks>
         /// This will fail for any CAS entry that is not available locally.
@@ -166,7 +168,8 @@ namespace BuildXL.Cache.Interfaces
             [NotNull]string filename,
             FileState fileState,
             UrgencyHint urgencyHint = UrgencyHint.Nominal,
-            Guid activityId = default(Guid));
+            Guid activityId = default(Guid),
+            FileReplacementMode fileReplacementMode = FileReplacementMode.FailIfExists);
 
         /// <summary>
         /// Open a read-only stream on the given CasHash

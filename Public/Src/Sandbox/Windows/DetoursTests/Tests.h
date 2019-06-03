@@ -31,3 +31,5 @@ int CallDetouredCreateFileWWrite();
 int CallCreateFileWithZeroAccessOnDirectory();
 int CallCreateFileOnNtEscapedPath();
 int CallOpenFileById();
+int CallDeleteWithoutSharing();
+int CallDeleteOnOpenedHardlink();

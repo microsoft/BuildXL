@@ -1398,7 +1398,7 @@ namespace BuildXL.Scheduler
 
                                 if (result.Status == SandboxedProcessPipExecutionStatus.OutputWithNoFileAccessFailed ||
                                     result.Status == SandboxedProcessPipExecutionStatus.MismatchedMessageCount ||
-                                    result.Status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToDeadExitCode)
+                                    result.Status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToAzureWatsonExitCode)
                                 {
                                     if (remainingInternalSandboxedProcessExecutionFailureRetries > 0)
                                     {
@@ -1414,8 +1414,8 @@ namespace BuildXL.Scheduler
                                                 counters.IncrementCounter(PipExecutorCounter.MismatchMessageRetriesCount);
                                                 break;
 
-                                            case SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToDeadExitCode:
-                                                counters.IncrementCounter(PipExecutorCounter.DeadExitCodeRetriesCount);
+                                            case SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToAzureWatsonExitCode:
+                                                counters.IncrementCounter(PipExecutorCounter.AzureWatsonExitCodeRetriesCount);
                                                 break;
 
                                             default:
@@ -1442,8 +1442,8 @@ namespace BuildXL.Scheduler
                                                 processDescription);
                                             break;
 
-                                        case SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToDeadExitCode:
-                                            Logger.Log.PipExitedWithDeadExitCode(
+                                        case SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToAzureWatsonExitCode:
+                                            Logger.Log.PipExitedWithAzureWatsonExitCode(
                                                 operationContext,
                                                 pip.SemiStableHash,
                                                 processDescription);

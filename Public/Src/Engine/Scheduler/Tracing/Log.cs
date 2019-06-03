@@ -1211,13 +1211,13 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void LogMismatchedDetoursErrorCount(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipExitedWithDeadExitCode,
+            (int)EventId.PipExitedWithAzureWatsonExitCode,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Pip exited with 0xDEAD exit code. Refer to the {ShortProductName} log for more information.")]
-        public abstract void PipExitedWithDeadExitCode(LoggingContext context, long pipSemiStableHash, string pipDescription);
+            Message = Events.PipPrefix + "Pip exited with Azure Watson's 0xDEAD exit code. Refer to the {ShortProductName} log for more information.")]
+        public abstract void PipExitedWithAzureWatsonExitCode(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
             (int)EventId.FailPipOutputWithNoAccessed,

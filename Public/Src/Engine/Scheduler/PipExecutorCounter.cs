@@ -617,9 +617,9 @@ namespace BuildXL.Scheduler
         MismatchMessageRetriesCount,
 
         /// <summary>
-        /// Counts the number of retries for pips because of dead exit code.
+        /// Counts the number of retries for pips because of Azure Watson's 0xDEAD exit code.
         /// </summary>
-        DeadExitCodeRetriesCount,
+        AzureWatsonExitCodeRetriesCount,
 
         /// <summary>
         /// Counts the number of retries for pips because users allow them to be retried, e.g., based on their exit codes.

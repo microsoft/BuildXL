@@ -38,7 +38,14 @@ namespace BuildXL.Processes
         /// </summary>
         public const int MaxConsoleLength = 2048; // around 30 lines
 
-        private const uint DeadExitCode = 0xDEAD;
+        /// <summary>
+        /// Azure Watson's dead exit code.
+        /// </summary>
+        /// <remarks>
+        /// When running in CloudBuild, Process nondeterministically sometimes exits with 0xDEAD exit code. This is the exit code
+        /// returned by Azure Watson dump after catching the process crash.
+        /// </remarks>
+        private const uint AzureWatsonExitCode = 0xDEAD;
 
         private static readonly string s_appDataLocalMicrosoftClrPrefix =
             Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "CLR");
@@ -1229,18 +1236,18 @@ namespace BuildXL.Processes
                                 maxDetoursHeapSize,
                                 m_containerConfiguration);
                         }
-                        else if (m_sandboxConfig.RetryOnDeadExitCode && result.Processes.Any(p => p.ExitCode == DeadExitCode))
+                        else if (m_sandboxConfig.RetryOnAzureWatsonExitCode && result.Processes.Any(p => p.ExitCode == AzureWatsonExitCode))
                         {
                             // Retry if the exit code is 0xDEAD.
-                            var deadProcess = result.Processes.Where(p => p.ExitCode == DeadExitCode).First();
-                            Tracing.Logger.Log.PipRetryDueToExitedWithDeadExitCode(
+                            var deadProcess = result.Processes.Where(p => p.ExitCode == AzureWatsonExitCode).First();
+                            Tracing.Logger.Log.PipRetryDueToExitedWithAzureWatsonExitCode(
                                 m_loggingContext,
                                 m_pip.SemiStableHash,
                                 m_pip.GetDescription(m_context),
                                 deadProcess.Path,
                                 deadProcess.ProcessId);
 
-                            return SandboxedProcessPipExecutionResult.RetryProcessDueToDeadExitCode(
+                            return SandboxedProcessPipExecutionResult.RetryProcessDueToAzureWatsonExitCode(
                                 result.NumberOfProcessLaunchRetries,
                                 result.ExitCode,
                                 primaryProcessTimes,

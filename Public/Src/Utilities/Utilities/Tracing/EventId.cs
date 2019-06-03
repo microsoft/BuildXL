@@ -309,7 +309,7 @@ namespace BuildXL.Utilities.Tracing
         CacheMissAnalysisException = 315,
         PipStandardIOFailed = 316,
 
-        PipRetryDueToExitedWithDeadExitCode = 317,
+        PipRetryDueToExitedWithAzureWatsonExitCode = 317,
         // Reserved = 318,
 
         // Free slot 319,
@@ -722,7 +722,7 @@ namespace BuildXL.Utilities.Tracing
 
         LogMismatchedDetoursErrorCount = 2922,
         LogMessageCountSemaphoreExists = 2923,
-        PipExitedWithDeadExitCode = 2924,
+        PipExitedWithAzureWatsonExitCode = 2924,
         LogFailedToCreateDirectoryForInternalDetoursFailureFile = 2925,
         // RESERVED 2926
         LogMismatchedDetoursVerboseCount = 2927,

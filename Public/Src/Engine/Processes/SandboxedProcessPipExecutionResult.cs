@@ -57,9 +57,9 @@ namespace BuildXL.Processes
         ShouldBeRetriedDueToUserSpecifiedExitCode,
 
         /// <summary>
-        /// The sandboxed process should be retried due to exit code.
+        /// The sandboxed process should be retried due to Azure Watson's 0xDEAD exit code.
         /// </summary>
-        ShouldBeRetriedDueToDeadExitCode,
+        ShouldBeRetriedDueToAzureWatsonExitCode,
     }
 
     /// <summary>
@@ -160,7 +160,7 @@ namespace BuildXL.Processes
                 containerConfiguration: containerConfiguration);
         }
 
-        internal static SandboxedProcessPipExecutionResult RetryProcessDueToDeadExitCode(
+        internal static SandboxedProcessPipExecutionResult RetryProcessDueToAzureWatsonExitCode(
             int numberOfProcessLaunchRetries,
             int exitCode,
             ProcessTimes primaryProcessTimes,
@@ -173,7 +173,7 @@ namespace BuildXL.Processes
             ContainerConfiguration containerConfiguration)
         {
             return new SandboxedProcessPipExecutionResult(
-                SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToDeadExitCode,
+                SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToAzureWatsonExitCode,
                 observedFileAccesses: default(SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>),
                 sharedDynamicDirectoryWriteAccesses: default(Dictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>),
                 encodedStandardError: null,

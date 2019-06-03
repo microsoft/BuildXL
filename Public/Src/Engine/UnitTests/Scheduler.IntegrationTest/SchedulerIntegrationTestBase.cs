@@ -85,6 +85,7 @@ namespace Test.BuildXL.Scheduler
             Configuration.Logging.LogExecution = false;
             Configuration.Engine.TrackBuildsInUserFolder = false;
             Configuration.Engine.CleanTempDirectories = false;
+            Configuration.Sandbox.EnsureTempDirectoriesExistenceBeforePipExecution = true;
 
             // Skip hash source file pips
             // Some error becomes a contract exception when SkipHashSourceFile is enabled.

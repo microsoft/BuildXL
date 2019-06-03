@@ -432,6 +432,44 @@ namespace IntegrationTest.Domino.Scheduler
         }
 
         /// <summary>
+        /// This tests shows an inconsistent behavior regarding temp directories creation as mentioned in Bug 1549282.
+        /// </summary>
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void InconsistentTempDirectoriesCreation(bool ensureTempDirectoriesCreation)
+        {
+            Configuration.Sandbox.EnsureTempDirectoriesExistenceBeforePipExecution = ensureTempDirectoriesCreation;
+
+            AbsolutePath additionalTempDirectory = TempRootPath.Combine(
+                Context.PathTable, 
+                nameof(InconsistentTempDirectoriesCreation) + "_" + ensureTempDirectoriesCreation);
+
+            var pipBuilder = CreatePipBuilder(new[]
+            {
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.CreateDir(DirectoryArtifact.CreateWithZeroPartialSealId(additionalTempDirectory), additionalArgs: "--failIfExists"),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            pipBuilder.EnableTempDirectory();
+            pipBuilder.AdditionalTempDirectories = ReadOnlyArray<AbsolutePath>.FromWithoutCopy(new AbsolutePath[] { additionalTempDirectory });
+
+            var processWithOutputs = SchedulePipBuilder(pipBuilder);
+            var result = RunScheduler();
+
+            if (ensureTempDirectoriesCreation)
+            {
+                result.AssertFailure();
+                AssertErrorEventLogged(EventId.PipProcessError, 1);
+            }
+            else
+            {
+                result.AssertSuccess();
+            }
+        }
+
+        /// <summary>
         /// Creates and schedules a pip that writes a file to a temp file or folder location as specified.
         /// </summary>
         /// <param name="tempArtifactType">

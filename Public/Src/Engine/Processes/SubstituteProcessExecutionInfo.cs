@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
@@ -18,11 +19,10 @@ namespace BuildXL.Processes
         public SubstituteProcessExecutionInfo(AbsolutePath substituteProcessExecutionShimPath, bool shimAllProcesses, IReadOnlyCollection<ShimProcessMatch> processMatches)
         {
             Contract.Requires(substituteProcessExecutionShimPath.IsValid);
-            Contract.Requires(processMatches != null);
 
             SubstituteProcessExecutionShimPath = substituteProcessExecutionShimPath;
             ShimAllProcesses = shimAllProcesses;
-            ShimProcessMatches = processMatches;
+            ShimProcessMatches = processMatches ?? Array.Empty<ShimProcessMatch>();
         }
         
         /// <summary>
@@ -69,7 +69,7 @@ namespace BuildXL.Processes
         public PathAtom ProcessName { get; }
 
         /// <summary>
-        /// An optional string to match in the argument of the process to further refine the match.
+        /// An optional string to match in the arguments of the process to further refine the match.
         /// Can be used for example with ProcessName="node.exe" ArgumentMatch="gulp.js" to match the
         /// Gulp build engine process.
         /// </summary>

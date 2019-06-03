@@ -22,6 +22,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
@@ -60,6 +61,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly int _locationStoreBatchSize;
 
         private readonly DistributedContentStoreSettings _settings;
+
+        private readonly TaskSourceSlim<BoolResult> _startupCompletion = TaskSourceSlim.Create<BoolResult>();
 
         private DistributedContentCopier<T> _distributedCopier;
         private readonly Func<IContentLocationStore, DistributedContentCopier<T>> _distributedCopierFactory;
@@ -180,6 +183,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             {
                 _pinCache = new PinCache(clock: clock);
             }
+        }
+
+        /// <inheritdoc />
+        public override Task<BoolResult> StartupAsync(Context context)
+        {
+            var startupTask = base.StartupAsync(context);
+            _startupCompletion.LinkToTask(startupTask);
+            return startupTask;
         }
 
         /// <inheritdoc />
@@ -470,6 +481,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <nodoc />
         public IEnumerable<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>> GetLruPages(Context context, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
         {
+            // Ensure startup was called then wait for it to complete successfully (or error)
+            // This logic is important to avoid runtime errors when, for instance, QuotaKeeper tries
+            // to evict content right after startup and calls GetLruPages.
+            Contract.Assert(StartupStarted);
+            _startupCompletion.Task.GetAwaiter().GetResult().ThrowIfFailure();
+
             Contract.Assert(_contentLocationStore is IDistributedLocationStore);
             if (_contentLocationStore is IDistributedLocationStore distributedStore)
             {

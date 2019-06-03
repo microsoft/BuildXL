@@ -13,16 +13,13 @@ namespace Library {
             ...(BuildXLSdk.isDotNetCoreBuild ? [
                 // TODO: This is to get a .Net Core build, but it may not pass tests
                 importFrom("System.Data.SQLite.Core").withQualifier({targetFramework: "net461"}).pkg,
-                importFrom("System.IO.Pipes.AccessControl").pkg,
-                BuildXLSdk.Factory.createBinary(importFrom("System.Threading.AccessControl").Contents.all, r`lib/netstandard2.0/System.Threading.AccessControl.dll`),
-                BuildXLSdk.Factory.createBinary(importFrom("System.Security.AccessControl").Contents.all, r`lib/netstandard2.0/System.Security.AccessControl.dll`),
             ] :
             [
                 importFrom("System.Data.SQLite.Core").pkg,
                 NetFx.System.Data.dll,
                 NetFx.System.Runtime.Serialization.dll,
             ]),
-
+            ...importFrom("BuildXL.Utilities").Native.securityDlls,
             UtilitiesCore.dll,
             Hashing.dll,
             Interfaces.dll,

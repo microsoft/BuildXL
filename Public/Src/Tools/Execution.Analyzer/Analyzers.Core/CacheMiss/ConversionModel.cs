@@ -63,7 +63,6 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
             return new CacheablePipInfo(
                 process,
                 OldGraph.Context,
-                process.AllowPreserveOutputs,
                 Convert(process.FileOutputs, this, (i, me) => me.Convert(i)),
                 Convert(process.Dependencies, this, (i, me) => me.Convert(i)),
                 Convert(process.DirectoryOutputs, this, (i, me) => me.Convert(i)),

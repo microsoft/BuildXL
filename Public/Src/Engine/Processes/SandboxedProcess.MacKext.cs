@@ -118,9 +118,7 @@ namespace BuildXL.Processes
                 HandleKextReport,
                 new ExecutionDataflowBlockOptions
                 {
-#if FEATURE_CORECLR
                     EnsureOrdered = true,
-#endif
                     BoundedCapacity = DataflowBlockOptions.Unbounded,
                     MaxDegreeOfParallelism = 1, // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
                 });

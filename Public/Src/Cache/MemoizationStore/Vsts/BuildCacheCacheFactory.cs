@@ -48,7 +48,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 cacheConfig.SealUnbackedContentHashLists,
                 cacheConfig.UseBlobContentHashLists,
                 cacheConfig.DownloadBlobsThroughBlobStore,
-                cacheConfig.UseDedupStore);
+                cacheConfig.UseDedupStore,
+                cacheConfig.OverrideUnixFileAccessMode);
         }
     }
 }

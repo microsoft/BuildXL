@@ -94,7 +94,12 @@ namespace BuildXL.Pips.Operations
             /// <summary>
             /// Whether this process requires admin privilege.
             /// </summary>
-            RequiresAdmin = 1 << 11
+            RequiresAdmin = 1 << 11,
+
+            /// <summary>
+            /// Whether this process using non-empty <see cref="Process.PreserveOutputWhitelist"/>
+            /// </summary>
+            HasPreserveOutputWhitelist = 1 << 12
         }
     }
 }

@@ -417,12 +417,12 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress),
-            Message = "{ShortProductName} binary deployment up-to-date check performed in {deploymentUpToDateCheck.TimeToUpToDateCheckMilliseconds}ms.")]
-        public abstract void DeploymentUpToDateCheckPerformed(LoggingContext context, ServerDeploymentUpToDateCheck deploymentUpToDateCheck);
+            Message = "{ShortProductName} binary deployment up-to-date check performed in {deploymentUpToDateCheck.TimeToUpToDateCheckMilliseconds}ms. Deployment cache created:{deploymentCacheCreated}, deployment duration:{serverDeploymentCacheCreated.TimeToCreateServerCacheMilliseconds}ms.")]
+        public abstract void DeploymentUpToDateCheckPerformed(LoggingContext context, ServerDeploymentUpToDateCheck deploymentUpToDateCheck, bool deploymentCacheCreated, ServerDeploymentCacheCreated serverDeploymentCacheCreated);
 
         [GeneratedEvent(
             (ushort)EventId.DeploymentCacheCreated,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress),
             EventTask = (ushort)Events.Tasks.HostApplication,

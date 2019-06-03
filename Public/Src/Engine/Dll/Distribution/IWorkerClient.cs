@@ -18,6 +18,6 @@ namespace BuildXL.Engine.Distribution
 
         Task<RpcCallResult<Unit>> ExitAsync(BuildEndData buildEndData, CancellationToken cancellationToken);
 
-        void Close();
+        Task CloseAsync();
     }
 }

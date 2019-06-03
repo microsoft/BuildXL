@@ -58,10 +58,10 @@ namespace ContentStoreTest.Stores
 
         private class TestHost : IContentDirectoryHost
         {
-            public IReadOnlyList<KeyValuePair<ContentHash, ContentFileInfo>> Content = new List<KeyValuePair<ContentHash, ContentFileInfo>>();
+            public ContentDirectorySnapshot<ContentFileInfo> Content = new ContentDirectorySnapshot<ContentFileInfo>();
 
             /// <inheritdoc />
-            public IReadOnlyList<KeyValuePair<ContentHash, ContentFileInfo>> Reconstruct(Context context) => Content;
+            public ContentDirectorySnapshot<ContentFileInfo> Reconstruct(Context context) => Content;
         }
 
         [Fact]
@@ -102,7 +102,9 @@ namespace ContentStoreTest.Stores
 
                 MemoryClock.Increment();
                 var allContent = priorContent.Concat(reconstructedContent).ToList();
-                Host.Content = allContent;
+
+                Host.Content = new ContentDirectorySnapshot<ContentFileInfo>();
+                Host.Content.Add(allContent.Select(kv => new PayloadFromDisk<ContentFileInfo>(kv.Key, kv.Value)));
 
                 // Update last access time to simulate what would happen after reconstruction
                 allContent.ForEach(hashInfoPair => hashInfoPair.Value.UpdateLastAccessed(MemoryClock));

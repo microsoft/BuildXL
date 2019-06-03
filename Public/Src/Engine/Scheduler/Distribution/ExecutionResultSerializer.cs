@@ -496,7 +496,7 @@ namespace BuildXL.Scheduler.Distribution
                 {
                     var output = outputContent[i];
                     WriteFileArtifact(writer, output.fileArtifact);
-                    writer.WriteCompact(output.fileMaterializationInfo.Length);
+                    writer.WriteCompact(output.fileMaterializationInfo.FileContentInfo.RawLength);
                     output.Item2.Hash.SerializeHashBytes(byteBuffer, 0);
                     writer.Write(byteBuffer, 0, ContentHashingUtilities.HashInfo.ByteLength);
                     WritePathAtom(writer, output.fileMaterializationInfo.FileName);

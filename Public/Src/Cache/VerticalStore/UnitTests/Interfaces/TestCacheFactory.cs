@@ -25,6 +25,10 @@ namespace BuildXL.Cache.Tests
     /// </summary>
     public class TestCacheFactory : ICacheFactory
     {
+        /// <inheritdoc />
+        public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
+            => CacheConfigDataValidator.ValidateConfiguration<TestCacheFactoryConfiguration>(cacheData, cacheConfig => new Failure[] { });
+
         /// <summary>
         /// TestCacheConfig implements ICacheConfigData and it is used by some tests that require an actual ICacheConfigData object instance
         /// </summary>

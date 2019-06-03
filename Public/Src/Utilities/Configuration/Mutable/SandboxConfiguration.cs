@@ -41,6 +41,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             KextThrottleMinAvailableRamMB = 0;              // no throttling by default
             ContainerConfiguration = new SandboxContainerConfiguration();
             AdminRequiredProcessExecutionMode = AdminRequiredProcessExecutionMode.Internal;
+            RedirectedTempFolderRootForVmExecution = AbsolutePath.Invalid;
         }
 
         /// <nodoc />
@@ -83,6 +84,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             KextThrottleMinAvailableRamMB = template.KextThrottleMinAvailableRamMB;
             ContainerConfiguration = new SandboxContainerConfiguration(template.ContainerConfiguration);
             AdminRequiredProcessExecutionMode = template.AdminRequiredProcessExecutionMode;
+            RedirectedTempFolderRootForVmExecution = pathRemapper.Remap(template.RedirectedTempFolderRootForVmExecution);
         }
 
         /// <inheritdoc />
@@ -217,5 +219,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AdminRequiredProcessExecutionMode AdminRequiredProcessExecutionMode { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath RedirectedTempFolderRootForVmExecution { get; set; }
     }
 }

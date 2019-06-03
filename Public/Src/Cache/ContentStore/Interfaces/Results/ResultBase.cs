@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -202,13 +203,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             }
 
             // Intentionally ignoring unrecoverable CLR exceptions like
-            // OutOfMemoryException, StackOverflowException, ThreadAbortException and ExecutionEngineException.
+            // StackOverflowException, ThreadAbortException and ExecutionEngineException.
             // Because it is unlikely that the user code can handle them anyway.
+            // OutOfMemoryException is considered critical, because there two types of them:
+            // one is recoverable (when a user tries to allocate a very large array) and some of them
+            // are not. We try our best for OOM in this case.
             return exception is NullReferenceException ||
                    exception is TypeLoadException ||
                    exception is ArgumentException ||
                    exception is IndexOutOfRangeException ||
                    exception is UnauthorizedAccessException || 
+                   exception is OutOfMemoryException ||
                    exception.GetType().Name == "ContractException" ||
                    exception is InvalidOperationException ||
                    (exception is AggregateException ae && ae.Flatten().InnerExceptions.Any(e => IsCritical(e)));

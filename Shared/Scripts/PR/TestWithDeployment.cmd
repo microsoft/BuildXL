@@ -25,7 +25,7 @@ set stepName=Running BuildXL on the CoreCLR with a minimal end to end scenario
 call %PRROOT%\Utilities\StatusMessage.cmd %stepName%
     echo Running BuildXL on the CoreCLR, preparing a few things...
     robocopy %ENLISTMENTROOT%\Out\Bin\debug\win-x64 %NETCOREROOT% /E /MT:8 /NS /NC /NFL /NDL /NP
-    call :RunBxlCoreClr /f:spec='%ENLISTMENTROOT%\Public\Src\Core\Collections\*' /c:%ENLISTMENTROOT%\config.dsc /server- /cacheGraph- /cacheConfigFilePath:%NETCOREROOT%\DefaultCacheConfigDotNetCore.json
+    call :RunBxlCoreClr /f:spec='%ENLISTMENTROOT%\Public\Src\Core\Collections\*' /c:%ENLISTMENTROOT%\config.dsc /server- /cacheGraph-
     set CORECLR_ERRORLEVEL=%ERRORLEVEL%
     rmdir /s /q %NETCOREROOT%
     if %CORECLR_ERRORLEVEL% NEQ 0 (exit /b 1)

@@ -105,7 +105,7 @@ namespace BuildXL.Engine.Cache.Tracing
 
         [GeneratedEvent(
             (ushort)EventId.SerializingToPipFingerprintEntryResultInCorruptedData,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (ushort)Events.Tasks.Storage,
@@ -114,7 +114,7 @@ namespace BuildXL.Engine.Cache.Tracing
 
         [GeneratedEvent(
             (ushort)EventId.DeserializingCorruptedPipFingerprintEntry,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (ushort)Events.Tasks.Storage,
@@ -123,7 +123,7 @@ namespace BuildXL.Engine.Cache.Tracing
 
         [GeneratedEvent(
             (ushort)EventId.RetryOnLoadingAndDeserializingMetadata,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (ushort)Events.Tasks.Storage,

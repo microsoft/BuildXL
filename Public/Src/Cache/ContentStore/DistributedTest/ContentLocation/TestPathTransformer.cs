@@ -15,7 +15,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
             return Encoding.Default.GetBytes(cacheRoot.Path.ToCharArray());
         }
 
-        public AbsolutePath GeneratePath(ContentHash contentHash, byte[] contentLocationIdContent)
+        public virtual AbsolutePath GeneratePath(ContentHash contentHash, byte[] contentLocationIdContent)
         {
             string rootPath = new string(Encoding.Default.GetChars(contentLocationIdContent));
             return PathUtilities.GetContentPath(rootPath, contentHash);

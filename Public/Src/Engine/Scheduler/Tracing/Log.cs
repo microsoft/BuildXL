@@ -175,7 +175,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)EventId.PipCopyFileSourceFileDoesNotExist,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
             EventTask = (ushort)Events.Tasks.PipExecutor,
             Message = "[{pipDescription}] Copy file '{source}' to '{destination}' failed because '{source}' does not exist")]
         internal abstract void PipCopyFileSourceFileDoesNotExist(
@@ -720,6 +720,24 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void DistributionMasterWorkerProcessOutputContent(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath, string hash, string reparsePointInfo, string workerName);
 
         [GeneratedEvent(
+            (ushort)LogEventId.InitiateWorkerRelease,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "{workerName} will be released because {numProcessPipsWaiting} (numProcessPipsWaiting) < {totalSlots} (totalSlots). Worker's Acquired Slots: {cachelookup} (cachelookup), {execute} (execute), {ipc} (ipc).",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Events.Tasks.Distribution,
+            Keywords = (int)Events.Keywords.UserMessage)]
+        public abstract void InitiateWorkerRelease(LoggingContext context, string workerName, long numProcessPipsWaiting, int totalSlots, int cachelookup, int execute, int ipc);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.WorkerReleasedEarly,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "{workerName} is released. Drain duration: {drainDurationMs}ms. Disconnect duration: {disconnectDurationMs}ms.",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Events.Tasks.Distribution,
+            Keywords = (int)Events.Keywords.UserMessage)]
+        public abstract void WorkerReleasedEarly(LoggingContext context, string workerName, long drainDurationMs, long disconnectDurationMs);
+
+        [GeneratedEvent(
             (ushort)EventId.StorageCacheGetContentError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -1204,7 +1222,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (int)LogEventId.PipCacheMetadataBelongToAnotherPip,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
@@ -2181,22 +2199,22 @@ namespace BuildXL.Scheduler.Tracing
         #endregion
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempDirectoryCleanupWarning,
-            EventLevel = Level.Warning,
+            (ushort)EventId.PipFailedTempDirectoryCleanup,
+            EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            EventTask = (int)Events.Tasks.Scheduler,
             Message = "Failed to clean temp directory at '{0}'. Reason: {1}")]
-        public abstract void PipTempDirectoryCleanupWarning(LoggingContext context, string directory, string exceptionMessage);
+        public abstract void PipFailedTempDirectoryCleanup(LoggingContext context, string directory, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempFileCleanupWarning,
-            EventLevel = Level.Warning,
+            (ushort)EventId.PipFailedTempFileCleanup,
+            EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            EventTask = (int)Events.Tasks.Scheduler,
             Message = "Failed to clean temp file at '{0}'. Reason: {1}")]
-        public abstract void PipTempFileCleanupWarning(LoggingContext context, string file, string exceptionMessage);
+        public abstract void PipFailedTempFileCleanup(LoggingContext context, string file, string exceptionMessage);
 
         [GeneratedEvent(
             (ushort)EventId.PipTempCleanerThreadSummary,
@@ -2204,8 +2222,8 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
-            Message = "Temp cleaner thread exited with {0} cleaned, {1} remaining and {2} failed temp directories, {3} cleaned, {4} remaining and {5} failed temp files. (timed out: {6})")]
-        public abstract void PipTempCleanerSummary(LoggingContext context, long cleanedDirs, long remainingDirs, long failedDirs, long cleanedFiles, long remainingFiles, long failedFiles, bool timedout);
+            Message = "Temp cleaner thread exited with {0} cleaned, {1} remaining and {2} failed temp directories, {3} cleaned, {4} remaining and {5} failed temp files")]
+        public abstract void PipTempCleanerSummary(LoggingContext context, long cleanedDirs, long remainingDirs, long failedDirs, long cleanedFiles, long remainingFiles, long failedFiles);
 
         [GeneratedEvent(
             (int)EventId.RunningTimeAdded,
@@ -2588,6 +2606,38 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Events.Tasks.Scheduler,
             Message = "The pip '{pipDescription}' could not be added because one of its service pip dependencies is not a service pip).")]
         public abstract void ScheduleFailAddPipDueToInvalidServicePipDependency(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId);
+
+        [GeneratedEvent(
+            (int)EventId.ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
+            EventTask = (int)Events.Tasks.Scheduler,
+            Message = "The pip '{pipDescription}' could not be added because one of PreserveOutputWhitelist is neither static file output nor directory output).")]
+        public abstract void ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId);
+
+        [GeneratedEvent(
+            (int)EventId.ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
+            EventTask = (int)Events.Tasks.Scheduler,
+            Message = "The pip '{pipDescription}' could not be added because PreserveOutputWhitelist is set even though AllowPreserveOutputs is false for the pip).")]
+        public abstract void ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag(
             LoggingContext context,
             string file,
             int line,

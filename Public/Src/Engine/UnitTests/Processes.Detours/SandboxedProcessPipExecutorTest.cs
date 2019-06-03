@@ -1977,7 +1977,7 @@ namespace Test.BuildXL.Processes.Detours
             SemanticPathExpander expander,
             IDirectoryArtifactContext directoryArtifactContext = null)
         {
-            Func<FileArtifact, Task<bool>> dummyMakeOutputPrivate = artifact => Task.FromResult(true);
+            Func<string, Task<bool>> dummyMakeOutputPrivate = pathStr => Task.FromResult(true);
             var loggingContext = CreateLoggingContextForTest();
 
             return new SandboxedProcessPipExecutor(

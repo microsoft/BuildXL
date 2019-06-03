@@ -185,6 +185,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return _contentRedisDatabaseAdapter.GetRedisInfoAsync(context, Tracer, Counters[ContentLocationStoreCounters.InfoStats], serverId, trace);
         }
 
+        /// <inheritdoc />
+        public void ReportReputation(MachineLocation location, MachineReputation reputation) =>
+            MachineReputationTracker.ReportReputation(location, reputation);
+
         /// <summary>
         /// Remove all redis records with empty machine id set.
         /// </summary>

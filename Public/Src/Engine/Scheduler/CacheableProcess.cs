@@ -27,7 +27,6 @@ namespace BuildXL.Scheduler
             : base(
                 pip: process,
                 context: environment.Context,
-                allowPreserveOutputs: process.AllowPreserveOutputs,
                 outputs: process.FileOutputs,
                 dependencies: process.Dependencies,
                 directoryOutputs: process.DirectoryOutputs,
@@ -63,7 +62,6 @@ namespace BuildXL.Scheduler
             return new CacheablePipInfo(
                 pip: process,
                 context: context,
-                allowPreserveOutputs: process.AllowPreserveOutputs,
                 outputs: process.FileOutputs,
                 dependencies: process.Dependencies,
                 directoryOutputs: process.DirectoryOutputs,

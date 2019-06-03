@@ -26,7 +26,7 @@ namespace BuildCacheAdapter {
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
-            
+
             ...addIf(BuildXLSdk.isDotNetCoreBuild,
                 Managed.Factory.createBinary(importFrom("Microsoft.Net.Http").Contents.all, r`lib/portable-net40+sl4+win8+wp71+wpa81/System.Net.Http.Primitives.dll`)
             ),
@@ -41,7 +41,7 @@ namespace BuildCacheAdapter {
             importFrom("BuildXL.Cache.MemoizationStore").Vsts.dll,
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
 
-            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
+            ...BuildXLSdk.visualStudioServicesArtifactServicesSharedPkg,
             importFrom("StackExchange.Redis.StrongName").pkg,
             importFrom("WindowsAzure.Storage").pkg,
         ],

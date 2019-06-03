@@ -153,6 +153,12 @@ namespace BuildXL.Pips
         /// <returns></returns>
         public virtual bool IsPreservedOutputsPip() => false;
 
+        /// <summary>
+        /// Checks if pip using a non-empty preserveOutputWhitelist
+        /// </summary>
+        /// <returns></returns>
+        public virtual bool HasPreserveOutputWhitelist() => false;
+
         internal bool IsAlive
         {
             get
@@ -240,6 +246,8 @@ namespace BuildXL.Pips
         }
 
         public override bool IsPreservedOutputsPip() => (ProcessOptions & Process.Options.AllowPreserveOutputs) != 0;
+
+        public override bool HasPreserveOutputWhitelist() => (ProcessOptions & Process.Options.HasPreserveOutputWhitelist) != 0;
 
         public override bool MustOutputsRemainWritable() => (ProcessOptions & Process.Options.OutputsMustRemainWritable) != 0;
     }

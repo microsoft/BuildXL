@@ -72,6 +72,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </remarks>
         public long SelfCheckInvalidFilesLimit { get; set; } = long.MaxValue;
 
+        /// <summary>
+        /// Gets or sets whether to override Unix file access modes.
+        /// </summary>
+        public bool OverrideUnixFileAccessMode { get; set; } = false;
+
         /// <nodoc />
         public static ContentStoreSettings DefaultSettings { get; } = new ContentStoreSettings();
     }

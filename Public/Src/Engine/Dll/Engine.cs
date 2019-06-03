@@ -1100,6 +1100,18 @@ namespace BuildXL.Engine
                 mutableConfig.Logging.StoreFingerprints = true;
             }
 
+            // EarlyWorkerRelease is only enabled for Office ProductBuild lab and OSG lab builds.
+            if (mutableConfig.Logging.Environment != ExecutionEnvironment.OfficeProductBuildLab &&
+                mutableConfig.Logging.Environment != ExecutionEnvironment.OsgLab)
+            {
+                mutableConfig.Schedule.EarlyWorkerRelease = false;
+            }
+
+            if (mutableConfig.Distribution.ReplicateOutputsToWorkers == true)
+            {
+                mutableConfig.Schedule.EarlyWorkerRelease = false;
+            }
+
             return success;
         }
 
@@ -2996,6 +3008,16 @@ namespace BuildXL.Engine
             Logger.Log.ObjectCacheStats(loggingContext, "SymbolTable Expansion Cache", symbolTable.CacheHits, symbolTable.CacheMisses);
             Logger.Log.ObjectCacheStats(loggingContext, "StringTable Expansion Cache", stringTable.CacheHits, stringTable.CacheMisses);
             Logger.Log.ObjectCacheStats(loggingContext, "TokenTextTable Expansion Cache", tokenTextTable.CacheHits, tokenTextTable.CacheMisses);
+
+            Dictionary<string, long> tableSizeStats = new Dictionary<string, long>()
+            {
+                {"PathTableBytes", pathTable.SizeInBytes },
+                {"SymbolTableBytes", symbolTable.SizeInBytes },
+                {"StringTableBytes", stringTable.SizeInBytes },
+                {"TokenTextTableBytes", tokenTextTable.SizeInBytes },
+            };
+
+            BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, tableSizeStats);
 
             // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
             cacheInitializationTask?.GetAwaiter().GetResult().Then(

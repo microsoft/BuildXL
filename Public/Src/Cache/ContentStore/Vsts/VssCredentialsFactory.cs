@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Services.Common;
-#if !FEATURE_CORECLR
+#if !PLATFORM_OSX
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 #else
 using BuildXL.Cache.ContentStore.Exceptions;
@@ -21,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
     {
         private readonly VssCredentials _credentials;
 
-#if !FEATURE_CORECLR
+#if !PLATFORM_OSX
         private readonly SecureString _pat;
         private readonly byte[] _credentialBytes;
 
@@ -74,7 +74,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             _credentials = creds;
         }
 
-#if !FEATURE_CORECLR
+#if !PLATFORM_OSX
 
         /// <summary>
         /// Creates a VssCredentials object and returns it.
@@ -105,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return Task.FromResult(_credentials);
             }
 
-            throw new CacheException("CoreCLR only allows PATs");
+            throw new CacheException("CoreCLR on non-windows platforms only allows PAT based VSTS authentication!");
         }
 #endif
     }

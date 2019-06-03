@@ -348,7 +348,7 @@ namespace BuildXL.Engine.Distribution
                 m_notifyMasterExecutionLogTarget.Dispose();
             }
 
-            m_masterClient?.Close();
+            m_masterClient?.CloseAsync().GetAwaiter().GetResult();
 
             m_attachCompletionSource.TrySetResult(false);
             bool reportSuccess = string.IsNullOrEmpty(failure);
@@ -394,7 +394,7 @@ namespace BuildXL.Engine.Distribution
 
             if (m_isGrpcEnabled)
             {
-                m_masterClient = new Grpc.GrpcMasterClient(m_appLoggingContext, m_services.BuildId, buildStartData.MasterLocation.IpAddress, buildStartData.MasterLocation.Port);
+                m_masterClient = new Grpc.GrpcMasterClient(m_appLoggingContext, m_services.BuildId, buildStartData.MasterLocation.IpAddress, buildStartData.MasterLocation.Port, OnConnectionTimeOutAsync);
             }
             else
             {
@@ -416,7 +416,7 @@ namespace BuildXL.Engine.Distribution
             if (!m_isGrpcEnabled)
             {
 #if !DISABLE_FEATURE_BOND_RPC
-                m_bondMasterClient.Start(m_services, OnConnectionTimeOut);
+                m_bondMasterClient.Start(m_services, OnConnectionTimeOutAsync);
 #endif
             }
 
@@ -466,10 +466,12 @@ namespace BuildXL.Engine.Distribution
             return true;
         }
 
-        private void OnConnectionTimeOut(object sender, EventArgs e)
+        private async void OnConnectionTimeOutAsync(object sender, EventArgs e)
         {
+            // Unblock caller to make it a fire&forget event handler.
+            await Task.Yield();
             Logger.Log.DistributionInactiveMaster(m_appLoggingContext, (int)EngineEnvironmentSettings.DistributionInactiveTimeout.Value.TotalMinutes);
-            Exit(timedOut: true, "Connection timed out");
+            ExitAsync(timedOut: true, "Connection timed out");
         }
 
         internal void SetLastHeartbeatTimestamp()

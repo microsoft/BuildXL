@@ -141,6 +141,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         ///     File modes that are not supported.
         /// </summary>
-        public static readonly IReadOnlyCollection<FileMode> UnsupportedFileModes = new[] {FileMode.Truncate, FileMode.Append};
+        public static readonly IReadOnlyCollection<FileMode> UnsupportedFileModes = new[] { FileMode.Truncate, FileMode.Append };
     }
 }

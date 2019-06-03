@@ -225,7 +225,7 @@ namespace BuildXL.Utilities.Configuration
         /// Retries process whose exit code or its children's exit code is 0xDEAD.
         /// </summary>
         /// <remarks>
-        /// Process can suddenly exit with 0xDEAD exist code in CB. This is the exit code
+        /// Process can nondeterministically exit with 0xDEAD exit code in CB. This is the exit code
         /// returned by Azure Watson dump after catching the process crash. The root cause
         /// of the crash is unknown, but the primary suspect is the way Detours handle NtClose.
         /// </remarks>

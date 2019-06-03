@@ -17,13 +17,9 @@ namespace Storage.Untracked {
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            ...importFrom("BuildXL.Utilities").Native.securityDlls,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
-            ...addIf(BuildXLSdk.isDotNetCoreBuild,
-                importFrom("System.IO.FileSystem.AccessControl").pkg,
-                importFrom("System.Security.AccessControl").pkg,
-                importFrom("System.Security.Principal.Windows").pkg
-            ),
             Storage.dll,
         ],
     });

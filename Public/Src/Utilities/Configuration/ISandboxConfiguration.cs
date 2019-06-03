@@ -222,6 +222,16 @@ namespace BuildXL.Utilities.Configuration
         AbsolutePath RedirectedTempFolderRootForVmExecution { get; }
 
         /// <summary>
+        /// Retries process whose exit code or its children's exit code is Azure Watson's special exit code, i.e., 0xDEAD.
+        /// </summary>
+        /// <remarks>
+        /// When running in CloudBuild, Process nondeterministically sometimes exits with 0xDEAD exit code. This is the exit code
+        /// returned by Azure Watson dump after catching the process crash. The root cause of the crash is unknown,
+        /// but the primary suspect is the way Detours handle NtClose.
+        /// </remarks>
+        bool RetryOnAzureWatsonExitCode { get; }
+
+        /// <summary>
         /// Ensures temp directories existence before pip execution.
         /// </summary>
         /// <remarks>

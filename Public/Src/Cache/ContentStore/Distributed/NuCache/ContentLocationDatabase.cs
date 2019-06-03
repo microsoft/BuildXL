@@ -57,8 +57,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private ConcurrentBigMap<ShortHash, ContentLocationEntry> _inMemoryWriteCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
 
         private ConcurrentBigMap<ShortHash, ContentLocationEntry> _flushingInMemoryWriteCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
-
-        private readonly object _cacheFlushLock = new object();
+        
+        private readonly SemaphoreSlim _cacheFlushQueue = new SemaphoreSlim(1);
         private readonly ReadWriteLock _cacheExchangeLock = ReadWriteLock.Create();
 
         /// <summary>
@@ -538,62 +538,69 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return;
             }
 
-            Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].Increment();
-
-            context.PerformOperation(
+            context.PerformOperationAsync(
                 Tracer,
-                () =>
+                async () =>
                 {
                     try
                     {
                         // This lock is required to ensure no flushes happen concurrently. We may loose updates if
                         // that happens.
-                        lock (_cacheFlushLock)
+                        using (await _cacheFlushQueue.AcquireAsync())
                         {
-                            using (Counters[ContentLocationDatabaseCounters.CacheFlush].Start())
-                            {
-                                Contract.Assert(_flushingInMemoryWriteCache.Count == 0);
-                                
-                                using (_cacheExchangeLock.AcquireWriteLock())
-                                {
-                                    _flushingInMemoryWriteCache = _inMemoryWriteCache;
-                                    _inMemoryWriteCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
-                                }
-
-                                if (_configuration.CacheFlushSingleTransaction)
-                                {
-                                    PersistBatch(context, _flushingInMemoryWriteCache);
-                                } else
-                                {
-                                    var actionBlock = new ActionBlockSlim<KeyValuePair<ShortHash, ContentLocationEntry>>(_configuration.CacheFlushDegreeOfParallelism, kv => {
-                                        // Do not lock on GetLock here, as it will cause a deadlock with
-                                        // SetMachineExistenceAndUpdateDatabase. It is correct not do take any locks as well,
-                                        // because there no Store can happen while flush is running.
-                                        Persist(context, kv.Key, kv.Value);
-                                    });
-
-                                    foreach (var kv in _flushingInMemoryWriteCache)
-                                    {
-                                        actionBlock.Post(kv);
-                                    }
-
-                                    actionBlock.Complete();
-                                    actionBlock.CompletionAsync().Wait();
-                                }
-
-                                _flushingInMemoryWriteCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
-                            }
+                            PerformFlush(context);
                         }
+                        _cacheFlushQueue.Release();
 
                         return BoolResult.Success;
                     }
                     finally
                     {
-                        // Do not use Volatile.Write here; the memory being used is not volatile.
-                        Interlocked.Exchange(ref _cacheUpdatesSinceLastFlush, 0);
                         ResetFlushTimer();
                     }
-                }).ThrowIfFailure();
+                }).ThrowIfFailure().Wait();
+        }
+
+        private void PerformFlush(OperationContext context)
+        {
+            Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].Increment();
+
+            using (Counters[ContentLocationDatabaseCounters.CacheFlush].Start())
+            {
+                Contract.Assert(_flushingInMemoryWriteCache.Count == 0);
+
+                using (_cacheExchangeLock.AcquireWriteLock())
+                {
+                    _flushingInMemoryWriteCache = _inMemoryWriteCache;
+                    Interlocked.Exchange(ref _cacheUpdatesSinceLastFlush, 0);
+                    _inMemoryWriteCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
+                }
+
+                if (_configuration.CacheFlushSingleTransaction)
+                {
+                    PersistBatch(context, _flushingInMemoryWriteCache);
+                }
+                else
+                {
+                    var actionBlock = new ActionBlockSlim<KeyValuePair<ShortHash, ContentLocationEntry>>(_configuration.CacheFlushDegreeOfParallelism, kv =>
+                    {
+                        // Do not lock on GetLock here, as it will cause a deadlock with
+                        // SetMachineExistenceAndUpdateDatabase. It is correct not do take any locks as well,
+                        // because there no Store can happen while flush is running.
+                        Persist(context, kv.Key, kv.Value);
+                    });
+
+                    foreach (var kv in _flushingInMemoryWriteCache)
+                    {
+                        actionBlock.Post(kv);
+                    }
+
+                    actionBlock.Complete();
+                    actionBlock.CompletionAsync().Wait();
+                }
+
+                _flushingInMemoryWriteCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
+            }
         }
 
         private ContentLocationEntry SetMachineExistenceAndUpdateDatabase(OperationContext context, ShortHash hash, MachineId? machine, bool existsOnMachine, long size, UnixTime? lastAccessTime, bool reconciling)

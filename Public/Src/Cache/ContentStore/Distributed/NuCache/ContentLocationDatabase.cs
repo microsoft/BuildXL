@@ -18,6 +18,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Threading;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -56,7 +57,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private ConcurrentBigMap<ShortHash, ContentLocationEntry> _inMemoryWriteCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
 
         private ConcurrentBigMap<ShortHash, ContentLocationEntry> _flushingInMemoryWriteCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
+
         private readonly object _cacheFlushLock = new object();
+        private readonly ReadWriteLock _cacheExchangeLock = ReadWriteLock.Create();
 
         /// <summary>
         /// Whether the cache is currently being used. Can only possibly be true in master. Only meant for testing
@@ -465,16 +468,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (IsInMemoryCacheEnabled)
             {
-                // The entry could be a tombstone, so we need to make sure the user knows content has actually been
-                // deleted, which is why we check for null.
-                if (_inMemoryWriteCache.TryGetValue(hash, out entry))
+                using (_cacheExchangeLock.AcquireReadLock())
                 {
-                    Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Increment();
-                    return entry != null;
-                } else if (_flushingInMemoryWriteCache.TryGetValue(hash, out entry))
-                {
-                    Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Increment();
-                    return entry != null;
+                    // The entry could be a tombstone, so we need to make sure the user knows content has actually been
+                    // deleted, which is why we check for null.
+                    if (_inMemoryWriteCache.TryGetValue(hash, out entry))
+                    {
+                        Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Increment();
+                        return entry != null;
+                    }
+                    else if (_flushingInMemoryWriteCache.TryGetValue(hash, out entry))
+                    {
+                        Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Increment();
+                        return entry != null;
+                    }
                 }
 
                 Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Increment();
@@ -500,7 +507,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (IsInMemoryCacheEnabled)
             {
-                _inMemoryWriteCache[hash] = entry;
+                using (_cacheExchangeLock.AcquireReadLock())
+                {
+                    _inMemoryWriteCache[hash] = entry;
+                }
 
                 // The fact that this is == is important to ensure it can only be triggered once by this condition
                 if (Interlocked.Increment(ref _cacheUpdatesSinceLastFlush) == _configuration.CacheMaximumUpdatesPerFlush)
@@ -543,16 +553,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             using (Counters[ContentLocationDatabaseCounters.CacheFlush].Start())
                             {
                                 Contract.Assert(_flushingInMemoryWriteCache.Count == 0);
-
-                                // Make the flushing cache equivalent to the working cache. Since they are the same
-                                // objects, changes are concurrent to both (i.e. no updates are lost between this line and
-                                // the next).
-                                Interlocked.Exchange(ref _flushingInMemoryWriteCache, _inMemoryWriteCache);
-
-                                // Make the working cache be a new object. This way, all new operations from this point in
-                                // time will be filled from this empty cache, backed with the flushing cache, and in the
-                                // worst case hitting the store. Point being, the flushing cache becomes read-only.
-                                Interlocked.Exchange(ref _inMemoryWriteCache, new ConcurrentBigMap<ShortHash, ContentLocationEntry>());
+                                
+                                using (_cacheExchangeLock.AcquireWriteLock())
+                                {
+                                    _flushingInMemoryWriteCache = _inMemoryWriteCache;
+                                    _inMemoryWriteCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
+                                }
 
                                 if (_configuration.CacheFlushSingleTransaction)
                                 {
@@ -575,7 +581,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     actionBlock.CompletionAsync().Wait();
                                 }
 
-                                Interlocked.Exchange(ref _flushingInMemoryWriteCache, new ConcurrentBigMap<ShortHash, ContentLocationEntry>());
+                                _flushingInMemoryWriteCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
                             }
                         }
 

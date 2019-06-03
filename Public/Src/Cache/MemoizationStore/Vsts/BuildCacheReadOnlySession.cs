@@ -571,13 +571,13 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         var writeThroughResult = await WriteThroughContentSession.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint).ConfigureAwait(false);
                         if (writeThroughResult.Succeeded || writeThroughResult.Code != PlaceFileResult.ResultCode.NotPlacedContentNotFound)
                         {
-                            FileSystemConstants.OverrideFileAccessMode(_overrideUnixFileAccessMode, path.Path);
+                            UnixHelpers.OverrideFileAccessMode(_overrideUnixFileAccessMode, path.Path);
                             return writeThroughResult;
                         }
                     }
 
                     var backingResult = await BackingContentSession.PlaceFileAsync(context, contentHash, path, accessMode, replacementMode, realizationMode, cts, urgencyHint);
-                    FileSystemConstants.OverrideFileAccessMode(_overrideUnixFileAccessMode, path.Path);
+                    UnixHelpers.OverrideFileAccessMode(_overrideUnixFileAccessMode, path.Path);
                     return backingResult;
                 });
         }

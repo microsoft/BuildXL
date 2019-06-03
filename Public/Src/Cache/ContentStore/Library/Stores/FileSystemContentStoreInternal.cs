@@ -2326,7 +2326,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                             if (hardLinkResult == CreateHardLinkResult.Success)
                             {
                                 code = PlaceFileResult.ResultCode.PlacedWithHardLink;
-                                FileSystemConstants.OverrideFileAccessMode(_settings.OverrideUnixFileAccessMode, destinationPath.Path);
+                                UnixHelpers.OverrideFileAccessMode(_settings.OverrideUnixFileAccessMode, destinationPath.Path);
                             }
                             else if (hardLinkResult == CreateHardLinkResult.FailedDestinationExists)
                             {
@@ -2345,7 +2345,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     if (code != PlaceFileResult.ResultCode.Unknown)
                     {
-                        FileSystemConstants.OverrideFileAccessMode(_settings.OverrideUnixFileAccessMode, destinationPath.Path);
+                        UnixHelpers.OverrideFileAccessMode(_settings.OverrideUnixFileAccessMode, destinationPath.Path);
                         return new PlaceFileResult(code, contentSize)
                             .WithLockAcquisitionDuration(contentHashHandle);
                     }
@@ -2368,7 +2368,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                         result.FileSize = contentSize;
                         result.LastAccessTime = lastAccessTime;
-                        FileSystemConstants.OverrideFileAccessMode(_settings.OverrideUnixFileAccessMode, destinationPath.Path);
+                        UnixHelpers.OverrideFileAccessMode(_settings.OverrideUnixFileAccessMode, destinationPath.Path);
 
                         return result
                             .WithLockAcquisitionDuration(contentHashHandle);

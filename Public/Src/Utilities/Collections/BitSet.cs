@@ -102,7 +102,7 @@ namespace BuildXL.Utilities.Collections
         {
             if (index < 0 || index >= Length)
             {
-                Contract.Requires(false, $"index={index} must be within [0, {Length}) range.");
+                Contract.Assert(false, $"index={index} must be within [0, {Length}) range.");
             }            
 
             ulong newEntry = GetEntry(index) | (1UL << (index % 64));
@@ -117,7 +117,7 @@ namespace BuildXL.Utilities.Collections
         {
             if (index < 0 || index >= Length)
             {
-                Contract.Requires(false, $"index={index} must be within [0, {Length}) range.");
+                Contract.Assert(false, $"index={index} must be within [0, {Length}) range.");
             }
 
             int entryIndex = index / 64;
@@ -139,7 +139,7 @@ namespace BuildXL.Utilities.Collections
         {
             if (index < 0 || index >= Length)
             {
-                Contract.Requires(false, $"index={index} must be within [0, {Length}) range.");
+                Contract.Assert(false, $"index={index} must be within [0, {Length}) range.");
             }
 
             ulong newEntry = GetEntry(index) & ~(1UL << (index % 64));
@@ -153,7 +153,7 @@ namespace BuildXL.Utilities.Collections
         {
             if (index < 0 || index >= Length)
             {
-                Contract.Requires(false, $"index={index} must be within [0, {Length}) range.");
+                Contract.Assert(false, $"index={index} must be within [0, {Length}) range.");
             }
 
             return (GetEntry(index) & 1UL << (index % 64)) != 0;

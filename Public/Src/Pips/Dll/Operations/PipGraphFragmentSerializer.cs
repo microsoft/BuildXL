@@ -66,13 +66,12 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Serialize list of pips to a file
         /// </summary>
-        public void Serialize(string fragmentName, PipExecutionContext context, PipGraphFragmentContext pipFragmentContext, AbsolutePath filePath, IReadOnlyCollection<Pip> pipsToSerialize)
+        public void Serialize(string fragmentDescription, PipExecutionContext context, PipGraphFragmentContext pipFragmentContext, AbsolutePath filePath, IReadOnlyCollection<Pip> pipsToSerialize)
         {
-            FragmentDescription = fragmentName;
+            FragmentDescription = fragmentDescription;
             PipsSerialized = 0;
             string fileName = filePath.ToString(context.PathTable);
-            Contract.Assert(!File.Exists(fileName), "Pip graph fragment file to write to already exists");
-            using (FileStream stream = new FileStream(fileName, FileMode.Open, FileAccess.Write, FileShare.None))
+            using (FileStream stream = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             using (RemapWriter writer = new RemapWriter(stream, context, pipFragmentContext))
             {
                 writer.Write(pipsToSerialize.Count);

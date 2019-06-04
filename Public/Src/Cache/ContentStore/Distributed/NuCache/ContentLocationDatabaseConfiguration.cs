@@ -8,6 +8,26 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
+    /// Configuration type for <see cref="FlushableCache"/>
+    /// </summary>
+    public class FlushableCacheConfiguration
+    {
+        /// <summary>
+        /// Number of threads to use when flushing updates to the underlying storage
+        /// </summary>
+        public int FlushDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
+
+        /// <summary>
+        /// Whether to use a single transaction to the underlying store when flushing instead of one transaction per
+        /// change.
+        ///
+        /// When this setting is on, there is no parallelism done, regardless of
+        /// <see cref="FlushDegreeOfParallelism"/>.
+        /// </summary>
+        public bool FlushSingleTransaction { get; set; } = true;
+    }
+
+    /// <summary>
     /// Configuration type for <see cref="ContentLocationDatabase"/> family of types.
     /// </summary>
     public abstract class ContentLocationDatabaseConfiguration
@@ -35,34 +55,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool CacheEnabled { get; set; } = false;
 
         /// <summary>
+        /// Controls behavior of the internal cache.
+        ///
+        /// Only useful when <see cref="CacheEnabled"/> is true.
+        /// </summary>
+        public FlushableCacheConfiguration Cache { get; set; } = new FlushableCacheConfiguration();
+
+        /// <summary>
         /// The maximum number of updates that we are willing to perform in memory before flushing.
-        /// 
-        /// Only effective when <see cref="CacheEnabled"/> is activated.
+        ///
+        /// Only useful when <see cref="CacheEnabled"/> is true.
         /// </summary>
         public int CacheMaximumUpdatesPerFlush { get; set; } = 1000000;
 
         /// <summary>
         /// The maximum amount of time that can pass without a flush.
-        /// 
-        /// Only effective when <see cref="CacheEnabled"/> is activated.
+        ///
+        /// Only useful when <see cref="CacheEnabled"/> is true.
         /// </summary>
         public TimeSpan CacheFlushingMaximumInterval { get; set; } = TimeSpan.FromMinutes(1);
-
-        /// <summary>
-        /// Number of threads to use when flushing updates to the underlying storage
-        ///
-        /// Only effective when <see cref="CacheEnabled"/> is activated.
-        /// </summary>
-        public int CacheFlushDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
-
-        /// <summary>
-        /// Whether to use a single transaction to the underlying store when flushing instead of one transaction per
-        /// change.
-        ///
-        /// Only effective when <see cref="CacheEnabled"/> is activated. When this setting is on, there is no
-        /// parallelism done, regardless of <see cref="CacheFlushDegreeOfParallelism"/>.
-        /// </summary>
-        public bool CacheFlushSingleTransaction { get; set; } = true;
     }
 
     /// <summary>

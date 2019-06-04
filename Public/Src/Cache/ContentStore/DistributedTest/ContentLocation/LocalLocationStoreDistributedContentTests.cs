@@ -1590,7 +1590,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCleanedEntries].Value.Should().Be(0, "No entries should be cleaned before GC is called");
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(0, "No entries should be cleaned before GC is called");
 
-                    master.LocalLocationStore.Database.FlushIfEnabled(context);
+                    master.LocalLocationStore.Database.ForceCacheFlush(context);
 
                     master.LocalLocationStore.Database.GarbageCollect(context);
 
@@ -2089,7 +2089,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     var sessions = context.Sessions;
                     Warmup(maximumBatchSize, warmupBatches, memoryContentLocationEventStore);
-                    context.GetMaster().LocalLocationStore.Database.FlushIfEnabled(context);
+                    context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                     PrintCacheStatistics(context);
 
                     {
@@ -2107,7 +2107,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                 eventHub.LockFreeSend(ev);
                             }
                         });
-                        context.GetMaster().LocalLocationStore.Database.FlushIfEnabled(context);
+                        context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                         stopWatch.Stop();
 
                         var ts = stopWatch.Elapsed;
@@ -2213,7 +2213,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     var sessions = context.Sessions;
                     Warmup(maximumBatchSize, warmupBatches, memoryContentLocationEventStore);
-                    context.GetMaster().LocalLocationStore.Database.FlushIfEnabled(context);
+                    context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                     PrintCacheStatistics(context);
 
                     {
@@ -2231,7 +2231,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                 eventHub.LockFreeSend(ev);
                             }
                         });
-                        context.GetMaster().LocalLocationStore.Database.FlushIfEnabled(context);
+                        context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                         stopWatch.Stop();
 
                         var ts = stopWatch.Elapsed;
@@ -2363,7 +2363,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     var sessions = context.Sessions;
                     Warmup(maximumBatchSize, warmupBatches, memoryContentLocationEventStore);
-                    context.GetMaster().LocalLocationStore.Database.FlushIfEnabled(context);
+                    context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                     PrintCacheStatistics(context);
 
                     {
@@ -2381,7 +2381,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                 eventHub.LockFreeSend(ev);
                             }
                         });
-                        context.GetMaster().LocalLocationStore.Database.FlushIfEnabled(context);
+                        context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                         stopWatch.Stop();
 
                         var ts = stopWatch.Elapsed;

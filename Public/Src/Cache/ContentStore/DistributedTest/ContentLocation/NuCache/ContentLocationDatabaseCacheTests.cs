@@ -190,7 +190,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
                 _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(0);
 
-                _database.FlushIfEnabled(context);
+                _database.ForceCacheFlush(context);
                 _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].Value.Should().Be(1);
 
                 _database.TryGetEntry(context, hash, out var entry).Should().BeTrue();

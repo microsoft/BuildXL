@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         }
 
         /// <inheritdoc />
-        protected override void Persist(OperationContext context, ShortHash hash, ContentLocationEntry entry)
+        internal override void Persist(OperationContext context, ShortHash hash, ContentLocationEntry entry)
         {
             // consider merging the values. Right now we always reconstruct the entry.
             _map.AddOrUpdate(hash, key => entry, (key, old) => entry);

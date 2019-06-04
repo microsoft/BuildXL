@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
-using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem

@@ -16,7 +16,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             m_unsafeSandboxConfig = new UnsafeSandboxConfiguration();
 
             FailUnexpectedFileAccesses = true;
-            DefaultTimeout = 10 * 60 * 1000;
+            DefaultTimeout = 15 * 60 * 1000;
             DefaultWarningTimeout = (int)(.85 * DefaultTimeout);
             TimeoutMultiplier = 1;
             WarningTimeoutMultiplier = 1;

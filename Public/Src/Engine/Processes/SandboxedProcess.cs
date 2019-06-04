@@ -81,11 +81,11 @@ namespace BuildXL.Processes
                 s_binaryPaths = new BinaryPaths(); // this can take a while; performs I/O
             }
 
-            // If unspecified make the injection timeout 15 mins. Also, make it no less than 10 mins.
+            // If unspecified make the injection timeout 15 mins. Also, make it no less than 15 mins.
             m_timeoutMins = info.Timeout.HasValue ? ((uint)info.Timeout.Value.TotalMinutes) : 15;
-            if (m_timeoutMins < 10)
+            if (m_timeoutMins < 15)
             {
-                m_timeoutMins = 10;
+                m_timeoutMins = 15;
             }
 
             m_fileAccessManifest = info.FileAccessManifest;

@@ -4,6 +4,7 @@
 import {Transformer} from "Sdk.Transformers";
 import * as XUnit from "DotNetCore.XUnit";
 import * as DotNet from "DotNetCore.DotNetCoreRunner";
+import * as BuildXLSdk from "Sdk.BuildXL";
 
 export function getDefaultXunitArgs(testAssembly: File, outDir: Directory): XUnit.Arguments {
     return <XUnit.Arguments>{

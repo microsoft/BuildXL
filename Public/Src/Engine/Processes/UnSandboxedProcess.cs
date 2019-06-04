@@ -29,7 +29,7 @@ namespace BuildXL.Processes
     public class UnSandboxedProcess : ISandboxedProcess
     {
         private static readonly ISet<ReportedFileAccess> s_emptyFileAccessesSet = new HashSet<ReportedFileAccess>();
-        private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromMinutes(10);
+        private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromMinutes(15);
 
         private readonly SandboxedProcessOutputBuilder m_output;
         private readonly SandboxedProcessOutputBuilder m_error;

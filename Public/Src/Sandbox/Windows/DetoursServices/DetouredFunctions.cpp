@@ -2089,7 +2089,7 @@ HANDLE WINAPI Detoured_CreateFileW(
     // content, i.e., we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
     // rather than per-link, so in order to keep unused links delete-able, we should ensure in-use links are delete-able as well.
     // However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation. Thus,
-    // we only add FILE_SHARE_DELETE if the file is untracked.
+    // we only add FILE_SHARE_DELETE if the file is tracked.
     
     // We also add FILE_SHARE_READ when it is safe to do so, since some tools accidentally ask for exclusive access on their inputs.
 
@@ -5157,7 +5157,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
     // content, i.e., we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
     // rather than per-link, so in order to keep unused links delete-able, we should ensure in-use links are delete-able as well.
     // However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation. Thus,
-    // we only add FILE_SHARE_DELETE if the file is untracked.
+    // we only add FILE_SHARE_DELETE if the file is tracked.
 
     // We also add FILE_SHARE_READ when it is safe to do so, since some tools accidentally ask for exclusive access on their inputs.
 
@@ -5452,7 +5452,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
     // content, i.e., we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
     // rather than per-link, so in order to keep unused links delete-able, we should ensure in-use links are delete-able as well.
     // However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation. Thus,
-    // we only add FILE_SHARE_DELETE if the file is untracked.
+    // we only add FILE_SHARE_DELETE if the file is tracked.
 
     // We also add FILE_SHARE_READ when it is safe to do so, since some tools accidentally ask for exclusive access on their inputs.
 
@@ -5728,7 +5728,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
     // content, i.e., we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
     // rather than per-link, so in order to keep unused links delete-able, we should ensure in-use links are delete-able as well.
     // However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation. Thus,
-    // we only add FILE_SHARE_DELETE if the file is untracked.
+    // we only add FILE_SHARE_DELETE if the file is tracked.
 
     // We also add FILE_SHARE_READ when it is safe to do so, since some tools accidentally ask for exclusive access on their inputs.
 

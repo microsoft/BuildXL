@@ -107,5 +107,5 @@ namespace _PreludeAmbientHack_Transformer {
     export declare function composeSharedOpaqueDirectories(rootOrArgs: (Directory | Object), directories: SharedOpaqueDirectory[]): SharedOpaqueDirectory;
 
     export interface FragmentHandle {}
-    export declare function readPipGraphFragment(file: SourceFile, dependencyFragments: FragmentHandle[], description: string): FragmentHandle;
+    export declare function readPipGraphFragment(file: SourceFile, dependencyFragments: FragmentHandle[], description?: string): FragmentHandle;
 }

@@ -46,15 +46,14 @@ namespace BuildXL.Pips.Operations
             using (FileStream stream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (RemapReader reader = new RemapReader(pipFragmentContext, stream, context))
             {
-                while (reader.ReadBoolean())
+                TotalPips = reader.ReadInt32();
+                for(int i = 0; i < TotalPips; i++)
                 {
                     var pip = Pip.Deserialize(reader);
-                    if (handleDeserializedPip != null)
+                    var success = handleDeserializedPip?.Invoke(pip);
+                    if (success.HasValue & !success.Value)
                     {
-                        if (!handleDeserializedPip.Invoke(pip))
-                        {
-                            return false;
-                        }
+                        return false;
                     }
 
                     PipsDeserialized++;
@@ -67,23 +66,21 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Serialize list of pips to a file
         /// </summary>
-        public void Serialize(string fragmentName, PipExecutionContext context, AbsolutePath filePath, IEnumerable<Pip> pipsToSerialize)
+        public void Serialize(string fragmentName, PipExecutionContext context, PipGraphFragmentContext pipFragmentContext, AbsolutePath filePath, IReadOnlyCollection<Pip> pipsToSerialize)
         {
             FragmentDescription = fragmentName;
             PipsSerialized = 0;
             string fileName = filePath.ToString(context.PathTable);
             Contract.Assert(!File.Exists(fileName), "Pip graph fragment file to write to already exists");
             using (FileStream stream = new FileStream(fileName, FileMode.Open, FileAccess.Write, FileShare.None))
-            using (RemapWriter writer = new RemapWriter(stream, context))
+            using (RemapWriter writer = new RemapWriter(stream, context, pipFragmentContext))
             {
+                writer.Write(pipsToSerialize.Count);
                 foreach (var pip in pipsToSerialize)
                 {
-                    writer.Write(true);
                     pip.Serialize(writer);
                     PipsSerialized++;
                 }
-
-                writer.Write(false);
             }
         }
     }

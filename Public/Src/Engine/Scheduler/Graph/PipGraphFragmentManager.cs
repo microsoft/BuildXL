@@ -91,7 +91,7 @@ namespace BuildXL.Scheduler.Graph
                         added = m_pipGraph.AddProcess(p, default);
                         if (p.IsService)
                         {
-                            m_fragmentContext.AddPipIdMapping(originalPipId.Value, p.PipId.Value);
+                            m_fragmentContext.AddPipIdValueMapping(originalPipId.Value, p.PipId.Value);
                         }
 
                         break;

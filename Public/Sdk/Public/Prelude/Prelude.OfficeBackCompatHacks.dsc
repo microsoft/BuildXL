@@ -35,10 +35,6 @@ namespace Transformer {
     /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
     export declare function writeAllText(destinationFile: Path, content: string, tags?: string[], description?: string): DerivedFile;
     /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
-    export interface FragmentHandle {}
-    /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
-    export declare function readPipGraphFragment(file: SourceFile, dependencyFragments: FragmentHandle[], description: string): FragmentHandle;
-    /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
     export const enum SealSourceDirectoryOption { 
         /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
         topDirectoryOnly = 0, 

@@ -8,11 +8,11 @@ namespace Transformer {
      * name: Name of this pip graph fragment, used to return a handle to it.
      * file: Binary file to read.
      * dependencyFragments: All other pip graph fragments this one depends on.
-		 * description: String to print to console while fragments are loading.
+     * description: String to print to console while fragments are loading.
      * Returns a handle to the fragment just created, which can be used to specify dependencies on other graphs.
      */
     @@public
-    export function readPipGraphFragment(file: SourceFile, dependencyFragments: FragmentHandle[], description: string): FragmentHandle {
+    export function readPipGraphFragment(file: SourceFile, dependencyFragments: FragmentHandle[], description?: string): FragmentHandle {
         return _PreludeAmbientHack_Transformer.readPipGraphFragment(file, dependencyFragments, description);
     }
 

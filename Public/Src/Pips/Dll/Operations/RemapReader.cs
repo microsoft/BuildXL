@@ -38,8 +38,24 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public override DirectoryArtifact ReadDirectoryArtifact()
         {
-            var directoryArtifact = base.ReadDirectoryArtifact();
-            return Context.Remap(directoryArtifact);
+            var isDirectoryStoredAsVariableName = base.ReadBoolean();
+            DirectoryArtifact directoryArtifact;
+            if (isDirectoryStoredAsVariableName)
+            {
+                var directoryArtifactVariableName = base.ReadFullSymbol();
+                var serializedDirectoryArtifact = base.ReadDirectoryArtifact();
+                if (!Context.TryGetDirectoryArtifactForVariableName(directoryArtifactVariableName, out directoryArtifact))
+                {
+                    directoryArtifact = serializedDirectoryArtifact;
+                    Context.AddDirectoryMapping(directoryArtifactVariableName, directoryArtifact);
+                }
+            }
+            else
+            {
+                directoryArtifact = base.ReadDirectoryArtifact();
+            }
+
+            return Context.RemapDirectory(directoryArtifact);
         }
 
         /// <summary>
@@ -67,14 +83,6 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// Reads a directory artifact
-        /// </summary>
-        public DirectoryArtifact ReadUnmappedDirectoryArtifact()
-        {
-            return base.ReadDirectoryArtifact();
-        }
-
-        /// <summary>
         /// Reads a full symbol
         /// </summary>
         public override FullSymbol ReadFullSymbol()
@@ -95,8 +103,24 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public override uint ReadPipIdValue()
         {
-            var pipIdValue = base.ReadPipIdValue();
-            return Context.Remap(pipIdValue);
+            var isPipIdValueStoredAsVariableName = base.ReadBoolean();
+            uint pipIdValue;
+            if (isPipIdValueStoredAsVariableName)
+            {
+                var pipIdValueVariableName = base.ReadFullSymbol();
+                var serializedPipIdValue = base.ReadPipIdValue();
+                if (!Context.TryGetPipIdValueForVariableName(pipIdValueVariableName, out pipIdValue))
+                {
+                    pipIdValue = serializedPipIdValue;
+                    Context.AddPipIdValueMapping(pipIdValueVariableName, pipIdValue);
+                }
+            }
+            else
+            {
+                pipIdValue = base.ReadPipIdValue();
+            }
+
+            return Context.RemapPipIdValue(pipIdValue);
         }
 
         private class InnerInliningReader : InliningReader

@@ -120,14 +120,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                     }
                 }
 
-#if FEATURE_CORECLR
-                // Inspect the path segment manually for illegal characters. This is not covered by netcore.
-                if (segment.Any(c => System.IO.Path.GetInvalidFileNameChars().Contains(c)))
-                {
-                    throw CreateIllegalCharactersInPathError(segment);
-                }
-#endif
-
                 segments.Add(segment);
             }
 

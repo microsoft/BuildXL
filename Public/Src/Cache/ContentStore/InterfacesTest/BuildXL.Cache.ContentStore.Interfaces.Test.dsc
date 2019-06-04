@@ -17,5 +17,8 @@ namespace InterfacesTest {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
         ],
+        runTestArgs: {
+            skipGroups: BuildXLSdk.isDotNetCoreBuild ? [ "SkipDotNetCore" ] : []
+        }
     });
 }

@@ -332,7 +332,7 @@ export function cacheTest(args: TestArguments) : TestResult {
         // Cache tests don't use QTest because QTest doesn't support skipGroups and skipGroups is needed because cache tests fail otherwise.
         testFramework: XUnit.framework,
         runTestArgs: {
-            skipGroups: [ "QTestSkip", "Performance", "Simulation" ],
+            skipGroups: [ "QTestSkip", "Performance", "Simulation", ...(isDotNetCoreBuild ? [ "SkipDotNetCore" ] : []) ],
             tools: {
                 exec: {
                     environmentVariables: Environment.hasVariable(envVarNamePrefix + redisConnectionStringEnvVarName) ? [ {name: redisConnectionStringEnvVarName, value: Environment.getStringValue(envVarNamePrefix + redisConnectionStringEnvVarName)}] : []

@@ -109,15 +109,15 @@ export const isTargetRuntimeOsx : boolean = qualifier.targetRuntime === "osx-x64
 @@public
 export const restrictTestRunToDebugNet461OnWindows =
     qualifier.configuration !== "debug" ||
-    // Running tests for 4.6.1 and 4.7.2 frameworks only.
-    (qualifier.targetFramework !== "net461" && qualifier.targetFramework !== "net472") ||
+    // Running tests for .NET Core App 3.0 and 4.7.2 frameworks only.
+    (qualifier.targetFramework !== "netcoreapp3.0" && qualifier.targetFramework !== "net472") ||
     (Context.isWindowsOS() && qualifier.targetRuntime === "osx-x64");
 
 /***
 * Whether drop tooling is included with the BuildXL deployment
 */
 @@public
-export const isDropToolingEnabled = Flags.isMicrosoftInternal && isFullFramework;
+export const isDropToolingEnabled = Flags.isMicrosoftInternal;
 
 namespace Flags {
     export declare const qualifier: {};

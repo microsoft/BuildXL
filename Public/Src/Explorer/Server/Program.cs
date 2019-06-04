@@ -16,6 +16,10 @@ namespace BuildXL.Explorer.Server
             {
                 Debugger.Launch();
             }
+
+            // Globally this is needed to initialize the hash code
+            BuildXL.Storage.ContentHashingUtilities.SetDefaultHashType();
+
             CreateWebHostBuilder(args).Build().Run();
         }
 

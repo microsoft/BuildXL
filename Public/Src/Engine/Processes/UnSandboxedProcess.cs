@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration.Mutable;
 using static BuildXL.Utilities.FormattableStringEx;
 using JetBrains.Annotations;
 #if FEATURE_SAFE_PROCESS_HANDLE
@@ -29,7 +30,7 @@ namespace BuildXL.Processes
     public class UnSandboxedProcess : ISandboxedProcess
     {
         private static readonly ISet<ReportedFileAccess> s_emptyFileAccessesSet = new HashSet<ReportedFileAccess>();
-        private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromMinutes(15);
+        private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromMinutes(SandboxConfiguration.DefaultProcessTimeoutInMinutes);
 
         private readonly SandboxedProcessOutputBuilder m_output;
         private readonly SandboxedProcessOutputBuilder m_error;

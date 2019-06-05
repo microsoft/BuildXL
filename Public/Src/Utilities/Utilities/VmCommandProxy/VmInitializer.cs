@@ -25,7 +25,7 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// <remarks>
         /// According to CB team, VM initialization roughly takes 2-3 minutes.
         /// </remarks>
-        private const int InitVmTimeoutInMinute = 15;
+        private const int InitVmTimeoutInMinute = 10;
 
         /// <summary>
         /// Path to VmCommandProxy executable.

@@ -13,7 +13,6 @@ config({
         ...globR(d`Private/QTest`, "module.config.dsc"),
         ...globR(d`Private/InternalSdk`, "module.config.dsc"),
         ...globR(d`Private/Tools`, "module.config.dsc"),
-        ...globR(d`Public/External/BuildPrediction`, "module.config.dsc"),
         ...globR(d`Public/Sdk/SelfHost`, "module.config.dsc"),
     ],
 
@@ -444,7 +443,9 @@ config({
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
                 { id: "System.CodeDom", version: "4.4.0"},
-                { id: "Microsoft.Build.Locator", version: "1.0.31"},
+
+                // Used for MSBuild input/output prediction
+                { id: "Microsoft.Build.Prediction", version: "0.1.0" },
 
                 { id: "SharpZipLib", version: "1.1.0" },
 

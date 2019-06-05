@@ -9,7 +9,7 @@ namespace Test.Tool.MsBuildGraphBuilder {
     export declare const qualifier: MSBuild.MSBuildQualifier;
 
     // If the current qualifier is full framework, this tool has to be built with 472
-    const msBuildGraphBuilderReference : Managed.Assembly = 
+    const msBuildGraphBuilderReference : Managed.Assembly =
         importFrom("BuildXL.Tools").MsBuildGraphBuilder.withQualifier(to472(qualifier)).exe;
 
     @@public
@@ -17,10 +17,10 @@ namespace Test.Tool.MsBuildGraphBuilder {
         assemblyName: "Test.Tool.ProjectGraphBuilder",
         sources: globR(d`.`, "*.cs"),
         // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,        
+        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         references:[
             msBuildGraphBuilderReference,
-            importFrom("Microsoft.Build.Prediction").BuildPrediction.dll,
+            importFrom("Microsoft.Build.Prediction").pkg,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.FrontEnd").MsBuild.Serialization.dll,
             ...MSBuild.msbuildReferences,

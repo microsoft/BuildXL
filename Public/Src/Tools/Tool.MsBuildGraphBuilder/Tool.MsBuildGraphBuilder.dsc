@@ -24,7 +24,7 @@ namespace MsBuildGraphBuilder {
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("System.Collections.Immutable").pkg,
             importFrom("DataflowForMSBuildRuntime").pkg,
-            importFrom("Microsoft.Build.Prediction").BuildPrediction.dll,
+            importFrom("Microsoft.Build.Prediction").pkg,
             NetFx.System.Threading.Tasks.dll,
             ...MSBuild.msbuildReferences,
         ],

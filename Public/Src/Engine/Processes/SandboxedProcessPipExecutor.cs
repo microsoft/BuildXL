@@ -1209,11 +1209,6 @@ namespace BuildXL.Processes
 
                         if (exitedButCanBeRetried)
                         {
-                            if (await TrySaveAndLogStandardOutputAsync(result) && await TrySaveAndLogStandardErrorAsync(result))
-                            {
-                                await TryLogErrorAsync(result, exitedWithSuccessExitCode);
-                            }
-
                             return SandboxedProcessPipExecutionResult.RetryProcessDueToExitCode(
                                 result.NumberOfProcessLaunchRetries,
                                 result.ExitCode,

@@ -262,5 +262,18 @@ namespace BuildXL.Utilities.Instrumentation.Common
             Contract.Requires(IsAsyncLoggingEnabled);
             m_loggingQueue.EnqueueLogAction(eventId, logAction, eventName);
         }
+
+        /// <summary>
+        /// Absorbs the state of another logging context, with respect to errors and warnings logged
+        /// </summary>
+        internal void AbsorbLoggingContextState(LoggingContext loggingContext)
+        {
+            m_errorsLogged += loggingContext.m_errorsLogged;
+            m_warningsLogged += loggingContext.m_warningsLogged;
+            foreach (var item in loggingContext.m_errorsLoggedById.Value)
+            {
+                m_errorsLoggedById.Value.Add(item);
+            }
+        }
     }
 }

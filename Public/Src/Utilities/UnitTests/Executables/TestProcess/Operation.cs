@@ -178,6 +178,11 @@ namespace Test.BuildXL.Executables.TestProcess
             /// Launches the debugger
             /// </summary>
             LaunchDebugger,
+
+            /// <summary>
+            /// Process that fails on first invocation and then succeeds on the second invocation
+            /// </summary>
+            SucceedOnRetry,
         }
 
         /// <summary>
@@ -368,6 +373,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.MoveFile:
                         DoMoveFile();
+                        return;
+                    case Type.SucceedOnRetry:
+                        DoSucceedOnRetry();
                         return;
                 }
             }
@@ -614,6 +622,17 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation Fail(int exitCode = -1)
         {
             return new Operation(Type.Fail, content: exitCode.ToString());
+        }
+
+        /// <summary>
+        /// Process that fails on first invocation and succeeds on second invocation.
+        /// </summary>
+        /// <param name="untrackedStateFilePath">File used to track state. This path should be untracked when scheduling the pip</param>
+        /// <param name="firstFailExitCode">Exit code for first failed invocation</param>
+        /// <returns></returns>
+        public static Operation SucceedOnRetry(FileArtifact untrackedStateFilePath, int firstFailExitCode = -1)
+        {
+            return new Operation(Type.SucceedOnRetry, path: untrackedStateFilePath, content: firstFailExitCode.ToString());
         }
 
         /// <summary>
@@ -961,6 +980,22 @@ namespace Test.BuildXL.Executables.TestProcess
             int exitCode = int.TryParse(Content, out var result) ? result : -1;
             Console.Error.WriteLine($"{Type.Fail} requested: Exiting with exit code {exitCode}");
             Environment.Exit(exitCode);
+        }
+
+        private void DoSucceedOnRetry()
+        {
+            // Use this state file to differentiate between the first run and the second run. The file will contain the exit code for the second run
+            string stateFilePath = FileOrDirectoryToString(Path);
+            if (File.Exists(stateFilePath))
+            {
+                int thisRunExitCode = int.Parse(File.ReadAllText(stateFilePath));
+                Environment.Exit(thisRunExitCode);
+            }
+            else
+            {
+                File.WriteAllText(stateFilePath, "0");
+                Environment.Exit(int.Parse(Content));
+            }
         }
 
         /*** COMMAND LINE PARSING FUNCTION ***/

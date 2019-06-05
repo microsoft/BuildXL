@@ -2053,7 +2053,7 @@ EXIT /b 3
                           AssertVerboseEventLogged(EventId.PipWillBeRetriedDueToExitCode, count: RetryCount);
                       });
 
-            SetExpectedFailures(4, 0);
+            SetExpectedFailures(1, 0);
         }
 
         [Fact]

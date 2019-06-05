@@ -1218,12 +1218,6 @@ namespace BuildXL.Processes
 
                         if (m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0)
                         {
-                            // Retry if user specifies that the exit code can be retried.
-                            if (await TrySaveAndLogStandardOutputAsync(result) && await TrySaveAndLogStandardErrorAsync(result))
-                            {
-                                await TryLogErrorAsync(result, exitedWithSuccessExitCode);
-                            }
-
                             return SandboxedProcessPipExecutionResult.RetryProcessDueToUserSpecifiedExitCode(
                                 result.NumberOfProcessLaunchRetries,
                                 result.ExitCode,

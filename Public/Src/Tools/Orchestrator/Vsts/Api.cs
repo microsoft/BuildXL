@@ -172,15 +172,10 @@ namespace BuildXL.Orchestrator.Vsts
 
             if (record != null)
             {
-                // Try to remove all values for the default keys first, this makes sure updating for the same agent works and has no effect if variables are empty
-                record.Variables.Remove(Constants.MachineType);
-                record.Variables.Remove(Constants.MachineHostName);
-                record.Variables.Remove(Constants.MachineIpV4Address);
-
-                // Add agent info for the build orchestration
-                record.Variables.Add(Constants.MachineType, (isMaster ? AgentType.Master : AgentType.Worker).ToString());
-                record.Variables.Add(Constants.MachineHostName, hostName);
-                record.Variables.Add(Constants.MachineIpV4Address, ipV4Address);
+                // Add / update agent info for the build orchestration
+                record.Variables[Constants.MachineType] = (isMaster ? AgentType.Master : AgentType.Worker).ToString();
+                record.Variables[Constants.MachineHostName] = hostName;
+                record.Variables[Constants.MachineIpV4Address] = ipV4Address;
 
                 await m_taskClient.UpdateTimelineRecordsAsync(
                     new Guid(TeamProjectId),

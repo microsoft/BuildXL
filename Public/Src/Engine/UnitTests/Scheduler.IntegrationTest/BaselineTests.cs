@@ -1111,12 +1111,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             {
                 Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "out.txt")), content: "Hello"),
                 succeedOnRetry ? 
-                    Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, firstFailExitCode: -2) :
+                    Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, firstFailExitCode: 42) :
                     Operation.Fail(-2),
             };
 
             var builder = CreatePipBuilder(ops);
-            builder.RetryExitCodes = global::BuildXL.Utilities.Collections.ReadOnlyArray<int>.From(new int[] { -2 });
+            builder.RetryExitCodes = global::BuildXL.Utilities.Collections.ReadOnlyArray<int>.From(new int[] { 42 });
             builder.AddUntrackedFile(stateFile.Path);
             SchedulePipBuilder(builder);
 

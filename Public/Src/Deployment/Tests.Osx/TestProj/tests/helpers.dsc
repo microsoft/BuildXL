@@ -4,7 +4,6 @@
 import {Transformer} from "Sdk.Transformers";
 import * as XUnit from "DotNetCore.XUnit";
 import * as DotNet from "DotNetCore.DotNetCoreRunner";
-import * as BuildXLSdk from "Sdk.BuildXL";
 
 export function getDefaultXunitArgs(testAssembly: File, outDir: Directory): XUnit.Arguments {
     return <XUnit.Arguments>{
@@ -53,7 +52,7 @@ function runSingleXunitInstance(args: Arguments): DerivedFile[] {
         (args.traits || []).length > 0 ? "Traits-" + args.traits.map(t => t.value).join("_") :
         (args.noTraits || []).length > 0 ? "Rest" : "ALL";
 
-    args = args.merge<Arguments>({noTraits: ["WindowsOSOnly", "QTestSkip", "Performance", ...(BuildXLSdk.isDotNetCoreBuild ? [ "SkipDotNetCore" ] : []), ...args.noTraits].map(categoryToTrait)});
+    args = args.merge<Arguments>({noTraits: ["WindowsOSOnly", "QTestSkip", "Performance", ...(qualifier.targetFramework === "netcoreapp3.0" ? [ "SkipDotNetCore" ] : []), ...args.noTraits].map(categoryToTrait)});
 
     const outDir = Context.getNewOutputDirectory("xunit");
     const finalXunitArgs = getDefaultXunitArgs(args.testAssembly, outDir).override<XUnit.Arguments>(args);

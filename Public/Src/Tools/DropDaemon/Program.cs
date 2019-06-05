@@ -769,12 +769,6 @@ namespace Tool.DropDaemon
             Contract.Requires(!string.IsNullOrEmpty(directoryId));
             Contract.Requires(dropPath != null);
 
-            // TODO: can be removed when the IPC lazy directory dependencies feature is implemented 
-            if (!System.IO.Directory.Exists(directoryPath))
-            {
-                return (null, Inv("directory '{0}' does not exist", directoryPath));
-            }
-
             if (daemon.ApiClient == null)
             {
                 return (null, "ApiClient is not initialized");

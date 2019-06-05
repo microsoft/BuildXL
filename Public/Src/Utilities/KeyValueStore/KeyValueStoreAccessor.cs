@@ -71,7 +71,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <summary>
         /// Protects the store from being disposed while read/write operations are occurring and vice versa.
         /// </summary>
-        private readonly ReadWriteLock m_rwl = new ReadWriteLock();
+        private readonly ReadWriteLock m_rwl = ReadWriteLock.Create();
 
         /// <summary>
         /// <see cref="Failure"/> to return when this store has been disabled due to an error.

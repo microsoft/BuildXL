@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -621,7 +622,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (Interlocked.Increment(ref _cacheUpdatesSinceLastFlush) == _configuration.CacheMaximumUpdatesPerFlush)
                 {
                     Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByUpdates].Increment();
-                    Task.Run(() => ForceCacheFlush(context)).Forget();
+                    ForceCacheFlushAsync(context).FireAndForget(context);
                 }
             }
             else
@@ -636,14 +637,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Store(context, hash, entry: null);
         }
 
-        internal void ForceCacheFlush(OperationContext context)
+        private Task ForceCacheFlushAsync(OperationContext context)
         {
             if (!IsInMemoryCacheEnabled)
             {
-                return;
+                return BoolResult.SuccessTask;
             }
 
-            context.PerformOperationAsync(
+            return context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
@@ -657,7 +658,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         Interlocked.Exchange(ref _cacheUpdatesSinceLastFlush, 0);
                         ResetFlushTimer();
                     }
-                }).ThrowIfFailure().Wait();
+                }).ThrowIfFailure();
+        }
+
+        internal void ForceCacheFlush(OperationContext context)
+        {
+            ForceCacheFlushAsync(context).GetAwaiter().GetResult();
         }
 
         private ContentLocationEntry SetMachineExistenceAndUpdateDatabase(OperationContext context, ShortHash hash, MachineId? machine, bool existsOnMachine, long size, UnixTime? lastAccessTime, bool reconciling)

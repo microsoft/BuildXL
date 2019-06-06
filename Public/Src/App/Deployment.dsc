@@ -34,7 +34,6 @@ function createDeploymentManifest(isServerDeployment: boolean) : Deployment.Defi
 
             ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
                 RunInSubst.withQualifier({configuration: qualifier.configuration, platform: "x86"}).deployment,
-                DetoursServices.Deployment.definition
             ]),
 
             ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [

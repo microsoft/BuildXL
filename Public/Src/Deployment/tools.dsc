@@ -16,9 +16,6 @@ namespace Tools {
 
         export const deployment : Deployment.Definition = {
             contents: [
-                ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [
-                    DetoursServices.Deployment.definition
-                ]),
                 ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
                     MacServices.Deployment.kext,
                     MacServices.Deployment.sandboxMonitor,

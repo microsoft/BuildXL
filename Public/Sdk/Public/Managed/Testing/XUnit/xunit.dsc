@@ -65,6 +65,13 @@ export function runConsoleTest(args: TestRunArguments): Result {
 
     const result = Transformer.execute(execArguments);
 
+    if (Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")) {
+        const qualifierRelative = r`${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`;
+        const xunitLogDir = d`${Context.getMount("LogsDirectory").path}/XUnit/${args.testDeployment.primaryFile.name}/{qualifierRelative}`;
+
+        const copies = result.getOutputFiles().map(f => Transformer.copyFile(f, p`${xunitLogDir}/${f.name}`));
+    }
+
     return {
         xmlFile:   args.xmlFile && result.getOutputFile(args.xmlFile),
         xmlV1File: args.xmlV1File && result.getOutputFile(args.xmlV1File),

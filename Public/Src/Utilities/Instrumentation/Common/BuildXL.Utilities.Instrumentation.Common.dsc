@@ -21,6 +21,9 @@ namespace Common {
             ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
                 MacServices.Deployment.ariaLibrary
             ]),
-        ]
+        ],
+        internalsVisibleTo: [
+            "IntegrationTest.BuildXL.Scheduler",
+        ],
     });
 }

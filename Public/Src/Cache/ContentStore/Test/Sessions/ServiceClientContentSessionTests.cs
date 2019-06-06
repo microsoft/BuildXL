@@ -23,6 +23,8 @@ using ContentStoreTest.Stores;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
+using System.IO;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 namespace ContentStoreTest.Sessions
 {
@@ -317,6 +319,93 @@ namespace ContentStoreTest.Sessions
                         {
                             var r2 = await session.StartupAsync(_context);
                             r2.ShouldBeError();
+                        }
+                    }
+                    finally
+                    {
+                        var r = await store.ShutdownAsync(_context);
+                        r.ShouldBeSuccess();
+                    }
+                }
+            }
+        }
+
+        internal class RestrictedMemoryStream : MemoryStream
+        {
+            public RestrictedMemoryStream(byte[] buffer) : base(buffer, false)
+            {
+            }
+
+            public override long Length => throw new NotImplementedException();
+
+            public override bool CanWrite => throw new NotImplementedException();
+
+            public override void SetLength(long value)
+            {
+                throw new NotImplementedException();
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                throw new NotImplementedException();
+            }
+
+            public override void WriteByte(byte value)
+            {
+                throw new NotImplementedException();
+            }
+
+            public override bool CanSeek => throw new NotImplementedException();
+
+            public override long Seek(long offset, SeekOrigin loc)
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        [Fact]
+        public async Task PutStreamSucceedsWithNonSeekableStream()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var rootPath = testDirectory.Path;
+                var config = CreateStoreConfiguration();
+                await config.Write(FileSystem, rootPath);
+
+                using (var store = CreateStore(testDirectory, config))
+                {
+                    try
+                    {
+                        var r = await store.StartupAsync(_context);
+                        r.ShouldBeSuccess();
+
+                        IContentSession session1 = null;
+
+                        try
+                        {
+                            var createSessionResult1 = store.CreateSession(_context, "session1", ImplicitPin.None);
+                            createSessionResult1.ShouldBeSuccess();
+
+                            using (createSessionResult1.Session)
+                            {
+                                var r1 = await createSessionResult1.Session.StartupAsync(_context);
+                                r1.ShouldBeSuccess();
+                                session1 = createSessionResult1.Session;
+
+                                using (var memoryStream = new RestrictedMemoryStream(ThreadSafeRandom.GetBytes(RandomContentByteCount)))
+                                {
+                                    var result = await session1.PutStreamAsync(_context, ContentHashType, memoryStream, Token);
+                                    result.ShouldBeSuccess();
+                                    result.ContentSize.Should().Be(RandomContentByteCount);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            if (session1 != null)
+                            {
+                                await session1.ShutdownAsync(_context).ShouldBeSuccess();
+                            }
                         }
                     }
                     finally

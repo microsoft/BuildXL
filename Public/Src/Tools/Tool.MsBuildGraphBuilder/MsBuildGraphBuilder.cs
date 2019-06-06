@@ -39,7 +39,7 @@ namespace MsBuildGraphBuilderTool
         // See https://github.com/Microsoft/msbuild/blob/master/documentation/specs/static-graph.md#inferring-which-targets-to-run-for-a-project-within-the-graph
         // TODO: maybe the static graph API can provide this information in the future in a more native way
         private const string ProjectReferenceTargets = "ProjectReferenceTargets";
-        
+
         /// <summary>
         /// Makes sure the required MsBuild assemblies are loaded from, uses the MsBuild static graph API to get a build graph starting
         /// at the project entry point and serializes it to an output file.
@@ -64,7 +64,7 @@ namespace MsBuildGraphBuilderTool
         /// For tests only. Similar to <see cref="BuildGraphAndSerialize(MSBuildGraphBuilderArguments)"/>, but the assembly loader and reporter can be passed explicitly
         /// </summary>
         internal static void BuildGraphAndSerializeForTesting(
-            IMsBuildAssemblyLoader assemblyLoader, 
+            IMsBuildAssemblyLoader assemblyLoader,
             GraphBuilderReporter reporter,
             MSBuildGraphBuilderArguments arguments,
             IReadOnlyCollection<IProjectStaticPredictor> projectPredictorsForTesting = null)
@@ -77,7 +77,7 @@ namespace MsBuildGraphBuilderTool
         }
 
         private static void DoBuildGraphAndSerialize(
-            IMsBuildAssemblyLoader assemblyLoader, 
+            IMsBuildAssemblyLoader assemblyLoader,
             GraphBuilderReporter reporter,
             MSBuildGraphBuilderArguments arguments,
             IReadOnlyCollection<IProjectStaticPredictor> projectPredictorsForTesting = null)
@@ -134,10 +134,10 @@ namespace MsBuildGraphBuilderTool
                 var projectInstanceToProjectCache = new ConcurrentDictionary<ProjectInstance, Project>();
 
                 if (!TryBuildEntryPoints(
-                    graphBuildArguments.ProjectsToParse, 
-                    graphBuildArguments.RequestedQualifiers, 
-                    graphBuildArguments.GlobalProperties, 
-                    out List<ProjectGraphEntryPoint> entryPoints, 
+                    graphBuildArguments.ProjectsToParse,
+                    graphBuildArguments.RequestedQualifiers,
+                    graphBuildArguments.GlobalProperties,
+                    out List<ProjectGraphEntryPoint> entryPoints,
                     out string failure))
                 {
                     return ProjectGraphWithPredictionsResult.CreateFailure(
@@ -149,7 +149,7 @@ namespace MsBuildGraphBuilderTool
                 var projectGraph = new ProjectGraph(
                     entryPoints,
                     // The project collection doesn't need any specific global properties, since entry points already contain all the ones that are needed, and the project graph will merge them
-                    new ProjectCollection(), 
+                    new ProjectCollection(),
                     (projectPath, globalProps, projectCollection) => ProjectInstanceFactory(projectPath, globalProps, projectCollection, projectInstanceToProjectCache));
 
                 // This is a defensive check to make sure the assembly loader actually honored the search locations provided by the user. The path of the assembly where ProjectGraph
@@ -161,28 +161,27 @@ namespace MsBuildGraphBuilderTool
                 if (!assemblyPathsToLoad.Values.Contains(assemblylocation, StringComparer.InvariantCultureIgnoreCase))
                 {
                     return ProjectGraphWithPredictionsResult.CreateFailure(
-                        GraphConstructionError.CreateFailureWithoutLocation($"Internal error: the assembly '{assembly.GetName().Name}' was loaded from '{assemblylocation}'. This path doesn't match any of the provided search locations. Please contact the BuildXL team."), 
-                        assemblyPathsToLoad, 
+                        GraphConstructionError.CreateFailureWithoutLocation($"Internal error: the assembly '{assembly.GetName().Name}' was loaded from '{assemblylocation}'. This path doesn't match any of the provided search locations. Please contact the BuildXL team."),
+                        assemblyPathsToLoad,
                         locatedMsBuildPath);
                 }
 
                 reporter.ReportMessage("Done parsing MSBuild specs.");
 
                 if (!TryConstructGraph(
-                    projectGraph, 
-                    locatedMsBuildPath,
-                    graphBuildArguments.EnlistmentRoot, 
-                    reporter, 
+                    projectGraph,
+                    graphBuildArguments.EnlistmentRoot,
+                    reporter,
                     projectInstanceToProjectCache,
-                    graphBuildArguments.EntryPointTargets, 
-                    projectPredictorsForTesting, 
+                    graphBuildArguments.EntryPointTargets,
+                    projectPredictorsForTesting,
                     graphBuildArguments.AllowProjectsWithoutTargetProtocol,
-                    out ProjectGraphWithPredictions projectGraphWithPredictions, 
+                    out ProjectGraphWithPredictions projectGraphWithPredictions,
                     out failure))
                 {
                     return ProjectGraphWithPredictionsResult.CreateFailure(
-                        GraphConstructionError.CreateFailureWithoutLocation(failure), 
-                        assemblyPathsToLoad, 
+                        GraphConstructionError.CreateFailureWithoutLocation(failure),
+                        assemblyPathsToLoad,
                         locatedMsBuildPath);
                 }
 
@@ -218,9 +217,9 @@ namespace MsBuildGraphBuilderTool
         /// configuration) plus the particular qualifier, which is passed to MSBuild as properties as well.
         /// </remarks>
         private static bool TryBuildEntryPoints(
-            IReadOnlyCollection<string> projectsToParse, 
-            IReadOnlyCollection<GlobalProperties> requestedQualifiers, 
-            GlobalProperties globalProperties, 
+            IReadOnlyCollection<string> projectsToParse,
+            IReadOnlyCollection<GlobalProperties> requestedQualifiers,
+            GlobalProperties globalProperties,
             out List<ProjectGraphEntryPoint> entryPoints,
             out string failure)
         {
@@ -299,10 +298,9 @@ namespace MsBuildGraphBuilderTool
         }
 
         private static bool TryConstructGraph(
-            ProjectGraph projectGraph, 
-            string locatedMsBuildPath, 
-            string enlistmentRoot, 
-            GraphBuilderReporter reporter, 
+            ProjectGraph projectGraph,
+            string enlistmentRoot,
+            GraphBuilderReporter reporter,
             ConcurrentDictionary<ProjectInstance, Project> projectInstanceToProjectCache,
             IReadOnlyCollection<string> entryPointTargets,
             IReadOnlyCollection<IProjectStaticPredictor> projectPredictorsForTesting,
@@ -311,7 +309,6 @@ namespace MsBuildGraphBuilderTool
             out string failure)
         {
             Contract.Assert(projectGraph != null);
-            Contract.Assert(!string.IsNullOrEmpty(locatedMsBuildPath));
 
             var projectNodes = new ProjectWithPredictions[projectGraph.ProjectNodes.Count];
 
@@ -335,7 +332,7 @@ namespace MsBuildGraphBuilderTool
             IReadOnlyCollection<IProjectStaticPredictor> predictors;
             try
             {
-                predictors = projectPredictorsForTesting ?? ProjectStaticPredictorFactory.CreateStandardPredictors(locatedMsBuildPath);
+                predictors = projectPredictorsForTesting ?? ProjectStaticPredictors.BasicPredictors;
             }
             catch(Exception ex)
             {
@@ -372,9 +369,9 @@ namespace MsBuildGraphBuilderTool
                 catch(Exception ex)
                 {
                     predictedIOFailures.Enqueue((
-                        new string[] { "Unknown predictor" }, 
+                        new string[] { "Unknown predictor" },
                         $"Cannot run static predictor on project '{project.FullPath ?? "Unknown project"}'. An unexpected error occurred. Please contact BuildPrediction project owners with this stack trace: {ex.ToString()}"));
-                    
+
                     // Stick an empty prediction. The error will be caught anyway after all predictors are done.
                     predictions = new StaticPredictions(new BuildInput[] { }, new BuildOutputDirectory[] { });
                 }
@@ -391,10 +388,10 @@ namespace MsBuildGraphBuilderTool
                 }
 
                  if (!TryGetPredictedTargetsAndPropertiesToExecute(
-                    projectInstance, 
-                    msBuildNode, 
-                    targetsPerProject, 
-                    computedTargets, 
+                    projectInstance,
+                    msBuildNode,
+                    targetsPerProject,
+                    computedTargets,
                     pendingAddDefaultTargets,
                     allowProjectsWithoutTargetProtocol,
                     out GlobalProperties globalProperties,
@@ -424,7 +421,7 @@ namespace MsBuildGraphBuilderTool
                 msBuildNodesToNodeWithPredictionIndex[msBuildNode] = projectNodes[i];
             });
 
-            // There were IO prediction errors. 
+            // There were IO prediction errors.
             if (!predictedIOFailures.IsEmpty)
             {
                 projectGraphWithPredictions = new ProjectGraphWithPredictions(new ProjectWithPredictions<string>[] { });
@@ -433,7 +430,7 @@ namespace MsBuildGraphBuilderTool
                 return false;
             }
 
-            // There were target prediction errors. 
+            // There were target prediction errors.
             if (!predictedTargetFailures.IsEmpty)
             {
                 projectGraphWithPredictions = new ProjectGraphWithPredictions(new ProjectWithPredictions<string>[] { });
@@ -519,7 +516,7 @@ namespace MsBuildGraphBuilderTool
 
             // This is the case where the project doesn't implement the protocol, it has non-empty references
             // and projects without a protocol are not allowed.
-            
+
             failure = $"Project '{projectInstance.FullPath}' is not specifying its project reference protocol. For more details see https://github.com/Microsoft/msbuild/blob/master/documentation/specs/static-graph.md";
             computedTargets = null;
             globalPropertiesForNode = GlobalProperties.Empty;

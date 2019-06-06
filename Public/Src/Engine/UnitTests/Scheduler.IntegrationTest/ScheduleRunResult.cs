@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using Test.BuildXL.TestUtilities.Xunit;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Scheduler.Fingerprints;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -46,6 +47,27 @@ namespace Test.BuildXL.Scheduler
         {
             XAssert.IsFalse(Success, "Expected scheduler to run with at least one pip failing");
             return this;
+        }
+
+        /// <summary>
+        /// Validates that if the scheduler returns success, no errors are logged. If the scheduler returns a failure, errors mubt be logged.
+        /// </summary>
+        /// <param name="loggingContext"></param>
+        public void AssertSuccessMatchesLogging(LoggingContext loggingContext)
+        {
+            // Validate that error logging is correct
+            if (Success)
+            {
+                if (loggingContext.ErrorWasLogged)
+                {
+                    XAssert.Fail("No error should be logged if status is success. " +
+                        "Errors logged: " + string.Join(", ", loggingContext.ErrorsLoggedById.ToArray()));
+                }
+            }
+            else
+            {
+                XAssert.IsTrue(loggingContext.ErrorWasLogged, "Error should have been logged for non-success");
+            }
         }
 
         /// <summary>

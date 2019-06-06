@@ -52,7 +52,7 @@ namespace Test.BuildXL.Processes
                 PipDescription = pipDescription,
                 WorkingDirectory = TemporaryDirectory,
                 Arguments = process.Arguments.ToString(Context.PathTable),
-                Timeout = TimeSpan.FromMinutes(10),
+                Timeout = TimeSpan.FromMinutes(15),
                 EnvironmentVariables = BuildParameters.GetFactory().PopulateFromDictionary(envVars)
             };
 

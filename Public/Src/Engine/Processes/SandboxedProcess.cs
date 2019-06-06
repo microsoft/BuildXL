@@ -18,6 +18,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes.Internal;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Threading;
 using Microsoft.Win32.SafeHandles;
@@ -81,11 +82,11 @@ namespace BuildXL.Processes
                 s_binaryPaths = new BinaryPaths(); // this can take a while; performs I/O
             }
 
-            // If unspecified make the injection timeout 10 mins. Also, make it no less than 10 mins.
-            m_timeoutMins = info.Timeout.HasValue ? ((uint)info.Timeout.Value.TotalMinutes) : 10;
-            if (m_timeoutMins < 10)
+            // If unspecified make the injection timeout the DefaultProcessTimeoutInMinutes. Also, make it no less than DefaultProcessTimeoutInMinutes.
+            m_timeoutMins = info.Timeout.HasValue ? ((uint)info.Timeout.Value.TotalMinutes) : SandboxConfiguration.DefaultProcessTimeoutInMinutes;
+            if (m_timeoutMins < SandboxConfiguration.DefaultProcessTimeoutInMinutes)
             {
-                m_timeoutMins = 10;
+                m_timeoutMins = SandboxConfiguration.DefaultProcessTimeoutInMinutes;
             }
 
             m_fileAccessManifest = info.FileAccessManifest;
@@ -595,7 +596,7 @@ namespace BuildXL.Processes
                     }
                 }
             }
-            
+
 
             return survivingChildProcesses;
         }

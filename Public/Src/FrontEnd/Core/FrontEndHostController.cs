@@ -1094,7 +1094,9 @@ namespace BuildXL.FrontEnd.Core
             Contract.Requires(configuration != null);
             Contract.Requires(HostState == State.ConfigInterpreted);
 
+            m_logger.CheckerGlobalWarning(FrontEndContext.LoggingContext, "Start GetSourceResolverSettingsWithDefaults");
             var resolverConfigurations = GetSourceResolverSettingsWithDefaults(configuration);
+            m_logger.CheckerGlobalWarning(FrontEndContext.LoggingContext, "End GetSourceResolverSettingsWithDefaults");
 
             if (resolverConfigurations == null)
             {
@@ -1105,12 +1107,16 @@ namespace BuildXL.FrontEnd.Core
             // The factory context may be not set if the controller is not using the workspace, so we set that here
             if (!m_workspaceResolverFactory.IsInitialized)
             {
+                m_logger.CheckerGlobalWarning(FrontEndContext.LoggingContext, "Start m_workspaceResolverFactory.Initalize");
                 m_workspaceResolverFactory.Initialize(FrontEndContext, this, configuration, requestedQualifiers);
+                m_logger.CheckerGlobalWarning(FrontEndContext.LoggingContext, "End m_workspaceResolverFactory.Initalize");
             }
 
             foreach (IFrontEnd frontEnd in m_frontEndFactory.RegisteredFrontEnds)
             {
+                m_logger.CheckerGlobalWarning(FrontEndContext.LoggingContext, $"Start Initalize {frontEnd.GetType().Name} front end");
                 frontEnd.InitializeFrontEnd(this, FrontEndContext, configuration);
+                m_logger.CheckerGlobalWarning(FrontEndContext.LoggingContext, $"End Initalize {frontEnd.GetType().Name} front end");
             }
 
             // For each resolver settings, tries to find a front end for it.
@@ -1135,6 +1141,7 @@ namespace BuildXL.FrontEnd.Core
                     return false;
                 }
 
+                m_logger.CheckerGlobalWarning(FrontEndContext.LoggingContext, $"Start Initalize {resolver.GetType().Name} resolver");
                 // TODO: Make initialization async.
                 if (!resolver.InitResolverAsync(resolverConfiguration, maybeWorkspaceResolver.Result).GetAwaiter().GetResult())
                 {
@@ -1142,6 +1149,7 @@ namespace BuildXL.FrontEnd.Core
                     return false;
                 }
 
+                m_logger.CheckerGlobalWarning(FrontEndContext.LoggingContext, $"End Initalize {resolver.GetType().Name} resolver");
                 resolvers.Add(resolver);
             }
 

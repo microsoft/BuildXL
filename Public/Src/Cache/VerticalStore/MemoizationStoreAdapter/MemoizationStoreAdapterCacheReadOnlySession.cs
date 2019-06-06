@@ -54,6 +54,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         protected readonly BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache Cache;
 
         /// <summary>
+        /// Replace existing file on placing file from cache.
+        /// </summary>
+        protected bool ReplaceExistingOnPlaceFile;
+
+        /// <summary>
         /// .ctor
         /// </summary>
         /// <param name="readOnlyCacheSession">Backing ReadOnlyCacheSession for content and fingerprint calls</param>
@@ -61,12 +66,14 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <param name="cacheId">Id of the parent cache that spawned the session.</param>
         /// <param name="logger">Diagnostic logger</param>
         /// <param name="sessionId">Telemetry ID for the session.</param>
+        /// <param name="replaceExistingOnPlaceFile">When true, replace existing file when placing file.</param>
         public MemoizationStoreAdapterCacheReadOnlySession(
             IReadOnlyCacheSession readOnlyCacheSession,
             BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache cache,
             string cacheId,
             ILogger logger,
-            string sessionId = null)
+            string sessionId = null,
+            bool replaceExistingOnPlaceFile = false)
         {
             ReadOnlyCacheSession = readOnlyCacheSession;
             Cache = cache;
@@ -74,6 +81,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             CacheId = cacheId;
             CacheSessionId = sessionId;
             SessionEntries = sessionId == null ? null : new ConcurrentDictionary<StrongFingerprint, int>();
+            ReplaceExistingOnPlaceFile = replaceExistingOnPlaceFile;
         }
 
         /// <inheritdoc />
@@ -204,7 +212,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 hash.ToMemoization(),
                 new BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath(filename),
                 fileState == FileState.ReadOnly ? FileAccessMode.ReadOnly : FileAccessMode.Write,
-                FileReplacementMode.FailIfExists,
+                ReplaceExistingOnPlaceFile ? FileReplacementMode.ReplaceExisting : FileReplacementMode.FailIfExists,
                 fileState.ToMemoization(),
                 CancellationToken.None);
 

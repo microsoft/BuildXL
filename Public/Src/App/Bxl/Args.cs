@@ -734,6 +734,9 @@ namespace BuildXL
                             CommandLineUtilities.ParseBoolEnumOption(opt, sign, RemoteTelemetry.EnabledAndNotify, RemoteTelemetry.Disabled),
                             isEnabled: (() => loggingConfiguration.RemoteTelemetry != RemoteTelemetry.Disabled)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "replaceExistingFileOnMaterialization",
+                            sign => cacheConfiguration.ReplaceExistingFileOnMaterialization = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "replayWarnings",
                             sign => loggingConfiguration.ReplayWarnings = sign),
                         OptionHandlerFactory.CreateOption(

@@ -116,7 +116,7 @@ namespace ContentStoreTest.Distributed.Stores
 
             await _clientCache.CleanupAsync();
 
-            // Zero clients were cleaned
+            // All clients were cleaned
             Assert.Equal(maxClientCount, _clientCache.Counter.GetCounterValue(GrpcCopyClientCacheCounters.ClientsCleaned));
         }
 

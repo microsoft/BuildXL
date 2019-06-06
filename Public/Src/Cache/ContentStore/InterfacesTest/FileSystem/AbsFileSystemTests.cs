@@ -787,7 +787,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        [Trait("Category", "WindowsOSOnly")] // Unix does not block nested opens, even with FileShare.None
+        [Trait("Category", "SkipDotNetCore")] // DotNetCore does not block nested opens, even with FileShare.None
         public async Task OpenDenyWriteFileForWriteThrows()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))

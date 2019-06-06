@@ -43,7 +43,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean) : Deployment.D
                     {
                         subfolder: "Sdk.Drop",
                         contents: [
-                            ...addIfLazy(!serverDeployment && BuildXLSdk.isDropToolingEnabled, () => [
+                            ...addIfLazy(!serverDeployment && !BuildXLSdk.isTargetRuntimeOsx, () => [
                                 importFrom("BuildXL.Tools.DropDaemon").withQualifier({
                                     configuration: qualifier.configuration,
                                     targetFramework: "net472",

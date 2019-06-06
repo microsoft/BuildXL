@@ -27,6 +27,7 @@ namespace Server {
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Branding.dll,
+            importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Tools").Execution.Analyzer.exe,
 

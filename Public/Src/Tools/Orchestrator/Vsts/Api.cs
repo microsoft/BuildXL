@@ -172,9 +172,10 @@ namespace BuildXL.Orchestrator.Vsts
 
             if (record != null)
             {
-                record.Variables.Add(Constants.MachineType, (isMaster ? AgentType.Master : AgentType.Worker).ToString());
-                record.Variables.Add(Constants.MachineHostName, hostName);
-                record.Variables.Add(Constants.MachineIpV4Address, ipV4Address);
+                // Add / update agent info for the build orchestration
+                record.Variables[Constants.MachineType] = (isMaster ? AgentType.Master : AgentType.Worker).ToString();
+                record.Variables[Constants.MachineHostName] = hostName;
+                record.Variables[Constants.MachineIpV4Address] = ipV4Address;
 
                 await m_taskClient.UpdateTimelineRecordsAsync(
                     new Guid(TeamProjectId),

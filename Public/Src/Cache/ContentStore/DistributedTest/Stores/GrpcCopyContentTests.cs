@@ -88,6 +88,39 @@ namespace ContentStoreTest.Distributed.Stores
         }
 
         [Fact]
+        public async Task FillCacheWithoutRemovingClients()
+        {
+            int maxClientCount = 10;
+            var clientList = new List<GrpcCopyClient>();
+            _clientCache = new GrpcCopyClientCache(_context, maxClientCount: maxClientCount, maxClientAgeMinutes: 63, waitBetweenCleanupMinutes: 30);
+
+            for (int i = 0; i < maxClientCount; i++)
+            {
+                clientList.Add(await _clientCache.CreateAsync(LocalHost, i, true));
+            }
+
+            // Create new clients for every port
+            Assert.Equal(maxClientCount, _clientCache.Counter.GetCounterValue(GrpcCopyClientCacheCounters.ClientsCreated));
+
+            // Zero clients were cleaned
+            Assert.Equal(0, _clientCache.Counter.GetCounterValue(GrpcCopyClientCacheCounters.ClientsCleaned));
+
+            // Zero clients were reused
+            Assert.Equal(0, _clientCache.Counter.GetCounterValue(GrpcCopyClientCacheCounters.ClientsReused));
+
+            foreach (var c in clientList)
+            {
+                c._lastUseTime -= TimeSpan.FromDays(1);
+                c.Dispose();
+            }
+
+            await _clientCache.CleanupAsync();
+
+            // Zero clients were cleaned
+            Assert.Equal(maxClientCount, _clientCache.Counter.GetCounterValue(GrpcCopyClientCacheCounters.ClientsCleaned));
+        }
+
+        [Fact]
         public async Task CopyExistingFile()
         {
             await RunTestCase(nameof(CopyExistingFile), async (rootPath, session, client) =>

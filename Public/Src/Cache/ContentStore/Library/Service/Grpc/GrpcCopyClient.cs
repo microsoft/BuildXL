@@ -37,7 +37,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         internal GrpcCopyClientKey Key { get; private set; }
 
-        public int Uses
+        /// <summary>
+        /// Count of current users of this client.
+        /// </summary>
+        internal int Uses
         {
             get
             {

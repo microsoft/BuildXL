@@ -32,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private readonly ConcurrentDictionary<GrpcCopyClientKey, Lazy<GrpcCopyClient>> _clientDict;
 
-        private CounterCollection<GrpcCopyClientCacheCounters> Counter { get; } = new CounterCollection<GrpcCopyClientCacheCounters>();
+        internal CounterCollection<GrpcCopyClientCacheCounters> Counter { get; } = new CounterCollection<GrpcCopyClientCacheCounters>();
 
         /// <summary>
         /// Cache for <see cref="GrpcCopyClient"/>.
@@ -55,6 +55,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _backgroundCleaningTask = Task.Run(() => BackgroundCleanupAsync());
         }
 
+        /// <summary>
+        /// Call <see cref="EnsureCapacityAsync"/> in a background delayed loop.
+        /// </summary>
         private async Task BackgroundCleanupAsync()
         {
             var ct = _backgroundCleaningTaskTokenSource.Token;
@@ -71,6 +74,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
         }
 
+        private async Task EnsureCapacityAsync()
+        {
+            if (_clientDict.Count >= _maxClientCount)
+            {
+                await RunOnceAsync(ref _pendingCleanupTask, _pendingCleanupTaskLock, () => CleanupAsync(force: true));
+            }
+        }
+
+        /// <summary>
+        /// Free clients which are no longer in use and older than <see cref="_maximumAgeInMinutes"/> minutes.
+        /// </summary>
+        /// <param name="force">Whether last use time should be ignored.</param>
         internal async Task CleanupAsync(bool force = false)
         {
             var earliestLastUseTime = DateTime.UtcNow - TimeSpan.FromMinutes(_maximumAgeInMinutes);
@@ -80,16 +95,21 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 foreach (var kvp in _clientDict)
                 {
+                    // Don't free clients which have not yet been instantiated. This avoids a race between
+                    // construction of the lazy object and initialization.
                     if (!kvp.Value.IsValueCreated)
                     {
                         continue;
                     }
 
                     var client = kvp.Value.Value;
+
+                    // If the client is approved for shutdown, queue it to shutdown.
                     if (client.TryMarkForShutdown(force, earliestLastUseTime))
                     {
                         bool removed = _clientDict.TryRemove(kvp.Key, out _);
                         Contract.Assert(removed, $"Unable to remove client {kvp.Key} which was marked for shutdown.");
+
                         // Cannot await within a lock
                         shutdownTasks.Add(client.ShutdownAsync(_context));
                     }
@@ -115,16 +135,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
         }
 
-        private async Task EnsureCapacityAsync()
-        {
-            if (_clientDict.Count >= _maxClientCount)
-            {
-                await RunOnceAsync(ref _pendingCleanupTask, _pendingCleanupTaskLock, () => CleanupAsync(force: true));
-            }
-        }
-
         /// <summary>
-        /// Assuming <paramref name="pendingTask"/> is non-null, will either return an in-progress <paramref name="pendingTask"/> or start a new task from <paramref name="runAsync"/> 
+        /// Assuming <paramref name="pendingTask"/> is a non-null Task, will either return the incomplete <paramref name="pendingTask"/> or start a new task constructed by <paramref name="runAsync"/>.
         /// </summary>
         private static Task RunOnceAsync(ref Task pendingTask, object lockHandle, Func<Task> runAsync)
         {
@@ -153,14 +165,16 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             GrpcCopyClient returnClient;
             using (var sw = Counter[GrpcCopyClientCacheCounters.ClientCreationTime].Start())
             {
-
                 var key = new GrpcCopyClientKey(host, grpcPort, useCompression);
+
+                // Attempt to reuse an existing client if it has been instantiated.
                 if (_clientDict.TryGetValue(key, out Lazy<GrpcCopyClient> existingClientLazy) && existingClientLazy.IsValueCreated && existingClientLazy.Value.TryAcquire(out var reused))
                 {
                     returnClient = existingClientLazy.Value;
                 }
                 else
                 {
+                    // Start client "GC" if the cache is full and it isn't already running
                     await EnsureCapacityAsync();
 
                     var clientLazy = _clientDict.GetOrAdd(key, k =>
@@ -168,7 +182,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         return new Lazy<GrpcCopyClient>(() => new GrpcCopyClient(k));
                     });
 
-                    if (_clientDict.Count >= _maxClientCount)
+                    if (_clientDict.Count > _maxClientCount)
                     {
                         _clientDict.TryRemove(key, out _);
                         throw new CacheException($"Attempting to create {nameof(GrpcCopyClient)} to increase cached count above maximum allowed ({_maxClientCount})");

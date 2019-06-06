@@ -47,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(path);
 
             FileExistenceResult fileExistenceResult = null;
-            using (var client = _clientCache.Create(host, _grpcPort))
+            using (var client = await _clientCache.CreateAsync(host, _grpcPort))
             {
                 fileExistenceResult = await client.CheckFileExistsAsync(_context, contentHash);
             }
@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
-            using (var client = _clientCache.Create(host, _grpcPort, _useCompression))
+            using (var client = await _clientCache.CreateAsync(host, _grpcPort, _useCompression))
             {
                 copyFileResult = await client.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken);
             }
@@ -104,7 +104,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
-            using (var client = _clientCache.Create(host, _grpcPort, _useCompression))
+            using (var client = await _clientCache.CreateAsync(host, _grpcPort, _useCompression))
             {
                 copyFileResult = await client.CopyToAsync(_context, contentHash, destinationStream, cancellationToken);
             }

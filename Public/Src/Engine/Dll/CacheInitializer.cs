@@ -206,6 +206,7 @@ namespace BuildXL.Engine
         private readonly ICacheCoreSession m_session;
         private readonly RootTranslator m_rootTranslator;
         private readonly IDictionary<string, long> m_initialStatistics;
+        private readonly bool m_replaceExistingFileOnMaterialization;
 
         private CacheCoreCacheInitializer(
             LoggingContext loggingContext,
@@ -213,7 +214,8 @@ namespace BuildXL.Engine
             ICacheCoreSession session,
             List<IDisposable> acquiredDisposables,
             bool enableFingerprintLookup,
-            RootTranslator rootTranslator)
+            RootTranslator rootTranslator,
+            bool replaceExistingFileOnMaterialization)
             : base(
                 loggingContext,
                 acquiredDisposables,
@@ -225,6 +227,7 @@ namespace BuildXL.Engine
             m_session = session;
             m_rootTranslator = rootTranslator;
             m_initialStatistics = GetCacheBulkStatistics(session);
+            m_replaceExistingFileOnMaterialization = replaceExistingFileOnMaterialization;
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
@@ -232,7 +235,8 @@ namespace BuildXL.Engine
         {
             IArtifactContentCache contentCache = new CacheCoreArtifactContentCache(
                 m_session,
-                rootTranslator: m_rootTranslator);
+                rootTranslator: m_rootTranslator,
+                replaceExistingFileOnMaterialization: m_replaceExistingFileOnMaterialization);
 
             ITwoPhaseFingerprintStore twoPhase;
             if (IsFingerprintLookupEnabled)
@@ -279,6 +283,7 @@ namespace BuildXL.Engine
             cacheConfigContent = cacheConfigContent.Replace("[DominoSelectedRootPath]", cacheDirectory.Replace(@"\", @"\\"));
             cacheConfigContent = cacheConfigContent.Replace("[BuildXLSelectedRootPath]", cacheDirectory.Replace(@"\", @"\\"));
             cacheConfigContent = cacheConfigContent.Replace("[UseDedupStore]", config.UseDedupStore.ToString());
+            cacheConfigContent = cacheConfigContent.Replace("[ReplaceExistingFileOnMaterialization]", config.ReplaceExistingFileOnMaterialization.ToString());
 
             ICacheConfigData cacheConfigData;
             Exception exception;
@@ -358,7 +363,8 @@ namespace BuildXL.Engine
                     session,
                     new List<IDisposable>(),
                     enableFingerprintLookup: enableFingerprintLookup,
-                    rootTranslator: rootTranslator);
+                    rootTranslator: rootTranslator,
+                    replaceExistingFileOnMaterialization: config.ReplaceExistingFileOnMaterialization);
             }
             finally
             {

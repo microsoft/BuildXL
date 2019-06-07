@@ -83,7 +83,6 @@ namespace Engine {
         ],
         runtimeContent: [
             ...libsUsedForTesting,
-            DetoursServices.Deployment.definition,
             importFrom("BuildXL.Cache.VerticalStore").MemoizationStoreAdapter.dll,
         ],
     });

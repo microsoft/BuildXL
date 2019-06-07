@@ -51,13 +51,15 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <param name="cacheId">Id of the parent cache that spawned the session.</param>
         /// <param name="logger">Diagnostic logger</param>
         /// <param name="sessionId">Telemetry ID for the session.</param>
+        /// <param name="replaceExistingOnPlaceFile">If true, replace existing file on placing file from cache.</param>
         public MemoizationStoreAdapterCacheCacheSession(
             BuildXL.Cache.MemoizationStore.Interfaces.Sessions.ICacheSession cacheSession,
             BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache cache,
             string cacheId,
             ILogger logger,
-            string sessionId = null)
-            : base(cacheSession, cache, cacheId, logger, sessionId)
+            string sessionId = null,
+            bool replaceExistingOnPlaceFile = false)
+            : base(cacheSession, cache, cacheId, logger, sessionId, replaceExistingOnPlaceFile)
         {
         }
 

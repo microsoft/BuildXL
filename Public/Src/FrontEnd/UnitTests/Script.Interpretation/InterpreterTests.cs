@@ -502,7 +502,7 @@ namespace M
 
             var userName = Environment.GetEnvironmentVariable("USERNAME");
             var sysRoot = Environment.GetEnvironmentVariable("SystemRoot");
-            var paths = Environment.GetEnvironmentVariable("Path");          
+            var paths = Environment.GetEnvironmentVariable("Path");
             var pathValues = paths.Split(new[] { separator }, StringSplitOptions.RemoveEmptyEntries);
             var absolutePaths = pathValues.Aggregate((currentAccumPaths, nextPath) => currentAccumPaths + separator + Path.GetFullPath(nextPath));
 

@@ -47,14 +47,16 @@ namespace PrivatePackages {
                 {
                     subfolder: r`content`,
                     contents: [
-                        DetoursServices.Deployment.definition,
+                        DetoursServices.Deployment.detours,
+                        DetoursServices.Deployment.natives,
                         importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Branding.brandingManifest
                     ]
                 },
                 {
                     subfolder: r`contentFiles/any/any`,
                     contents: [
-                        DetoursServices.Deployment.definition,
+                        DetoursServices.Deployment.detours,
+                        DetoursServices.Deployment.natives,
                         importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Branding.brandingManifest
                     ]
                 }
@@ -85,7 +87,8 @@ namespace PrivatePackages {
                 {
                     subfolder: r`content`,
                     contents: [
-                        DetoursServices.Deployment.definition
+                        DetoursServices.Deployment.detours,
+                        DetoursServices.Deployment.natives
                     ]
                 }
             ]

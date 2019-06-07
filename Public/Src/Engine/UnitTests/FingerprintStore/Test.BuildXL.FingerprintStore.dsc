@@ -34,7 +34,6 @@ namespace Test.BuildXL.FingerprintStore {
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
         ],
         runtimeContent: [
-            importFrom("BuildXL.Sandbox.Windows").Deployment.definition,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition
         ],
     });

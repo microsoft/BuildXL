@@ -46,7 +46,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         //     "CheckCacheIntegrityOnStartup":{10}
         //     "SingleInstanceTimeoutInSeconds":{11}
         //     "SynchronizationMode":{12},
-        //     "LogFlushIntervalSeconds":{13}
+        //     "LogFlushIntervalSeconds":{13},
+        //    "ReplaceExistingOnPlaceFile":{14},
         // }
         private sealed class Config
         {
@@ -152,6 +153,9 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// </summary>
             [DefaultValue(0)]
             public uint LogFlushIntervalSeconds { get; set; }
+
+            [DefaultValue(false)]
+            public bool ReplaceExistingOnPlaceFile { get; set; }
         }
 
         /// <inheritdoc />
@@ -214,7 +218,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     scenarioName: cacheConfig.ScenarioName);
 
                 var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
-                var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, localCache, logger, statsFilePath);
+                var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, localCache, logger, statsFilePath, cacheConfig.ReplaceExistingOnPlaceFile);
 
                 var startupResult = await cache.StartupAsync();
                 if (!startupResult.Succeeded)

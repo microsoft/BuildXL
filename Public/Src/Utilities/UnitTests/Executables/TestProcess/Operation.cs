@@ -240,7 +240,7 @@ namespace Test.BuildXL.Executables.TestProcess
         public Type OpType { get; private set; }
 
         /// <summary>
-        /// Path to file. NOTE: This will not be accessable within TestProcess.exe
+        /// Path to file. NOTE: This will not be accessible within TestProcess.exe
         /// </summary>
         public FileOrDirectoryArtifact Path { get; private set; }
 

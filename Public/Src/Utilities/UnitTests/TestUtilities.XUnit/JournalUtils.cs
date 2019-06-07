@@ -6,7 +6,6 @@ using System.Reflection;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 
 namespace Test.BuildXL.TestUtilities.Xunit
 {
@@ -18,10 +17,9 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// <summary>
         /// Gets an instance of <see cref="IChangeJournalAccessor"/> for tests.
         /// </summary>
-        /// <param name="loggingContext">Logging context.</param>
         /// <param name="volumeMap">Volume map.</param>
         /// <returns>An instance of <see cref="IChangeJournalAccessor"/>.</returns>
-        public static Optional<IChangeJournalAccessor> TryGetJournalAccessorForTest(LoggingContext loggingContext, VolumeMap volumeMap)
+        public static Possible<IChangeJournalAccessor> TryGetJournalAccessorForTest(VolumeMap volumeMap)
         {
             string path = Environment.GetEnvironmentVariable("[BUILDXL]VM_TEMP");
 
@@ -30,7 +28,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 path = AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly());
             }
 
-            return JournalAccessorGetter.TryGetJournalAccessor(loggingContext, volumeMap, path);
+            return JournalAccessorGetter.TryGetJournalAccessor(volumeMap, path);
         }
     }
 }

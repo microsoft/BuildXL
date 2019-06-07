@@ -2215,12 +2215,12 @@ namespace Test.BuildXL.Storage.Admin
             VolumeMap volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext);
             XAssert.IsNotNull(volumeMap);
 
-            var journal = JournalUtils.TryGetJournalAccessorForTest(loggingContext, volumeMap).Value;
-            XAssert.IsNotNull(journal);
+            var maybeJournal = JournalUtils.TryGetJournalAccessorForTest(volumeMap);
+            XAssert.IsTrue(maybeJournal.Succeeded, "Could not connect to journal");
 
-            FileChangeTrackingSet trackingSet = FileChangeTrackingSet.CreateForAllCapableVolumes(loggingContext, volumeMap, journal);
+            FileChangeTrackingSet trackingSet = FileChangeTrackingSet.CreateForAllCapableVolumes(loggingContext, volumeMap, maybeJournal.Result);
 
-            return new ChangeDetectionSupport(TemporaryDirectory, JournalState.CreateEnabledJournal(volumeMap, journal), trackingSet);
+            return new ChangeDetectionSupport(TemporaryDirectory, JournalState.CreateEnabledJournal(volumeMap, maybeJournal.Result), trackingSet);
         }
     }
 }

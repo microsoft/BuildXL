@@ -1132,8 +1132,6 @@ namespace IntegrationTest.BuildXL.Scheduler
                 result.AssertFailure();
                 SetExpectedFailures(1, 0);
             }
-
-            result.AssertSuccessMatchesLogging(LoggingContext);
         }
 
         private Operation ProbeOp(string root, string relativePath = "")

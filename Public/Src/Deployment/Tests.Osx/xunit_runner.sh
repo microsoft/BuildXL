@@ -133,7 +133,7 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
 
     # run XUnit
     echo "${tputBold}[Running]${tputReset} $dllName ..."
-    dotnet xunit.console.dll $dllName -nocolor -parallel none -xml $xunitResultFname -noappdomain -noTrait "Category=WindowsOSOnly" -noTrait "Category=WindowsOSSkip" -noTrait "Category=Performance" -noTrait "Category=QTestSkip" -noTrait "Category=DominoTestSkip" ${extraXunitArgs[@]} >$xunitStdoutFname 2>$xunitStderrFname
+    dotnet xunit.console.dll $dllName -nocolor -parallel none -xml $xunitResultFname -noappdomain -noTrait "Category=WindowsOSOnly" -noTrait "Category=WindowsOSSkip" -noTrait "Category=Performance" -noTrait "Category=QTestSkip" -noTrait "Category=DominoTestSkip" -noTrait "Category=SkipDotNetCore" ${extraXunitArgs[@]} >$xunitStdoutFname 2>$xunitStderrFname
     exitCode=$?
 
     # extract statistics from XUnit's XML result file

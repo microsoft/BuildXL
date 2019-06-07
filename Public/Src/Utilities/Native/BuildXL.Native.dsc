@@ -50,6 +50,9 @@ namespace Native {
                 MacServices.Deployment.ariaLibrary,
                 MacServices.Deployment.interopLibrary
             ]),
+            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
+                importFrom("BuildXL.Sandbox.Windows").Deployment.natives,
+            ]),
         ]
     });
 }

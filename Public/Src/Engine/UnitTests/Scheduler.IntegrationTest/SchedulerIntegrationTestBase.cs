@@ -354,6 +354,10 @@ namespace Test.BuildXL.Scheduler
             TempCleaner tempCleaner = null,
             IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
         {
+            // This is a new logging context to be used just for this instantiation of the scheduler. That way it can
+            // be validated against the LoggingContext to make sure the scheduler's return result and error logging
+            // are in agreement.
+            var localLoggingContext = BuildXLTestBase.CreateLoggingContextForTest();
             var config = new CommandLineConfiguration(Configuration);
 
             // Populating the configuration may modify the configuration, so it should occur first.
@@ -365,7 +369,7 @@ namespace Test.BuildXL.Scheduler
 
             IReadOnlyList<string> junctionRoots = Configuration.Engine.DirectoriesToTranslate?.Select(a => a.ToPath.ToString(Context.PathTable)).ToList();
 
-            var map = VolumeMap.TryCreateMapOfAllLocalVolumes(LoggingContext, junctionRoots);
+            var map = VolumeMap.TryCreateMapOfAllLocalVolumes(localLoggingContext, junctionRoots);
             var maybeAccessor = TryGetJournalAccessor(map);
 
             // Although scan change journal is enabled, but if we cannot create an enabled journal accessor, then create a disabled one.
@@ -388,7 +392,7 @@ namespace Test.BuildXL.Scheduler
             string dummyCacheDir = Path.Combine(TemporaryDirectory, "Out", "Cache");
             Directory.CreateDirectory(dummyCacheDir); // EngineSchedule tries to put the PreserveOutputsSalt.txt here
             ContentHash? previousOutputsSalt =
-                EngineSchedule.PreparePreviousOutputsSalt(LoggingContext, Context.PathTable, config);
+                EngineSchedule.PreparePreviousOutputsSalt(localLoggingContext, Context.PathTable, config);
             Contract.Assert(previousOutputsSalt.HasValue);
             // .....................................................................................
 
@@ -396,7 +400,7 @@ namespace Test.BuildXL.Scheduler
             Contract.Assert(!(config.Engine.CleanTempDirectories && tempCleaner == null));
 
             using (var queue = new PipQueue(config.Schedule))
-            using (var testQueue = new TestPipQueue(queue, LoggingContext, initiallyPaused: constraintExecutionOrder != null))
+            using (var testQueue = new TestPipQueue(queue, localLoggingContext, initiallyPaused: constraintExecutionOrder != null))
             using (var testScheduler = new TestScheduler(
                 graph: graph,
                 pipQueue: constraintExecutionOrder == null ? 
@@ -404,7 +408,7 @@ namespace Test.BuildXL.Scheduler
                             constraintExecutionOrder.Aggregate(testQueue, (TestPipQueue _testQueue, (Pip before, Pip after) constraint) => { _testQueue.ConstrainExecutionOrder(constraint.before, constraint.after); return _testQueue; }).Unpause(),
                 context: Context,
                 fileContentTable: FileContentTable,
-                loggingContext: LoggingContext,
+                loggingContext: localLoggingContext,
                 cache: Cache,
                 configuration: config,
                 journalState: m_journalState,
@@ -423,19 +427,19 @@ namespace Test.BuildXL.Scheduler
                 MountPathExpander mountPathExpander = null;
                 var frontEndNonScrubbablePaths = CollectionUtilities.EmptyArray<string>();
                 var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
-                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, LoggingContext, config, nonScrubbablePaths, tempCleaner);
+                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, localLoggingContext, config, nonScrubbablePaths, tempCleaner);
 
                 if (filter == null)
                 {
-                    EngineSchedule.TryGetPipFilter(LoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);
+                    EngineSchedule.TryGetPipFilter(localLoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);
                 }
 
-                XAssert.IsTrue(testScheduler.InitForMaster(LoggingContext, filter, schedulerState), "Failed to initialized test scheduler");
+                XAssert.IsTrue(testScheduler.InitForMaster(localLoggingContext, filter, schedulerState), "Failed to initialized test scheduler");
 
-                testScheduler.Start(LoggingContext);
+                testScheduler.Start(localLoggingContext);
 
                 bool success = testScheduler.WhenDone().GetAwaiter().GetResult();
-                testScheduler.SaveFileChangeTrackerAsync(LoggingContext).Wait();
+                testScheduler.SaveFileChangeTrackerAsync(localLoggingContext).Wait();
 
                 if (ShouldLogSchedulerStats)
                 {
@@ -443,10 +447,10 @@ namespace Test.BuildXL.Scheduler
                     // to write out the stats perf JSON file
                     var logsDir = config.Logging.LogsDirectory.ToString(Context.PathTable);
                     Directory.CreateDirectory(logsDir);
-                    testScheduler.LogStats(LoggingContext);
+                    testScheduler.LogStats(localLoggingContext);
                 }
 
-                return new ScheduleRunResult
+                var runResult = new ScheduleRunResult
                 {
                     Graph = graph,
                     Config = config,
@@ -458,6 +462,12 @@ namespace Test.BuildXL.Scheduler
                     ProcessPipCountersByTelemetryTag = testScheduler.ProcessPipCountersByTelemetryTag,
                     SchedulerState = new SchedulerState(testScheduler)
                 };
+
+                runResult.AssertSuccessMatchesLogging(localLoggingContext);
+
+                // Prmote this run's specific LoggingContext into the test's LoggingContext.
+                LoggingContext.AbsorbLoggingContextState(localLoggingContext);
+                return runResult;
             }
         }
 

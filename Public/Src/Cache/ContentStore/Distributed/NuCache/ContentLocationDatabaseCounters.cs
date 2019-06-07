@@ -99,5 +99,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         NumberOfStoreOperations,
+
+        /// <nodoc />
+        TotalNumberOfCompletedCacheFlushes,
     }
 }

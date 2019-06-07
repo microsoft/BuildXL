@@ -12,6 +12,8 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Test.DScript.Ast.Interpretation
 {
@@ -488,11 +490,12 @@ namespace M
             result.ExpectNoError();
             result.ExpectValues(count: 3);
 
+            string separator = ";";
             Func<string, string> unNormalizePath =
                 path =>
                 {
                     Contract.Requires(!string.IsNullOrWhiteSpace(path));
-                    return path.Replace("/", "\\").Replace("\\;", ";").Replace("p`", string.Empty).Replace("`", string.Empty);
+                    return path.Replace("/", "\\").Replace("\\;", separator).Replace("p`", string.Empty).Replace("`", string.Empty);
                 };
 
             Func<string, string> toUpperInvariant = s => string.IsNullOrWhiteSpace(s) ? s : s.ToUpperInvariant();
@@ -500,6 +503,8 @@ namespace M
             var userName = Environment.GetEnvironmentVariable("USERNAME");
             var sysRoot = Environment.GetEnvironmentVariable("SystemRoot");
             var paths = Environment.GetEnvironmentVariable("Path");
+            var pathValues = paths.Split(new[] { separator }, StringSplitOptions.RemoveEmptyEntries);
+            var absolutePaths = pathValues.Aggregate((currentAccumPaths, nextPath) => currentAccumPaths + separator + Path.GetFullPath(nextPath));
 
             if (userName != null)
             {
@@ -524,7 +529,7 @@ namespace M
             if (paths != null)
             {
                 Assert.Equal(
-                    toUpperInvariant(unNormalizePath(paths)) + ";",
+                    toUpperInvariant(unNormalizePath(absolutePaths)) + ";",
                     toUpperInvariant(unNormalizePath(result.Values[2] as string)));
             }
             else

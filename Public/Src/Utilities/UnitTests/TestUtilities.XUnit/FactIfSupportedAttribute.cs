@@ -107,7 +107,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 {
                     var loggingContext = new LoggingContext("Dummy", "Dummy");
                     var map = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext);
-                    var accessor = JournalAccessorGetter.TryGetJournalAccessor(loggingContext, map, AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
+                    var accessor = JournalUtils.TryGetJournalAccessorForTest(loggingContext, map);
                     s_canScanJournal = accessor.IsValid && accessor.Value != null;
                 }
 

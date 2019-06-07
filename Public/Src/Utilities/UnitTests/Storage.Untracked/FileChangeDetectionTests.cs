@@ -2215,7 +2215,7 @@ namespace Test.BuildXL.Storage.Admin
             VolumeMap volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext);
             XAssert.IsNotNull(volumeMap);
 
-            var journal = JournalAccessorGetter.TryGetJournalAccessor(loggingContext, volumeMap, AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly())).Value;
+            var journal = JournalUtils.TryGetJournalAccessorForTest(loggingContext, volumeMap).Value;
             XAssert.IsNotNull(journal);
 
             FileChangeTrackingSet trackingSet = FileChangeTrackingSet.CreateForAllCapableVolumes(loggingContext, volumeMap, journal);

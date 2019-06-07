@@ -464,7 +464,7 @@ namespace Test.BuildXL.Scheduler
         private Optional<global::BuildXL.Storage.ChangeJournalService.IChangeJournalAccessor> TryGetJournalAccessor(VolumeMap map)
         {
             return map.Volumes.Any()
-                ? JournalAccessorGetter.TryGetJournalAccessor(LoggingContext, map, AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()))
+                ? JournalUtils.TryGetJournalAccessorForTest(LoggingContext, map)
                 : Optional<global::BuildXL.Storage.ChangeJournalService.IChangeJournalAccessor>.Invalid;
         }
 

@@ -44,13 +44,15 @@ namespace BuildXL.Ide.Generator
             var qualifier = Context.QualifierTable.GetQualifier(process.Provenance.QualifierId);
 
             // only consider processes targeting Windows
-            if (qualifier.TryGetValue(Context.StringTable, "targetRuntime", out var targetRuntime) && targetRuntime != "win-x64")
+            if (qualifier.TryGetValue(Context.StringTable, "targetRuntime", out var targetRuntime)
+                && targetRuntime != "win-x64")
             {
                 return;
             }
             
             // HACK: skip over processes targeting netcoreapp framework
-            if (qualifier.TryGetValue(Context.StringTable, "targetFramework", out var targetFramework) && targetFramework.Contains("netcoreapp"))
+            if (qualifier.TryGetValue(Context.StringTable, "targetFramework", out var targetFramework)
+                && targetFramework.Contains("netcoreapp"))
             {
                 return;
             }

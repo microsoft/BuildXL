@@ -205,6 +205,7 @@ export function runQTest(args: QTestArguments): Result {
             ...(args.qTestInputs ? args.qTestInputs.filter(
                 f => f.name.hasExtension && f.name.extension === a`.pdb`
             ) : []),
+            ...(args.qTestRuntimeDependencies || []),
         ],
         unsafe: unsafeOptions
     });

@@ -40,5 +40,10 @@ namespace Processes {
             "Test.BuildXL.Processes.Detours",
             "Test.BuildXL.Scheduler",
         ],
+        runtimeContent: [
+            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
+                importFrom("BuildXL.Sandbox.Windows").Deployment.detours,
+            ]),
+        ],
     });
 }

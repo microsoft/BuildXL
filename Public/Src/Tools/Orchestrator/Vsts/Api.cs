@@ -172,9 +172,10 @@ namespace BuildXL.Orchestrator.Vsts
 
             if (record != null)
             {
-                record.Variables.Add(Constants.MachineType, (isMaster ? AgentType.Master : AgentType.Worker).ToString());
-                record.Variables.Add(Constants.MachineHostName, hostName);
-                record.Variables.Add(Constants.MachineIpV4Address, ipV4Address);
+                // Add / update agent info for the build orchestration
+                record.Variables[Constants.MachineType] = (isMaster ? AgentType.Master : AgentType.Worker).ToString();
+                record.Variables[Constants.MachineHostName] = hostName;
+                record.Variables[Constants.MachineIpV4Address] = ipV4Address;
 
                 await m_taskClient.UpdateTimelineRecordsAsync(
                     new Guid(TeamProjectId),
@@ -207,9 +208,9 @@ namespace BuildXL.Orchestrator.Vsts
             while (!otherAgentsAreReady && elapsedTime < Constants.MaxWaitingPeriodBeforeFailingInSeconds)
             {
                 List<TimelineRecord> records = await GetTimelineRecords();
-                if (records.Any(r => r.State.HasValue && r.State.Value == TimelineRecordState.Completed))
+                if (records.Any(r => r.ErrorCount.HasValue && r.ErrorCount.Value != 0))
                 {
-                    throw new ApplicationException("One of the agents failed setting up the orchestration, aborting build!");
+                    throw new ApplicationException("One of the agents failed during the orchestration task with errors, aborting build!");
                 }
 
                 var filteredMachines = records.Where(r =>

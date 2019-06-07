@@ -61,11 +61,17 @@ function getPowerShellTool() : Transformer.ToolDefinition {
 
     let executable : RelativePath = undefined;
     let pkgContents : StaticDirectory = undefined;
+    let untrackedScopes : Directory[] = [];
     
     switch (host.os) {
         case "win":
             pkgContents = importFrom("PowerShell.Core.win-x64").extracted;
             executable = r`pwsh.exe`;
+            // pwsh on windows is not respecting /noprofile and still reading files from the user folder
+            untrackedScopes = [
+                d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetFlushCache`,
+                d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetUrlCache`,
+            ];
             break;
         case "macOS": 
             pkgContents = importFrom("PowerShell.Core.osx-x64").extracted;
@@ -86,5 +92,6 @@ function getPowerShellTool() : Transformer.ToolDefinition {
         ],
         prepareTempDirectory: true,
         dependsOnWindowsDirectories: true,
+        untrackedDirectoryScopes: untrackedScopes,
     };
 }

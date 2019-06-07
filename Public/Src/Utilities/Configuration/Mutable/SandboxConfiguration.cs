@@ -9,7 +9,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
     public sealed class SandboxConfiguration : ISandboxConfiguration
     {
         /// <nodoc />
-        public static readonly uint DefaultProcessTimeoutInMinutes = 15;
+        public static readonly uint DefaultProcessTimeoutInMinutes = 10;
 
         private IUnsafeSandboxConfiguration m_unsafeSandboxConfig;
 

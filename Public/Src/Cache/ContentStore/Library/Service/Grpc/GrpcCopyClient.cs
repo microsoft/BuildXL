@@ -26,9 +26,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     {
         private readonly Channel _channel;
         private readonly ContentServer.ContentServerClient _client;
-        private readonly string _host;
-        private readonly int _grpcPort;
-        private bool _useCompression;
+        internal DateTime _lastUseTime;
+        private int _uses;
 
         /// <inheritdoc />
         public bool ShutdownCompleted { get; private set; }
@@ -36,40 +35,30 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         public bool ShutdownStarted { get; private set; }
 
+        internal GrpcCopyClientKey Key { get; private set; }
+
         /// <summary>
-        /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
+        /// Count of current users of this client.
         /// </summary>
-        private GrpcCopyClient(Channel channel, bool useCompression)
+        internal int Uses
         {
-            GrpcEnvironment.InitializeIfNeeded();
-            _client = new ContentServer.ContentServerClient(channel);
-            _useCompression = useCompression;
+            get
+            {
+                return _uses;
+            }
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
-        private GrpcCopyClient(string host, int grpcPort, bool useCompression)
+        internal GrpcCopyClient(GrpcCopyClientKey key)
         {
             GrpcEnvironment.InitializeIfNeeded();
-            _channel = new Channel(host, grpcPort, ChannelCredentials.Insecure);
+            _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure);
             _client = new ContentServer.ContentServerClient(_channel);
-            _host = host;
-            _grpcPort = grpcPort;
-            _useCompression = useCompression;
-        }
+            Key = key;
 
-        /// <summary>
-        /// Use an existing GRPC client if possible, else create a new one.
-        /// </summary>
-        /// <param name="host">Name of the host for the server (e.g. 'localhost').</param>
-        /// <param name="grpcPort">GRPC port on the server.</param>
-        /// <param name="useCompression">Whether or not GZip is enabled for copies.</param>
-        public static GrpcCopyClient Create(string host, int grpcPort, bool useCompression = false)
-        {
-            // TODO: Add caching of GrpcCopyClient objects
-            // TODO: Add case where _clientPool has exceeded some maximum count
-            return new GrpcCopyClient(host, grpcPort, useCompression);
+            _lastUseTime = DateTime.MinValue;
         }
 
         /// <inheritdoc />
@@ -153,7 +142,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     HashType = (int)hash.HashType,
                     ContentHash = hash.ToByteString(),
                     Offset = 0,
-                    Compression = _useCompression ? CopyCompression.Gzip : CopyCompression.None
+                    Compression = Key.UseCompression ? CopyCompression.Gzip : CopyCompression.None
                 };
 
                 AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request);
@@ -166,7 +155,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 // stream. To avoid that, exit early instead.
                 if (headers.Count == 0)
                 {
-                    return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Failed to connect to copy server {_host} at port {_grpcPort}.");
+                    return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Failed to connect to copy server {Key.Host} at port {Key.GrpcPort}.");
                 }
 
                 // Parse header collection.
@@ -243,6 +232,49 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         }
 
+        /// <summary>
+        /// Attempt to reserve the client. Fails if marked for shutdown.
+        /// </summary>
+        /// <param name="reused">Whether the client has been used previously.</param>
+        /// <returns>Whether the client is approved for use.</returns>
+        public bool TryAcquire(out bool reused)
+        {
+            lock (this)
+            {
+                _uses++;
+
+                reused = _lastUseTime != DateTime.MinValue;
+                if (_uses > 0)
+                {
+                    _lastUseTime = DateTime.UtcNow;
+                    return true;
+                }
+            }
+
+            reused = false;
+            return false;
+        }
+
+        /// <summary>
+        /// Attempt to prepare the client for shutdown, based on current uses and last use time.
+        /// </summary>
+        /// <param name="force">Whether last use time should be ignored.</param>
+        /// <param name="earliestLastUseTime">If the client has been used since this time, then it is available for shutdown.</param>
+        /// <returns>Whether the client can be marked for shutdown.</returns>
+        public bool TryMarkForShutdown(bool force, DateTime earliestLastUseTime)
+        {
+            lock (this)
+            {
+                if (_uses == 0 && (force || _lastUseTime < earliestLastUseTime))
+                {
+                    _uses = int.MinValue;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private async Task<(long Chunks, long Bytes)> StreamContentAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CancellationToken ct = default(CancellationToken))
         {
             long chunks = 0L;
@@ -307,21 +339,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         public void Dispose()
         {
-            // noop for now
-        }
-
-        /// <inheritdoc />
-        public override bool Equals(object obj)
-        {
-            return obj is GrpcCopyClient client
-                && _host == client._host
-                && _grpcPort == client._grpcPort;
-        }
-
-        /// <inheritdoc />
-        public override int GetHashCode()
-        {
-            return BuildXL.Utilities.HashCodeHelper.Combine(_host.GetHashCode(), _grpcPort);
+            lock (this)
+            {
+                _uses--;
+            }
         }
     }
 }

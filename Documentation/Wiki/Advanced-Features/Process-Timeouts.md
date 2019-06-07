@@ -5,7 +5,7 @@ There is also a warning timeout that will be printed as a hint to users, to indi
 
 There are a few ways the timeouts are set:
 
-* A default timeout that applies to all pips. This defaults to 15 minutes if not specified, but can be overridden on the command line.
+* A default timeout that applies to all pips. This defaults to 10 minutes if not specified, but can be overridden on the command line.
 
   * `/pipDefaultTimeout:<ms>` - How long to wait before terminating individual processes, in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.
 

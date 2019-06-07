@@ -41,7 +41,6 @@ namespace Test.Ninja {
             importFrom("BuildXL.Pips").dll,
         ],
         runtimeContent: [
-            importFrom("BuildXL.Sandbox.Windows").Deployment.definition,
             {
                 subfolder: a`tools`,
                 contents: [

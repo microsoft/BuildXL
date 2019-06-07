@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -137,10 +138,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     actionBlock.CompletionAsync().Wait();
                 }
 
-                using (_exchangeLock.AcquireWriteLock())
+                _database.Counters[ContentLocationDatabaseCounters.NumberOfPersistedEntries].Add(_flushingCache.Count);
+
+                if (_configuration.FlushPreservePercentInMemory > 0)
                 {
-                    _flushingCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
+                    int targetFlushingSize = (int)(_flushingCache.Count * _configuration.FlushPreservePercentInMemory);
+                    int removeAmount = _flushingCache.Count - targetFlushingSize;
+
+                    foreach (var key in _flushingCache.Keys.Take(removeAmount))
+                    {
+                        _flushingCache.RemoveKey(key);
+                    }
                 }
+                else
+                {
+                    using (_exchangeLock.AcquireWriteLock())
+                    {
+                        _flushingCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
+                    }
+                }
+
+                _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCompletedCacheFlushes].Increment();
             }
         }
     }

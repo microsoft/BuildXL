@@ -461,6 +461,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         protected bool TryGetEntryCore(OperationContext context, ShortHash hash, out ContentLocationEntry entry)
         {
+            Counters[ContentLocationDatabaseCounters.NumberOfGetOperations].Increment();
+
             if (IsInMemoryCacheEnabled && _inMemoryCache.TryGetEntry(hash, out entry))
             {
                 return true;
@@ -484,6 +486,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         protected void Store(OperationContext context, ShortHash hash, ContentLocationEntry entry)
         {
+            Counters[ContentLocationDatabaseCounters.NumberOfStoreOperations].Increment();
+
             if (IsInMemoryCacheEnabled)
             {
                 _inMemoryCache.Store(context, hash, entry);
@@ -498,6 +502,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             else
             {
                 Persist(context, hash, entry);
+                Counters[ContentLocationDatabaseCounters.NumberOfPersistedEntries].Increment();
             }
         }
 

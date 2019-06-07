@@ -25,6 +25,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <see cref="FlushDegreeOfParallelism"/>.
         /// </summary>
         public bool FlushSingleTransaction { get; set; } = true;
+
+        /// <summary>
+        /// Percentage of records to maintain in memory after flush
+        /// </summary>
+        public double FlushPreservePercentInMemory = 0.5;
     }
 
     /// <summary>
@@ -66,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         ///
         /// Only useful when <see cref="CacheEnabled"/> is true.
         /// </summary>
-        public int CacheMaximumUpdatesPerFlush { get; set; } = 1000000;
+        public int CacheMaximumUpdatesPerFlush { get; set; } = 2_500_000;
 
         /// <summary>
         /// The maximum amount of time that can pass without a flush.

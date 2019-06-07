@@ -255,7 +255,7 @@ namespace Test.BuildXL.Executables.TestProcess
         public string Content { get; private set; }
 
         /// <summary>
-        /// Path of new symlink or hardlink to create. NOTE: This will not be accessable within TestProcess.exe
+        /// Path of new symlink or hardlink to create. NOTE: This will not be accessible within TestProcess.exe
         /// </summary>
         public FileOrDirectoryArtifact LinkPath { get; private set; }
 

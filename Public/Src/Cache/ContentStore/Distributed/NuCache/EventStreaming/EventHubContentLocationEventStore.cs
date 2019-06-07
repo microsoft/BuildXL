@@ -69,7 +69,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             {
                                 var serializer = new ContentLocationEventDataSerializer(configuration.SelfCheckSerialization ? ValidationMode.Trace : ValidationMode.Off);
                                 return new ActionBlock<ProcessEventsInput>(
-                                    t => ProcessEventsCoreAsync(t, serializer),
+                                    t => ProcessEventsCoreAsync(t, serializer, storeSequenceNumber: false),
                                     new ExecutionDataflowBlockOptions()
                                     {
                                         MaxDegreeOfParallelism = 1,
@@ -228,7 +228,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
             else
             {
-                await ProcessEventsCoreAsync(new ProcessEventsInput(context, messages, new OperationCounters(), processingFinishedTaskSource: null), EventDataSerializer);
+                await ProcessEventsCoreAsync(new ProcessEventsInput(context, messages, new OperationCounters(), processingFinishedTaskSource: null), EventDataSerializer, storeSequenceNumber: true);
             }
 
             void printOperationResultsAsynchronously(SendToActionBlockResult results)
@@ -242,8 +242,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                                 .Select(c => c.EventStoreCounters)
                                 .Aggregate((collection, counterCollection) => collection + counterCollection);
 
+                            // We can't update _lastProcessedSequencePoint in ProcessEventsCoreAsync
+                            // when the messages are processed concurrently.
+                            // It is possible that due to non-deterministic processing
+                            // we first will process a message with higher sequence number,
+                            // save it into _lastProcessedSequencePoint, create the checkpoint
+                            // and die.
+                            // In this case some messages will be lost and won't be re-processed by
+                            // other master.
+                            long sequenceNumber = -1;
+                            if (messages.Count != 0)
+                            {
+                                sequenceNumber = messages.Max(m => m.SystemProperties.SequenceNumber);
+                                _lastProcessedSequencePoint = new EventSequencePoint(sequenceNumber);
+                            }
+
                             int duration = (int)sw.ElapsedMilliseconds;
-                            context.LogProcessEventsOverview(eventStoreCounters, duration);
+                            context.LogProcessEventsOverview(sequenceNumber, eventStoreCounters, duration);
                         }).IgnoreErrors();
                 }
             }
@@ -291,7 +306,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             return sender?.ToString();
         }
 
-        private async Task ProcessEventsCoreAsync(ProcessEventsInput input, ContentLocationEventDataSerializer eventDataSerializer)
+        private async Task ProcessEventsCoreAsync(ProcessEventsInput input, ContentLocationEventDataSerializer eventDataSerializer, bool storeSequenceNumber)
         {
             var context = input.Context;
             var counters = input.EventStoreCounters;
@@ -350,7 +365,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             }
                         }
 
-                        _lastProcessedSequencePoint = new EventSequencePoint(message.SystemProperties.SequenceNumber);
+                        if (storeSequenceNumber)
+                        {
+                            _lastProcessedSequencePoint = new EventSequencePoint(message.SystemProperties.SequenceNumber);
+                        }
                     }
 
                     Counters.Append(counters);

@@ -168,7 +168,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         resourceFiles: resources.filter(r => r.file !== undefined && r.logicalName === undefined).map(r => r.file),
         treatWarningsAsErrors: qualifier.configuration === "release",
         optimize: qualifier.configuration === "release",
-        checked: qualifier.configuration === "debug",
+        checked: true,
         doc: args.skipDocumentationGeneration === true ? undefined : name + ".xml",
         out: outputFileName,
         pdb: name + ".pdb",

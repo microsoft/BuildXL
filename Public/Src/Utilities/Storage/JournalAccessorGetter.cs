@@ -6,9 +6,7 @@ using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Storage.ChangeJournalService.Protocol;
-using BuildXL.Storage.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Storage

@@ -206,7 +206,7 @@ namespace BuildXL.Ide.Generator
                             item.SetMetadata("Name", referenceName);
                             msbuildFile.ProjectReferences.Add(referencedMsbuildFile);
                         }
-                        else if (msbuildFile is CsprojFile)
+                        else if (msbuildFile is CsprojFile) // && !reference.ToString(m_context.PathTable).Contains("NETCore.App"))
                         {
                             var item = project.AddItem("Reference", referenceName);
                             item.SetMetadata("HintPath", reference);

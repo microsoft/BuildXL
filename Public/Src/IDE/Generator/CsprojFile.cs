@@ -41,6 +41,20 @@ namespace BuildXL.Ide.Generator
 
         internal override void VisitProcess(Process process, ProcessType pipCategory)
         {
+            var qualifier = Context.QualifierTable.GetQualifier(process.Provenance.QualifierId);
+
+            // only consider processes targeting Windows
+            if (qualifier.TryGetValue(Context.StringTable, "targetRuntime", out var targetRuntime) && targetRuntime != "win-x64")
+            {
+                return;
+            }
+            
+            // HACK: skip over processes targeting netcoreapp framework
+            if (qualifier.TryGetValue(Context.StringTable, "targetFramework", out var targetFramework) && targetFramework.Contains("netcoreapp"))
+            {
+                return;
+            }
+
             string friendlyQualifier = Context.QualifierTable.GetCanonicalDisplayString(process.Provenance.QualifierId);
 
             switch (pipCategory)

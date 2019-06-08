@@ -40,9 +40,9 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             _batchBlock = new BatchBlock<T>(batchSize);
             _actionBlock = new ActionBlock<T[]>(ProcessBatchAsync, new ExecutionDataflowBlockOptions()
-                                                              {
-                                                                  MaxDegreeOfParallelism = maxDegreeOfParallelism
-                                                              });
+            {
+                MaxDegreeOfParallelism = maxDegreeOfParallelism
+            });
 
             _intervalTimer = new Timer(SendIncompleteBatch, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         }
@@ -108,6 +108,9 @@ namespace BuildXL.Cache.ContentStore.Utils
                     break;
                 }
             }
+
+            // Need to reset the timer to purge the queue on time if needed.
+            ResetTimer();
         }
 
         private class ResumeBlockDisposable : IDisposable

@@ -239,30 +239,34 @@ namespace Test.BuildXL.Executables.TestProcess
         /// </summary>
         public Type OpType { get; private set; }
 
+#if TestProcess
+        /// <summary>
+        /// Should only be used in the context of TestProcess.exe
+        /// </summary>
+        private string PathAsString { get; set; }
+#endif
+
         /// <summary>
         /// Path to file. NOTE: This will not be accessible within TestProcess.exe
         /// </summary>
         public FileOrDirectoryArtifact Path { get; private set; }
 
         /// <summary>
-        /// Should only be used in the context of TestProcess.exe
-        /// </summary>
-        private string PathAsString { get; set; }
-
-        /// <summary>
         /// Content to write to file
         /// </summary>
         public string Content { get; private set; }
+
+#if TestProcess
+        /// <summary>
+        /// Should only be used in the context of TestProcess.exe
+        /// </summary>
+        private string LinkPathAsString { get; set; }
+#endif
 
         /// <summary>
         /// Path of new symlink or hardlink to create. NOTE: This will not be accessible within TestProcess.exe
         /// </summary>
         public FileOrDirectoryArtifact LinkPath { get; private set; }
-
-        /// <summary>
-        /// Should only be used in the context of TestProcess.exe
-        /// </summary>
-        private string LinkPathAsString { get; set; }
 
         /// <summary>
         /// Flag for correcting file or directory symlink
@@ -298,6 +302,7 @@ namespace Test.BuildXL.Executables.TestProcess
             AdditionalArgs = additionalArgs;
         }
 
+#if TestProcess
         private static Operation FromCommandLine(Type type, string path = null, string content = null, string linkPath = null, SymbolicLinkFlag? symLinkFlag = null, string additionalArgs = null)
         {
             Contract.Requires(content == null || !content.Contains(Environment.NewLine));
@@ -312,6 +317,7 @@ namespace Test.BuildXL.Executables.TestProcess
 
             return result;
         }
+#endif
 
         /// <summary>
         /// Executes the associated filesystem operation
@@ -1041,9 +1047,9 @@ namespace Test.BuildXL.Executables.TestProcess
             }
 
             Type opType;
-            string pathAsString = null;
+            string pathAsString = "{Invalid}";
             SymbolicLinkFlag symLinkFlag;
-            string linkPathAsString = null;
+            string linkPathAsString = "{Invalid}";
 
             if (!Enum.TryParse<Type>(opArgs[0], out opType))
             {

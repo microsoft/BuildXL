@@ -228,7 +228,7 @@ namespace Test.BuildXL.Storage.Admin
 
         private void WithVolumeHandle(Action<SafeFileHandle> action)
         {
-            VolumeMap map = VolumeMap.TryCreateMapOfAllLocalVolumes(new LoggingContext("Dummy", "Dummy"));
+            VolumeMap map = JournalUtils.TryCreateMapOfAllLocalVolumes(new LoggingContext("Dummy", "Dummy"));
             XAssert.IsNotNull(map, "Failed to create a volume map");
 
             using (VolumeAccessor volumeAccessor = map.CreateVolumeAccessor())

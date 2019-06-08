@@ -730,10 +730,39 @@ namespace BuildXL.Storage.ChangeTracking
 
         private void DisableTracking(string path, Failure trackingFailure)
         {
-            if (Interlocked.Exchange(ref m_trackingStateValue, (int)FileChangeTrackingState.DisabledSinceTrackingIsIncomplete) !=
-                (int)FileChangeTrackingState.DisabledSinceTrackingIsIncomplete)
+            if (!m_volumeMap.SkipTrackingJournalIncapableVolume)
             {
-                Logger.Log.DisableChangeTracker(m_loggingContext, path, trackingFailure.DescribeIncludingInnerFailures());
+                // Immediately disable tracking.
+                DoDisable(path, trackingFailure);
+            }
+            else
+            {
+                // Check if the path is in the volume that can be skipped.
+                // This is expensive, and should only be used during testing.
+                try
+                {
+                    using (var fileStream = FileUtilities.CreateFileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                    {
+                        ulong volumeSerial = FileUtilities.GetVolumeSerialNumberByHandle(fileStream.SafeFileHandle);
+                        if (m_changeTrackingSet.IsTrackedVolume(volumeSerial))
+                        {
+                            DoDisable(path, trackingFailure);
+                        }
+                    }
+                }
+                catch (BuildXLException ex)
+                {
+                    DoDisable(path, new Failure<string>(ex.ToStringDemystified()));
+                }
+            }
+
+            void DoDisable(string p, Failure f)
+            {
+                if (Interlocked.Exchange(ref m_trackingStateValue, (int)FileChangeTrackingState.DisabledSinceTrackingIsIncomplete) !=
+                    (int)FileChangeTrackingState.DisabledSinceTrackingIsIncomplete)
+                {
+                    Logger.Log.DisableChangeTracker(m_loggingContext, p, f.DescribeIncludingInnerFailures());
+                }
             }
         }
 

@@ -2,12 +2,14 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace Test.BuildXL.TestUtilities.Xunit
 {
@@ -26,7 +28,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             string path = null;
             bool usingTempFile = false;
 
-            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("[BUILDXL]VM_TEMP")))
+            if (!IsInVm)
             {
                 path = AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly());
             }
@@ -45,5 +47,20 @@ namespace Test.BuildXL.TestUtilities.Xunit
 
             return maybeJournal;
         }
+
+        /// <summary>
+        /// Creates a map of local volumes.
+        /// </summary>
+        public static VolumeMap TryCreateMapOfAllLocalVolumes(LoggingContext loggingContext, IReadOnlyList<string> junctionRoots = null)
+        {
+            var volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext, junctionRoots);
+
+            // We want to skip volumes that are not local to VM.
+            volumeMap.SkipTrackingJournalIncapableVolume = IsInVm;
+
+            return volumeMap;
+        }
+
+        private static bool IsInVm => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("[BUILDXL]VM_TEMP"));
     }
 }

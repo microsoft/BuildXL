@@ -4,10 +4,8 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Reflection;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
-using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using Xunit.Sdk;
@@ -107,7 +105,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 if (!s_canScanJournal.HasValue)
                 {
                     var loggingContext = new LoggingContext("Dummy", "Dummy");
-                    var map = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext);
+                    var map = JournalUtils.TryCreateMapOfAllLocalVolumes(loggingContext);
                     var accessor = JournalUtils.TryGetJournalAccessorForTest(map);
                     s_canScanJournal = accessor.Succeeded;
                     if (!accessor.Succeeded)

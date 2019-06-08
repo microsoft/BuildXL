@@ -2212,7 +2212,7 @@ namespace Test.BuildXL.Storage.Admin
         private ChangeDetectionSupport InitializeChangeDetectionSupport()
         {
             var loggingContext = new LoggingContext("Dummy", "Dummy");
-            VolumeMap volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext);
+            VolumeMap volumeMap = JournalUtils.TryCreateMapOfAllLocalVolumes(loggingContext);
             XAssert.IsNotNull(volumeMap);
 
             var maybeJournal = JournalUtils.TryGetJournalAccessorForTest(volumeMap);

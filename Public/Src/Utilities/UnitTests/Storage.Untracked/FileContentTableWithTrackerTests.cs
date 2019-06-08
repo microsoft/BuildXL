@@ -166,7 +166,7 @@ namespace Test.BuildXL.Storage.Admin
                 var loggingContext = new LoggingContext("Dummy", "Dummy");
                 var fileContentTable = FileContentTable.CreateNew();
 
-                VolumeMap volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext);
+                VolumeMap volumeMap = JournalUtils.TryCreateMapOfAllLocalVolumes(loggingContext);
                 XAssert.IsNotNull(volumeMap);
 
                 var maybeJournal = JournalUtils.TryGetJournalAccessorForTest(volumeMap);

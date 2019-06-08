@@ -138,7 +138,7 @@ namespace Test.BuildXL.Scheduler
 
         private JournalState ConnectToJournal()
         {
-            m_volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(LoggingContext);
+            m_volumeMap = JournalUtils.TryCreateMapOfAllLocalVolumes(LoggingContext);
             XAssert.IsNotNull(m_volumeMap);
 
             var maybeJournal = JournalUtils.TryGetJournalAccessorForTest(m_volumeMap);

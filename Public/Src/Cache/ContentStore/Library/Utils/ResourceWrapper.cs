@@ -2,7 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Threading;
+using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
@@ -10,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// Wrapper for a resource within a <see cref="ResourcePool{TKey, TObject}"/>.
     /// </summary>
     /// <typeparam name="TObject">The wrapped type.</typeparam>
-    public sealed class ResourceWrapper<TObject> : IDisposable
+    public sealed class ResourceWrapper<TObject> : IDisposable where TObject : IShutdown<BoolResult>
     {
         internal DateTime _lastUseTime;
         private int _uses;
@@ -67,6 +69,11 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             lock (this)
             {
+                if (_resource.IsValueCreated && _resource.Value.ShutdownStarted)
+                {
+                    throw Contract.AssertFailure($"Found resource which has already begun shutdown");
+                }
+
                 _uses++;
 
                 reused = _lastUseTime != DateTime.MinValue;

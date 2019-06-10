@@ -281,7 +281,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         public void Dispose()
         {
-            if (!ShutdownStarted || !ShutdownCompleted)
+            if (ShutdownStarted && !ShutdownCompleted)
             {
                 throw new CacheException($"{nameof(GrpcCopyClient)} must be shutdown before disposing.");
             }

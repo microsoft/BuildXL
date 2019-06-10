@@ -7,6 +7,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -26,8 +27,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     {
         private readonly Channel _channel;
         private readonly ContentServer.ContentServerClient _client;
-        internal DateTime _lastUseTime;
-        private int _uses;
 
         /// <inheritdoc />
         public bool ShutdownCompleted { get; private set; }
@@ -38,17 +37,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         internal GrpcCopyClientKey Key { get; private set; }
 
         /// <summary>
-        /// Count of current users of this client.
-        /// </summary>
-        internal int Uses
-        {
-            get
-            {
-                return _uses;
-            }
-        }
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
         internal GrpcCopyClient(GrpcCopyClientKey key)
@@ -57,8 +45,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure);
             _client = new ContentServer.ContentServerClient(_channel);
             Key = key;
-
-            _lastUseTime = DateTime.MinValue;
         }
 
         /// <inheritdoc />
@@ -229,50 +215,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     return new CopyFileResult(CopyFileResult.ResultCode.Unknown, r);
                 }
             }
-
-        }
-
-        /// <summary>
-        /// Attempt to reserve the client. Fails if marked for shutdown.
-        /// </summary>
-        /// <param name="reused">Whether the client has been used previously.</param>
-        /// <returns>Whether the client is approved for use.</returns>
-        public bool TryAcquire(out bool reused)
-        {
-            lock (this)
-            {
-                _uses++;
-
-                reused = _lastUseTime != DateTime.MinValue;
-                if (_uses > 0)
-                {
-                    _lastUseTime = DateTime.UtcNow;
-                    return true;
-                }
-            }
-
-            reused = false;
-            return false;
-        }
-
-        /// <summary>
-        /// Attempt to prepare the client for shutdown, based on current uses and last use time.
-        /// </summary>
-        /// <param name="force">Whether last use time should be ignored.</param>
-        /// <param name="earliestLastUseTime">If the client has been used since this time, then it is available for shutdown.</param>
-        /// <returns>Whether the client can be marked for shutdown.</returns>
-        public bool TryMarkForShutdown(bool force, DateTime earliestLastUseTime)
-        {
-            lock (this)
-            {
-                if (_uses == 0 && (force || _lastUseTime < earliestLastUseTime))
-                {
-                    _uses = int.MinValue;
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         private async Task<(long Chunks, long Bytes)> StreamContentAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CancellationToken ct = default(CancellationToken))
@@ -339,9 +281,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         public void Dispose()
         {
-            lock (this)
+            if (!ShutdownStarted || !ShutdownCompleted)
             {
-                _uses--;
+                throw new CacheException($"{nameof(GrpcCopyClient)} must be shutdown before disposing.");
             }
         }
     }

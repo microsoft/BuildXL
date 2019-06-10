@@ -105,11 +105,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
         }
 
         /// <nodoc />
-        public static void LogProcessEventsOverview(this OperationContext context, long sequenceNumber, CounterCollection<ContentLocationEventStoreCounters> eventStoreCounters, int duration)
+        public static void LogProcessEventsOverview(this OperationContext context, CounterCollection<ContentLocationEventStoreCounters> eventStoreCounters, int duration)
         {
             var sb = new StringBuilder();
-            sb.Append($"ProcessedSequenceNumber: {sequenceNumber}")
-                .Append($"TotalMessagesSize={eventStoreCounters[ReceivedMessagesTotalSize].Value}, ")
+            sb.Append($"TotalMessagesSize={eventStoreCounters[ReceivedMessagesTotalSize].Value}, ")
                 .Append($"DeserializationDuration={(long)eventStoreCounters[Deserialization].Duration.TotalMilliseconds}ms, ")
                 .Append($"#Events={eventStoreCounters[DispatchEvents].Value}, ")
                 .Append($"DispatchDuration={(long)eventStoreCounters[DispatchEvents].Duration.TotalMilliseconds}ms, ")

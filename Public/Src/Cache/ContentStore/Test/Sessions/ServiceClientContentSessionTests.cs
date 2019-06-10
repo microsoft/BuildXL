@@ -4,13 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Service.Grpc;
-using BuildXL.Cache.ContentStore.Sessions;
-using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
@@ -18,13 +15,16 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Sessions;
+using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Stores;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
-using System.IO;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 namespace ContentStoreTest.Sessions
 {

@@ -153,6 +153,15 @@ int Listeners::mpo_vnode_check_readlink(kauth_cred_t cred, struct vnode *vp, str
     return handler.HandleReadlink(vp);
 }
 
+static void handle_exec(vnode_t vp)
+{
+    TrustedBsdHandler handler = TrustedBsdHandler((BuildXLSandbox*)Listeners::g_dispatcher);
+    if (handler.TryInitializeWithTrackedProcess(proc_selfpid()))
+    {
+        handler.HandleProcessExec(vp);
+    }
+}
+
 int Listeners::mpo_vnode_check_exec(kauth_cred_t cred,
                                     struct vnode *vp,
                                     struct vnode *scriptvp,
@@ -164,12 +173,7 @@ int Listeners::mpo_vnode_check_exec(kauth_cred_t cred,
                                     void *macpolicyattr,
                                     size_t macpolicyattrlen)
 {
-    TrustedBsdHandler handler = TrustedBsdHandler((BuildXLSandbox*)g_dispatcher);
-    if (handler.TryInitializeWithTrackedProcess(proc_selfpid()))
-    {
-        handler.HandleProcessExec(vp);
-    }
-
+    handle_exec(vp);
     return KERN_SUCCESS;
 }
 
@@ -197,8 +201,10 @@ int Listeners::mpo_cred_label_update_execve(kauth_cred_t old_cred,
                                             size_t macpolicyattrlen,
                                             int *disjointp)
 {
-    // Track vfork(), make sure not to re-add the tracked process as this handler also gets called on execve()
+    // this 'mpo_cred_label_update_execve' handler can be called both upon 'vfork' and upon 'exec',
+    // which is why which we have to handle both 'fork' and 'exec' here. 
     mpo_cred_label_associate_fork(old_cred, p);
+    handle_exec(vp);
     return KERN_SUCCESS;
 }
 

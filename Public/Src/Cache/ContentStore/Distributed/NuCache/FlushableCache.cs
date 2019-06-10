@@ -20,16 +20,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     internal class FlushableCache
     {
-        private readonly FlushableCacheConfiguration _configuration;
+        private readonly ContentLocationDatabaseConfiguration _configuration;
         private readonly ContentLocationDatabase _database;
 
         private ConcurrentBigMap<ShortHash, ContentLocationEntry> _cache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
         private ConcurrentBigMap<ShortHash, ContentLocationEntry> _flushingCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
 
-        private readonly SemaphoreSlim _flushTurnstile = new SemaphoreSlim(1);
+        private readonly SemaphoreSlim _flushMutex = new SemaphoreSlim(1);
         private readonly ReadWriteLock _exchangeLock = ReadWriteLock.Create();
 
-        public FlushableCache(FlushableCacheConfiguration configuration, ContentLocationDatabase database)
+        public FlushableCache(ContentLocationDatabaseConfiguration configuration, ContentLocationDatabase database)
         {
             _configuration = configuration;
             _database = database;
@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public void UnsafeClear()
         {
             // Order is important here, inverse order could cause deadlock.
-            using (_flushTurnstile.AcquireSemaphore())
+            using (_flushMutex.AcquireSemaphore())
             using (_exchangeLock.AcquireWriteLock())
             {
                 if (_cache.Count != 0)
@@ -95,12 +95,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // This lock is required to ensure no flushes happen concurrently. We may loose updates if that happens.
             // AcquireAsync is used so as to avoid multiple concurrent tasks just waiting; this way we return the
             // task to the thread pool in between.
-            using (await _flushTurnstile.AcquireAsync())
+            using (await _flushMutex.AcquireAsync())
             {
                 PerformFlush(context);
             }
         }
 
+        /// <summary>
+        /// Needs to take the flushing lock. Called only from <see cref="FlushAsync(OperationContext)"/>. Refactored
+        /// out for clarity.
+        /// </summary>
         private void PerformFlush(OperationContext context)
         {
             _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].Increment();

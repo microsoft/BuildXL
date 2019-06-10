@@ -86,7 +86,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _configuration = configuration;
             _getInactiveMachines = getInactiveMachines;
 
-            _inMemoryCache = new FlushableCache(configuration.Cache, this);
+            _inMemoryCache = new FlushableCache(configuration, this);
         }
 
         /// <summary>
@@ -108,7 +108,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        /// <todoc />
+        /// <summary>
+        /// Prepares the database for read only or read/write mode. This operation assumes no operations are underway
+        /// while running. It is the responsibility of the caller to ensure that is so.
+        /// </summary>
         public void SetDatabaseMode(bool isDatabaseWritable)
         {
             ConfigureGarbageCollection(isDatabaseWritable);
@@ -175,7 +178,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _inMemoryCacheFlushTimer = new Timer(
                     _ => {
                         Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByTimer].Increment();
-                        ForceCacheFlush(context);
+                        ForceCacheFlushAsync(context).FireAndForget(context);
                     },
                     null,
                     Timeout.InfiniteTimeSpan,
@@ -525,6 +528,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     try
                     {
+                        await Task.Yield();
                         await _inMemoryCache.FlushAsync(context);
                         return BoolResult.Success;
                     }

@@ -8,31 +8,6 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
-    /// Configuration type for <see cref="FlushableCache"/>
-    /// </summary>
-    public class FlushableCacheConfiguration
-    {
-        /// <summary>
-        /// Number of threads to use when flushing updates to the underlying storage
-        /// </summary>
-        public int FlushDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
-
-        /// <summary>
-        /// Whether to use a single transaction to the underlying store when flushing instead of one transaction per
-        /// change.
-        ///
-        /// When this setting is on, there is no parallelism done, regardless of
-        /// <see cref="FlushDegreeOfParallelism"/>.
-        /// </summary>
-        public bool FlushSingleTransaction { get; set; } = true;
-
-        /// <summary>
-        /// Percentage of records to maintain in memory after flush
-        /// </summary>
-        public double FlushPreservePercentInMemory = 0.5;
-    }
-
-    /// <summary>
     /// Configuration type for <see cref="ContentLocationDatabase"/> family of types.
     /// </summary>
     public abstract class ContentLocationDatabaseConfiguration
@@ -60,11 +35,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool CacheEnabled { get; set; } = false;
 
         /// <summary>
-        /// Controls behavior of the internal cache.
+        /// Number of threads to use when flushing updates to the underlying storage
         ///
         /// Only useful when <see cref="CacheEnabled"/> is true.
         /// </summary>
-        public FlushableCacheConfiguration Cache { get; set; } = new FlushableCacheConfiguration();
+        public int FlushDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
+
+        /// <summary>
+        /// Whether to use a single transaction to the underlying store when flushing instead of one transaction per
+        /// change.
+        ///
+        /// When this setting is on, there is no parallelism done, regardless of
+        /// <see cref="FlushDegreeOfParallelism"/>.
+        ///
+        /// Only useful when <see cref="CacheEnabled"/> is true.
+        /// </summary>
+        public bool FlushSingleTransaction { get; set; } = true;
+
+        /// <summary>
+        /// Percentage of records to maintain in memory after flush
+        ///
+        /// Only useful when <see cref="CacheEnabled"/> is true.
+        /// </summary>
+        public double FlushPreservePercentInMemory = 0.5;
 
         /// <summary>
         /// The maximum number of updates that we are willing to perform in memory before flushing.

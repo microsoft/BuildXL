@@ -108,9 +108,6 @@ namespace BuildXL.Cache.ContentStore.Utils
                     break;
                 }
             }
-
-            // Need to reset the timer to purge the queue on time if needed.
-            ResetTimer();
         }
 
         private class ResumeBlockDisposable : IDisposable
@@ -196,7 +193,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             try
             {
-                SuspendTimer(); ;
+                SuspendTimer();
                 await _processBatch(batch);
             }
             finally
@@ -207,6 +204,11 @@ namespace BuildXL.Cache.ContentStore.Utils
 
         private void SendIncompleteBatch(object obj)
         {
+            // Even though the callback (ProcessBatchAsync) resets the timer,
+            // we still need to reset the timer in the case when the batch is empty now.
+            // in this case _batchBlock.TriggerBatch won't trigger the callback at all.
+            ResetTimer();
+
             _batchBlock.TriggerBatch();
         }
 

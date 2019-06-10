@@ -27,6 +27,7 @@ namespace ContentStoreTest.Utils
                 batchSize: 10);
 
             var suspender = queue.Suspend();
+            Thread.Sleep(1000);
             queue.Enqueue(42);
             suspender.Dispose(); // This should resume the queue and restart the timer
 
@@ -35,6 +36,31 @@ namespace ContentStoreTest.Utils
             // It means that the queue should call the callback and we can rely on that.
 
             Assert.True(processBatchIsCalled);
+        }
+
+        [Fact]
+        public void EnqueingItemsInfrequentlyShouldAlwaysTriggerCallbackOnTime()
+        {
+            int processBatchIsCalled = 0;
+            var queue = NagleQueue<int>.Create(
+                processBatch: data =>
+                              {
+                                  processBatchIsCalled++;
+                                  return Task.FromResult(42);
+                              },
+                maxDegreeOfParallelism: 1,
+                interval: TimeSpan.FromMilliseconds(10),
+                batchSize: 10);
+
+            queue.Enqueue(42);
+            
+            Thread.Sleep(100);
+            Assert.Equal(1, processBatchIsCalled);
+
+            queue.Enqueue(42);
+
+            Thread.Sleep(100); 
+            Assert.Equal(2, processBatchIsCalled);
         }
 
         [Fact]

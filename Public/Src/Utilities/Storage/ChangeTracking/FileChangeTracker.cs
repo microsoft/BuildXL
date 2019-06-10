@@ -730,6 +730,8 @@ namespace BuildXL.Storage.ChangeTracking
 
         private void DisableTracking(string path, Failure trackingFailure)
         {
+            int disabledValue = (int)FileChangeTrackingState.DisabledSinceTrackingIsIncomplete;
+
             if (!m_volumeMap.SkipTrackingJournalIncapableVolume)
             {
                 // Immediately disable tracking.
@@ -739,27 +741,39 @@ namespace BuildXL.Storage.ChangeTracking
             {
                 // Check if the path is in the volume that can be skipped.
                 // This is expensive, and should only be used during testing.
-                try
+
+                if (Interlocked.CompareExchange(ref m_trackingStateValue, disabledValue, disabledValue) == disabledValue)
                 {
-                    using (var fileStream = FileUtilities.CreateFileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                    return;
+                }
+
+                OpenFileResult openResult = FileUtilities.TryOpenDirectory(
+                        Path.GetPathRoot(path),
+                        FileDesiredAccess.GenericRead,
+                        FileShare.ReadWrite | FileShare.Delete,
+                        FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                        out SafeFileHandle handle);
+
+                if (openResult.Succeeded)
+                {
+                    using (handle)
                     {
-                        ulong volumeSerial = FileUtilities.GetVolumeSerialNumberByHandle(fileStream.SafeFileHandle);
+                        ulong volumeSerial = FileUtilities.GetVolumeSerialNumberByHandle(handle);
                         if (m_changeTrackingSet.IsTrackedVolume(volumeSerial))
                         {
                             DoDisable(path, trackingFailure);
                         }
                     }
                 }
-                catch (BuildXLException ex)
+                else
                 {
-                    DoDisable(path, new Failure<string>(ex.ToStringDemystified()));
-                }
+                    DoDisable(path, openResult.CreateFailureForError());
+                }                    
             }
 
             void DoDisable(string p, Failure f)
             {
-                if (Interlocked.Exchange(ref m_trackingStateValue, (int)FileChangeTrackingState.DisabledSinceTrackingIsIncomplete) !=
-                    (int)FileChangeTrackingState.DisabledSinceTrackingIsIncomplete)
+                if (Interlocked.Exchange(ref m_trackingStateValue, disabledValue) != disabledValue)
                 {
                     Logger.Log.DisableChangeTracker(m_loggingContext, p, f.DescribeIncludingInnerFailures());
                 }

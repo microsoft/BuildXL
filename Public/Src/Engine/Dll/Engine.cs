@@ -2191,6 +2191,8 @@ namespace BuildXL.Engine
                 { "unsafe_DisableSharedOpaqueEmptyDirectoryScrubbing", Logger.Log.ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing },
                 { "unsafe_ExistingDirectoryProbesAsEnumerations", Logger.Log.ConfigUnsafeExistingDirectoryProbesAsEnumerations },
                 { "unsafe_ForceSkipDeps", Logger.Log.ForceSkipDependenciesEnabled },
+                { "unsafe_GlobalPassthroughEnvVars",  loggingContext => { } /* Special case: unsafe option we do not want logged */ },
+                { "unsafe_GlobalUntrackedScopes",  loggingContext => { } /* Special case: unsafe option we do not want logged */ },
                 { "unsafe_IgnoreGetFinalPathNameByHandle", Logger.Log.ConfigIgnoreGetFinalPathNameByHandle },
                 { "unsafe_IgnoreNonCreateFileReparsePoints", Logger.Log.ConfigIgnoreNonCreateFileReparsePoints },
                 { "unsafe_IgnoreNtCreateFile", Logger.Log.ConfigUnsafeMonitorNtCreateFileOff },

@@ -49,7 +49,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RetryOnAzureWatsonExitCode = false;
             EnsureTempDirectoriesExistenceBeforePipExecution = false;
             GlobalUnsafeUntrackedScopes = new List<AbsolutePath>();
-            GlobalUnsafePassthroughEnvironmentVariables = new List<string>();
         }
 
         /// <nodoc />
@@ -96,7 +95,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RetryOnAzureWatsonExitCode = template.RetryOnAzureWatsonExitCode;
             EnsureTempDirectoriesExistenceBeforePipExecution = template.EnsureTempDirectoriesExistenceBeforePipExecution;
             GlobalUnsafeUntrackedScopes = pathRemapper.Remap(template.GlobalUnsafeUntrackedScopes);
-            GlobalUnsafePassthroughEnvironmentVariables = new List<string>(template.GlobalUnsafePassthroughEnvironmentVariables);
         }
 
         /// <inheritdoc />
@@ -245,12 +243,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public List<AbsolutePath> GlobalUnsafeUntrackedScopes { get; set; }
 
         /// <inheritdoc /> 
-        IReadOnlyList<AbsolutePath> ISandboxConfiguration.GlobalUnsafeUntrackedScopes => GlobalUnsafeUntrackedScopes;
-
-        /// <nodoc /> 
-        public List<string> GlobalUnsafePassthroughEnvironmentVariables { get; set; }
-
-        /// <inheritdoc /> 
-        IReadOnlyList<string> ISandboxConfiguration.GlobalUnsafePassthroughEnvironmentVariables => GlobalUnsafePassthroughEnvironmentVariables;        
+        IReadOnlyList<AbsolutePath> ISandboxConfiguration.GlobalUnsafeUntrackedScopes => GlobalUnsafeUntrackedScopes;        
     }
 }

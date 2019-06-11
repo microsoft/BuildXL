@@ -290,12 +290,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "debugScript",
                             opt => frontEndConfiguration.DebugScript = opt),
-                        OptionHandlerFactory.CreateOption(
-                            "globalUnsafePassthroughEnvVars",
-                            opt => sandboxConfiguration.GlobalUnsafePassthroughEnvironmentVariables.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", v => v ))),
-                        OptionHandlerFactory.CreateOption(
-                            "globalUnsafeUntrackedScopes",
-                            opt => sandboxConfiguration.GlobalUnsafeUntrackedScopes.AddRange(CommandLineUtilities.ParseRepeatingPathOption(opt, pathTable, ";"))),
                         OptionHandlerFactory.CreateBoolOption(
                             "scriptShowSlowest",
                             opt => frontEndConfiguration.ShowSlowestElementsStatistics = opt),
@@ -922,6 +916,12 @@ namespace BuildXL
                             "unsafe_ForceSkipDeps",
                             (opt, sign) => HandleForceSkipDependenciesOption(opt, sign, schedulingConfiguration),
                             isUnsafe: true),
+                        OptionHandlerFactory.CreateOption(
+                            "unsafe_GlobalPassthroughEnvVars",
+                            opt => frontEndConfiguration.GlobalUnsafePassthroughEnvironmentVariables.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", v => v ))),
+                        OptionHandlerFactory.CreateOption(
+                            "unsafe_GlobalUntrackedScopes",
+                            opt => sandboxConfiguration.GlobalUnsafeUntrackedScopes.AddRange(CommandLineUtilities.ParseRepeatingPathOption(opt, pathTable, ";"))),
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnoreGetFinalPathNameByHandle",
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreGetFinalPathNameByHandle = sign,

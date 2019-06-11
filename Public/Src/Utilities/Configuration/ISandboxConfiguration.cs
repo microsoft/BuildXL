@@ -247,13 +247,15 @@ namespace BuildXL.Utilities.Configuration
         bool EnsureTempDirectoriesExistenceBeforePipExecution { get; }
 
         /// <summary> 
-        /// Paths which should be untracked for all processes 
+        /// Paths and Directory Paths which should be untracked for all processes 
         /// </summary> 
+        /// <remarks>
+        /// When Directory Path is specified, all paths under that directory will be untracked
+        /// This is an unsafe configuration, since it allows read and write access to the paths 
+        /// which is not specified as input or output.
+        /// Moreover, this global configuration from cammand line will bypass cache,
+        /// which means pips and graph will be cached ignoring paths specified in this configure
+        /// </remarks>
         IReadOnlyList<AbsolutePath> GlobalUnsafeUntrackedScopes { get; }
-
-        /// <summary> 
-        /// Environment Variables which should be passed through for all processes 
-        /// </summary> 
-        IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
     }
 }

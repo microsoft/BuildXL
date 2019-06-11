@@ -1582,7 +1582,7 @@ namespace BuildXL.Processes
             }
 
             // Untrack the globally untracked paths specified in the configuration 
-            foreach (var path in m_sandboxConfig.GlobalUntrackedScopes)
+            foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
             {
                 m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
             }

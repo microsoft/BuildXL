@@ -252,13 +252,13 @@ namespace BuildXL.Utilities.Configuration
         /// </summary> 
         /// <remarks> 
         /// </remarks> 
-        IReadOnlyList<AbsolutePath> GlobalUntrackedScopes { get; }
+        IReadOnlyList<AbsolutePath> GlobalUnsafeUntrackedScopes { get; }
 
         /// <summary> 
         /// EnvironmentVariables which should be passed through for all processes 
         /// </summary> 
         /// <remarks> 
         /// </remarks> 
-        IReadOnlyList<string> GlobalPassthroughEnvironmentVariables { get; }
+        IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
     }
 }

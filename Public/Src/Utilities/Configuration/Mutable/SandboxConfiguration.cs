@@ -48,8 +48,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RedirectedTempFolderRootForVmExecution = AbsolutePath.Invalid;
             RetryOnAzureWatsonExitCode = false;
             EnsureTempDirectoriesExistenceBeforePipExecution = false;
-            GlobalUntrackedScopes = new List<AbsolutePath>();
-            GlobalPassthroughEnvironmentVariables = new List<string>();
+            GlobalUnsafeUntrackedScopes = new List<AbsolutePath>();
+            GlobalUnsafePassthroughEnvironmentVariables = new List<string>();
         }
 
         /// <nodoc />
@@ -95,8 +95,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RedirectedTempFolderRootForVmExecution = pathRemapper.Remap(template.RedirectedTempFolderRootForVmExecution);
             RetryOnAzureWatsonExitCode = template.RetryOnAzureWatsonExitCode;
             EnsureTempDirectoriesExistenceBeforePipExecution = template.EnsureTempDirectoriesExistenceBeforePipExecution;
-            GlobalUntrackedScopes = pathRemapper.Remap(template.GlobalUntrackedScopes);
-            GlobalPassthroughEnvironmentVariables = new List<string>(template.GlobalPassthroughEnvironmentVariables);
+            GlobalUnsafeUntrackedScopes = pathRemapper.Remap(template.GlobalUnsafeUntrackedScopes);
+            GlobalUnsafePassthroughEnvironmentVariables = new List<string>(template.GlobalUnsafePassthroughEnvironmentVariables);
         }
 
         /// <inheritdoc />
@@ -242,15 +242,15 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool EnsureTempDirectoriesExistenceBeforePipExecution { get; set; }
 
         /// <nodoc /> 
-        public List<AbsolutePath> GlobalUntrackedScopes { get; set; }
+        public List<AbsolutePath> GlobalUnsafeUntrackedScopes { get; set; }
 
         /// <inheritdoc /> 
-        IReadOnlyList<AbsolutePath> ISandboxConfiguration.GlobalUntrackedScopes => GlobalUntrackedScopes;
+        IReadOnlyList<AbsolutePath> ISandboxConfiguration.GlobalUnsafeUntrackedScopes => GlobalUnsafeUntrackedScopes;
 
         /// <nodoc /> 
-        public List<string> GlobalPassthroughEnvironmentVariables { get; set; }
+        public List<string> GlobalUnsafePassthroughEnvironmentVariables { get; set; }
 
         /// <inheritdoc /> 
-        IReadOnlyList<string> ISandboxConfiguration.GlobalPassthroughEnvironmentVariables => GlobalPassthroughEnvironmentVariables;        
+        IReadOnlyList<string> ISandboxConfiguration.GlobalUnsafePassthroughEnvironmentVariables => GlobalUnsafePassthroughEnvironmentVariables;        
     }
 }

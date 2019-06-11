@@ -503,7 +503,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // GlobalPassThroughEnvironmentVariables
-            foreach (var passThroughEnvironmentVariable in context.FrontEndHost.Configuration.Sandbox.GlobalPassthroughEnvironmentVariables)
+            foreach (var passThroughEnvironmentVariable in context.FrontEndHost.Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables)
             {
                 processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(context.StringTable, passThroughEnvironmentVariable));
             }

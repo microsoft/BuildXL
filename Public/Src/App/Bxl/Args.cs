@@ -291,11 +291,11 @@ namespace BuildXL
                             "debugScript",
                             opt => frontEndConfiguration.DebugScript = opt),
                         OptionHandlerFactory.CreateOption(
-                            "globalPassthroughEnvironmentVariables",
-                            opt => sandboxConfiguration.GlobalPassthroughEnvironmentVariables.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", v => v ))),
+                            "globalUnsafePassthroughEnvVars",
+                            opt => sandboxConfiguration.GlobalUnsafePassthroughEnvironmentVariables.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", v => v ))),
                         OptionHandlerFactory.CreateOption(
-                            "globalUntrackedScopes",
-                            opt => sandboxConfiguration.GlobalUntrackedScopes.AddRange(CommandLineUtilities.ParseRepeatingPathOption(opt, pathTable, ";"))),
+                            "globalUnsafeUntrackedScopes",
+                            opt => sandboxConfiguration.GlobalUnsafeUntrackedScopes.AddRange(CommandLineUtilities.ParseRepeatingPathOption(opt, pathTable, ";"))),
                         OptionHandlerFactory.CreateBoolOption(
                             "scriptShowSlowest",
                             opt => frontEndConfiguration.ShowSlowestElementsStatistics = opt),

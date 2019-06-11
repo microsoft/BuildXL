@@ -784,13 +784,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             SkippedDueToRedundantAdd,
         }
 
+        private enum RegisterCoreAction
+        {
+            Skip,
+            Events,
+            Global,
+        }
+
+        private static RegisterCoreAction ToCoreAction(RegisterAction action)
+        {
+            switch (action)
+            {
+                case RegisterAction.EagerGlobal:
+                case RegisterAction.RecentInactiveEagerGlobal:
+                case RegisterAction.RecentRemoveEagerGlobal:
+                    return RegisterCoreAction.Global;
+                case RegisterAction.LazyEventOnly:
+                case RegisterAction.LazyTouchEventOnly:
+                    return RegisterCoreAction.Events;
+                case RegisterAction.SkippedDueToRecentAdd:
+                case RegisterAction.SkippedDueToRedundantAdd:
+                    return RegisterCoreAction.Skip;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(action), action, $"Unexpected action '{action}'.");
+            }
+        }
+
         private RegisterAction GetRegisterAction(OperationContext context, ContentHash hash, DateTime now)
         {
-            if (_configuration.SkipRedundantContentLocationAdd && _recentlyAddedHashes.Contains(hash))
+            if (_configuration.SkipRedundantContentLocationAdd && _recentlyRemovedHashes.Contains(hash))
             {
-                // Content was recently added for the machine by a prior operation
-                Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Increment();
-                return RegisterAction.SkippedDueToRecentAdd;
+                // Content was recently removed. Eagerly register with global store.
+                Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Increment();
+                return RegisterAction.RecentRemoveEagerGlobal;
             }
 
             if (ClusterState.LastInactiveTime.IsRecent(now, _configuration.RecomputeInactiveMachinesExpiry.Multiply(5)))
@@ -801,11 +827,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return RegisterAction.RecentInactiveEagerGlobal;
             }
 
-            if (_recentlyRemovedHashes.Contains(hash))
+            if (_configuration.SkipRedundantContentLocationAdd && _recentlyAddedHashes.Contains(hash))
             {
-                // Content was recently removed. Eagerly register with global store.
-                Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Increment();
-                return RegisterAction.RecentRemoveEagerGlobal;
+                // Content was recently added for the machine by a prior operation
+                Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Increment();
+                return RegisterAction.SkippedDueToRecentAdd;
             }
 
             // Query local db and only eagerly update global store if replica count is below threshold
@@ -816,7 +842,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (_configuration.SkipRedundantContentLocationAdd
                     && entry.Locations[LocalMachineId.Index]) // content is registered for this machine
                 {
-
                     // If content was touched recently, we can skip. Otherwise, we touch via event
                     if (entry.LastAccessTimeUtc.ToDateTime().IsRecent(now, _configuration.TouchFrequency))
                     {
@@ -881,53 +906,45 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         var registerAction = GetRegisterAction(context, contentHash.Hash, now);
                         actions.Add(registerAction);
-                        if (registerAction == RegisterAction.SkippedDueToRecentAdd || registerAction == RegisterAction.SkippedDueToRedundantAdd)
+
+                        var coreAction = ToCoreAction(registerAction);
+                        if (coreAction == RegisterCoreAction.Skip)
                         {
                             continue;
                         }
 
+                        // In both cases (RegisterCoreAction.Events and RegisterCoreAction.Global)
+                        // we need to send an events over event hub.
                         eventContentHashes.Add(contentHash);
-                        if (registerAction == RegisterAction.LazyEventOnly || registerAction == RegisterAction.LazyTouchEventOnly)
+
+                        if (coreAction == RegisterCoreAction.Global)
                         {
-                            continue;
-                        }
-                        else
-                        {
-                            Contract.Assert(registerAction == RegisterAction.EagerGlobal || registerAction == RegisterAction.RecentInactiveEagerGlobal || registerAction == RegisterAction.RecentRemoveEagerGlobal);
                             eagerContentHashes.Add(contentHash);
                         }
                     }
 
-                    var registerActionsMessage = string.Join(", ", contentHashes.Select((c, i) => $"{new ShortHash(c.Hash)}={actions[i]}"));
+                    var registerActionsMessage = string.Join(", ", contentHashes.Select((c, i) => $"{new ShortHash(c.Hash).ToString()}={actions[i]}"));
                     Tracer.Debug(context, $"Register actions(Eager={eagerContentHashes.Count}, Event={eventContentHashes.Count}): [{registerActionsMessage}]");
 
                     if (eagerContentHashes.Count != 0)
                     {
                         // Update global store
-                        var result = await GlobalStore.RegisterLocalLocationAsync(context, eagerContentHashes);
-                        if (!result)
-                        {
-                            return result;
-                        }
+                        await GlobalStore.RegisterLocalLocationAsync(context, eagerContentHashes).ThrowIfFailure();
                     }
 
                     if (eventContentHashes.Count != 0)
                     {
                         // Send add events
-                        var result = EventStore.AddLocations(context, LocalMachineId, eventContentHashes);
-                        if (!result)
-                        {
-                            return result;
-                        }
+                        EventStore.AddLocations(context, LocalMachineId, eventContentHashes).ThrowIfFailure();
+                    }
 
-                        // Register all recently added hashes so subsequent operations do not attempt to re-add
-                        if (_configuration.SkipRedundantContentLocationAdd)
+                    // Register all recently added hashes so subsequent operations do not attempt to re-add
+                    if (_configuration.SkipRedundantContentLocationAdd && (eventContentHashes.Count != 0 || eagerContentHashes.Count != 0))
+                    {
+                        foreach (var hash in eventContentHashes.Concat(eagerContentHashes))
                         {
-                            foreach (var hash in eventContentHashes)
-                            {
-                                _recentlyAddedHashes.Add(hash.Hash, _configuration.TouchFrequency);
-                                _recentlyRemovedHashes.Invalidate(hash.Hash);
-                            }
+                            _recentlyAddedHashes.Add(hash.Hash, _configuration.TouchFrequency);
+                            _recentlyRemovedHashes.Invalidate(hash.Hash);
                         }
                     }
 

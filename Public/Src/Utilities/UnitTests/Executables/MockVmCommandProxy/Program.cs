@@ -30,11 +30,11 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
             string outputFile = null;
             string command = args[0];
 
-            if (string.Equals(VmCommand.InitializeVm, command, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(VmCommands.InitializeVm, command, StringComparison.OrdinalIgnoreCase))
             {
                 return InitializeVm();
             }
-            else if (string.Equals(VmCommand.Run, command, StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(VmCommands.Run, command, StringComparison.OrdinalIgnoreCase))
             {
                 if (!TryParseArgs(args, out inputFile, out outputFile))
                 {
@@ -43,7 +43,7 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
 
                 if (string.IsNullOrWhiteSpace(inputFile) || string.IsNullOrWhiteSpace(outputFile))
                 {
-                    Console.Error.WriteLine($"{VmCommand.Run} command requires input and output");
+                    Console.Error.WriteLine($"{VmCommands.Run} command requires input and output");
                     return -1;
                 }
 
@@ -60,8 +60,8 @@ namespace Test.BuildXL.Executables.MockVmCommandProxy
         {
             inputFile = null;
             outputFile = null;
-            string inputFileArgPrefix = $"/{VmCommand.Param.InputJsonFile}:";
-            string outputFileArgPrefix = $"/{VmCommand.Param.OutputJsonFile}:";
+            string inputFileArgPrefix = $"/{VmCommands.Params.InputJsonFile}:";
+            string outputFileArgPrefix = $"/{VmCommands.Params.OutputJsonFile}:";
 
             for (int i = 1; i < args.Length; ++i)
             {

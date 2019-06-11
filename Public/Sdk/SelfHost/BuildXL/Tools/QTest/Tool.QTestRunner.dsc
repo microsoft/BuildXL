@@ -155,6 +155,7 @@ export function runQTest(args: QTestArguments): Result {
         ),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
+        Cmd.optoin("--envVarsToKeep", args.envVarsToKeep || "")
     ];
 
     let result = Transformer.execute({
@@ -261,6 +262,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     vstestSettingsFile?: File;
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
+    /** Specifies semicolon separated list of env variables that need to be exposed to underlying tests */
+    envVarsToKeep? : string;
 }
 /**
  * Test results from a vstest.console.exe run

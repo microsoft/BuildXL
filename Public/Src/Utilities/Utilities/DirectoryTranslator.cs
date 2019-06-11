@@ -204,6 +204,21 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Gets an unsealed clone of this translator.
+        /// </summary>
+        public DirectoryTranslator GetUnsealedClone()
+        {
+            var result = new DirectoryTranslator();
+
+            foreach (var translation in m_translations)
+            {
+                result.AddTranslation(translation.SourcePath, translation.TargetPath);
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Translates the path based on the added translations.
         /// </summary>
         public AbsolutePath Translate(AbsolutePath path, PathTable pathTable)

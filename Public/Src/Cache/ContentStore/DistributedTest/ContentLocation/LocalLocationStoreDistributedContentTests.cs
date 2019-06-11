@@ -1302,15 +1302,16 @@ namespace ContentStoreTest.Distributed.Sessions
                     var worker = context.GetFirstWorker();
 
                     // Insert random file to a worker.
-                    
-                    var putResult0 = await workersSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
                     var worker1Lls = worker.LocalLocationStore;
+
+                    worker1Lls.Counters[ContentLocationStoreCounters.LocationAddEager].Value.Should().Be(0);
+                    var putResult0 = await workersSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
                     worker1Lls.Counters[ContentLocationStoreCounters.LocationAddEager].Value.Should().Be(1);
 
                     var hashWithSize = new ContentHashWithSize(putResult0.ContentHash, putResult0.ContentSize);
 
+                    worker1Lls.Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Value.Should().Be(0);
                     await worker1Lls.RegisterLocalLocationAsync(context, new[] { hashWithSize }).ThrowIfFailure();
-
                     // Still should be one, because we just recently added the content.
                     worker1Lls.Counters[ContentLocationStoreCounters.LocationAddEager].Value.Should().Be(1);
                     worker1Lls.Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Value.Should().Be(1);
@@ -1323,12 +1324,14 @@ namespace ContentStoreTest.Distributed.Sessions
                     TestClock.UtcNow += TimeSpan.FromHours(1.5);
 
                     // It was 3 hours since the content was added and 1.5h since the last touch.
+                    worker1Lls.Counters[ContentLocationStoreCounters.LazyTouchEventOnly].Value.Should().Be(0);
                     await worker1Lls.RegisterLocalLocationAsync(context, new[] { hashWithSize }).ThrowIfFailure();
                     worker1Lls.Counters[ContentLocationStoreCounters.LazyTouchEventOnly].Value.Should().Be(1);
 
                     await worker.TrimBulkAsync(context, new[] {hashWithSize.Hash}, Token, UrgencyHint.Nominal).ThrowIfFailure();
 
                     // We just removed the content, now, if we'll add it back, we should notify the global store eagerly.
+                    worker1Lls.Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Value.Should().Be(0);
                     await worker1Lls.RegisterLocalLocationAsync(context, new[] { hashWithSize }).ThrowIfFailure();
                     worker1Lls.Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Value.Should().Be(1);
                 });

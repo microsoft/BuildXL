@@ -939,11 +939,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
 
                     // Register all recently added hashes so subsequent operations do not attempt to re-add
-                    if (_configuration.SkipRedundantContentLocationAdd && (eventContentHashes.Count != 0 || eagerContentHashes.Count != 0))
+                    if (_configuration.SkipRedundantContentLocationAdd)
                     {
-                        foreach (var hash in eventContentHashes.Concat(eagerContentHashes))
+                        foreach (var hash in eventContentHashes)
                         {
                             _recentlyAddedHashes.Add(hash.Hash, _configuration.TouchFrequency);
+                        }
+
+                        // Only eagerly added hashes should invalidate recently removed hashes.
+                        foreach (var hash in eagerContentHashes)
+                        {
                             _recentlyRemovedHashes.Invalidate(hash.Hash);
                         }
                     }

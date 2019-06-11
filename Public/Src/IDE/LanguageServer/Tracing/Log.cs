@@ -94,7 +94,7 @@ namespace BuildXL.Ide.LanguageServer.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.CanNotFindSourceFile,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Events.Tasks.LanguageServer,
             Message = Events.PhasePrefix + "The file '{uri}' is not part of the workspace.",
@@ -121,7 +121,7 @@ namespace BuildXL.Ide.LanguageServer.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.NewFileWasAdded,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             EventTask = (ushort)Events.Tasks.LanguageServer,
             Message = Events.PhasePrefix + "New file '{path}' was added to the workspace that forces a full workspace recomputation.",
@@ -130,7 +130,7 @@ namespace BuildXL.Ide.LanguageServer.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.FileWasRemoved,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             EventTask = (ushort)Events.Tasks.LanguageServer,
             Message = Events.PhasePrefix + "The file '{path}' was removed from the workspace that forces a full workspace recomputation.",

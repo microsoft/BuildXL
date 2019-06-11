@@ -5,12 +5,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
+using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
+using BuildXL.Scheduler;
+using BuildXL.Scheduler.Filter;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -18,7 +22,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = BuildXL.Scheduler.Tracing.LogEventId;
-using BuildXL.Processes;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -362,6 +365,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var builderA = CreatePipBuilder(new Operation[]
                                                    {
                                                        Operation.WriteFileWithRetries(outputArtifactA, doNotInfer: true),
+                                                       Operation.WriteFile(CreateOutputFileArtifact(ObjectRoot))
                                                    });
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             var resA = SchedulePipBuilder(builderA);
@@ -373,7 +377,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                                                    });
             builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             // Let's make B depend on A so we avoid potential file locks on the double write
-            builderB.AddInputDirectory(resA.Process.DirectoryOutputs.Single());
+            builderB.AddInputFile(resA.ProcessOutputs.GetOutputFiles().Single());
             SchedulePipBuilder(builderB);
 
 
@@ -447,6 +451,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var builderA = CreatePipBuilder(new Operation[]
                                                    {
                                                        Operation.WriteFileWithRetries(outputArtifactA, doNotInfer: true),
+                                                       Operation.WriteFile(CreateOutputFileArtifact(ObjectRoot))
                                                    });
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             var resA = SchedulePipBuilder(builderA);
@@ -458,7 +463,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                                                    });
             builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             // Let's make B depend on A so we avoid potential file locks on the double write
-            builderB.AddInputDirectory(resA.Process.DirectoryOutputs.Single());
+            builderB.AddInputFile(resA.ProcessOutputs.GetOutputFiles().Single());
             SchedulePipBuilder(builderB);
 
             RunScheduler().AssertSuccess();
@@ -533,6 +538,69 @@ namespace IntegrationTest.BuildXL.Scheduler
             
             // We are expecting a file monitor violation
             AssertErrorEventLogged(EventId.FileMonitoringError);
+        }
+
+        [Fact]
+        public void RewritingSourceFilesUnderSharedOpaqueWithSamePipIsNotAllowed()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            // Let's write a file that will serve as a source file for the pip below
+            var sourceFile = CreateSourceFile(sharedOpaqueDir);
+
+            // PipA writes to the source file under a shared opaque. 
+            var dummyOutput = CreateOutputFileArtifact();
+            var builderA = CreatePipBuilder(new Operation[]
+                                                   {
+                                                       Operation.WriteFile(sourceFile, doNotInfer: true),
+                                                   });
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            // And it is declared as a source file
+            builderA.AddInputFile(sourceFile);
+
+            SchedulePipBuilder(builderA);
+
+            IgnoreWarnings();
+            RunScheduler().AssertFailure();
+
+            // We are expecting a file monitor violation 
+            AssertErrorEventLogged(EventId.FileMonitoringError);
+            // It gets reported as a double write (between the writing pip and the hash source file pip)
+            AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
+        }
+
+        [Fact]
+        public void RewritingDirectoryDependencyUnderSharedOpaqueIsNotAllowed()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            // The first pip writes a file under a shared opaque
+            var dependencyInOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
+            var builderA = CreatePipBuilder(new Operation[]
+                                                   {
+                                                       Operation.WriteFile(dependencyInOpaque, doNotInfer: true),
+                                                   });
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            var resA = SchedulePipBuilder(builderA);
+
+            // The second pip depends on the shared opaque of the first pip, and tries to write to that same file
+            var builderB = CreatePipBuilder(new Operation[]
+                                                   {
+                                                       Operation.WriteFile(dependencyInOpaque, doNotInfer: true),
+                                                   });
+            builderB.AddInputDirectory(resA.ProcessOutputs.GetOutputDirectories().Single().Root);
+            builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            SchedulePipBuilder(builderB);
+
+            IgnoreWarnings();
+            RunScheduler().AssertFailure();
+
+            // We are expecting a file monitor violation
+            AssertErrorEventLogged(EventId.FileMonitoringError);
+            // It gets reported as a double write
+            AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
         }
 
         [Fact]
@@ -881,16 +949,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = 
                 AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
-            IEnumerable<Operation> writeOperation = 
+            IEnumerable<Operation> writeOperations = 
                 new Operation[]
                 {
                     Operation.WriteFileWithRetries(
                         CreateOutputFileArtifact(sharedOpaqueDir), 
-                        doNotInfer: true),
+                        doNotInfer: true)
                 };
 
             FirstDoubleWriteWinsMakesPipUnCacheableRunner(
-                writeOperation, 
+                writeOperations, 
                 sharedOpaqueDirPath,
                 originalProducerPipCacheHitExpected: false,
                 doubleWriteProducerPipCacheHitExpected: false);
@@ -898,29 +966,99 @@ namespace IntegrationTest.BuildXL.Scheduler
             ResetPipGraphBuilder();
 
             FirstDoubleWriteWinsMakesPipUnCacheableRunner(
-                writeOperation, 
+                writeOperations, 
                 sharedOpaqueDirPath,
                 originalProducerPipCacheHitExpected: true,
                 doubleWriteProducerPipCacheHitExpected: false);
         }
 
+        [Fact]
+        public void CacheConvergenceCanTriggerAdditionalOutputContentAwareViolations()
+        {
+            // Make cache look-ups always result in cache misses. This allows us to store outputs in the cache but get cache misses for the same pip next time. 
+            // This enables us to recreate cache convergence
+            Configuration.Cache.ArtificialCacheMissOptions = new ArtificialCacheMissConfig()
+            {
+                Rate = ushort.MaxValue,
+                Seed = 0,
+                IsInverted = false
+            };
+
+            // We need to simulate cache convergence, and for that we will make a pip produce outputs based on undeclared inputs, so
+            // we need to turn off DFAs as errors
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = false;
+
+            // Shared opaque to produce outputs
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            // We will generate a double write over these files
+            var output = CreateOutputFileArtifact(sharedOpaqueDirPath);
+            var outputAsSource = FileArtifact.CreateSourceFile(output.Path);
+
+            Directory.CreateDirectory(sharedOpaqueDir);
+            File.WriteAllText(outputAsSource.Path.ToString(Context.PathTable), "content");
+
+            // This pip reads output and rewrites it.
+            var builderA = CreatePipBuilder(new Operation[] {
+                Operation.ReadAndWriteFile(FileArtifact.CreateSourceFile(output.Path), output, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact(ObjectRoot))});
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderA.DoubleWritePolicy = DoubleWritePolicy.AllowSameContentDoubleWrites;
+            var processA = SchedulePipBuilder(builderA);
+
+            // And the same for this one. The previous one has a static dummy output so just they don't collide in weak fingerprint
+            var builderB = CreatePipBuilder(new Operation[] { Operation.ReadAndWriteFile(outputAsSource, output, doNotInfer: true) });
+            builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderB.DoubleWritePolicy = DoubleWritePolicy.AllowSameContentDoubleWrites;
+            var processB = SchedulePipBuilder(builderB);
+
+            // We only want to run processB, but we need to add both pips in the graph so we can get cache hits the second time
+            RunScheduler(filter: new RootFilter(new PipIdFilter(processB.Process.SemiStableHash))).AssertSuccess();
+
+            ResetPipGraphBuilder();
+
+            // Change the content of the source file. This will make both pips change the output they generate (without changing their fingerprints)
+            File.WriteAllText(outputAsSource.Path.ToString(Context.PathTable), "modified content");
+
+            // This will write 'modified content'
+            processA = SchedulePipBuilder(builderA);
+            // This will writes 'modified content' as well, and therefore this will be a same-content double write
+            // But then the pip will converge into the cached outputs on the first run (i.e. 'content')
+            processB = SchedulePipBuilder(builderB);
+
+            // Run both pips now making sure they run in order. Check convergence actually happened for process B
+            var result = RunScheduler(constraintExecutionOrder: new (Pip, Pip)[] { (processA.Process, processB.Process) });
+            result.AssertPipExecutorStatCounted(PipExecutorCounter.ProcessPipTwoPhaseCacheEntriesConverged, 1);
+
+            // The pre-convergence analysis will find an allowed same-content double write
+            AssertVerboseEventLogged(LogEventId.AllowedSameContentDoubleWrite);
+
+            // The post-convergence analysis should find the double write
+            // Since we are running with DFAs as warnings, it won't be logger as an error
+            AssertWarningEventLogged(EventId.FileMonitoringWarning);
+            AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
+        }
+
         private void FirstDoubleWriteWinsMakesPipUnCacheableRunner(
-            IEnumerable<Operation> writeOperation, 
+            IEnumerable<Operation> writeOperations, 
             AbsolutePath sharedOpaqueDirPath, 
             bool originalProducerPipCacheHitExpected,
             bool doubleWriteProducerPipCacheHitExpected)
         {
             // originalProducerPip writes an artifact in a shared opaque directory
-            ProcessBuilder originalProducerPipBuilder = CreatePipBuilder(writeOperation);
+            ProcessBuilder originalProducerPipBuilder = CreatePipBuilder(
+                writeOperations.Append(Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "dep")))));
             originalProducerPipBuilder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            originalProducerPipBuilder.DoubleWritePolicy |= DoubleWritePolicy.UnsafeFirstDoubleWriteWins;
             ProcessWithOutputs originalProducerPipResult = SchedulePipBuilder(originalProducerPipBuilder);
 
             // doubleWriteProducerPip writes the same artifact in a shared opaque directory
-            ProcessBuilder doubleWriteProducerPipBuilder = CreatePipBuilder(writeOperation);
+            ProcessBuilder doubleWriteProducerPipBuilder = CreatePipBuilder(writeOperations);
             doubleWriteProducerPipBuilder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
 
             // Let's make doubleWriteProducerPip depend on originalProducerPip so we avoid potential file locks on the double write
-            doubleWriteProducerPipBuilder.AddInputDirectory(originalProducerPipResult.Process.DirectoryOutputs.Single());
+            doubleWriteProducerPipBuilder.AddInputFile(originalProducerPipResult.ProcessOutputs.GetOutputFiles().Single());
 
             // Set UnsafeFirstDoubleWriteWins
             doubleWriteProducerPipBuilder.DoubleWritePolicy |= DoubleWritePolicy.UnsafeFirstDoubleWriteWins;

@@ -11,6 +11,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -282,7 +283,9 @@ namespace BuildXL.Cache.ContentStore.Service
                     var stats = await GetStatsAsync(store, context);
                     if (stats.Succeeded)
                     {
-                        foreach (var counter in stats.CounterSet.ToDictionaryIntegral())
+                        var counters = stats.CounterSet.ToDictionaryIntegral();
+                        FillTrackingStreamStatistics(counters);
+                        foreach (var counter in counters)
                         {
                             var key = $"{name}.{counter.Key}";
                             var value = counter.Value;
@@ -304,6 +307,14 @@ namespace BuildXL.Cache.ContentStore.Service
             {
                 Volatile.Write(ref _loggingIncrementalStats, 0);
             }
+        }
+
+        private static void FillTrackingStreamStatistics(IDictionary<string, long> statistics)
+        {
+            // This method fills up counters for tracking memory leaks with file streams.
+            statistics[$"{nameof(TrackingFileStream)}.{nameof(TrackingFileStream.Constructed)}"] = Interlocked.Read(ref TrackingFileStream.Constructed);
+            statistics[$"{nameof(TrackingFileStream)}.{nameof(TrackingFileStream.ProperlyClosed)}"] = Interlocked.Read(ref TrackingFileStream.ProperlyClosed);
+            statistics[$"{nameof(TrackingFileStream)}.{nameof(TrackingFileStream.Leaked)}"] = TrackingFileStream.Leaked;
         }
 
         private async Task CheckForExpiredSessionsAsync(Context context)
@@ -439,7 +450,10 @@ namespace BuildXL.Cache.ContentStore.Service
 
             _portDisposer?.Dispose();
 
-            await _grpcServer.KillAsync();
+            if (_grpcServer != null)
+            {
+                await _grpcServer.KillAsync();
+            }
 
             _logIncrementalStatsTimer?.Dispose();
             await LogIncrementalStatsAsync(context);
@@ -588,6 +602,7 @@ namespace BuildXL.Cache.ContentStore.Service
                 Tracer,
                 async () =>
                 {
+                    TrySetBuildId(name);
                     if (!StoresByName.TryGetValue(cacheName, out var store))
                     {
                         return Result.FromErrorMessage<TSession>($"Cache by name=[{cacheName}] is not available");
@@ -618,6 +633,39 @@ namespace BuildXL.Cache.ContentStore.Service
                     Tracer.Debug(context, $"{nameof(CreateSessionAsync)} created session {handle.ToString(id)}.");
                     return Result.Success(session);
                 });
+        }
+
+        private void TrySetBuildId(string sessionName)
+        {
+            // Domino provides build ID through session name for CB builds.
+            if (Logger is IOperationLogger operationLogger && TryExtractBuildId(sessionName, out var buildId))
+            {
+                operationLogger.RegisterBuildId(buildId);
+            }
+        }
+
+        private static bool TryExtractBuildId(string sessionName, out string buildId)
+        {
+            if (sessionName?.Contains(Context.BuildIdPrefix) == true)
+            {
+                var index = sessionName.IndexOf(Context.BuildIdPrefix) + Context.BuildIdPrefix.Length;
+                buildId = sessionName.Substring(index);
+
+                // Return true only if buildId is actually a guid.
+                return Guid.TryParse(buildId, out _);
+            }
+
+            buildId = null;
+            return false;
+        }
+
+        private void TryUnsetBuildId(string sessionName)
+        {
+            // Domino provides build ID through session name for CB builds.
+            if (Logger is IOperationLogger operationLogger && TryExtractBuildId(sessionName, out _))
+            {
+                operationLogger.UnregisterBuildId();
+            }
         }
 
         /// <summary>
@@ -730,6 +778,9 @@ namespace BuildXL.Cache.ContentStore.Service
             }
 
             Tracer.Debug(context, $"{method} closing session {DescribeSession(sessionId, sessionHandle)}");
+
+            TryUnsetBuildId(sessionHandle.SessionName);
+
             await sessionHandle.Session.ShutdownAsync(context).ThrowIfFailure();
             sessionHandle.Session.Dispose();
         }

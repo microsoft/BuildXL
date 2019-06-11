@@ -669,10 +669,9 @@ namespace BuildXL
                     return null;
                 }
 
-                Assembly rootAssembly = Assembly.GetEntryAssembly();
-                Contract.Assert(rootAssembly != null, "Could not look up entry assembly");
-
-                string pathToProcess = Path.Combine(serverDeployment.DeploymentPath, new FileInfo(AssemblyHelper.GetAssemblyLocation(rootAssembly)).Name);
+                string pathToProcess = Path.Combine(
+                    serverDeployment.DeploymentPath,
+                    new FileInfo(AssemblyHelper.GetThisProgramExeLocation()).Name);
 
                 StartupParameters newServerParameters = StartupParameters.CreateForNewAppServer(
                     uniqueAppName,

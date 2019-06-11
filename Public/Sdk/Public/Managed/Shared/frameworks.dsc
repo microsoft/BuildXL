@@ -5,8 +5,8 @@ import * as Deployment from "Sdk.Deployment";
 
 @@public
 export interface Framework {
-    /** 
-     * The minimum rumtime version supported.
+    /**
+     * The minimum runtime version supported.
      * See: https://docs.microsoft.com/en-us/dotnet/framework/configure-apps/file-schema/startup/supportedruntime-element
      */
     supportedRuntimeVersion: string,
@@ -55,7 +55,7 @@ namespace TargetFrameworks {
     export type DesktopTargetFrameworks = "net451" | "net461" | "net472";
 
     @@public
-    export type CoreClrTargetFrameworks = "netcoreapp2.2";
+    export type CoreClrTargetFrameworks = "netcoreapp2.2" | "netcoreapp3.0";
 
     @@public
     export type StandardTargetFrameworks = "netstandard2.0";
@@ -85,14 +85,14 @@ namespace TargetFrameworks {
     export interface CurrentMachineQualifier extends Qualifier {
         configuration: "debug" | "release";
         // TODO: Netstandard should handle its application deploy in the framework itself and not rely on BuildXLSdk specifics
-        targetFramework: "net472" | "netcoreapp2.2",
+        targetFramework: "net472" | "netcoreapp3.0",
         targetRuntime: "win-x64" | "osx-x64",
     }
 
     @@public
     export const currentMachineQualifier : CurrentMachineQualifier = {
         configuration: "release",
-        targetFramework: Context.getCurrentHost().os === "win" ? "net472" : "netcoreapp2.2",
+        targetFramework: Context.getCurrentHost().os === "win" ? "net472" : "netcoreapp3.0",
         targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "osx-x64",
     };
 }

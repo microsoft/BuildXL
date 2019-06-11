@@ -60,10 +60,10 @@ param(
     [string]$Use = "LKG",
 
     [ValidateSet("Release", "Debug")]
-    [string]$DeployConfig = "Debug",
+    [string]$DeployConfig = "Debug", # must match defaultQualifier.configuration in config.dsc 
 
-    [ValidateSet("net472", "net461", "win-x64", "osx-x64")]
-    [string]$DeployRuntime = "net472",
+    [ValidateSet("net472", "win-x64", "osx-x64")]
+    [string]$DeployRuntime = "win-x64", # must correspond to defaultQualifier.targetFramework in config.dsc 
 
     [Parameter(Mandatory=$false)]
     [string]$DominoDeploymentRoot = "Out\Bin",
@@ -81,9 +81,10 @@ param(
     [Parameter(Mandatory=$false)]
     [switch]$DeployStandaloneTest = $false,
 
+    # Task 544796 to enable this
     [Parameter(Mandatory=$false)]
     [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
-    [string]$SharedCacheMode = "Consume",
+    [string]$SharedCacheMode = "Disable",
 
     [Parameter(Mandatory=$false)]
     [string]$DefaultConfig,
@@ -239,7 +240,7 @@ if ($DeployStandaloneTest) {
 }
 
 if ($Vs) {
-    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /vs";
+    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /q:DebugNet472 /vs";
 }
 
 # WARNING: CloudBuild selfhost builds do NOT use this script file. When adding a new argument below, we should add the argument to selfhost queues in CloudBuild. Please contact bxl team. 
@@ -476,24 +477,28 @@ if (! (Test-Path -PathType Leaf $useDeployment.domino)) {
     throw "The BuildXL executable was not found at $($useDeployment.domino). Maybe you need to build and deploy with -Deploy $Use first?";
 }
 
+# It's important that when neither -DeployConfig nor -DeployRuntime is explicitly provided
+# (i.e., the default values are used) we don't add any additional qualifiers here.  The
+# reason is because we don't want to add extra qualifiers when the user explicitly 
+# specifies which qualifiers to build (using the /q switch).
+#
+# This basically means that the default values for -DeployConfig and -DeployRuntime
+# must correspond to default qualifier in config.dsc.
 if ($DeployConfig -eq "Release") {
-    if ($DeployRuntime -eq "win-x64") {
-        $AdditionalBuildXLArguments += "/q:ReleaseDotNetCore"
+    if ($DeployRuntime -eq "net472") {
+        $AdditionalBuildXLArguments += "/q:ReleaseNet472"
     }
-    elseif ($DeployRuntime -eq "osx-x64")
-    {
+    elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:ReleaseDotNetCoreMac"
     }
-    else
-    {
+    else {
         $AdditionalBuildXLArguments += "/q:Release"
     }
 } else {
-    if ($DeployRuntime -eq "win-x64") {
-        $AdditionalBuildXLArguments += "/q:DebugDotNetCore"
+    if ($DeployRuntime -eq "net472") {
+        $AdditionalBuildXLArguments += "/q:DebugNet472"
     }
-    elseif ($DeployRuntime -eq "osx-x64")
-    {
+    elseif ($DeployRuntime -eq "osx-x64") {
         $AdditionalBuildXLArguments += "/q:DebugDotNetCoreMac"
     }
 }
@@ -520,7 +525,7 @@ if (!$skipFilter){
 
     $AllCacheProjectsFilter = "(spec='Public\Src\Cache\ContentStore\*')or(spec='Public\Src\Cache\MemoizationStore\*')or(spec='Public\Src\Cache\DistributedCache.Host\*')or(spec='Public\Src\Deployment\cache.dsc')";
     $CacheNugetFilter = "spec='Public\Src\Deployment\cache.nugetpackages.dsc'";
-    $CacheOutputFilter = "output='out\bin\$DeployConfig\cache\net472\*'";
+    $CacheOutputFilter = "output='out\bin\$DeployConfig\cache\*'";
     $CacheLongRunningFilter = "tag='LongRunningTest'";
     $PrivateNugetFilter = "spec='Public\src\Deployment\privatePackages.dsc'";
     $IdeFilter = "spec='Public\src\Deployment\ide.dsc'";

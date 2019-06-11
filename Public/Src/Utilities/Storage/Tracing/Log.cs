@@ -474,6 +474,15 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageCacheContentPinned(LoggingContext loggingContext, string casEntry, string cacheId);
 
         [GeneratedEvent(
+            (int)EventId.FileMaterializationMismatchFileExistenceResult,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.PipExecutor,
+            Message = "File existence check on '{path}' results in '{message}', but cache decided it as '{cacheExistence}'")]
+        public abstract void FileMaterializationMismatchFileExistenceResult(LoggingContext loggingContext, string path, string message, string cacheExistence);
+
+        [GeneratedEvent(
             (int)EventId.StorageKnownUsnHit,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -539,10 +548,10 @@ namespace BuildXL.Storage.Tracing
         [GeneratedEvent(
             (ushort)EventId.FailedCheckingDirectJournalAccess,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (ushort)Events.Tasks.Storage,
-            Message = "Encountered an error while checking whether process can access the journal directly. The build may still proceed but without use of change journal scanning. {errorMessage}")]
+            Message = "Checking direct journal access results in failure. {errorMessage}")]
         internal abstract void FailedCheckingDirectJournalAccess(LoggingContext context, string errorMessage);
 
         [GeneratedEvent(

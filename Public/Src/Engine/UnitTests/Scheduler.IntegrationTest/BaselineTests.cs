@@ -1097,6 +1097,43 @@ namespace IntegrationTest.BuildXL.Scheduler
             SetExpectedFailures(2, 0);
         }
 
+
+        /// <summary>
+        /// Validates behavior with a process being retried
+        /// </summary>
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void RetryExitCodes(bool succeedOnRetry)
+        {
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+            var ops = new Operation[]
+            {
+                Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "out.txt")), content: "Hello"),
+                succeedOnRetry ? 
+                    Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, firstFailExitCode: 42) :
+                    Operation.Fail(-2),
+            };
+
+            var builder = CreatePipBuilder(ops);
+            builder.RetryExitCodes = global::BuildXL.Utilities.Collections.ReadOnlyArray<int>.From(new int[] { 42 });
+            builder.AddUntrackedFile(stateFile.Path);
+            SchedulePipBuilder(builder);
+
+            Configuration.Schedule.ProcessRetries = 1;
+
+            var result = RunScheduler();
+            if (succeedOnRetry)
+            {
+                result.AssertSuccess();
+            }
+            else
+            {
+                result.AssertFailure();
+                SetExpectedFailures(1, 0);
+            }
+        }
+
         private Operation ProbeOp(string root, string relativePath = "")
         {
             return Operation.Probe(CreateFileArtifactWithName(root: root, name: relativePath), doNotInfer: true);

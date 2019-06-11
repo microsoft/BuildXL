@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
@@ -295,7 +296,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public override IEnumerable<ShortHash> EnumerateSortedKeys(CancellationToken token)
+        protected override IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(CancellationToken token)
         {
             var keyBuffer = new List<ShortHash>();
             byte[] startValue = null;
@@ -351,7 +352,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public override IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeys(
+        protected override IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeysFromStorage(
             CancellationToken token,
             EnumerationFilter filter = null)
         {
@@ -420,7 +421,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override bool TryGetEntryCore(OperationContext context, ShortHash hash, out ContentLocationEntry entry)
+        protected override bool TryGetEntryCoreFromStorage(OperationContext context, ShortHash hash, out ContentLocationEntry entry)
         {
             entry = _keyValueStore.Use(
                     (store, state) => TryGetEntryCoreHelper(state.hash, store, state.db),
@@ -442,9 +443,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override void Store(OperationContext context, ShortHash hash, ContentLocationEntry entry)
+        internal override void Persist(OperationContext context, ShortHash hash, ContentLocationEntry entry)
         {
-            SaveToDb(context, hash, entry);
+            if (entry == null)
+            {
+                DeleteFromDb(context, hash);
+            }
+            else
+            {
+                SaveToDb(context, hash, entry);
+            }
+        }
+
+        /// <inheritdoc />
+        internal override void PersistBatch(OperationContext context, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs)
+        {
+            _keyValueStore.Use((store, state) => PersistBatchHelper(store, state.pairs, state.db), (pairs, db: this)).ThrowOnError();
+        }
+
+        private static Unit PersistBatchHelper(IBuildXLKeyValueStore store, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs, RocksDbContentLocationDatabase db)
+        {
+            store.ApplyBatch(
+                pairs.Select(pair => db.GetKey(pair.Key)),
+                pairs.Select(pair => pair.Value != null ? db.Serialize(pair.Value) : null));
+            return Unit.Void;
         }
 
         private void SaveToDb(OperationContext context, ShortHash hash, ContentLocationEntry entry)
@@ -460,12 +482,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             store.Put(db.GetKey(hash), value);
 
             return Unit.Void;
-        }
-
-        /// <inheritdoc />
-        protected override void Delete(OperationContext context, ShortHash hash)
-        {
-            DeleteFromDb(context, hash);
         }
 
         private void DeleteFromDb(OperationContext context, ShortHash hash)

@@ -36,7 +36,6 @@ namespace BuildXL.Pips
         private WeakReference<Pip> m_weakPip;
 
         internal readonly PipType PipType;
-
         /// <summary>
         /// /// Constructor used for deserialization
         /// </summary>
@@ -66,11 +65,11 @@ namespace BuildXL.Pips
                         pipAsIpc.ServicePipDependencies.Any() ? ServicePipKind.ServiceClient :
                         ServicePipKind.None;
                     var serviceInfo = new ServiceInfo(serviceKind, pipAsIpc.ServicePipDependencies);
-                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), serviceInfo, Process.Options.IsLight);
+                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), serviceInfo, Process.Options.IsLight, Process.MinPriority);
                     break;
                 case PipType.Process:
                     var pipAsProcess = (Process)pip;
-                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), pipAsProcess.ServiceInfo, pipAsProcess.ProcessOptions);
+                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), pipAsProcess.ServiceInfo, pipAsProcess.ProcessOptions, pipAsProcess.Priority);
                     break;
                 case PipType.CopyFile:
                     var pipAsCopy = (CopyFile)pip;
@@ -154,6 +153,12 @@ namespace BuildXL.Pips
         /// <returns></returns>
         public virtual bool IsPreservedOutputsPip() => false;
 
+        /// <summary>
+        /// Checks if pip using a non-empty preserveOutputWhitelist
+        /// </summary>
+        /// <returns></returns>
+        public virtual bool HasPreserveOutputWhitelist() => false;
+
         internal bool IsAlive
         {
             get
@@ -197,17 +202,20 @@ namespace BuildXL.Pips
     {
         internal readonly ServiceInfo ServiceInfo;
         internal readonly Process.Options ProcessOptions;
+        internal readonly int Priority;
 
         internal ProcessMutablePipState(
             PipType pipType, 
             long semiStableHash, 
             PageableStoreId storeId, 
             ServiceInfo serviceInfo, 
-            Process.Options processOptions)
+            Process.Options processOptions,
+            int priority)
             : base(pipType, semiStableHash, storeId)
         {
             ServiceInfo = serviceInfo;
             ProcessOptions = processOptions;
+            Priority = priority;
         }
 
         /// <summary>
@@ -225,17 +233,21 @@ namespace BuildXL.Pips
         {
             writer.Write(ServiceInfo, ServiceInfo.InternalSerialize);
             writer.Write((int)ProcessOptions);
+            writer.Write(Priority);
         }
 
         internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId)
         {
             ServiceInfo serviceInfo = reader.ReadNullable(ServiceInfo.InternalDeserialize);
             int options = reader.ReadInt32();
+            int priority = reader.ReadInt32();
 
-            return new ProcessMutablePipState(pipType, semiStableHash, storeId, serviceInfo, (Process.Options)options);
+            return new ProcessMutablePipState(pipType, semiStableHash, storeId, serviceInfo, (Process.Options)options, priority);
         }
 
         public override bool IsPreservedOutputsPip() => (ProcessOptions & Process.Options.AllowPreserveOutputs) != 0;
+
+        public override bool HasPreserveOutputWhitelist() => (ProcessOptions & Process.Options.HasPreserveOutputWhitelist) != 0;
 
         public override bool MustOutputsRemainWritable() => (ProcessOptions & Process.Options.OutputsMustRemainWritable) != 0;
     }

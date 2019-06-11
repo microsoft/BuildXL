@@ -23,19 +23,17 @@ function createDeploymentManifest(isServerDeployment: boolean) : Deployment.Defi
         contents: [
             // Use the operating system specific BuildXL binary for deployments
             Main.exe,
-            ...(BuildXLSdk.isDotNetCoreBuild ? [
-                f`DefaultCacheConfigDotNetCore.json`,
-            ] : [
-                importFrom("BuildXL.Cache.MemoizationStore").deploymentForBuildXL,
+            f`DefaultCacheConfig.json`,
+
+            ...addIfLazy(!BuildXLSdk.isDotNetCoreBuild, () => [
+                importFrom("BuildXL.Cache.MemoizationStore").deploymentForBuildXL
             ]),
 
-            f`DefaultCacheConfig.json`,
             importFrom("BuildXL.Cache.VerticalStore").Deployment.deployment,
             importFrom("BuildXL.Cache.ContentStore").deploymentForBuildXL,
 
             ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
                 RunInSubst.withQualifier({configuration: qualifier.configuration, platform: "x86"}).deployment,
-                DetoursServices.Deployment.definition
             ]),
 
             ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [

@@ -54,7 +54,12 @@ namespace BuildXL.Processes
         /// <summary>
         /// The sandboxed process should be retried due to exit code.
         /// </summary>
-        ShouldBeRetriedDueToExitCode,
+        ShouldBeRetriedDueToUserSpecifiedExitCode,
+
+        /// <summary>
+        /// The sandboxed process should be retried due to Azure Watson's 0xDEAD exit code.
+        /// </summary>
+        ShouldBeRetriedDueToAzureWatsonExitCode,
     }
 
     /// <summary>
@@ -122,7 +127,7 @@ namespace BuildXL.Processes
                 containerConfiguration: result.ContainerConfiguration);
         }
 
-        internal static SandboxedProcessPipExecutionResult RetryProcessDueToExitCode(
+        internal static SandboxedProcessPipExecutionResult RetryProcessDueToUserSpecifiedExitCode(
             int numberOfProcessLaunchRetries,
             int exitCode,
             ProcessTimes primaryProcessTimes,
@@ -135,7 +140,40 @@ namespace BuildXL.Processes
             ContainerConfiguration containerConfiguration)
         {
             return new SandboxedProcessPipExecutionResult(
-                SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToExitCode,
+                SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode,
+                observedFileAccesses: default(SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>),
+                sharedDynamicDirectoryWriteAccesses: default(Dictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>),
+                encodedStandardError: null,
+                encodedStandardOutput: null,
+                numberOfWarnings: 0,
+                unexpectedFileAccesses: null,
+                primaryProcessTimes: primaryProcessTimes,
+                jobAccountingInformation: jobAccountingInformation,
+                numberOfProcessLaunchRetries: numberOfProcessLaunchRetries,
+                exitCode: exitCode,
+                sandboxPrepMs: sandboxPrepMs,
+                processSandboxedProcessResultMs: processSandboxedProcessResultMs,
+                processStartTime: processStartTime,
+                allReportedFileAccesses: null,
+                detouringStatuses: detouringStatuses,
+                maxDetoursHeapSize: maxDetoursHeapSize,
+                containerConfiguration: containerConfiguration);
+        }
+
+        internal static SandboxedProcessPipExecutionResult RetryProcessDueToAzureWatsonExitCode(
+            int numberOfProcessLaunchRetries,
+            int exitCode,
+            ProcessTimes primaryProcessTimes,
+            JobObject.AccountingInformation? jobAccountingInformation,
+            IReadOnlyList<ProcessDetouringStatusData> detouringStatuses,
+            long sandboxPrepMs,
+            long processSandboxedProcessResultMs,
+            long processStartTime,
+            long maxDetoursHeapSize,
+            ContainerConfiguration containerConfiguration)
+        {
+            return new SandboxedProcessPipExecutionResult(
+                SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToAzureWatsonExitCode,
                 observedFileAccesses: default(SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>),
                 sharedDynamicDirectoryWriteAccesses: default(Dictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>),
                 encodedStandardError: null,
@@ -274,10 +312,10 @@ namespace BuildXL.Processes
             ContainerConfiguration containerConfiguration)
         {
             Contract.Requires(
-                (status == SandboxedProcessPipExecutionStatus.PreparationFailed || status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToExitCode) ||
+                (status == SandboxedProcessPipExecutionStatus.PreparationFailed || status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode) ||
                 observedFileAccesses.IsValid);
             Contract.Requires(
-                (status == SandboxedProcessPipExecutionStatus.PreparationFailed || status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToExitCode) ||
+                (status == SandboxedProcessPipExecutionStatus.PreparationFailed || status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode) ||
                 unexpectedFileAccesses != null);
             Contract.Requires((status == SandboxedProcessPipExecutionStatus.PreparationFailed) || primaryProcessTimes != null);
             Contract.Requires(encodedStandardOutput == null || (encodedStandardOutput.Item1.IsValid && encodedStandardOutput.Item2 != null));

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -78,7 +79,7 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             using (var environmentAdapter = new ObservedInputProcessingEnvironmentAdapter(environment, state))
             {
-                return await ProcessInternal(
+                return await ProcessInternalAsync(
                     operationContext,
                     environmentAdapter,
                     target,
@@ -106,7 +107,7 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             using (var environmentAdapter = new ObservedInputProcessingEnvironmentAdapter(environment, state))
             {
-                return await ProcessInternal(
+                return await ProcessInternalAsync(
                     operationContext,
                     environmentAdapter,
                     target,
@@ -124,7 +125,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// This implementation requires that the <paramref name="observations"/> array is sorted by each entry's expanded
         /// path. Observations for duplicate paths are permitted (the observations themselves may be distinct due to other members).
         /// </summary>
-        internal static async Task<ObservedInputProcessingResult> ProcessInternal<TTarget, TEnv, TObservation>(
+        internal static async Task<ObservedInputProcessingResult> ProcessInternalAsync<TTarget, TEnv, TObservation>(
             OperationContext operationContext,
             TEnv environment,
             TTarget target,
@@ -395,7 +396,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             }
                             else
                             {
-                                type = MapPathExistenceToObservedInputType(maybeType.Result, observationFlags);
+                                type = MapPathExistenceToObservedInputType(pathTable, path, maybeType.Result, observationFlags);
                             }
                         }
 
@@ -983,7 +984,7 @@ namespace BuildXL.Scheduler.Fingerprints
             }
         }
 
-        private static ObservedInputType MapPathExistenceToObservedInputType(PathExistence pathExistence, ObservationFlags observationFlags)
+        private static ObservedInputType MapPathExistenceToObservedInputType(PathTable pathTable, AbsolutePath path, PathExistence pathExistence, ObservationFlags observationFlags)
         {
             switch (pathExistence)
             {
@@ -992,6 +993,20 @@ namespace BuildXL.Scheduler.Fingerprints
                 case PathExistence.ExistsAsFile:
                     if ((observationFlags & (ObservationFlags.DirectoryLocation | ObservationFlags.Enumeration)) != 0)
                     {
+                        if (FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(pathTable)))
+                        {
+                            if ((observationFlags & ObservationFlags.Enumeration) != 0)
+                            {
+                                // Enumeration of directory through directory symlink or junction.
+                                return ObservedInputType.DirectoryEnumeration;
+                            }
+                            else if ((observationFlags & ObservationFlags.DirectoryLocation) != 0)
+                            {
+                                // Probing of directory through directory symlink or junction.
+                                return ObservedInputType.ExistingDirectoryProbe;
+                            }
+                        }
+
                         // If the location is a DirectoryLocation and the result of the probe is ExistsAs File,
                         // The directory is not existent. Report it as an absent path probe. The cache/fingerprints
                         // already deal with such probe properly since it is the same as absent path probe in the enumeration case.
@@ -1550,8 +1565,6 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             m_pooledPipFileSystem?.Dispose();
         }
-
-        
 
         public Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, bool isReadOnly, bool trackPathExistence = true)
         {

@@ -13,11 +13,10 @@ namespace BuildXL.Engine.Distribution.Grpc
     {
         #region AttachCompletionInfo
 
-        public static AttachCompletionInfo ToGrpc(this OpenBond.AttachCompletionInfo message, SenderInfo senderInfo)
+        public static AttachCompletionInfo ToGrpc(this OpenBond.AttachCompletionInfo message)
         {
             return new AttachCompletionInfo()
             {
-                Sender = senderInfo,
                 WorkerId = message.WorkerId,
 
                 AvailableRamMb = message.AvailableRamMb ?? 100000,
@@ -30,11 +29,8 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             return new OpenBond.AttachCompletionInfo()
             {
-                BuildId = message.Sender.BuildId,
-                SenderId = message.Sender.SenderId,
-                SenderName = message.Sender.SenderName,
                 WorkerId = message.WorkerId,
-
+                
                 AvailableRamMb = message.AvailableRamMb,
                 MaxConcurrency = message.MaxConcurrency,
                 WorkerCacheValidationContentHash = message.WorkerCacheValidationContentHash.ToBondContentHash(),
@@ -44,11 +40,10 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         #region WorkerNotificationArgs
 
-        public static WorkerNotificationArgs ToGrpc(this OpenBond.WorkerNotificationArgs message, SenderInfo senderInfo)
+        public static WorkerNotificationArgs ToGrpc(this OpenBond.WorkerNotificationArgs message)
         {
             var workerNotificationArgs = new WorkerNotificationArgs()
             {
-                Sender = senderInfo,
                 WorkerId = message.WorkerId,
                 ExecutionLogBlobSequenceNumber = message.ExecutionLogBlobSequenceNumber,
                 ExecutionLogData = message.ExecutionLogData.ToByteString(),
@@ -113,9 +108,6 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             return new OpenBond.WorkerNotificationArgs()
             {
-                BuildId = message.Sender.BuildId,
-                SenderId = message.Sender.SenderId,
-                SenderName = message.Sender.SenderName,
                 WorkerId = message.WorkerId,
 
                 CompletedPips = completedPips,
@@ -127,11 +119,10 @@ namespace BuildXL.Engine.Distribution.Grpc
         #endregion
 
         #region BuildStartData
-        public static BuildStartData ToGrpc(this OpenBond.BuildStartData message, SenderInfo senderInfo)
+        public static BuildStartData ToGrpc(this OpenBond.BuildStartData message)
         {
             var buildStartData = new BuildStartData()
             {
-                Sender = senderInfo,
                 WorkerId = message.WorkerId,
                 CachedGraphDescriptor = new BuildXL.Distribution.Grpc.PipGraphCacheDescriptor()
                 {
@@ -173,9 +164,6 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             return new OpenBond.BuildStartData()
             {
-                BuildId = message.Sender.BuildId,
-                SenderId = message.Sender.SenderId,
-                SenderName = message.Sender.SenderName,
                 WorkerId = message.WorkerId,
                 CachedGraphDescriptor = new Cache.Fingerprints.PipGraphCacheDescriptor()
                 {
@@ -209,12 +197,9 @@ namespace BuildXL.Engine.Distribution.Grpc
         #endregion
 
         #region PipBuildRequest
-        public static PipBuildRequest ToGrpc(this OpenBond.PipBuildRequest message, SenderInfo senderInfo)
+        public static PipBuildRequest ToGrpc(this OpenBond.PipBuildRequest message)
         {
-            var pipBuildRequest = new PipBuildRequest()
-            {
-                Sender = senderInfo,
-            };
+            var pipBuildRequest = new PipBuildRequest();
 
             foreach (var i in message.Hashes)
             {
@@ -316,10 +301,6 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             return new OpenBond.PipBuildRequest()
             {
-                BuildId = message.Sender.BuildId,
-                SenderId = message.Sender.SenderId,
-                SenderName = message.Sender.SenderName,
-
                 Hashes = hashes,
                 Pips = pips
             };

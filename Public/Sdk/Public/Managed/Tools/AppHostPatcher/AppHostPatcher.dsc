@@ -2,34 +2,35 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
+import {CoreRT} from "Sdk.MacOS";
 import * as Managed from "Sdk.Managed";
-import * as MacOS from "Sdk.MacOS";
+import * as Shared from "Sdk.Managed.Shared";
+import * as Frameworks from "Sdk.Managed.Frameworks";
 
 export declare const qualifier: Managed.TargetFrameworks.CurrentMachineQualifier;
 
 const pkgContents = importFrom("BuildXL.Tools.AppHostPatcher").Contents.all;
 
+const patcherExecutable = Context.getCurrentHost().os === "macOS"
+    ? CoreRT.compileToNative(Managed.executable({ 
+        assemblyName: "NativeAppHostPatcher",
+        sources: globR(d`.`, "*.cs"),
+        framework: Frameworks.framework.override<Shared.Framework>({
+            applicationDeploymentStyle: "frameworkDependent"
+        })
+      })).getExecutable()
+    : pkgContents.getFile(r`tools/win-x64/AppHostPatcher.exe`);
+
 const patcher: Transformer.ToolDefinition = {
-    exe: pkgContents.getFile(r`tools/${qualifier.targetRuntime}/${"AppHostPatcher" + (qualifier.targetRuntime === "win-x64" ? ".exe" : "")}`),
-    dependsOnWindowsDirectories: true,
-    untrackedDirectoryScopes: [
-        ...addIfLazy(Context.getCurrentHost().os === "macOS", () => [
-            ...MacOS.untrackedSystemFolderDeps,
-            d`${Context.getMount("UserProfile").path}/Microsoft/BuildXL/RestrictedTemp`,
-        ])
-    ],
-    untrackedFiles: [
-        ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.untrackedFiles)
-    ],
+    exe: patcherExecutable,
+    dependsOnCurrentHostOSDirectories: true,
     runtimeDirectoryDependencies: [
-        pkgContents,
-        ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.systemFolderInputDeps),
+        pkgContents
     ]
 };
 
 @@public
 export function patchBinary(args: Arguments) : Result {
-
     const targetsWindows = args.targetRuntimeVersion === "win-x64";
 
     // Pick the apphost based on the target OS, not the current OS
@@ -53,9 +54,6 @@ export function patchBinary(args: Arguments) : Result {
         outputs: [
             outputPath,
         ],
-        dependencies: [
-            ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.filesAndSymlinkInputDeps)
-        ]
     });
 
     return {
@@ -72,5 +70,4 @@ export interface Arguments {
 export interface Result {
     binary: File,
 }
-
 

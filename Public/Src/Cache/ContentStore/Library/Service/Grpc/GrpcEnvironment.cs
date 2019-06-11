@@ -29,8 +29,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             if (Interlocked.CompareExchange(ref _isInitialized, 1, 0) == 0)
             {
-                global::Grpc.Core.GrpcEnvironment.SetThreadPoolSize(numThreads);
-                global::Grpc.Core.GrpcEnvironment.SetCompletionQueueCount(numThreads);
+                if (handlerInliningEnabled)
+                {
+                    global::Grpc.Core.GrpcEnvironment.SetThreadPoolSize(numThreads);
+                    global::Grpc.Core.GrpcEnvironment.SetCompletionQueueCount(numThreads);
+                }
 
                 // By default, gRPC's internal event handlers get offloaded to .NET default thread pool thread (inlineHandlers=false).
                 // Setting inlineHandlers to true will allow scheduling the event handlers directly to GrpcThreadPool internal threads.

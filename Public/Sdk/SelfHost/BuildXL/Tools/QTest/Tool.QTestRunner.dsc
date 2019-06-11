@@ -2,7 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
-const root = Environment.hasVariable("[Sdk.BuildXL]qtestDeploymentPath") ? d`${Environment.getFileValue("[Sdk.BuildXL]qtestDeploymentPath")}` : d`.`;
+
+const root = Environment.hasVariable("QTEST_DEPLOYMENT_PATH") ? d`${Environment.getFileValue("QTEST_DEPLOYMENT_PATH")}` : d`.`;
+const qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType")
+    ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")
+    : "None";
 
 @@public
 export const qTestTool: Transformer.ToolDefinition = {
@@ -112,6 +116,14 @@ export function runQTest(args: QTestArguments): Result {
     // If no qTestInputs is specified, use the qTestDirToDeploy
     qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
 
+    // Microsoft internal cloud service use only
+    let qTestContextInfoPath = undefined;
+    let untrackingCBPaths = {};
+    if (Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo")){
+        const qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo");
+        qTestContextInfoPath = qTestContextInfoFile.path;
+    }
+    
     let commandLineArgs: Argument[] = [
         Cmd.option("--testBinary ", args.testAssembly),
         Cmd.option(
@@ -153,10 +165,27 @@ export function runQTest(args: QTestArguments): Result {
             "--qTestRawArgFile ",
             Artifact.input(args.qTestRawArgFile)
         ),
+        Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType),
+        Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
+        Cmd.flag("--enableVsJitDebugger", Environment.hasVariable("[Sdk.BuildXL]enableVsJitDebugger")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
         Cmd.optoin("--envVarsToKeep ", args.envVarsToKeep || "")
     ];
+        Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
+        Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset")
+    ];          
+
+    let unsafeOptions = {
+        untrackedPaths: [
+            qTestContextInfoPath,
+        ],
+        untrackedScopes: [
+            d`d:/data`,
+            d`d:/app`,
+            ...addIf(Environment.hasVariable("QAUTHMATERIALROOT"), Environment.getDirectoryValue("QAUTHMATERIALROOT")),
+        ]
+    };
 
     let result = Transformer.execute({
         tool: args.qTestTool ? args.qTestTool : qTestTool,
@@ -167,18 +196,52 @@ export function runQTest(args: QTestArguments): Result {
         workingDirectory: sandboxDir,
         tempDirectory: tempDirectory,
         weight: args.weight,
+        environmentVariables: [{ name: "[Sdk.BuildXL]qCodeCoverageEnumType", value: qCodeCoverageEnumType }],
         disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
         additionalTempDirectories : [sandboxDir],
+        privilegeLevel: args.privilegeLevel,
         dependencies: [
             //When there are test failures, and PDBs are looked up to generate the stack traces,
-            //the original location of PDBs is used instead of PDBs in test sandbox. This is 
+            //the original location of PDBs is used instead of PDBs in test sandbox. This is
             //a temporary solution until a permanent fix regarding the lookup is identified
             ...(args.qTestInputs ? args.qTestInputs.filter(
                 f => f.name.hasExtension && f.name.extension === a`.pdb`
             ) : []),
+            ...(args.qTestRuntimeDependencies || []),
         ],
+        unsafe: unsafeOptions
     });
+
     const qTestLogsDir: StaticDirectory = result.getOutputDirectory(logDir);
+
+    // If code coverage is enabled, schedule a pip that will perform coverage file upload.
+    if (qCodeCoverageEnumType === "DynamicCodeCov"){
+        const parentDir = d`${logDir}`.parent;
+        const leafDir = d`${logDir}`.nameWithoutExtension;
+        const coverageLogDir = d`${parentDir}/CoverageLogs/${leafDir}`;
+        const coverageConsolePath = p`${coverageLogDir}/coverageUpload.stdout`;
+
+        const commandLineArgsForUploadPip: Argument[] = [
+            Cmd.option("--qTestLogsDir ", Artifact.output(coverageLogDir)),
+            Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
+            Cmd.option("--coverageDirectory ", Artifact.input(qTestLogsDir)),
+            Cmd.option("--qTestBuildType ", args.qTestBuildType || "Unset"),
+            Cmd.option("--qtestPlatform ", qTestPlatformToString(args.qTestPlatform))
+        ];
+
+        Transformer.execute({
+            tool: args.qTestTool ? args.qTestTool : qTestTool,
+            tags: tags,
+            description: "QTest Coverage Upload",
+            arguments: commandLineArgsForUploadPip,
+            consoleOutput: coverageConsolePath,
+            workingDirectory: tempDirectory,
+            disableCacheLookup: true,
+            privilegeLevel: args.privilegeLevel,
+            unsafe: unsafeOptions
+        });
+    }
+
     return <Result>{
         console: result.getOutputFile(consolePath),
         qTestLogs: qTestLogsDir,
@@ -229,10 +292,12 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestTool?: Transformer.ToolDefinition,
     /** The assembly built from test projects that contain the unit tests. */
     testAssembly: Artifact | Path;
-    /** Directory that includes all necessary artifacts to run the test */
+    /** Directory that includes all necessary artifacts to run the test, will be copied to sandbox by QTest */
     qTestDirToDeploy?: StaticDirectory;
-    /** Explicit specification of all inputs instead of using qTestDirToDeploy */
+    /** Explicit specification of all inputs instead of using qTestDirToDeploy, this file will be copied to sandbox by QTest */
     qTestInputs?: File[];
+    /** Explicit specification of extra run time dependencies, will not be copied to sandbox */
+    qTestRuntimeDependencies ?: Transformer.InputArtifact[];
     /** Describes the runner to launch tests */
     qTestType?: QTestType;
     /** This makes DBS.QTest.exe use custom test adapters for vstest from a given path in the test run. */
@@ -262,6 +327,10 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     vstestSettingsFile?: File;
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
+    /** Privilege level required by this process to execute. */
+    privilegeLevel?: "standard" | "admin";
+    /** Specifies the build type */
+    qTestBuildType?: string;
     /** Specifies semicolon separated list of env variables that need to be exposed to underlying tests */
     envVarsToKeep? : string;
 }

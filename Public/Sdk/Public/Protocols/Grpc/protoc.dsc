@@ -13,16 +13,7 @@ export const tool: Transformer.ToolDefinition = {
         Context.getCurrentHost().os === "win"
             ? r`tools/windows_x64/protoc.exe`
             : r`tools/macosx_x64/protoc`),
-    dependsOnWindowsDirectories: true,
-    untrackedDirectoryScopes: [
-        ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.untrackedSystemFolderDeps)
-    ],
-    untrackedFiles: [
-        ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.untrackedFiles)
-    ],
-    runtimeDirectoryDependencies: [
-        ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.systemFolderInputDeps),
-    ]
+    dependsOnCurrentHostOSDirectories: true
 };
 
 /**
@@ -32,48 +23,65 @@ export const tool: Transformer.ToolDefinition = {
  */
 @@public
 export function generate(args: Arguments) : Result {
+    const enableGrpc = args.enableGrpc !== false;
 
-    const outputDirectory = Context.getNewOutputDirectory("protobuf");
-    const arguments : Argument[] = [
-        Cmd.option("--proto_path ", Artifact.none(args.proto.parent)),
-        Cmd.option("--csharp_out ", Artifact.none(outputDirectory)),
-        Cmd.files([args.proto]),
-        Cmd.option("--grpc_out ", Artifact.none(outputDirectory)),
-        Cmd.option("--plugin=protoc-gen-grpc=", Artifact.input(pkgContents.getFile(
-            Context.getCurrentHost().os === "win"
-                ? r`tools/windows_x64/grpc_csharp_plugin.exe`
-                : r`tools/macosx_x64/grpc_csharp_plugin`)
-            )
-        ),
-    ];
+    let resultSources : File[] = [];
 
-    let mainCsFile = p`${outputDirectory}/${args.proto.nameWithoutExtension + ".cs"}`;
-    let grpcCsFile = p`${outputDirectory}/${args.proto.nameWithoutExtension + "Grpc.cs"}`;
+    for (let protoFile of args.proto)
+    {
+        const outputDirectory = Context.getNewOutputDirectory("protobuf");
+        const arguments : Argument[] = [
+            Cmd.option("--proto_path ", Artifact.none(protoFile.parent)),
+            Cmd.option("--csharp_out ", Artifact.none(outputDirectory)),
+            Cmd.files([protoFile]),
+            ...addIf(enableGrpc,
+                Cmd.option("--grpc_out ", Artifact.none(outputDirectory)),
+                Cmd.option("--plugin=protoc-gen-grpc=", Artifact.input(pkgContents.getFile(
+                    Context.getCurrentHost().os === "win"
+                        ? r`tools/windows_x64/grpc_csharp_plugin.exe`
+                        : r`tools/macosx_x64/grpc_csharp_plugin`)
+                    )
+                )
+            ),
+            Cmd.options("--proto_path=", Artifact.inputs(args.includes)),
+        ];
 
-    let result = Transformer.execute({
-        tool: args.tool || tool,
-        arguments: arguments,
-        workingDirectory: outputDirectory,
-        outputs: [
-            mainCsFile,
-            grpcCsFile,
-        ],
-        dependencies: [
-            ...addIfLazy(Context.getCurrentHost().os === "macOS", () => MacOS.filesAndSymlinkInputDeps)
-        ]
-    });
+        let mainCsFile = p`${outputDirectory}/${protoFile.nameWithoutExtension + ".cs"}`;
+        let grpcCsFile = p`${outputDirectory}/${protoFile.nameWithoutExtension + "Grpc.cs"}`;
+
+        let result = Transformer.execute({
+            tool: args.tool || tool,
+            arguments: arguments,
+            workingDirectory: outputDirectory,
+            outputs: [
+                mainCsFile,
+                ...addIf(enableGrpc,
+                    grpcCsFile
+                ),
+            ],
+            dependencies: [
+                ...args.proto,
+                ...(args.dependencies || [])
+            ]
+        });
+
+        resultSources = resultSources.push(result.getOutputFile(mainCsFile));
+        if (enableGrpc) {
+            resultSources = resultSources.push(result.getOutputFile(grpcCsFile));
+        }
+    }
 
     return {
-        sources: [
-            result.getOutputFile(mainCsFile),
-            result.getOutputFile(grpcCsFile),
-        ],
+        sources: resultSources,
     };
 }
 
 @@public
 export interface Arguments extends Transformer.RunnerArguments{
-    proto: File,
+    proto: File[],
+    enableGrpc?: boolean,
+    dependencies?: File[],
+    includes?: StaticDirectory[],
 }
 
 @@public

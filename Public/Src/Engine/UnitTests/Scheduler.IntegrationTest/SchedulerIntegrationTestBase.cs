@@ -32,6 +32,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
 using ProcessOutputs = BuildXL.Pips.Builders.ProcessOutputs;
+using BuildXL.Utilities.VmCommandProxy;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -75,7 +76,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(Args.TryParseArguments(new[] { "/c:" + Path.Combine(TemporaryDirectory, "config.dc") }, Context.PathTable, null, out config), "Failed to construct arguments");
             Configuration = new CommandLineConfiguration(config);
 
-            Cache = OperatingSystemHelper.IsUnixOS ? InMemoryCacheFactory.Create(Context) : MockCacheFactory.Create(CacheRoot);
+            Cache = OperatingSystemHelper.IsUnixOS ? InMemoryCacheFactory.Create() : MockCacheFactory.Create(CacheRoot);
 
             FileContentTable = FileContentTable.CreateNew();
 
@@ -84,6 +85,7 @@ namespace Test.BuildXL.Scheduler
             Configuration.Logging.LogExecution = false;
             Configuration.Engine.TrackBuildsInUserFolder = false;
             Configuration.Engine.CleanTempDirectories = false;
+            Configuration.Sandbox.EnsureTempDirectoriesExistenceBeforePipExecution = true;
 
             // Skip hash source file pips
             // Some error becomes a contract exception when SkipHashSourceFile is enabled.
@@ -315,16 +317,16 @@ namespace Test.BuildXL.Scheduler
         /// Runs the scheduler using the instance member PipGraph and Configuration objects. This will also carry over
         /// any state from any previous run such as the cache
         /// </summary>
-        public ScheduleRunResult RunScheduler(SchedulerTestHooks testHooks = null, SchedulerState schedulerState = null, RootFilter filter = null, TempCleaner tempCleaner = null)
+        public ScheduleRunResult RunScheduler(SchedulerTestHooks testHooks = null, SchedulerState schedulerState = null, RootFilter filter = null, TempCleaner tempCleaner = null, IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
         {
             if (m_graphWasModified || m_lastGraph == null)
             {
                 m_lastGraph = PipGraphBuilder.Build();
                 XAssert.IsNotNull(m_lastGraph, "Failed to build pip graph");
             }
-
+            
             m_graphWasModified = false;
-            return RunSchedulerSpecific(m_lastGraph, testHooks, schedulerState, filter, tempCleaner);
+            return RunSchedulerSpecific(m_lastGraph, testHooks, schedulerState, filter, tempCleaner, constraintExecutionOrder);
         }
         
         public NodeId GetProducerNode(FileArtifact file) => PipGraphBuilder.GetProducerNode(file);
@@ -349,8 +351,13 @@ namespace Test.BuildXL.Scheduler
             SchedulerTestHooks testHooks = null, 
             SchedulerState schedulerState = null,
             RootFilter filter = null,
-            TempCleaner tempCleaner = null)
+            TempCleaner tempCleaner = null,
+            IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
         {
+            // This is a new logging context to be used just for this instantiation of the scheduler. That way it can
+            // be validated against the LoggingContext to make sure the scheduler's return result and error logging
+            // are in agreement.
+            var localLoggingContext = BuildXLTestBase.CreateLoggingContextForTest();
             var config = new CommandLineConfiguration(Configuration);
 
             // Populating the configuration may modify the configuration, so it should occur first.
@@ -362,7 +369,7 @@ namespace Test.BuildXL.Scheduler
 
             IReadOnlyList<string> junctionRoots = Configuration.Engine.DirectoriesToTranslate?.Select(a => a.ToPath.ToString(Context.PathTable)).ToList();
 
-            var map = VolumeMap.TryCreateMapOfAllLocalVolumes(LoggingContext, junctionRoots);
+            var map = VolumeMap.TryCreateMapOfAllLocalVolumes(localLoggingContext, junctionRoots);
             var optionalAccessor = TryGetJournalAccessor(map);
 
             // Although scan change journal is enabled, but if we cannot create an enabled journal accessor, then create a disabled one.
@@ -385,7 +392,7 @@ namespace Test.BuildXL.Scheduler
             string dummyCacheDir = Path.Combine(TemporaryDirectory, "Out", "Cache");
             Directory.CreateDirectory(dummyCacheDir); // EngineSchedule tries to put the PreserveOutputsSalt.txt here
             ContentHash? previousOutputsSalt =
-                EngineSchedule.PreparePreviousOutputsSalt(LoggingContext, Context.PathTable, config);
+                EngineSchedule.PreparePreviousOutputsSalt(localLoggingContext, Context.PathTable, config);
             Contract.Assert(previousOutputsSalt.HasValue);
             // .....................................................................................
 
@@ -393,13 +400,15 @@ namespace Test.BuildXL.Scheduler
             Contract.Assert(!(config.Engine.CleanTempDirectories && tempCleaner == null));
 
             using (var queue = new PipQueue(config.Schedule))
-            using (var testQueue = new TestPipQueue(queue, LoggingContext, initiallyPaused: false))
+            using (var testQueue = new TestPipQueue(queue, localLoggingContext, initiallyPaused: constraintExecutionOrder != null))
             using (var testScheduler = new TestScheduler(
                 graph: graph,
-                pipQueue: testQueue,
+                pipQueue: constraintExecutionOrder == null ? 
+                            testQueue : 
+                            constraintExecutionOrder.Aggregate(testQueue, (TestPipQueue _testQueue, (Pip before, Pip after) constraint) => { _testQueue.ConstrainExecutionOrder(constraint.before, constraint.after); return _testQueue; }).Unpause(),
                 context: Context,
                 fileContentTable: FileContentTable,
-                loggingContext: LoggingContext,
+                loggingContext: localLoggingContext,
                 cache: Cache,
                 configuration: config,
                 journalState: m_journalState,
@@ -412,24 +421,25 @@ namespace Test.BuildXL.Scheduler
                 failedPips: null,
                 ipcProvider: null,
                 directoryTranslator: DirectoryTranslator,
+                vmInitializer: VmInitializer.CreateFromEngine(config.Layout.BuildEngineDirectory.ToString(Context.PathTable)),
                 testHooks: testHooks))
             {
                 MountPathExpander mountPathExpander = null;
                 var frontEndNonScrubbablePaths = CollectionUtilities.EmptyArray<string>();
                 var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
-                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, LoggingContext, config, nonScrubbablePaths, tempCleaner);
+                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, localLoggingContext, config, nonScrubbablePaths, tempCleaner);
 
                 if (filter == null)
                 {
-                    EngineSchedule.TryGetPipFilter(LoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);
+                    EngineSchedule.TryGetPipFilter(localLoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);
                 }
 
-                XAssert.IsTrue(testScheduler.InitForMaster(LoggingContext, filter, schedulerState), "Failed to initialized test scheduler");
+                XAssert.IsTrue(testScheduler.InitForMaster(localLoggingContext, filter, schedulerState), "Failed to initialized test scheduler");
 
-                testScheduler.Start(LoggingContext);
+                testScheduler.Start(localLoggingContext);
 
                 bool success = testScheduler.WhenDone().GetAwaiter().GetResult();
-                testScheduler.SaveFileChangeTrackerAsync(LoggingContext).Wait();
+                testScheduler.SaveFileChangeTrackerAsync(localLoggingContext).Wait();
 
                 if (ShouldLogSchedulerStats)
                 {
@@ -437,10 +447,10 @@ namespace Test.BuildXL.Scheduler
                     // to write out the stats perf JSON file
                     var logsDir = config.Logging.LogsDirectory.ToString(Context.PathTable);
                     Directory.CreateDirectory(logsDir);
-                    testScheduler.LogStats(LoggingContext);
+                    testScheduler.LogStats(localLoggingContext);
                 }
 
-                return new ScheduleRunResult
+                var runResult = new ScheduleRunResult
                 {
                     Graph = graph,
                     Config = config,
@@ -452,6 +462,12 @@ namespace Test.BuildXL.Scheduler
                     ProcessPipCountersByTelemetryTag = testScheduler.ProcessPipCountersByTelemetryTag,
                     SchedulerState = new SchedulerState(testScheduler)
                 };
+
+                runResult.AssertSuccessMatchesLogging(localLoggingContext);
+
+                // Prmote this run's specific LoggingContext into the test's LoggingContext.
+                LoggingContext.AbsorbLoggingContextState(localLoggingContext);
+                return runResult;
             }
         }
 
@@ -505,6 +521,8 @@ namespace Test.BuildXL.Scheduler
             
             foreach (var fac in filesAndContentToProduceDynamically)
             {
+                // Make sure the file is not there before writing
+                operations.Add(Operation.DeleteFile(fac.Key));
                 operations.Add(Operation.WriteFile(fac.Key, content: fac.Value, doNotInfer: true));
             }
 

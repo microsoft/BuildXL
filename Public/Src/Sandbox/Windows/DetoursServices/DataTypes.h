@@ -540,6 +540,32 @@ typedef struct ManifestDllBlock_t
 typedef const ManifestDllBlock * PCManifestDllBlock;
 
 // ==========================================================================
+// == ManifestSubstituteProcessExecutionShim
+// ==========================================================================
+typedef struct ManifestSubstituteProcessExecutionShim_t
+{
+    GENERATE_TAG("ManifestSubstituteProcessExecutionShim", 0xABCDEF04)
+
+    // When nonzero and process substitution is active, determines whether
+    // all processes are shimmed except any in the ShimProcessMatch entries,
+    // or whether to shim all except the matches.
+    uint32_t ShimAllProcesses;
+
+    // Followed by WriteChars string and a custom collection consisting of N
+    // entries where each entry is 2 WriteChars strings.
+
+    /// GetSize
+    ///
+    /// Calculate the size of this structure by fields which exist for this struct, and the total
+    /// size of the StringBlock (in StringBlockSize).
+    size_t GetSize() const
+    {
+        return sizeof(ManifestSubstituteProcessExecutionShim_t);
+    }
+} ManifestSubstituteProcessExecutionShim_t;
+typedef const ManifestSubstituteProcessExecutionShim_t * PCManifestSubstituteProcessExecutionShim;
+
+// ==========================================================================
 // == ManifestRecord
 // ==========================================================================
 typedef struct ManifestRecord_t

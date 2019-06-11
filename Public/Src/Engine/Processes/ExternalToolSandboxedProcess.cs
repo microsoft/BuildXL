@@ -2,12 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Utilities;
 
 namespace BuildXL.Processes
 {
@@ -16,35 +16,25 @@ namespace BuildXL.Processes
     /// </summary>
     public class ExternalToolSandboxedProcess : ExternalSandboxedProcess
     {
-        private static readonly ISet<ReportedFileAccess> s_emptyFileAccessesSet = new HashSet<ReportedFileAccess>();
-
-        /// <summary>
-        /// Relative path to the default tool.
-        /// </summary>
-        public const string DefaultToolRelativePath = @"tools\SandboxedProcessExecutor\SandboxedProcessExecutor.exe";
-
-        private readonly string m_toolPath;
+        private readonly ExternalToolSandboxedProcessExecutor m_tool;
 
         private readonly StringBuilder m_output = new StringBuilder();
         private readonly StringBuilder m_error = new StringBuilder();
 
         private AsyncProcessExecutor m_processExecutor;
-        private Exception m_dumpCreationException;
 
         /// <summary>
         /// Creates an instance of <see cref="ExternalToolSandboxedProcess"/>.
         /// </summary>
-        public ExternalToolSandboxedProcess(SandboxedProcessInfo sandboxedProcessInfo, string toolPath)
+        public ExternalToolSandboxedProcess(SandboxedProcessInfo sandboxedProcessInfo, ExternalToolSandboxedProcessExecutor tool)
             : base(sandboxedProcessInfo)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(toolPath));
-            m_toolPath = toolPath;
+            Contract.Requires(tool != null);
+            m_tool = tool;
         }
 
-        private int m_processId = -1;
-
         /// <inheritdoc />
-        public override int ProcessId => m_processId != -1 ? m_processId : (m_processId = Process?.Id ?? -1);
+        public override int ProcessId => Process?.Id ?? -1;
 
         /// <summary>
         /// Underlying managed <see cref="Process"/> object.
@@ -52,7 +42,7 @@ namespace BuildXL.Processes
         public Process Process => m_processExecutor?.Process;
 
         /// <inheritdoc />
-        public override string StdOut => m_processExecutor?.StdOutCompleted ?? false ? m_error.ToString() : string.Empty;
+        public override string StdOut => m_processExecutor?.StdOutCompleted ?? false ? m_output.ToString() : string.Empty;
 
         /// <inheritdoc />
         public override string StdErr => m_processExecutor?.StdErrCompleted ?? false ? m_error.ToString() : string.Empty;
@@ -67,16 +57,7 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public override string GetAccessedFileName(ReportedFileAccess reportedFileAccess) => null;
-
-        /// <inheritdoc />
         public override ulong? GetActivePeakMemoryUsage() => m_processExecutor?.GetActivePeakMemoryUsage();
-
-        /// <inheritdoc />
-        public override long GetDetoursMaxHeapSize() => 0;
-
-        /// <inheritdoc />
-        public override int GetLastMessageCount() => 0;
 
         /// <inheritdoc />
         public override async Task<SandboxedProcessResult> GetResultAsync()
@@ -84,6 +65,7 @@ namespace BuildXL.Processes
             Contract.Requires(m_processExecutor != null);
 
             await m_processExecutor.WaitForExitAsync();
+            await m_processExecutor.WaitForStdOutAndStdErrAsync();
 
             if (m_processExecutor.TimedOut || m_processExecutor.Killed)
             {
@@ -100,25 +82,10 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public override Task KillAsync()
-        {
-            Contract.Requires(m_processExecutor != null);
-
-            ProcessDumper.TryDumpProcessAndChildren(ProcessId, GetOutputDirectory(), out m_dumpCreationException);
-
-            return m_processExecutor.KillAsync();
-        }
+        public override Task KillAsync() => KillProcessExecutorAsync(m_processExecutor);
 
         /// <inheritdoc />
         public override void Start()
-        {
-            Setup();
-            m_processExecutor.Start();
-        }
-
-        private string CreateArguments() => $"/sandboxedProcessInfo:{GetSandboxedProcessInfoFile()} /sandboxedProcessResult:{GetSandboxedProcessResultsFile()}";
-
-        private void Setup()
         {
             SerializeSandboxedProcessInfoToFile();
 
@@ -126,8 +93,8 @@ namespace BuildXL.Processes
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = m_toolPath,
-                    Arguments = CreateArguments(),
+                    FileName = m_tool.ExecutablePath,
+                    Arguments = m_tool.CreateArguments(GetSandboxedProcessInfoFile(), GetSandboxedProcessResultsFile()),
                     WorkingDirectory = SandboxedProcessInfo.WorkingDirectory,
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,
@@ -143,68 +110,25 @@ namespace BuildXL.Processes
                 TimeSpan.FromMilliseconds(-1), // Timeout should only be applied to the process that the external tool executes.
                 line => AppendLineIfNotNull(m_output, line),
                 line => AppendLineIfNotNull(m_error, line),
-                SandboxedProcessInfo);
-        }
+                SandboxedProcessInfo.Provenance,
+                message => LogExternalExecution(message));
 
-        private void AppendLineIfNotNull(StringBuilder sb, string line)
-        {
-            if (line != null)
-            {
-                sb.AppendLine(line);
-            }
-        }
-
-        /// <summary>
-        /// Starts process asynchronously.
-        /// </summary>
-        public static Task<ISandboxedProcess> StartAsync(SandboxedProcessInfo info, string toolPath)
-        {
-            return Task.Factory.StartNew(() =>
-            {
-                ISandboxedProcess process = new ExternalToolSandboxedProcess(info, toolPath);
-
-                try
-                {
-                    process.Start();
-                }
-                catch
-                {
-                    process?.Dispose();
-                    throw;
-                }
-
-                return process;
-            });
+            m_processExecutor.Start();
         }
 
         private SandboxedProcessResult CreateResultForFailure()
         {
             string output = m_output.ToString();
             string error = m_error.ToString();
-            string hint = Path.GetFileNameWithoutExtension(m_toolPath);
-            var standardFiles = new SandboxedProcessStandardFiles(GetStdOutPath(hint), GetStdErrPath(hint));
-            var storage = new StandardFileStorage(standardFiles);
+            string hint = Path.GetFileNameWithoutExtension(m_tool.ExecutablePath);
 
-            return new SandboxedProcessResult
-            {
-                ExitCode = m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
-                Killed = m_processExecutor.Killed,
-                TimedOut = m_processExecutor.TimedOut,
-                HasDetoursInjectionFailures = false,
-                StandardOutput = new SandboxedProcessOutput(output.Length, output, null, Console.OutputEncoding, storage, SandboxedProcessFile.StandardOutput, null),
-                StandardError = new SandboxedProcessOutput(error.Length, error, null, Console.OutputEncoding, storage, SandboxedProcessFile.StandardError, null),
-                HasReadWriteToReadFileAccessRequest = false,
-                AllUnexpectedFileAccesses = s_emptyFileAccessesSet,
-                FileAccesses = s_emptyFileAccessesSet,
-                DetouringStatuses = new ProcessDetouringStatusData[0],
-                ExplicitlyReportedFileAccesses = s_emptyFileAccessesSet,
-                Processes = new ReportedProcess[0],
-                MessageProcessingFailure = null,
-                DumpCreationException = m_dumpCreationException,
-                DumpFileDirectory = GetOutputDirectory(),
-                PrimaryProcessTimes = new ProcessTimes(0, 0, 0, 0),
-                SurvivingChildProcesses = new ReportedProcess[0],
-            };
+            return CreateResultForFailure(
+                exitCode: m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
+                killed: m_processExecutor.Killed,
+                timedOut: m_processExecutor.TimedOut,
+                output: output,
+                error: error,
+                hint: hint);
         }
     }
 }

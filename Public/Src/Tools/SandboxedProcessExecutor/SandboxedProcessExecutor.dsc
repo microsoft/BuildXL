@@ -4,7 +4,6 @@
 import { NetFx } from "Sdk.BuildXL";
 import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
-import * as DetoursServices from "BuildXL.Sandbox.Windows";
 
 namespace SandboxedProcessExecutor {
 
@@ -27,9 +26,6 @@ namespace SandboxedProcessExecutor {
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             importFrom("BuildXL.Engine").Processes.dll,
-        ],
-        runtimeContent: [
-            DetoursServices.Deployment.definition,
         ],
     });
 }

@@ -15,6 +15,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.VmCommandProxy;
 using JetBrains.Annotations;
 
 namespace BuildXL.Scheduler
@@ -183,6 +184,11 @@ namespace BuildXL.Scheduler
         /// </summary>
         [NotNull]
         ProcessInContainerManager ProcessInContainerManager { get; }
+
+        /// <summary>
+        /// VM initializer.
+        /// </summary>
+        VmInitializer VmInitializer { get; }
     }
 
     /// <summary>

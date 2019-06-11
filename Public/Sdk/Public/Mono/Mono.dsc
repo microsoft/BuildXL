@@ -21,20 +21,16 @@ function findMonoExecutable() {
 
 const monoTool: Transformer.ToolDefinition = {
     exe: monoExecutable,
-    dependsOnWindowsDirectories: true,
+    dependsOnCurrentHostOSDirectories: true,
     dependsOnAppDataDirectory: true,
     prepareTempDirectory: true,
-    runtimeDirectoryDependencies: MacOS.systemFolderInputDeps,
-    runtimeDependencies: MacOS.filesAndSymlinkInputDeps,
     untrackedDirectoryScopes: [
         ...addIfLazy(Context.getCurrentHost().os !== "win", () => [
             d`${Context.getMount("DeploymentRoot").path.parent}`,
+            d`${Context.getMount("UserProfile").path}/.mono`,
+            d`/Library/Frameworks/Mono.framework`
         ]),
-        d`${Context.getMount("UserProfile").path}/.mono`,
-        d`/Library/Frameworks/Mono.framework`,
-        ...MacOS.untrackedSystemFolderDeps
     ],
-    untrackedFiles: MacOS.untrackedFiles
 };
 
 @@public

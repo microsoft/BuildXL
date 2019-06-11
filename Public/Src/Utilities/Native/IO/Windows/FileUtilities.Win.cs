@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.Streams.Windows;
 using BuildXL.Native.Tracing;
@@ -114,7 +115,8 @@ namespace BuildXL.Native.IO.Windows
             string path,
             bool deleteRootDirectory = false,
             Func<string, bool> shouldDelete = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            CancellationToken? cancellationToken = default)
         {
             var maybeExistence = s_fileSystem.TryProbePathExistence(path, followSymlink: true);
 
@@ -127,7 +129,8 @@ namespace BuildXL.Native.IO.Windows
                 NormalizeDirectoryPath(path),
                 deleteRootDirectory: deleteRootDirectory,
                 shouldDelete: shouldDelete,
-                tempDirectoryCleaner: tempDirectoryCleaner);
+                tempDirectoryCleaner: tempDirectoryCleaner,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -144,6 +147,7 @@ namespace BuildXL.Native.IO.Windows
         /// <param name="deleteRootDirectory">If false, only the contents of the root directory will be deleted</param>
         /// <param name="shouldDelete">a function which returns true if file should be deleted and false otherwise.</param>
         /// <param name="tempDirectoryCleaner">provides and cleans a temp directory for move-deletes</param>
+        /// <param name="cancellationToken">provides cancellation capability</param>
         /// <returns>
         /// How many entries remain in the directory, the count is not recursive. This function could be successful with a count greater than one because of <paramref name="shouldDelete"/>
         /// </returns>
@@ -152,7 +156,8 @@ namespace BuildXL.Native.IO.Windows
             string directoryPath,
             bool deleteRootDirectory,
             Func<string, bool> shouldDelete = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            CancellationToken? cancellationToken = default)
         {
             var defaultDeleteCheck = new Func<string, bool>(p => true);
             shouldDelete = shouldDelete ?? defaultDeleteCheck;
@@ -168,6 +173,8 @@ namespace BuildXL.Native.IO.Windows
                     directoryPath,
                     (name, attr) =>
                     {
+                        cancellationToken?.ThrowIfCancellationRequested();
+
                         string childPath = Path.Combine(directoryPath, name);
                         if ((attr & FileAttributes.Directory) != 0)
                         {
@@ -175,7 +182,8 @@ namespace BuildXL.Native.IO.Windows
                                 childPath,
                                 deleteRootDirectory: true,
                                 shouldDelete: shouldDelete,
-                                tempDirectoryCleaner: tempDirectoryCleaner);
+                                tempDirectoryCleaner: tempDirectoryCleaner,
+                                cancellationToken: cancellationToken);
                             if (subDirectoryEntryCount > 0)
                             {
                                 remainingChildCount++;
@@ -1484,6 +1492,7 @@ namespace BuildXL.Native.IO.Windows
         public bool HasWritableAccessControl(string path)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
+            path = FileSystemWin.ToLongPathIfExceedMaxPath(path);
 
 #if !FEATURE_CORECLR
             FileSystemRights fileSystemRights =
@@ -1519,30 +1528,37 @@ namespace BuildXL.Native.IO.Windows
         /// <inheritdoc />
         public void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow)
         {
-#if !FEATURE_CORECLR
+            path = FileSystemWin.ToLongPathIfExceedMaxPath(path);
             var denyWriteRule = new FileSystemAccessRule(
                 FileUtilitiesWin.s_worldSid,
                 fileSystemRights,
                 InheritanceFlags.None,
                 PropagationFlags.None,
                 AccessControlType.Deny);
-
-            FileInfo fileInfo = new FileInfo(path);
-
-            FileSecurity security = fileInfo.GetAccessControl();
-
-            if (allow)
+            try
             {
-                security.RemoveAccessRule(denyWriteRule);
-            }
-            else
-            {
-                security.AddAccessRule(denyWriteRule);
-            }
+                FileInfo fileInfo = new FileInfo(path);
 
-            // For some bizarre reason, instead using SetAccessControl on the caller's existing FileStream fails reliably.
-            fileInfo.SetAccessControl(security);
-#endif
+                FileSecurity security = fileInfo.GetAccessControl();
+
+                if (allow)
+                {
+                    security.RemoveAccessRule(denyWriteRule);
+                }
+                else
+                {
+                    security.AddAccessRule(denyWriteRule);
+                }
+
+                // For some bizarre reason, instead using SetAccessControl on the caller's existing FileStream fails reliably.
+                fileInfo.SetAccessControl(security);
+            }
+            catch (ArgumentException e)
+            {
+                // calls to GetAccessControl sometime result in a weird ArgumentException
+                // add more data to the exception so we could find some pattern if any
+                throw new ArgumentException(I($"SetFileAccessControl arguments -- path: '{path}', FileSystemRights: {fileSystemRights}, allow: {allow}"), e);
+            }
         }
     }
 }

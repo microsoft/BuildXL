@@ -35,6 +35,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
                 Logger,
                 rootPath,
                 new SQLiteMemoizationStoreConfiguration(rootPath) { MaxRowCount = MaxStrongFingerprints, SingleInstanceTimeoutSeconds = singleInstanceTimeoutSeconds },
+                LocalCacheConfiguration.CreateServerDisabled(),
                 clock: Clock,
                 configurationModel: new ConfigurationModel(config));
         }

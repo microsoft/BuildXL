@@ -123,12 +123,10 @@ namespace BuildXL.Scheduler
         {
             if (!m_disposed)
             {
-                m_disposed = true;
-
                 m_cancellationSource.Cancel();
-                m_cleanerThread.Join();
+                WaitPendingTasksForCompletion();
 
-                BuildXL.Scheduler.Tracing.Logger.Log.PipTempCleanerSummary(
+                Tracing.Logger.Log.PipTempCleanerSummary(
                     Events.StaticContext,
                     SucceededDirectories,
                     FailedDirectories,
@@ -139,6 +137,8 @@ namespace BuildXL.Scheduler
 
                 m_pathsToDelete.Dispose();
                 m_cancellationSource.Dispose();
+
+                m_disposed = true;
             }
         }
 
@@ -181,7 +181,7 @@ namespace BuildXL.Scheduler
                     }
                     else
                     {
-                        TryDeleteDirectory(toClean.Path, toClean.DeleteRootDirectory);
+                        TryDeleteDirectory(toClean.Path, toClean.DeleteRootDirectory, m_cancellationSource.Token);
                     }
                 }
             }
@@ -199,7 +199,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private void TryDeleteDirectory(string path, bool deleteRootDirectory)
+        private void TryDeleteDirectory(string path, bool deleteRootDirectory, CancellationToken cancellationToken)
         {
             Interlocked.Decrement(ref m_directoriesPending);
 
@@ -207,14 +207,14 @@ namespace BuildXL.Scheduler
             {
                 if (FileUtilities.DirectoryExistsNoFollow(path))
                 {
-                    FileUtilities.DeleteDirectoryContents(path, deleteRootDirectory: deleteRootDirectory, tempDirectoryCleaner: this);
+                    FileUtilities.DeleteDirectoryContents(path, deleteRootDirectory: deleteRootDirectory, tempDirectoryCleaner: this, cancellationToken: cancellationToken);
                     Interlocked.Increment(ref m_directoriesCleaned);
                 }
             }
-            catch (BuildXLException ex)
+            catch (Exception ex) when (ex is BuildXLException || ex is OperationCanceledException)
             {
                 // Temp directory cleanup is best effort. Keep track of failures for the sake of reporting
-                BuildXL.Scheduler.Tracing.Logger.Log.PipTempDirectoryCleanupWarning(Events.StaticContext, path, ex.Message);
+                Tracing.Logger.Log.PipFailedTempDirectoryCleanup(Events.StaticContext, path, ex.Message);
                 Interlocked.Increment(ref m_directoriesFailedToClean);
             }
         }
@@ -230,7 +230,7 @@ namespace BuildXL.Scheduler
             }
             catch (BuildXLException ex)
             {
-                BuildXL.Scheduler.Tracing.Logger.Log.PipTempFileCleanupWarning(Events.StaticContext, path, ex.LogEventMessage);
+                Tracing.Logger.Log.PipFailedTempFileCleanup(Events.StaticContext, path, ex.LogEventMessage);
                 Interlocked.Increment(ref m_filesFailedToClean);
             }
         }

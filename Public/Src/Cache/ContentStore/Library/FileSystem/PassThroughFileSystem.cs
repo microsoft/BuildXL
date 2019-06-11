@@ -20,6 +20,7 @@ using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
+using static BuildXL.Cache.ContentStore.FileSystem.NativeMethods;
 
 namespace BuildXL.Cache.ContentStore.FileSystem
 {
@@ -350,7 +351,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
             using (await ConcurrentAccess.WaitToken())
             {
-                return await OpenInsideSemaphoreAsync(path, fileAccess, fileMode, share, options, bufferSize);
+                return TryOpenFile(path, fileAccess, fileMode, share, options, bufferSize);
             }
         }
 
@@ -416,9 +417,9 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
         private async Task CopyFileInsideSemaphoreAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, bool replaceExisting)
         {
-            // It is very important to call OpenInsideSemaphoreAsync and not to call OpenAsync method that will re-acquire the semaphore once again.
+            // It is very important to call OpenInternal and not to call OpenAsync method that will re-acquire the semaphore once again.
             // Violating this rule may cause a deadlock.
-            using (var readStream = await OpenInsideSemaphoreAsync(
+            using (var readStream = TryOpenFile(
                 sourcePath, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
             {
                 if (readStream == null)
@@ -431,8 +432,8 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
                 var mode = replaceExisting ? FileMode.OpenOrCreate : FileMode.CreateNew;
 
-                using (var writeStream = await OpenInsideSemaphoreAsync(
-                    destinationPath, FileAccess.Write, mode, FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize).ConfigureAwait(false))
+                using (var writeStream = TryOpenFile(
+                    destinationPath, FileAccess.Write, mode, FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
                 {
                     if (writeStream == null)
                     {
@@ -445,90 +446,97 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             }
         }
 
-        private Task<Stream> OpenInsideSemaphoreAsync(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
+        private Stream TryOpenFile(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
         {
-            return Task.Run(() =>
+            if (OperatingSystemHelper.IsUnixOS)
             {
-                if (OperatingSystemHelper.IsUnixOS)
+                return TryOpenFileUnix(path, accessMode, mode, share, options, bufferSize);
+            }
+            else
+            {
+                return TryOpenFileWin(path, accessMode, mode, share, options, bufferSize);
+            }
+        }
+
+        private Stream TryOpenFileUnix(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
+        {
+            if (DirectoryExists(path))
+            {
+                throw new UnauthorizedAccessException($"Cannot open directory {path} as a file.");
+            }
+
+            if (mode == FileMode.Open && !FileExists(path))
+            {
+                return null;
+            }
+
+            return new FileStream(path.Path, mode, accessMode, share, bufferSize, options);
+        }
+
+        /// <summary>
+        /// Tries opening a file with a given <paramref name="path"/>.
+        /// </summary>
+        /// <return>
+        /// Method returns null if file or directory is not found.
+        /// </return>
+        /// <remarks>
+        /// The method throws similar exception that <see cref="FileStream"/> constructor.
+        /// </remarks>
+        private Stream TryOpenFileWin(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
+        {
+            options = GetOptions(path, options);
+
+            var (result, exception) = tryOpenFile();
+
+            if (exception != null && mode == FileMode.Create &&
+                (exception.NativeErrorCode() == ERROR_ACCESS_DENIED || exception.NativeErrorCode() == ERROR_SHARING_VIOLATION))
+            {
+                // File creation failed with access denied or sharing violation.
+                // Trying to change the attributes and delete the file.
+
+                if (exception.NativeErrorCode() == ERROR_ACCESS_DENIED &&
+                    (GetFileAttributes(path) & FileAttributes.ReadOnly) != 0)
                 {
-                    if (DirectoryExists(path))
-                    {
-                        throw new UnauthorizedAccessException($"Cannot open directory {path} as a file.");
-                    }
-
-                    if (mode == FileMode.Open && !FileExists(path))
-                    {
-                        return null;
-                    }
-
-                    return new FileStream(path.Path, mode, accessMode, share);
+                    SetFileAttributes(path, FileAttributes.Normal);
                 }
 
-                int access = GetDwAccess(accessMode);
-                options = GetOptions(path, options);
+                DeleteFile(path);
+                (result, exception) = tryOpenFile();
+            }
 
-                SafeFileHandle handle;
-
-                void OpenHandle()
+            if (exception != null)
+            {
+                switch (exception.NativeErrorCode())
                 {
-                    handle = NativeMethods.CreateFile(path.Path, access, share, IntPtr.Zero, mode, options, IntPtr.Zero);
-                }
-
-                OpenHandle();
-
-                int lastError = Marshal.GetLastWin32Error();
-                if (handle.IsInvalid && mode == FileMode.Create)
-                {
-                    switch (lastError)
-                    {
-                        case NativeMethods.ERROR_ACCESS_DENIED:
-                        case NativeMethods.ERROR_SHARING_VIOLATION:
-                            if (lastError == NativeMethods.ERROR_ACCESS_DENIED &&
-                                (GetFileAttributes(path) & FileAttributes.ReadOnly) != 0)
-                            {
-                                SetFileAttributes(path, FileAttributes.Normal);
-                            }
-                            
-                            DeleteFile(path);
-                            OpenHandle();
-                            break;
-                    }
-                }
-
-                if (handle.IsInvalid)
-                {
-                    switch (lastError)
-                    {
-                        case NativeMethods.ERROR_FILE_NOT_FOUND:
-                        case NativeMethods.ERROR_PATH_NOT_FOUND:
-                            return (Stream)null;
-                        default:
-                            throw ThrowLastWin32Error(
+                    case ERROR_FILE_NOT_FOUND:
+                    case ERROR_PATH_NOT_FOUND:
+                        return (Stream)null;
+                    default:
+                        throw ThrowLastWin32Error(
+                            path.Path,
+                            string.Format(
+                                CultureInfo.InvariantCulture,
+                                "Unable to open a file '{0}' as {1} with {2}.",
                                 path.Path,
-                                string.Format(
-                                    CultureInfo.InvariantCulture,
-                                    "Unable to open a handle to '{0}' as {1} with {2}.",
-                                    path.Path,
-                                    mode,
-                                    accessMode));
-                    }
+                                mode,
+                                accessMode),
+                            exception.NativeErrorCode());
                 }
+            }
 
-                var needToDisposeHandle = true;
+            return result;
+
+            (FileStream fileStream, Exception Exception) tryOpenFile()
+            {
                 try
                 {
-                    var stream = new FileStream(handle, accessMode, bufferSize, isAsync: true);
-                    needToDisposeHandle = false;
-                    return stream;
+                    return (new TrackingFileStream(path.Path, mode, accessMode, share, bufferSize, options), null);
                 }
-                finally
+                catch (Exception e)
                 {
-                    if (needToDisposeHandle)
-                    {
-                        handle.Dispose();
-                    }
+                    return (null, e);
                 }
-            });
+            }
         }
 
         private FileOptions GetOptions(AbsolutePath path, FileOptions options)
@@ -542,22 +550,6 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             }
 
             return options;
-        }
-
-        private static int GetDwAccess(FileAccess accessMode)
-        {
-            var access = 0;
-            if ((accessMode & FileAccess.Read) != 0)
-            {
-                access |= NativeMethods.FILE_READ_DATA;
-            }
-
-            if ((accessMode & FileAccess.Write) != 0)
-            {
-                access |= NativeMethods.FILE_WRITE_DATA | NativeMethods.FILE_APPEND_DATA;
-            }
-
-            return access;
         }
 
         /// <inheritdoc />
@@ -1057,26 +1049,26 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             FileUtilities.SetFileAccessControl(path.Path, fileSystemRights, accessControlType == AccessControlType.Allow);
         }
 
-        private static Exception ThrowLastWin32Error(string path, string message)
+        private static Exception ThrowLastWin32Error(string path, string message, int? lastErrorArg = null)
         {
-            if (BuildXL.Utilities.OperatingSystemHelper.IsUnixOS)
+            var lastError = lastErrorArg ?? Marshal.GetLastWin32Error();
+            if (OperatingSystemHelper.IsUnixOS)
             {
                 throw new IOException(message);
             }
             else
             {
-                int lastError = Marshal.GetLastWin32Error();
                 var errorMessage = NativeMethods.GetErrorMessage(lastError);
                 message = string.Format(CultureInfo.InvariantCulture, "{0} last error: [{1}] (error code {2})", message, errorMessage, lastError);
 
                 switch (lastError)
                 {
-                    case NativeMethods.ERROR_FILE_NOT_FOUND:
+                    case ERROR_FILE_NOT_FOUND:
                         throw new FileNotFoundException(message);
-                    case NativeMethods.ERROR_PATH_NOT_FOUND:
+                    case ERROR_PATH_NOT_FOUND:
                         throw new DirectoryNotFoundException(message);
-                    case NativeMethods.ERROR_ACCESS_DENIED:
-                    case NativeMethods.ERROR_SHARING_VIOLATION:
+                    case ERROR_ACCESS_DENIED:
+                    case ERROR_SHARING_VIOLATION:
 
                         string extraMessage = string.Empty;
 
@@ -1089,7 +1081,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
                         throw new UnauthorizedAccessException($"{message}.{extraMessage}");
                     default:
-                        throw new IOException(message, Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
+                        throw new IOException(message, ExceptionUtilities.HResultFromWin32(lastError));
                 }
             }
         }

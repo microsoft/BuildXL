@@ -213,6 +213,17 @@ namespace Test.BuildXL.Scheduler
                 builder.ToolDescription = StringId.Create(Context.StringTable, description);
             }
 
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                builder.SetEnvironmentVariable(
+                    StringId.Create(Context.StringTable, "DYLD_LIBRARY_PATH"),
+                    Path.GetDirectoryName(TestProcessExecutable.Path.ToString(Context.PathTable)));
+
+                // untracking this directory as well because dynamic probes are non-deterministic which
+                // can cause some of our FingerprintStore tests to fail.
+                builder.AddUntrackedDirectoryScope(TestProcessExecutable.Path.GetParent(Context.PathTable));
+            }
+
             return builder;
         }
 
@@ -1066,7 +1077,10 @@ namespace Test.BuildXL.Scheduler
                             case Operation.Type.WriteFileWithRetries:
                                 dao.Outputs.Add(op.Path.FileArtifact);
                                 break;
-
+                            case Operation.Type.ReadAndWriteFile:
+                                dao.Outputs.Add(op.LinkPath.FileArtifact);
+                                dao.Dependencies.Add(op.Path.FileArtifact);
+                                break;
                             case Operation.Type.CreateHardlink:
                                 dao.Dependencies.Add(op.LinkPath.FileArtifact);
                                 dao.Outputs.Add(op.Path.FileArtifact);

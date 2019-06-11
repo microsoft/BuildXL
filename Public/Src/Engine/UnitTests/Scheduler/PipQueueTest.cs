@@ -45,6 +45,7 @@ using BuildXL.Scheduler.FileSystem;
 using Test.BuildXL.Scheduler.Utils;
 using KextConnection = BuildXL.Processes.KextConnection;
 using BuildXL.Processes.Containers;
+using BuildXL.Utilities.VmCommandProxy;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -309,7 +310,7 @@ namespace Test.BuildXL.Scheduler
                 PipFragmentRenderer = this.CreatePipFragmentRenderer();
                 IpcProvider = IpcFactory.GetProvider();
                 var tracker = FileChangeTracker.CreateDisabledTracker(LoggingContext);
-                Cache = InMemoryCacheFactory.Create(context);
+                Cache = InMemoryCacheFactory.Create();
                 LocalDiskContentStore = new LocalDiskContentStore(LoggingContext, context.PathTable, FileContentTable, tracker);
 
                 m_sandboxedKextConnection = sandboxedKextConnection;
@@ -589,6 +590,8 @@ namespace Test.BuildXL.Scheduler
             public IKextConnection SandboxedKextConnection => m_sandboxedKextConnection;
 
             public ProcessInContainerManager ProcessInContainerManager { get; }
+
+            public VmInitializer VmInitializer { get; }
         }
     }
 
@@ -651,7 +654,8 @@ namespace Test.BuildXL.Scheduler
                                 pipScope,
                                 executionResult,
                                 cacheableProcess.Process,
-                                out var _);
+                                out _,
+                                out _);
 
                             executionResult = await PipExecutor.PostProcessExecution(operationContext, environment, pipScope, cacheableProcess, executionResult);
                             PipExecutor.ReportExecutionResultOutputContent(operationContext, environment, cacheableProcess.Description, executionResult);

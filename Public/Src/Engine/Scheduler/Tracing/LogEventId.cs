@@ -31,6 +31,7 @@ namespace BuildXL.Scheduler.Tracing
         PipInputVerificationUntrackedInput = 3613,
         StorageRemoveAbsentFileOutputWarning = 3614,
         StorageCacheCleanDirectoryOutputError = 3615,
+        StorageSymlinkDirInOutputDirectoryWarning = 3616,
 
         PipInputVerificationMismatchRecovery = 3617,
         PipInputVerificationMismatchRecoveryExpectedExistence = 3618,
@@ -130,6 +131,10 @@ namespace BuildXL.Scheduler.Tracing
         FailedToDeleteCorruptFile = 5042,
         AbsentPathProbeInsideUndeclaredOpaqueDirectory = 5043,
 
+        AllowedSameContentDoubleWrite = 5044,
+
+        InitiateWorkerRelease = 5045,
+        WorkerReleasedEarly = 5046, 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

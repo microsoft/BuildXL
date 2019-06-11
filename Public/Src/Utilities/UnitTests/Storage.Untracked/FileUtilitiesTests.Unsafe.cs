@@ -3,20 +3,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using BuildXL.Native.IO;
-using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -28,6 +23,7 @@ using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 namespace Test.BuildXL.Storage
 {
+    [Trait("Category", "WindowsOSOnly")]
     public sealed class FileUtilitiesUnsafeTests : TemporaryStorageTestBase
     {
         public FileUtilitiesUnsafeTests()
@@ -36,7 +32,6 @@ namespace Test.BuildXL.Storage
         }
 
         [Fact]
-        [Trait("Category", "WindowsOSOnly")] // need to investigate if equivalent on Unix
         public void DeleteDirectoryContentsHandleOpen()
         {
             string directory = Path.Combine(TemporaryDirectory, "directoryToDelete");
@@ -68,8 +63,7 @@ namespace Test.BuildXL.Storage
         }
 
 
-#if !DISABLE_FEATURE_FILES_SYSTEM_RIGHTS
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void CreateReplacementFileRecreatesWhenDenyWriteACLPresent()
         {
             const string Target = @"Target";
@@ -91,7 +85,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void CreateReplacementFileRecreatesAfterRemovingReadonlyFlag()
         {
             const string Target = @"Target";
@@ -113,7 +107,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void CreateReplacementFileReplacesAfterRemovingReadonlyFlagIfDenyWriteACLPresent()
         {
             const string Target = @"Target";
@@ -243,7 +237,8 @@ namespace Test.BuildXL.Storage
                 // Check for retries and ERROR_DIR_NOT_EMPTY
                 AssertVerboseEventLogged(EventId.RetryOnFailureException, Helpers.DefaultNumberOfAttempts);
                 string logs = EventListener.GetLog();
-                XAssert.IsTrue(Regex.Matches(logs, Regex.Escape("Native: RemoveDirectoryW for RemoveDirectory failed (0x91: The directory is not empty)")).Count == Helpers.DefaultNumberOfAttempts);
+                var numMatches = Regex.Matches(logs, Regex.Escape("Native: RemoveDirectoryW for RemoveDirectory failed (0x91: The directory is not empty")).Count;
+                XAssert.AreEqual(Helpers.DefaultNumberOfAttempts, numMatches);
             }
             finally
             {
@@ -750,9 +745,10 @@ namespace Test.BuildXL.Storage
             XAssert.AreEqual(expectedExistenceForLongPath, File.Exists(@"\\?\" + file));
 
             // Remove access permissions to the file
-            FileSecurity fileSecurity = File.GetAccessControl(file);
+            var fi = new FileInfo(file);
+            FileSecurity fileSecurity = fi.GetAccessControl();
             fileSecurity.AddAccessRule(new FileSystemAccessRule($@"{Environment.UserDomainName}\{Environment.UserName}", FileSystemRights.FullControl, AccessControlType.Deny));
-            File.SetAccessControl(file, fileSecurity);
+            fi.SetAccessControl(fileSecurity);
 
             Exception exception = null;
             try
@@ -886,6 +882,32 @@ namespace Test.BuildXL.Storage
             XAssert.IsTrue(FileUtilities.TryFindOpenHandlesToFile(fileNameWithCurly, out var diag));
         }
 
+        [Fact]
+        public void LongPathAccessControlTest()
+        {
+            var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(TemporaryDirectory, (path, _) => Path.Combine(path, "dir"));
+            var file = Path.Combine(longPath, "fileWithWriteAccess.txt");
+
+            FileUtilities.CreateDirectory(longPath);           
+            SafeFileHandle fileHandle;
+            var result = FileUtilities.TryCreateOrOpenFile(
+                file,
+                FileDesiredAccess.GenericWrite,
+                FileShare.Delete,
+                FileMode.Create,
+                FileFlagsAndAttributes.FileAttributeNormal,
+                out fileHandle);
+            XAssert.IsTrue(result.Succeeded);
+
+            FileUtilities.SetFileAccessControl(file, FileSystemRights.WriteAttributes, true);
+            XAssert.IsTrue(FileUtilities.HasWritableAccessControl(file));
+
+            //Delete the created directory
+            fileHandle.Close();
+            FileUtilities.DeleteDirectoryContents(longPath, deleteRootDirectory: true);
+        }
+
+
         private static void SetReadonlyFlag(string path)
         {
             File.SetAttributes(path, FileAttributes.Normal | FileAttributes.ReadOnly);
@@ -921,8 +943,6 @@ namespace Test.BuildXL.Storage
 
             fileInfo.SetAccessControl(security);
         }
-
-#endif
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, ExactSpelling = true)]
         [return: MarshalAs(UnmanagedType.Bool)]

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
@@ -40,6 +41,8 @@ namespace BuildXL.Processes.Containers
             Native.Processes.ProcessUtilities.AttachContainerToJobObject(
                             handle,
                             m_containerConfiguration.RedirectedDirectories,
+                            m_containerConfiguration.EnableWciFilter,
+                            m_containerConfiguration.BindFltExcludedPaths.Select(p => p.ToString()),
                             out var warnings);
 
             // Log any warnings when setting up the container (at this point this is just WCI retries)

@@ -232,6 +232,10 @@ bool g_BreakOnAccessDenied;
 LPCSTR g_lpDllNameX86;
 LPCSTR g_lpDllNameX64;
 
+wchar_t *g_substituteProcessExecutionShimPath = nullptr;
+bool g_ProcessExecutionShimAllProcesses;
+vector<ShimProcessMatch*>* g_pShimProcessMatches = nullptr;
+
 DetouredProcessInjector* g_pDetouredProcessInjector = nullptr;
 
 HANDLE g_hPrivateHeap = nullptr;
@@ -998,20 +1002,20 @@ static bool DllProcessDetach()
 
 /*
 
-This function runs during DLL process attach (DllMain executing with DLL_PROCESS_ATTACH.
+This function runs during DLL process attach, DllMain executing with DLL_PROCESS_ATTACH.
 Special restrictions apply when running within this context; please take great care
-not to violate these restrictions.  (For more info, see DllMain in MSDN.)  Specifically,
+not to violate these restrictions. For more info, see DllMain in MSDN. Specifically,
 all forms of dynamic library binding (LoadLibrary and friends) are forbidden.
 
-The purpose of this function is to use the Detours API (which has been statically linked
-into this PE/COFF image) to detour several important Windows file access APIs.  ("Detour"
+The purpose of this function is to use the Detours API, which has been statically linked
+into this PE/COFF image, to detour several important Windows file access APIs. "Detour"
 here, when used as a verb, refers to intercepting calls to functions, usually functions
-exported by DLLs, to invoke a different implementation.)  The functions which detour
+exported by DLLs, to invoke a different implementation. The functions which detour
 the file access APIs implement the file access monitoring functionality of this library,
 including potentially denying access to files, based on the contents of the file access
 manifest that was provided by the creator of this process.
 
-This function also (indirectly) handles locating and parsing the file access manifest.
+This function also handles locating and parsing the file access manifest.
 The file access manifest specifies which files and directories this process may access,
 and specifies what action to take when the process violates the file access manifest
 (by requesting access to files that are outside of the manifest).  The actions taken
@@ -1019,16 +1023,16 @@ and specifies what action to take when the process violates the file access mani
 * printing diagnostic messages on stderr,
 * allowing or prohibiting the file access request.
 
-If this function fails in the presence of a payload, it returns false, and the caller (DllMain) also returns false.
-This prevents the DLL from attaching to the process, which usually has the effect of
-causing the process (into which this DLL was injected) to fail to load.  This is the
-desired behavior.  If the file access APIs cannot be detoured, then the process cannot
-execute with the desired behavior (of enforcing file access).
+If this function fails in the presence of a payload, it returns false, and the caller,
+DllMain, also returns false. This prevents the DLL from attaching to the process,
+which usually has the effect of causing the process into which this DLL was injected
+to fail to load. This is the desired behavior. If the file access APIs cannot be detoured,
+then the process cannot execute with the desired behavior (of enforcing file access).
 
 */
 #ifdef DETOURS_SERVICES_NATIVES_LIBRARY
 
-// Flipped to true whan DllProcessAttached is performed for the Detouring case.
+// Flipped to true when DllProcessAttach has completed for the Detouring case.
 bool g_isAttached = false;
 
 static bool DllProcessAttach()

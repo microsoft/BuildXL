@@ -4,7 +4,7 @@
 import * as Deployment from "Sdk.Deployment";
 
 export declare const qualifier : {
-    targetFramework: "netcoreapp2.2" | "net472" | "net461" | "net451",
+    targetFramework: "netcoreapp3.0" | "net472" | "net461" | "net451",
     targetRuntime: "osx-x64" | "win-x64"
 };
 
@@ -14,7 +14,7 @@ const SQLiteCorePackageContents = importFrom("System.Data.SQLite.Core").Contents
 function getInteropFile() : File {
     switch (qualifier.targetFramework)
     {
-        case "netcoreapp2.2":
+        case "netcoreapp3.0":
             return SQLiteCorePackageContents.getFile(r`runtimes/${qualifier.targetRuntime}/native/netstandard2.0/SQLite.Interop.dll`);
         case "net472":
             return SQLiteCorePackageContents.getFile("build/net46/x64/SQLite.Interop.dll");

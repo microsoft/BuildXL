@@ -22,18 +22,18 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Feature(Features.OpaqueDirectory)]
-        [Theory]
+	    [Theory]
         [InlineData(false)]
         [InlineData(true)]
         public void NonDeterminismOpaqueDirectoryOutput(bool fileListedAsNormalOutput)
         {
             // Set up PipA => opaqueDirectory
             AbsolutePath opaqueDirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "opaquedir"));
-            
+
             var builderA = CreatePipBuilder(new Operation[]
             {
                 // writes a guid to the file when there is no content specified (makes it nondeterministic)
-                // the argument, doNotInfer, means that pipA will not declare outputInOpaque as an 
+                // the argument, doNotInfer, means that pipA will not declare outputInOpaque as an
                 // output (so BuildXL will not expect a write to that file).
                 Operation.WriteFile(CreateOutputFileArtifact(opaqueDirPath), doNotInfer: !fileListedAsNormalOutput)
             });
@@ -77,20 +77,20 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Feature(Features.OpaqueDirectory)]
-        [Fact]
+	    [Fact]
         public void NonDeterminismOpaqueDirectoryOutputDifferentFiles()
         {
             string untracked = Path.Combine(ObjectRoot, "untracked.txt");
-            
+
             AbsolutePath opaqueDirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "opaquedir"));
 
-            // all outputs have deterministc content, the first and third file will be written 
+            // all outputs have deterministc content, the first and third file will be written
             // depending on the content of the untracked file.
             var builderA = CreatePipBuilder(new Operation[]
             {
-                Operation.WriteFileIfInputEqual(CreateOutputFileArtifact(opaqueDirPath), untracked, "1", "deterministic-content"),
-                Operation.WriteFile(CreateOutputFileArtifact(opaqueDirPath), "deterministic-content", doNotInfer: true),
-                Operation.WriteFileIfInputEqual(CreateOutputFileArtifact(opaqueDirPath), untracked, "2", "deterministic-content"),
+                Operation.WriteFileIfInputEqual(CreateOutputFileArtifact(opaqueDirPath, prefix: "write-if-1"), untracked, "1", "deterministic-content"),
+                Operation.WriteFile(CreateOutputFileArtifact(opaqueDirPath, prefix: "write-always"), "deterministic-content", doNotInfer: true),
+                Operation.WriteFileIfInputEqual(CreateOutputFileArtifact(opaqueDirPath, prefix: "write-if-2"), untracked, "2", "deterministic-content"),
             });
 
             builderA.AddOutputDirectory(opaqueDirPath);
@@ -119,7 +119,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             Configuration.Cache.DeterminismProbe = true;
             RunScheduler().AssertSuccess();
 
-            // Here we are testing that the set of file paths 
+            // Here we are testing that the set of file paths
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicOutput, 0);
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, 0);
             AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, 0);

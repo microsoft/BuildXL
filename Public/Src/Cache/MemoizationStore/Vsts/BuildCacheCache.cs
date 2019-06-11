@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+extern alias Async;
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -45,6 +47,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private readonly int _maxFingerprintsPerIncorporateRequest;
         private readonly BuildCacheCacheTracer _tracer;
         private ContentHashListAdapterFactory _contentHashListAdapterFactory;
+        private readonly bool _overrideUnixFileAccessMode;
 
         private bool _disposed;
 
@@ -68,6 +71,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="useBlobContentHashLists">use blob based content hash lists.</param>
         /// <param name="downloadBlobsThroughBlobStore">If true, gets blobs through BlobStore. If false, gets blobs from the Azure Uri.</param>
         /// <param name="useDedupStore">If true, gets content through DedupStore. If false, gets content from BlobStore.</param>
+        /// <param name="overrideUnixFileAccessMode">If true, overrides default Unix file access modes.</param>
         public BuildCacheCache(
             IAbsFileSystem fileSystem,
             string cacheNamespace,
@@ -85,7 +89,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             bool sealUnbackedContentHashLists = false,
             bool useBlobContentHashLists = false,
             bool downloadBlobsThroughBlobStore = false,
-            bool useDedupStore = false)
+            bool useDedupStore = false,
+            bool overrideUnixFileAccessMode = false)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(buildCacheHttpClientFactory != null);
@@ -95,9 +100,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _cacheNamespace = cacheNamespace;
             _buildCacheHttpClientFactory = buildCacheHttpClientFactory;
             _tracer = new BuildCacheCacheTracer(logger, nameof(BuildCacheCache));
-            
+
             _backingContentStore = new BackingContentStore(
-                fileSystem, backingContentStoreHttpClientFactory, timeToKeepUnreferencedContent, _tracer.ContentSessionTracer, downloadBlobsThroughBlobStore, useDedupStore);
+                fileSystem, backingContentStoreHttpClientFactory, timeToKeepUnreferencedContent, downloadBlobsThroughBlobStore, useDedupStore);
 
             if (useDedupStore)
             {
@@ -126,6 +131,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _fingerprintIncorporationEnabled = fingerprintIncorporationEnabled;
             _maxDegreeOfParallelismForIncorporateRequests = maxDegreeOfParallelismForIncorporateRequests;
             _maxFingerprintsPerIncorporateRequest = maxFingerprintsPerIncorporateRequest;
+            _overrideUnixFileAccessMode = overrideUnixFileAccessMode;
         }
 
         /// <inheritdoc />
@@ -317,6 +323,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         _maxFingerprintsPerIncorporateRequest,
                         writeThroughContentSession,
                         _sealUnbackedContentHashLists,
+                        _overrideUnixFileAccessMode,
                         _tracer));
             });
         }
@@ -362,6 +369,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         _maxFingerprintsPerIncorporateRequest,
                         writeThroughContentSession,
                         _sealUnbackedContentHashLists,
+                        _overrideUnixFileAccessMode,
                         _tracer));
             });
         }
@@ -402,7 +410,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public Guid Id { get; private set; }
 
         /// <inheritdoc />
-        public IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             return AsyncEnumerable.Empty<StructResult<StrongFingerprint>>();
         }

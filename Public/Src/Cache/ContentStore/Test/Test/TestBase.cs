@@ -30,7 +30,7 @@ namespace ContentStoreTest.Test
 
         protected virtual AbsolutePath TestRootDirectoryPath => _testRootDirectory.Value.Path;
 
-        protected readonly ILogger Logger;
+        protected ILogger Logger;
 
         protected TestBase(Func<IAbsFileSystem> createFileSystemFunc, ILogger logger, ITestOutputHelper output = null)
             : this(logger, new Lazy<IAbsFileSystem>(createFileSystemFunc), output)

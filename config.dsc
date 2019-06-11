@@ -13,7 +13,6 @@ config({
         ...globR(d`Private/QTest`, "module.config.dsc"),
         ...globR(d`Private/InternalSdk`, "module.config.dsc"),
         ...globR(d`Private/Tools`, "module.config.dsc"),
-        ...globR(d`Public/External/BuildPrediction`, "module.config.dsc"),
         ...globR(d`Public/Sdk/SelfHost`, "module.config.dsc"),
     ],
 
@@ -47,12 +46,16 @@ config({
             repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                 ? {
                     "BuildXL.Selfhost": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
+                    // Note: From a compliance point of view it is important that MicrosoftInternal has a single feed.
+                    // If you need to consume packages make sure they are upstreamed in that feed.
                   }
                 : {
                     "buildxl-selfhost" : "https://dotnet.myget.org/F/buildxl-selfhost/api/v3/index.json",
                     "nuget.org" : "http://api.nuget.org/v3/index.json",
                     "roslyn-tools" : "https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json",
-                    "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json"
+                    "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json",
+                    "dotnet-core" : "https://dotnet.myget.org/F/dotnet-core/api/v3/index.json",
+                    "dotnet-arcade" : "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json",
                   },
 
             packages: [
@@ -74,8 +77,8 @@ config({
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
 
                 // Roslyn
-                { id: "Microsoft.Net.Compilers", version: "2.10.0" },
-                { id: "Microsoft.NETCore.Compilers", version: "2.10.0" },
+                { id: "Microsoft.Net.Compilers", version: "3.0.0" },
+                { id: "Microsoft.NETCore.Compilers", version: "3.1.0-beta3-final" },
                 { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0" },
                 { id: "Microsoft.CodeAnalysis.VisualBasic", version: "2.10.0" },
@@ -133,9 +136,14 @@ config({
                 // Cpp Sdk
                 { id: "VisualCppTools.Community.VS2017Layout", version: "14.11.25506"},
 
+                // ProjFS (virtual file system)
+                { id: "Microsoft.Windows.ProjFS", version: "1.0.19079.1" },
+
                 // RocksDb
                 { id: "RocksDbSharp", version: "5.8.0-b20181023.3", alias: "RocksDbSharpSigned" },
-                { id: "RocksDbNative", version: "5.14.3-b20181023.3" },
+                { id: "RocksDbNative", version: "6.0.1-b20190426.4" },
+
+                { id: "JsonDiffPatch.Net", version: "2.1.0" },
 
                 // Event hubs
                 { id: "Microsoft.Azure.Amqp", version: "2.3.5" },
@@ -161,15 +169,16 @@ config({
                 { id: "Microsoft.Data.Edm", version: "5.8.2" },
 
                 // xUnit
-                { id: "xunit", version: "2.4.1" },
-                { id: "xunit.abstractions", version: "2.0.3", tfm: ".NETStandard2.0" },
+                { id: "xunit.abstractions", version: "2.0.3" },
                 { id: "xunit.analyzers", version: "0.10.0" },
-                { id: "xunit.assert", version: "2.4.1" },
-                { id: "xunit.core", version: "2.4.1" },
+                { id: "xunit.assert", version: "2.4.1-ms" },
+                { id: "xunit.core", version: "2.4.1-ms" },
                 { id: "xunit.extensibility.core", version: "2.4.1" },
                 { id: "xunit.extensibility.execution", version: "2.4.1" },
-                { id: "xunit.runner.utility", version: "2.4.1" },
                 { id: "xunit.runner.console", version: "2.4.1" },
+                { id: "microsoft.dotnet.xunitconsolerunner", version: "2.5.1-beta.19270.4" },
+                { id: "xunit.runner.reporters", version: "2.4.1-pre.build.4059" },
+                { id: "xunit.runner.utility", version: "2.4.1" },
                 { id: "xunit.runner.visualstudio", version: "2.4.1" },
 
                 { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "3.17.2" },
@@ -184,7 +193,7 @@ config({
                 { id: "Grpc", version: "1.18.0" },
                 { id: "Grpc.Core", version: "1.18.0" },
                 { id: "Grpc.Tools", version: "1.18.0" },
-                { id: "Google.Protobuf", version: "3.6.1" },
+                { id: "Google.Protobuf", version: "3.7.0" },
                 { id: "Redis-64", version: "3.0.503" },
 
                 // Testing
@@ -202,7 +211,7 @@ config({
                 { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.3.0" },
                 { id: "System.Memory", version: "4.5.1" },
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "4.5.0" },
-                { id: "System.IO.Pipelines", version: "4.5.0" },
+                { id: "System.IO.Pipelines", version: "4.5.2" },
                 { id: "System.Security.Cryptography.Xml", version: "4.5.0" },
                 { id: "System.Text.Encodings.Web", version: "4.5.0" },
                 { id: "System.Security.Permissions", version: "4.5.0" },
@@ -220,30 +229,48 @@ config({
                 { id: "Validation", version: "2.3.7"},
 
                 // .NET Core Dependencies
-                { id: "Microsoft.NETCore.App", version: "2.1.1" },
-                { id: "NETStandard.Library", version: "2.0.3", tfm: ".NETStandard2.0"},
-                { id: "Microsoft.NETCore.Platforms", version: "2.1.0", tfm: ".NETStandard2.0" },
-                { id: "Microsoft.NETCore.DotNetHostPolicy", version: "2.1.1"},
+                { id: "Microsoft.NETCore.App", version: "3.0.0-preview5-27626-15" },
+                { id: "Microsoft.NETCore.App", version: "2.1.1", alias: "Microsoft.NETCore.App.211" },
+
+                { id: "NETStandard.Library", version: "2.0.3", tfm: ".NETStandard2.0" },
+                { id: "Microsoft.NETCore.Platforms", version: "3.0.0-preview5.19224.8" },
+                { id: "Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-preview5-27626-15"},
                 { id: "System.Security.Claims", version: "4.3.0" },
 
                 // .NET Core Self-Contained Deployment
-                { id: "Microsoft.NETCore.DotNetHostResolver", version: "2.2.0" },
-                { id: "Microsoft.NETCore.DotNetAppHost", version: "2.2.0" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0" },
-                { id: "runtime.win-x64.Microsoft.NETCore.App", version: "2.2.0" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0" },
+                { id: "Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-preview5-27626-15" },
+                { id: "Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "Microsoft.NETCore.DotNetHostResolver.220" },
 
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0" },
-                { id: "runtime.osx-x64.Microsoft.NETCore.App", version: "2.2.0" },
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0" },
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0" },
+                { id: "Microsoft.NETCore.DotNetAppHost", version: "3.0.0-preview5-27626-15" },
+                { id: "Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "Microsoft.NETCore.DotNetAppHost.220" },
 
-                { id: "System.Security.Principal.Windows", version: "4.5.1" },
-                { id: "System.Security.AccessControl", version: "4.5.0", dependentPackageIdsToSkip: ["System.Security.Principal.Windows"] },
-                { id: "System.Threading.AccessControl", version: "4.5.0" },
+                // .NET Core win-x64 runtime deps
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost.220" },
 
-                // DotNetCore related
+                { id: "runtime.win-x64.Microsoft.NETCore.App", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.win-x64.Microsoft.NETCore.App", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.App.220" },
+
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.220" },
+
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.220" },
+
+                // .NET Core osx-x64 runtime deps
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost.220" },
+
+                { id: "runtime.osx-x64.Microsoft.NETCore.App", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.App", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.App.220" },
+
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.220" },
+
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-preview5-27626-15" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.220" },
+
+                // DotNetCore related deps
                 { id: "Microsoft.CSharp", version: "4.3.0" },
                 { id: "Microsoft.Win32.Primitives", version: "4.3.0" },
                 { id: "Microsoft.Win32.Registry", version: "4.3.0" },
@@ -280,7 +307,7 @@ config({
                 { id: "System.IO.Compression", version: "4.3.0" },
                 { id: "System.IO.Compression.ZipFile", version: "4.3.0" },
                 { id: "System.IO.FileSystem", version: "4.3.0" },
-                { id: "System.IO.FileSystem.AccessControl", version: "4.3.0" },
+                { id: "System.IO.FileSystem.AccessControl", version: "4.6.0-preview5.19224.8" },
                 { id: "System.IO.FileSystem.DriveInfo", version: "4.3.0" },
                 { id: "System.IO.FileSystem.Primitives", version: "4.3.0" },
                 { id: "System.IO.FileSystem.Watcher", version: "4.3.0" },
@@ -293,6 +320,7 @@ config({
                 { id: "System.Linq.Expressions", version: "4.3.0" },
                 { id: "System.Linq.Parallel", version: "4.3.0" },
                 { id: "System.Linq.Queryable", version: "4.3.0" },
+                { id: "System.Management", version: "4.6.0-preview5.19224.8" },
                 { id: "System.Net.Http", version: "4.3.0" },
                 { id: "System.Net.NameResolution", version: "4.3.0" },
                 { id: "System.Net.NetworkInformation", version: "4.3.0" },
@@ -331,6 +359,7 @@ config({
                 { id: "System.Runtime.Serialization.Json", version: "4.3.0" },
                 { id: "System.Runtime.Serialization.Primitives", version: "4.3.0" },
                 { id: "System.Runtime.Serialization.Xml", version: "4.3.0" },
+                { id: "System.Security.AccessControl", version: "4.6.0-preview5.19224.8", dependentPackageIdsToSkip: ["System.Security.Principal.Windows"] },
                 { id: "System.Security.Cryptography.Algorithms", version: "4.3.0" },
                 { id: "System.Security.Cryptography.Cng", version: "4.3.0" },
                 { id: "System.Security.Cryptography.Csp", version: "4.3.0" },
@@ -338,12 +367,14 @@ config({
                 { id: "System.Security.Cryptography.Primitives", version: "4.3.0" },
                 { id: "System.Security.Cryptography.X509Certificates", version: "4.3.0" },
                 { id: "System.Security.Principal", version: "4.3.0" },
+                { id: "System.Security.Principal.Windows", version: "4.6.0-preview5.19224.8" },
                 { id: "System.Security.SecureString", version: "4.3.0" },
                 { id: "System.Text.Encoding", version: "4.3.0" },
                 { id: "System.Text.Encoding.CodePages", version: "4.3.0" },
                 { id: "System.Text.Encoding.Extensions", version: "4.3.0" },
                 { id: "System.Text.RegularExpressions", version: "4.3.0" },
                 { id: "System.Threading", version: "4.3.0" },
+                { id: "System.Threading.AccessControl", version: "4.6.0-preview5.19224.8" },
                 { id: "System.Threading.Overlapped", version: "4.3.0" },
                 { id: "System.Threading.Tasks", version: "4.3.0" },
                 { id: "System.Threading.Tasks.Extensions", version: "4.3.0" },
@@ -412,13 +443,19 @@ config({
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
                 { id: "System.CodeDom", version: "4.4.0"},
-                { id: "Microsoft.Build.Locator", version: "1.0.31"},
+
+                // Used for MSBuild input/output prediction
+                { id: "Microsoft.Build.Prediction", version: "0.1.0" },
 
                 { id: "SharpZipLib", version: "1.1.0" },
 
                 // Ninja JSON graph generation helper
                 { id: "BuildXL.Tools.Ninjson", version: "0.0.6" },
                 { id: "BuildXL.Tools.AppHostPatcher", version: "1.0.0" },
+
+                // CoreRT
+                { id: "runtime.osx-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
+                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" }
             ],
 
             doNotEnforceDependencyVersions: true,
@@ -452,20 +489,20 @@ config({
                 // DotNet Core Runtime
                 {
                     moduleName: "DotNet-Runtime.win-x64",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/b10d0a68-b720-48ae-bab8-4ac39bd1b5d3/f32b8b41dff5c1488c2b915a007fc4a6/dotnet-runtime-2.2.2-win-x64.zip",
-                    hash: "VSO0:6BBAE77F9BA0231C90ABD9EA720FF886E8613CE8EF29D8B657AF201E2982829600",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/9459ede1-e223-40c7-a4c5-2409e789121a/46d4eb6067bda9f412a472f7286ffd94/dotnet-runtime-3.0.0-preview5-27626-15-win-x64.zip",
+                    hash: "VSO0:6DBFE7BC9FA24D33A46A3A0732164BD5A4F5984E8FCE091D305FA635CD876AA700",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/d1f0dfb3-b6bd-42ae-895f-f149bf1d90ca/9b1fb91a9692fc31d6fc83e97caba4cd/dotnet-runtime-2.2.2-osx-x64.tar.gz",
-                    hash: "VSO0:88B2B6E8CEF711E108FDE529E781F555516634CD442B3503B712D22947F0788700",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/85024962-5dee-4f64-ab29-a903f3749f85/6178bfacc58f4d9a596b5e3facc767ab/dotnet-runtime-3.0.0-preview5-27626-15-osx-x64.tar.gz",
+                    hash: "VSO0:C6AB5808D30BFF857263BC467FE8D818F35486763F673F79CA5A758727CEF3A900",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/97b97652-4f74-4866-b708-2e9b41064459/7c722daf1a80a89aa8c3dec9103c24fc/dotnet-runtime-2.2.2-linux-x64.tar.gz",
-                    hash: "VSO0:6E5172671364C65B06C9940468A62BAF70EE27392CB2CA8B2C8BFE058CCD088300",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/f15ad9ab-7bd2-4ff5-87b6-b1a08f062ea2/6fdd314c16c17ba22934cd0ac6b4d343/dotnet-runtime-3.0.0-preview5-27626-15-linux-x64.tar.gz",
+                    hash: "VSO0:C6AB5808D30BFF857263BC467FE8D818F35486763F673F79CA5A758727CEF3A900",
                     archiveType: "tgz",
                 },
 
@@ -495,13 +532,13 @@ config({
     qualifiers: {
         defaultQualifier: {
             configuration: "debug",
-            targetFramework: Context.getCurrentHost().os === "win" ? "net472" : "netcoreapp2.2",
+            targetFramework: "netcoreapp3.0",
             targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "osx-x64",
         },
         namedQualifiers: {
             Debug: {
                 configuration: "debug",
-                targetFramework: "net472",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "win-x64",
             },
             DebugNet472: {
@@ -511,19 +548,19 @@ config({
             },
             DebugDotNetCore: {
                 configuration: "debug",
-                targetFramework: "netcoreapp2.2",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "win-x64",
             },
             DebugDotNetCoreMac: {
                 configuration: "debug",
-                targetFramework: "netcoreapp2.2",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "osx-x64",
             },
 
             // Release
             Release: {
                 configuration: "release",
-                targetFramework: "net472",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "win-x64",
             },
             ReleaseNet472: {
@@ -534,12 +571,12 @@ config({
 
             ReleaseDotNetCore: {
                 configuration: "release",
-                targetFramework: "netcoreapp2.2",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "win-x64",
             },
             ReleaseDotNetCoreMac: {
                 configuration: "release",
-                targetFramework: "netcoreapp2.2",
+                targetFramework: "netcoreapp3.0",
                 targetRuntime: "osx-x64",
             },
         }

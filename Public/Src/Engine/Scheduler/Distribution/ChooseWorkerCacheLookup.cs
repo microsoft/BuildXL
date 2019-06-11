@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.WorkDispatcher;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler.Distribution
@@ -19,12 +18,17 @@ namespace BuildXL.Scheduler.Distribution
     {
         private long m_cacheLookupWorkerRoundRobinCounter;
 
+        private readonly bool m_distributeCacheLookups;
+
         public ChooseWorkerCacheLookup(
             LoggingContext loggingContext,
-            IConfiguration config,
+            int maxParallelDegree,
+            bool distributeCacheLookups,
             IReadOnlyList<Worker> workers,
-            IPipQueue pipQueue) : base(loggingContext, config, workers, pipQueue, DispatcherKind.ChooseWorkerCacheLookup, config.Schedule.MaxChooseWorkerCacheLookup)
+            IPipQueue pipQueue) : base(loggingContext, workers, pipQueue, DispatcherKind.ChooseWorkerCacheLookup, maxParallelDegree)
         {
+            m_distributeCacheLookups = distributeCacheLookups;
+
         }
 
         /// <summary>
@@ -35,7 +39,7 @@ namespace BuildXL.Scheduler.Distribution
             Contract.Requires(runnablePip.PipType == PipType.Process);
 
             var processRunnable = (ProcessRunnablePip)runnablePip;
-            if (Config.Distribution.DistributeCacheLookups && AnyRemoteWorkers)
+            if (m_distributeCacheLookups && AnyRemoteWorkers)
             {
                 var startWorkerOffset = Interlocked.Increment(ref m_cacheLookupWorkerRoundRobinCounter);
 

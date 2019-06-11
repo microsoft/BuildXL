@@ -2,8 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
@@ -171,6 +173,25 @@ namespace BuildXL.Cache.VerticalAggregator
                     return eventing.StopFailure(new CacheConstructionFailure(cacheId, e));
                 }
             }
+        }
+
+        /// <inheritdoc />
+        public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
+        {
+            return CacheConfigDataValidator.ValidateConfiguration<Config>(cacheData, cacheAggregatorConfig =>
+            {
+                var failures = new List<Failure>();
+
+                failures.AddRange(
+                    CacheFactory.ValidateConfig(cacheAggregatorConfig.LocalCache)
+                        .Select(failure => new Failure<string>($"{nameof(cacheAggregatorConfig.LocalCache)} validation failed", failure)));
+
+                failures.AddRange(
+                    CacheFactory.ValidateConfig(cacheAggregatorConfig.RemoteCache)
+                        .Select(failure => new Failure<string>($"{nameof(cacheAggregatorConfig.RemoteCache)} validation failed", failure)));
+
+                return failures;
+            });
         }
     }
 }

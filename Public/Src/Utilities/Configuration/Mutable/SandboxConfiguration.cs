@@ -8,6 +8,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
     /// <nodoc />
     public sealed class SandboxConfiguration : ISandboxConfiguration
     {
+        /// <nodoc />
+        public static readonly uint DefaultProcessTimeoutInMinutes = 10;
+
         private IUnsafeSandboxConfiguration m_unsafeSandboxConfig;
 
         /// <nodoc />
@@ -16,7 +19,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             m_unsafeSandboxConfig = new UnsafeSandboxConfiguration();
 
             FailUnexpectedFileAccesses = true;
-            DefaultTimeout = 10 * 60 * 1000;
+            DefaultTimeout = ((int)DefaultProcessTimeoutInMinutes) * 60 * 1000;
             DefaultWarningTimeout = (int)(.85 * DefaultTimeout);
             TimeoutMultiplier = 1;
             WarningTimeoutMultiplier = 1;
@@ -41,6 +44,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             KextThrottleMinAvailableRamMB = 0;              // no throttling by default
             ContainerConfiguration = new SandboxContainerConfiguration();
             AdminRequiredProcessExecutionMode = AdminRequiredProcessExecutionMode.Internal;
+            RedirectedTempFolderRootForVmExecution = AbsolutePath.Invalid;
+            RetryOnAzureWatsonExitCode = false;
+            EnsureTempDirectoriesExistenceBeforePipExecution = false;
         }
 
         /// <nodoc />
@@ -83,6 +89,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             KextThrottleMinAvailableRamMB = template.KextThrottleMinAvailableRamMB;
             ContainerConfiguration = new SandboxContainerConfiguration(template.ContainerConfiguration);
             AdminRequiredProcessExecutionMode = template.AdminRequiredProcessExecutionMode;
+            RedirectedTempFolderRootForVmExecution = pathRemapper.Remap(template.RedirectedTempFolderRootForVmExecution);
+            RetryOnAzureWatsonExitCode = template.RetryOnAzureWatsonExitCode;
+            EnsureTempDirectoriesExistenceBeforePipExecution = template.EnsureTempDirectoriesExistenceBeforePipExecution;
         }
 
         /// <inheritdoc />
@@ -217,5 +226,14 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AdminRequiredProcessExecutionMode AdminRequiredProcessExecutionMode { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath RedirectedTempFolderRootForVmExecution { get; set; }
+
+        /// <inheritdoc />
+        public bool RetryOnAzureWatsonExitCode { get; set; }
+
+        /// <inheritdoc />
+        public bool EnsureTempDirectoriesExistenceBeforePipExecution { get; set; }
     }
 }

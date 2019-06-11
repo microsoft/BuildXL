@@ -36,7 +36,7 @@ namespace BuildXL.Engine.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.FilterDetails,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Events.Tasks.Engine,
             Message = "PipFilter IsEmpty:{filterStatistics.IsEmpty}, ValuesToSelectivelyEvaluate:{filterStatistics.ValuesToSelectivelyEvaluate}. PathsToSelectivelyEvaluate:{filterStatistics.PathsToSelectivelyEvaluate}. ModulesToSelectivelyEvaluate:{filterStatistics.ModulesToSelectivelyEvaluate}. Negation: Total:{filterStatistics.NegatingFilterCount}, OutputFile:{filterStatistics.OutputFileFilterCount}, PipId:{filterStatistics.PipIdFilterCount}, Spec:{filterStatistics.SpecFileFilterCount}, Tag:{filterStatistics.TagFilterCount}, Value:{filterStatistics.ValueFilterCount}, Module:{filterStatistics.ModuleFilterCount}")]
@@ -691,8 +691,8 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Informational,
             Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress),
             EventTask = (ushort)Events.Tasks.Distribution,
-            Message = "Received attach request from the master. New session identifier: {sessionId}. Master Name: {masterName}. Master id: {masterId}")]
-        public abstract void DistributionAttachReceived(LoggingContext context, string sessionId, string masterName, string masterId);
+            Message = "Received attach request from the master. New session identifier: {sessionId}. Master Name: {masterName}.")]
+        public abstract void DistributionAttachReceived(LoggingContext context, string sessionId, string masterName);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionExitReceived,
@@ -2654,6 +2654,42 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (ushort)Events.Tasks.Distribution,
             Message = "Grpc settings: ThreadPoolSize {threadPoolSize}, HandlerInlining {handlerInlining}, CallTimeoutMin {callTimeoutMin}, InactiveTimeoutMin {inactiveTimeoutMin}")]
         internal abstract void GrpcSettings(LoggingContext context, int threadPoolSize, bool handlerInlining, int callTimeoutMin, int inactiveTimeoutMin);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.FailedToGetJournalAccessor,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.Engine,
+            Message = "Change journal cannot be accessed directly. The build may still proceed but without use of change journal scanning. See log for details")]
+        internal abstract void FailedToGetJournalAccessor(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.StartInitializingVm,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.Engine,
+            Message = "Start initializing VM: {message}")]
+        internal abstract void StartInitializingVm(LoggingContext context, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.EndInitializingVm,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.Engine,
+            Message = "End initializing VM: {message}")]
+        internal abstract void EndInitializingVm(LoggingContext context, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.InitializingVm,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.Engine,
+            Message = "Initializing VM: {message}")]
+        internal abstract void InitializingVm(LoggingContext context, string message);
     }
 
     /// <summary>
@@ -2809,6 +2845,8 @@ If you can't update and need this feature after July 2018 please reach out to th
                         return "Graph fingerprint changed from previous run.";
                     case GraphCacheMissReason.EnvironmentVariableChanged:
                         return "First environment variable changed from previous run: " + MissDescription;
+                    case GraphCacheMissReason.MountChanged:
+                        return "A mount definition has changed from previous run: " + MissDescription;
                     case GraphCacheMissReason.SpecFileChanges:
                         return "First file changed from previous run: " + MissDescription;
                     case GraphCacheMissReason.DirectoryChanged:
@@ -2834,7 +2872,7 @@ If you can't update and need this feature after July 2018 please reach out to th
                     case GraphCacheMissReason.CacheFailure:
                         return "Cache failure";
                     default:
-                        Contract.Assume(MissReason == GraphCacheMissReason.NoMiss, "Unexpected value for MissReason");
+                        Contract.Assume(MissReason == GraphCacheMissReason.NoMiss, "Unexpected value for MissReason: " + MissReason);
                         return "No Miss";
                 }
             }

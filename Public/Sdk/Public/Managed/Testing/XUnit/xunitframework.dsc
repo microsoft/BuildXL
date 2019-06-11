@@ -16,15 +16,14 @@ export const framework : Managed.TestFramework = {
     name: "XUnit",
 };
 
- const xunitNet451Qualifier: {targetFramework: "net451"} = {targetFramework: "net451"};
-
 @@public
-export const xunitReferences : Managed.Reference[] = qualifier.targetFramework === "netcoreapp2.2"
+export const xunitReferences : Managed.Reference[] = qualifier.targetFramework === "netcoreapp3.0"
     ? [
         importFrom("xunit.assert").pkg,
         importFrom("xunit.abstractions").pkg,
+        importFrom("xunit.runner.reporters").pkg,
         importFrom("xunit.extensibility.core").pkg,
-        importFrom("xunit.extensibility.execution").pkg,
+        importFrom("xunit.extensibility.execution").pkg
     ]
     : [
         Managed.Factory.createBinary(importFrom("xunit.assert").Contents.all, r`lib/netstandard1.1/xunit.assert.dll`),
@@ -42,18 +41,18 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
         args);
 }
 
-const netStandardFramework = importFrom("Sdk.Managed.Frameworks.NetCoreApp2.2").withQualifier({targetFramework: "netcoreapp2.2"}).framework;
+const netStandardFramework = importFrom("Sdk.Managed.Frameworks.NetCoreApp3.0").withQualifier({targetFramework: "netcoreapp3.0"}).framework;
 const xunitNetStandardRuntimeConfigFiles: File[] = Managed.RuntimeConfigFiles.createFiles(
     netStandardFramework,
     "xunit.console",
-    Managed.Factory.createBinary(xunitConsolePackage, r`tools/netcoreapp2.0/xunit.console.dll`),
+    Managed.Factory.createBinary(xunitNetCoreConsolePackage, r`/lib/netcoreapp2.0/xunit.console.dll`),
     xunitReferences,
     undefined, // appconfig
     true);
 
 // For the DotNetCore run we need to copy a bunch more files:
 function additionalRuntimeContent(args: Managed.TestArguments) : Deployment.DeployableItem[] {
-    return qualifier.targetFramework !== "netcoreapp2.2" ? [] : [
+    return qualifier.targetFramework !== "netcoreapp3.0" ? [] : [
         // Unfortunately xUnit console runner comes as a precompiled assembly for .NET Core, we could either go and pacakge it
         // into a self-contained deployment or treat it as a framework-dependent deployment as intended, let's do the latter
         ...(args.framework === netStandardFramework
@@ -61,13 +60,12 @@ function additionalRuntimeContent(args: Managed.TestArguments) : Deployment.Depl
             : Managed.RuntimeConfigFiles.createFiles(
                 args.framework,
                 "xunit.console",
-                Managed.Factory.createBinary(xunitConsolePackage, r`tools/${args.framework.targetFramework}/xunit.console.dll`),
+                Managed.Factory.createBinary(xunitNetCoreConsolePackage, r`/lib/netcoreapp2.0/xunit.console.dll`),
                 xunitReferences,
                 undefined, // appConfig
                 true)),
-        xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.console.dll`),
-        xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.reporters.netcoreapp10.dll`),
         xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.utility.netcoreapp10.dll`),
+        xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`),
     ];
 }
 
@@ -78,7 +76,7 @@ function runTest(args : TestRunArguments) : File[] {
 
         args = Object.merge<TestRunArguments>({
             xmlFile: xmlResultFile,
-            parallel: "all",
+            parallel: "none",
             noShadow: true,
             useAppDomains: false,
             traits: args.limitGroups && args.limitGroups.map(testGroup => <NameValuePair>{name: "Category", value: testGroup}),

@@ -5,6 +5,7 @@ module({
     name: "Sdk.Managed.Frameworks",
     nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [
-        f`frameworks.dsc`
+        f`frameworks.dsc`,
+        f`helpers.dsc`
     ]
 });

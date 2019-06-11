@@ -1,5 +1,5 @@
 import {Cmd, Artifact, Transformer} from "Sdk.Transformers";
-import * as XCode from "Sdk.MacOS";
+import {XCode} from "Sdk.MacOS";
 
 namespace Sandbox {
     export declare const qualifier : {
@@ -55,8 +55,9 @@ namespace Sandbox {
         };
     }
 
-    const bundleInfoMainFile = f`BundleInfo.xcconfig`;
-    const bundleInfoTestFile = f`BundleInfoTest.xcconfig`;
+    const bundleInfoXCConfig = qualifier.configuration === "debug"
+        ? f`BundleInfoDebug.xcconfig`
+        : f`BundleInfo.xcconfig`;
 
     const isMacOs = Context.getCurrentHost().os === "macOS";
     const interopXcodeproj = Transformer.sealDirectory({
@@ -92,22 +93,13 @@ namespace Sandbox {
         dependencies: [ ariaPkg.Contents.all ]
     }).outFiles[0];
 
-    function buildLibInterop(bundleInfo?: File): DerivedFile {
-        return build({
-            project: interopXcodeproj,
-            scheme: "InteropLibrary",
-            outFiles: [ a`libBuildXLInterop.dylib` ],
-            xcconfig: bundleInfo || bundleInfoMainFile
-        }).outFiles[0];
-    }
-
-    const testConfigurationName = "debugTest";
-
     @@public
-    export const libInterop = isMacOs && buildLibInterop();
-
-    @@public
-    export const libInteropTest = isMacOs && buildLibInterop(bundleInfoTestFile);
+    export const libInterop = isMacOs && build({
+        project: interopXcodeproj,
+        scheme: "InteropLibrary",
+        outFiles: [ a`libBuildXLInterop.dylib` ],
+        xcconfig: bundleInfoXCConfig
+    }).outFiles[0];
 
     @@public
     export const coreDumpTester = isMacOs && build({
@@ -120,7 +112,8 @@ namespace Sandbox {
     export const monitor = isMacOs && build({
         project: sandboxXcodeproj,
         scheme: "SandboxMonitor",
-        outFiles: [ a`SandboxMonitor` ]
+        outFiles: [ a`SandboxMonitor` ],
+        xcconfig: bundleInfoXCConfig
     }).outFiles[0];
 
     interface KextFiles {
@@ -132,11 +125,11 @@ namespace Sandbox {
         dSYMDwarf: DerivedFile
     }
 
-    function buildKext(bundleInfo?: File): KextFiles {
+    function buildKext(bundleInfo: File): KextFiles {
         const result = build({
             project: sandboxXcodeproj,
             scheme: "BuildXLSandbox",
-            xcconfig: bundleInfo || bundleInfoMainFile,
+            xcconfig: bundleInfo || bundleInfoXCConfig,
             outFiles: [
                 r`BuildXLSandbox.kext/Contents/Info.plist`,
                 r`BuildXLSandbox.kext/Contents/MacOS/BuildXLSandbox`,
@@ -159,8 +152,5 @@ namespace Sandbox {
     }
 
     @@public
-    export const kext = isMacOs && buildKext();
-
-    @@public
-    export const kextTest = isMacOs && buildKext(bundleInfoTestFile);
+    export const kext = isMacOs && buildKext(bundleInfoXCConfig);
 }

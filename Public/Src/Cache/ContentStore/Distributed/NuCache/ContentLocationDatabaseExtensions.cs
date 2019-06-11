@@ -20,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             MachineId currentMachineId)
         {
             foreach (var (key, entry) in database.EnumerateEntriesWithSortedKeys(
-                context.Token,
+                context,
                 rawValue => database.HasMachineId(rawValue, currentMachineId.Index)))
             {
                 yield return (key, entry);

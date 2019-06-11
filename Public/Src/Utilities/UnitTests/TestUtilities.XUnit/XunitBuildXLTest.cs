@@ -2,8 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.Streams.Windows;
@@ -24,7 +26,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         Justification = "Test follow different pattern with Initialize and Cleanup.")]
     public abstract class XunitBuildXLTest : BuildXLTestBase, IDisposable
     {
-        private static Lazy<IKextConnection> s_sandboxedKextConnection =  new Lazy<IKextConnection>(() =>
+        private static readonly Lazy<IKextConnection> s_sandboxedKextConnection =  new Lazy<IKextConnection>(() =>
             OperatingSystemHelper.IsUnixOS
                 ? new KextConnection(
                     skipDisposingForTests: true, 
@@ -87,6 +89,29 @@ namespace Test.BuildXL.TestUtilities.Xunit
             {
                 m_ioCompletionTraceHook = IOCompletionManager.Instance.StartTracingCompletion();
             }
+        }
+
+        /// <summary>
+        /// Value returned by <see cref="DiscoverCurrentlyExecutingXunitTestMethodFQN"/> when it cannot discover 
+        /// the currently executing XUnit method.
+        /// </summary>
+        protected const string UnknownXunitMethod = "<unknown>";
+
+        /// <summary>
+        /// Tries to discover the name of the currently executing XUnit method via reflection.
+        /// </summary>
+        protected string DiscoverCurrentlyExecutingXunitTestMethodFQN()
+        {
+            StackFrame testMethodFrame = new StackTrace()
+                .GetFrames()
+                .LastOrDefault(f => f.GetMethod().Module.Assembly == Assembly.GetAssembly(GetType()));
+
+            if (testMethodFrame == null)
+            {
+                return UnknownXunitMethod;
+            }
+
+            return $"{testMethodFrame.GetMethod().DeclaringType.FullName}.{testMethodFrame.GetMethod().Name}";
         }
 
         /// <summary>

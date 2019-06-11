@@ -59,11 +59,13 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         private string m_exitFailure;
 
-        public override WorkerNodeStatus Status => (WorkerNodeStatus)m_status;
+        public override WorkerNodeStatus Status => (WorkerNodeStatus) Volatile.Read(ref m_status);
 
         public override bool EverAvailable => Volatile.Read(ref m_everAvailable);
 
         private readonly TaskSourceSlim<bool> m_attachCompletion;
+        private readonly TaskSourceSlim<bool> m_executionBlobCompletion;
+        private BlockingCollection<WorkerNotificationArgs> m_executionBlobQueue = new BlockingCollection<WorkerNotificationArgs>(new ConcurrentQueue<WorkerNotificationArgs>());
 
         private readonly Thread m_sendThread;
         private readonly BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>> m_buildRequests;
@@ -78,7 +80,7 @@ namespace BuildXL.Engine.Distribution
         private BinaryLogReader m_executionLogBinaryReader;
         private MemoryStream m_executionLogBufferStream;
         private ExecutionLogFileReader m_executionLogReader;
-        private readonly object m_logBlobLock = new object();
+        private readonly SemaphoreSlim m_logBlobMutex = TaskUtilities.CreateMutex();
         private readonly object m_hashListLock = new object();
 
         private int m_lastBlobSeqNumber = -1;
@@ -101,16 +103,18 @@ namespace BuildXL.Engine.Distribution
             m_masterService = masterService;
             m_buildRequests = new BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>>();
             m_attachCompletion = TaskSourceSlim.Create<bool>();
+            m_executionBlobCompletion = TaskSourceSlim.Create<bool>();
+
             m_serviceLocation = serviceLocation;
 
             if (isGrpcEnabled)
             {
-                m_workerClient = new Grpc.GrpcWorkerClient(m_appLoggingContext, masterService.DistributionServices.BuildId, serviceLocation.IpAddress, serviceLocation.Port);
+                m_workerClient = new Grpc.GrpcWorkerClient(m_appLoggingContext, masterService.DistributionServices.BuildId, serviceLocation.IpAddress, serviceLocation.Port, OnConnectionTimeOutAsync);
             }
             else
             {
 #if !DISABLE_FEATURE_BOND_RPC
-                m_workerClient = new InternalBond.BondWorkerClient(m_appLoggingContext, Name, serviceLocation.IpAddress, serviceLocation.Port, masterService.DistributionServices, OnActivateConnection, OnDeactivateConnection, OnConnectionTimeOut);
+                m_workerClient = new InternalBond.BondWorkerClient(m_appLoggingContext, Name, serviceLocation.IpAddress, serviceLocation.Port, masterService.DistributionServices, OnActivateConnection, OnDeactivateConnection, OnConnectionTimeOutAsync);
 #endif
             }
 
@@ -214,11 +218,30 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        public void LogExecutionBlob(ArraySegment<byte> executionLogBlob, int blobSequenceNumber)
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:awaitinsteadofwait")]
+        public async Task LogExecutionBlobAsync(WorkerNotificationArgs notification)
         {
+            Contract.Requires(notification.ExecutionLogData != null || notification.ExecutionLogData.Count != 0);
+
+            m_executionBlobQueue.Add(notification);
+
+            // After we put the executionBlob in a queue, we can unblock the caller and give an ACK to the worker.
+            await Task.Yield();
+
             // Execution log events cannot be logged by multiple threads concurrently since they must be ordered
-            lock (m_logBlobLock)
+            using (await m_logBlobMutex.AcquireAsync())
             {
+                // We need to dequeue and process the blobs in order. 
+                // Here, we do not necessarily process the blob that is just added to the queue above.
+                // There might be another thread that adds the next blob to the queue after the current thread, 
+                // and that thread might acquire the lock earlier. 
+
+                WorkerNotificationArgs executionBlobNotification = null;
+                Contract.Assert(m_executionBlobQueue.TryTake(out executionBlobNotification), "The executionBlob queue cannot be empty");
+                
+                int blobSequenceNumber = executionBlobNotification.ExecutionLogBlobSequenceNumber;
+                ArraySegment<byte> executionLogBlob = executionBlobNotification.ExecutionLogData;
+
                 if (m_workerExecutionLogTarget == null)
                 {
                     return;
@@ -263,7 +286,7 @@ namespace BuildXL.Engine.Distribution
                     // Read all events into worker execution log target
                     if (!m_executionLogReader.ReadAllEvents())
                     {
-                        Logger.Log.DistributionCallMasterCodeException(m_appLoggingContext, nameof(LogExecutionBlob), "Failed to read all worker events");
+                        Logger.Log.DistributionCallMasterCodeException(m_appLoggingContext, nameof(LogExecutionBlobAsync), "Failed to read all worker events");
                         // Disable further processing of execution log since an error was encountered during processing
                         m_workerExecutionLogTarget = null;
                     }
@@ -274,17 +297,25 @@ namespace BuildXL.Engine.Distribution
                 }
                 catch (Exception ex)
                 {
-                    Logger.Log.DistributionCallMasterCodeException(m_appLoggingContext, nameof(LogExecutionBlob), ex.ToStringDemystified() + Environment.NewLine
+                    Logger.Log.DistributionCallMasterCodeException(m_appLoggingContext, nameof(LogExecutionBlobAsync), ex.ToStringDemystified() + Environment.NewLine
                                                                     + "Message sequence number: " + blobSequenceNumber
                                                                     + " Last sequence number logged: " + m_lastBlobSeqNumber);
                     // Disable further processing of execution log since an exception was encountered during processing
                     m_workerExecutionLogTarget = null;
                 }
             }
+
+            if (m_executionBlobQueue.IsCompleted)
+            {
+                m_executionBlobCompletion.TrySetResult(true);
+            }
         }
 
-        private void OnConnectionTimeOut(object sender, EventArgs e)
-        {
+        private async void OnConnectionTimeOutAsync(object sender, EventArgs e)
+        {           
+            // Unblock caller to make it a fire&forget event handler.
+            await Task.Yield();
+
             // Stop using the worker if the connect times out
             while (!ChangeStatus(Status, WorkerNodeStatus.Stopped) && Status != WorkerNodeStatus.Stopped)
             {
@@ -347,51 +378,123 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        /// <inheritdoc />
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
-        public override async void Finish(string buildFailure)
+        private bool TryInitiateStop()
         {
+            while (true)
+            {
+                WorkerNodeStatus status = Status;
+                if (status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped)
+                {
+                    // We already initiated the stop for the worker.
+                    return false;
+                }
+
+                if (ChangeStatus(status, WorkerNodeStatus.Stopping))
+                {
+                    break;
+                }
+            }
+
+            return true;
+        }
+
+        /// <inheritdoc />
+        public override async Task FinishAsync(string buildFailure)
+        {
+            if (TryInitiateStop())
+            {
+                await DisconnectAsync(buildFailure);
+            }
+        }
+
+        /// <inheritdoc />
+        public override async Task EarlyReleaseAsync()
+        {
+            // Unblock scheduler
+            await Task.Yield();
+
+            using (EarlyReleaseLock.AcquireWriteLock())
+            {
+                if (!TryInitiateStop())
+                {
+                    // Already stopped, no need to continue.
+                    return;
+                }
+            }
+            
+            var drainStopwatch = new StopwatchVar();
+
+            using (drainStopwatch.Start())
+            {
+                // We only await DrainCompletion if the total acquired slots is not zero
+                // because the worker can acquire a slot after we decide to release it but before we attempt to stop it. 
+                // We only set DrainCompletion in case of Stopping state.
+                if (AcquiredSlots != 0)
+                {
+                    await DrainCompletion.Task;
+                }
+            }
+
+            m_masterService.Environment.Counters.AddToCounter(PipExecutorCounter.RemoteWorker_EarlyReleaseDrainDurationMs, (long)drainStopwatch.TotalElapsed.TotalMilliseconds);
+
+            Contract.Assert(m_pipCompletionTasks.IsEmpty, "There cannot be pending completion tasks when AcquiredSlots is 0");
+
+            var disconnectStopwatch = new StopwatchVar();
+
+            using (disconnectStopwatch.Start())
+            {
+                await DisconnectAsync();
+            }
+
+            WorkerEarlyReleasedTime = DateTime.UtcNow;
+            Scheduler.Tracing.Logger.Log.WorkerReleasedEarly(
+                m_appLoggingContext,
+                Name,
+                (long)drainStopwatch.TotalElapsed.TotalMilliseconds,
+                (long)disconnectStopwatch.TotalElapsed.TotalMilliseconds);
+        }
+
+        private async Task DisconnectAsync(string buildFailure = null)
+        {
+            Contract.Assert(Status == WorkerNodeStatus.Stopping, $"Disconnect cannot be called for {Status} status");
+
+            // Before we disconnect the worker, we mark it as 'stopping'; 
+            // so it does not accept any requests. We can safely close the 
+            // thread which is responsible for sending build requests to the
+            // remote worker.
             m_buildRequests.CompleteAdding();
             if (m_sendThread.IsAlive)
             {
                 m_sendThread.Join();
             }
 
-            bool initiatedStop = false;
-            while (true)
-            {
-                WorkerNodeStatus status = Status;
-                if (status == WorkerNodeStatus.Stopping || status == WorkerNodeStatus.Stopped)
-                {
-                    break;
-                }
+            CancellationTokenSource exitCancellation = new CancellationTokenSource();
 
-                if (ChangeStatus(status, WorkerNodeStatus.Stopping))
+            // Only wait a short amount of time for exit (15 seconds) if worker is not successfully attached.
+            if (m_attachCompletion.Task.Status != TaskStatus.RanToCompletion || !await m_attachCompletion.Task)
+            {
+                exitCancellation.CancelAfter(TimeSpan.FromSeconds(15));
+            }
+
+            var buildEndData = new BuildEndData()
+            {
+                Failure = buildFailure ?? m_exitFailure
+            };
+
+            await m_workerClient.ExitAsync(buildEndData, exitCancellation.Token);
+
+            m_executionBlobQueue.CompleteAdding();
+
+            using (m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_AwaitExecutionBlobCompletionDuration))
+            {
+                if (!m_executionBlobQueue.IsCompleted)
                 {
-                    initiatedStop = true;
-                    break;
+                    // Wait for execution blobs to be processed.
+                    await m_executionBlobCompletion.Task;
                 }
             }
 
-            if (initiatedStop)
-            {
-                CancellationTokenSource exitCancellation = new CancellationTokenSource();
-
-                // Only wait a short amount of time for exit (15 seconds) if worker is not successfully attached.
-                if (m_attachCompletion.Task.Status != TaskStatus.RanToCompletion || !await m_attachCompletion.Task)
-                {
-                    exitCancellation.CancelAfter(TimeSpan.FromSeconds(15));
-                }
-
-                var buildEndData = new BuildEndData()
-                {
-                    Failure = buildFailure ?? m_exitFailure
-                };
-
-                await m_workerClient.ExitAsync(buildEndData, exitCancellation.Token);
-
-                ChangeStatus(WorkerNodeStatus.Stopping, WorkerNodeStatus.Stopped);
-            }
+            ChangeStatus(WorkerNodeStatus.Stopping, WorkerNodeStatus.Stopped);
         }
 
         /// <inheritdoc />
@@ -805,7 +908,7 @@ namespace BuildXL.Engine.Distribution
             }
             else
             {
-                Finish("ValidateCacheConnection failed");
+                await FinishAsync("ValidateCacheConnection failed");
             }
         }
 
@@ -891,7 +994,7 @@ namespace BuildXL.Engine.Distribution
 
         private void Stop(bool isLostConnection)
         {
-            m_workerClient.Close();
+            Analysis.IgnoreResult(m_workerClient.CloseAsync(), justification: "Okay to ignore close");
 
             // The worker goes in a stopped state either by a scheduler request or because it lost connection with the
             // remote machine. Check which one applies.

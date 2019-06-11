@@ -2,13 +2,27 @@
 // AnnotatedSessions(ago(7d), now())
 .create-or-alter function with (folder = "common", docstring = "AnnotatedSessions", skipvalidation = "true") AnnotatedSessions(startDate:datetime, endDate:datetime)
 {
+// ************** Exception regexes **************
+// The goal of the following regexes is parse enough information out of the crash exception and stack trace that a single line can be created that uniquely identifies the crash, this can be used as a "SuggestedBugName".
+// The SuggestedBugName should be unique enough to differentiate conceptually different crashes, but generic enough that slight variations in the exception or crash stack still results in the same SuggestedBugName.
+// The logic is to combine the innermost exception in the first line of the crash, which should be the most relevant exception if there are aggregated exceptions,
+// and the innermost BuildXL function name of the stack trace, which should be the most specific but still relevant source of the crash.
+//
+// A regex to find the innermost exception on the first line
 let exceptionRegex = @"(?:.*\s?)\.(\S*Exception:[^\n\r]*)";
+// A regex to find the innermost BuildXL function name in the crash stack to uniquely identify
+// The "[^NU]" segement excludes any function name that starts with BuildXL.N or BuildXL.U, the intention is to exclude the very common classes BuildXL.Native and BuildXL.Utilities
 let buildXlFuncNameRegex = @"at\s[^\\/].*?((Domino|BuildXL)\.[^NU][\w.]*[\w<]+>?)";
+// A fall back regex to match generic function name patterns if a BuildXL one could not be found
 let anyFuncNameRegex = @"at\s.*?([A-Z][\w]*\.[\w.]*[\w<]+>?)";
+// A regex to match file paths, so they can be replaced with a generic
 let matchPathsRegex = @"[\S\\/]*\S[\\/][\S\\/]*";
-let matchNumsRegex = @"\d+";
 let pathsReplacement = "[path]";
+// A regex to match numbers, so they can be replaced with a generic
+let matchNumsRegex = @"\d+";
 let numsReplacement = "[#]";
+// ******************************************************
+//
 // 1. Query the dominoinvocation table to collect all of the builds of domino to look at.
 //      Apply time filter
 //      Extract some details out of the Environemtn to categorize the build
@@ -29,7 +43,7 @@ cluster('cbuild').database('Domino').dominoinvocation
     EnvironmentShort = extract("([^;]*)", 1 , Environment),
     CBQueue = extract("(cloudBuildQueue=)([^;]*)", 2 , Environment),
     Infra = case(
-        UserName == "_qcloud1" or UserName == "_qcloud2" , "CB",
+        UserName == "_qcloud1" or UserName == "_qcloud2" or UserName startswith "CBA" , "CB",
         (Environment contains "Dev" or Environment contains "WrapItUp") and UserName != "tpctext" and UserName != "y-arnold", "Dev",
         Environment contains "Self" and UserName != "tsebuild", "Dev",
         "Lab")
@@ -80,7 +94,8 @@ cluster('cbuild').database('Domino').dominocatastrophicfailure
     isnotempty(Exception), "Crash",
     isnotempty(ErrorBucket_InternalErrorOnly), ErrorBucket_InternalErrorOnly,
     isnotempty(ExitKind), "",
-    "MissingDominoCompletionEvent")
+    // When there are multiple internal error buckets for the same build we arbitrary take the min one. Make sure MissingDominoCompletionEvent is the last choice
+    "zz_MissingDominoCompletionEvent") 
         // Parse the exception for relevant pieces to generate a suggested bug name
 | extend ExceptionDescription = replace(matchNumsRegex, numsReplacement, (replace(matchPathsRegex, pathsReplacement, extract(exceptionRegex, 1, Exception))))
 | extend BuildXlFunctionName = extract(buildXlFuncNameRegex, 1, Exception)

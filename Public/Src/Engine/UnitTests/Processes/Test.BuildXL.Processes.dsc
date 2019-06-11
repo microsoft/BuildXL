@@ -32,16 +32,14 @@ namespace Processes {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
-            ...importFrom("BuildXL.Utilities").Native.securityDlls,
+            ...importFrom("BuildXL.Utilities").Native.securityDlls
         ],
         runtimeContent: [
             ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
                 // Note that detoursservice is deployed both in root and in the detourscrossbit tests to handle dotnetcore tests not being fully netstandard2.0
-                importFrom("BuildXL.Sandbox.Windows").Deployment.definition,
                 {
                     subfolder: a`DetoursCrossBitTests`,
                     contents: [
-                        importFrom("BuildXL.Sandbox.Windows").Deployment.definition,
                         DetoursCrossBitTests.withQualifier(BuildXLSdk.LatestFullFrameworkQualifier).x64,
                         DetoursCrossBitTests.withQualifier(BuildXLSdk.LatestFullFrameworkQualifier).x86,
                         {

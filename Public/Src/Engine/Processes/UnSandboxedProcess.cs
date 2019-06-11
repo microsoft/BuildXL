@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration.Mutable;
 using static BuildXL.Utilities.FormattableStringEx;
 using JetBrains.Annotations;
 #if FEATURE_SAFE_PROCESS_HANDLE
@@ -29,6 +30,7 @@ namespace BuildXL.Processes
     public class UnSandboxedProcess : ISandboxedProcess
     {
         private static readonly ISet<ReportedFileAccess> s_emptyFileAccessesSet = new HashSet<ReportedFileAccess>();
+        private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromMinutes(SandboxConfiguration.DefaultProcessTimeoutInMinutes);
 
         private readonly SandboxedProcessOutputBuilder m_output;
         private readonly SandboxedProcessOutputBuilder m_error;
@@ -51,6 +53,17 @@ namespace BuildXL.Processes
                 System = system;
             }
         }
+
+        /// <summary>
+        /// Delegate type for <see cref="ProcessStarted"/> event.
+        /// </summary>
+        protected delegate void ProcessStartedHandler();
+
+        /// <summary>
+        /// Raised right after the process is started.
+        /// </summary>
+
+        protected event ProcessStartedHandler ProcessStarted;
 
         /// <summary>
         /// Indicates if the process has been force killed during execution.
@@ -83,8 +96,7 @@ namespace BuildXL.Processes
         {
             Contract.Requires(info != null);
 
-            info.Timeout = info.Timeout ?? TimeSpan.FromMinutes(10);
-
+            info.Timeout = info.Timeout ?? DefaultProcessTimeout;
             ProcessInfo = info;
 
             m_output = new SandboxedProcessOutputBuilder(
@@ -117,20 +129,27 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public virtual void Start()
+        public void Start()
         {
             Contract.Requires(!Started, "Process was already started.  Cannot start process more than once.");
 
-            CreateAndSetUpProcess();
+            m_processExecutor = new AsyncProcessExecutor(
+                CreateProcess(),
+                ProcessInfo.Timeout ?? DefaultProcessTimeout,
+                line => FeedStdOut(m_output, line),
+                line => FeedStdErr(m_error, line),
+                ProcessInfo.Provenance,
+                msg => LogProcessState(msg));
+
             m_processExecutor.Start();
 
-            SetProcessStartedExecuting();
+            ProcessStarted?.Invoke();
+
+            ProcessInfo.ProcessIdListener?.Invoke(ProcessId);
         }
 
-        private int m_processId = -1;
-
         /// <inheritdoc />
-        public int ProcessId => m_processId != -1 ? m_processId : (m_processId = Process.Id);
+        public int ProcessId => m_processExecutor?.ProcessId ?? -1;
 
         /// <inheritdoc />
         public virtual void Dispose()
@@ -193,14 +212,20 @@ namespace BuildXL.Processes
 
             SandboxedProcessReports reports = null;
 
-            await m_processExecutor.WaitForExitAsync(
-                async () => 
-                {
-                    LogProcessState("Waiting for reports to be received");
-                    reports = await GetReportsAsync();
-                    m_reportsReceivedTime = DateTime.UtcNow;
-                    reports?.Freeze();
-                });
+            await m_processExecutor.WaitForExitAsync();
+            if (m_processExecutor.Killed)
+            {
+                // call here this.KillAsync() because a subclass may override it
+                // to do some extra processing when a process is killed
+                await KillAsync();
+            }
+
+            LogProcessState("Waiting for reports to be received");
+            reports = await GetReportsAsync();
+            m_reportsReceivedTime = DateTime.UtcNow;
+            reports?.Freeze();
+
+            await m_processExecutor.WaitForStdOutAndStdErrAsync();
 
             var reportFileAccesses = ProcessInfo.FileAccessManifest?.ReportFileAccesses == true;
             var fileAccesses = reportFileAccesses ? (reports?.FileAccesses ?? s_emptyFileAccessesSet) : null;
@@ -245,13 +270,14 @@ namespace BuildXL.Processes
 
             ProcessDumper.TryDumpProcessAndChildren(ProcessId, ProcessInfo.TimeoutDumpDirectory, out m_dumpCreationException);
 
+            LogProcessState($"UnSandboxedProcess::KillAsync()");
             return m_processExecutor.KillAsync();
         }
 
         /// <summary>
-        /// Mutates <see cref="Process"/>.
+        /// Creates a <see cref="Process"/>.
         /// </summary>
-        protected void CreateAndSetUpProcess()
+        protected virtual Process CreateProcess()
         {
             Contract.Requires(Process == null);
 
@@ -296,12 +322,7 @@ namespace BuildXL.Processes
                 }
             }
 
-            m_processExecutor = new AsyncProcessExecutor(
-                process,
-                ProcessInfo.Timeout ?? TimeSpan.FromMinutes(10),
-                line => FeedStdOut(m_output, line),
-                line => FeedStdErr(m_error, line),
-                ProcessInfo);
+            return process;
         }
 
         internal virtual void FeedStdOut(SandboxedProcessOutputBuilder b, string line)
@@ -342,14 +363,6 @@ namespace BuildXL.Processes
                 string fullMessage = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");
                 Tracing.Logger.Log.LogDetoursDebugMessage(ProcessInfo.LoggingContext, ProcessInfo.PipSemiStableHash, ProcessInfo.PipDescription, fullMessage);
             }
-        }
-
-        /// <summary>
-        /// Notifies the process id listener.
-        /// </summary>
-        protected void SetProcessStartedExecuting()
-        {
-            ProcessInfo.ProcessIdListener?.Invoke(ProcessId);
         }
 
         /// <summary>

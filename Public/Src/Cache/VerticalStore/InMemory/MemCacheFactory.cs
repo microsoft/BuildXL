@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
@@ -66,5 +67,8 @@ namespace BuildXL.Cache.InMemory
             // instantiate new MemCache
             return await Task.FromResult(new MemCache(cacheConfig.CacheId, cacheConfig.StrictMetadataCasCoupling, cacheConfig.IsAuthoritative));
         }
+
+        /// <inheritdoc />
+        public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData) => CacheConfigDataValidator.ValidateConfiguration<Config>(cacheData, cacheConfig => new Failure[] { });
     }
 }

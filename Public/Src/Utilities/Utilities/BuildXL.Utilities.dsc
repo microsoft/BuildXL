@@ -13,7 +13,8 @@ export const dll = BuildXLSdk.library({
     references: [
         ...addIf(BuildXLSdk.isFullFramework,
             NetFx.System.Xml.dll,
-            NetFx.System.Management.dll
+            NetFx.System.Management.dll,
+            NetFx.System.Security.dll
         ),
         Collections.dll,
         Interop.dll,
@@ -22,6 +23,10 @@ export const dll = BuildXLSdk.library({
             importFrom("Microsoft.Win32.Registry").pkg,
         ]),
         ...BuildXLSdk.tplPackages,
+        importFrom("Newtonsoft.Json").pkg,
+        ...addIf(BuildXLSdk.isDotNetCoreBuild, 
+                importFrom("System.Security.Cryptography.ProtectedData").withQualifier({targetFramework: "netstandard2.0"}).pkg
+        ),
     ],
     defineConstants: qualifier.configuration === "debug" ? ["DebugStringTable"] : [],
     internalsVisibleTo: [

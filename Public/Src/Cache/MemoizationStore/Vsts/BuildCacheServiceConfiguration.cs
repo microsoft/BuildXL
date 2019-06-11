@@ -82,11 +82,16 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// </summary>
         public const bool DefaultDownloadBlobsThroughBlobStore = false;
 
-
         /// <summary>
         /// Default value indicating whether Dedup is enabled.
         /// </summary>
         public const bool DefaultUseDedupStore = false;
+
+        /// <summary>
+        /// Default value indicating whether Unix file access mode override is enabled.
+        /// </summary>
+        public const bool DefaultOverrideUnixFileAccessMode = false;
+
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BuildCacheServiceConfiguration"/> class.
@@ -206,15 +211,21 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public int HttpSendTimeoutMinutes { get; set; } = DefaultHttpSendTimeoutMinutes;
 
         /// <summary>
-        /// Gets or set whether blobs are downloaded through BlobStore.
+        /// Gets or sets whether blobs are downloaded through BlobStore.
         /// </summary>
         [DataMember]
         public bool DownloadBlobsThroughBlobStore { get; set; } = DefaultDownloadBlobsThroughBlobStore;
 
         /// <summary>
-        /// Gets or set whether Dedup is enabled.
+        /// Gets or sets whether Dedup is enabled.
         /// </summary>
         [DataMember]
         public bool UseDedupStore { get; set; } = DefaultUseDedupStore;
+
+        /// <summary>
+        /// Gets or sets whether to override Unix file access modes.
+        /// </summary>
+        [DataMember]
+        public bool OverrideUnixFileAccessMode { get; set; } = DefaultOverrideUnixFileAccessMode;
     }
 }

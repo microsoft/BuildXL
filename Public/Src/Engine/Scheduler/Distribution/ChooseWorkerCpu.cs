@@ -17,7 +17,6 @@ using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -89,16 +88,16 @@ namespace BuildXL.Scheduler.Distribution
 
         public ChooseWorkerCpu(
             LoggingContext loggingContext,
-            IConfiguration config,
+            int maxParallelDegree,
             IReadOnlyList<Worker> workers,
             IPipQueue pipQueue,
             PipGraph pipGraph,
-            FileContentManager fileContentManager) : base(loggingContext, config, workers, pipQueue, DispatcherKind.ChooseWorkerCpu, config.Schedule.MaxChooseWorkerCpu)
+            FileContentManager fileContentManager) : base(loggingContext, workers, pipQueue, DispatcherKind.ChooseWorkerCpu, maxParallelDegree)
         {
             m_pipTable = pipGraph.PipTable;
             m_executedProcessOutputs = new ContentTrackingSet(pipGraph);
             m_fileContentManager = fileContentManager;
-            m_pipSetupCostPool = new ObjectPool<PipSetupCosts>(() => new PipSetupCosts(this), costs => costs, size: config.Schedule.MaxChooseWorkerCpu);
+            m_pipSetupCostPool = new ObjectPool<PipSetupCosts>(() => new PipSetupCosts(this), costs => costs, size: maxParallelDegree);
         }
 
         /// <summary>

@@ -45,10 +45,6 @@ namespace Test {
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],
         runtimeContent: [
-            ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
-                BuildXLSdk.Factory.createBinary(importFrom("System.Threading.AccessControl").Contents.all, r`lib/netstandard2.0/System.Threading.AccessControl.dll`),
-                BuildXLSdk.Factory.createBinary(importFrom("System.Security.AccessControl").Contents.all, r`lib/netstandard2.0/System.Security.AccessControl.dll`)
-            ]),
             Library.dll,
             importFrom("Grpc.Core").pkg,
         ],

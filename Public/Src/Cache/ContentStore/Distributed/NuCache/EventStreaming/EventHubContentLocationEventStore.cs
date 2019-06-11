@@ -14,7 +14,9 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Azure.EventHubs;
+using Microsoft.Practices.TransientFaultHandling;
 using static BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming.ContentLocationEventStoreCounters;
+using RetryPolicy = Microsoft.Practices.TransientFaultHandling.RetryPolicy;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {
@@ -38,10 +40,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private Processor _currentEventProcessor;
 
         private PartitionReceiver _partitionReceiver;
-        private EventSequencePoint _lastProcessedSequencePoint;
         private readonly string _hostName = Guid.NewGuid().ToString();
 
         private readonly ActionBlock<ProcessEventsInput>[] _eventProcessingBlocks;
+
+        /// <summary>
+        /// Sequence points processed by each action block.
+        /// The size of the array is equals to <see cref="EventHubContentLocationEventStoreConfiguration.MaxEventProcessingConcurrency"/>.
+        /// Due to concurrent message processing we can't just have one shared field with the latest processed sequence point.
+        /// It is possible that due to non-deterministic processing
+        /// we first will process a message with higher sequence number,
+        /// save it into a local state, create the checkpoint and die.
+        /// In this case some messages will be lost and won't be re-processed by another master.
+        /// </summary>
+        private readonly EventSequencePoint[] _lastProcessedSequencePoints;
+
+        private readonly RetryPolicy _extraEventHubClientRetryPolicy;
 
         /// <inheritdoc />
         public EventHubContentLocationEventStore(
@@ -61,11 +75,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 _eventProcessingBlocks =
                     Enumerable.Range(1, configuration.MaxEventProcessingConcurrency)
                         .Select(
-                            _ =>
+                            (_, index) =>
                             {
                                 var serializer = new ContentLocationEventDataSerializer(configuration.SelfCheckSerialization ? ValidationMode.Trace : ValidationMode.Off);
                                 return new ActionBlock<ProcessEventsInput>(
-                                    t => ProcessEventsCoreAsync(t, serializer),
+                                    t => ProcessEventsCoreAsync(t, serializer, index: index),
                                     new ExecutionDataflowBlockOptions()
                                     {
                                         MaxDegreeOfParallelism = 1,
@@ -74,6 +88,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             })
                         .ToArray();
             }
+
+            _lastProcessedSequencePoints = new EventSequencePoint[configuration.MaxEventProcessingConcurrency];
+
+            _extraEventHubClientRetryPolicy = CreateEventHubClientRetryPolicy();
+        }
+
+        private RetryPolicy CreateEventHubClientRetryPolicy()
+        {
+            return new RetryPolicy(
+                new TransientEventHubErrorDetectionStrategy(),
+                RetryStrategy.DefaultExponential);
         }
 
         /// <inheritdoc />
@@ -154,20 +179,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 counters[SentMessagesTotalSize].Add(eventData.Body.Count);
                 eventData.Properties[OperationIdKey] = operationId.ToString();
 
-                try
+                // Even though event hub client has it's own built-in retry strategy, we have to wrap all the calls into a separate
+                // one to cover a few more important cases that the default strategy misses.
+                await _extraEventHubClientRetryPolicy.ExecuteAsync(async () =>
                 {
-                    await _partitionSender.SendAsync(eventData);
-                }
-                catch (ServerBusyException exception)
-                {
-                    // TODO: Verify that the HResult is 50002. Documentation shows that this should be the error code for throttling,
-                    // but documentation is done for Microsoft.ServiceBus.Messaging.ServerBusyException and not Microsoft.Azure.EventHubs.ServerBusyException
-                    // https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-messaging-exceptions#serverbusyexception
-                    Tracer.Debug(context, $"{Tracer.Name}: OpId={operationId} was throttled by EventHub. HResult={exception.HResult}");
-                    Tracer.TrackMetric(context, "EventHubThrottle", 1);
+                    try
+                    {
+                        await _partitionSender.SendAsync(eventData);
+                    }
+                    catch (ServerBusyException exception)
+                    {
+                        // TODO: Verify that the HResult is 50002. Documentation shows that this should be the error code for throttling,
+                        // but documentation is done for Microsoft.ServiceBus.Messaging.ServerBusyException and not Microsoft.Azure.EventHubs.ServerBusyException
+                        // https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-messaging-exceptions#serverbusyexception
+                        Tracer.Debug(context, $"{Tracer.Name}: OpId={operationId} was throttled by EventHub. HResult={exception.HResult}");
+                        Tracer.TrackMetric(context, "EventHubThrottle", 1);
 
-                    throw;
-                }
+                        throw;
+                    }
+                    catch (Exception e)
+                    {
+                        // If the error is not retryable, then the entire operation will fail and we don't need to double trace the error.
+                        if (TransientEventHubErrorDetectionStrategy.IsRetryable(e))
+                        {
+                            Tracer.Debug(context, $"{Tracer.Name}.{nameof(SendEventsCoreAsync)} failed with retryable error=[{e}]");
+                        }
+                        
+                        throw;
+                    }
+                });
             }
 
             return BoolResult.Success;
@@ -200,7 +240,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
             else
             {
-                await ProcessEventsCoreAsync(new ProcessEventsInput(context, messages, new OperationCounters(), processingFinishedTaskSource: null), EventDataSerializer);
+                await ProcessEventsCoreAsync(new ProcessEventsInput(context, messages, new OperationCounters(), processingFinishedTaskSource: null), EventDataSerializer, index: 0);
             }
 
             void printOperationResultsAsynchronously(SendToActionBlockResult results)
@@ -263,7 +303,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             return sender?.ToString();
         }
 
-        private async Task ProcessEventsCoreAsync(ProcessEventsInput input, ContentLocationEventDataSerializer eventDataSerializer)
+        private async Task ProcessEventsCoreAsync(ProcessEventsInput input, ContentLocationEventDataSerializer eventDataSerializer, int index)
         {
             var context = input.Context;
             var counters = input.EventStoreCounters;
@@ -322,7 +362,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             }
                         }
 
-                        _lastProcessedSequencePoint = new EventSequencePoint(message.SystemProperties.SequenceNumber);
+                        _lastProcessedSequencePoints[index] = new EventSequencePoint(message.SystemProperties.SequenceNumber);
                     }
 
                     Counters.Append(counters);
@@ -350,7 +390,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <inheritdoc />
         public override EventSequencePoint GetLastProcessedSequencePoint()
         {
-            return _lastProcessedSequencePoint;
+            EventSequencePoint lastProcessedSequencePoint = _lastProcessedSequencePoints[0];
+
+            foreach (var sequencePoint in _lastProcessedSequencePoints)
+            {
+                if (sequencePoint != null && (sequencePoint.SequenceNumber ?? long.MaxValue) < (lastProcessedSequencePoint?.SequenceNumber ?? long.MinValue))
+                {
+                    lastProcessedSequencePoint = sequencePoint;
+                }
+            }
+            return lastProcessedSequencePoint;
         }
 
         /// <inheritdoc />
@@ -372,7 +421,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 _partitionReceiver.SetReceiveHandler(_currentEventProcessor);
             }
 
-            _lastProcessedSequencePoint = sequencePoint;
+            Array.Clear(_lastProcessedSequencePoints, 0, _lastProcessedSequencePoints.Length);
+            _lastProcessedSequencePoints[0] = sequencePoint;
             return BoolResult.Success;
         }
 
@@ -502,6 +552,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             { }
 
             public static OperationCounters FromEventStoreCounters(CounterCollection<ContentLocationEventStoreCounters> eventStoreCounters) => new OperationCounters(eventStoreCounters);
+        }
+
+        private class TransientEventHubErrorDetectionStrategy : ITransientErrorDetectionStrategy
+        {
+            /// <inheritdoc />
+            public bool IsTransient(Exception ex)
+            {
+                return IsRetryable(ex);
+            }
+
+            public static bool IsRetryable(Exception exception)
+            {
+                if (exception is AggregateException ae)
+                {
+                    return ae.InnerExceptions.All(e => IsRetryable(e));
+                }
+
+                if (Microsoft.Azure.EventHubs.RetryPolicy.IsRetryableException(exception))
+                {
+                    return true;
+                }
+
+                // IsRetryableException covers TaskCanceledException, EventHubException, OperationCanceledException and SocketException
+
+                // Need to cover some additional cases here.
+                if (exception is TimeoutException || exception is ServerBusyException)
+                {
+                    return true;
+                }
+
+                return false;
+            }
         }
     }
 }

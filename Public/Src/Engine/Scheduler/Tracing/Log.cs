@@ -175,7 +175,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)EventId.PipCopyFileSourceFileDoesNotExist,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
             EventTask = (ushort)Events.Tasks.PipExecutor,
             Message = "[{pipDescription}] Copy file '{source}' to '{destination}' failed because '{source}' does not exist")]
         internal abstract void PipCopyFileSourceFileDoesNotExist(
@@ -610,6 +610,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void StorageCacheCleanDirectoryOutputError(LoggingContext loggingContext, string pipDescription, string destinationPath, string errorMessage);
 
         [GeneratedEvent(
+            (ushort)LogEventId.StorageSymlinkDirInOutputDirectoryWarning,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Events.Tasks.Storage,
+            Message = "[{pipDescription}] Pip produced a directory symlink or junction'{symlinkPath}', which is not supported. The pip will not be cached.")]
+        public abstract void StorageSymlinkDirInOutputDirectoryWarning(LoggingContext loggingContext, string pipDescription, string symlinkPath);
+
+        [GeneratedEvent(
             (ushort)LogEventId.StorageRemoveAbsentFileOutputWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
@@ -709,6 +718,24 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Events.Tasks.Distribution,
             Keywords = (int)Events.Keywords.UserMessage)]
         public abstract void DistributionMasterWorkerProcessOutputContent(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath, string hash, string reparsePointInfo, string workerName);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.InitiateWorkerRelease,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "{workerName} will be released because {numProcessPipsWaiting} (numProcessPipsWaiting) < {totalSlots} (totalSlots). Worker's Acquired Slots: {cachelookup} (cachelookup), {execute} (execute), {ipc} (ipc).",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Events.Tasks.Distribution,
+            Keywords = (int)Events.Keywords.UserMessage)]
+        public abstract void InitiateWorkerRelease(LoggingContext context, string workerName, long numProcessPipsWaiting, int totalSlots, int cachelookup, int execute, int ipc);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.WorkerReleasedEarly,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "{workerName} is released. Drain duration: {drainDurationMs}ms. Disconnect duration: {disconnectDurationMs}ms.",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Events.Tasks.Distribution,
+            Keywords = (int)Events.Keywords.UserMessage)]
+        public abstract void WorkerReleasedEarly(LoggingContext context, string workerName, long drainDurationMs, long disconnectDurationMs);
 
         [GeneratedEvent(
             (ushort)EventId.StorageCacheGetContentError,
@@ -1184,6 +1211,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void LogMismatchedDetoursErrorCount(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
+            (int)EventId.PipExitedWithAzureWatsonExitCode,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "Pip exited with Azure Watson's 0xDEAD exit code. Refer to the {ShortProductName} log for more information.")]
+        public abstract void PipExitedWithAzureWatsonExitCode(LoggingContext context, long pipSemiStableHash, string pipDescription);
+
+        [GeneratedEvent(
             (int)EventId.FailPipOutputWithNoAccessed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -1195,7 +1231,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (int)LogEventId.PipCacheMetadataBelongToAnotherPip,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
@@ -1879,6 +1915,23 @@ namespace BuildXL.Scheduler.Tracing
             string producingPipDescription);
 
         [GeneratedEvent(
+             (int)LogEventId.AllowedSameContentDoubleWrite,
+             EventGenerators = EventGenerators.LocalOnly,
+             EventLevel = Level.Verbose,
+             Keywords = (int)Events.Keywords.UserMessage | (int)Events.Keywords.DependencyAnalysis,
+             EventTask = (int)Events.Tasks.Scheduler,
+             Message =
+                 PipDependencyAnalysisPrefix +
+                 "Allowed double write: This pip wrote to the path '{2}', which could have been produced earlier by the pip [{3}]. " +
+                 "However, the content produced was the same for both and the configured double write policy allows for it.")]
+        public abstract void AllowedSameContentDoubleWrite(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path,
+            string producingPipDescription);
+
+        [GeneratedEvent(
             (int)LogEventId.DependencyViolationReadRace,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -2155,22 +2208,22 @@ namespace BuildXL.Scheduler.Tracing
         #endregion
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempDirectoryCleanupWarning,
-            EventLevel = Level.Warning,
+            (ushort)EventId.PipFailedTempDirectoryCleanup,
+            EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            EventTask = (int)Events.Tasks.Scheduler,
             Message = "Failed to clean temp directory at '{0}'. Reason: {1}")]
-        public abstract void PipTempDirectoryCleanupWarning(LoggingContext context, string directory, string exceptionMessage);
+        public abstract void PipFailedTempDirectoryCleanup(LoggingContext context, string directory, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempFileCleanupWarning,
-            EventLevel = Level.Warning,
+            (ushort)EventId.PipFailedTempFileCleanup,
+            EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            EventTask = (int)Events.Tasks.Scheduler,
             Message = "Failed to clean temp file at '{0}'. Reason: {1}")]
-        public abstract void PipTempFileCleanupWarning(LoggingContext context, string file, string exceptionMessage);
+        public abstract void PipFailedTempFileCleanup(LoggingContext context, string file, string exceptionMessage);
 
         [GeneratedEvent(
             (ushort)EventId.PipTempCleanerThreadSummary,
@@ -2178,7 +2231,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
-            Message = "Temp cleaner thread exited with {0} cleaned, {1} remaining and {2} failed temp directories, {3} cleaned, {4} remaining and {5} failed temp files.")]
+            Message = "Temp cleaner thread exited with {0} cleaned, {1} remaining and {2} failed temp directories, {3} cleaned, {4} remaining and {5} failed temp files")]
         public abstract void PipTempCleanerSummary(LoggingContext context, long cleanedDirs, long remainingDirs, long failedDirs, long cleanedFiles, long remainingFiles, long failedFiles);
 
         [GeneratedEvent(
@@ -2562,6 +2615,38 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Events.Tasks.Scheduler,
             Message = "The pip '{pipDescription}' could not be added because one of its service pip dependencies is not a service pip).")]
         public abstract void ScheduleFailAddPipDueToInvalidServicePipDependency(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId);
+
+        [GeneratedEvent(
+            (int)EventId.ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
+            EventTask = (int)Events.Tasks.Scheduler,
+            Message = "The pip '{pipDescription}' could not be added because one of PreserveOutputWhitelist is neither static file output nor directory output).")]
+        public abstract void ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId);
+
+        [GeneratedEvent(
+            (int)EventId.ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
+            EventTask = (int)Events.Tasks.Scheduler,
+            Message = "The pip '{pipDescription}' could not be added because PreserveOutputWhitelist is set even though AllowPreserveOutputs is false for the pip).")]
+        public abstract void ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag(
             LoggingContext context,
             string file,
             int line,
@@ -3161,6 +3246,20 @@ namespace BuildXL.Scheduler.Tracing
             long producingPipSemiStableHash,
             string producingPipDescription,
             string producingPipValueId);
+
+        [GeneratedEvent(
+            (int)EventId.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
+            EventTask = (int)Events.Tasks.Scheduler,
+            Message =
+                "Pip '{pipDescription}' is participating in a double write to the path '{outputFile}'. The double write policy for this pip is set to allow double writes as long as the content of the produced file is the same. " +
+                "However, this policy is only supported for output files under opaque directories, not for statically specified output files. The double write will be flagged as an error regardless of the produced content.")]
+        public abstract void AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs(
+            LoggingContext context,
+            string pipDescription,
+            string outputFile);
 
         [GeneratedEvent(
             (int)EventId.RewritingPreservedOutput,
@@ -4235,7 +4334,6 @@ namespace BuildXL.Scheduler.Tracing
             string directoryPath,
             string pipDescription,
             string deletedPaths);
-
     }
 }
 #pragma warning restore CA1823 // Unused field

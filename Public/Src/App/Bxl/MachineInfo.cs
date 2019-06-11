@@ -68,7 +68,19 @@ namespace BuildXL
             mi.OsVersion = OperatingSystemHelper.GetOSVersion();
             mi.ProcessorName = OperatingSystemHelper.GetProcessorName();
             mi.ProcessorIdentifier = OperatingSystemHelper.GetProcessorIdentifier();
-            mi.EnvironmentVersion = Environment.Version.ToString(4);
+
+#if !FEATURE_CORECLR
+            try {
+                mi.EnvironmentVersion = Environment.Version.ToString(4);
+            }
+            catch (ArgumentException)
+            {
+#endif
+                // Fallback for .NETCore3.0, which currently reports "3.0.0" only
+                mi.EnvironmentVersion = Environment.Version.ToString();
+#if !FEATURE_CORECLR
+            }
+#endif
             mi.InstalledMemoryMB = OperatingSystemHelper.GetPhysicalMemorySize().MB;
 
             char currentDrive = Environment.CurrentDirectory[0];

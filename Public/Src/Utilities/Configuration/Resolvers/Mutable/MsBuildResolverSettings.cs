@@ -43,6 +43,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             KeepProjectGraphFile = resolverSettings.KeepProjectGraphFile;
             EnableTransitiveProjectReferences = resolverSettings.EnableTransitiveProjectReferences;
             UseLegacyProjectIsolation = resolverSettings.UseLegacyProjectIsolation;
+            DoubleWritePolicy = resolverSettings.DoubleWritePolicy;
+            AllowProjectsToNotSpecifyTargetProtocol = resolverSettings.AllowProjectsToNotSpecifyTargetProtocol;
         }
 
         /// <inheritdoc/>
@@ -101,5 +103,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool? UseLegacyProjectIsolation { get; set; }
+
+        /// <inheritdoc/>
+        public DoubleWritePolicy? DoubleWritePolicy { get; set; }
+
+        /// <inheritdoc/>
+        public bool? AllowProjectsToNotSpecifyTargetProtocol { get; set; }
     }
 }

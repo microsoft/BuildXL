@@ -100,10 +100,10 @@ namespace BuildXL.Utilities.Tracing
         
         PipProcessStartExternalTool = 78,
         PipProcessFinishedExternalTool = 79,
-        // Free = 79,
-        // Free = 80,
-        // Free = 81,
-        // Free = 82,
+        PipProcessStartExternalVm = 80,
+        PipProcessFinishedExternalVm = 81,
+        PipProcessExternalExecution = 82,
+
         MappedRoot = 83,
         PipTableDeserializationContext = 84,
         RetryStartPipDueToErrorPartialCopyDuringDetours = 85,
@@ -115,7 +115,7 @@ namespace BuildXL.Utilities.Tracing
         PipProcessInvalidErrorRegex = 89,
         // Reserved  = 90,
         // Reserved  = 91,
-        // Free = 92,
+        PipProcessNeedsExecuteExternalButExecuteInternal = 92,
         // Reserved  = 93,
         EnvironmentValueForTempDisallowed = 94,
         CannotHonorLowPriority = 95,
@@ -290,6 +290,8 @@ namespace BuildXL.Utilities.Tracing
         ScheduleProcessConfiguredUncacheable = 300,
 
         ProcessPipProcessWeight = 301,
+        ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist = 302,
+        ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag = 303,
 
         // Reserved = 306,
         // Reserved = 307,
@@ -307,7 +309,7 @@ namespace BuildXL.Utilities.Tracing
         CacheMissAnalysisException = 315,
         PipStandardIOFailed = 316,
 
-        // Free slot 317,
+        PipRetryDueToExitedWithAzureWatsonExitCode = 317,
         // Reserved = 318,
 
         // Free slot 319,
@@ -495,7 +497,7 @@ namespace BuildXL.Utilities.Tracing
         MaterializeFilePipProducerNotFound = 739,
 
         StoreSymlinkWarning = 740,
-        // was StoreWarnDueToUnableToDetermineReparsePoint = 741,
+        FileMaterializationMismatchFileExistenceResult = 741,
 
         SerializingToPipFingerprintEntryResultInCorruptedData = 742,
         DeserializingCorruptedPipFingerprintEntry = 743,
@@ -624,11 +626,13 @@ namespace BuildXL.Utilities.Tracing
         IncrementalFrontendCache = 2108,
 
         // Temp files/directory cleanup
-        PipTempDirectoryCleanupWarning = 2200,
+        PipFailedTempDirectoryCleanup = 2200,
         PipTempDirectoryCleanupError = 2201,
         PipTempCleanerThreadSummary = 2202,
         PipTempDirectorySetupError = 2203,
-        PipTempFileCleanupWarning = 2204,
+        PipFailedTempFileCleanup = 2204,
+        PipTempSymlinkRedirectionError = 2205,
+        PipTempSymlinkRedirection = 2206,
 
         PipFailedToCreateDumpFile = 2210,
 
@@ -644,7 +648,7 @@ namespace BuildXL.Utilities.Tracing
 
         // Dealing with MAX_PATH issues
         PathHashed = 2600,
-        PipProcessTempDirectoryTooLong = 2601,
+        // was: PipProcessTempDirectoryTooLong = 2601,
         FailPipOutputWithNoAccessed = 2602,
         PipOutputNotAccessed = 2603,
         PipWillBeRetriedDueToExitCode = 2604,
@@ -718,7 +722,7 @@ namespace BuildXL.Utilities.Tracing
 
         LogMismatchedDetoursErrorCount = 2922,
         LogMessageCountSemaphoreExists = 2923,
-        // RESERVED 2924
+        PipExitedWithAzureWatsonExitCode = 2924,
         LogFailedToCreateDirectoryForInternalDetoursFailureFile = 2925,
         // RESERVED 2926
         LogMismatchedDetoursVerboseCount = 2927,
@@ -1049,6 +1053,7 @@ namespace BuildXL.Utilities.Tracing
         FailedToCreateHardlinkOnMerge = 12209,
         DoubleWriteAllowedDueToPolicy = 12210,
         DisallowedDoubleWriteOnMerge = 12211,
+        AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs = 12212,
 
         // Status logging
         Status = 12400,
@@ -1129,6 +1134,6 @@ namespace BuildXL.Utilities.Tracing
 
         // Sandbox kernel extension connection manger errors
         KextFailedToInitializeConnectionManager = 14500,
-        KextFailureNotificationReceived = 14501
+        KextFailureNotificationReceived = 14501,
     }
 }

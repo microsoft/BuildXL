@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-export declare const qualifier: { targetFramework: "netcoreapp2.2" | "netstandard2.0" | "net451" | "net461" | "net472"};
+export declare const qualifier: { targetFramework: "netcoreapp3.0" | "netstandard2.0" | "net451" | "net461" | "net472"};
 
 import * as Managed from "Sdk.Managed";
 
@@ -13,12 +13,12 @@ const package = importFrom("Microsoft.VisualStudio.LanguageServer.Protocol").wit
 @@public
 export const pkg: Managed.ManagedNugetPackage = (() => {
     switch (qualifier.targetFramework) {
-        case "netcoreapp2.2":
+        case "netcoreapp3.0":
         case "netstandard2.0":
         case "net451":
         case "net461":
         case "net472":
-            return Managed.Factory.createNugetPackge(
+            return Managed.Factory.createNugetPackage(
                 package.name,
                 package.version,
                 package.contents,

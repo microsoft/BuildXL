@@ -467,6 +467,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             var serializer = JsonSerializer.Create(ProjectGraphSerializationSettings.Settings);
             serializer.Converters.Add(new AbsolutePathJsonConverter(m_context.PathTable));
+            serializer.Converters.Add(new ValidAbsolutePathEnumerationJsonConverter());
 
             using (var sr = new StreamReader(outputFile.ToString(m_context.PathTable)))
             using (var reader = new JsonTextReader(sr))
@@ -526,7 +527,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 new GlobalProperties(m_resolverSettings.GlobalProperties ?? CollectionUtilities.EmptyDictionary<string, string>()),
                 searchLocations.Select(location => location.ToString(m_context.PathTable)).ToList(),
                 entryPointTargets,
-                requestedQualifiers);
+                requestedQualifiers,
+                m_resolverSettings.AllowProjectsToNotSpecifyTargetProtocol == true);
 
             var responseFilePath = responseFile.ToString(m_context.PathTable);
             SerializeResponseFile(responseFilePath, arguments);

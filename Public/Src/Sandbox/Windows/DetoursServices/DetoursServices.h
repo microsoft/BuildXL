@@ -129,3 +129,29 @@ public:
         return fromPath;
     }
 };
+
+// CODESYNC: SubstituteProcessExecutionInfo.cs :: ShimProcessMatch class
+class ShimProcessMatch
+{
+public:
+    std::unique_ptr<wchar_t> ProcessName;
+    std::unique_ptr<wchar_t> ArgumentMatch;
+
+    // Assumes params are heap strings and takes control of their lifetime.
+    ShimProcessMatch(wchar_t *processName, wchar_t *argMatch)
+    {
+        ProcessName = std::unique_ptr<wchar_t>(processName);
+        ArgumentMatch = std::unique_ptr<wchar_t>(argMatch);
+    }
+
+    ShimProcessMatch(const ShimProcessMatch &other)
+        : ShimProcessMatch(other.ProcessName.get(), other.ArgumentMatch.get())
+    {}
+
+    ShimProcessMatch& operator=(ShimProcessMatch& other)
+    {
+        // Implementing as a move instead of copy, just to satisfy the compiler.
+        ProcessName.reset(other.ProcessName.release());
+        ArgumentMatch.reset(other.ArgumentMatch.release());
+    }
+};

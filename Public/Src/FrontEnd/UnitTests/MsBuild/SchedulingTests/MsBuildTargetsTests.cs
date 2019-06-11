@@ -3,6 +3,7 @@
 
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.FrontEnd.MsBuild.Tracing;
+using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
@@ -21,29 +22,42 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         }
 
         [Fact]
-        public void ProjectWithNoPredictedTargetsGetScheduledWithDefaultTargets()
+        public void LeafProjectNotImplementingTargetProtocolIsSuccesfullyScheduled()
         {
-            var noPredictionProject = CreateProjectWithPredictions(predictedTargetsToExecute: PredictedTargetsToExecute.PredictionNotAvailable);
+            var noTargetProtocolProject = CreateProjectWithPredictions(predictedTargetsToExecute: PredictedTargetsToExecute.Create(new string[] { "Build" }), implementsTargetProtocol: false);
             var process =
                 Start()
-                    .Add(noPredictionProject)
+                    .Add(noTargetProtocolProject)
                     .ScheduleAll()
-                    .AssertSuccess()
-                    .RetrieveSuccessfulProcess(noPredictionProject);
+                    .AssertSuccess();
 
-            var arguments = RetrieveProcessArguments(process);
+            // The project doesn't have any references, so there should be an informational log
+            AssertVerboseEventLogged(LogEventId.LeafProjectIsNotSpecifyingTheProjectReferenceProtocol, 1);
+            AssertWarningCount();
+        }
 
-            // No targets should be explicitly passed (so MSBuild will pick defaults)
-            Assert.DoesNotContain("/t", arguments);
-            // We should warn when this is the case
+        [Fact]
+        public void NonLeafProjectNotImplementingTargetProtocolIsSuccesfullBasedOnConfig()
+        {
+            var leafProject = CreateProjectWithPredictions(predictedTargetsToExecute: PredictedTargetsToExecute.Create(new[] { "Build" }));
+            var nonLeafProject = CreateProjectWithPredictions(implementsTargetProtocol: false, references: new[] { leafProject });
+
+            Start(new MsBuildResolverSettings { AllowProjectsToNotSpecifyTargetProtocol = true })
+                    .Add(leafProject)
+                    .Add(nonLeafProject)
+                    .ScheduleAll()
+                    .AssertSuccess();
+            
+            // if not specifying the protocol is allowed, we should succeed but log a warning
             AssertWarningEventLogged(LogEventId.ProjectIsNotSpecifyingTheProjectReferenceProtocol);
+            AssertWarningCount();
         }
 
         [Fact]
         public void ProjectWithPredictedTargetsAreHonored()
         {
             var targetPredictedProject = CreateProjectWithPredictions(
-                predictedTargetsToExecute: PredictedTargetsToExecute.CreatePredictedTargetsToExecute(new[] {"foo"}));
+                predictedTargetsToExecute: PredictedTargetsToExecute.Create(new[] {"foo"}));
             var process =
                 Start()
                     .Add(targetPredictedProject)

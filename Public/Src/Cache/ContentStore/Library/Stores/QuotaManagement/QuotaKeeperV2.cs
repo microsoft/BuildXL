@@ -129,11 +129,13 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (_processReserveRequestsTask != null)
             {
+                context.TraceDebug($"{_tracer.Name}: waiting for pending reservation requests.");
                 await _processReserveRequestsTask;
             }
 
             if (_purgeTask != null)
             {
+                context.TraceDebug($"{_tracer.Name}: waiting for purge task.");
                 return await _purgeTask;
             }
 
@@ -476,7 +478,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private void OnContentEvicted(long size)
+        /// <inheritdoc />
+        public override void OnContentEvicted(long size)
         {
             DecreaseSize(ref _allContentSize, size);
 
@@ -534,32 +537,22 @@ namespace BuildXL.Cache.ContentStore.Stores
                 _tracer,
                 async () =>
                 {
-                    var result = new PurgeResult();
+                    var finalPurgeResult = new PurgeResult();
                     PurgeResult purgeResult = null;
 
                     do
                     {
-                        // Check for cancellation token and other reasons why to immediately stop the purge.
-                        if (ShouldAbortOperation(context, "Purge", out var message))
+                        purgeResult = await PurgeCoreAsync(operationContext);
+                        if (purgeResult)
                         {
-                            // Forcing purge operation to stop.
-                            purgeResult = new PurgeResult(message);
-                        }
-                        else
-                        {
-                            // Trying to purge the content
-                            var contentHashesWithInfo = await _store.GetLruOrderedContentListWithTimeAsync();
-                            var purger = CreatePurger(context, contentHashesWithInfo);
-                            purgeResult = await purger.PurgeAsync();
-
-                            result.Merge(purgeResult);
+                            finalPurgeResult.Merge(purgeResult);
                         }
                     }
                     while (ContinuePurging(purgeResult));
 
                     // Saving current content size for tracing purposes.
-                    result.CurrentContentSize = CurrentSize;
-                    return result;
+                    finalPurgeResult.CurrentContentSize = CurrentSize;
+                    return finalPurgeResult;
                 },
                 _counters[QuotaKeeperCounters.PurgeCall]);
 
@@ -567,6 +560,31 @@ namespace BuildXL.Cache.ContentStore.Stores
             _contentStoreTracer.PurgeStop(context, operationResult);
 
             return operationResult;
+        }
+
+        private Task<PurgeResult> PurgeCoreAsync(OperationContext context)
+        {
+            // This operation must be exception safe, because otherwise QuotaKeeper will keep
+            // unprocessed requests that may cause ShutdownAsync operation to hang forever.
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    // Check for cancellation token and other reasons why to immediately stop the purge.
+                    if (ShouldAbortOperation(context, "Purge", out var message))
+                    {
+                        // Error will force the purge loop to stop.
+                        return new PurgeResult(message);
+                    }
+                    else
+                    {
+                        // Trying to purge the content
+                        var contentHashesWithInfo = await _store.GetLruOrderedContentListWithTimeAsync();
+                        var purger = CreatePurger(context, contentHashesWithInfo);
+                        return await purger.PurgeAsync();
+                    }
+                },
+                traceErrorsOnly: true);
         }
 
         private Purger CreatePurger(Context context, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)

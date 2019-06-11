@@ -5,7 +5,7 @@ import * as Deployment from "Sdk.Deployment";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace Sdks {
-    export declare const qualifier : { configuration: "debug" | "release"};
+    export declare const qualifier : { configuration: "debug" | "release" };
 
     // Note: Some Sdk's ship with BuildXL. See: /Public/Src/App/Deployment.InBoxSdks.dsc
     const sdkRoot = d`${Context.getMount("sdkRoot").path}`;
@@ -16,7 +16,7 @@ namespace Sdks {
 
     @@public
     export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
-        definition: deployment, 
-        targetLocation: r`${qualifier.configuration}/sdk`, 
+        definition: deployment,
+        targetLocation: r`${qualifier.configuration}/sdk`,
     });
 }

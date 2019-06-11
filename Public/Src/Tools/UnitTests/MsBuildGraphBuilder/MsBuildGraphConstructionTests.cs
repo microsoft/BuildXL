@@ -159,6 +159,64 @@ namespace Test.ProjectGraphBuilder
             Assert.All(nodes, node => Assert.Equal("x86", node.GlobalProperties["platform"]));
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void NonLeafProjectNotImplementingProtocolFailsOnConstructionBasedOnConfiguration(bool allowProjectsWithoutTargetProtocol)
+        {
+            var entryPointPath = m_builder.WriteProjectsWithReferences("[A.proj] -> B.proj");
+
+            var arguments = CreateBuilderArguments(entryPointPath, allowProjectsWithoutTargetProtocol: allowProjectsWithoutTargetProtocol);
+
+            var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(arguments);
+
+            if (allowProjectsWithoutTargetProtocol)
+            {
+                // If projects are allowed to not implement the protocol, then everything should succeed
+                Assert.True(projectGraphWithPredictionsResult.Succeeded);
+            }
+            else
+            {
+                // Otherwise, there should be a failure involving A.proj (the non-leaf project)
+                Assert.False(projectGraphWithPredictionsResult.Succeeded);
+                Assert.Contains("A.proj", projectGraphWithPredictionsResult.Failure.Message);
+            }
+        }
+
+        [Fact]
+        public void DefaultTargetsAreAppendedWhenDependencyDoesNotImplementProtocol()
+        {
+            // Project A does not implement the target protocol and references B
+            // Project B default targets are Build and Pack
+            var entryPointPath = m_builder.WriteProjectsWithReferences(
+                ("A.proj", @"
+<Project>
+  <ItemGroup>
+    <ProjectReference Include='B.proj'/>
+  </ItemGroup>
+  <Target Name='Build'/>
+</Project>"), 
+                ("B.proj", @"
+<Project DefaultTargets='Build;Pack'>
+  <Target Name='Build'/>
+  <Target Name='Pack'/>
+</Project>"));
+
+            // The only way in which the above situation is allowed is if we allow projects without target protocol
+            var arguments = CreateBuilderArguments(entryPointPath, allowProjectsWithoutTargetProtocol: true);
+
+            var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(arguments);
+
+            Assert.True(projectGraphWithPredictionsResult.Succeeded);
+            var projectB = projectGraphWithPredictionsResult.Result.ProjectNodes.First(projectNode => projectNode.FullPath.Contains("B.proj"));
+
+            // The targets of B should be flagged so we know default targets were appended, 
+            // and B targets should contain the default targets
+            Assert.True(projectB.PredictedTargetsToExecute.IsDefaultTargetsAppended);
+            Assert.Contains("Build", projectB.PredictedTargetsToExecute.Targets);
+            Assert.Contains("Pack", projectB.PredictedTargetsToExecute.Targets);
+        }
+
         private ProjectGraphWithPredictionsResult<string> BuildGraphAndDeserialize(MSBuildGraphBuilderArguments arguments)
         {
             MsBuildGraphBuilder.BuildGraphAndSerialize(arguments);
@@ -182,23 +240,25 @@ namespace Test.ProjectGraphBuilder
                     globalProperties: GlobalProperties.Empty,
                     mSBuildSearchLocations: new[] {TestDeploymentDir},
                     entryPointTargets: new string[0],
-                    requestedQualifiers: new GlobalProperties[] { GlobalProperties.Empty });
+                    requestedQualifiers: new GlobalProperties[] { GlobalProperties.Empty },
+                    allowProjectsWithoutTargetProtocol: true);
 
             return BuildGraphAndDeserialize(arguments);
             
         }
 
-        private MSBuildGraphBuilderArguments CreateBuilderArguments(string entryPointPath, GlobalProperties[] requestedQualifiers, GlobalProperties globalProperties)
+        private MSBuildGraphBuilderArguments CreateBuilderArguments(string entryPointPath, GlobalProperties[] requestedQualifiers = null, GlobalProperties globalProperties = null, bool allowProjectsWithoutTargetProtocol = true)
         {
             string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
             var arguments = new MSBuildGraphBuilderArguments(
                     TestOutputDirectory,
                     new string[] { entryPointPath },
                     outputFile,
-                    globalProperties: globalProperties,
+                    globalProperties: globalProperties ?? GlobalProperties.Empty,
                     mSBuildSearchLocations: new[] { TestDeploymentDir },
                     entryPointTargets: new string[0],
-                    requestedQualifiers: requestedQualifiers);
+                    requestedQualifiers: requestedQualifiers ?? new GlobalProperties[] { GlobalProperties.Empty },
+                    allowProjectsWithoutTargetProtocol: allowProjectsWithoutTargetProtocol);
             return arguments;
         }
     }

@@ -15,10 +15,11 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Applications.Telemetry.Desktop", version: "1.1.152" },
 
     // Runtime dependencies used for macOS deployments
-    { id: "runtime.osx-x64.BuildXL", version: "1.88.99" },
+    { id: "runtime.osx-x64.BuildXL", version: "1.92.99" },
     { id: "Aria.Cpp.SDK.osx-x64", version: "8.5.4" },
 
     { id: "CB.QTest", version: "19.6.10.221431" },
+    { id: "CloudBuild.VmCommandProxy", version: "19.6.9.150831" },
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 
@@ -47,7 +48,9 @@ export const pkgs = isMicrosoftInternal ? [
     // Internal pacakged version to avoid downloading from the web but the trusted stable internal feed:
     { id: "NodeJs", version: "8.12.0-noTest" },
     { id: "PowerShell.Core", version: "6.1.0" },
-    { id: "Dotnet-Runtime", version: "2.2.2.1" },
+
+    // Combined runtimes
+    { id: "Dotnet-Runtime", version: "5.0.0" },
 
 ] : [
 

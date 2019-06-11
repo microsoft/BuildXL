@@ -2,8 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
@@ -16,9 +18,19 @@ namespace BuildXL.Processes
     public abstract class ExternalSandboxedProcess : ISandboxedProcess
     {
         /// <summary>
+        /// Empty file access set.
+        /// </summary>
+        protected static readonly ISet<ReportedFileAccess> EmptyFileAccessesSet = new HashSet<ReportedFileAccess>();
+
+        /// <summary>
         /// Sanboxed process info.
         /// </summary>
         protected SandboxedProcessInfo SandboxedProcessInfo { get; private set; }
+
+        /// <summary>
+        /// Dump exception.
+        /// </summary>
+        protected Exception DumpCreationException;
 
         /// <summary>
         /// Creates an instance of <see cref="ExternalSandboxedProcess"/>.
@@ -37,16 +49,16 @@ namespace BuildXL.Processes
         public abstract void Dispose();
 
         /// <inheritdoc />
-        public abstract string GetAccessedFileName(ReportedFileAccess reportedFileAccess);
+        public virtual string GetAccessedFileName(ReportedFileAccess reportedFileAccess) => null;
 
         /// <inheritdoc />
         public abstract ulong? GetActivePeakMemoryUsage();
 
         /// <inheritdoc />
-        public abstract long GetDetoursMaxHeapSize();
+        public virtual long GetDetoursMaxHeapSize() => 0;
 
         /// <inheritdoc />
-        public abstract int GetLastMessageCount();
+        public virtual int GetLastMessageCount() => 0;
 
         /// <inheritdoc />
         public abstract Task<SandboxedProcessResult> GetResultAsync();
@@ -62,7 +74,7 @@ namespace BuildXL.Processes
         /// </summary>
         protected void ThrowBuildXLException(string message, Exception inner = null)
         {
-            throw new BuildXLException($"[Pip{SandboxedProcessInfo.PipSemiStableHash:X16} -- {SandboxedProcessInfo.PipDescription}] {message}", inner);
+            throw new BuildXLException($"{SandboxedProcessInfo.Provenance} {message}", inner);
         }
 
         /// <summary>
@@ -150,6 +162,104 @@ namespace BuildXL.Processes
             {
                 ThrowBuildXLException($"Failed to deserialize sandboxed process result '{file}'", ioException);
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Kills process executor.
+        /// </summary>
+        protected Task KillProcessExecutorAsync(AsyncProcessExecutor executor)
+        {
+            Contract.Requires(executor != null);
+
+            ProcessDumper.TryDumpProcessAndChildren(ProcessId, GetOutputDirectory(), out DumpCreationException);
+
+            return executor.KillAsync();
+        }
+
+        /// <summary>
+        /// Create generic result for failure.
+        /// </summary>
+        protected SandboxedProcessResult CreateResultForFailure(
+            int exitCode,
+            bool killed,
+            bool timedOut,
+            string output, 
+            string error,
+            string hint)
+        {
+            var standardFiles = new SandboxedProcessStandardFiles(GetStdOutPath(hint), GetStdErrPath(hint));
+            var storage = new StandardFileStorage(standardFiles);
+
+            return new SandboxedProcessResult
+            {
+                ExitCode = exitCode,
+                Killed = killed,
+                TimedOut = timedOut,
+                HasDetoursInjectionFailures = false,
+                StandardOutput = new SandboxedProcessOutput(output.Length, output, null, Console.OutputEncoding, storage, SandboxedProcessFile.StandardOutput, null),
+                StandardError = new SandboxedProcessOutput(error.Length, error, null, Console.OutputEncoding, storage, SandboxedProcessFile.StandardError, null),
+                HasReadWriteToReadFileAccessRequest = false,
+                AllUnexpectedFileAccesses = EmptyFileAccessesSet,
+                FileAccesses = EmptyFileAccessesSet,
+                DetouringStatuses = new ProcessDetouringStatusData[0],
+                ExplicitlyReportedFileAccesses = EmptyFileAccessesSet,
+                Processes = new ReportedProcess[0],
+                MessageProcessingFailure = null,
+                DumpCreationException = DumpCreationException,
+                DumpFileDirectory = GetOutputDirectory(),
+                PrimaryProcessTimes = new ProcessTimes(0, 0, 0, 0),
+                SurvivingChildProcesses = new ReportedProcess[0],
+            };
+        }
+
+        /// <summary>
+        /// Appends line to string builder if line is not null.
+        /// </summary>
+        protected static void AppendLineIfNotNull(StringBuilder sb, string line)
+        {
+            if (line != null)
+            {
+                sb.AppendLine(line);
+            }
+        }
+
+        /// <summary>
+        /// Starts process asynchronously.
+        /// </summary>
+        public static Task<ISandboxedProcess> StartAsync(
+            SandboxedProcessInfo info, 
+            Func<SandboxedProcessInfo, ExternalSandboxedProcess> externalSandboxedProcessFactory)
+        {
+            return Task.Factory.StartNew(() =>
+            {
+                ISandboxedProcess process = externalSandboxedProcessFactory(info);
+
+                try
+                {
+                    process.Start();
+                }
+                catch
+                {
+                    process?.Dispose();
+                    throw;
+                }
+
+                return process;
+            });
+        }
+
+        /// <summary>
+        /// Logs external execution.
+        /// </summary>
+        protected void LogExternalExecution(string message)
+        {
+            if (SandboxedProcessInfo.LoggingContext != null)
+            {
+                Tracing.Logger.Log.PipProcessExternalExecution(
+                    SandboxedProcessInfo.LoggingContext, 
+                    SandboxedProcessInfo.PipSemiStableHash, 
+                    SandboxedProcessInfo.PipDescription, message);
             }
         }
     }

@@ -27,34 +27,20 @@ service Worker
 message RpcResponse {
 }
 
-message SenderInfo
-{
-    // The name of the sender of the message
-    string SenderName = 1;
-
-    // The id of the sender of the message
-    string SenderId = 2;
-
-    // The id of the build
-    string BuildId = 3;
-}
-
 // The response from an Attach event
 message AttachCompletionInfo
 {
-    SenderInfo Sender = 1;
-
     // Identifies the worker which makes the callback
-    uint32 WorkerId = 2;
+    uint32 WorkerId = 1;
 
     // The maximum number of simultaneous pip executions for the worker
-    int32 MaxConcurrency = 3;
+    int32 MaxConcurrency = 2;
 
     // The content hash of the workers unique content
-    bytes WorkerCacheValidationContentHash = 4;
+    bytes WorkerCacheValidationContentHash = 3;
 
     // The available RAM on the worker
-    int32 AvailableRamMb = 5;
+    int32 AvailableRamMb = 4;
 }
 
 // Defines information about a completed pip and its outputs
@@ -103,49 +89,45 @@ message EventMessage
 // Information about completed pips and events logged on worker
 message WorkerNotificationArgs
 {
-    SenderInfo Sender = 1;
-
     // Identifies the worker which executed the pips
-    uint32 WorkerId = 2;
+    uint32 WorkerId = 1;
 
     // The completed pips
-    repeated PipCompletionData CompletedPips = 3;
+    repeated PipCompletionData CompletedPips = 2;
 
     // The events forwarded to the master
-    repeated EventMessage ForwardedEvents = 4;
+    repeated EventMessage ForwardedEvents = 3;
 
     // Data logged to the execution log on the worker
-    bytes ExecutionLogData = 5;
+    bytes ExecutionLogData = 4;
 
     // Sequence number of the execution log blob on the worker
-    int32 ExecutionLogBlobSequenceNumber = 6;
+    int32 ExecutionLogBlobSequenceNumber = 5;
 }
 
 // Defines initialization information needed by workers to participate in a build
 message BuildStartData 
 {
-    SenderInfo Sender = 1;
-
     // Scheduler State and associated data structures
-    PipGraphCacheDescriptor CachedGraphDescriptor = 2;
+    PipGraphCacheDescriptor CachedGraphDescriptor = 1;
 
     // Identifies the worker in the build
-    uint32 WorkerId = 3;
+    uint32 WorkerId = 2;
 
     // Salt added to fingerprints to make them unique
-    string FingerprintSalt = 4;
+    string FingerprintSalt = 3;
 
     // The session identifier
-    string SessionId = 5;
+    string SessionId = 4;
 
     // Service locations of master
-    ServiceLocation MasterLocation = 6;
+    ServiceLocation MasterLocation = 5;
 
     // Environment variables
-    map<string, string> EnvironmentVariables = 7;
+    map<string, string> EnvironmentVariables = 6;
     
     // Content hash of optional symlink file.
-    bytes SymlinkFileContentHash = 8;
+    bytes SymlinkFileContentHash = 7;
 }
 
 // Defines location at which a service can be connected to.
@@ -158,13 +140,11 @@ message ServiceLocation
 // A request to build pips on a worker
 message PipBuildRequest
 {
-    SenderInfo Sender = 1;
-
     // The pips to execute
-    repeated SinglePipBuildRequest Pips = 2;
+    repeated SinglePipBuildRequest Pips = 1;
 
     // The input files and hashes for the pip
-    repeated FileArtifactKeyedHash Hashes = 3;
+    repeated FileArtifactKeyedHash Hashes = 2;
 }
 
 message SinglePipBuildRequest
@@ -243,10 +223,8 @@ message GrpcDirectoryArtifact
 // Defines finalization information passed to workers at the end of the build
 message BuildEndData
 {
-    SenderInfo Sender = 1;
-
     // Indicates if worker should report build fail the build and that the worker due to the given failure
-    string Failure = 2;
+    string Failure = 1;
 }
 
 /// <summary>

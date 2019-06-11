@@ -313,7 +313,7 @@ namespace BuildXL.Execution.Analyzer
                 writer.WriteLine(":: Setting PIP Environment Variables");
                 foreach (var environmentVariable in environment)
                 {
-                    writer.WriteLine("set {0}={1}", environmentVariable.Key, environmentVariable.Value);
+                    writer.WriteLine("set {0}={1}", SanitizeEnvironmentVariableValue(environmentVariable.Key), SanitizeEnvironmentVariableValue(environmentVariable.Value));
                 }
             }
             else
@@ -336,6 +336,25 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteLine();
         }
 
+        private static string SanitizeEnvironmentVariableValue(string value)
+        {
+            var replacements = new List<Tuple<string, string>>()
+            {
+                new Tuple<string, string>(@"|", @"^|"),
+                new Tuple<string, string>(@"(", @"^("),
+                new Tuple<string, string>(@")", @"^)"),
+                new Tuple<string, string>(@"&", @"^&"),
+                new Tuple<string, string>(@">", @"^>"),
+                new Tuple<string, string>(@"<", @"^<"),
+            };
+
+            foreach (var replacement in replacements)
+            {
+                value = value.Replace(replacement.Item1, replacement.Item2);
+            }
+
+            return value;
+        }
 
         private IEnumerable<Process> GetProcessPipDependents(Pip pip)
         {

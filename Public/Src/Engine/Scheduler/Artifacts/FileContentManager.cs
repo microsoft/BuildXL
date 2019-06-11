@@ -281,6 +281,10 @@ namespace BuildXL.Scheduler.Artifacts
             Contract.Assert(IsDistributedWorker);
 
             SetFileArtifactContentHashResult result = SetFileArtifactContentHash(artifact, info, PipOutputOrigin.NotMaterialized);
+
+            // Notify the host with content that was reported
+            m_host.ReportContent(artifact, info, PipOutputOrigin.NotMaterialized);
+
             if (result == SetFileArtifactContentHashResult.HasConflictingExistingEntry)
             {
                 var existingInfo = m_fileArtifactContentHashes[artifact];
@@ -913,7 +917,7 @@ namespace BuildXL.Scheduler.Artifacts
         public async Task<FileContentInfo?> TryQuerySealedOrUndeclaredInputContentAsync(AbsolutePath path, string consumerDescription, bool allowUndeclaredSourceReads)
         {
             FileOrDirectoryArtifact declaredArtifact;
-            
+
             var isDynamicallyObservedSource = false;
 
             if (!m_sealedFiles.TryGetValue(path, out FileArtifact sealedFile))
@@ -927,7 +931,7 @@ namespace BuildXL.Scheduler.Artifacts
                         // No source seal directory found
                         return null;
                     }
-                    else 
+                    else
                     {
                         // If undeclared source reads is enabled but the path does not exist, then we can just shortcut
                         // the query here. This matches the declared case when no static artifact is found that contains
@@ -1247,7 +1251,7 @@ namespace BuildXL.Scheduler.Artifacts
                             string.Join(Environment.NewLine, unsealedFiles.Select(f => "\t" + f)));
                     }
 
-                }           
+                }
                 else if (sealDirectoryKind.IsSourceSeal())
                 {
                     m_sealedSourceDirectories.TryAdd(directory.Path, directory);
@@ -1321,8 +1325,8 @@ namespace BuildXL.Scheduler.Artifacts
                         // Directory artifact contents are not hashed since they will be hashed dynamically
                         // if the pip accesses them, so the file is the declared artifact
                         state.HashTasks.Add(TryQueryContentAsync(
-                            file, 
-                            operationContext, 
+                            file,
+                            operationContext,
                             declaredArtifact: file,
                             allowUndeclaredSourceReads));
                     }
@@ -1715,10 +1719,10 @@ namespace BuildXL.Scheduler.Artifacts
         /// <param name="dependentFileIndex">the index of a file (in the list of materialized files) which requires the materialization of this file as
         /// a prerequisite (if any). This is used when restoring content into cache for a host materialized file (i.e. write file output).</param>
         private void AddFileMaterialization(
-            PipArtifactsState state, 
-            FileArtifact file, 
-            bool? allowReadOnlyOverride, 
-            AbsolutePath symlinkTarget, 
+            PipArtifactsState state,
+            FileArtifact file,
+            bool? allowReadOnlyOverride,
+            AbsolutePath symlinkTarget,
             int? dependentFileIndex = null)
         {
             bool shouldMaterializeSourceFile = (IsDistributedWorker && SourceFileMaterializationEnabled) || symlinkTarget.IsValid;
@@ -1852,7 +1856,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         /// <remarks>
         /// Creating empty directories when they don't exist ensures the correctness of replaying pip outputs. Those existence of such directories may be needed
-        /// by downstream pips. Empty directories are not stored into the cache, but their paths are stored in the pip itself and are collected when we populate <see cref="PipArtifactsState"/>. 
+        /// by downstream pips. Empty directories are not stored into the cache, but their paths are stored in the pip itself and are collected when we populate <see cref="PipArtifactsState"/>.
         /// If the pip outputs are removed, then to replay the empty output directories in the next build, when we have a cache hit, those directories need to be created.
         /// </remarks>
         private async Task<bool> PrepareDirectoriesAsync(PipArtifactsState state, OperationContext operationContext)
@@ -1914,7 +1918,7 @@ namespace BuildXL.Scheduler.Artifacts
                             destinationPath: directory.Path.ToString(Context.PathTable),
                             errorMessage: ex.LogEventMessage);
                         state.AddFailedDirectory(directory);
-                        
+
                         success = false;
 
                         m_dynamicDirectoryDeletionTasks[directory] = BoolTask.False;
@@ -2028,7 +2032,10 @@ namespace BuildXL.Scheduler.Artifacts
 
                                                 if (possiblyStream.Succeeded)
                                                 {
+#pragma warning disable AsyncFixer02
                                                     possiblyStream.Result.Dispose();
+#pragma warning restore AsyncFixer02
+
                                                     possiblyPlaced =
                                                         new Possible<ContentMaterializationResult>(
                                                             new ContentMaterializationResult(
@@ -2286,7 +2293,7 @@ namespace BuildXL.Scheduler.Artifacts
                                     // the copy-file destination relies on the else-clause below where we try to get
                                     // other file using TryGetFileArtifactForHash.
                                     // If we don't store outputs to cache, then we should not include cache operation to determine
-                                    // if the content is available. However, we just checked, by TryDiscoverAsync above, that the content 
+                                    // if the content is available. However, we just checked, by TryDiscoverAsync above, that the content
                                     // is available with the expected content hash. Thus, we can safely say that the content is available.
                                     isAvailable = true;
                                 }
@@ -2339,7 +2346,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                                         if (copySource.IsSourceFile)
                                         {
-                                            // Reached a source file. Just abort rather than calling the host again. 
+                                            // Reached a source file. Just abort rather than calling the host again.
                                             break;
                                         }
 
@@ -2551,10 +2558,10 @@ namespace BuildXL.Scheduler.Artifacts
                 {
                     // Start the task to hash input
                     state.HashTasks.Add(TryQueryContentAsync(
-                        file, 
-                        operationContext, 
-                        declaredArtifact: file, 
-                        pipInfo.UnderlyingPip.ProcessAllowsUndeclaredSourceReads, 
+                        file,
+                        operationContext,
+                        declaredArtifact: file,
+                        pipInfo.UnderlyingPip.ProcessAllowsUndeclaredSourceReads,
                         verifyingHash: true));
                 }
                 else
@@ -2852,7 +2859,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                 if (possibleProbeResult.Result == PathExistence.ExistsAsFile)
                 {
-                    Possible<ContentDiscoveryResult> possiblyDiscovered = 
+                    Possible<ContentDiscoveryResult> possiblyDiscovered =
                         await LocalDiskContentStore.TryDiscoverAsync(fileArtifact, artifactExpandedPath);
 
                     DiscoveredContentHashOrigin origin;
@@ -3028,9 +3035,9 @@ namespace BuildXL.Scheduler.Artifacts
                 // the flag supressed a double write violation detection. So let's just warn
                 // and move on.
                 Logger.Log.FileArtifactContentMismatch(
-                    m_host.LoggingContext, 
-                    fileArtifact.Path.ToString(Context.PathTable), 
-                    existingInfo.Hash.ToHex(), 
+                    m_host.LoggingContext,
+                    fileArtifact.Path.ToString(Context.PathTable),
+                    existingInfo.Hash.ToHex(),
                     fileMaterializationInfo.Hash.ToHex());
 
                 return false;
@@ -3161,15 +3168,6 @@ namespace BuildXL.Scheduler.Artifacts
             return m_host.AllowArtifactReadOnly(declaredArtifact);
         }
 
-        private bool IsPreservedOutputFile(FileArtifact file)
-        {
-            Contract.Requires(file.IsValid);
-
-            // File can be a dynamic output. First get the declared artifact.
-            FileOrDirectoryArtifact declaredArtifact = GetDeclaredArtifact(file);
-            return m_host.IsPreservedOutputArtifact(declaredArtifact);
-        }
-
         private bool IsPreservedOutputFile(Pip pip, bool materializingOutput, FileArtifact file)
         {
             Contract.Requires(file.IsValid);
@@ -3181,18 +3179,17 @@ namespace BuildXL.Scheduler.Artifacts
 
             if (!materializingOutput)
             {
-                return IsPreservedOutputFile(file);
+                // File can be a dynamic output. First get the declared artifact.
+                FileOrDirectoryArtifact declaredArtifact = GetDeclaredArtifact(file);
+                return m_host.IsPreservedOutputArtifact(declaredArtifact);
             }
 
             var pipId = m_host.TryGetProducerId(file);
-            if (pipId.IsValid)
-            {
-                Contract.Assert(pipId == pip.PipId);
-                return PipArtifacts.IsPreservedOutputsPip(pip);
-            }
+            // If the producer is invalid, the file is a dynamic output under a directory output.
+            // As the pip did not run yet and sealContents is not populated, we cannot easily get 
+            // declared directory artifact for the given dynamic file.
 
-            // Invalid pip id indicates that the file is a dynamic output.
-            return false;
+            return PipArtifacts.IsPreservedOutputByPip(pip, file, Context.PathTable, isDynamicFileOutput: !pipId.IsValid);
         }
 
         /// <summary>
@@ -3542,7 +3539,7 @@ namespace BuildXL.Scheduler.Artifacts
             /// Files which failed to materialize
             /// </summary>
             private readonly List<(FileArtifact, ContentHash)> m_failedFiles = new List<(FileArtifact, ContentHash)>();
-            
+
             /// <summary>
             /// Directories which failed to materialize
             /// </summary>
@@ -3626,7 +3623,7 @@ namespace BuildXL.Scheduler.Artifacts
                     m_failedFiles.Add((file, contentHash));
                 }
             }
-            
+
             /// <summary>
             /// Adds a failed directory
             /// </summary>

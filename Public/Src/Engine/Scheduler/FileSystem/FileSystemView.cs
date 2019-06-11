@@ -151,9 +151,33 @@ namespace BuildXL.Scheduler.FileSystem
             PathExistence existence;
             if (PathExistenceCache.TryGetValue(path, out entry) && entry.TryGetExistence(mode, out existence))
             {
-                if (existence != PathExistence.ExistsAsDirectory)
+                if (existence == PathExistence.Nonexistent)
                 {
                     return existence;
+                }
+
+                if (existence == PathExistence.ExistsAsFile)
+                {
+                    bool isDirectorySymlinkOrJunction = false;
+
+                    if (entry.HasFlag(FileSystemEntryFlags.CheckedIsDirectorySymlink))
+                    {
+                        isDirectorySymlinkOrJunction = entry.HasFlag(FileSystemEntryFlags.IsDirectorySymlink);
+                    }
+                    else
+                    {
+                        isDirectorySymlinkOrJunction = FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(PathTable));
+                        PathExistenceCache.AddOrUpdate(path, false,
+                            (key, data) => { throw Contract.AssertFailure("Entry should already be added for path"); },
+                            (key, data, oldValue) => oldValue.SetFlag(
+                                FileSystemEntryFlags.CheckedIsDirectorySymlink 
+                                | (isDirectorySymlinkOrJunction ? FileSystemEntryFlags.IsDirectorySymlink : FileSystemEntryFlags.None)));
+                    }
+
+                    if (!isDirectorySymlinkOrJunction)
+                    {
+                        return existence;
+                    }
                 }
 
                 // For graph file systems, directory members can be determined by overlaying path table with existence state in-memory
@@ -467,7 +491,7 @@ namespace BuildXL.Scheduler.FileSystem
         /// <summary>
         /// Reports existence of path in real file system
         /// </summary>
-        internal void ReportRealFileSystemExistence(AbsolutePath path, PathExistence existence)
+        public void ReportRealFileSystemExistence(AbsolutePath path, PathExistence existence)
         {
             GetOrAddExistence(path, FileSystemViewMode.Real, existence);
         }
@@ -475,7 +499,7 @@ namespace BuildXL.Scheduler.FileSystem
         /// <summary>
         /// Reports existence of path in output file system
         /// </summary>
-        internal void ReportOutputFileSystemExistence(AbsolutePath path, PathExistence existence)
+        public void ReportOutputFileSystemExistence(AbsolutePath path, PathExistence existence)
         {
             GetOrAddExistence(path, FileSystemViewMode.Output, existence);
         }
@@ -542,6 +566,8 @@ namespace BuildXL.Scheduler.FileSystem
         {
             None,
             IsRealFileSystemEnumerated = 1 << 0,
+            IsDirectorySymlink = 1 << 1,
+            CheckedIsDirectorySymlink = 1 << 2
         }
 
         private readonly struct FileSystemEntry

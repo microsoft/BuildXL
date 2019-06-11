@@ -47,7 +47,9 @@ namespace BuildXL.FrontEnd.MsBuild
             "/p:UseSharedCompilation=false", //  Turn off new MSBuild flag to reuse VBCSCompiler.exe (a feature of Roslyn csc compiler) to compile C# files from different projects
             "/m:1", // Tells MsBuild not to create child processes for building, but instead to simply execute the specified project file within a single process
             "/IgnoreProjectExtensions:.sln", // Tells MSBuild to avoid scanning the local file system for sln files to build, but instead to simply use the provided project file.
-            "/ConsoleLoggerParameters:Verbosity=Minimal" // Minimize the console logger
+            "/ConsoleLoggerParameters:Verbosity=Minimal", // Minimize the console logger
+            "/noAutoResponse", // do not include any MSBuild.rsp file automatically,
+            "/nodeReuse:false" // Even though we are already passing /m:1, when an MSBuild task is requested with an architecture that doesn't match the one of the host process, /nodeReuse will be true unless set otherwise
         };
 
         private AbsolutePath Root => m_resolverSettings.Root;
@@ -250,6 +252,37 @@ namespace BuildXL.FrontEnd.MsBuild
                     projectOutputs = MSBuildProjectOutputs.CreateIsolated(outputDirectories, cacheFileArtifact);
                 }
                 
+                // If the project is not implementing the target protocol, emit corresponding warn/verbose 
+                if (!project.ImplementsTargetProtocol)
+                {
+                    if (project.ProjectReferences.Count != 0)
+                    {
+                        // Let's warn about this. Targets of the referenced projects may not be accurate
+                        Tracing.Logger.Log.ProjectIsNotSpecifyingTheProjectReferenceProtocol(
+                            m_context.LoggingContext,
+                            Location.FromFile(project.FullPath.ToString(PathTable)),
+                            project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
+                    }
+                    else
+                    { 
+                        // Just a verbose message in this case
+                        Tracing.Logger.Log.LeafProjectIsNotSpecifyingTheProjectReferenceProtocol(
+                            m_context.LoggingContext,
+                            Location.FromFile(project.FullPath.ToString(PathTable)),
+                            project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
+                    }
+                }
+
+                // Warn if default targets were appended to the targets to execute
+                if (project.PredictedTargetsToExecute.IsDefaultTargetsAppended)
+                {
+                    Tracing.Logger.Log.ProjectPredictedTargetsAlsoContainDefaultTargets(
+                            m_context.LoggingContext,
+                            Location.FromFile(project.FullPath.ToString(PathTable)),
+                            project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable),
+                            $"[{string.Join(";", project.PredictedTargetsToExecute.AppendedDefaultTargets)}]");
+                }
+
                 m_processOutputsPerProject[project] = projectOutputs;
 
                 failureDetail = string.Empty;
@@ -269,9 +302,29 @@ namespace BuildXL.FrontEnd.MsBuild
             ProjectWithPredictions project, 
             ProcessBuilder processBuilder)
         {
-            // Add all predicted inputs
+            // Predicted output directories for all direct dependencies, plus the output directories for the given project itself
+            var knownOutputDirectories = project.ProjectReferences.SelectMany(reference => reference.PredictedOutputFolders).Union(project.PredictedOutputFolders);
+
+            // Add all predicted inputs that are recognized as true source files
+            // This is done to make the weak fingerprint stronger. Pips are scheduled so undeclared source reads are allowed. This means
+            // we don't actually need accurate (or in fact any) input predictions to run successfully. But we are trying to avoid the degenerate case
+            // of a very small weak fingerprint with too many candidates, that can slow down two-phase cache look-up.
             foreach (AbsolutePath buildInput in project.PredictedInputFiles)
             {
+                // If any of the predicted inputs is under the predicted output folder of a dependency, then there is a very good chance the predicted input is actually an intermediate file
+                // In that case, don't add the input as a source file to stay on the safe side. Otherwise we will have a file that is both declared as a source file and contained in a directory
+                // dependency.
+                if (knownOutputDirectories.Any(outputFolder => buildInput.IsWithin(PathTable, outputFolder)))
+                {
+                    continue;
+                }
+
+                // If any of the predicted inputs is under an untracked directory scope, don't add it as an input
+                if (processBuilder.GetUntrackedDirectoryScopesSoFar().Any(untrackedDirectory => buildInput.IsWithin(PathTable, untrackedDirectory)))
+                {
+                    continue;
+                }
+
                 processBuilder.AddInputFile(FileArtifact.CreateSourceFile(buildInput));
             }
 
@@ -291,7 +344,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 // Add all known explicit inputs from project references. But rule out
                 // projects that have a known empty list of targets: those projects are not scheduled, so
                 // there is nothing to consume from them.
-                references = project.ProjectReferences.Where(projectReference => !projectReference.PredictedTargetsToExecute.TargetsAreKnownToBeEmpty);
+                references = project.ProjectReferences.Where(projectReference => projectReference.PredictedTargetsToExecute.Targets.Count != 0);
             }
 
             var argumentsBuilder = processBuilder.ArgumentsBuilder;
@@ -334,7 +387,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 return;
             }
 
-            foreach (ProjectWithPredictions dependency in project.ProjectReferences.Where(projectReference => !projectReference.PredictedTargetsToExecute.TargetsAreKnownToBeEmpty))
+            foreach (ProjectWithPredictions dependency in project.ProjectReferences.Where(projectReference => projectReference.PredictedTargetsToExecute.Targets.Count != 0))
             {
                 accumulatedDependencies.Add(dependency);
                 ComputeTransitiveDependenciesFor(dependency, accumulatedDependencies);
@@ -397,12 +450,15 @@ namespace BuildXL.FrontEnd.MsBuild
                     // Casing for paths is not stable as reported by BuildPrediction. So here we try to guess if the value
                     // represents a path, and normalize it
                     string value = kvp.Value;
-                    if (!string.IsNullOrEmpty(value) && value.TryCreateNormalizedAbsolutePath(PathTable, out var absolutePath))
+                    if (!string.IsNullOrEmpty(value) && AbsolutePath.TryCreate(PathTable, value, out var absolutePath))
                     {
-                        value = absolutePath.ToString(PathTable);
+                        envPipData.Add(absolutePath);
                     }
-
-                    envPipData.Add(value);
+                    else
+                    {
+                        envPipData.Add(value);
+                    }
+                    
                     processBuilder.SetEnvironmentVariable(
                         StringId.Create(m_context.StringTable, kvp.Key),
                         envPipData.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
@@ -438,9 +494,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 processBuilder.ContainerIsolationLevel = ContainerIsolationLevel.IsolateAllOutputs;
             }
 
-            // Until we can deal with double writes in a better way, this unsafe option allows the build to progress and
-            // prints warnings 
-            processBuilder.DoubleWritePolicy |= DoubleWritePolicy.UnsafeFirstDoubleWriteWins;
+            // By default the double write policy is to allow same content double writes.
+            processBuilder.DoubleWritePolicy |= m_resolverSettings.DoubleWritePolicy ?? DoubleWritePolicy.AllowSameContentDoubleWrites;
 
             SetUntrackedFilesAndDirectories(processBuilder);
 
@@ -504,7 +559,8 @@ namespace BuildXL.FrontEnd.MsBuild
             processBuilder.AllowedSurvivingChildProcessNames = ReadOnlyArray<PathAtom>.FromWithoutCopy(
                 PathAtom.Create(m_context.StringTable, "mspdbsrv.exe"),
                 PathAtom.Create(m_context.StringTable, "vctip.exe"),
-                PathAtom.Create(m_context.StringTable, "conhost.exe"));
+                PathAtom.Create(m_context.StringTable, "conhost.exe"),
+                PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe"));
             processBuilder.NestedProcessTerminationTimeout = TimeSpan.Zero;
 
             SetProcessEnvironmentVariables(CreateEnvironment(logDirectory, project), processBuilder);
@@ -547,27 +603,13 @@ namespace BuildXL.FrontEnd.MsBuild
             }
 
             // Targets to execute.
-            // If the prediction is available, there should be at least one target (otherwise it makes no sense to schedule the project, and we should have caught this earlier)
-            // If the prediction is not available, we fallback to call default targets (which means not passing any specific /t:). A more strict policy would be to bail out
-            // here saying that the project is not complying to the target protocol specification. We leave it relaxed for now, but we log it.
-            // https://github.com/Microsoft/msbuild/blob/master/documentation/specs/static-graph.md
-            if (project.PredictedTargetsToExecute.IsPredictionAvailable)
+            var targets = project.PredictedTargetsToExecute.Targets;
+            Contract.Assert(targets.Count > 0);
+            foreach (string target in targets)
             {
-                var targets = project.PredictedTargetsToExecute.Targets;
-                Contract.Assert(targets.Count > 0);
-                foreach (string target in targets)
-                {
-                    pipDataBuilder.Add(PipDataAtom.FromString($"/t:{target}"));
-                }
+                pipDataBuilder.Add(PipDataAtom.FromString($"/t:{target}"));
             }
-            else
-            {
-                // The prediction for the targets to execute is not available. Just log this as a warning for now, defaults targets will be used.
-                Tracing.Logger.Log.ProjectIsNotSpecifyingTheProjectReferenceProtocol(
-                    m_context.LoggingContext,
-                    Location.FromFile(project.FullPath.ToString(PathTable)),
-                    project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
-            }
+
 
             // Pass the output result cache file if present
             if (outputResultCacheFile != AbsolutePath.Invalid)
@@ -653,7 +695,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             if (Engine.TryGetBuildParameter("PUBLIC", m_frontEndName, out string publicDir))
             {             
-                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(publicDir.ToNormalizedAbsolutePath(PathTable)));
+                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(PathTable, publicDir)));
             }
 
             PipConstructionUtilities.UntrackUserConfigurableArtifacts(processBuilder, m_resolverSettings);
@@ -673,8 +715,11 @@ namespace BuildXL.FrontEnd.MsBuild
             var success = Root.TryGetRelative(PathTable, projectFile.FullPath, out var inFolderPathFromEnlistmentRoot);
             Contract.Assert(success);
 
-            // We hardcode the log to go under Logs (and follow the project structure underneath)
-            var result = m_frontEndHost.Configuration.Logging.LogsDirectory
+            // We hardcode the log to go under the output directory Logs/MSBuild (and follow the project structure underneath)
+            // The 'official' log directory (defined by Configuration.Logging) is not stable in CloudBuild across machines, and therefore it would
+            // introduce cache misses
+            var result = m_frontEndHost.Configuration.Layout.OutputDirectory
+                .Combine(PathTable, "Logs")
                 .Combine(PathTable, "MSBuild")
                 .Combine(PathTable, inFolderPathFromEnlistmentRoot);
 
@@ -794,12 +839,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 StringBuilder builder = builderWrapper.Instance;
                 builder.Append(projectWithPredictions.FullPath.ToString(PathTable));
                 builder.Append("|");
-                var predictionsAvailable = projectWithPredictions.PredictedTargetsToExecute.IsPredictionAvailable;
-                builder.Append(predictionsAvailable);
-                if (predictionsAvailable)
-                {
-                    builder.Append(string.Join("|", projectWithPredictions.PredictedTargetsToExecute.Targets));
-                }
+                builder.Append(projectWithPredictions.PredictedTargetsToExecute.IsDefaultTargetsAppended);
+                builder.Append(string.Join("|", projectWithPredictions.PredictedTargetsToExecute.Targets));
  
                 builder.Append("|");
                 builder.Append(string.Join("|", projectWithPredictions.GlobalProperties.Select(kvp => kvp.Key + "|" + kvp.Value)));

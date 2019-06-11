@@ -95,6 +95,12 @@ namespace BuildXL.Pips.Builders
         /// </summary>
         public int? Weight { get; set; } = null;
 
+        /// <summary>
+        /// The priority value of this pip when scheduling process pips.
+        /// The higher the priority, the sooner it will run.
+        /// </summary>
+        public int? Priority { get; set; } = null;
+
         /// <nodoc />
         public TimeSpan? Timeout { get; set; }
 
@@ -115,6 +121,9 @@ namespace BuildXL.Pips.Builders
 
         /// <nodoc />
         public Options Options { get; set; }
+
+        /// <nodoc />
+        public ReadOnlyArray<AbsolutePath> PreserveOutputWhitelist { get; set; } = ReadOnlyArray<AbsolutePath>.Empty;
 
         // Container related
 
@@ -250,6 +259,14 @@ namespace BuildXL.Pips.Builders
         public ReadOnlyArray<DirectoryArtifact> GetInputDirectoriesSoFar()
         {
             return ReadOnlyArray<DirectoryArtifact>.From(m_inputDirectories.Instance);
+        }
+
+        /// <summary>
+        /// Returns the untracked directory scopes that have been added so far.
+        /// </summary>
+        public ReadOnlyArray<DirectoryArtifact> GetUntrackedDirectoryScopesSoFar()
+        {
+            return ReadOnlyArray<DirectoryArtifact>.From(m_untrackedDirectoryScopes.Instance);
         }
 
         /// <nodoc />
@@ -619,7 +636,9 @@ namespace BuildXL.Pips.Builders
                 doubleWritePolicy: DoubleWritePolicy,
                 containerIsolationLevel: ContainerIsolationLevel,
                 absentPathProbeMode: AbsentPathProbeUnderOpaquesMode,
-                weight: Weight);
+                weight: Weight,
+                priority: Priority,
+                preserveOutputWhitelist: PreserveOutputWhitelist);
 
             return true;
         }

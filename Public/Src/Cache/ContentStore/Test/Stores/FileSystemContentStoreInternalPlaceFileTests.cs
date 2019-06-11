@@ -20,6 +20,7 @@ using FluentAssertions;
 using Xunit;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using Xunit.Abstractions;
 
 namespace ContentStoreTest.Stores
 {
@@ -27,8 +28,8 @@ namespace ContentStoreTest.Stores
     {
         private readonly MemoryClock _clock;
 
-        public FileSystemContentStoreInternalPlaceFileTests()
-            : base(() => new MemoryFileSystem(new MemoryClock(), Drives), TestGlobal.Logger)
+        public FileSystemContentStoreInternalPlaceFileTests(ITestOutputHelper outputHelper)
+            : base(() => new MemoryFileSystem(new MemoryClock(), Drives), TestGlobal.Logger, outputHelper)
         {
             _clock = (MemoryClock)((MemoryFileSystem)FileSystem).Clock;
         }

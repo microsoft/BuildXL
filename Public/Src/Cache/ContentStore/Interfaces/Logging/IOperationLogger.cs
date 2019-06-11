@@ -3,6 +3,12 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.IO;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
+using System.Text;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Logging
 {
@@ -24,12 +30,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// <summary>
         /// Operation failed with unrecoverable error that (most likely) indicates issues with the code.
         /// </summary>
-        CriticalFailure,
+        CriticalException,
 
         /// <summary>
         /// The operation was cancelled.
         /// </summary>
         Cancelled,
+
+        /// <summary>
+        /// Critical operation failed that can cause severe service issues (like creating/restoring checkpoints for local location store) or an initialization of a top-level component.
+        /// </summary>
+        CriticalFailure,
     }
 
     /// <summary>
@@ -76,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// <summary>
         /// Name of a tracer (i.e. the origin of the message/operation).
         /// </summary>
-        public string TracerName { get; }
+        public string TracerName { get; } // Component
 
         /// <summary>
         /// The result of an operation.
@@ -92,8 +103,27 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// <nodoc />
         public Exception Exception { get; }
 
+        /// <summary>
+        /// Tracing severity of the result.
+        /// </summary>
+        public Severity Severity { get; }
+
+        /// <summary>
+        /// Id of an operation.
+        /// </summary>
+        public Guid OperationId { get; }
+
         /// <nodoc />
-        public OperationResult(string message, string operationName, string tracerName, OperationStatus status, TimeSpan duration, OperationKind operationKind, Exception exception)
+        public OperationResult(
+            string message,
+            string operationName,
+            string tracerName,
+            OperationStatus status,
+            TimeSpan duration,
+            OperationKind operationKind,
+            Exception exception,
+            Guid operationId,
+            Severity severity)
         {
             Contract.Requires(!string.IsNullOrEmpty(message), "message should not be null or empty");
             Contract.Requires(!string.IsNullOrEmpty(operationName), "operationName should not be null or empty");
@@ -106,6 +136,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
             Duration = duration;
             OperationKind = operationKind;
             Exception = exception;
+            Severity = severity;
+            OperationId = operationId;
         }
 
         /// <summary>

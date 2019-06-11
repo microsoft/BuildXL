@@ -17,6 +17,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace ContentStoreTest.Stores
 {
@@ -25,8 +26,8 @@ namespace ContentStoreTest.Stores
         private const int NumParallelTasks = 20;
         private readonly MemoryClock _clock;
 
-        public FileSystemContentStoreInternalOpenStreamTests()
-            : base(() => new MemoryFileSystem(new MemoryClock()), TestGlobal.Logger)
+        public FileSystemContentStoreInternalOpenStreamTests(ITestOutputHelper outputHelper)
+            : base(() => new MemoryFileSystem(new MemoryClock()), TestGlobal.Logger, outputHelper)
         {
             _clock = (MemoryClock)((MemoryFileSystem)FileSystem).Clock;
         }

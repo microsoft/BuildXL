@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Security.AccessControl;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
@@ -137,9 +138,14 @@ namespace BuildXL.Native.IO
             return s_fileSystem.TryRemoveDirectory(path, out hr);
         }
 
-        /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool}, ITempDirectoryCleaner)"/>
-        public static void DeleteDirectoryContents(string path, bool deleteRootDirectory = false, Func<string, bool> shouldDelete = null, ITempDirectoryCleaner tempDirectoryCleaner = null) =>
-            s_fileUtilities.DeleteDirectoryContents(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner);
+        /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool}, ITempDirectoryCleaner, CancellationToken?)"/>
+        public static void DeleteDirectoryContents(
+            string path, 
+            bool deleteRootDirectory = false, 
+            Func<string, bool> shouldDelete = null, 
+            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            CancellationToken? cancellationToken = default) =>
+            s_fileUtilities.DeleteDirectoryContents(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, cancellationToken);
 
         /// <see cref="IFileSystem.EnumerateDirectoryEntries(string, bool, Action{string, string, FileAttributes}, bool)"/>
         public static EnumerateDirectoryResult EnumerateDirectoryEntries(
@@ -560,6 +566,9 @@ namespace BuildXL.Native.IO
             }
         }
 
+        /// <see cref="IFileSystem.GetFileAttributes(string)"/>
+        public static FileAttributes GetFileAttributes(string path) => s_fileSystem.GetFileAttributes(path);
+
         /// <see cref="IFileSystem.SetFileAttributes(string, FileAttributes)"/>
         public static void SetFileAttributes(string path, FileAttributes attributes)
         {
@@ -711,6 +720,30 @@ namespace BuildXL.Native.IO
         public static Possible<string> TryGetReparsePointTarget(SafeFileHandle handle, string sourcePath)
         {
             return s_fileSystem.TryGetReparsePointTarget(handle, sourcePath);
+        }
+
+        /// <summary>
+        /// Checks if a path is a directory symlink or a junction.
+        /// </summary>
+        public static bool IsDirectorySymlinkOrJunction(string path)
+        {
+            try
+            {
+                FileAttributes dirSymlinkOrJunction = FileAttributes.ReparsePoint | FileAttributes.Directory;
+                FileAttributes attributes = FileUtilities.GetFileAttributes(path);
+
+                return (attributes & dirSymlinkOrJunction) == dirSymlinkOrJunction;
+            }
+            catch (NativeWin32Exception)
+            {
+                // FileSystem.Win.
+                return false;
+            }
+            catch (BuildXLException)
+            {
+                // FileSystem.Unix.
+                return false;
+            }
         }
 
 #endregion

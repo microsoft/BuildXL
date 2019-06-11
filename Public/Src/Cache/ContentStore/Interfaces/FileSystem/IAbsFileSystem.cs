@@ -22,8 +22,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <param name="share">Control of other object access to the same file.</param>
         /// <param name="options">Minimum required options.</param>
         /// <param name="bufferSize">Size of the stream's buffer.</param>
-        /// <returns>Null if the file does not exist, otherwise the stream.</returns>
-        /// <remarks>Unlike System.IO.FileStream, this provides a way to atomically check for the existence of a file and open it.</remarks>
+        /// <returns>Null if the file or directory does not exist, otherwise the stream.</returns>
+        /// <remarks>
+        /// Unlike System.IO.FileStream, this provides a way to atomically check for the existence of a file and open it.
+        /// This method throws the same set of exceptions that <see cref="FileStream"/> constructor does.
+        /// </remarks>
         Task<Stream> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize);
 
         /// <summary>

@@ -87,7 +87,7 @@
 		F58E9204220B5B3C0083C57E /* utf8proc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = utf8proc.c; sourceTree = "<group>"; };
 		F58E9205220B5B3C0083C57E /* utf8proc_data.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = utf8proc_data.c; sourceTree = "<group>"; };
 		F58E9206220B5B3C0083C57E /* utf8proc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utf8proc.h; sourceTree = "<group>"; };
-		F598838E22527E8700A7A2D9 /* BundleInfoTest.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BundleInfoTest.xcconfig; path = ../BundleInfoTest.xcconfig; sourceTree = "<group>"; };
+		F598838E22527E8700A7A2D9 /* BundleInfoDebug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BundleInfoDebug.xcconfig; path = ../BundleInfoDebug.xcconfig; sourceTree = "<group>"; };
 		F598838F22527E8700A7A2D9 /* BundleInfo.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BundleInfo.xcconfig; path = ../BundleInfo.xcconfig; sourceTree = "<group>"; };
 		F5CF3B0820C1E3C500DC1B2E /* FileAccessManifestParser.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = FileAccessManifestParser.cpp; path = ../Sandbox/Src/FileAccessManifest/FileAccessManifestParser.cpp; sourceTree = "<group>"; };
 		F5CF3B0920C1E3C500DC1B2E /* FileAccessManifestParser.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = FileAccessManifestParser.hpp; path = ../Sandbox/Src/FileAccessManifest/FileAccessManifestParser.hpp; sourceTree = "<group>"; };
@@ -149,7 +149,7 @@
 			isa = PBXGroup;
 			children = (
 				F598838F22527E8700A7A2D9 /* BundleInfo.xcconfig */,
-				F598838E22527E8700A7A2D9 /* BundleInfoTest.xcconfig */,
+				F598838E22527E8700A7A2D9 /* BundleInfoDebug.xcconfig */,
 				3C6495C021A6E2E20083FD3A /* Aria */,
 				F55A72F020D412F100069365 /* CLI */,
 				3CD2972920D173D900399B9B /* External */,

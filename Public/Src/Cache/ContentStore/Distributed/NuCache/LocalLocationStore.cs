@@ -28,6 +28,8 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
+using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
+using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -330,7 +332,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
+#pragma warning disable AsyncFixer02
             _heartbeatTimer?.Dispose();
+#pragma warning restore AsyncFixer02
 
             if (EventStore != null)
             {
@@ -389,15 +393,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         Tracer.Debug(context, $"Switching Roles: New={newRole}, Old={oldRole}.");
 
-                            // Local database should be immutable on workers and only master is responsible for collecting stale records
-                            Database.ConfigureGarbageCollection(shouldDoGc: newRole == Role.Master);
+                        // Local database should be immutable on workers and only master is responsible for collecting stale records
+                        Database.SetDatabaseMode(isDatabaseWritable: newRole == Role.Master);
                     }
 
-                        // Always restore when switching roles
-                        bool shouldRestore = switchedRoles;
+                    // Always restore when switching roles
+                    bool shouldRestore = switchedRoles;
 
-                        // Restore if this is a worker and the last restore time is past the restore interval
-                        shouldRestore |= (newRole == Role.Worker && ShouldSchedule(
+                    // Restore if this is a worker and the last restore time is past the restore interval
+                    shouldRestore |= (newRole == Role.Worker && ShouldSchedule(
                                           _configuration.Checkpoint.RestoreCheckpointInterval,
                                           _lastRestoreTime));
 
@@ -411,8 +415,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         _lastRestoreTime = _clock.UtcNow;
 
-                            // Update the checkpoint time to avoid uploading a checkpoint immediately after restoring on the master
-                            _lastCheckpointTime = _lastRestoreTime;
+                        // Update the checkpoint time to avoid uploading a checkpoint immediately after restoring on the master
+                        _lastCheckpointTime = _lastRestoreTime;
                     }
 
                     var updateResult = await UpdateClusterStateAsync(context);
@@ -424,13 +428,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (newRole == Role.Master)
                     {
-                            // Start receiving events from the given checkpoint
-                            result = EventStore.StartProcessing(context, checkpointState.StartSequencePoint);
+                        // Start receiving events from the given checkpoint
+                        result = EventStore.StartProcessing(context, checkpointState.StartSequencePoint);
                     }
                     else
                     {
-                            // Stop receiving events. 
-                            result = EventStore.SuspendProcessing(context);
+                        // Stop receiving events.
+                        result = EventStore.SuspendProcessing(context);
                     }
 
                     if (!result)
@@ -440,8 +444,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (newRole == Role.Master)
                     {
-                            // Only create a checkpoint if the machine is currently a master machine and was a master machine 
-                            if (ShouldSchedule(_configuration.Checkpoint.CreateCheckpointInterval, _lastCheckpointTime))
+                        // Only create a checkpoint if the machine is currently a master machine and was a master machine
+                        if (ShouldSchedule(_configuration.Checkpoint.CreateCheckpointInterval, _lastCheckpointTime))
                         {
                             result = await CreateCheckpointAsync(context);
                             if (!result)
@@ -453,8 +457,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
 
-                        // Successfully, applied changes for role. Set it as the current role. 
-                        CurrentRole = newRole;
+                    // Successfully, applied changes for role. Set it as the current role.
+                    CurrentRole = newRole;
 
                     return result;
                 });

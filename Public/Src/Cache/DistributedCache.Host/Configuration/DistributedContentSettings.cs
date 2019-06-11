@@ -17,6 +17,8 @@ namespace BuildXL.Cache.Host.Configuration
     [DataContract]
     public class DistributedContentSettings
     {
+        private const int DefaultMaxConcurrentCopyOperations = 512;
+
         [JsonConstructor]
         private DistributedContentSettings()
         {
@@ -31,11 +33,12 @@ namespace BuildXL.Cache.Host.Configuration
             };
         }
 
-        public static DistributedContentSettings CreateEnabled(IDictionary<string, string> connectionSecretNameMap)
+        public static DistributedContentSettings CreateEnabled(IDictionary<string, string> connectionSecretNameMap, bool isGrpcCopierEnabled = false)
         {
             return new DistributedContentSettings(connectionSecretNameMap)
             {
-                IsDistributedContentEnabled = true
+                IsDistributedContentEnabled = true,
+                IsGrpcCopierEnabled = isGrpcCopierEnabled
             };
         }
 
@@ -115,6 +118,24 @@ namespace BuildXL.Cache.Host.Configuration
         public bool StartPurgingAtStartup { get; set; } = true;
 
         /// <summary>
+        /// If true, then content store will start a self-check to validate that the content in cache is valid at startup.
+        /// </summary>
+        [DataMember]
+        public bool StartSelfCheckAtStartup { get; set; } = false;
+
+        /// <summary>
+        /// An interval between self checks performed by a content store to make sure that all the data on disk matches it's hashes.
+        /// </summary>
+        [DataMember]
+        public int SelfCheckFrequencyInMinutes { get; set; } = (int)TimeSpan.FromDays(1).TotalMinutes;
+
+        /// <summary>
+        /// An epoch used for reseting self check of a content directory.
+        /// </summary>
+        [DataMember]
+        public string SelfCheckEpoch { get; set; } = "E0";
+
+        /// <summary>
         /// Whether to use native (unmanaged) file enumeration or not.
         /// </summary>
         [DataMember]
@@ -159,6 +180,24 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public bool UseCompressionForCopies { get; set; } = false;
+
+        /// <summary>
+        /// Upper bound on number of cached GRPC clients.
+        /// </summary>
+        [DataMember]
+        public int MaxGrpcClientCount { get; set; } = DefaultMaxConcurrentCopyOperations;
+
+        /// <summary>
+        /// Maximum cached age for GRPC clients.
+        /// </summary>
+        [DataMember]
+        public int MaxGrpcClientAgeMinutes { get; set; } = 55;
+
+        /// <summary>
+        /// Time between GRPC cache cleanups.
+        /// </summary>
+        [DataMember]
+        public int GrpcClientCleanupDelayMinutes { get; set; } = 17;
         #endregion
 
         #region Distributed Eviction
@@ -275,16 +314,16 @@ namespace BuildXL.Cache.Host.Configuration
         public string KeyVaultSettingsString { get; set; }
 
         [DataMember]
-        public int KeyVaultRetryCount { get; set; } = 5;
+        public int SecretsRetrievalRetryCount { get; set; } = 5;
 
         [DataMember]
-        public int KeyVaultMinBackoffSeconds { get; set; } = 10;
+        public int SecretsRetrievalMinBackoffSeconds { get; set; } = 10;
 
         [DataMember]
-        public int KeyVaultMaxBackoffSeconds { get; set; } = 60;
+        public int SecretsRetrievalMaxBackoffSeconds { get; set; } = 60;
 
         [DataMember]
-        public int KeyVaultDeltaBackoffSeconds { get; set; } = 10;
+        public int SecretsRetrievalDeltaBackoffSeconds { get; set; } = 10;
 
         [DataMember]
         public string EventHubSecretName { get; set; }
@@ -366,12 +405,18 @@ namespace BuildXL.Cache.Host.Configuration
         public bool EmptyFileHashShortcutEnabled { get; set; } = false;
 
         [DataMember]
-        public int MaxConcurrentCopyOperations { get; set; } = 512;
+        public int MaxConcurrentCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
+
+        /// <summary>
+        /// Gets or sets whether to override Unix file access modes.
+        /// </summary>
+        [DataMember]
+        public bool OverrideUnixFileAccessMode { get; set; } = false;
 
         #endregion
 
         /// <summary>
-        /// Gets the secret name to connect to redis for a particular CloudBuild stamp.
+        /// Gets the secret name to connect to Redis for a particular CloudBuild stamp.
         /// </summary>
         /// <param name="stampId">The ID of the stamp.</param>
         /// <returns>The secret name in the AP secret store.</returns>

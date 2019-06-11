@@ -119,7 +119,7 @@ namespace BuildXL.Utilities.Configuration
         /// Allows optionally specifying an alternative timeout for workers to wait for attach from master
         /// </summary>
         public static readonly Setting<TimeSpan> WorkerAttachTimeout = CreateSetting("BuildXLWorkerAttachTimeoutMin", value => ParseTimeSpan(value, ts => TimeSpan.FromMinutes(ts)) ??
-            TimeSpan.FromMinutes(30));
+            TimeSpan.FromMinutes(45));
 
         /// <summary>
         /// Maximum time to wait while establishing a connection to the remote machine (both master->worker and worker->master)
@@ -147,9 +147,9 @@ namespace BuildXL.Utilities.Configuration
         /// Whether HandlerInlining is enabled for grpc.
         /// </summary>
         /// <remarks>
-        /// Default enabled
+        /// Default disabled
         /// </remarks>
-        public static readonly Setting<bool> GrpcHandlerInliningEnabled = CreateSetting("BuildXLGrpcHandlerInliningEnabled", value => string.IsNullOrWhiteSpace(value) ? true : value == "1");
+        public static readonly Setting<bool> GrpcHandlerInliningEnabled = CreateSetting("BuildXLGrpcHandlerInliningEnabled", value => string.IsNullOrWhiteSpace(value) ? false : value == "1");
 
         /// <summary>
         /// An artificial delay in reporting notifications to force batching

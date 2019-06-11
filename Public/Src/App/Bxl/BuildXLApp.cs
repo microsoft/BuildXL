@@ -224,14 +224,16 @@ namespace BuildXL
             m_startTimeUtc = startTimeUtc ?? Process.GetCurrentProcess().StartTime.ToUniversalTime();
 
             // Allow the client to override the command line that gets logged which will be different from the server
-            m_commandLineArguments = commandLineArguments ?? Environment.GetCommandLineArgs();
+            m_commandLineArguments = commandLineArguments ?? AssemblyHelper.GetCommandLineArgs();
             m_pathTable = pathTable;
 
             // This app was requested to be launched in server mode, but the server cannot be started
             // We store this to log it once the appropriate listeners are set up
             m_serverModeStatusAndPerf = serverModeStatusAndPerf;
 
-            m_crashCollector = OperatingSystemHelper.IsUnixOS ? new CrashCollectorMacOS(new[] { CrashType.BuildXL, CrashType.Kernel }) : null;
+            m_crashCollector = OperatingSystemHelper.IsUnixOS 
+                ? new CrashCollectorMacOS(new[] { CrashType.BuildXL, CrashType.Kernel })
+                : null;
         }
 
         private static void ConfigureCacheMissLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
@@ -330,7 +332,8 @@ namespace BuildXL
                         (int)EventId.EndFilterApplyTraversal,
                         (int)EventId.EndAssigningPriorities,
                         (int)Engine.Tracing.LogEventId.DeserializedFile,
-                        (int)EventId.PipQueueConcurrency
+                        (int)EventId.PipQueueConcurrency,
+                        (int)Engine.Tracing.LogEventId.GrpcSettings
                     });
 
                 // Distribution related messages are disabled in default text log and routed to special log file
@@ -531,7 +534,7 @@ namespace BuildXL
                     ServerModeStatusAndPerf serverModeStatusAndPerf = m_serverModeStatusAndPerf.Value;
 
                     // There is always an up to date check related to starting server mode
-                    Logger.Log.DeploymentUpToDateCheckPerformed(pm.LoggingContext, serverModeStatusAndPerf.UpToDateCheck);
+                    Logger.Log.DeploymentUpToDateCheckPerformed(pm.LoggingContext, serverModeStatusAndPerf.UpToDateCheck, serverModeStatusAndPerf.CacheCreated.HasValue, serverModeStatusAndPerf.CacheCreated.HasValue ? serverModeStatusAndPerf.CacheCreated.Value : default(ServerDeploymentCacheCreated));
 
                     // We maybe created a deployment cache
                     if (serverModeStatusAndPerf.CacheCreated.HasValue)
@@ -1095,8 +1098,10 @@ namespace BuildXL
                     global::BuildXL.Engine.ETWLogger.Log,
                     global::BuildXL.Scheduler.ETWLogger.Log,
                     global::BuildXL.Tracing.ETWLogger.Log,
+                    global::BuildXL.Native.ETWLogger.Log,
                     global::BuildXL.Storage.ETWLogger.Log,
                     global::BuildXL.Processes.ETWLogger.Log,
+                    global::BuildXL.FrontEnd.Sdk.ETWLogger.Log,
                     global::BuildXL.FrontEnd.Core.ETWLogger.Log,
                     global::BuildXL.FrontEnd.Download.ETWLogger.Log,
                     global::BuildXL.FrontEnd.Script.ETWLogger.Log,
@@ -1527,7 +1532,7 @@ namespace BuildXL
             /// </summary>
             public void LogEventSummary(LoggingContext loggingContext)
             {
-                Logger.Log.EventCount(loggingContext, TrackingEventListener.ToEventCountDictionary());
+                Logger.Log.EventCounts(loggingContext, TrackingEventListener.ToEventCountDictionary());
             }
 
             private void WriteErrorToConsole(string format, params object[] args)

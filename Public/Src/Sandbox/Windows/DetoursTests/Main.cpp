@@ -1070,6 +1070,91 @@ int CallOpenFileById()
     return (int)RtlNtStatusToDosError(status);
 }
 
+int CallDeleteWithoutSharing()
+{
+    HANDLE hFile1 = CreateFile(
+        L"untracked.txt",
+        DELETE,
+        0, // No share, Detours will automatically add FILE_SHARE_DELETE if "untracked.txt" is really untracked
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
+        NULL);
+
+    if (hFile1 == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    HANDLE hFile2 = CreateFile(
+        L"untracked.txt",
+        DELETE,
+        FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
+        NULL);
+
+    int lastError = (int)GetLastError();
+
+    if (hFile2 != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(hFile2);
+    }
+
+    CloseHandle(hFile1);
+
+    return lastError;
+}
+
+int CallDeleteOnOpenedHardlink()
+{
+    // Create hardlink from output.txt -> untracked\file.txt
+    BOOL createHardLink = CreateHardLink(L"output.txt", L"untracked\\file.txt", NULL);
+
+    if (!createHardLink)
+    {
+        return (int)GetLastError();
+    }
+
+    // Open handle to output.txt without share delete.
+    HANDLE hOutput = CreateFile(
+        L"output.txt",
+        GENERIC_READ,
+        0, // No share, Detours will automatically add FILE_SHARE_DELETE
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
+        NULL);
+
+    if (hOutput == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    // Try delete untracked file.
+    HANDLE hUntracked = CreateFile(
+        L"untracked\\file.txt",
+        DELETE,
+        FILE_SHARE_READ,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
+        NULL);
+
+    if (hUntracked == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    int lastError = (int)GetLastError();
+
+    CloseHandle(hOutput);
+    CloseHandle(hUntracked);
+
+    return lastError;
+}
+
 // ----------------------------------------------------------------------------
 // STATIC FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
@@ -1102,6 +1187,8 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallCreateFileWithZeroAccessOnDirectory);
     IF_COMMAND(CallCreateFileOnNtEscapedPath);
     IF_COMMAND(CallOpenFileById);
+    IF_COMMAND(CallDeleteWithoutSharing);
+    IF_COMMAND(CallDeleteOnOpenedHardlink);
 
 #undef IF_COMMAND1
 #undef IF_COMMAND2

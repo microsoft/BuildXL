@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
@@ -82,8 +83,13 @@ namespace BuildXL.Native.Processes.Windows
             }
         }
 
-        /// <summary><see cref="ProcessUtilities.AttachContainerToJobObject(IntPtr, IReadOnlyDictionary{ExpandedAbsolutePath, IReadOnlyList{ExpandedAbsolutePath}}, out IEnumerable{string})"/></summary>   
-        public void AttachContainerToJobObject(IntPtr hJob, IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories, out IEnumerable<string> warnings)
+        /// <summary><see cref="ProcessUtilities.AttachContainerToJobObject(IntPtr, IReadOnlyDictionary{ExpandedAbsolutePath, IReadOnlyList{ExpandedAbsolutePath}}, bool, IEnumerable{string}, out IEnumerable{string})"/></summary>   
+        public void AttachContainerToJobObject(
+            IntPtr hJob,
+            IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> redirectedDirectories,
+            bool enableWciFilter,
+            IEnumerable<string> bindFltExclusions,
+            out IEnumerable<string> warnings)
         {
             try
             {
@@ -100,7 +106,7 @@ namespace BuildXL.Native.Processes.Windows
                 NativeContainerUtilities.WcDestroyDescription(description);
 
                 var wciRetries = new List<string>();
-                ConfigureContainer(hJob, redirectedDirectories, wciRetries);
+                ConfigureContainer(hJob, redirectedDirectories, enableWciFilter, wciRetries, bindFltExclusions);
 
                 warnings = wciRetries;
             }
@@ -131,15 +137,24 @@ namespace BuildXL.Native.Processes.Windows
             return win32Error == 0 || win32Error == ExceptionUtilities.HResultFromWin32(ERROR_ALREADY_EXISTS) || win32Error == ExceptionUtilities.HResultFromWin32(ERROR_SERVICE_ALREADY_RUNNING);
         }
 
-        private static void ConfigureContainer(IntPtr hJob, IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> mapping, List<string> wciRetries)
+        private static void ConfigureContainer(
+            IntPtr hJob,
+            IReadOnlyDictionary<ExpandedAbsolutePath, IReadOnlyList<ExpandedAbsolutePath>> mapping,
+            bool enableWciFilter,
+            List<string> wciRetries,
+            IEnumerable<string> bindFltExclusions)
         {
             foreach (var kvp in mapping)
             {
                 IReadOnlyCollection<ExpandedAbsolutePath> sourcePaths = kvp.Value;
                 string destinationPath = kvp.Key.ExpandedPath;
 
-                ConfigureWciFilter(hJob, sourcePaths, destinationPath, wciRetries);
-                ConfigureBindFilter(hJob, sourcePaths, destinationPath);
+                if (enableWciFilter)
+                {
+                    ConfigureWciFilter(hJob, sourcePaths, destinationPath, wciRetries);
+                }
+
+                ConfigureBindFilter(hJob, sourcePaths, destinationPath, bindFltExclusions);
             }
         }
 
@@ -217,8 +232,9 @@ namespace BuildXL.Native.Processes.Windows
             
         }
 
-        private static void ConfigureBindFilter(IntPtr hJob, IReadOnlyCollection<ExpandedAbsolutePath> sourcePaths, string targetPath)
+        private static void ConfigureBindFilter(IntPtr hJob, IReadOnlyCollection<ExpandedAbsolutePath> sourcePaths, string targetPath, IEnumerable<string> exclusionPaths)
         {
+            string[] exclusionsForMapping = exclusionPaths.ToArray();
             foreach (ExpandedAbsolutePath sourcePath in sourcePaths)
             {
                 var hresult = NativeContainerUtilities.BfSetupFilter(
@@ -227,8 +243,8 @@ namespace BuildXL.Native.Processes.Windows
                     NativeContainerUtilities.BfSetupFilterFlags.BINDFLT_FLAG_USE_CURRENT_SILO_MAPPING,
                     sourcePath.ExpandedPath,
                     targetPath,
-                    CollectionUtilities.EmptyArray<string>(),
-                    0);
+                    exclusionsForMapping,
+                    (ulong) exclusionsForMapping.Length);
 
                 if (hresult != 0)
                 {

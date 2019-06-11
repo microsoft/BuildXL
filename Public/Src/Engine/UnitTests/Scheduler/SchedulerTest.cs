@@ -263,13 +263,6 @@ namespace Test.BuildXL.Scheduler
                 outputs: new[] { CreateOutputFileArtifact() },
                 workingDirectory: AbsolutePath.Create(Context.PathTable, workingDirectory));
 
-            var directories = SandboxedProcessPipExecutor.GetDirectoriesToCreate(
-                processWithNonWritableWorkingDirectory,
-                Context.PathTable,
-                Expander);
-
-            XAssert.IsFalse(directories.Contains(workingDirectory, StringComparer.OrdinalIgnoreCase));
-
             foreach (var tmpVar in BuildParameters.DisallowedTempVariables)
             {
                 // Test setting TEMP environment variable to non-writable root
@@ -1306,7 +1299,7 @@ namespace Test.BuildXL.Scheduler
                 context: Context,
                 fileContentTable: m_fileContentTable,
                 loggingContext: LoggingContext,
-                cache: cache ?? InMemoryCacheFactory.Create(Context),
+                cache: cache ?? InMemoryCacheFactory.Create(),
                 configuration: m_configuration,
                 fileAccessWhitelist: new FileAccessWhitelist(Context),
                 successfulPips: overriddenSuccessfulPips,
@@ -2524,7 +2517,7 @@ namespace Test.BuildXL.Scheduler
                 pipGraph.Serialize(writer);
 
                 // Deserialize the schedule and run all pips using a cache.
-                var cache = InMemoryCacheFactory.Create(Context);
+                var cache = InMemoryCacheFactory.Create();
                 await DeserializeScheduleAndRun(stream, cache, null, disableLazyOutputMaterialization: true);
 
                 // Deserialize a second time with the same cache. This time run pips based on a filter.
@@ -2555,6 +2548,30 @@ namespace Test.BuildXL.Scheduler
             XAssert.AreEqual(1, global::BuildXL.Scheduler.Scheduler.ComputeUnresponsivenessFactor(2000, baseTime, baseTime.AddSeconds(2)));
             XAssert.AreEqual(2, global::BuildXL.Scheduler.Scheduler.ComputeUnresponsivenessFactor(2000, baseTime, baseTime.AddSeconds(4.1)));
             XAssert.AreEqual(5, global::BuildXL.Scheduler.Scheduler.ComputeUnresponsivenessFactor(2000, baseTime, baseTime.AddSeconds(10.1)));
+        }
+
+        [Fact]
+        public void TestInvalidPreserveOutputsFlag()
+        {
+            Setup();
+            CreateSourceFile(NonHashableRoot);
+
+            var output = CreateOutputFileArtifact();
+            var processPipBuilder = NewProcessBuilderWithPreDeterminedArgumentsFactory()
+                .WithOutputs(output)
+                .WithPreserveOutputWhitelist(output.Path);
+
+            XAssert.IsFalse(PipGraphBuilder.AddProcess(processPipBuilder.Build()));
+            AssertSchedulerErrorEventLogged(EventId.ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag);
+
+            var processPipBuilder2 = NewProcessBuilderWithPreDeterminedArgumentsFactory()
+                .WithOutputs(CreateOutputFileArtifact())
+                .WithOptions(Process.Options.AllowPreserveOutputs)
+                .WithPreserveOutputWhitelist(CreateOutputFileArtifact().Path);
+
+            XAssert.IsFalse(PipGraphBuilder.AddProcess(processPipBuilder2.Build()));
+            AssertSchedulerErrorEventLogged(EventId.ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist);
+
         }
 
         private async Task<ConcurrentDictionary<PipId, PipResultStatus>> DeserializeScheduleAndRun(Stream stream, EngineCache cache, RootFilter filter, bool disableLazyOutputMaterialization = false)

@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.WorkDispatcher;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Threading;
 
@@ -27,8 +26,6 @@ namespace BuildXL.Scheduler.Distribution
         /// The number of times a pip successfully acquired a worker
         /// </summary>
         public int ChooseSuccessCount;
-
-        protected readonly IConfiguration Config;
 
         protected readonly LoggingContext LoggingContext;
 
@@ -58,7 +55,6 @@ namespace BuildXL.Scheduler.Distribution
 
         protected ChooseWorkerContext(
             LoggingContext loggingContext,
-            IConfiguration config,
             IReadOnlyList<Worker> workers,
             IPipQueue pipQueue,
             DispatcherKind kind,
@@ -68,7 +64,6 @@ namespace BuildXL.Scheduler.Distribution
             PipQueue = pipQueue;
             LocalWorker = (LocalWorker)workers[0];
             LoggingContext = loggingContext;
-            Config = config;
             Kind = kind;
             MaxParallelDegree = maxParallelDegree;
 

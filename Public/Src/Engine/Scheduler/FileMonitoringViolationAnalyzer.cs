@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -10,6 +11,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -17,7 +19,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
-
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
 namespace BuildXL.Scheduler
@@ -73,8 +74,9 @@ namespace BuildXL.Scheduler
         private readonly IQueryableFileContentManager m_fileContentManager;
         private readonly IExecutionLogTarget m_executionLog;
         private readonly ConcurrentBigMap<AbsolutePath, UndeclaredAccessors> m_undeclaredAccessors = new ConcurrentBigMap<AbsolutePath, UndeclaredAccessors>();
-        // Maps of paths that are dynamically read or written to the corresponding pip. The tuple indicates whether it is a reader of the path (or a writer), together with the actual pip
-        private readonly ConcurrentBigMap<AbsolutePath, (DynamicFileAccessType accessType, Process pip)> m_dynamicReadersAndWriters = new ConcurrentBigMap<AbsolutePath, (DynamicFileAccessType, Process)>();
+        // Maps of paths that are dynamically read or written to the corresponding pip. 
+        // The tuple indicates whether it is a reader of the path or a writer, together with the actual pip and materialization info when available (absent file otherwise)
+        private readonly ConcurrentBigMap<AbsolutePath, (DynamicFileAccessType accessType, PipId processPip, FileMaterializationInfo fileMaterializationInfo)> m_dynamicReadersAndWriters = new ConcurrentBigMap<AbsolutePath, (DynamicFileAccessType, PipId, FileMaterializationInfo)>();
 
         // Some dependency analysis rules cause issues with distribution. Even if /unsafe_* flags or configuration options
         // are used to downgrade errors to warnings, these must be treated as errors and cleaned up for distributed
@@ -83,6 +85,9 @@ namespace BuildXL.Scheduler
         private readonly bool m_unexpectedFileAccessesAsErrors;
         private readonly bool m_ignoreDynamicWritesOnAbsentProbes;
         private readonly CounterCollection<FileMonitoringViolationAnalysisCounter> m_counters = new CounterCollection<FileMonitoringViolationAnalysisCounter>();
+
+        // When the materialization info for a file is not available/not pertinent, we store an absent file info
+        private static readonly FileMaterializationInfo s_absentFileInfo = FileMaterializationInfo.CreateWithUnknownLength(WellKnownContentHashes.AbsentFile);
 
         /// <summary>
         /// Dependency-error classification as a result of analysis.
@@ -236,9 +241,12 @@ namespace BuildXL.Scheduler
             [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories)
+            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
+            ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent,
+            out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations)
         {
             Contract.Requires(pip != null);
+            Contract.Requires(outputsContent != null);
 
             using (m_counters.StartStopwatch(FileMonitoringViolationAnalysisCounter.AnalyzePipViolationsDuration))
             {
@@ -250,8 +258,11 @@ namespace BuildXL.Scheduler
                     (absentPathProbesUnderOutputDirectories == null || absentPathProbesUnderOutputDirectories.Count == 0) &&
                     (exclusiveOpaqueDirectoryContent == null || exclusiveOpaqueDirectoryContent.Count == 0))
                 {
+                    allowedSameContentDoubleWriteViolations = CollectionUtilities.EmptyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
                     return AnalyzePipViolationsResult.NoViolations;
                 }
+
+                var outputArtifactInfo = GetOutputArtifactInfoMap(pip, outputsContent);
 
                 ReportedViolation[] reportedDependencyViolations = null;
                 if (violations?.Count > 0)
@@ -321,7 +332,9 @@ namespace BuildXL.Scheduler
                     errorPaths.UnionWith(errors);
                 }
 
-                var dynamicViolations = ReportDynamicViolations(pip, exclusiveOpaqueDirectoryContent, sharedOpaqueDirectoryWriteAccesses, allowedUndeclaredReads, absentPathProbesUnderOutputDirectories);
+                var allowedDoubleWriteViolations = new Dictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>();
+                var dynamicViolations = ReportDynamicViolations(pip, exclusiveOpaqueDirectoryContent, sharedOpaqueDirectoryWriteAccesses, allowedUndeclaredReads, absentPathProbesUnderOutputDirectories, outputArtifactInfo, allowedDoubleWriteViolations);
+                allowedSameContentDoubleWriteViolations = new ReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>(allowedDoubleWriteViolations);
 
                 PopulateErrorsAndWarnings(dynamicViolations, errorPaths, warningPaths);
 
@@ -339,13 +352,76 @@ namespace BuildXL.Scheduler
             }
         }
 
+        /// <inheritdoc/>
+        public AnalyzePipViolationsResult AnalyzeDoubleWritesOnCacheConvergence(
+            Process pip,
+            ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> convergedContent,
+            IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
+        {
+            Contract.Requires(pip != null);
+            Contract.Requires(convergedContent != null);
+            Contract.Requires(allowedDoubleWriteViolations != null);
+
+            if (allowedDoubleWriteViolations.Count == 0)
+            {
+                return AnalyzePipViolationsResult.NoViolations;
+            }
+
+            var disallowedViolationsOnConvergence = new List<ReportedViolation>();
+            foreach (var content in convergedContent)
+            {
+                // If the converged content changed, then the allowed double write becomes a true violation
+                if (allowedDoubleWriteViolations.TryGetValue(content.fileArtifact, out var originalContentAndViolation) && 
+                    originalContentAndViolation.fileMaterializationInfo.Hash != content.fileInfo.Hash)
+                {
+                    ReportedViolation violation = originalContentAndViolation.reportedViolation;
+                    Contract.Assert(violation.RelatedPipId.HasValue, "A double write violation should always have a related pip Id");
+
+                    disallowedViolationsOnConvergence.Add(
+                        HandleDependencyViolation(
+                            violation.Type, 
+                            AccessLevel.Write, 
+                            violation.Path, 
+                            (Process) m_graph.HydratePip(violation.ViolatorPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations), 
+                            isWhitelistedViolation: false,
+                            (Process)m_graph.HydratePip(violation.RelatedPipId.Value, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations),
+                            violation.ProcessPath));
+                }
+            }
+
+            var errorPaths = new HashSet<AccessViolationPath>();
+            var warningPaths = new HashSet<AccessViolationPath>();
+            PopulateErrorsAndWarnings(disallowedViolationsOnConvergence, errorPaths, warningPaths);
+
+            LogErrorsAndWarnings(pip, errorPaths, warningPaths);
+
+            return new AnalyzePipViolationsResult(
+                isViolationClean: errorPaths.Count == 0,
+                pipIsSafeToCache: true);
+        }
+
+        /// <summary>
+        /// Returns a map with all output file artifact with their corresponding file materialization info
+        /// </summary>
+        /// <remarks>
+        /// The map is only populated when <see cref="DoubleWritePolicy.AllowSameContentDoubleWrites"/>, which is the policy that actually require the analyzer to be content aware. Otherwise it just returns an empty map.
+        /// This is to improve performance of subsequent lookups.
+        /// </remarks>
+        private static IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> GetOutputArtifactInfoMap(Process pip, ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent)
+        {
+            return pip.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites ?
+                outputsContent.ToDictionary(kvp => kvp.fileArtifact, kvp => kvp.fileInfo) :
+                CollectionUtilities.EmptyDictionary<FileArtifact, FileMaterializationInfo>();
+        }
+
         /// <inheritdoc />
         public bool AnalyzeDynamicViolations(
             Process pip,
             IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories)
+            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
+            ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent)
         {
             Contract.Requires(pip != null);
 
@@ -354,7 +430,15 @@ namespace BuildXL.Scheduler
                 var errorPaths = new HashSet<AccessViolationPath>();
                 var warningPaths = new HashSet<AccessViolationPath>();
 
-                List<ReportedViolation> dynamicViolations = ReportDynamicViolations(pip, exclusiveOpaqueDirectoryContent, sharedOpaqueDirectoryWriteAccesses, allowedUndeclaredReads, absentPathProbesUnderOutputDirectories);
+                List<ReportedViolation> dynamicViolations = ReportDynamicViolations(
+                    pip, 
+                    exclusiveOpaqueDirectoryContent, 
+                    sharedOpaqueDirectoryWriteAccesses, 
+                    allowedUndeclaredReads, 
+                    absentPathProbesUnderOutputDirectories,
+                    GetOutputArtifactInfoMap(pip, outputsContent),
+                    // We don't need to collect allowed same content double writes here since this is used in the cache replay scenario only, when there is no convergence
+                    allowedDoubleWriteViolations: null);
 
                 PopulateErrorsAndWarnings(dynamicViolations, errorPaths, warningPaths);
 
@@ -369,18 +453,20 @@ namespace BuildXL.Scheduler
             [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectories,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
-            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories)
+            [CanBeNull] IReadOnlySet<AbsolutePath> absentPathProbesUnderOutputDirectories,
+            IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactInfo,
+            [CanBeNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
             List<ReportedViolation> dynamicViolations = new List<ReportedViolation>();
 
             if (sharedOpaqueDirectoryWriteAccesses?.Count > 0)
             {
-                ReportSharedOpaqueViolations(pip, sharedOpaqueDirectoryWriteAccesses, dynamicViolations);
+                ReportSharedOpaqueViolations(pip, sharedOpaqueDirectoryWriteAccesses, dynamicViolations, outputArtifactInfo, allowedDoubleWriteViolations);
             }
 
             if (exclusiveOpaqueDirectories?.Count > 0)
             {
-                ReportExclusiveOpaqueViolations(pip, exclusiveOpaqueDirectories, dynamicViolations);
+                ReportExclusiveOpaqueViolations(pip, exclusiveOpaqueDirectories, dynamicViolations, outputArtifactInfo);
             }
 
             if (allowedUndeclaredReads?.Count > 0)
@@ -575,78 +661,131 @@ namespace BuildXL.Scheduler
         private void ReportSharedOpaqueViolations(
             Process pip,
             IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedOpaqueDirectoryWriteAccesses,
-            List<ReportedViolation> reportedViolations)
+            List<ReportedViolation> reportedViolations,
+            IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo,
+            [CanBeNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
             foreach (var kvp in sharedOpaqueDirectoryWriteAccesses)
             {
                 var accesses = kvp.Value;
                 foreach (var access in accesses)
                 {
-                    RegisterWriteInPathAndUpdateViolations(pip, access, reportedViolations);
-
-                    // Now look for a static one. Any pip statically producing this file, regardless of the scheduled order,
-                    // is considered a double write violation
-                    var maybeProducer = TryFindProducer(access, VersionDisposition.Latest);
-
-                    if (maybeProducer != null)
-                    {
-                        // We found a double write: two pips tried to produce the same file in the cone of a shared opaque directory. One statically, the current one
-                        // dynamically
-                        reportedViolations.Add(
-                            HandleDependencyViolation(
-                                DependencyViolationType.DoubleWrite,
-                                AccessLevel.Write,
-                                access,
-                                pip,
-                                isWhitelistedViolation: false,
-                                related: maybeProducer,
-                                // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
-                                pip.Executable.Path));
-                    }
-
-                    // Check there are no source sealed directories containing the write
-                    // Observe that source sealed directories are not allowed above a shared opaque, which means that any source sealed directory
-                    // containing the access will be under the shared opaque (or they will share roots)
-                    var sourceSealedContainer = m_graph.TryGetSealSourceAncestor(access);
-                    if (sourceSealedContainer != DirectoryArtifact.Invalid)
-                    {
-                        var relatedPip = m_graph.GetSealedDirectoryPip(sourceSealedContainer, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
-
-                        // We found a source seal directory that contains the accessed path
-                        reportedViolations.Add(
-                            HandleDependencyViolation(
-                                DependencyViolationType.WriteInSourceSealDirectory,
-                                AccessLevel.Write,
-                                access,
-                                pip,
-                                isWhitelistedViolation: false,
-                                related: relatedPip,
-                                // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
-                                pip.Executable.Path));
-                    }
-
-                    // Check if the shared opaque write happens inside a temp directory
-                    if (m_graph.TryGetTempDirectoryAncestor(access, out var ownerPip, out var tempPath))
-                    {
-                        // We found a shared opaque directory that contains a temp directory
-                        reportedViolations.Add(
-                            HandleDependencyViolation(
-                                DependencyViolationType.WriteToTempPathInsideSharedOpaque,
-                                AccessLevel.Write,
-                                access,
-                                pip,
-                                isWhitelistedViolation: false,
-                                related: ownerPip,
-                                tempPath));
-                    }
+                    ReportWriteViolations(pip, reportedViolations, outputArtifactsInfo, access, allowedDoubleWriteViolations);
+                    ReportBlockedScopesViolations(pip, reportedViolations, access);
                 }
             }
+        }
+
+        private void ReportBlockedScopesViolations(Process pip, List<ReportedViolation> reportedViolations, AbsolutePath access)
+        {
+            // Check there are no source sealed directories containing the write
+            // Observe that source sealed directories are not allowed above a shared opaque, which means that any source sealed directory
+            // containing the access will be under the shared opaque (or they will share roots)
+            var sourceSealedContainer = m_graph.TryGetSealSourceAncestor(access);
+            if (sourceSealedContainer != DirectoryArtifact.Invalid)
+            {
+                var relatedPip = m_graph.GetSealedDirectoryPip(sourceSealedContainer, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+
+                // We found a source seal directory that contains the accessed path
+                reportedViolations.Add(
+                    HandleDependencyViolation(
+                        DependencyViolationType.WriteInSourceSealDirectory,
+                        AccessLevel.Write,
+                        access,
+                        pip,
+                        isWhitelistedViolation: false,
+                        related: relatedPip,
+                        // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
+                        pip.Executable.Path));
+            }
+
+            // Check if the shared opaque write happens inside a temp directory
+            if (m_graph.TryGetTempDirectoryAncestor(access, out var ownerPip, out var tempPath))
+            {
+                // We found a shared opaque directory that contains a temp directory
+                reportedViolations.Add(
+                    HandleDependencyViolation(
+                        DependencyViolationType.WriteToTempPathInsideSharedOpaque,
+                        AccessLevel.Write,
+                        access,
+                        pip,
+                        isWhitelistedViolation: false,
+                        related: ownerPip,
+                        tempPath));
+            }
+        }
+
+        private void ReportWriteViolations(
+            Process pip, 
+            List<ReportedViolation> reportedViolations, 
+            IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo, 
+            AbsolutePath access,
+            [CanBeNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
+        {
+            // The access in an opaque has always rewrite count 1
+            var artifact = FileArtifact.CreateOutputFile(access);
+            var outputArtifactInfo = GetOutputMaterializationInfo(pip, outputArtifactsInfo, artifact);
+
+            RegisterWriteInPathAndUpdateViolations(pip, access, reportedViolations, outputArtifactInfo, out ReportedViolation? allowedDoubleWriteViolation);
+            if (allowedDoubleWriteViolations != null && allowedDoubleWriteViolation.HasValue)
+            {
+                allowedDoubleWriteViolations[artifact] = (outputArtifactInfo, allowedDoubleWriteViolation.Value);
+            }
+
+            // Now look for a static one. Any pip statically producing this file, regardless of the scheduled order,
+            // is considered a double write violation
+            var maybeProducer = TryFindProducer(access, VersionDisposition.Latest);
+
+            if (maybeProducer != null)
+            {
+                // AllowSameContentDoubleWrites is not actually supported for statically declared files, since the double write may not have occurred yet, and the content
+                // may be unavailable. So just warn about this, and log the violation as an error.
+                if (pip.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites)
+                {
+                    Logger.Log.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs(LoggingContext, pip.GetDescription(Context), access.ToString(Context.PathTable));
+                }
+
+                // We found a double write: two pips tried to produce the same file in the cone of a shared opaque directory. One statically, the current one
+                // dynamically
+                reportedViolations.Add(
+                    HandleDependencyViolation(
+                        DependencyViolationType.DoubleWrite,
+                        AccessLevel.Write,
+                        access,
+                        pip,
+                        isWhitelistedViolation: false,
+                        related: maybeProducer,
+                        // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
+                        pip.Executable.Path));
+            }
+        }
+
+        private FileMaterializationInfo GetOutputMaterializationInfo(Process pip, IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo, FileArtifact fileArtifact)
+        {
+            var success = outputArtifactsInfo.TryGetValue(fileArtifact, out FileMaterializationInfo outputArtifactInfo);
+            if (!success)
+            {
+                // The artifact may not be there because we either didn't populate the output artifact dictionary (because the double write policy doesn't require this information)
+                // or because the pip failed, in which case the output content is not reported
+                outputArtifactInfo = s_absentFileInfo;
+            }
+
+            return outputArtifactInfo;
+        }
+
+        private static bool IsAllowedSameContentDoubleWrite(Process secondWriter, FileMaterializationInfo secondWriterOutputInfo, Process firstWriter, FileMaterializationInfo firstWriterOutputInfo)
+        {
+            // Both pips involved in the double write need to allow for same content double write, and the hashes should match
+            return secondWriter.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites &&
+                   firstWriter.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites &&
+                   secondWriterOutputInfo.FileContentInfo.Hash == firstWriterOutputInfo.FileContentInfo.Hash;
         }
 
         private void ReportExclusiveOpaqueViolations(
             Process pip,
             IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueContent,
-            List<ReportedViolation> reportedViolations)
+            List<ReportedViolation> reportedViolations,
+            IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo)
         {
             // Static outputs under exclusive opaques are blocked by construction
             // Same for sealed source directories under exclusive opaques (not allowed at graph construction time)
@@ -656,7 +795,8 @@ namespace BuildXL.Scheduler
             {
                 foreach (FileArtifact fileArtifact in directoryContent)
                 {
-                    RegisterWriteInPathAndUpdateViolations(pip, fileArtifact.Path, reportedViolations);
+                    var outputArtifactInfo = GetOutputMaterializationInfo(pip, outputArtifactsInfo, fileArtifact);
+                    RegisterWriteInPathAndUpdateViolations(pip, fileArtifact.Path, reportedViolations, outputArtifactInfo, out _);
                 }
             }
         }
@@ -665,23 +805,46 @@ namespace BuildXL.Scheduler
         /// Register a write in <paramref name="path"/> by <paramref name="pip"/>. And in the case the write access generates a violation,
         /// populate <paramref name="reportedViolations"/>
         /// </summary>
-        private void RegisterWriteInPathAndUpdateViolations(Process pip, AbsolutePath path, List<ReportedViolation> reportedViolations)
+        private void RegisterWriteInPathAndUpdateViolations(
+            Process pip, 
+            AbsolutePath path, 
+            List<ReportedViolation> reportedViolations,
+            FileMaterializationInfo outputMaterializationInfo,
+            out ReportedViolation? allowedSameContentDoubleWriteViolation)
         {
-            // Register the access and the writer, so we can spot other dynamic accesses to the same
-            // file later
+            allowedSameContentDoubleWriteViolation = null;
+
+            // Register the access and the writer, so we can spot other dynamic accesses to the same file later
             var result = m_dynamicReadersAndWriters.GetOrAdd(
                 path,
                 pip,
-                (accessKey, producer) => (DynamicFileAccessType.Write, producer));
+                (accessKey, producer) => (DynamicFileAccessType.Write, producer.PipId, outputMaterializationInfo));
 
             // We found an existing dynamic access to the same file
             if (result.IsFound)
             {
+                var related = (Process)m_graph.HydratePip(result.Item.Value.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+
                 DependencyViolationType violationType;
                 switch (result.Item.Value.accessType)
                 {
                     // There was another write, so this is a double write
                     case DynamicFileAccessType.Write:
+                        
+                        if (IsAllowedSameContentDoubleWrite(pip, outputMaterializationInfo, related, result.Item.Value.fileMaterializationInfo))
+                        {
+                            // Just log a verbose message to indicate a same-content double write happened
+                            Logger.Log.AllowedSameContentDoubleWrite(
+                                LoggingContext,
+                                pip.SemiStableHash,
+                                pip.GetDescription(Context),
+                                path.ToString(Context.PathTable),
+                                related.GetDescription(Context));
+
+                            allowedSameContentDoubleWriteViolation = new ReportedViolation(isError: true, DependencyViolationType.DoubleWrite, path, pip.PipId, related.PipId, pip.Executable.Path);
+                            return;
+                        }
+
                         violationType = DependencyViolationType.DoubleWrite;
                         break;
                     // There was an undeclared read, so this is a write in an undeclared read
@@ -709,7 +872,7 @@ namespace BuildXL.Scheduler
                         path,
                         pip,
                         isWhitelistedViolation: false,
-                        related: result.Item.Value.pip,
+                        related: related,
                         // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                         pip.Executable.Path));
             }
@@ -745,7 +908,7 @@ namespace BuildXL.Scheduler
                 var result = m_dynamicReadersAndWriters.GetOrAdd(
                     undeclaredRead,
                     pip,
-                    (accessKey, producer) => (DynamicFileAccessType.UndeclaredRead, producer));
+                    (accessKey, producer) => (DynamicFileAccessType.UndeclaredRead, producer.PipId, s_absentFileInfo));
 
                 // If there is already an access on that path and it was a:
                 // - write: then this is a case of a write in an undeclared source
@@ -758,6 +921,7 @@ namespace BuildXL.Scheduler
                 // This is currently the case. Otherwise, multiple access types need to be stored and validated.
                 if (result.IsFound && result.Item.Value.accessType == DynamicFileAccessType.Write)
                 {
+                    var related = (Process)m_graph.HydratePip(result.Item.Value.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
                     reportedViolations.Add(
                         HandleDependencyViolation(
                             DependencyViolationType.WriteInUndeclaredSourceRead,
@@ -765,7 +929,7 @@ namespace BuildXL.Scheduler
                             undeclaredRead,
                             pip,
                             isWhitelistedViolation: false,
-                            related: result.Item.Value.pip,
+                            related: related,
                             // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                             pip.Executable.Path));
                 }
@@ -790,13 +954,13 @@ namespace BuildXL.Scheduler
                 var result = m_dynamicReadersAndWriters.GetOrAdd(
                     absentPathProbe,
                     pip,
-                    (accessKey, producer) => (DynamicFileAccessType.AbsentPathProbe, producer));
+                    (accessKey, producer) => (DynamicFileAccessType.AbsentPathProbe, producer.PipId, s_absentFileInfo));
 
                 // Equivalent logic than the one used on ReportAllowedUndeclaredReadViolations, see details there.
                 if (result.IsFound && result.Item.Value.accessType == DynamicFileAccessType.Write)
                 {
                     // The writer is always reported as the violator
-                    var writer = result.Item.Value.pip;
+                    var writer = (Process) m_graph.HydratePip(result.Item.Value.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
 
                     reportedViolations.Add(
                         HandleDependencyViolation(
@@ -911,8 +1075,26 @@ namespace BuildXL.Scheduler
                             VersionDisposition.Latest,
                             new DependencyOrderingFilter(DependencyOrderingFilterType.PossiblyPrecedingInWallTime, pip));
 
+                        // If there was not a static producer, check if there is a dynamic one so we can refine
+                        // the report as a double write if found. 
+                        // Otherwise the case where the pip writes to a path that is part of a shared opaque dependency 
+                        // gets flagged as an undeclared write, with no connection to the original producer
+                        if (maybeProducer == null && 
+                            m_dynamicReadersAndWriters.TryGetValue(violation.Path, out var kvp) && 
+                            kvp.accessType == DynamicFileAccessType.Write)
+                        {
+                            maybeProducer = m_graph.HydratePip(kvp.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                        }
+
                         if (maybeProducer != null)
                         {
+                            // AllowSameContentDoubleWrites is not actually supported for statically declared files, since the double write may not have occurred yet, and the content
+                            // may be unavailable. So just warn about this, and log the violation as an error.
+                            if (pip.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites)
+                            {
+                                Logger.Log.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs(LoggingContext, pip.GetDescription(Context), violation.Path.ToString(Context.PathTable));
+                            }
+
                             // TODO: Maybe have a separate violation type for writing to source files.
                             reportedViolations.Add(
                                 HandleDependencyViolation(
@@ -1374,8 +1556,8 @@ namespace BuildXL.Scheduler
             {
                 // In case of a double write, if the the violation path got redirected, then the pip is still cacheable. It is not otherwise.
                 violationMakesPipUncacheable = !IsOutputPathRedirected(violator, path);
-                // If the double write policy doesn't make the double write an error, then the overall reported violation is not an error
-                if (!violator.DoubleWritePolicy.ImpliesDoubleWriteIsError())
+                // If the double write policy doesn't make the double write an error (on both pips), then the overall reported violation is not an error
+                if (violator.DoubleWritePolicy.ImpliesDoubleWriteIsWarning() && (!(related.PipType == PipType.Process) || ((Process) related).DoubleWritePolicy.ImpliesDoubleWriteIsWarning()))
                 {
                     isError = false;
                 }

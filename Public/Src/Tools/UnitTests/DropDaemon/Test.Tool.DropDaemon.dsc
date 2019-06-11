@@ -24,11 +24,12 @@ namespace Test.Tool.DropDaemon {
             importFrom("Drop.Client").pkg,
             importFrom("Drop.RemotableClient.Interfaces").pkg,
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
-            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
+            ...BuildXLSdk.visualStudioServicesArtifactServicesSharedPkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
         ],
+        runTestArgs: { weight: 2},
     });
 }

@@ -349,11 +349,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                     var backupContentDirectory = loadedContentDirectory;
                     if (_host != null)
                     {
-                        var hashInfoPairs = _host.Reconstruct(context);
                         await AddBulkAsync(
                             contentDirectory: contentDirectory,
                             backupContentDirectory: backupContentDirectory,
-                            hashInfoPairs: hashInfoPairs);
+                            hashInfoPairs: _host.Reconstruct(context));
                     }
                     else
                     {
@@ -567,13 +566,13 @@ namespace BuildXL.Cache.ContentStore.Stores
             return ContentDirectory.TryGetValue(contentHash, out fileInfo);
         }
 
-        private static Task AddBulkAsync(ContentMap contentDirectory, ContentMap backupContentDirectory, IReadOnlyList<KeyValuePair<ContentHash, ContentFileInfo>> hashInfoPairs)
+        private static Task AddBulkAsync(ContentMap contentDirectory, ContentMap backupContentDirectory, ContentDirectorySnapshot<ContentFileInfo> hashInfoPairs)
         {
             return hashInfoPairs.ParallelAddToConcurrentDictionaryAsync(
-                contentDirectory, hashInfoPair => hashInfoPair.Key, hashInfoPair =>
+                contentDirectory, hashInfoPair => hashInfoPair.Hash, hashInfoPair =>
                 {
-                    var info = hashInfoPair.Value;
-                    if (backupContentDirectory.TryGetValue(hashInfoPair.Key, out var backupInfo))
+                    var info = hashInfoPair.Payload;
+                    if (backupContentDirectory.TryGetValue(hashInfoPair.Hash, out var backupInfo))
                     {
                         // Recover the last access time from the backup. This has the affect that
                         // content mentioned in the backup will be older than newly discovered content
@@ -620,13 +619,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Transform entries of an existing serialized file.
         /// </summary>
-        public static async Task TransformFile
-            (
+        public static async Task TransformFile(
             Context context,
             IAbsFileSystem fileSystem,
             AbsolutePath directoryPath,
-            Func<KeyValuePair<ContentHash, ContentFileInfo>, KeyValuePair<ContentHash, ContentFileInfo>> transformer
-            )
+            Func<KeyValuePair<ContentHash, ContentFileInfo>, KeyValuePair<ContentHash, ContentFileInfo>> transformer)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(directoryPath != null);

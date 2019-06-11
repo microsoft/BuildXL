@@ -60,7 +60,7 @@ namespace BuildXL.Engine
         /// from the newly installed context.
         /// The returned instance is owned by this <see cref="CacheInitializer"/> wrapper and should not outlive it.
         /// </summary>
-        public abstract EngineCache CreateCacheForContext(PipExecutionContext context);
+        public abstract EngineCache CreateCacheForContext();
 
         /// <summary>
         /// Creates a task that creates a derived <see cref="CacheInitializer"/> instance that can be used to initialize a cache
@@ -76,7 +76,7 @@ namespace BuildXL.Engine
             CancellationToken cancellationToken,
 
             // Only used for testing purposes to inject cache.
-            Func<PipExecutionContext, EngineCache> testHookCacheFactory = null)
+            Func<EngineCache> testHookCacheFactory = null)
         {
             Contract.Requires(recoveryStatus.HasValue, "Recovery attempt should have been done before initializing the cache");
             DateTime startTime = DateTime.UtcNow;
@@ -162,10 +162,10 @@ namespace BuildXL.Engine
 
     internal sealed class MemoryCacheInitializer : CacheInitializer
     {
-        private readonly Func<PipExecutionContext, EngineCache> m_cacheFactory;
+        private readonly Func<EngineCache> m_cacheFactory;
 
         public MemoryCacheInitializer(
-            Func<PipExecutionContext, EngineCache> cacheFactory,
+            Func<EngineCache> cacheFactory,
             LoggingContext loggingContext,
             List<IDisposable> acquiredDisposables,
             bool enableFingerprintLookup)
@@ -179,9 +179,9 @@ namespace BuildXL.Engine
             m_cacheFactory = cacheFactory;
         }
 
-        public override EngineCache CreateCacheForContext(PipExecutionContext context)
+        public override EngineCache CreateCacheForContext()
         {
-            var cache = m_cacheFactory(context);
+            var cache = m_cacheFactory();
 
             return new EngineCache(
                 contentCache: cache.ArtifactContentCache,
@@ -206,6 +206,7 @@ namespace BuildXL.Engine
         private readonly ICacheCoreSession m_session;
         private readonly RootTranslator m_rootTranslator;
         private readonly IDictionary<string, long> m_initialStatistics;
+        private readonly bool m_replaceExistingFileOnMaterialization;
 
         private CacheCoreCacheInitializer(
             LoggingContext loggingContext,
@@ -213,7 +214,8 @@ namespace BuildXL.Engine
             ICacheCoreSession session,
             List<IDisposable> acquiredDisposables,
             bool enableFingerprintLookup,
-            RootTranslator rootTranslator)
+            RootTranslator rootTranslator,
+            bool replaceExistingFileOnMaterialization)
             : base(
                 loggingContext,
                 acquiredDisposables,
@@ -225,14 +227,16 @@ namespace BuildXL.Engine
             m_session = session;
             m_rootTranslator = rootTranslator;
             m_initialStatistics = GetCacheBulkStatistics(session);
+            m_replaceExistingFileOnMaterialization = replaceExistingFileOnMaterialization;
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
-        public override EngineCache CreateCacheForContext(PipExecutionContext context)
+        public override EngineCache CreateCacheForContext()
         {
             IArtifactContentCache contentCache = new CacheCoreArtifactContentCache(
                 m_session,
-                rootTranslator: m_rootTranslator);
+                rootTranslator: m_rootTranslator,
+                replaceExistingFileOnMaterialization: m_replaceExistingFileOnMaterialization);
 
             ITwoPhaseFingerprintStore twoPhase;
             if (IsFingerprintLookupEnabled)
@@ -279,12 +283,13 @@ namespace BuildXL.Engine
             cacheConfigContent = cacheConfigContent.Replace("[DominoSelectedRootPath]", cacheDirectory.Replace(@"\", @"\\"));
             cacheConfigContent = cacheConfigContent.Replace("[BuildXLSelectedRootPath]", cacheDirectory.Replace(@"\", @"\\"));
             cacheConfigContent = cacheConfigContent.Replace("[UseDedupStore]", config.UseDedupStore.ToString());
+            cacheConfigContent = cacheConfigContent.Replace("[ReplaceExistingFileOnMaterialization]", config.ReplaceExistingFileOnMaterialization.ToString());
 
             ICacheConfigData cacheConfigData;
             Exception exception;
             if (!CacheFactory.TryCreateCacheConfigData(cacheConfigContent, out cacheConfigData, out exception))
             {
-                return new Failure<string>(I($"Unable to create cache config data: {exception.Message}"));
+                return new Failure<string>(I($"Unable to create cache config data: {exception.GetLogEventMessage()}"));
             }
 
             return new Possible<ICacheConfigData>(cacheConfigData);
@@ -358,7 +363,8 @@ namespace BuildXL.Engine
                     session,
                     new List<IDisposable>(),
                     enableFingerprintLookup: enableFingerprintLookup,
-                    rootTranslator: rootTranslator);
+                    rootTranslator: rootTranslator,
+                    replaceExistingFileOnMaterialization: config.ReplaceExistingFileOnMaterialization);
             }
             finally
             {

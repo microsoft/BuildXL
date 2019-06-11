@@ -29,13 +29,17 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
 
         private readonly RootTranslator m_rootTranslator;
 
+        private readonly bool m_replaceExistingFileOnMaterialization;
+
         /// <nodoc />
         public CacheCoreArtifactContentCache(
             ICacheSession cache,
-            RootTranslator rootTranslator)
+            RootTranslator rootTranslator,
+            bool replaceExistingFileOnMaterialization = false)
         {
             m_cache = new PossiblyOpenCacheSession(cache);
             m_rootTranslator = rootTranslator;
+            m_replaceExistingFileOnMaterialization = replaceExistingFileOnMaterialization;
         }
 
         /// <inheritdoc />
@@ -140,21 +144,61 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             {
                 Contract.Requires(IsValid);
 
-                if (FileUtilities.FileExistsNoFollow(Path))
+                var maybeExistence = FileUtilities.TryProbePathExistence(Path, followSymlink: false);
+                PathExistence pathExistence = PathExistence.Nonexistent;
+
+                if (maybeExistence.Succeeded)
+                {
+                    pathExistence = maybeExistence.Result;
+                }
+                else
+                {
+                    if (File.Exists(Path))
+                    {
+                        pathExistence = PathExistence.ExistsAsFile;
+                    }
+                    else if (Directory.Exists(Path))
+                    {
+                        pathExistence = PathExistence.ExistsAsDirectory;
+                    }
+
+                    BuildXL.Storage.Tracing.Logger.Log.FileMaterializationMismatchFileExistenceResult(
+                        Events.StaticContext, 
+                        Path, 
+                        maybeExistence.Failure.Describe(), 
+                        pathExistence.ToString());
+                }
+
+                if (pathExistence == PathExistence.ExistsAsFile)
                 {
                     m_fileInfoPriorDeletion = new FileInfo(Path);
                 }
 
                 m_deletionTime = DateTime.UtcNow;
 
-                var deleteResult = FileUtilities.TryDeletePathIfExists(Path);
-
-                if (!deleteResult.Succeeded)
+                switch (pathExistence)
                 {
-                    return deleteResult.Failure.Annotate(I($"Failed to delete '{Path}'"));
+                    case PathExistence.ExistsAsFile:
+                        {
+                            var deleteFileResult = FileUtilities.TryDeleteFile(Path);
+
+                            if (!deleteFileResult.Succeeded)
+                            {
+                                return deleteFileResult.Failure.Annotate(I($"Failed to delete file '{Path}'"));
+                            }
+
+                            break;
+                        }
+                    case PathExistence.ExistsAsDirectory:
+                        {
+                            FileUtilities.DeleteDirectoryContents(Path, deleteRootDirectory: true);
+                            break;
+                        }
+                    default:
+                        break;
                 }
 
-                return deleteResult;
+                return Unit.Void;
             }
 
             public async Task<string> GetDiagnosticsAsync()
@@ -208,7 +252,11 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                         ? FileToDelete.Invalid
                         : FileToDelete.Create(pathForCache);
 
-            var mayBeDelete = fileToDelete.TryDelete();
+            if (!m_replaceExistingFileOnMaterialization)
+            {
+                // BuildXL controls the file deletion if the place file mode is FailIfExists.
+
+                var mayBeDelete = fileToDelete.TryDelete();
                 // The file materialization below can fail if fileToDelete and fileForCacheToDelete
                 // point to different object files. One can think that fileForCacheToDelete should
                 // be deleted as well by adding the following expression in the above statement:
@@ -216,11 +264,12 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                 //     .Then(r => fileForCacheToDelete.IsValid ? fileForCacheToDelete.TryDelete() : r);
                 //
                 // However, this deletion masks a possibly serious underlying issue because we expect
-                // both fileToDelete and fileForCacheToDelete point to the same object file. 
+                // both fileToDelete and fileForCacheToDelete point to the same object file.
 
-            if (!mayBeDelete.Succeeded)
-            {
-                return mayBeDelete.Failure;
+                if (!mayBeDelete.Succeeded)
+                {
+                    return mayBeDelete.Failure;
+                }
             }
 
             Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(nameof(TryMaterializeAsync));
@@ -232,14 +281,27 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             if (!maybePlaced.Succeeded && maybePlaced.Failure.DescribeIncludingInnerFailures().Contains("File exists at destination"))
             {
                 string diagnostic = await fileToDelete.GetDiagnosticsAsync();
-                diagnostic = fileForCacheToDelete.IsValid 
-                    ? diagnostic + Environment.NewLine + (await fileForCacheToDelete.GetDiagnosticsAsync()) 
+                diagnostic = fileForCacheToDelete.IsValid
+                    ? diagnostic + Environment.NewLine + (await fileForCacheToDelete.GetDiagnosticsAsync())
                     : diagnostic;
 
                 return maybePlaced.Failure.Annotate(diagnostic);
             }
 
-            return maybePlaced.Then(p => Unit.Void);
+            return maybePlaced.Then(p => {
+                // TODO:58494: Occasionally we see odd behavior where materialization seems to succeed, but the file is not present in the file system
+                //             layer. This check tries to see if the file exits after successful materialization and fails if it doesn't.
+                if (!FileUtilities.FileExistsNoFollow(pathForCache))
+                {
+                    return new Failure<string>(string.Format(
+                                CultureInfo.InvariantCulture,
+                                "The file '{0}' with content hash '{1}' was materialzed successfully, but can't be found on disk",
+                                pathForCache,
+                                contentHash));
+                }
+
+                return new Possible<Unit, Failure>(Unit.Void);
+            });
         }
 
         /// <inheritdoc />
@@ -298,14 +360,14 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
 
             Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(nameof(TryStoreAsync));
             Possible<CasHash, Failure> maybeStored = await maybeOpen.ThenAsync(
-                async cache => 
-                { 
+                async cache =>
+                {
                     var result = await Helpers.RetryOnFailureAsync(
-                        async lastAttempt => 
-                        { 
+                        async lastAttempt =>
+                        {
                             return await cache.AddToCasAsync(expandedPath, GetFileStateForRealizationMode(fileRealizationModes));
                         });
-                    return result; 
+                    return result;
                 });
 
             return maybeStored.Then<ContentHash>(c => c.ToContentHash());
@@ -318,7 +380,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         {
             Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(nameof(TryStoreAsync));
             Possible<CasHash, Failure> maybeStored = await maybeOpen.ThenAsync(
-                async cache => 
+                async cache =>
                 {
                     var result = await Helpers.RetryOnFailureAsync(
                         async lastAttempt =>

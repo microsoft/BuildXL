@@ -18,6 +18,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         public const int DefaultFileStreamBufferSize = 4 * 1024;
 
         /// <summary>
+        /// Creates an empty file at a given path.
+        /// </summary>
+        public static async Task CreateEmptyFileAsync(this IAbsFileSystem fileSystem, AbsolutePath path)
+        {
+            fileSystem.CreateDirectory(path.Parent);
+            using (await fileSystem.OpenAsync(path, FileAccess.Write, FileMode.Create, FileShare.None, FileOptions.None, bufferSize: 1).ConfigureAwait(false))
+            {
+            }
+        }
+
+        /// <summary>
         ///     Try getting the attributes of a file.
         /// </summary>
         /// <returns>Returns false if the file doesn't exist.</returns>
@@ -64,6 +75,36 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 }
 
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Reads the content from a file <paramref name="absolutePath"/>.
+        /// </summary>
+        /// <exception cref="Exception">Throws if the IO operation fails.</exception>
+        public static string ReadAllText(this IAbsFileSystem fileSystem, AbsolutePath absolutePath, FileShare fileShare = FileShare.ReadWrite)
+        {
+            using (Stream readLockFile = fileSystem.OpenSafeAsync(absolutePath, FileAccess.Read, FileMode.Open, fileShare).GetAwaiter().GetResult())
+            {
+                using (var reader = new StreamReader(readLockFile))
+                {
+                    return reader.ReadToEnd();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes the content to a file <paramref name="absolutePath"/>.
+        /// </summary>
+        /// <exception cref="Exception">Throws if the IO operation fails.</exception>
+        public static void WriteAllText(this IAbsFileSystem fileSystem, AbsolutePath absolutePath, string contents, FileShare fileShare = FileShare.ReadWrite)
+        {
+            using (Stream file = fileSystem.OpenSafeAsync(absolutePath, FileAccess.Write, FileMode.Create, fileShare).GetAwaiter().GetResult())
+            {
+                using (var writer = new StreamWriter(file))
+                {
+                    writer.WriteLine(contents);
+                }
             }
         }
 

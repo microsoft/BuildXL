@@ -12,6 +12,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// </summary>
     public static class ResultsExtensions
     {
+        /// <nodoc />
+        public static string GetDiagnosticsMessageForTracing(this ResultBase result, string prefix = " ")
+        {
+            if (string.IsNullOrEmpty(result.Diagnostics))
+            {
+                return string.Empty;
+            }
+
+            return $"{prefix}{result.Diagnostics}";
+        }
+
         /// <summary>
         /// Awaits for the <paramref name="task"/> to finish and logs the error if the result is not successful.
         /// </summary>

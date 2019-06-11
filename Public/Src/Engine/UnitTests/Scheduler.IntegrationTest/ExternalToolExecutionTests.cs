@@ -1,4 +1,5 @@
-﻿// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
 using System.IO;
@@ -23,23 +24,39 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void RunSingleProcessInExternalTool()
+        public void RunSingleProcess()
         {
             ProcessBuilder builder = CreatePipBuilder(new[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) });
             builder.Options |= Process.Options.RequiresAdmin;
             ProcessWithOutputs process = SchedulePipBuilder(builder);
-
             RunScheduler().AssertSuccess();
             RunScheduler().AssertCacheHit(process.Process.PipId);
         }
 
         [Fact]
-        public void RunMultipleProcessesInExternalTool()
+        public void RunMultipleAdminRequiredProcesses()
         {
             for (int i = 0; i < 5; ++i)
             {
                 ProcessBuilder builder = CreatePipBuilder(new[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) });
                 builder.Options |= Process.Options.RequiresAdmin;
+                ProcessWithOutputs process = SchedulePipBuilder(builder);
+            }
+
+            RunScheduler().AssertSuccess();
+        }
+
+        [Fact]
+        public void RunMultipleMixedProcesses()
+        {
+            for (int i = 0; i < 5; ++i)
+            {
+                ProcessBuilder builder = CreatePipBuilder(new[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) });
+                if ((i % 2) == 0)
+                {
+                    builder.Options |= Process.Options.RequiresAdmin;
+                }
+
                 ProcessWithOutputs process = SchedulePipBuilder(builder);
             }
 
@@ -63,7 +80,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ExternalToolRespectFailure()
+        public void ExecutionRespectFailure()
         {
             ProcessBuilder builder = CreatePipBuilder(new[] {
                 Operation.ReadFile(CreateSourceFile()),
@@ -77,7 +94,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ExternalToolRespectFileAccessManifest()
+        public void ExecutionRespectFileAccessManifest()
         {
             ProcessBuilder builder = CreatePipBuilder(new[] { Operation.ReadFile(CreateSourceFile(), doNotInfer: true), Operation.WriteFile(CreateOutputFileArtifact()) });
             builder.Options |= Process.Options.RequiresAdmin;
@@ -89,7 +106,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ExternalToolRecordsReportedFileAccesses()
+        public void ExecutionRecordsReportedFileAccesses()
         {
             FileArtifact sourceFile = CreateSourceFile();
 
@@ -108,7 +125,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ExternalToolExecuteProcessReadingStdIn()
+        public void ExecutionProcessReadingStdIn()
         {
             FileArtifact stdOut = CreateOutputFileArtifact();
             ProcessBuilder builder = CreatePipBuilder(new[] { Operation.ReadStdIn() });
@@ -134,7 +151,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ExternalToolRespectTimeout()
+        public void ExecutionRespectTimeout()
         {
             ProcessBuilder builder = CreatePipBuilder(new[] {
                 Operation.ReadFile(CreateSourceFile()),
@@ -148,6 +165,29 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
             AssertErrorEventLogged(EventId.PipProcessTookTooLongError, count: 1);
             AssertErrorEventLogged(EventId.PipProcessError, count: 1);
+        }
+
+        [Fact]
+        public void ExecutionUntrackTempFolder()
+        {
+            AbsolutePath tempDirectory = CreateUniqueDirectory(ObjectRoot);
+            FileArtifact tempFile = CreateOutputFileArtifact(tempDirectory);
+
+            ProcessBuilder builder = CreatePipBuilder(new[]
+            {
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.WriteFile(tempFile, doNotInfer: true),
+                Operation.ReadFile(tempFile, doNotInfer: true)
+            });
+
+            builder.Options |= Process.Options.RequiresAdmin;
+            builder.SetTempDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(tempDirectory));
+
+            ProcessWithOutputs process = SchedulePipBuilder(builder);
+
+            RunScheduler().AssertSuccess();
+            RunScheduler().AssertCacheHit(process.Process.PipId);
         }
     }
 }

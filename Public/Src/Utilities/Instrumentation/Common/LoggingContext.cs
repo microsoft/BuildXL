@@ -115,7 +115,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public bool IsAsyncLoggingEnabled => m_loggingQueue != null;
 
         /// <summary>
-        /// Errors logged by event ID. 
+        /// Errors logged by event ID.
         /// This will only be populated for the root context and should be exclusively accessed through <see cref="ErrorsLoggedById"/>.
         /// Lazy since most of the time there will be no errors.
         /// </summary>
@@ -138,7 +138,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public LoggingContext(Guid activityId, string loggerComponentInfo, SessionInfo session, LoggingContext parent = null, ILoggingQueue loggingQueue = null)
         {
             // TODO: we want to always have a component info for debugging purposes.
-            // However right noe PerformanceMeasurement and TimedBlock allow nulls and their behavior depends on whether this vaslue is null.
+            // However right now, PerformanceMeasurement and TimedBlock allow nulls and their behavior depends on whether this vaslue is null.
             // Fix these classes and enable this contract check.
             // Contract.Requires(loggerComponentInfo != null);
             Contract.Requires(session != null);
@@ -261,6 +261,19 @@ namespace BuildXL.Utilities.Instrumentation.Common
         {
             Contract.Requires(IsAsyncLoggingEnabled);
             m_loggingQueue.EnqueueLogAction(eventId, logAction, eventName);
+        }
+
+        /// <summary>
+        /// Absorbs the state of another logging context, with respect to errors and warnings logged
+        /// </summary>
+        internal void AbsorbLoggingContextState(LoggingContext loggingContext)
+        {
+            m_errorsLogged += loggingContext.m_errorsLogged;
+            m_warningsLogged += loggingContext.m_warningsLogged;
+            foreach (var item in loggingContext.m_errorsLoggedById.Value)
+            {
+                m_errorsLoggedById.Value.Add(item);
+            }
         }
     }
 }

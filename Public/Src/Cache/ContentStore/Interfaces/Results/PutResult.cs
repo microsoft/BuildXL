@@ -104,7 +104,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public override string ToString()
         {
             return Succeeded
-                ? $"Success Hash={ContentHash}, Size={ContentSize}"
+                ? $"Success Hash={ContentHash} Size={ContentSize}{this.GetDiagnosticsMessageForTracing()}"
                 : GetErrorString();
         }
     }

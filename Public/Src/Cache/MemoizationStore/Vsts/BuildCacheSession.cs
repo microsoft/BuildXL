@@ -47,6 +47,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="maxFingerprintsPerIncorporateRequest">Max fingerprints allowed per chunk</param>
         /// <param name="writeThroughContentSession">Optional write-through session to allow writing-behind to BlobStore</param>
         /// <param name="sealUnbackedContentHashLists">If true, the client will attempt to seal any unbacked ContentHashLists that it sees.</param>
+        /// <param name="overrideUnixFileAccessMode">If true, overrides default Unix file access modes when placing files.</param>
         /// <param name="tracer">A tracer for logging calls</param>
         public BuildCacheSession(
             IAbsFileSystem fileSystem,
@@ -64,6 +65,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             int maxFingerprintsPerIncorporateRequest,
             IContentSession writeThroughContentSession,
             bool sealUnbackedContentHashLists,
+            bool overrideUnixFileAccessMode,
             BuildCacheCacheTracer tracer)
             : base(
                 fileSystem,
@@ -81,6 +83,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 maxFingerprintsPerIncorporateRequest,
                 writeThroughContentSession,
                 sealUnbackedContentHashLists,
+                overrideUnixFileAccessMode,
                 tracer)
         {
         }
@@ -100,8 +103,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     {
                         // Guaranteed content is currently only available for BlobSessions. (bug 144396)
                         ContentAvailabilityGuarantee guarantee =
-                            BackingContentSession is BlobContentSession 
-                                ? ContentAvailabilityGuarantee.AllContentBackedByCache 
+                            BackingContentSession is BlobContentSession
+                                ? ContentAvailabilityGuarantee.AllContentBackedByCache
                                 : ContentAvailabilityGuarantee.NoContentBackedByCache;
 
                         return await AddOrGetContentHashListAsync(

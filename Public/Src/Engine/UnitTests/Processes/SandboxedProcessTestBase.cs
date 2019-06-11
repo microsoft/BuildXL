@@ -4,13 +4,11 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Utilities;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
-using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 
 namespace Test.BuildXL.Processes
@@ -35,7 +33,12 @@ namespace Test.BuildXL.Processes
             var envVars = Override(
                 BuildParameters.GetFactory().PopulateFromEnvironment().ToDictionary(),
                 overrideEnvVars);
-            
+
+            var methodName = DiscoverCurrentlyExecutingXunitTestMethodFQN();
+            pipDescription = pipDescription != null
+                ? methodName + " - " + pipDescription
+                : methodName;
+
             var info = new SandboxedProcessInfo(
                 Context.PathTable,
                 this,
@@ -46,10 +49,10 @@ namespace Test.BuildXL.Processes
                 fileAccessManifest: fileAccessManifest)
             {
                 PipSemiStableHash = 0x1234,
-                PipDescription = pipDescription ?? GetType().Name,
+                PipDescription = pipDescription,
                 WorkingDirectory = TemporaryDirectory,
                 Arguments = process.Arguments.ToString(Context.PathTable),
-                Timeout = TimeSpan.FromMinutes(10),
+                Timeout = TimeSpan.FromMinutes(15),
                 EnvironmentVariables = BuildParameters.GetFactory().PopulateFromDictionary(envVars)
             };
 

@@ -72,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         public long ReplicaCount { get; }
 
         /// <summary>
-        ///     Gets a value indicating the age of the has at the time when the result was created.
+        ///     Gets a value indicating the age of the hash at the time when the result was created.
         /// </summary>
         public TimeSpan Age { get; }
 

@@ -155,7 +155,7 @@ export function runQTest(args: QTestArguments): Result {
         ),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
-        Cmd.optoin("--envVarsToKeep", args.envVarsToKeep || "")
+        Cmd.optoin("--envVarsToKeep ", args.envVarsToKeep || "")
     ];
 
     let result = Transformer.execute({

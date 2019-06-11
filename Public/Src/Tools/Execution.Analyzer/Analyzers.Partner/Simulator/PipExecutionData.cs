@@ -18,9 +18,9 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
         #region Loaded State
 
         // Loaded state
-        public DirectedGraph DataflowGraph => CachedGraph.DataflowGraph;
+        public DirectedGraph DataflowGraph { get; set; }
 
-        public CachedGraph CachedGraph;
+        public CachedGraph CachedGraph { get; }
         public ConcurrentNodeDictionary<ulong> StartTimes = new ConcurrentNodeDictionary<ulong>(false);
         public ConcurrentNodeDictionary<ulong> Durations = new ConcurrentNodeDictionary<ulong>(false);
 
@@ -60,6 +60,12 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
         public List<PipSpan> Spans;
 
         #endregion
+
+        public PipExecutionData(CachedGraph cachedGraph, DirectedGraph dataflowGraphOverride = null)
+        {
+            CachedGraph = cachedGraph;
+            DataflowGraph = dataflowGraphOverride ?? CachedGraph.DataflowGraph;
+        }
 
         public string GetName(NodeId node)
         {

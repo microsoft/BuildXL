@@ -248,7 +248,9 @@ namespace BuildXL.Utilities.Tracing
             AbsolutePath parent = reader.ReadAbsolutePath();
             int index = reader.ReadInt32Compact();
             string name = reader.ReadString();
-            AbsolutePath path = parent.IsValid ? parent.Combine(m_context.PathTable, PathAtom.Create(m_context.StringTable, name)) : AbsolutePath.Create(m_context.PathTable, name);
+            AbsolutePath path = parent.IsValid 
+                ? parent.Combine(m_context.PathTable, PathAtom.UnsafeCreateFrom(StringId.Create(m_context.StringTable, name))) 
+                : AbsolutePath.Create(m_context.PathTable, name);
             m_capturedPaths[(uint)index] = path;
             return (uint)index;
         }

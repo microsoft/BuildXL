@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -10,6 +9,7 @@ using BuildXL.Storage;
 using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.VmCommandProxy;
 
 namespace Test.BuildXL.TestUtilities.Xunit
 {
@@ -28,7 +28,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             string path = null;
             bool usingTempFile = false;
 
-            if (!IsInVm)
+            if (!HasRelocatedTempInVm)
             {
                 path = AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly());
             }
@@ -56,11 +56,11 @@ namespace Test.BuildXL.TestUtilities.Xunit
             var volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext, junctionRoots);
 
             // We want to skip volumes that are not local to VM.
-            volumeMap.SkipTrackingJournalIncapableVolume = IsInVm;
+            volumeMap.SkipTrackingJournalIncapableVolume = HasRelocatedTempInVm;
 
             return volumeMap;
         }
 
-        private static bool IsInVm => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("[BUILDXL]VM_TEMP"));
+        private static bool HasRelocatedTempInVm => VmSpecialEnvironmentVariables.HasRelocatedTemp;
     }
 }

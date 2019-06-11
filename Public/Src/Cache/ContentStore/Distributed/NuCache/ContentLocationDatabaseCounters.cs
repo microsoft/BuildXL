@@ -65,5 +65,42 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Total number of entries cleaned during the garbage collection process.
         /// </summary>
         TotalNumberOfScannedEntries,
+
+        /// <nodoc />
+        TotalNumberOfCacheHit,
+
+        /// <nodoc />
+        TotalNumberOfCacheMiss,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        CacheFlush,
+
+        /// <nodoc />
+        TotalNumberOfCacheFlushes,
+
+        /// <nodoc />
+        NumberOfCacheFlushesTriggeredByUpdates,
+
+        /// <nodoc />
+        NumberOfCacheFlushesTriggeredByTimer,
+
+        /// <nodoc />
+        NumberOfCacheFlushesTriggeredByGarbageCollection,
+
+        /// <nodoc />
+        NumberOfCacheFlushesTriggeredByCheckpoint,
+
+        /// <nodoc />
+        NumberOfPersistedEntries,
+
+        /// <nodoc />
+        NumberOfGetOperations,
+
+        /// <nodoc />
+        NumberOfStoreOperations,
+
+        /// <nodoc />
+        TotalNumberOfCompletedCacheFlushes,
     }
 }

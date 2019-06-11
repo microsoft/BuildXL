@@ -195,16 +195,24 @@ namespace RuntimeConfigFiles {
     @@public
     export function createRuntimeConfigJson(framework: Shared.Framework, assemblyName: string, runtimeConfigFolder: Directory, testRunnerDeployment?: boolean): File {
         const useRuntimeOptions = testRunnerDeployment || framework.applicationDeploymentStyle !== "selfContained";
-        const runtimeOptions = {
+        const frameworkRuntimeOptions = useRuntimeOptions ? {
             tfm: framework.targetFramework,
             framework: {
                 name: framework.runtimeFrameworkName,
                 version: framework.runtimeConfigVersion,
             }
+        } : {};
+
+        // when not using Server GC, in large builds the front end is likely to get completely bogged 
+        const gcRuntimeOptions = {
+            configProperties: {
+                "System.GC.Server": true,
+                "System.GC.RetainVM": true
+            },
         };
 
         let options = {
-            runtimeOptions: useRuntimeOptions ? runtimeOptions : {},
+            runtimeOptions: Object.merge(gcRuntimeOptions, frameworkRuntimeOptions)
         };
 
         return Json.write(p`${runtimeConfigFolder}/${assemblyName + ".runtimeconfig.json"}`, options, '"');

@@ -67,7 +67,7 @@ namespace BuildXL.Utilities.VmCommandProxy
         private async Task InitVmAsync()
         {
             // (1) Create a process to execute VmCommandProxy.
-            string arguments = $"{VmCommand.InitializeVm}";
+            string arguments = $"{VmCommands.InitializeVm}";
             var process = CreateVmCommandProxyProcess(arguments, Path.GetDirectoryName(Path.GetTempFileName()));
 
             m_logStartInit?.Invoke($"{VmCommandProxy} {arguments}");

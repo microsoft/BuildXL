@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using BuildXL.FrontEnd.Script.Constants;
@@ -125,7 +126,7 @@ namespace BuildXL.Ide.Generator
             if (qualifier.TryGetValue(Context.StringTable, "targetFramework", out var targetFramework))
             {
                 // MsBuild has its own version number so do a custom
-                if (targetFramework.StartsWith("net"))
+                if (targetFramework.StartsWith("net") && targetFramework.Substring(3).ToCharArray().All(char.IsDigit))
                 {
                     var msbuildStyleTf = "v" + string.Join(".", targetFramework.Substring(3).ToCharArray());
 

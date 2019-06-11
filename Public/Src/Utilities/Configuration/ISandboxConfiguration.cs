@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
+
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
@@ -243,5 +245,20 @@ namespace BuildXL.Utilities.Configuration
         /// Thus, this enforcement is made opt-in.
         /// </remarks>
         bool EnsureTempDirectoriesExistenceBeforePipExecution { get; }
+
+
+        /// <summary> 
+        /// Paths which should be untracked for all processes 
+        /// </summary> 
+        /// <remarks> 
+        /// </remarks> 
+        IReadOnlyList<AbsolutePath> GlobalUntrackedScopes { get; }
+
+        /// <summary> 
+        /// EnvironmentVariables which should be passed through for all processes 
+        /// </summary> 
+        /// <remarks> 
+        /// </remarks> 
+        IReadOnlyList<string> GlobalPassthroughEnvironmentVariables { get; }
     }
 }

@@ -1581,6 +1581,12 @@ namespace BuildXL.Processes
                 }
             }
 
+            // Untrack the globally untracked paths specified in the configuration 
+            foreach (var path in m_sandboxConfig.GlobalUntrackedScopes)
+            {
+                m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+            }
+
             // For some static system mounts (currently only for AppData\Roaming) we allow CreateDirectory requests for all processes.
             // This is done because many tools are using CreateDirectory to check for the existence of that directory. Since system directories
             // always exist, allowing such requests would not lead to any changes on the disk. Moreover, we are applying an exact path policy (i.e., not a scope policy).

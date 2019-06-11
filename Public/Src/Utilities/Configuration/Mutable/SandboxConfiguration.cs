@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Utilities.Configuration.Mutable
@@ -47,6 +48,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RedirectedTempFolderRootForVmExecution = AbsolutePath.Invalid;
             RetryOnAzureWatsonExitCode = false;
             EnsureTempDirectoriesExistenceBeforePipExecution = false;
+            GlobalUntrackedScopes = new List<AbsolutePath>();
+            GlobalPassthroughEnvironmentVariables = new List<string>();
         }
 
         /// <nodoc />
@@ -92,6 +95,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RedirectedTempFolderRootForVmExecution = pathRemapper.Remap(template.RedirectedTempFolderRootForVmExecution);
             RetryOnAzureWatsonExitCode = template.RetryOnAzureWatsonExitCode;
             EnsureTempDirectoriesExistenceBeforePipExecution = template.EnsureTempDirectoriesExistenceBeforePipExecution;
+            GlobalUntrackedScopes = pathRemapper.Remap(template.GlobalUntrackedScopes);
+            GlobalPassthroughEnvironmentVariables = new List<string>(template.GlobalPassthroughEnvironmentVariables);
         }
 
         /// <inheritdoc />
@@ -235,5 +240,17 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool EnsureTempDirectoriesExistenceBeforePipExecution { get; set; }
+
+        /// <nodoc /> 
+        public List<AbsolutePath> GlobalUntrackedScopes { get; set; }
+
+        /// <inheritdoc /> 
+        IReadOnlyList<AbsolutePath> ISandboxConfiguration.GlobalUntrackedScopes => GlobalUntrackedScopes;
+
+        /// <nodoc /> 
+        public List<string> GlobalPassthroughEnvironmentVariables { get; set; }
+
+        /// <inheritdoc /> 
+        IReadOnlyList<string> ISandboxConfiguration.GlobalPassthroughEnvironmentVariables => GlobalPassthroughEnvironmentVariables;        
     }
 }

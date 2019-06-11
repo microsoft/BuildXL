@@ -290,6 +290,12 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "debugScript",
                             opt => frontEndConfiguration.DebugScript = opt),
+                        OptionHandlerFactory.CreateOption(
+                            "globalPassthroughEnvironmentVariables",
+                            opt => sandboxConfiguration.GlobalPassthroughEnvironmentVariables.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", v => v ))),
+                        OptionHandlerFactory.CreateOption(
+                            "globalUntrackedScopes",
+                            opt => sandboxConfiguration.GlobalUntrackedScopes.AddRange(CommandLineUtilities.ParseRepeatingPathOption(opt, pathTable, ";"))),
                         OptionHandlerFactory.CreateBoolOption(
                             "scriptShowSlowest",
                             opt => frontEndConfiguration.ShowSlowestElementsStatistics = opt),

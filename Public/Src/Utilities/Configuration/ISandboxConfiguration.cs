@@ -246,19 +246,14 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         bool EnsureTempDirectoriesExistenceBeforePipExecution { get; }
 
-
         /// <summary> 
         /// Paths which should be untracked for all processes 
         /// </summary> 
-        /// <remarks> 
-        /// </remarks> 
         IReadOnlyList<AbsolutePath> GlobalUnsafeUntrackedScopes { get; }
 
         /// <summary> 
-        /// EnvironmentVariables which should be passed through for all processes 
+        /// Environment Variables which should be passed through for all processes 
         /// </summary> 
-        /// <remarks> 
-        /// </remarks> 
         IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
     }
 }

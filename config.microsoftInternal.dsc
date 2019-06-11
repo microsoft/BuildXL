@@ -15,7 +15,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Applications.Telemetry.Desktop", version: "1.1.152" },
 
     // Runtime dependencies used for macOS deployments
-    { id: "runtime.osx-x64.BuildXL", version: "1.93.0" },
+    { id: "runtime.osx-x64.BuildXL", version: "1.93.1" },
     { id: "Aria.Cpp.SDK.osx-x64", version: "8.5.4" },
 
     { id: "CB.QTest", version: "19.5.29.221321" },

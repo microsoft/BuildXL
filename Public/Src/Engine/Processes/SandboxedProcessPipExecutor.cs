@@ -2048,7 +2048,7 @@ namespace BuildXL.Processes
         {
             if (ShouldSandboxedProcessExecuteInVm)
             {
-                environmentVariables = environmentVariables.Override(new[] { new KeyValuePair<string, string>(VmSpecialEnvironmentVariable.IsInVm, "1")});
+                environmentVariables = environmentVariables.Override(new[] { new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.IsInVm, "1")});
             }
         }
 
@@ -2119,7 +2119,7 @@ namespace BuildXL.Processes
                     string redirectedTempDirectoryPath = redirectedTempDirectory.ToString(m_pathTable);
                     var overridenEnvVars = DisallowedTempVariables
                         .Select(v => new KeyValuePair<string, string>(v, redirectedTempDirectoryPath))
-                        .Append(new KeyValuePair<string, string>(VmSpecialEnvironmentVariable.VmTemp, redirectedTempDirectoryPath));
+                        .Append(new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.VmTemp, redirectedTempDirectoryPath));
 
                     environmentVariables = environmentVariables.Override(overridenEnvVars);
                 }

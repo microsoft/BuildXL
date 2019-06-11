@@ -8,7 +8,7 @@ namespace BuildXL.Utilities.VmCommandProxy
     /// <summary>
     /// Commands used by VmCommandProxy.
     /// </summary>
-    public static class VmCommand
+    public static class VmCommands
     {
         /// <summary>
         /// Initialize VM.
@@ -23,7 +23,7 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// <summary>
         /// Commands' parameters.
         /// </summary>
-        public static class Param
+        public static class Params
         {
             /// <summary>
             /// Input JSON file.
@@ -51,7 +51,7 @@ namespace BuildXL.Utilities.VmCommandProxy
     /// <summary>
     /// Special environment variable for executions in VM.
     /// </summary>
-    public static class VmSpecialEnvironmentVariable
+    public static class VmSpecialEnvironmentVariables
     {
         /// <summary>
         /// Environment variable whose value/presence indicates that the process is running in VM.

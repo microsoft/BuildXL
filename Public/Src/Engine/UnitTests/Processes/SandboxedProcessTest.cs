@@ -1113,6 +1113,57 @@ namespace Test.BuildXL.Processes
                 "The captured processes arguments are incorrect");
         }
 
+        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        public async Task TrackVForkAsync()
+        {
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true))
+            {
+                string tempFileName = tempFiles.GetUniqueFileName();
+                var pt = new PathTable();
+                var info =
+                    // 'time' uses vfork on macOS
+                    new SandboxedProcessInfo(pt, tempFiles, "/usr/bin/time", disableConHostSharing: false)
+                    {
+                        PipSemiStableHash = 0,
+                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
+                        Arguments = $"touch '{tempFileName}'",
+                    };
+                info.FileAccessManifest.PipId = GetNextPipId();
+                info.FileAccessManifest.ReportFileAccesses = true;
+                info.FileAccessManifest.FailUnexpectedFileAccesses = false;
+                info.SandboxedKextConnection = GetSandboxedKextConnection();
+
+                var result = await RunProcess(info);
+                XAssert.AreEqual(0, result.ExitCode);
+                XAssert.IsNotNull(result.FileAccesses);
+
+                // assert both 'time' and 'touch' processes were reported
+                var processNames = SelectFileNamesFromReportPaths(pt, result.FileAccesses, ReportedFileOperation.Process);
+                XAssert.Contains(processNames, "time", "touch");
+                var processExits = SelectFileNamesFromReportPaths(pt, result.FileAccesses, ReportedFileOperation.ProcessExit);
+                XAssert.Contains(processExits, "time", "touch");
+
+                // assert that all accesses to 'tempFileName' were done by the 'touch' process
+                var accessesToTempFile = result
+                    .FileAccesses
+                    .Where(report => report.GetPath(pt) == tempFileName)
+                    .Select(report => report.Process.Path)
+                    .Select(Path.GetFileName)
+                    .Distinct()
+                    .ToList();
+                XAssert.SetEqual(accessesToTempFile, new[] { "touch" });
+            }
+        }
+
+        private static List<string> SelectFileNamesFromReportPaths(PathTable pathTable, IEnumerable<ReportedFileAccess> accesses, ReportedFileOperation operationFilter)
+        {
+            return accesses
+                .Where(report => report.Operation == operationFilter)
+                .Select(report => Path.GetFileName(report.GetPath(pathTable)))
+                .Distinct()
+                .ToList();
+        }
+
         private void AssertReportedAccessesIsEmpty(PathTable pathTable, IEnumerable<ReportedFileAccess> result)
         {
             if (result == null || !result.Any())

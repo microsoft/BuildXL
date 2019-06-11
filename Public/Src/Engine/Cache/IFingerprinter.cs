@@ -99,7 +99,7 @@ namespace BuildXL.Engine.Cache
         /// <summary>
         /// Combine and hash the elements of the collections regardless of the order
         /// </summary>
-        void AddOrderIndependentCollection<TValue, TCollection>(string name, TCollection elements, Action<ICollectionFingerprinter, TValue> addElement)
+        void AddOrderIndependentCollection<TValue, TCollection>(string name, TCollection elements, Action<ICollectionFingerprinter, TValue> addElement, IComparer<TValue> comparer)
             where TCollection : IEnumerable<TValue>;
     }
 }

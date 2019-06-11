@@ -40,17 +40,6 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 
 namespace ContentStoreTest.Distributed.Sessions
 {
-    internal static class TransitioningContentLocationStoreExtensions
-    {
-        public static Task<GetBulkLocationsResult> GetBulkLocalAsync(
-            this TransitioningContentLocationStore store,
-            Context context,
-            params ContentHash[] contentHashes)
-        {
-            return store.GetBulkAsync(context, contentHashes, CancellationToken.None, UrgencyHint.Nominal, GetBulkOrigin.Local);
-        }
-    }
-
     [Trait("Category", "Integration")]
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]

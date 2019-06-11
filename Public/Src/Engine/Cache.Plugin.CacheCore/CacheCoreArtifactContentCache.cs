@@ -29,13 +29,17 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
 
         private readonly RootTranslator m_rootTranslator;
 
+        private readonly bool m_replaceExistingFileOnMaterialization;
+
         /// <nodoc />
         public CacheCoreArtifactContentCache(
             ICacheSession cache,
-            RootTranslator rootTranslator)
+            RootTranslator rootTranslator,
+            bool replaceExistingFileOnMaterialization = false)
         {
             m_cache = new PossiblyOpenCacheSession(cache);
             m_rootTranslator = rootTranslator;
+            m_replaceExistingFileOnMaterialization = replaceExistingFileOnMaterialization;
         }
 
         /// <inheritdoc />
@@ -248,7 +252,11 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                         ? FileToDelete.Invalid
                         : FileToDelete.Create(pathForCache);
 
-            var mayBeDelete = fileToDelete.TryDelete();
+            if (!m_replaceExistingFileOnMaterialization)
+            {
+                // BuildXL controls the file deletion if the place file mode is FailIfExists.
+
+                var mayBeDelete = fileToDelete.TryDelete();
                 // The file materialization below can fail if fileToDelete and fileForCacheToDelete
                 // point to different object files. One can think that fileForCacheToDelete should
                 // be deleted as well by adding the following expression in the above statement:
@@ -258,9 +266,10 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                 // However, this deletion masks a possibly serious underlying issue because we expect
                 // both fileToDelete and fileForCacheToDelete point to the same object file.
 
-            if (!mayBeDelete.Succeeded)
-            {
-                return mayBeDelete.Failure;
+                if (!mayBeDelete.Succeeded)
+                {
+                    return mayBeDelete.Failure;
+                }
             }
 
             Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(nameof(TryMaterializeAsync));

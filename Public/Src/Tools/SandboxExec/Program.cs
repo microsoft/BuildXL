@@ -25,7 +25,7 @@ namespace BuildXL.SandboxExec
     public class SandboxExecRunner : ISandboxedProcessFileStorage
     {
         private const string AccessOutput = "accesses.out";
-        private static readonly double s_defaultProcessTimeOut = TimeSpan.FromMinutes(15).TotalSeconds;
+        private static readonly double s_defaultProcessTimeOut = TimeSpan.FromMinutes(10).TotalSeconds;
         private static readonly double s_defaultProcessTimeOutMax = TimeSpan.FromHours(4).TotalSeconds;
         private static readonly LoggingContext s_loggingContext = new LoggingContext("BuildXL.SandboxExec");
         private static CrashCollectorMacOS s_crashCollector;

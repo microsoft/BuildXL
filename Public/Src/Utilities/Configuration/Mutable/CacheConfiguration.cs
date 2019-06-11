@@ -25,6 +25,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             StrongContentGuaranteeRefreshProbability = 1;
             FileChangeTrackingExclusionRoots = new List<AbsolutePath>();
             FileChangeTrackingInclusionRoots = new List<AbsolutePath>();
+            ReplaceExistingFileOnMaterialization = false;
         }
 
         /// <nodoc />
@@ -53,6 +54,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FileChangeTrackingExclusionRoots = pathRemapper.Remap(template.FileChangeTrackingExclusionRoots);
             FileChangeTrackingInclusionRoots = pathRemapper.Remap(template.FileChangeTrackingInclusionRoots);
             UseDedupStore = template.UseDedupStore;
+            ReplaceExistingFileOnMaterialization = template.ReplaceExistingFileOnMaterialization;
         }
 
         /// <nodoc />
@@ -132,5 +134,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool UseDedupStore { get; set; }
+
+        /// <inheritdoc />
+        public bool ReplaceExistingFileOnMaterialization { get; set; }
     }
 }

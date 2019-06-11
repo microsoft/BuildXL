@@ -44,7 +44,6 @@ namespace Processes.Detours {
             runtimeContent: [
                 TestSubstituteProcessExecutionShim.exe,
                 ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
-                    importFrom("BuildXL.Sandbox.Windows").Deployment.definition,
                     {
                         subfolder: a`${platform}`,
                         contents: [

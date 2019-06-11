@@ -485,8 +485,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
 #endif
 
         [Fact]
-        // Illegal characters in path are Windows specific (it seems that '/' is illegal on unix, but mac tests disagree with that).
-        [Trait("Category", "WindowsOSOnly")]
+        // DotNetCore does not validate the absence of illegal path characters in paths
+        [Trait("Category", "SkipDotNetCore")]
         public void InvalidPathCharacterPrintedInExceptionMessage()
         {
             var exception = Assert.Throws<ArgumentException>(
@@ -495,8 +495,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        // Illegal characters in path are Windows specific (it seems that '/' is illegal on unix, but mac tests disagree with that).
-        [Trait("Category", "WindowsOSOnly")]
+        // DotNetCore does not validate the absence of illegal path characters in paths
+        [Trait("Category", "SkipDotNetCore")]
         public void InvalidPathCharacterPrintedInExceptionMessage_ConstructedFromRelativePath()
         {
             var exception = Assert.Throws<ArgumentException>(
@@ -505,8 +505,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        // Illegal characters in path are Windows specific (it seems that '/' is illegal on unix, but mac tests disagree with that).
-        [Trait("Category", "WindowsOSOnly")]
+        // DotNetCore does not validate the absence of illegal path characters in paths
+        [Trait("Category", "SkipDotNetCore")]
         public void InvalidPathCharacterPrintedInExceptionMessage_ParentProperty()
         {
             var exception = Assert.Throws<ArgumentException>(

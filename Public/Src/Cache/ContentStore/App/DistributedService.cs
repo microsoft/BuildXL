@@ -70,7 +70,15 @@ namespace BuildXL.Cache.ContentStore.App
                 }
 
                 var arguments = CreateDistributedCacheServiceArguments(
-                    copier: useDistributedGrpc ? new GrpcFileCopier(new Interfaces.Tracing.Context(_logger), grpcPort, useCompressionForCopies) : (IAbsolutePathFileCopier)new DistributedCopier(),
+                    copier: useDistributedGrpc
+                        ? new GrpcFileCopier(
+                            context: new Interfaces.Tracing.Context(_logger),
+                            grpcPort: grpcPort,
+                            maxGrpcClientCount: dcs.MaxGrpcClientCount,
+                            maxGrpcClientAgeMinutes: dcs.MaxGrpcClientAgeMinutes,
+                            grpcClientCleanupDelayMinutes: dcs.GrpcClientCleanupDelayMinutes,
+                            useCompression: useCompressionForCopies)
+                        : (IAbsolutePathFileCopier)new DistributedCopier(),
                     pathTransformer: useDistributedGrpc ? new GrpcDistributedPathTransformer() : (IAbsolutePathTransformer)new DistributedPathTransformer(),
                     dcs: dcs,
                     host: host,

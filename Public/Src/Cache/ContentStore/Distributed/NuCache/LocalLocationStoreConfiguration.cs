@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
@@ -209,14 +210,14 @@ namespace BuildXL.Cache.ContentStore.Distributed
     public class BlobCentralStoreConfiguration : CentralStoreConfiguration
     {
         /// <nodoc />
-        public BlobCentralStoreConfiguration(IReadOnlyList<string> connectionStrings, string containerName, string checkpointsKey)
+        public BlobCentralStoreConfiguration(IEnumerable<string> connectionStrings, string containerName, string checkpointsKey)
             : base(checkpointsKey)
         {
-            Contract.Requires(connectionStrings != null && connectionStrings.Count != 0);
 
             ContainerName = containerName;
 
-            ConnectionStrings = connectionStrings;
+            ConnectionStrings = connectionStrings.Select(connectionString => new AzureStorageSharedAccessSignature(connectionString)).ToArray();
+            Contract.Requires(ConnectionStrings != null && ConnectionStrings.Count != 0);
         }
 
         /// <nodoc />
@@ -228,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// List of connection strings.
         /// </summary>
-        public IReadOnlyList<string> ConnectionStrings { get; }
+        public IReadOnlyList<AzureAccessToken> ConnectionStrings { get; }
 
         /// <summary>
         /// The blob container name used to store checkpoints.

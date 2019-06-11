@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -234,10 +235,10 @@ namespace BuildXL.Engine.Cache
         }
 
         /// <inheritdoc />
-        public void AddOrderIndependentCollection<TValue, TCollection>(string name, TCollection elements, Action<ICollectionFingerprinter, TValue> addElement)
+        public void AddOrderIndependentCollection<TValue, TCollection>(string name, TCollection elements, Action<ICollectionFingerprinter, TValue> addElement, IComparer<TValue> comparer)
             where TCollection : IEnumerable<TValue>
         {
-            AddCollection(name, elements, addElement);
+            AddCollection(name, elements.OrderBy(x => x, comparer), addElement);
         }
 
         /// <summary>

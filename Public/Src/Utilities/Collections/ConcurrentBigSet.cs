@@ -693,6 +693,8 @@ namespace BuildXL.Utilities.Collections
         {
             var node = new Node(nodeHashcode, next);
             accessors.Nodes[nodeIndex] = node;
+
+            // TODO: Should this be moved before setting node for safe enumeration
             accessors.Items[nodeIndex] = item;
         }
 

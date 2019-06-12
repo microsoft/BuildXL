@@ -40,10 +40,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private Processor _currentEventProcessor;
 
         private PartitionReceiver _partitionReceiver;
-        private EventSequencePoint _lastProcessedSequencePoint;
         private readonly string _hostName = Guid.NewGuid().ToString();
 
         private readonly ActionBlock<ProcessEventsInput>[] _eventProcessingBlocks;
+
+        /// <summary>
+        /// Sequence points processed by each action block.
+        /// The size of the array is equals to <see cref="EventHubContentLocationEventStoreConfiguration.MaxEventProcessingConcurrency"/>.
+        /// Due to concurrent message processing we can't just have one shared field with the latest processed sequence point.
+        /// It is possible that due to non-deterministic processing
+        /// we first will process a message with higher sequence number,
+        /// save it into a local state, create the checkpoint and die.
+        /// In this case some messages will be lost and won't be re-processed by another master.
+        /// </summary>
+        private readonly EventSequencePoint[] _lastProcessedSequencePoints;
 
         private readonly RetryPolicy _extraEventHubClientRetryPolicy;
 
@@ -65,11 +75,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 _eventProcessingBlocks =
                     Enumerable.Range(1, configuration.MaxEventProcessingConcurrency)
                         .Select(
-                            _ =>
+                            (_, index) =>
                             {
                                 var serializer = new ContentLocationEventDataSerializer(configuration.SelfCheckSerialization ? ValidationMode.Trace : ValidationMode.Off);
                                 return new ActionBlock<ProcessEventsInput>(
-                                    t => ProcessEventsCoreAsync(t, serializer),
+                                    t => ProcessEventsCoreAsync(t, serializer, index: index),
                                     new ExecutionDataflowBlockOptions()
                                     {
                                         MaxDegreeOfParallelism = 1,
@@ -78,6 +88,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             })
                         .ToArray();
             }
+
+            _lastProcessedSequencePoints = new EventSequencePoint[configuration.MaxEventProcessingConcurrency];
 
             _extraEventHubClientRetryPolicy = CreateEventHubClientRetryPolicy();
         }
@@ -249,7 +261,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
             else
             {
-                await ProcessEventsCoreAsync(new ProcessEventsInput(context, messages, new OperationCounters(), processingFinishedTaskSource: null), EventDataSerializer);
+                await ProcessEventsCoreAsync(new ProcessEventsInput(context, messages, new OperationCounters(), processingFinishedTaskSource: null), EventDataSerializer, index: 0);
             }
 
             void printOperationResultsAsynchronously(SendToActionBlockResult results)
@@ -312,7 +324,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             return sender?.ToString();
         }
 
-        private async Task ProcessEventsCoreAsync(ProcessEventsInput input, ContentLocationEventDataSerializer eventDataSerializer)
+        private async Task ProcessEventsCoreAsync(ProcessEventsInput input, ContentLocationEventDataSerializer eventDataSerializer, int index)
         {
             var context = input.Context;
             var counters = input.EventStoreCounters;
@@ -371,7 +383,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             }
                         }
 
-                        _lastProcessedSequencePoint = new EventSequencePoint(message.SystemProperties.SequenceNumber);
+                        _lastProcessedSequencePoints[index] = new EventSequencePoint(message.SystemProperties.SequenceNumber);
                     }
 
                     Counters.Append(counters);
@@ -399,7 +411,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <inheritdoc />
         public override EventSequencePoint GetLastProcessedSequencePoint()
         {
-            return _lastProcessedSequencePoint;
+            EventSequencePoint lastProcessedSequencePoint = _lastProcessedSequencePoints[0];
+
+            foreach (var sequencePoint in _lastProcessedSequencePoints)
+            {
+                if (sequencePoint != null && (sequencePoint.SequenceNumber ?? long.MaxValue) < (lastProcessedSequencePoint?.SequenceNumber ?? long.MinValue))
+                {
+                    lastProcessedSequencePoint = sequencePoint;
+                }
+            }
+            return lastProcessedSequencePoint;
         }
 
         /// <inheritdoc />
@@ -424,7 +445,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 }
             }
 
-            _lastProcessedSequencePoint = sequencePoint;
+            Array.Clear(_lastProcessedSequencePoints, 0, _lastProcessedSequencePoints.Length);
+            _lastProcessedSequencePoints[0] = sequencePoint;
             return BoolResult.Success;
         }
 

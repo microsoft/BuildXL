@@ -208,24 +208,41 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Provides Azure Storage authentication options for <see cref="BlobCentralStorage"/>
     /// </summary>
-    public class AzureStorageCredentials
+    public class AzureBlobStorageCredentials
     {
         /// <nodoc />
         public string ConnectionString { get; private set; } = null;
 
-        /// <nodoc />
+        /// <summary>
+        /// <see cref="StorageCredentials"/> can be updated from the outside, so it is a way to in fact change the way
+        /// we authenticate with Azure Blob Storage over time. Changes are accepted only within the same authentication
+        /// mode.
+        /// </summary>
         public StorageCredentials StorageCredentials { get; private set; } = null;
 
-        public AzureStorageCredentials(string connectionString)
+        /// <nodoc />
+        public string AccountName { get; private set; } = null;
+
+        /// <nodoc />
+        public string EndpointSuffix { get; private set; } = null;
+
+        public AzureBlobStorageCredentials(string connectionString)
         {
-            Contract.Requires(connectionString != null);
+            Contract.Requires(!string.IsNullOrEmpty(connectionString));
             ConnectionString = connectionString;
         }
 
-        public AzureStorageCredentials(StorageCredentials storageCredentials)
+        public AzureBlobStorageCredentials(StorageCredentials storageCredentials, string accountName, string endpointSuffix)
         {
+            // Unfortunately, even though you can't generate a storage credentials without an account name and
+            // endpoint suffix, those aren't stored inside object unless a shared secret is being used. Hence, we are
+            // forced to keep those here as well.
             Contract.Requires(storageCredentials != null);
+            Contract.Requires(!string.IsNullOrEmpty(accountName));
+            Contract.Requires(!string.IsNullOrEmpty(endpointSuffix));
             StorageCredentials = storageCredentials;
+            AccountName = accountName;
+            EndpointSuffix = endpointSuffix;
         }
     }
 
@@ -235,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
     public class BlobCentralStoreConfiguration : CentralStoreConfiguration
     {
         /// <nodoc />
-        public BlobCentralStoreConfiguration(IReadOnlyList<AzureStorageCredentials> credentials, string containerName, string checkpointsKey)
+        public BlobCentralStoreConfiguration(IReadOnlyList<AzureBlobStorageCredentials> credentials, string containerName, string checkpointsKey)
             : base(checkpointsKey)
         {
 
@@ -247,20 +264,20 @@ namespace BuildXL.Cache.ContentStore.Distributed
 
         /// <nodoc />
         public BlobCentralStoreConfiguration(IEnumerable<string> connectionStrings, string containerName, string checkpointsKey)
-            : this(connectionStrings.Select(s => new AzureStorageCredentials(s)).ToArray(), containerName, checkpointsKey)
+            : this(connectionStrings.Select(s => new AzureBlobStorageCredentials(s)).ToArray(), containerName, checkpointsKey)
         {
         }
 
         /// <nodoc />
         public BlobCentralStoreConfiguration(string connectionString, string containerName, string checkpointsKey)
-            : this(new[] { new AzureStorageCredentials(connectionString) }, containerName, checkpointsKey)
+            : this(new[] { new AzureBlobStorageCredentials(connectionString) }, containerName, checkpointsKey)
         {
         }
 
         /// <summary>
         /// List of connection strings.
         /// </summary>
-        public IReadOnlyList<AzureStorageCredentials> Credentials { get; }
+        public IReadOnlyList<AzureBlobStorageCredentials> Credentials { get; }
 
         /// <summary>
         /// The blob container name used to store checkpoints.

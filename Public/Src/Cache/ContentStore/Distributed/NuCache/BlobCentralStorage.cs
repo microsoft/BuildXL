@@ -56,8 +56,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                     else if (credentials.StorageCredentials != null)
                     {
-                        Contract.Requires(credentials.StorageCredentials.IsSAS);
-                        storageAccount = new CloudStorageAccount(credentials.StorageCredentials, useHttps: true);
+                        storageAccount = new CloudStorageAccount(credentials.StorageCredentials, credentials.AccountName, credentials.EndpointSuffix, useHttps: true);
                     }
 
                     var cloudBlobClient = storageAccount.CreateCloudBlobClient();

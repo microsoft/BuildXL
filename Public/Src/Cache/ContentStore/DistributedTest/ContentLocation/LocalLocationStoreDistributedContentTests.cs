@@ -2058,13 +2058,7 @@ namespace ContentStoreTest.Distributed.Sessions
             var containerName = "checkpoints";
             var checkpointsKey = "checkpoints-eventhub";
 
-            Environment.SetEnvironmentVariable("TestEventHub_StorageAccountKey", "<REPLACE WITH YOUR OWN>");
-            Environment.SetEnvironmentVariable("TestEventHub_StorageAccountName", "<REPLACE WITH YOUR OWN>");
-
-            Environment.SetEnvironmentVariable("TestEventHub_EventHubConnectionString", "<REPLACE WITH YOUR OWN>");
-            Environment.SetEnvironmentVariable("TestEventHub_EventHubName", "<REPLACE WITH YOUR OWN>");
-
-            // Must be different than the above
+            // Must be different than stored credentials
             var newEventHubConnectionString = "<REPLACE WITH YOUR OWN>";
             var newEventHubName = "<REPLACE WITH YOUR OWN>";
 

@@ -541,6 +541,9 @@ namespace BuildXL.FrontEnd.MsBuild
             // It'll cause full cache misses if we try to hash it as an input, however, so exclude.
             processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(m_context.StringTable, BuildEnvironmentConstants.QSessionGuidEnvVar));
 
+            // GlobalUnsafePassthroughEnvironmentVariables
+            processBuilder.SetGlobalPassthroughEnvironmentVariable(m_frontEndHost.Configuration.FrontEnd.GlobalUnsafePassthroughEnvironmentVariables, m_context.StringTable);
+
             // mspdbsrv: _MSPDBSRV_ENDPOINT_ sets up one mspdbsrv.exe instance per build target execution.
             // However this process will live beyond the build.cmd or msbuild.exe call.
             // Allow the pip job object to clean the process without complaint.
@@ -715,8 +718,11 @@ namespace BuildXL.FrontEnd.MsBuild
             var success = Root.TryGetRelative(PathTable, projectFile.FullPath, out var inFolderPathFromEnlistmentRoot);
             Contract.Assert(success);
 
-            // We hardcode the log to go under Logs (and follow the project structure underneath)
-            var result = m_frontEndHost.Configuration.Logging.LogsDirectory
+            // We hardcode the log to go under the output directory Logs/MSBuild (and follow the project structure underneath)
+            // The 'official' log directory (defined by Configuration.Logging) is not stable in CloudBuild across machines, and therefore it would
+            // introduce cache misses
+            var result = m_frontEndHost.Configuration.Layout.OutputDirectory
+                .Combine(PathTable, "Logs")
                 .Combine(PathTable, "MSBuild")
                 .Combine(PathTable, inFolderPathFromEnlistmentRoot);
 

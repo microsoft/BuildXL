@@ -3,12 +3,12 @@
 
 using BuildXL.Utilities.Tracing;
 
-namespace BuildXL.Cache.ContentStore.Service.Grpc
+namespace BuildXL.Cache.ContentStore.Utils
 {
     /// <summary>
-    /// Performance counters available for <see cref="GrpcCopyClientCache"/>.
+    /// Performance counters available for <see cref="ResourcePool{TKey, TObject}"/>.
     /// </summary>
-    public enum GrpcCopyClientCacheCounters
+    public enum ResourcePoolCounters
     {
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
@@ -16,15 +16,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
-        ClientCreationTime,
+        CreationTime,
 
         /// <nodoc />
-        ClientsCreated,
+        Created,
 
         /// <nodoc />
-        ClientsCleaned,
+        Cleaned,
 
         /// <nodoc />
-        ClientsReused,
+        Reused,
     }
 }

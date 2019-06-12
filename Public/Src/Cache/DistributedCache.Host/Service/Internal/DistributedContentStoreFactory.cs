@@ -60,9 +60,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             bool checkLocalFiles = true,
             TrimBulkAsync trimBulkAsync = null)
         {
-            var contentConnectionStringProvider = new HostConnectionStringProvider(_arguments.Host, _redisContentSecretNames.RedisContentSecretName, _logger);
-            var machineLocationsConnectionStringProvider = new HostConnectionStringProvider(_arguments.Host, _redisContentSecretNames.RedisMachineLocationsSecretName, _logger);
-
             var redisContentLocationStoreConfiguration = new RedisContentLocationStoreConfiguration
             {
                 RedisBatchPageSize = _distributedSettings.RedisBatchPageSize,
@@ -107,6 +104,10 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var localMachineLocation = _arguments.PathTransformer.GetLocalMachineLocation(localCacheRoot);
             var contentHashBumpTime = TimeSpan.FromMinutes(_distributedSettings.ContentHashBumpTimeMinutes);
+
+            // RedisContentSecretName and RedisMachineLocationsSecretName can be null. HostConnectionStringProvider won't fail in this case.
+            IConnectionStringProvider contentConnectionStringProvider = TryCreateRedisConnectionStringProvider(_redisContentSecretNames.RedisContentSecretName);
+            IConnectionStringProvider machineLocationsConnectionStringProvider = TryCreateRedisConnectionStringProvider(_redisContentSecretNames.RedisMachineLocationsSecretName);
 
             var redisContentLocationStoreFactory = new RedisContentLocationStoreFactory(
                 contentConnectionStringProvider,
@@ -191,20 +192,27 @@ namespace BuildXL.Cache.Host.Service.Internal
             return contentStore;
         }
 
+        private IConnectionStringProvider TryCreateRedisConnectionStringProvider(string secretName)
+        {
+            return string.IsNullOrEmpty(secretName)
+                ? null
+                : new HostConnectionStringProvider(_arguments.Host, secretName, _logger);
+        }
+
         private static ContentStoreSettings FromDistributedSettings(DistributedContentSettings settings)
         {
             return new ContentStoreSettings()
-                         {
-                             UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
-                             CheckFiles = settings.CheckLocalFiles,
-                             UseLegacyQuotaKeeperImplementation = settings.UseLegacyQuotaKeeperImplementation,
-                             StartPurgingAtStartup = settings.StartPurgingAtStartup,
-                             UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
-                             SelfCheckEpoch = settings.SelfCheckEpoch,
-                             StartSelfCheckInStartup = settings.StartSelfCheckAtStartup,
-                             SelfCheckFrequency = TimeSpan.FromMinutes(settings.SelfCheckFrequencyInMinutes),
-                             OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode
-                         };
+            {
+                UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
+                CheckFiles = settings.CheckLocalFiles,
+                UseLegacyQuotaKeeperImplementation = settings.UseLegacyQuotaKeeperImplementation,
+                StartPurgingAtStartup = settings.StartPurgingAtStartup,
+                UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
+                SelfCheckEpoch = settings.SelfCheckEpoch,
+                StartSelfCheckInStartup = settings.StartSelfCheckAtStartup,
+                SelfCheckFrequency = TimeSpan.FromMinutes(settings.SelfCheckFrequencyInMinutes),
+                OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode
+            };
         }
 
         private async Task ApplySecretSettingsForLlsAsync(RedisContentLocationStoreConfiguration configuration, AbsolutePath localCacheRoot)
@@ -283,13 +291,13 @@ namespace BuildXL.Cache.Host.Service.Internal
             if (_distributedSettings.UseDistributedCentralStorage)
             {
                 configuration.DistributedCentralStore = new DistributedCentralStoreConfiguration(localCacheRoot)
-                                                        {
-                                                            MaxRetentionGb = _distributedSettings.MaxCentralStorageRetentionGb,
-                                                            PropagationDelay = TimeSpan.FromSeconds(
+                {
+                    MaxRetentionGb = _distributedSettings.MaxCentralStorageRetentionGb,
+                    PropagationDelay = TimeSpan.FromSeconds(
                                                                 _distributedSettings.CentralStoragePropagationDelaySeconds),
-                                                            PropagationIterations = _distributedSettings.CentralStoragePropagationIterations,
-                                                            MaxSimultaneousCopies = _distributedSettings.CentralStorageMaxSimultaneousCopies
-                                                        };
+                    PropagationIterations = _distributedSettings.CentralStoragePropagationIterations,
+                    MaxSimultaneousCopies = _distributedSettings.CentralStorageMaxSimultaneousCopies
+                };
             }
 
             var eventStoreConfiguration = new EventHubContentLocationEventStoreConfiguration(

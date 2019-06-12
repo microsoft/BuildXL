@@ -8,7 +8,6 @@ namespace Core {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Utilities",
         allowUnsafeBlocks: true,
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Utilities").dll,

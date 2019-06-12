@@ -11,9 +11,6 @@ namespace Storage {
         assemblyName: "Test.BuildXL.Storage",
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
-        runTestArgs: {
-            privilegeLevel: "admin",
-        },
         references: [
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,

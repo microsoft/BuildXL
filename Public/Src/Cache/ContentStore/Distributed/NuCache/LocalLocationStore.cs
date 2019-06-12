@@ -1055,11 +1055,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 () =>
                 {
                     var effectiveLastAccessTimes = new List<ContentHashWithLastAccessTimeAndReplicaCount>();
-                    int replicaCount = 1;
 
                     foreach (var contentHash in contentHashes)
                     {
                         DateTime? effectiveLastAccessTime = null;
+                        int replicaCount = 1;
                         if (TryGetContentLocations(context, contentHash.Hash, out var entry))
                         {
                             // TODO[LLS]: Maybe some machines should be primary replicas for the content and not prioritize deletion (bug 1365340)
@@ -1074,6 +1074,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             // Since this metric is just the age plus a computed quantity, it can be intrepreted as an "effective age".
                             // (One dev wanted no penalty until we reach a threshold number of replicas. We don't have a model justification for this but I'm content to oblige.)
                             TimeSpan totalReplicaPenalty = TimeSpan.FromMinutes(_configuration.ReplicaPenaltyInMinutes * (Math.Max(0, entry.Locations.Count - 3) + Math.Log(Math.Max(1, entry.ContentSize))));
+                            
                             replicaCount = entry.Locations.Count;
 
                             // Use the latest last access time between LLS and local last access time

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Utilities.Configuration.Mutable
@@ -47,6 +48,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RedirectedTempFolderRootForVmExecution = AbsolutePath.Invalid;
             RetryOnAzureWatsonExitCode = false;
             EnsureTempDirectoriesExistenceBeforePipExecution = false;
+            GlobalUnsafeUntrackedScopes = new List<AbsolutePath>();
         }
 
         /// <nodoc />
@@ -92,6 +94,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RedirectedTempFolderRootForVmExecution = pathRemapper.Remap(template.RedirectedTempFolderRootForVmExecution);
             RetryOnAzureWatsonExitCode = template.RetryOnAzureWatsonExitCode;
             EnsureTempDirectoriesExistenceBeforePipExecution = template.EnsureTempDirectoriesExistenceBeforePipExecution;
+            GlobalUnsafeUntrackedScopes = pathRemapper.Remap(template.GlobalUnsafeUntrackedScopes);
         }
 
         /// <inheritdoc />
@@ -235,5 +238,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool EnsureTempDirectoriesExistenceBeforePipExecution { get; set; }
+
+        /// <nodoc /> 
+        public List<AbsolutePath> GlobalUnsafeUntrackedScopes { get; set; }
+
+        /// <inheritdoc /> 
+        IReadOnlyList<AbsolutePath> ISandboxConfiguration.GlobalUnsafeUntrackedScopes => GlobalUnsafeUntrackedScopes;        
     }
 }

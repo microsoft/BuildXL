@@ -1137,11 +1137,26 @@ namespace Test.BuildXL.Processes
                 XAssert.AreEqual(0, result.ExitCode);
                 XAssert.IsNotNull(result.FileAccesses);
 
-                // assert both 'time' and 'touch' processes were reported
-                var processNames = SelectFileNamesFromReportPaths(pt, result.FileAccesses, ReportedFileOperation.Process);
-                XAssert.Contains(processNames, "time", "touch");
-                var processExits = SelectFileNamesFromReportPaths(pt, result.FileAccesses, ReportedFileOperation.ProcessExit);
-                XAssert.Contains(processExits, "time", "touch");
+                // Restrict reports to those of type 'Process' and 'ProcessExit', then 
+                // create a mapping from operation type to reported paths for that operation
+                var ProcessOperations = new[] { ReportedFileOperation.Process, ReportedFileOperation.ProcessExit };
+                Dictionary<ReportedFileOperation, HashSet<string>> op2paths = result
+                    .FileAccesses
+                    .Where(report => ProcessOperations.Contains(report.Operation))
+                    .GroupBy(report => report.Operation)
+                    .ToDictionary(
+                        grp => grp.Key,
+                        grp => grp
+                            .Select(report => report.GetPath(pt))
+                            .Select(Path.GetFileName)
+                            .ToHashSet());
+
+                // assert both 'Process' and 'ProcessExit' operations have been reported
+                XAssert.Contains(op2paths.Keys, ReportedFileOperation.Process, ReportedFileOperation.ProcessExit);
+
+                // assert both 'time' and 'touch' processes have been reported
+                XAssert.Contains(op2paths[ReportedFileOperation.Process], "time", "touch");
+                XAssert.Contains(op2paths[ReportedFileOperation.ProcessExit], "time", "touch");
 
                 // assert that all accesses to 'tempFileName' were done by the 'touch' process
                 var accessesToTempFile = result
@@ -1153,15 +1168,6 @@ namespace Test.BuildXL.Processes
                     .ToList();
                 XAssert.SetEqual(accessesToTempFile, new[] { "touch" });
             }
-        }
-
-        private static List<string> SelectFileNamesFromReportPaths(PathTable pathTable, IEnumerable<ReportedFileAccess> accesses, ReportedFileOperation operationFilter)
-        {
-            return accesses
-                .Where(report => report.Operation == operationFilter)
-                .Select(report => Path.GetFileName(report.GetPath(pathTable)))
-                .Distinct()
-                .ToList();
         }
 
         private void AssertReportedAccessesIsEmpty(PathTable pathTable, IEnumerable<ReportedFileAccess> result)

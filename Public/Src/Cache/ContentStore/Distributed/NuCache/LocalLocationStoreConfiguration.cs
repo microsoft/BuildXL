@@ -211,20 +211,20 @@ namespace BuildXL.Cache.ContentStore.Distributed
     public class AzureBlobStorageCredentials
     {
         /// <nodoc />
-        public string ConnectionString { get; private set; } = null;
+        public readonly string ConnectionString;
 
         /// <summary>
         /// <see cref="StorageCredentials"/> can be updated from the outside, so it is a way to in fact change the way
         /// we authenticate with Azure Blob Storage over time. Changes are accepted only within the same authentication
         /// mode.
         /// </summary>
-        public StorageCredentials StorageCredentials { get; private set; } = null;
+        public readonly StorageCredentials StorageCredentials;
 
         /// <nodoc />
-        public string AccountName { get; private set; } = null;
+        public readonly string AccountName;
 
         /// <nodoc />
-        public string EndpointSuffix { get; private set; } = null;
+        public readonly string EndpointSuffix;
 
         /// <summary>
         /// Creates a fixed credential; this is our default mode of authentication.

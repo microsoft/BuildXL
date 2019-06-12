@@ -124,6 +124,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private readonly object _eventHubLock = new object();
 
+        /// <nodoc />
         public void UpdateCredentials(OperationContext context, EventHubsConnectionStringBuilder connectionStringBuilder)
         {
             lock (_eventHubLock)

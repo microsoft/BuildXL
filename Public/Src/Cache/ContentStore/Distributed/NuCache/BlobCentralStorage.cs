@@ -50,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 (credentials, index) =>
                 {
                     CloudStorageAccount storageAccount = null;
-                    if (credentials.ConnectionString != null)
+                    if (!string.IsNullOrEmpty(credentials.ConnectionString))
                     {
                         storageAccount = CloudStorageAccount.Parse(credentials.ConnectionString);
                     }

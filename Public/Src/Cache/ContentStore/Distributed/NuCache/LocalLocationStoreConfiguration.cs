@@ -226,12 +226,19 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <nodoc />
         public string EndpointSuffix { get; private set; } = null;
 
+        /// <summary>
+        /// Creates a fixed credential; this is our default mode of authentication.
+        /// </summary>
         public AzureBlobStorageCredentials(string connectionString)
         {
             Contract.Requires(!string.IsNullOrEmpty(connectionString));
             ConnectionString = connectionString;
         }
 
+        /// <summary>
+        /// Uses Azure Blob's storage credentials. This allows us to use SAS tokens, and to update shared secrets
+        /// without restarting the service.
+        /// </summary>
         public AzureBlobStorageCredentials(StorageCredentials storageCredentials, string accountName, string endpointSuffix)
         {
             // Unfortunately, even though you can't generate a storage credentials without an account name and

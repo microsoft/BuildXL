@@ -166,13 +166,13 @@ namespace Test.BuildXL.Storage.Admin
                 var loggingContext = new LoggingContext("Dummy", "Dummy");
                 var fileContentTable = FileContentTable.CreateNew();
 
-                VolumeMap volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext);
+                VolumeMap volumeMap = JournalUtils.TryCreateMapOfAllLocalVolumes(loggingContext);
                 XAssert.IsNotNull(volumeMap);
 
-                var journal = JournalAccessorGetter.TryGetJournalAccessor(loggingContext, volumeMap, AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly())).Value;
-                XAssert.IsNotNull(journal);
+                var maybeJournal = JournalUtils.TryGetJournalAccessorForTest(volumeMap);
+                XAssert.IsTrue(maybeJournal.Succeeded, "Could not connect to journal");
 
-                var fileChangeTracker = FileChangeTracker.StartTrackingChanges(loggingContext, volumeMap, journal, null);
+                var fileChangeTracker = FileChangeTracker.StartTrackingChanges(loggingContext, volumeMap, maybeJournal.Result, null);
 
                 return new ChangeTrackerSupport(
                     loggingContext,
@@ -180,7 +180,7 @@ namespace Test.BuildXL.Storage.Admin
                     fileChangeTracker,
                     fileContentTable,
                     volumeMap,
-                    journal,
+                    maybeJournal.Result,
                     AbsolutePath.Create(test.m_pathTable, test.TemporaryDirectory),
                     null);
             }

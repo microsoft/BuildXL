@@ -546,15 +546,6 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageVolumeCollision(LoggingContext context, ulong serial, string guidPathA, string guidPathB);
 
         [GeneratedEvent(
-            (ushort)EventId.FailedCheckingDirectJournalAccess,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Storage,
-            Message = "Checking direct journal access results in failure. {errorMessage}")]
-        internal abstract void FailedCheckingDirectJournalAccess(LoggingContext context, string errorMessage);
-
-        [GeneratedEvent(
             (int)EventId.StartLoadingChangeTracker,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

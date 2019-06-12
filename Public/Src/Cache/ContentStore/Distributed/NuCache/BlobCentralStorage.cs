@@ -15,10 +15,9 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Utilities.Tasks;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
-using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
-using Microsoft.WindowsAzure.Storage.Auth;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -27,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     public class BlobCentralStorage : CentralStorage
     {
-        private readonly Tuple<CloudBlobContainer, int>[] _containers;
+        private readonly (CloudBlobContainer container, int shardId)[] _containers;
         private readonly bool[] _containersCreated;
 
         private readonly BlobCentralStoreConfiguration _configuration;
@@ -43,36 +42,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public BlobCentralStorage(BlobCentralStoreConfiguration configuration)
         {
-            Contract.Requires(configuration.ConnectionStrings.Count != 0);
+            Contract.Requires(configuration.Credentials.Count != 0);
 
             _configuration = configuration;
 
-            var connectionStrings = configuration.ConnectionStrings.ToArray();
+            _containers = _configuration.Credentials.Select(
+                (credentials, index) =>
+                {
+                    CloudStorageAccount storageAccount = null;
+                    if (credentials.ConnectionString != null)
+                    {
+                        storageAccount = CloudStorageAccount.Parse(credentials.ConnectionString);
+                    }
+                    else if (credentials.StorageCredentials != null)
+                    {
+                        Contract.Requires(credentials.StorageCredentials.IsSAS);
+                        storageAccount = new CloudStorageAccount(credentials.StorageCredentials, useHttps: true);
+                    }
 
-            // Need to shuffle all the connection strings to reduce the traffic over the storage accounts. This is done
-            // here because the tokens need to know their index in the array when refreshing.
-            connectionStrings.Shuffle();
+                    var cloudBlobClient = storageAccount.CreateCloudBlobClient();
+                    return (cloudBlobClient.GetContainerReference(configuration.ContainerName), shardId: index);
+                }).ToArray();
+            _containers.Shuffle();
 
-            _containers = new Tuple<CloudBlobContainer, int>[_configuration.ConnectionStrings.Count];
-            foreach (var index in Enumerable.Range(0, connectionStrings.Count()))
-            {
-                var token = connectionStrings[index];
-
-                token.AccessTokenChange += (sender, args) => {
-                    var credentials = new StorageCredentials(args.AccessToken);
-                    var storage = new CloudStorageAccount(credentials, useHttps: true);
-                    var blobClient = storage.CreateCloudBlobClient();
-
-                    // Access token changes could interleave with working requests. In this way, we ensure that the change happens atomically
-                    var container = new Tuple<CloudBlobContainer, int>(blobClient.GetContainerReference(configuration.ContainerName), index);
-                    Interlocked.Exchange(ref _containers[index], container);
-                };
-
-                // Forcing a refresh generates a call to the delegate
-                token.ForceRefresh();
-            }
-
-            _containersCreated = new bool[_configuration.ConnectionStrings.Count];
+            _containersCreated = new bool[_configuration.Credentials.Count];
         }
 
         /// <inheritdoc />
@@ -178,7 +171,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return BoolResult.Success;
             }
 
-            var results = await Task.WhenAll(_containers.Select(tpl => TouchShardBlobAsync(context, tpl.Item1, tpl.Item2, blobName)).ToList());
+            var results = await Task.WhenAll(_containers.Select(tpl => TouchShardBlobAsync(context, tpl.container, tpl.shardId, blobName)).ToList());
 
             // The operation fails when all the shards failed.
             return results.Aggregate(BoolResult.Success, (result, boolResult) => result | boolResult);
@@ -220,7 +213,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override async Task<Result<string>> UploadFileCoreAsync(OperationContext context, AbsolutePath file, string blobName, bool garbageCollect)
         {
             // Uploading files into all shards in parallel.
-            var results = await Task.WhenAll(_containers.Select(tpl => UploadShardFileAsync(context, tpl.Item1, tpl.Item2, file, blobName, garbageCollect)).ToList());
+            var results = await Task.WhenAll(_containers.Select(tpl => UploadShardFileAsync(context, tpl.container, tpl.shardId, file, blobName, garbageCollect)).ToList());
 
             if (results.All(r => r))
             {

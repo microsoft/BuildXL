@@ -34,6 +34,7 @@ using ContentStoreTest.Distributed.ContentLocation;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;
+using Microsoft.Azure.EventHubs;
 using Xunit;
 using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -2044,6 +2045,93 @@ namespace ContentStoreTest.Distributed.Sessions
 
             Output.WriteLine("The test is configured correctly.");
             return true;
+        }
+
+        [Fact]
+        public async Task EventHubChangeCredentials()
+        {
+            var containerName = "checkpoints";
+            var checkpointsKey = "checkpoints-eventhub";
+
+            Environment.SetEnvironmentVariable("TestEventHub_StorageAccountKey", "<REPLACE WITH YOUR OWN>");
+            Environment.SetEnvironmentVariable("TestEventHub_StorageAccountName", "<REPLACE WITH YOUR OWN>");
+
+            Environment.SetEnvironmentVariable("TestEventHub_EventHubConnectionString", "<REPLACE WITH YOUR OWN>");
+            Environment.SetEnvironmentVariable("TestEventHub_EventHubName", "<REPLACE WITH YOUR OWN>");
+
+            // Must be different than the above
+            var newEventHubConnectionString = "<REPLACE WITH YOUR OWN>";
+            var newEventHubName = "<REPLACE WITH YOUR OWN>";
+
+            if (!ConfigureRocksDbContentLocationBasedTestWithEventHub(
+                (index, testRootDirectory, config, storageConnectionString) =>
+                {
+                    var role = index == 0 ? Role.Master : Role.Worker;
+                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
+                    {
+                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
+                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
+                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
+                        Role = role,
+                    };
+
+                    config.CentralStore = new BlobCentralStoreConfiguration(
+                                              connectionString: storageConnectionString,
+                                              containerName: containerName,
+                                              checkpointsKey: checkpointsKey)
+                    {
+                        RetentionTime = TimeSpan.FromDays(365)
+                    };
+                }))
+            {
+                // Test is misconfigured.
+                Output.WriteLine("The test is skipped.");
+                return;
+            }
+
+            await RunTestAsync(
+                new Context(Logger),
+                1,
+                async context =>
+                {
+                    var eventStore = context.GetMaster().LocalLocationStore.EventStore as EventHubContentLocationEventStore;
+
+                    var connectionStringBuilder = new EventHubsConnectionStringBuilder(newEventHubConnectionString)
+                    {
+                        EntityPath = newEventHubName,
+                    };
+
+                    int stopSending = 0;
+                    var hasSentSome = new Semaphore(0, int.MaxValue);
+
+                    var task = Task.Run(() => {
+                        while (stopSending == 0)
+                        {
+                            eventStore.AddLocations(context, new MachineId(10), new ShortHashWithSize[] { new ShortHashWithSize(new ShortHash(ContentHash.Random()), 200) }).ThrowIfFailure();
+                            hasSentSome.Release();
+                        }
+                    });
+
+                    // Ensure we send some data before the change
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+                    hasSentSome.WaitOne();
+
+                    // Update the credentials concurrently
+                    eventStore.UpdateCredentials(context, connectionStringBuilder);
+
+                    // Reset the semaphore and ensure some data has been sent after the credentials changed
+                    Interlocked.Exchange(ref hasSentSome, new Semaphore(0, int.MaxValue));
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+                    hasSentSome.WaitOne();
+
+                    // Stop the task
+                    Interlocked.Exchange(ref stopSending, 1);
+
+                    // Finish
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+
+                    await task;
+                });
         }
     }
 }

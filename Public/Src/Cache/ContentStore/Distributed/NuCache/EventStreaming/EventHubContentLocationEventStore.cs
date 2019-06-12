@@ -100,20 +100,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 return baseInitializeResult;
             }
 
-            var connectionStringBuilder =
-                new EventHubsConnectionStringBuilder(_configuration.EventHubConnectionString)
-                {
-                    EntityPath = _configuration.EventHubName,
-                };
-
             _currentEventProcessor = new Processor(context, this);
 
-            // Retry behavior in the Azure Event Hubs Client Library is controlled by the RetryPolicy property on the EventHubClient class.
-            // The default policy retries with exponential backoff when Azure Event Hub returns a transient EventHubsException or an OperationCanceledException.
-            _eventHubClient = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
-            _partitionSender = _eventHubClient.CreatePartitionSender(PartitionId);
+            RegenerateEventHubClientFromCredentials(new EventHubsConnectionStringBuilder(_configuration.EventHubConnectionString)
+            {
+                EntityPath = _configuration.EventHubName,
+            });
 
             return BoolResult.Success;
+        }
+
+        private readonly object _eventHubLock = new object();
+
+        public void UpdateCredentials(OperationContext context, EventHubsConnectionStringBuilder connectionStringBuilder)
+        {
+            lock (_eventHubLock)
+            {
+                DoSuspendProcessing(context).ThrowIfFailure();
+                RegenerateEventHubClientFromCredentials(connectionStringBuilder);
+                DoStartProcessing(context, GetLastProcessedSequencePoint()).ThrowIfFailure();
+            }
+        }
+
+        private void RegenerateEventHubClientFromCredentials(EventHubsConnectionStringBuilder connectionStringBuilder)
+        {
+            lock (_eventHubLock)
+            {
+                // Retry behavior in the Azure Event Hubs Client Library is controlled by the RetryPolicy property on
+                // the EventHubClient class. The default policy retries with exponential backoff when Azure Event Hub
+                // returns a transient EventHubsException or an OperationCanceledException.
+                _eventHubClient = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
+                _partitionSender = _eventHubClient.CreatePartitionSender(PartitionId);
+            }
         }
 
         /// <inheritdoc />
@@ -122,8 +140,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             // Need to dispose nagle queue first to ensure last batch is processed before buffers are disposed
             var result = await base.ShutdownCoreAsync(context);
 
-            _partitionSender?.CloseAsync();
-            _eventHubClient?.CloseAsync();
+            lock (_eventHubLock)
+            {
+                _partitionSender?.CloseAsync();
+                _eventHubClient?.CloseAsync();
+            }
 
             if (_eventProcessingBlocks != null)
             {
@@ -386,18 +407,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             Tracer.Info(context, $"{Tracer.Name}: Initializing event processing for event hub '{_configuration.EventHubName}' and consumer group '{_configuration.ConsumerGroupName}'.");
 
-            if (_partitionReceiver == null)
+            lock (_eventHubLock)
             {
-                _partitionReceiver = _eventHubClient.CreateReceiver(
-                    _configuration.ConsumerGroupName,
-                    PartitionId,
-                    GetInitialOffset(context, sequencePoint),
-                    new ReceiverOptions()
-                    {
-                        Identifier = _hostName
-                    });
+                if (_partitionReceiver == null)
+                {
+                    _partitionReceiver = _eventHubClient.CreateReceiver(
+                        _configuration.ConsumerGroupName,
+                        PartitionId,
+                        GetInitialOffset(context, sequencePoint),
+                        new ReceiverOptions()
+                        {
+                            Identifier = _hostName
+                        });
 
-                _partitionReceiver.SetReceiveHandler(_currentEventProcessor);
+                    _partitionReceiver.SetReceiveHandler(_currentEventProcessor);
+                }
             }
 
             _lastProcessedSequencePoint = sequencePoint;
@@ -422,8 +446,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             // In unit tests, hangs sometimes occur for this when running multiple tests in sequence.
             // Adding a timeout to detect when this occurs
-            _partitionReceiver?.CloseAsync().WithTimeoutAsync(TimeSpan.FromMinutes(1)).GetAwaiter().GetResult();
-            _partitionReceiver = null;
+            lock (_eventHubLock)
+            {
+                _partitionReceiver?.CloseAsync().WithTimeoutAsync(TimeSpan.FromMinutes(1)).GetAwaiter().GetResult();
+                _partitionReceiver = null;
+            }
         }
 
         private class Processor : IPartitionReceiveHandler

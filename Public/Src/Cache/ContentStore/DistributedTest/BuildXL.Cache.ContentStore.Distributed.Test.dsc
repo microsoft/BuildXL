@@ -21,6 +21,12 @@ namespace DistributedTest {
                     NetFx.System.Xml.dll,
                     NetFx.System.Xml.Linq.dll
                 ),
+                ...addIf(BuildXLSdk.isFullFramework,
+                    importFrom("Microsoft.Azure.Amqp").pkg,
+                    importFrom("Microsoft.Azure.Services.AppAuthentication").pkg,
+                    importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
+                    importFrom("System.IdentityModel.Tokens.Jwt").pkg
+                ),
                 Distributed.dll,
                 ...Distributed.eventHubPackagages,
                 UtilitiesCore.dll,

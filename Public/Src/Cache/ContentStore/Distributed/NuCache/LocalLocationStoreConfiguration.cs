@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using Microsoft.WindowsAzure.Storage.Auth;
 
 namespace BuildXL.Cache.ContentStore.Distributed
 {
@@ -205,31 +206,61 @@ namespace BuildXL.Cache.ContentStore.Distributed
     }
 
     /// <summary>
+    /// Provides Azure Storage authentication options for <see cref="BlobCentralStorage"/>
+    /// </summary>
+    public class AzureStorageCredentials
+    {
+        /// <nodoc />
+        public string ConnectionString { get; private set; } = null;
+
+        /// <nodoc />
+        public StorageCredentials StorageCredentials { get; private set; } = null;
+
+        public AzureStorageCredentials(string connectionString)
+        {
+            Contract.Requires(connectionString != null);
+            ConnectionString = connectionString;
+        }
+
+        public AzureStorageCredentials(StorageCredentials storageCredentials)
+        {
+            Contract.Requires(storageCredentials != null);
+            StorageCredentials = storageCredentials;
+        }
+    }
+
+    /// <summary>
     /// Configuration of a central store backed by azure blob storage.
     /// </summary>
     public class BlobCentralStoreConfiguration : CentralStoreConfiguration
     {
         /// <nodoc />
-        public BlobCentralStoreConfiguration(IEnumerable<string> connectionStrings, string containerName, string checkpointsKey)
+        public BlobCentralStoreConfiguration(IReadOnlyList<AzureStorageCredentials> credentials, string containerName, string checkpointsKey)
             : base(checkpointsKey)
         {
 
             ContainerName = containerName;
 
-            ConnectionStrings = connectionStrings.Select(connectionString => new AzureStorageSharedAccessSignature(connectionString)).ToArray();
-            Contract.Requires(ConnectionStrings != null && ConnectionStrings.Count != 0);
+            Credentials = credentials;
+            Contract.Requires(Credentials != null && Credentials.Count != 0);
+        }
+
+        /// <nodoc />
+        public BlobCentralStoreConfiguration(IEnumerable<string> connectionStrings, string containerName, string checkpointsKey)
+            : this(connectionStrings.Select(s => new AzureStorageCredentials(s)).ToArray(), containerName, checkpointsKey)
+        {
         }
 
         /// <nodoc />
         public BlobCentralStoreConfiguration(string connectionString, string containerName, string checkpointsKey)
-            : this(new[] {connectionString}, containerName, checkpointsKey)
+            : this(new[] { new AzureStorageCredentials(connectionString) }, containerName, checkpointsKey)
         {
         }
 
         /// <summary>
         /// List of connection strings.
         /// </summary>
-        public IReadOnlyList<AzureAccessToken> ConnectionStrings { get; }
+        public IReadOnlyList<AzureStorageCredentials> Credentials { get; }
 
         /// <summary>
         /// The blob container name used to store checkpoints.

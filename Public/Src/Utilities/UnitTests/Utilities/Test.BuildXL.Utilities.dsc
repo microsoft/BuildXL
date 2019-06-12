@@ -9,9 +9,6 @@ namespace Core {
         assemblyName: "Test.BuildXL.Utilities",
         allowUnsafeBlocks: true,
         testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
-        runTestArgs: {
-            privilegeLevel: "admin",
-        },
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Utilities").dll,

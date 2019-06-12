@@ -10,9 +10,6 @@ namespace Storage.Untracked {
         // TODO: QTest
         testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
         assemblyName: "Test.BuildXL.Storage.Admin",
-        runTestArgs: {
-            privilegeLevel: "admin",
-        },
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,

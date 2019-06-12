@@ -30,8 +30,7 @@ namespace Scheduler.IntegrationTest {
         assemblyName: "IntegrationTest.BuildXL.Scheduler",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
-            parallelGroups: categoriesToRunInParallel,
-            privilegeLevel: "admin"
+            parallelGroups: categoriesToRunInParallel
         },
         references: [
             Scheduler.dll,

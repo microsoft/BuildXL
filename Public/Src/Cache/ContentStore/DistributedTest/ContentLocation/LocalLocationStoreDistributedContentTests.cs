@@ -2047,7 +2047,7 @@ namespace ContentStoreTest.Distributed.Sessions
             return true;
         }
 
-        [Fact]
+        [Fact(Skip = "For manual testing only. Requires two sets of credentials.")]
         public async Task EventHubChangeCredentials()
         {
             var containerName = "checkpoints";

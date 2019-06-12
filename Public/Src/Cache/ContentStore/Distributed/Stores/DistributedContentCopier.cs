@@ -196,7 +196,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 else
                 {
                     Tracer.TrackMetric(operationContext, "RemoteBytesCount", putResult.ContentSize);
-                    _counters[DistributedContentCopierCounters.RemoteBytes].Add((int)putResult.ContentSize);
+                    _counters[DistributedContentCopierCounters.RemoteBytes].Add(putResult.ContentSize);
                     _counters[DistributedContentCopierCounters.RemoteFilesCopied].Increment();
                 }
 

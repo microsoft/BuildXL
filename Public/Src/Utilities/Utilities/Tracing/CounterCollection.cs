@@ -267,7 +267,7 @@ namespace BuildXL.Utilities.Tracing
         /// <summary>
         /// Increments a value of a current counter by <paramref name="value"/>.
         /// </summary>
-        public void Add(int value)
+        public void Add(long value)
         {
             m_collection.AddToCounterInternal(m_id, value);
         }

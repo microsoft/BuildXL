@@ -42,13 +42,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public BlobCentralStorage(BlobCentralStoreConfiguration configuration)
         {
-            Contract.Requires(configuration.Credentials.Count != 0);
-
             _configuration = configuration;
 
             _containers = _configuration.Credentials.Select(
                 (credentials, index) =>
                 {
+                    Contract.Requires(credentials != null);
+
                     CloudStorageAccount storageAccount = null;
                     if (!string.IsNullOrEmpty(credentials.ConnectionString))
                     {

@@ -262,11 +262,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public BlobCentralStoreConfiguration(IReadOnlyList<AzureBlobStorageCredentials> credentials, string containerName, string checkpointsKey)
             : base(checkpointsKey)
         {
+            Contract.Requires(!string.IsNullOrEmpty(containerName));
+            Contract.Requires(!string.IsNullOrEmpty(checkpointsKey));
+            Contract.Requires(credentials != null && credentials.Count > 0, "BlobCentralStorage must have at least one credential in its configuration.");
 
             ContainerName = containerName;
-
             Credentials = credentials;
-            Contract.Requires(Credentials != null && Credentials.Count != 0);
         }
 
         /// <nodoc />

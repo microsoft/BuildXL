@@ -48,18 +48,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 (credentials, index) =>
                 {
                     Contract.Requires(credentials != null);
-
-                    CloudStorageAccount storageAccount = null;
-                    if (!string.IsNullOrEmpty(credentials.ConnectionString))
-                    {
-                        storageAccount = CloudStorageAccount.Parse(credentials.ConnectionString);
-                    }
-                    else if (credentials.StorageCredentials != null)
-                    {
-                        storageAccount = new CloudStorageAccount(credentials.StorageCredentials, credentials.AccountName, credentials.EndpointSuffix, useHttps: true);
-                    }
-
-                    var cloudBlobClient = storageAccount.CreateCloudBlobClient();
+                    var cloudBlobClient = credentials.CreateCloudBlobClient();
                     return (cloudBlobClient.GetContainerReference(configuration.ContainerName), shardId: index);
                 }).ToArray();
             _containers.Shuffle();

@@ -57,6 +57,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private readonly RetryPolicy _extraEventHubClientRetryPolicy;
 
+        private readonly object _eventHubLock = new object();
+
         /// <inheritdoc />
         public EventHubContentLocationEventStore(
             EventHubContentLocationEventStoreConfiguration configuration,
@@ -114,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
             _currentEventProcessor = new Processor(context, this);
 
-            RegenerateEventHubClientFromCredentials(new EventHubsConnectionStringBuilder(_configuration.EventHubConnectionString)
+            CreateEventHubClient(new EventHubsConnectionStringBuilder(_configuration.EventHubConnectionString)
             {
                 EntityPath = _configuration.EventHubName,
             });
@@ -122,20 +124,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             return BoolResult.Success;
         }
 
-        private readonly object _eventHubLock = new object();
-
         /// <nodoc />
         public void UpdateCredentials(OperationContext context, EventHubsConnectionStringBuilder connectionStringBuilder)
         {
             lock (_eventHubLock)
             {
+                Tracer.Debug(context, $"{Tracer.Name}: Updating EventHub credentials");
                 DoSuspendProcessing(context).ThrowIfFailure();
-                RegenerateEventHubClientFromCredentials(connectionStringBuilder);
+                CreateEventHubClient(connectionStringBuilder);
                 DoStartProcessing(context, GetLastProcessedSequencePoint()).ThrowIfFailure();
+                Tracer.Debug(context, $"{Tracer.Name}: Finished updating EventHub credentials");
             }
         }
 
-        private void RegenerateEventHubClientFromCredentials(EventHubsConnectionStringBuilder connectionStringBuilder)
+        private void CreateEventHubClient(EventHubsConnectionStringBuilder connectionStringBuilder)
         {
             lock (_eventHubLock)
             {

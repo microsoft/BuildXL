@@ -9,7 +9,9 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace BuildXL.Cache.ContentStore.Distributed
 {
@@ -211,20 +213,20 @@ namespace BuildXL.Cache.ContentStore.Distributed
     public class AzureBlobStorageCredentials
     {
         /// <nodoc />
-        public readonly string ConnectionString;
+        private string ConnectionString { get; }
 
         /// <summary>
         /// <see cref="StorageCredentials"/> can be updated from the outside, so it is a way to in fact change the way
         /// we authenticate with Azure Blob Storage over time. Changes are accepted only within the same authentication
         /// mode.
         /// </summary>
-        public readonly StorageCredentials StorageCredentials;
+        private StorageCredentials StorageCredentials { get; }
 
         /// <nodoc />
-        public readonly string AccountName;
+        private string AccountName { get; }
 
         /// <nodoc />
-        public readonly string EndpointSuffix;
+        private string EndpointSuffix { get; }
 
         /// <summary>
         /// Creates a fixed credential; this is our default mode of authentication.
@@ -250,6 +252,28 @@ namespace BuildXL.Cache.ContentStore.Distributed
             StorageCredentials = storageCredentials;
             AccountName = accountName;
             EndpointSuffix = endpointSuffix;
+        }
+
+        /// <nodoc />
+        private CloudStorageAccount CreateCloudStorageAccount()
+        {
+            if (!string.IsNullOrEmpty(ConnectionString))
+            {
+                return CloudStorageAccount.Parse(ConnectionString);
+            }
+
+            if (StorageCredentials != null)
+            {
+                return new CloudStorageAccount(StorageCredentials, AccountName, EndpointSuffix, useHttps: true);
+            }
+
+            throw new ArgumentException("Invalid credentials");
+        }
+
+        /// <nodoc />
+        public CloudBlobClient CreateCloudBlobClient()
+        {
+            return CreateCloudStorageAccount().CreateCloudBlobClient();
         }
     }
 

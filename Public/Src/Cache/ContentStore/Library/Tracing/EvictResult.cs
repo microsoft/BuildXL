@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             EffectiveLastAccessTime = effectiveLastAccessTime;
             SuccessfullyEvictedHash = successfullyEvictedHash;
             ReplicaCount = replicaCount;
-            Age = DateTime.UtcNow - LastAccessTime;
+            CreationTime = DateTime.UtcNow;
         }
 
         /// <summary>
@@ -89,13 +89,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         ///     Gets a value indicating the age of the hash at the time when the result was created.
         /// </summary>
-        public TimeSpan Age { get; }
+        public DateTime CreationTime { get; }
 
         /// <inheritdoc />
         public override string ToString()
         {
             return Succeeded
-                ? $"Success Size={EvictedSize} Files={EvictedFiles} Pinned={PinnedSize} EffectiveLastAccessTime={EffectiveLastAccessTime} OriginalLastAccessTime={LastAccessTime} ReplicaCount={ReplicaCount} Age={Age}"
+                ? $"Success Size={EvictedSize} Files={EvictedFiles} Pinned={PinnedSize} LastAccessTime={LastAccessTime} Age={CreationTime - LastAccessTime} ReplicaCount={ReplicaCount} EffectiveLastAccessTime={EffectiveLastAccessTime} EffectiveAge={CreationTime - EffectiveLastAccessTime}"
                 : GetErrorString();
         }
     }

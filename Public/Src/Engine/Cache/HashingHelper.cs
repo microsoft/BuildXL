@@ -222,7 +222,7 @@ namespace BuildXL.Engine.Cache
         }
 
         /// <inheritdoc />
-        public void AddOrderIndependentCollection<TValue, TCollection>(string name, TCollection elements, Action<ICollectionFingerprinter, TValue> addElement)
+        public void AddOrderIndependentCollection<TValue, TCollection>(string name, TCollection elements, Action<ICollectionFingerprinter, TValue> addElement, IComparer<TValue> comparer)
             where TCollection : IEnumerable<TValue>
         {
             Contract.Requires(name != null);

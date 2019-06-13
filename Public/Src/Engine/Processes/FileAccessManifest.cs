@@ -384,7 +384,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Directory translator.
         /// </summary>
-        public DirectoryTranslator DirectoryTranslator { get; }
+        public DirectoryTranslator DirectoryTranslator { get; set; }
 
         /// <summary>
         /// The pip's unique id.

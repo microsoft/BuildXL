@@ -202,7 +202,13 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
         private Process CreateDummyProjectWithEnvironment(Dictionary<string, string> environment)
         {
-            var config = BuildWithEnvironment(environment: environment)
+            Dictionary<string, DiscriminatingUnion<string, UnitValue>> fullEnvironment = null;
+            if (environment != null)
+            {
+                fullEnvironment = environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value));
+            }
+
+            var config = BuildWithEnvironment(environment: fullEnvironment)
                     .AddSpec(R("TestProject.proj"), CreateHelloWorldProject())
                     .PersistSpecsAndGetConfiguration();
 

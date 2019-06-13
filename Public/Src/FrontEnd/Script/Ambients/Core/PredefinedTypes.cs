@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Script.Ambients.Map;
 using BuildXL.FrontEnd.Script.Ambients.Set;
 using BuildXL.FrontEnd.Script.Ambients.Transformers;
+using BuildXL.FrontEnd.Script.Core;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips;
 using BuildXL.Utilities;
@@ -34,6 +35,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
         private readonly AmbientMath m_ambientMath;
         private readonly AmbientMap m_ambientMap;
         private readonly AmbientNumber m_ambientNumber;
+        private readonly AmbientUnit m_ambientUnit;
         private readonly AmbientBoolean m_ambientBoolean;
         private readonly AmbientKeyForm m_ambientKeyForm;
         private readonly AmbientPath m_ambientPath;
@@ -78,6 +80,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 [typeof(string)] = m_ambientString = new AmbientString(knownTypes),
                 [typeof(AmbientStringBuilder.StringBuilderWrapper)] = m_ambientStringBuilder = new AmbientStringBuilder(knownTypes),
                 [typeof(int)] = m_ambientNumber = new AmbientNumber(knownTypes),
+                [typeof(UnitValue)] = m_ambientUnit = new AmbientUnit(knownTypes),
                 [typeof(bool)] = m_ambientBoolean = new AmbientBoolean(knownTypes),
                 [typeof(OrderedMap)] = m_ambientMap = new AmbientMap(knownTypes),
                 [typeof(OrderedSet)] = m_ambientSet = new AmbientSet(knownTypes),
@@ -145,6 +148,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
             m_ambientTransformerHack.Initialize(global);
             m_ambientNumber.Initialize(global);
             m_ambientBoolean.Initialize(global);
+            m_ambientUnit.Initialize(global);
             m_ambientEnvironment.Initialize(global);
             m_ambientArgumentKind.Initialize(global);
             m_ambientArtifactKind.Initialize(global);

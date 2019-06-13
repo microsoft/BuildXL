@@ -5,14 +5,21 @@ using System;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
-    internal readonly struct GrpcCopyClientKey : IEquatable<GrpcCopyClientKey>
+    /// <summary>
+    /// Key to lookup <see cref="GrpcCopyClient"/> in <see cref="GrpcCopyClientCache"/>.
+    /// </summary>
+    public readonly struct GrpcCopyClientKey : IEquatable<GrpcCopyClientKey>
     {
+        /// <nodoc />
         public string Host { get; }
 
+        /// <nodoc />
         public int GrpcPort { get; }
 
+        /// <nodoc />
         public bool UseCompression { get; }
 
+        /// <nodoc />
         public GrpcCopyClientKey(string host, int grpcPort, bool useCompression)
         {
             Host = host;
@@ -20,6 +27,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             UseCompression = useCompression;
         }
 
+        /// <nodoc />
         public bool Equals(GrpcCopyClientKey other)
         {
             return string.Equals(Host, other.Host, StringComparison.InvariantCultureIgnoreCase)

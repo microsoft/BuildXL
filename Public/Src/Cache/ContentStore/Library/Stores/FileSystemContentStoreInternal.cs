@@ -1664,7 +1664,6 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             try
             {
-                _tracer.HashContentFileStart(context, path);
                 stopwatch.Start();
 
                 ContentHash contentHash = await _hashers[hashType].GetContentHashAsync(stream);

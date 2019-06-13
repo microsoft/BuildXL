@@ -6,9 +6,12 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Reflection;
+using BuildXL.FrontEnd.Script.Core;
 using BuildXL.FrontEnd.Script.Literals;
+using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Script.Util
 {
@@ -42,6 +45,13 @@ namespace BuildXL.FrontEnd.Script.Util
         public static bool IsNumberType(this RuntimeTypeHandle type)
         {
             return s_primitiveTypes.Contains(type);
+        }
+
+        /// <nodoc />
+        [Pure]
+        public static bool IsUnitType(this RuntimeTypeHandle type)
+        {
+            return type.Equals(typeof(UnitValue).TypeHandle);
         }
 
         /// <nodoc />
@@ -99,6 +109,13 @@ namespace BuildXL.FrontEnd.Script.Util
         public static bool IsRelativePath(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(RelativePath).TypeHandle);
+        }
+
+        /// <nodoc />
+        [Pure]
+        public static bool IsUnionType(this TypeInfo type)
+        {
+            return typeof(DiscriminatingUnion).IsAssignableFrom(type);
         }
 
         /// <nodoc />

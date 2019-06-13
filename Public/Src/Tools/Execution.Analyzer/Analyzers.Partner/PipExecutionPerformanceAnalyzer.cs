@@ -79,7 +79,6 @@ namespace BuildXL.Execution.Analyzer
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(outputFilePath));
 
-            System.Diagnostics.Debugger.Launch();
             m_writer = new StreamWriter(outputFilePath);
             m_isCsvFormat = isCsvFormat;
         }

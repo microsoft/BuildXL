@@ -10,6 +10,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using BuildXL.FrontEnd.Script.Ambients.Map;
+using BuildXL.FrontEnd.Script.Core;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
@@ -18,6 +19,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using static BuildXL.Utilities.FormattableStringEx;
+using Type = System.Type;
 
 namespace BuildXL.FrontEnd.Script.Util
 {
@@ -266,6 +268,32 @@ namespace BuildXL.FrontEnd.Script.Util
             }
 
             return clsType;
+        }
+
+        private DiscriminatingUnion ConvertToUnionType(object val, Type resultType, in ConversionContext context)
+        {
+            var union = val as DiscriminatingUnion;
+            if (union != null)
+            {
+                return union;
+            }
+
+            union = Activator.CreateInstance(resultType) as DiscriminatingUnion;
+            if (union == null)
+            {
+                throw new ConversionException(
+                    I($"Cannot convert value of type '{resultType}' to union type"),
+                    context.ErrorContext);
+            }
+
+            if (!union.TrySetValue(val))
+            {
+                throw new ConversionException(
+                    I($"Value of type '{val.GetType()}' is not one of the expected values of the discriminating union {resultType}"),
+                    context.ErrorContext);
+            }
+
+            return union;
         }
 
         private object ConvertToObject(object val, Type resultType, object targetInstance, in ConversionContext context)
@@ -530,6 +558,20 @@ namespace BuildXL.FrontEnd.Script.Util
                 context.ErrorContext);
         }
 
+        private static UnitValue ConvertToUnit(object value, in ConversionContext context)
+        {
+            Contract.Requires(value != null);
+
+            if (value is UnitValue)
+            {
+                return (UnitValue)value;
+            }
+
+            throw new ConversionException(
+                I($"Cannot convert '{value}' to Unit"),
+                context.ErrorContext);
+        }
+
         private static string ConvertToString(object value, in ConversionContext context)
         {
             Contract.Requires(value != null);
@@ -581,7 +623,7 @@ namespace BuildXL.FrontEnd.Script.Util
                 {
                     try
                     {
-                        resolved.SetValue(Activator.CreateInstance(keyValueType, pair.Key.Value, pair.Value.Value), i);
+                        resolved.SetValue(Activator.CreateInstance(keyValueType, ConvertAny(pair.Key.Value, keyType, null, context), ConvertAny(pair.Value.Value, valueType, null, context)), i);
                     }
                     catch (MissingMethodException)
                     {
@@ -747,6 +789,11 @@ namespace BuildXL.FrontEnd.Script.Util
                 return overridingOrMergeIntoValue;
             }
 
+            if (resultTypeInfo.TypeHandle.IsUnitType())
+            {
+                return ConvertToUnit(valueToConvert, context);
+            }
+
             if (resultTypeInfo.TypeHandle.IsBooleanType())
             {
                 return ConvertToBool(valueToConvert, context);
@@ -807,6 +854,12 @@ namespace BuildXL.FrontEnd.Script.Util
             if (resultTypeInfo.TypeHandle.IsRelativePath())
             {
                 return ConvertToRelativePath(overridingOrMergeIntoValue ?? valueToConvert, context);
+            }
+
+            // target: UnionType
+            if (resultTypeInfo.IsUnionType())
+            {
+                return ConvertToUnionType(overridingOrMergeIntoValue ?? valueToConvert, resultType, context);
             }
 
             // target: object

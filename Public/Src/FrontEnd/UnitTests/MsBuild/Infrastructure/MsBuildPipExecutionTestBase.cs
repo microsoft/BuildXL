@@ -14,6 +14,7 @@ using Test.BuildXL.TestUtilities;
 using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit.Abstractions;
+using BuildXL.Utilities;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -53,16 +54,24 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         /// <summary>
         /// Allows to specify some paremeters for the MSBuild resolver configuration settings
         /// </summary>
-        protected SpecEvaluationBuilder BuildWithEnvironment(Dictionary<string, string> environment)
+        protected SpecEvaluationBuilder BuildWithEnvironment(Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment)
         {
             return base.Build().Configuration(DefaultMsBuildPrelude(runInContainer: false, environment));
         }
 
+        protected SpecEvaluationBuilder Build(bool runInContainer = false, Dictionary<string, string> environment = null, Dictionary<string, string> globalProperties = null, string filenameEntryPoint = null)
+        {
+            return Build(runInContainer, 
+                environment != null? environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)) : null, 
+                globalProperties,
+                filenameEntryPoint);
+        }
+
         /// <inheritdoc/>
-        protected SpecEvaluationBuilder Build(bool runInContainer = false, Dictionary<string, string> environment = null, Dictionary<string, string> globalProperties = null)
+        protected SpecEvaluationBuilder Build(bool runInContainer, Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment, Dictionary<string, string> globalProperties, string filenameEntryPoint)
         {
             // Let's explicitly pass an empty environment, so the process environment won't affect tests by default
-            return base.Build().Configuration(DefaultMsBuildPrelude(runInContainer, environment: environment ?? new Dictionary<string, string>(), globalProperties));
+            return base.Build().Configuration(DefaultMsBuildPrelude(runInContainer, environment: environment ?? new Dictionary<string, DiscriminatingUnion<string, UnitValue>>(), globalProperties, filenameEntryPoint: filenameEntryPoint));
         }
 
         /// <inheritdoc/>
@@ -214,12 +223,13 @@ $@"<?xml version='1.0' encoding='utf-8'?>
 
         private string DefaultMsBuildPrelude(
             bool runInContainer = false, 
-            Dictionary<string, string> environment = null, 
+            Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment = null, 
             Dictionary<string, string> globalProperties = null,
             bool enableBinLogTracing = false,
             bool enableEngineTracing = false,
             string logVerbosity = null,
-            bool allowProjectsToNotSpecifyTargetProtocol = true) => $@"
+            bool allowProjectsToNotSpecifyTargetProtocol = true,
+            string filenameEntryPoint = null) => $@"
 config({{
     disableDefaultSourceResolver: true,
     resolvers: [
@@ -235,6 +245,7 @@ config({{
             enableBinLogTracing: {(enableBinLogTracing ? "true" : "false")},
             enableEngineTracing: {(enableEngineTracing? "true" : "false")},
             {(logVerbosity != null ? $"logVerbosity: {logVerbosity}," : string.Empty)}
+            {(filenameEntryPoint != null ? $"fileNameEntryPoints: [r`{filenameEntryPoint}`]," : string.Empty)}
         }},
     ],
 }});";
@@ -261,6 +272,13 @@ config({{
             return (dictionary == null ? 
                 string.Empty : 
                 $"{memberName}: Map.empty<string, string>(){string.Join(string.Empty, dictionary.Select(property => $".add('{property.Key}', '{property.Value}')"))},");
+        }
+
+        private static string DictionaryToExpression(string memberName, Dictionary<string, DiscriminatingUnion<string, UnitValue>> dictionary)
+        {
+            return (dictionary == null ?
+                string.Empty :
+                $"{memberName}: Map.empty<string, (PassthroughEnvironmentVariable | string)>(){ string.Join(string.Empty, dictionary.Select(property => $".add('{property.Key}', {(property.Value?.GetValue() is UnitValue ? "Unit.unit()" : $"'{property.Value?.GetValue()}'")})")) },");
         }
     }
 }

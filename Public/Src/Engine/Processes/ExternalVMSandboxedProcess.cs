@@ -140,7 +140,7 @@ namespace BuildXL.Processes
             VmSerializer.SerializeToFile(RunRequestPath, runRequest);
 
             // (2) Create a process to execute VmCommandProxy.
-            string arguments = $"{VmCommand.Run} /{VmCommand.Param.InputJsonFile}:\"{RunRequestPath}\" /{VmCommand.Param.OutputJsonFile}:\"{RunOutputPath}\"";
+            string arguments = $"{VmCommands.Run} /{VmCommands.Params.InputJsonFile}:\"{RunRequestPath}\" /{VmCommands.Params.OutputJsonFile}:\"{RunOutputPath}\"";
             var process = CreateVmCommandProxyProcess(arguments);
 
             LogExternalExecution($"call {m_vmInitializer.VmCommandProxy} {arguments}");

@@ -12,29 +12,22 @@ namespace BuildXL.FrontEnd.Script.Types
     /// </summary>
     public sealed class PrimitiveType : Type
     {
-        /// <summary>
-        /// Any type.
-        /// </summary>
+        /// <nodoc/>
         public static readonly PrimitiveType AnyType = new PrimitiveType(PrimitiveTypeKind.Any);
 
-        /// <summary>
-        /// Boolean type.
-        /// </summary>
+        /// <nodoc/>
+        public static readonly PrimitiveType UnitType = new PrimitiveType(PrimitiveTypeKind.Unit);
+
+        /// <nodoc/>
         public static readonly PrimitiveType BooleanType = new PrimitiveType(PrimitiveTypeKind.Boolean);
 
-        /// <summary>
-        /// Number type.
-        /// </summary>
+        /// <nodoc/>
         public static readonly PrimitiveType NumberType = new PrimitiveType(PrimitiveTypeKind.Number);
 
-        /// <summary>
-        /// String type.
-        /// </summary>
+        /// <nodoc/>
         public static readonly PrimitiveType StringType = new PrimitiveType(PrimitiveTypeKind.String);
 
-        /// <summary>
-        /// Void type.
-        /// </summary>
+        /// <nodoc/>
         public static readonly PrimitiveType VoidType = new PrimitiveType(PrimitiveTypeKind.Void);
 
         private PrimitiveTypeKind TypeKind { get; }
@@ -84,6 +77,8 @@ namespace BuildXL.FrontEnd.Script.Types
                     return "number";
                 case PrimitiveTypeKind.Boolean:
                     return "boolean";
+                case PrimitiveTypeKind.Unit:
+                    return "unit";
                 case PrimitiveTypeKind.String:
                     return "string";
                 case PrimitiveTypeKind.Void:

@@ -41,6 +41,22 @@ namespace BuildXL.Ide.Generator
 
         internal override void VisitProcess(Process process, ProcessType pipCategory)
         {
+            var qualifier = Context.QualifierTable.GetQualifier(process.Provenance.QualifierId);
+
+            // only consider processes targeting Windows
+            if (qualifier.TryGetValue(Context.StringTable, "targetRuntime", out var targetRuntime)
+                && targetRuntime != "win-x64")
+            {
+                return;
+            }
+            
+            // HACK: skip over processes targeting netcoreapp framework
+            if (qualifier.TryGetValue(Context.StringTable, "targetFramework", out var targetFramework)
+                && targetFramework.Contains("netcoreapp"))
+            {
+                return;
+            }
+
             string friendlyQualifier = Context.QualifierTable.GetCanonicalDisplayString(process.Provenance.QualifierId);
 
             switch (pipCategory)
@@ -56,6 +72,12 @@ namespace BuildXL.Ide.Generator
                     Project project = CreateProject(process);
 
                     // For now, if there is another csc process from the same spec file, ignore it.
+                    // 
+                    // TODO: If there are multiple CSC processes in the same spec file (which can 
+                    // easily happen when building multiple qualifiers, or even when a DScript module
+                    // is imported with an explicitly specified qualifier), the order in which
+                    // those processes will be visited here is non-deterministic, making this whole
+                    // VS solution generation non-deterministic.
                     if (ProjectsByQualifier.Count == 0)
                     {
                         ProjectsByQualifier[friendlyQualifier] = project;

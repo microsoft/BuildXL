@@ -11,7 +11,7 @@ namespace BuildXL.Cache.Interfaces
     /// <summary>
     /// Utility class that works with the Newtonsoft Json parser and converts Json data into ICacheConfigData
     /// </summary>
-    internal sealed class CacheJsonDataConverter : JsonConverter
+    public sealed class CacheJsonDataConverter : JsonConverter
     {
         // Class that implements the basic ICacheConfigData (basically a
         // simple dictionary of string to object mapping.

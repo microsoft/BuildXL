@@ -21,6 +21,7 @@ using BuildXL.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using JetBrains.Annotations;
 using Newtonsoft.Json;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
@@ -50,6 +51,10 @@ namespace BuildXL.FrontEnd.MsBuild
             new ConcurrentDictionary<AbsolutePath, SourceFile>();
 
         private Possible<ProjectGraphResult>? m_projectGraph;
+
+        private IEnumerable<string> m_passthroughVariables;
+
+        private IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
 
         /// <summary>
         /// Set of well known locations that are used to identify a candidate entry point to parse, if a specific one is not provided
@@ -91,7 +96,33 @@ namespace BuildXL.FrontEnd.MsBuild
                 Contract.Assert(m_projectGraph.HasValue, "The computation of the build graph should have been triggered to be able to retrieve this value");
                 return m_projectGraph.Value;
             }
-        } 
+        }
+
+        /// <summary>
+        /// Environment variables defined by the user that are exposed to the graph construction process and pip execution
+        /// </summary>
+        [CanBeNull]
+        public IEnumerable<KeyValuePair<string, string>> UserDefinedEnvironment
+        {
+            get
+            {
+                Contract.Assert(m_projectGraph.HasValue, "The computation of the build graph should have been triggered to be able to retrieve this value");
+                return m_userDefinedEnvironment;
+            }
+        }
+
+        /// <summary>
+        /// Passthrough environment variables defined by the user that are exposed to the graph construction process and pip execution
+        /// </summary>
+        [CanBeNull]
+        public IEnumerable<string> UserDefinedPassthroughVariables
+        {
+            get
+            {
+                Contract.Assert(m_projectGraph.HasValue, "The computation of the build graph should have been triggered to be able to retrieve this value");
+                return m_passthroughVariables;
+            }
+        }
 
         /// <inheritdoc/>
         public MsBuildWorkspaceResolver()
@@ -267,8 +298,10 @@ namespace BuildXL.FrontEnd.MsBuild
 
             // Otherwise, just what the environment specified (plus a handful of extra required ones)
 
+            m_resolverSettings.TryComputeEnvironment(out m_userDefinedEnvironment, out m_passthroughVariables);
+
             // User-configured environment
-            var configuredEnvironment = BuildParameters.GetFactory().PopulateFromDictionary(m_resolverSettings.Environment);
+            var configuredEnvironment = BuildParameters.GetFactory().PopulateFromDictionary(m_userDefinedEnvironment);
 
             // Combine the ones above with a set of OS-wide properties processes should see
             var buildParameters = BuildParameters

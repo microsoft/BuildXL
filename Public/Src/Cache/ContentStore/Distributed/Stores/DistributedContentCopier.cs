@@ -133,9 +133,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 var badContentLocations = new HashSet<MachineLocation>();
                 var missingContentLocations = new HashSet<MachineLocation>();
                 int attemptCount = 0;
+
+                Tracer.Debug(operationContext, $"Copying {hashInfo.ContentHash} with {hashInfo.Locations.Count} locations");
+
                 while (attemptCount < _retryIntervals.Count && (putResult == null || !putResult))
                 {
-                    Tracer.Debug(operationContext, $"Attempt #{attemptCount}: Copying {hashInfo.ContentHash} with {hashInfo.Locations.Count} locations");
                     bool retry;
 
                     (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(
@@ -194,7 +196,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 else
                 {
                     Tracer.TrackMetric(operationContext, "RemoteBytesCount", putResult.ContentSize);
-                    _counters[DistributedContentCopierCounters.RemoteBytes].Add((int)putResult.ContentSize);
+                    _counters[DistributedContentCopierCounters.RemoteBytes].Add(putResult.ContentSize);
                     _counters[DistributedContentCopierCounters.RemoteFilesCopied].Increment();
                 }
 
@@ -284,8 +286,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                     reportImmediately: false,
                                     reportAtEnd: false);
                             },
+                            traceOperationStarted: false,
+                            traceOperationFinished: true,
                             // _ioGate.CurrentCount returns the number of free slots, but we need to print the number of occupied slots instead.
-                            extraStartMessage: $"({hashInfo.ContentHash} size={hashInfo.Size} from=[{sourcePath}]) to=[{tempLocation}] trusted={_settings.UseTrustedHash}.",
                             extraEndMessage: (result) =>
                                 $"contentHash=[{hashInfo.ContentHash}] " +
                                 $"from=[{sourcePath}] " +

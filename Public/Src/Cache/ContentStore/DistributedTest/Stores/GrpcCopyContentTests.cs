@@ -21,6 +21,7 @@ using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
 using Xunit;
@@ -49,39 +50,45 @@ namespace ContentStoreTest.Distributed.Stores
             using (var client1 = await _clientCache.CreateAsync(LocalHost, 10, true))
             using (var client2 = await _clientCache.CreateAsync(LocalHost, 10, true))
             {
-                Assert.Same(client1, client2);
+                Assert.Same(client1.Value, client2.Value);
             }
         }
 
         [Fact]
         public async Task ValidateBackgroundCleanup()
         {
+            List<GrpcCopyClient> clientList = new List<GrpcCopyClient>();
             var key = new GrpcCopyClientKey(LocalHost, 11, true);
-            GrpcCopyClient client;
-            using (client = await _clientCache.CreateAsync(key.Host, key.GrpcPort, key.UseCompression))
-            { 
-                client._lastUseTime = DateTime.UtcNow - TimeSpan.FromHours(2);
+            ResourceWrapper<GrpcCopyClient> clientWrapper;
+            using (clientWrapper = await _clientCache.CreateAsync(key.Host, key.GrpcPort, key.UseCompression))
+            {
+                clientList.Add(clientWrapper.Value);
+                clientWrapper._lastUseTime = DateTime.UtcNow - TimeSpan.FromHours(2);
             }
 
             // Start cleanup now; don't wait for another loop
             await _clientCache.CleanupAsync();
 
             var newClient = await _clientCache.CreateAsync(key.Host, key.GrpcPort, key.UseCompression);
+            clientList.Add(newClient.Value);
 
             // If we found a different client, then cleanup successfully removed the original client
-            Assert.NotSame(newClient, client);
+            Assert.NotSame(newClient.Value, clientWrapper.Value);
+            Assert.Equal(1, newClient.Uses);
         }
 
         [Fact]
         public async Task IssueSameClientManyTimes()
         {
-            using (GrpcCopyClient originalClient = await _clientCache.CreateAsync(LocalHost, 42, false))
+            using (ResourceWrapper<GrpcCopyClient> originalClientWrapper = await _clientCache.CreateAsync(LocalHost, 42, false))
             {
+                var originalClient = originalClientWrapper.Value;
+
                 for (int i = 0; i < 1000; i++)
                 {
                     using (var newClient = await _clientCache.CreateAsync(LocalHost, 42, false))
                     {
-                        Assert.Same(newClient, originalClient);
+                        Assert.Same(newClient.Value, originalClient);
                     }
                 }
             }
@@ -91,33 +98,34 @@ namespace ContentStoreTest.Distributed.Stores
         public async Task FillCacheWithoutRemovingClients()
         {
             int maxClientCount = 10;
-            var clientList = new List<GrpcCopyClient>();
+            var clientWrapperList = new List<(ResourceWrapper<GrpcCopyClient> Wrapper, GrpcCopyClient Client)>();
             _clientCache = new GrpcCopyClientCache(_context, maxClientCount: maxClientCount, maxClientAgeMinutes: 63, waitBetweenCleanupMinutes: 30);
 
             for (int i = 0; i < maxClientCount; i++)
             {
-                clientList.Add(await _clientCache.CreateAsync(LocalHost, i, true));
+                var clientWrapper = await _clientCache.CreateAsync(LocalHost, i, true);
+                clientWrapperList.Add((clientWrapper, clientWrapper.Value));
             }
 
             // Create new clients for every port
-            Assert.Equal(maxClientCount, _clientCache.Counter.GetCounterValue(GrpcCopyClientCacheCounters.ClientsCreated));
+            Assert.Equal(maxClientCount, _clientCache.Counter.GetCounterValue(ResourcePoolCounters.Created));
 
             // Zero clients were cleaned
-            Assert.Equal(0, _clientCache.Counter.GetCounterValue(GrpcCopyClientCacheCounters.ClientsCleaned));
+            Assert.Equal(0, _clientCache.Counter.GetCounterValue(ResourcePoolCounters.Cleaned));
 
             // Zero clients were reused
-            Assert.Equal(0, _clientCache.Counter.GetCounterValue(GrpcCopyClientCacheCounters.ClientsReused));
+            Assert.Equal(0, _clientCache.Counter.GetCounterValue(ResourcePoolCounters.Reused));
 
-            foreach (var c in clientList)
+            foreach (var c in clientWrapperList)
             {
-                c._lastUseTime -= TimeSpan.FromDays(1);
-                c.Dispose();
+                c.Wrapper._lastUseTime -= TimeSpan.FromDays(1);
+                c.Wrapper.Dispose();
             }
 
             await _clientCache.CleanupAsync();
 
             // All clients were cleaned
-            Assert.Equal(maxClientCount, _clientCache.Counter.GetCounterValue(GrpcCopyClientCacheCounters.ClientsCleaned));
+            Assert.Equal(maxClientCount, _clientCache.Counter.GetCounterValue(ResourcePoolCounters.Cleaned));
         }
 
         [Fact]
@@ -196,8 +204,11 @@ namespace ContentStoreTest.Distributed.Stores
             {
                 // Copy fake file out via GRPC
                 var bogusPort = PortExtensions.GetNextAvailablePort();
-                using (client = await _clientCache.CreateAsync(LocalHost, bogusPort))
+                using (var clientWrapper = await _clientCache.CreateAsync(LocalHost, bogusPort, true))
                 {
+                    // Replace the given client with a bogus one
+                    client = clientWrapper.Value;
+
                     var copyFileResult = await client.CopyFileAsync(_context, ContentHash.Random(), rootPath / ThreadSafeRandom.Generator.Next().ToString(), CancellationToken.None);
                     Assert.Equal(CopyFileResult.ResultCode.SourcePathError, copyFileResult.Code);
                 }
@@ -242,10 +253,10 @@ namespace ContentStoreTest.Distributed.Stores
 
                 // Create a GRPC client to connect to the server
                 var port = new MemoryMappedFilePortReader(grpcPortFileName, Logger).ReadPort();
-                using (var client = await _clientCache.CreateAsync(LocalHost, port))
+                using (var clientWrapper = await _clientCache.CreateAsync(LocalHost, port, false))
                 {
                     // Run validation
-                    await testAct(rootPath, session, client);
+                    await testAct(rootPath, session, clientWrapper.Value);
                 }
 
                 await server.ShutdownAsync(_context).ShouldBeSuccess();

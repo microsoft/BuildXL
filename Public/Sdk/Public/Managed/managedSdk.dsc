@@ -173,7 +173,6 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         out: outputFileName,
         pdb: name + ".pdb",
         debugType: framework.requiresPortablePdb ? "portable" : "full",
-        platform: args.platform || "anycpu",
         allowUnsafeBlocks: args.allowUnsafeBlocks || false,
         appConfig: appConfig,
         implicitSources: args.implicitSources,

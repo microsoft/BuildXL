@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
+
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
@@ -243,5 +245,17 @@ namespace BuildXL.Utilities.Configuration
         /// Thus, this enforcement is made opt-in.
         /// </remarks>
         bool EnsureTempDirectoriesExistenceBeforePipExecution { get; }
+
+        /// <summary> 
+        /// Paths and Directory Paths which should be untracked for all processes 
+        /// </summary> 
+        /// <remarks>
+        /// When Directory Path is specified, all paths under that directory will be untracked
+        /// This is an unsafe configuration, since it allows read and write access to the paths 
+        /// which is not specified as input or output.
+        /// Moreover, this global configuration from cammand line will bypass cache,
+        /// which means pips and graph will be cached ignoring paths specified in this configure
+        /// </remarks>
+        IReadOnlyList<AbsolutePath> GlobalUnsafeUntrackedScopes { get; }
     }
 }

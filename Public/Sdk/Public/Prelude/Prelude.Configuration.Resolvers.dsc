@@ -91,6 +91,9 @@ interface DownloadSettings {
     hash?: string,
 }
 
+/** We represent a passthrough environment variable with the value unit */ 
+type PassthroughEnvironmentVariable = Unit;
+
 /**
  * Resolver for MSBuild project-level build execution, utilizing the MsBuild static graph API to
  * find MSBuild files and convert them to a pip graph
@@ -160,8 +163,11 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
      * Note: if this field is not specified any change in an environment variable will potentially cause
      * cache misses for all pips. This is because there is no way to know which variables were actually used during the build.
      * Therefore, it is recommended to specify the environment explicitly.
+     * The value can be either a string or a PassthroughEnvironmentVariable, the latter representing that the associated variable will be exposed
+     * but its value won't be considered part of the build inputs for tracking purposes. This means that any change in the value of the 
+     * variable won't cause a rebuild.
      */
-    environment?: Map<string, string>;
+    environment?: Map<string, (PassthroughEnvironmentVariable | string)>;
 
     /**
      * Global properties to use for all projects.

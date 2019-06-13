@@ -1089,7 +1089,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             Counters[ContentLocationStoreCounters.EffectiveLastAccessTimeLookupMiss].Increment();
                         }
 
-                        effectiveLastAccessTimes.Add(new ContentHashWithLastAccessTimeAndReplicaCount(contentHash.Hash, contentHash.LastAccessTime,  replicaCount, effectiveLastAccessTime: effectiveLastAccessTime ?? contentHash.LastAccessTime));
+                        effectiveLastAccessTimes.Add(new ContentHashWithLastAccessTimeAndReplicaCount(contentHash.Hash, contentHash.LastAccessTime, replicaCount, effectiveLastAccessTime: effectiveLastAccessTime ?? contentHash.LastAccessTime));
                     }
 
                     return Result.Success<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>(effectiveLastAccessTimes);

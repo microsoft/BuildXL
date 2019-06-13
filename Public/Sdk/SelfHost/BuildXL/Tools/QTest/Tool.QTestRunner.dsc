@@ -188,7 +188,7 @@ export function runQTest(args: QTestArguments): Result {
     let result = Transformer.execute({
         tool: args.qTestTool ? args.qTestTool : qTestTool,
         tags: tags,
-        description: args.description,
+        description: `${args.description} || Running QTest for ${args.testAssembly}`,
         arguments: commandLineArgs,
         consoleOutput: consolePath,
         workingDirectory: sandboxDir,
@@ -230,7 +230,7 @@ export function runQTest(args: QTestArguments): Result {
         Transformer.execute({
             tool: args.qTestTool ? args.qTestTool : qTestTool,
             tags: tags,
-            description: "QTest Coverage Upload",
+            description: `Running QTest Coverage Upload for ${args.testAssembly}`,
             arguments: commandLineArgsForUploadPip,
             consoleOutput: coverageConsolePath,
             workingDirectory: tempDirectory,

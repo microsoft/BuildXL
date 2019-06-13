@@ -546,3 +546,13 @@ namespace Math {
     /** Euclidian division */
     export declare function div(dividend: number, divisor: number): number;
 }
+
+/** Type that only allows one value */
+interface Unit {
+    __unitBrand: any;
+}
+
+namespace Unit {
+    /** Returns the (only) value of type Unit*/
+    export declare function unit(): Unit;
+}

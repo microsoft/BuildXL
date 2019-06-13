@@ -113,6 +113,11 @@ namespace BuildXL.FrontEnd.Script.Values
         public Type AmbientType { get; }
 
         /// <summary>
+        /// Unit type.
+        /// </summary>
+        public Type UnitType { get; }
+
+        /// <summary>
         /// Boolean type.
         /// </summary>
         public Type BooleanType { get; }
@@ -178,6 +183,7 @@ namespace BuildXL.FrontEnd.Script.Values
             EnumType = CreateNamedTypeReference("Enum");
             ClosureType = CreateNamedTypeReference("Closure");
             AmbientType = CreateNamedTypeReference("Ambient");
+            UnitType = PrimitiveType.UnitType;
             BooleanType = PrimitiveType.BooleanType;
             StringType = PrimitiveType.StringType;
             NumberType = PrimitiveType.NumberType;

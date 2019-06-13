@@ -166,8 +166,11 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         [Fact]
         public void EnvironmentIsHonored()
         {
+            var one = new DiscriminatingUnion<string, UnitValue>();
+            one.SetValue("1");
+
             var project = CreateProjectWithPredictions("A.proj");
-            var testProj = Start(new MsBuildResolverSettings { Environment = new Dictionary<string, string> { ["Test"] = "1" } })
+            var testProj = Start(new MsBuildResolverSettings { Environment = new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { ["Test"] = one } })
                 .Add(project)
                 .ScheduleAll()
                 .AssertSuccess()
@@ -184,7 +187,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             Environment.SetEnvironmentVariable(envVar, "1");
 
             var project = CreateProjectWithPredictions("A.proj");
-            var testProj = Start(new MsBuildResolverSettings { Environment = new Dictionary<string, string>() })
+            var testProj = Start(new MsBuildResolverSettings { Environment = new Dictionary<string, DiscriminatingUnion<string, UnitValue>>() })
                 .Add(project)
                 .ScheduleAll()
                 .AssertSuccess()

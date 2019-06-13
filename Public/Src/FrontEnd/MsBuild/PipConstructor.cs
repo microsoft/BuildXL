@@ -19,6 +19,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
+using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
 
@@ -56,6 +57,8 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private readonly AbsolutePath m_msBuildExePath;
         private readonly string m_frontEndName;
+        private readonly IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
+        private readonly IEnumerable<string> m_userDefinedPassthroughVariables;
 
         private PathTable PathTable => m_context.PathTable;
         private FrontEndEngineAbstraction Engine => m_frontEndHost.Engine;
@@ -75,7 +78,9 @@ namespace BuildXL.FrontEnd.MsBuild
             ModuleDefinition moduleDefinition,
             IMsBuildResolverSettings resolverSettings,
             AbsolutePath pathToMsBuildExe,
-            string frontEndName)
+            string frontEndName,
+            [CanBeNull] IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
+            [CanBeNull] IEnumerable<string> userDefinedPassthroughVariables)
         {
             Contract.Requires(context != null);
             Contract.Requires(frontEndHost != null);
@@ -90,6 +95,8 @@ namespace BuildXL.FrontEnd.MsBuild
             m_resolverSettings = resolverSettings;
             m_msBuildExePath = pathToMsBuildExe;
             m_frontEndName = frontEndName;
+            m_userDefinedEnvironment = userDefinedEnvironment;
+            m_userDefinedPassthroughVariables = userDefinedPassthroughVariables;
         }
 
         /// <summary>
@@ -148,8 +155,7 @@ namespace BuildXL.FrontEnd.MsBuild
             env[BuildEnvironmentConstants.MsBuildLogAsyncEnvVar] = "1";
 
             // If the resolver settings environment was not specified, we expose the whole process environment
-            var environment = m_resolverSettings.Environment ?? 
-                Environment.GetEnvironmentVariables().Cast<DictionaryEntry>().Select(
+            var environment = m_userDefinedEnvironment ?? Environment.GetEnvironmentVariables().Cast<DictionaryEntry>().Select(
                     entry => new KeyValuePair<string, string>((string)entry.Key, (string)entry.Value));
 
             foreach (var input in environment)
@@ -462,6 +468,14 @@ namespace BuildXL.FrontEnd.MsBuild
                     processBuilder.SetEnvironmentVariable(
                         StringId.Create(m_context.StringTable, kvp.Key),
                         envPipData.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
+                }
+            }
+
+            if (m_userDefinedPassthroughVariables != null)
+            {
+                foreach (string passThroughVariable in m_userDefinedPassthroughVariables)
+                {
+                    processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(m_context.StringTable, passThroughVariable));
                 }
             }
         }

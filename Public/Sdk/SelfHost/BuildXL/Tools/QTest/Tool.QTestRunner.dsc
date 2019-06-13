@@ -188,7 +188,7 @@ export function runQTest(args: QTestArguments): Result {
     let result = Transformer.execute({
         tool: args.qTestTool ? args.qTestTool : qTestTool,
         tags: tags,
-        description: `${args.description} || Running QTest for ${args.testAssembly}`,
+        description: `Running QTest for ${args.testAssembly} || ${args.description}`,
         arguments: commandLineArgs,
         consoleOutput: consolePath,
         workingDirectory: sandboxDir,

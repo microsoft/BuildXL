@@ -199,7 +199,7 @@ namespace BuildXL.Engine
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(Count, (int)(SizeInBytes & 0xFFFFFFFF), (int) (SizeInBytes >> 32));
+            return HashCodeHelper.Combine(Count, HashCodeHelper.GetHashCode(SizeInBytes));
         }
 
         /// <inheritdoc/>

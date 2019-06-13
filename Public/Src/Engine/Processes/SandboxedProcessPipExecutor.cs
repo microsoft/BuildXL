@@ -596,6 +596,8 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
+                PrepareEnvironmentVariables(ref environmentVariables);
+
                 if (!PrepareTempDirectory(ref environmentVariables))
                 {
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
@@ -861,6 +863,11 @@ namespace BuildXL.Processes
 
             info.RedirectedTempFolders = m_tempFolderRedirectionForVm.Select(kvp => (kvp.Key.ToString(m_pathTable), kvp.Value.ToString(m_pathTable))).ToArray();
 
+            if (m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternalVm())
+            {
+                TranslateHostSharedUncDrive(info);
+            }
+
             // Preparation should be finished.
             sandboxPrepTime.Stop();
             ISandboxedProcess process = null;
@@ -905,6 +912,23 @@ namespace BuildXL.Processes
             }
 
             return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+        }
+
+        /// <summary>
+        /// Translates VMs' host shared drive.
+        /// </summary>
+        /// <remarks>
+        /// VMs' host net shares the drive where the enlistiment resides, e.g., D, that is net used by the VMs. When the process running in a VM 
+        /// accesses D:\E\f.txt, the process actually accesses D:\E\f.txt in the host. Thus, the file access manifest constructed in the host
+        /// is often sufficient for running pips in VMs. However, some tools, like dotnet.exe, can access the path in UNC format, i.e.,
+        /// \\192.168.0.1\D\E\f.txt. In this case, we need to supply a directory translation from that UNC path to the non-UNC path.
+        /// </remarks>
+        private void TranslateHostSharedUncDrive(SandboxedProcessInfo info)
+        {
+            DirectoryTranslator newTranslator = info.FileAccessManifest.DirectoryTranslator?.GetUnsealedClone() ?? new DirectoryTranslator();
+            newTranslator.AddTranslation($@"\\{VmIOConstants.Host.IpAddress}\{VmIOConstants.Host.NetUseDrive}", $@"{VmIOConstants.Host.NetUseDrive}:");
+            newTranslator.Seal();
+            info.FileAccessManifest.DirectoryTranslator = newTranslator;
         }
 
         private async Task<SandboxedProcessPipExecutionResult> GetAndProcessResultAsync(
@@ -1581,6 +1605,12 @@ namespace BuildXL.Processes
                 }
             }
 
+            // Untrack the globally untracked paths specified in the configuration 
+            foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
+            {
+                m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+            }
+
             // For some static system mounts (currently only for AppData\Roaming) we allow CreateDirectory requests for all processes.
             // This is done because many tools are using CreateDirectory to check for the existence of that directory. Since system directories
             // always exist, allowing such requests would not lead to any changes on the disk. Moreover, we are applying an exact path policy (i.e., not a scope policy).
@@ -2020,6 +2050,14 @@ namespace BuildXL.Processes
             return true;
         }
 
+        private void PrepareEnvironmentVariables(ref IBuildParameters environmentVariables)
+        {
+            if (ShouldSandboxedProcessExecuteInVm)
+            {
+                environmentVariables = environmentVariables.Override(new[] { new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.IsInVm, "1")});
+            }
+        }
+
         /// <summary>
         /// Creates and cleans the Process's temp directory if necessary
         /// </summary>
@@ -2084,7 +2122,11 @@ namespace BuildXL.Processes
                     // However, a number of operations, like creating/accessing/enumerating junctions, will fail.
                     // Recall that junctions are evaluated locally, so that creating junction using host path is like creating junctions 
                     // on the host from the VM.
-                    var overridenEnvVars = DisallowedTempVariables.Select(v => new KeyValuePair<string, string>(v, redirectedTempDirectory.ToString(m_pathTable)));
+                    string redirectedTempDirectoryPath = redirectedTempDirectory.ToString(m_pathTable);
+                    var overridenEnvVars = DisallowedTempVariables
+                        .Select(v => new KeyValuePair<string, string>(v, redirectedTempDirectoryPath))
+                        .Append(new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.VmTemp, redirectedTempDirectoryPath));
+
                     environmentVariables = environmentVariables.Override(overridenEnvVars);
                 }
             }

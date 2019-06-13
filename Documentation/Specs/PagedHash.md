@@ -35,4 +35,4 @@ The result is a 33-byte VSO-Hash.
 A good implementation, such as linked below, can hash blocks and pages in parallel, saving significant end-to-end time on large files and overlapping the overhead of SHA256.
 
 ## Related Code
-[VsoHash.cs](../../Public/src/Cache/ContentStore/HashingVsoHash.cs) is the primary implementation. It can perform asyncrhonous, parallel block and page hashing.
+[VsoHash.cs](../../Public/src/Cache/ContentStore/Hashing/VsoHash.cs) is the primary implementation. It can perform asyncrhonous, parallel block and page hashing.

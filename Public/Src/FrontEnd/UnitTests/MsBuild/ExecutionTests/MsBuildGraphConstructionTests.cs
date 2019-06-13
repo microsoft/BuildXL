@@ -42,6 +42,17 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         }
 
         [Fact]
+        public void PassthroughEnvironmentIsUsedDuringConstruction()
+        {
+            // We expect the resulting process to contain an output directory matching the content of OutputPath
+            Environment.SetEnvironmentVariable("OutputPath", @"Z:\\foo");
+            var env = new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { ["OutputPath"] = new DiscriminatingUnion<string, UnitValue>(UnitValue.Unit)};
+
+            var process = CreateDummyProjectWithEnvironment(env);
+            Assert.True(process.DirectoryOutputs.Any(dir => dir.Path == AbsolutePath.Create(PathTable, @"Z:\foo")));
+        }
+
+        [Fact]
         public void EnvironmentBlocksExposingTheProcessEnvironment()
         {
             // Even though the output path is set in the environment, since we are passing an empty dictionary for the environment, it
@@ -58,7 +69,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             // Null environment should expose the environment
             Environment.SetEnvironmentVariable("OutputPath", @"Z:\\foo");
 
-            var process = CreateDummyProjectWithEnvironment(environment: null);
+            var process = CreateDummyProjectWithEnvironment(environment: (Dictionary<string, string>) null);
             Assert.True(process.DirectoryOutputs.Any(dir => dir.Path == AbsolutePath.Create(PathTable, @"Z:\foo")));
         }
 
@@ -208,7 +219,12 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 fullEnvironment = environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value));
             }
 
-            var config = BuildWithEnvironment(environment: fullEnvironment)
+            return CreateDummyProjectWithEnvironment(fullEnvironment);
+        }
+
+        private Process CreateDummyProjectWithEnvironment(Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment)
+        {
+            var config = BuildWithEnvironment(environment: environment)
                     .AddSpec(R("TestProject.proj"), CreateHelloWorldProject())
                     .PersistSpecsAndGetConfiguration();
 

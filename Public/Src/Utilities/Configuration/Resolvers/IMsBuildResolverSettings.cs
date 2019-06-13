@@ -1,7 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration.Resolvers;
 
 namespace BuildXL.Utilities.Configuration
@@ -152,17 +155,26 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Process <see cref="IMsBuildResolverSettings.Environment"/> and split the specified environment variables that need to be exposed and tracked from the passthrough environment variables
         /// </summary>
-        /// <returns>Whether there is a non-null environment to process</returns>
-        public static bool TryComputeEnvironment(this IMsBuildResolverSettings msBuildResolverSettings, out IEnumerable<KeyValuePair<string, string>> trackedEnv, out IEnumerable<string> passthroughEnv)
+        /// <remarks>
+        /// When <see cref="IMsBuildResolverSettings.Environment"/> is null, the current environment is defined as the tracked environment, with no passthroughs
+        /// </remarks>
+        public static void ComputeEnvironment(this IMsBuildResolverSettings msBuildResolverSettings, out IDictionary<string, string> trackedEnv, out ICollection<string> passthroughEnv)
         {
             if (msBuildResolverSettings.Environment == null)
             {
-                trackedEnv = null;
-                passthroughEnv = null;
-                return false;
+                var allEnvironmentVariables = Environment.GetEnvironmentVariables();
+                trackedEnv = new Dictionary<string, string>(allEnvironmentVariables.Count);
+                foreach (var envVar in allEnvironmentVariables.Keys)
+                {
+                    object value = allEnvironmentVariables[envVar];
+                    trackedEnv[envVar.ToString()] = value.ToString();
+                }
+
+                passthroughEnv = CollectionUtilities.EmptyArray<string>();
+                return;
             }
 
-            var trackedList = new List<KeyValuePair<string, string>>();
+            var trackedList = new Dictionary<string, string>();
             var passthroughList = new List<string>();
 
             foreach (var kvp in msBuildResolverSettings.Environment)
@@ -170,7 +182,7 @@ namespace BuildXL.Utilities.Configuration
                 var valueOrPassthrough = kvp.Value?.GetValue();
                 if (valueOrPassthrough == null || valueOrPassthrough is string)
                 {
-                    trackedList.Add(new KeyValuePair<string, string>(kvp.Key, (string)valueOrPassthrough));
+                    trackedList.Add(kvp.Key, (string)valueOrPassthrough);
                 }
                 else
                 {
@@ -180,8 +192,6 @@ namespace BuildXL.Utilities.Configuration
 
             trackedEnv = trackedList;
             passthroughEnv = passthroughList;
-
-            return true;
         }
     }
 }

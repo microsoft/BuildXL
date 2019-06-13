@@ -8,6 +8,7 @@ namespace Library {
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.ContentStore",
+        generateLogs: true,
         sources: globR(d`.`,"*.cs"),
         references: [
             ...(BuildXLSdk.isDotNetCoreBuild ? [
@@ -26,6 +27,7 @@ namespace Library {
             Grpc.dll,
             // TODO: This needs to be renamed to just utilities... but it is in a package in public/src
             importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("Grpc.Core").pkg,

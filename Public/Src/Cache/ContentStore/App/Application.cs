@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -28,6 +27,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
+using BuildXL.Utilities.Instrumentation.Common;
 using CLAP;
 
 // ReSharper disable UnusedMember.Global
@@ -55,6 +55,7 @@ namespace BuildXL.Cache.ContentStore.App
         private uint _connectionsPerSession;
         private uint _retryIntervalSeconds;
         private uint _retryCount;
+        private bool _enableRemoteTelemetry;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Application"/> class.
@@ -240,6 +241,15 @@ namespace BuildXL.Cache.ContentStore.App
             _retryCount = value;
         }
 
+        /// <summary>
+        ///     Whether or not to enable remote telemetry.
+        /// </summary>
+        [Global("RemoteTelemetry", Description = "Enable remote telemetry")]
+        public void EnableRemoteTelemetry(bool enableRemoteTelemetry)
+        {
+            _enableRemoteTelemetry = enableRemoteTelemetry;
+        }
+
         private static void SetThreadPoolSizes()
         {
             ThreadPool.GetMaxThreads(out var workerThreads, out var completionPortThreads);
@@ -289,6 +299,22 @@ namespace BuildXL.Cache.ContentStore.App
             {
                 _fileLog = new FileLog(_logDirectoryPath, null, _fileLogSeverity, _logAutoFlush, _logMaxFileSize, _logMaxFileCount);
                 _logger.AddLog(_fileLog);
+            }
+
+            if (_enableRemoteTelemetry)
+            {
+                AriaV2StaticState.Enable(global::BuildXL.Tracing.AriaTenantToken.Key);
+                _logger.Always("Remote telemetry anabled");
+
+                var relatedActivityId = new Guid();
+                var environment = string.Empty; // arbitrary additional information can be set here
+                var topLevelContext = new LoggingContext
+                    (
+                    relatedActivityId,
+                    loggerComponentInfo: Path.GetFileName(Utilities.AssemblyHelper.GetThisProgramExeLocation()),
+                    session: new LoggingContext.SessionInfo(Guid.NewGuid().ToString(), environment, relatedActivityId)
+                    );
+                _logger.AddLog(new BxlLog(topLevelContext, _fileLogSeverity));
             }
         }
 

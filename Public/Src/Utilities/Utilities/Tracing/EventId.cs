@@ -1135,5 +1135,8 @@ namespace BuildXL.Utilities.Tracing
         // Sandbox kernel extension connection manger errors
         KextFailedToInitializeConnectionManager = 14500,
         KextFailureNotificationReceived = 14501,
+
+        // CASaaS events
+        ContentAddressableStoreLogMessage = 14600,
     }
 }

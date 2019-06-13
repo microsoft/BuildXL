@@ -1259,6 +1259,12 @@ namespace BuildXL
                     schedulingConfiguration.IncrementalScheduling = false;
                 }
 
+                // Disable any option that may interfere with determinism validation
+                if (cacheConfiguration.DeterminismProbe)
+                {
+                    schedulingConfiguration.IncrementalScheduling = false;
+                }
+
                 arguments = configuration;
 
                 return true;

@@ -606,7 +606,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             var snapshotContentDirectory = ContentDirectory.ToArray();
             return Task.FromResult<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>(snapshotContentDirectory
                 .OrderBy(fileInfoByHash => fileInfoByHash.Value.LastAccessedFileTimeUtc)
-                .Select(fileInfoByHash => new ContentHashWithLastAccessTimeAndReplicaCount(fileInfoByHash.Key, DateTime.FromFileTimeUtc(fileInfoByHash.Value.LastAccessedFileTimeUtc), fileInfoByHash.ReplicaCount))
+                .Select(fileInfoByHash => new ContentHashWithLastAccessTimeAndReplicaCount(fileInfoByHash.Key, DateTime.FromFileTimeUtc(fileInfoByHash.Value.LastAccessedFileTimeUtc)))
                 .ToList());
         }
 

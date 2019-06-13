@@ -295,8 +295,8 @@ namespace Test.DScript.Util
             var msBuildResolver = resolver as MsBuildResolverSettings;
             XAssert.IsNotNull(msBuildResolver);
 
-            XAssert.AreEqual("hi", msBuildResolver.Environment["1"]);
-            XAssert.AreEqual("bye", msBuildResolver.Environment["2"]);
+            XAssert.AreEqual("hi", msBuildResolver.Environment["1"].GetValue());
+            XAssert.AreEqual("bye", msBuildResolver.Environment["2"].GetValue());
         }
 
         /// <summary>

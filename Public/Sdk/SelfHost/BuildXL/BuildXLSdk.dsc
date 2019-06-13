@@ -47,8 +47,6 @@ const brandingDefines = [
 
 @@public
 export interface Arguments extends Managed.Arguments {
-    cscArgs?: Csc.Arguments;
-
     /** Provide switch to turn skip tool that adds GetTypeInfo() calls to generated resource code, so the tool can be compiled */
     skipResourceTranslator?: boolean;
 
@@ -286,6 +284,7 @@ export function executable(args: Arguments): Managed.Assembly {
         ],
         tools: {
             csc: {
+                platform: <"x64">"x64",
                 win32Icon: Branding.iconFile
             },
         },

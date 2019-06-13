@@ -75,7 +75,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// The environment that is exposed to the resolver. If not specified, the process environment is used.
         /// </summary>
-        IReadOnlyDictionary<string, string> Environment { get; }
+        IReadOnlyDictionary<string, DiscriminatingUnion<string, UnitValue>> Environment { get; }
 
         /// <summary>
         /// Global properties to use for all projects.
@@ -144,5 +144,44 @@ namespace BuildXL.Utilities.Configuration
         /// When true, default targets will be used as a heuristic. Defaults to false.
         /// </remarks>
         bool? AllowProjectsToNotSpecifyTargetProtocol { get; }
+    }
+
+    /// <nodoc/>
+    public static class MsBuildResolverSettingsExtensions
+    {
+        /// <summary>
+        /// Process <see cref="IMsBuildResolverSettings.Environment"/> and split the specified environment variables that need to be exposed and tracked from the passthrough environment variables
+        /// </summary>
+        /// <returns>Whether there is a non-null environment to process</returns>
+        public static bool TryComputeEnvironment(this IMsBuildResolverSettings msBuildResolverSettings, out IEnumerable<KeyValuePair<string, string>> trackedEnv, out IEnumerable<string> passthroughEnv)
+        {
+            if (msBuildResolverSettings.Environment == null)
+            {
+                trackedEnv = null;
+                passthroughEnv = null;
+                return false;
+            }
+
+            var trackedList = new List<KeyValuePair<string, string>>();
+            var passthroughList = new List<string>();
+
+            foreach (var kvp in msBuildResolverSettings.Environment)
+            {
+                var valueOrPassthrough = kvp.Value?.GetValue();
+                if (valueOrPassthrough == null || valueOrPassthrough is string)
+                {
+                    trackedList.Add(new KeyValuePair<string, string>(kvp.Key, (string)valueOrPassthrough));
+                }
+                else
+                {
+                    passthroughList.Add(kvp.Key);
+                }
+            }
+
+            trackedEnv = trackedList;
+            passthroughEnv = passthroughList;
+
+            return true;
+        }
     }
 }

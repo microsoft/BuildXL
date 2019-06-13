@@ -153,7 +153,15 @@ namespace BuildXL.FrontEnd.MsBuild
                             .Where(project => ProjectMatchesQualifier(project, qualifier))
                             .ToReadOnlySet();
 
-            var graphConstructor = new PipGraphConstructor(m_context, m_host, result.ModuleDefinition, m_msBuildResolverSettings, result.MsBuildExeLocation, m_frontEndName);
+            var graphConstructor = new PipGraphConstructor(
+                m_context, 
+                m_host, 
+                result.ModuleDefinition, 
+                m_msBuildResolverSettings, 
+                result.MsBuildExeLocation, 
+                m_frontEndName, 
+                m_msBuildWorkspaceResolver.UserDefinedEnvironment, 
+                m_msBuildWorkspaceResolver.UserDefinedPassthroughVariables);
 
             return graphConstructor.TrySchedulePipsForFilesAsync(filteredBuildFiles, qualifierId);
         }

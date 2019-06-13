@@ -81,7 +81,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public IReadOnlyList<string> InitialTargets { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyDictionary<string, string> Environment { get; set; }
+        public IReadOnlyDictionary<string, DiscriminatingUnion<string, UnitValue>> Environment { get; set; }
 
         /// <inheritdoc/>
         public IReadOnlyDictionary<string, string> GlobalProperties { get; set; }

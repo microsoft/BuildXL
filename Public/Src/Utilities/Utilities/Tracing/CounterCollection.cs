@@ -303,7 +303,7 @@ namespace BuildXL.Utilities.Tracing
         /// <inheritdoc />
         public override string ToString()
         {
-            string optionalDuration = IsStopwatch ? Duration.ToString(@"hh\:mm\:ss\.fff") : string.Empty;
+            string optionalDuration = IsStopwatch ? (" " + Duration.ToString(@"hh\:mm\:ss\.fff")) : string.Empty;
             return $"[{Value.ToString().PadLeft(8, ' ')}{optionalDuration}";
         }
     }

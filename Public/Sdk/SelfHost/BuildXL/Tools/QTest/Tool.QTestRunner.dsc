@@ -194,7 +194,10 @@ export function runQTest(args: QTestArguments): Result {
         workingDirectory: sandboxDir,
         tempDirectory: tempDirectory,
         weight: args.weight,
-        environmentVariables: [{ name: "[Sdk.BuildXL]qCodeCoverageEnumType", value: qCodeCoverageEnumType },...(args.qTestEnvironmentVariables || [])],
+        environmentVariables: [
+            { name: "[Sdk.BuildXL]qCodeCoverageEnumType", value: qCodeCoverageEnumType },
+            ...(args.qTestEnvironmentVariables || [])
+        ],
         disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
         additionalTempDirectories : [sandboxDir],
         privilegeLevel: args.privilegeLevel,

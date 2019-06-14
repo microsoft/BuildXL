@@ -181,7 +181,7 @@ namespace BuildXL.Utilities
             ///     Any duplicates found in <paramref name="parameters"/> are reported only if they
             ///     have different values.
             /// </remarks>
-            public IBuildParameters PopulateFromDictionary(IReadOnlyDictionary<string, string> parameters)
+            public IBuildParameters PopulateFromDictionary(IEnumerable<KeyValuePair<string, string>> parameters)
             {
                 Contract.Ensures(Contract.Result<IBuildParameters>() != null);
 
@@ -215,7 +215,7 @@ namespace BuildXL.Utilities
                 return result;
             });
 
-            private IBuildParameters Create(IReadOnlyDictionary<string, string> value)
+            private IBuildParameters Create(IEnumerable<KeyValuePair<string, string>> value)
             {
                 Contract.Ensures(Contract.Result<IBuildParameters>() != null);
 

@@ -11,6 +11,9 @@ using BuildXL.Scheduler.Graph;
 using Test.BuildXL.EngineTestUtilities;
 using Xunit;
 using Xunit.Abstractions;
+using System;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -109,6 +112,64 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             AssertInformationalEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues, count: 0);
             AssertInformationalEventLogged(LogEventId.EndDeserializingEngineState);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void PassthroughVariablesAreHonored(bool isPassThrough)
+        {
+            var testCache = new TestCache();
+
+            const string TestProj1 = "test1.csproj";
+            var pathToTestProj1 = R("public", TestProj1);
+
+            Environment.SetEnvironmentVariable("Test", "originalValue");
+
+            var environment = new Dictionary<string, DiscriminatingUnion<string, UnitValue>> {
+                ["Test"] = isPassThrough ? 
+                    new DiscriminatingUnion<string, UnitValue>(UnitValue.Unit) :
+                    new DiscriminatingUnion<string, UnitValue>(Environment.GetEnvironmentVariable("Test"))
+            };
+
+            var config = (CommandLineConfiguration)Build(
+                            runInContainer: false, 
+                            environment: environment, 
+                            globalProperties: null,
+                            filenameEntryPoint: pathToTestProj1)
+                    .AddSpec(pathToTestProj1, CreateWriteFileTestProject("MyFile"))
+                    .PersistSpecsAndGetConfiguration();
+
+            config.Sandbox.FileSystemMode = FileSystemMode.RealAndMinimalPipGraph;
+
+            config.Cache.CacheGraph = true;
+            config.Cache.AllowFetchingCachedGraphFromContentCache = true;
+            config.Cache.Incremental = true;
+
+            // First time the graph should be computed
+            var engineResult = RunEngineWithConfig(config, testCache);
+            Assert.True(engineResult.IsSuccess);
+
+            AssertInformationalEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues);
+            AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
+            AssertLogContains(false, "Storing pip graph descriptor to cache: Status: Success");
+            
+            Environment.SetEnvironmentVariable("Test", "modifiedValue");
+
+            engineResult = RunEngineWithConfig(config, testCache);
+            Assert.True(engineResult.IsSuccess);
+
+            // If the variable is a passthrough, the change shouldn't affect caching
+            if (isPassThrough)
+            {
+                AssertInformationalEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues, count: 0);
+                AssertInformationalEventLogged(LogEventId.EndDeserializingEngineState);
+            }
+            else
+            {
+                AssertInformationalEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues);
+                AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
+            }
         }
 
         [Fact]

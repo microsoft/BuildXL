@@ -1283,6 +1283,61 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
+        [Fact]
+        public async Task TestRegisterActions()
+        {
+            // This test validates that events (like add location/remove location) are properly generated
+            // based on the local location store's internal state and configuration.
+            // For instance, some events are skipped because they were added recently, and some events should be eager
+            // and the central store should be updated.
+            ConfigureWithOneMaster();
+            
+            await RunTestAsync(
+                new Context(Logger),
+                3,
+                async context =>
+                {
+                    var sessions = context.Sessions;
+
+                    var workersSession = sessions[context.GetFirstWorkerIndex()];
+                    var worker = context.GetFirstWorker();
+
+                    // Insert random file to a worker.
+                    var worker1Lls = worker.LocalLocationStore;
+
+                    worker1Lls.Counters[ContentLocationStoreCounters.LocationAddEager].Value.Should().Be(0);
+                    var putResult0 = await workersSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+                    worker1Lls.Counters[ContentLocationStoreCounters.LocationAddEager].Value.Should().Be(1);
+
+                    var hashWithSize = new ContentHashWithSize(putResult0.ContentHash, putResult0.ContentSize);
+
+                    worker1Lls.Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Value.Should().Be(0);
+                    await worker1Lls.RegisterLocalLocationAsync(context, new[] { hashWithSize }).ThrowIfFailure();
+                    // Still should be one, because we just recently added the content.
+                    worker1Lls.Counters[ContentLocationStoreCounters.LocationAddEager].Value.Should().Be(1);
+                    worker1Lls.Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Value.Should().Be(1);
+
+                    // Force the roundtrip to get the locations on the worker.
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
+
+                    TestClock.UtcNow += TimeSpan.FromHours(1.5);
+                    await worker.GetBulkLocalAsync(context, putResult0.ContentHash).ShouldBeSuccess();
+                    TestClock.UtcNow += TimeSpan.FromHours(1.5);
+
+                    // It was 3 hours since the content was added and 1.5h since the last touch.
+                    worker1Lls.Counters[ContentLocationStoreCounters.LazyTouchEventOnly].Value.Should().Be(0);
+                    await worker1Lls.RegisterLocalLocationAsync(context, new[] { hashWithSize }).ThrowIfFailure();
+                    worker1Lls.Counters[ContentLocationStoreCounters.LazyTouchEventOnly].Value.Should().Be(1);
+
+                    await worker.TrimBulkAsync(context, new[] {hashWithSize.Hash}, Token, UrgencyHint.Nominal).ThrowIfFailure();
+
+                    // We just removed the content, now, if we'll add it back, we should notify the global store eagerly.
+                    worker1Lls.Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Value.Should().Be(0);
+                    await worker1Lls.RegisterLocalLocationAsync(context, new[] { hashWithSize }).ThrowIfFailure();
+                    worker1Lls.Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Value.Should().Be(1);
+                });
+        }
+
         private static void CopyDirectory(string sourceRoot, string destinationRoot, bool overwriteExistingFiles = false)
         {
             sourceRoot = sourceRoot.TrimEnd('\\');

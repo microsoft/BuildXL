@@ -334,7 +334,7 @@ namespace BuildXL.Processes.Internal
             m_containerConfiguration = containerConfiguration;
 
             if (m_workingDirectory != null && m_workingDirectory.Length == 0)
-            {
+            {                
                 m_workingDirectory = Directory.GetCurrentDirectory();
             }
 
@@ -503,7 +503,7 @@ namespace BuildXL.Processes.Internal
                             }
 
                             throw new BuildXLException(
-                                message,
+                                message + " m_workingDirectory:" + m_workingDirectory,
                                 new NativeWin32Exception(errorCode));
                         }
 

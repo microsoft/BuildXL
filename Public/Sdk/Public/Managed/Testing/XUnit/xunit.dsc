@@ -66,11 +66,16 @@ export function runConsoleTest(args: TestRunArguments): Result {
     const result = Transformer.execute(execArguments);
 
     if (Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")) {
+        // When running in CloudBuild, the output file that contains the results of the tests is produced in the object folder.
+        // Unfortunately, that object folder is cleaned up after every build. Thus, to know whether or not the tests were run,
+        // or to know the complete test results, the test output file needs to be copied to some location that is preserved
+        // after the build. To this end, we copy output file to the log directory.
+
         const qualifierRelative = r`${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`;
         const parallelRelative = args.parallelBucketIndex !== undefined ? `${args.parallelBucketIndex}` : `0`;
         const xunitLogDir = d`${Context.getMount("LogsDirectory").path}/XUnit/${Context.getLastActiveUseModuleName()}/${Context.getLastActiveUseName()}/${qualifierRelative}/${parallelRelative}`;
 
-        const copies = result.getOutputFiles().map(f => Transformer.copyFile(f, p`${xunitLogDir}/${f.name}`));
+        result.getOutputFiles().map(f => Transformer.copyFile(f, p`${xunitLogDir}/${f.name}`));
     }
 
     return {

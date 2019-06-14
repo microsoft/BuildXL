@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         internal GrpcCopyClient(GrpcCopyClientKey key)
         {
             GrpcEnvironment.InitializeIfNeeded();
-            _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure);
+            _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _client = new ContentServer.ContentServerClient(_channel);
             Key = key;
         }

@@ -292,23 +292,29 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Debug.Assert(!(reader is null));
             Debug.Assert(!(responseStream is null));
 
+            int chunkSize = 0;
+            async Task<int> ReadNextChunk() { chunkSize = await reader.ReadAsync(buffer, 0, buffer.Length, ct); return chunkSize; }
+
             long chunks = 0L;
             long bytes = 0L;
+
+            // Pre-fill buffer with the file's first chunk
+            await ReadNextChunk();
+
             while (true)
             {
                 ct.ThrowIfCancellationRequested();
 
-                int chunkSize = await reader.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
                 if (chunkSize == 0) { break; }
 
                 ByteString content = ByteString.CopyFrom(buffer, 0, chunkSize);
                 CopyFileResponse response = new CopyFileResponse() { Content = content, Index = chunks };
-                await responseStream.WriteAsync(response).ConfigureAwait(false);
 
                 bytes += chunkSize;
                 chunks++;
 
-                Console.WriteLine(chunks);
+                // Read the next chunk while waiting for the response
+                await Task.WhenAll(ReadNextChunk(), responseStream.WriteAsync(response));
             }
 
             return (chunks, bytes);

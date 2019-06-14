@@ -25,25 +25,11 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// <returns>An instance of <see cref="IChangeJournalAccessor"/>.</returns>
         public static Possible<IChangeJournalAccessor> TryGetJournalAccessorForTest(VolumeMap volumeMap)
         {
-            string path = null;
-            bool usingTempFile = false;
-
-            if (!HasRelocatedTempInVm)
-            {
-                path = AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly());
-            }
-            else
-            {
-                path = Path.GetTempFileName();
-                usingTempFile = true;
-            }
+            string path = Path.GetTempFileName();
 
             var maybeJournal = JournalAccessorGetter.TryGetJournalAccessor(volumeMap, path);
 
-            if (usingTempFile)
-            {
-                FileUtilities.DeleteFile(path);
-            }
+            FileUtilities.DeleteFile(path);
 
             return maybeJournal;
         }

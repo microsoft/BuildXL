@@ -563,10 +563,8 @@ namespace BuildXL.FrontEnd.MsBuild
             // Just let it be killed.
             // TODO: Can we stop it running? https://stackoverflow.microsoft.com/questions/74425/how-to-disable-vctip-exe-in-vc14
             //
-            // conhost.exe: This process needs a little bit more time to finish after the main process. We shouldn't be allowing
-            // this one to survive, we just need the timeout to be slightly more than zero. This will also be beneficial to other 
-            // arbitrary processeses that need a little bit more time. But, apparently, setting a timeout has a perf impact that is 
-            // being investigated. TODO: revisit this once this is fixed.
+            // conhost.exe: This process needs a little bit more time to finish after the main process, but killing it right away
+            // is inconsequential. 
             //
             // All child processes: Don't wait to kill the processes.
             // CODESYNC: CloudBuild repo TrackerExecutor.cs "info.NestedProcessTerminationTimeout = TimeSpan.Zero"
@@ -575,7 +573,12 @@ namespace BuildXL.FrontEnd.MsBuild
                 PathAtom.Create(m_context.StringTable, "vctip.exe"),
                 PathAtom.Create(m_context.StringTable, "conhost.exe"),
                 PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe"));
-            processBuilder.NestedProcessTerminationTimeout = TimeSpan.Zero;
+            // There are some cases (e.g. a 64-bit MSBuild launched as a child process from a 32-bit MSBuild instance) where
+            // processes need a little bit more time to finish. Increasing the timeout does not affect job objects where no child
+            // processes survive, or job object where the only surviving processes are the ones explicitly allowed to survive (which
+            // are killed immediately). So overall, this non-zero timeout will only make some pips that would have failed to take a little
+            // bit longer (and hopefully succeed)
+            processBuilder.NestedProcessTerminationTimeout = TimeSpan.FromMilliseconds(500);
 
             SetProcessEnvironmentVariables(CreateEnvironment(logDirectory, project), processBuilder);
 

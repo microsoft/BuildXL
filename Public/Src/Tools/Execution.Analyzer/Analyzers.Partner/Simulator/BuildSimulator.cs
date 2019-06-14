@@ -261,16 +261,53 @@ namespace BuildXL.Execution.Analyzer
 
             // information on each process during simulation
             string csvFormat = "{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}";
-            File.WriteAllLines(GetResultsPath("actualSimulation.txt"), new string[] { csvFormat.FormatWith("Id", "Thread", "Minimum Start Time", "Start Time", "End Time", "Duration", "Incoming", "Outgoing") }.Concat(actualSimulation.GetSpans().Select(ps =>
-                csvFormat.FormatWith(
-                    ps.Id.Value,
-                    ps.Thread,
-                    actualSimulation.MinimumStartTimes[ps.Id].ToMinutes(),
-                    ps.StartTime.ToMinutes(),
-                    ps.EndTime.ToMinutes(),
-                    ps.Duration.ToMinutes(),
-                    data.DataflowGraph.GetIncomingEdgesCount(ps.Id),
-                    data.DataflowGraph.GetIncomingEdgesCount(ps.Id)))));
+
+            DisplayTable<SimColumns> table = new DisplayTable<SimColumns>(" , ");
+
+            using (var streamWriter = new StreamWriter(GetResultsPath("actualSimulation.txt")))
+            {
+                foreach (var ps in actualSimulation.GetSpans())
+                {
+                    table.NextRow();
+                    table.Set(SimColumns.Id, data.FormattedSemistableHashes[ps.Id]);
+                    table.Set(SimColumns.Thread, ps.Thread);
+                    table.Set(SimColumns.MinimumStartTime, actualSimulation.MinimumStartTimes[ps.Id].ToMinutes());
+                    table.Set(SimColumns.StartTime, ps.StartTime.ToMinutes());
+                    table.Set(SimColumns.EndTime, ps.EndTime.ToMinutes());
+                    table.Set(SimColumns.Duration, ps.Duration.ToMinutes());
+                    table.Set(SimColumns.Incoming, data.DataflowGraph.GetIncomingEdgesCount(ps.Id));
+                    table.Set(SimColumns.Outgoing, data.DataflowGraph.GetIncomingEdgesCount(ps.Id));
+                    table.Set(SimColumns.LongestRunningDependency, data.FormattedSemistableHashes.GetOrDefault(actualSimulation.LongestRunningDependency[ps.Id]));
+                    table.Set(SimColumns.LastRunningDependency, data.FormattedSemistableHashes.GetOrDefault(actualSimulation.LastRunningDependency[ps.Id]));
+                }
+
+                table.Write(streamWriter);
+            }
+
+            //File.WriteAllLines(GetResultsPath("actualSimulation.txt"), new string[] { csvFormat.FormatWith("Id", "Thread", "Minimum Start Time", "Start Time", "End Time", "Duration", "Incoming", "Outgoing") }.Concat(actualSimulation.GetSpans().Select(ps =>
+            //    csvFormat.FormatWith(
+            //        ps.Id.Value,
+            //        ps.Thread,
+            //        actualSimulation.MinimumStartTimes[ps.Id].ToMinutes(),
+            //        ps.StartTime.ToMinutes(),
+            //        ps.EndTime.ToMinutes(),
+            //        ps.Duration.ToMinutes(),
+            //        data.DataflowGraph.GetIncomingEdgesCount(ps.Id),
+            //        data.DataflowGraph.GetIncomingEdgesCount(ps.Id)))));
+        }
+
+        private enum SimColumns
+        {
+            Id,
+            LongestRunningDependency,
+            LastRunningDependency,
+            Thread,
+            MinimumStartTime,
+            StartTime,
+            EndTime,
+            Duration,
+            Incoming,
+            Outgoing
         }
 
         private static ulong WriteCriticalPathToResult(MultiWriter writers, PipExecutionData data, SimulationResult testSimulation)

@@ -7,6 +7,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using BuildXL.Engine;
+using BuildXL.Engine.Cache;
 using BuildXL.Execution.Analyzer.Analyzers.Simulator;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
@@ -38,6 +40,10 @@ namespace BuildXL.Execution.Analyzer
                 {
                     analyzer.SemiStableHashes.Add(ParseSemistableHash(opt));
                 }
+                else if (opt.Name.Equals("noedges", StringComparison.OrdinalIgnoreCase))
+                {
+                    analyzer.AddEdgesForPips = !ParseBooleanOption(opt);
+                }
                 else
                 {
                     throw Error("Unknown option for fingerprint text analysis: {0}", opt.Name);
@@ -67,7 +73,7 @@ namespace BuildXL.Execution.Analyzer
 
         public long ProcessingPips = 0;
         public long ProcessedPips = 0;
-        public bool EmitProcessAccesses = false;
+        public bool AddEdgesForPips = true;
         public HashSet<long> SemiStableHashes = new HashSet<long>();
 
         private static readonly Comparer<PipEntry> s_pipEntryComparer = new ComparerBuilder<PipEntry>()
@@ -90,7 +96,7 @@ namespace BuildXL.Execution.Analyzer
 
         private ConcurrentBigMap<AbsolutePath, PipId> m_dynamicFileProducers = new ConcurrentBigMap<AbsolutePath, PipId>();
         private ConcurrentBigMap<PipId, PipId> m_dynamicDirectoryProducers = new ConcurrentBigMap<PipId, PipId>();
-        private ConcurrentBigMap<DirectoryArtifact, bool> m_isSourceOnlySeal = new ConcurrentBigMap<DirectoryArtifact, bool>();
+        private ConcurrentBigMap<PipId, bool> m_isSourceOnlySeal = new ConcurrentBigMap<PipId, bool>();
         private ConcurrentBigMap<DirectoryArtifact, ReadOnlyArray<FileArtifact>> m_dynamicContents = new ConcurrentBigMap<DirectoryArtifact, ReadOnlyArray<FileArtifact>>();
 
         private ConcurrentBigMap<PipId, PipEntry> m_pipEntries = new ConcurrentBigMap<PipId, PipEntry>();
@@ -104,11 +110,13 @@ namespace BuildXL.Execution.Analyzer
         private ActionBlockSlim<Action> m_block = new ActionBlockSlim<Action>(12, a => a());
 
         private MutableDirectedGraph m_mutableGraph = new MutableDirectedGraph();
+        private PipTable m_pipTable;
 
         public RequiredDependencyAnalyzer(AnalysisInput input)
             : base(input)
         {
             m_pool = new ObjectPool<WorkerAnalyzer>(() => CreateAnalyzer(), w => { });
+            m_pipTable = EngineSchedule.CreateEmptyPipTable(input.CachedGraph.Context);
         }
 
         private WorkerAnalyzer CreateAnalyzer()
@@ -123,29 +131,33 @@ namespace BuildXL.Execution.Analyzer
             return w;
         }
 
-        public bool IsSourceOnlySeal(SealDirectory sd)
+        public bool IsSourceOnlySeal(PipId pipId)
         {
-            var sealKind = sd.Kind;
-            if (sealKind == SealDirectoryKind.SourceAllDirectories || sealKind == SealDirectoryKind.SourceTopDirectoryOnly)
+            return m_isSourceOnlySeal.GetOrAdd(pipId, true, (k, v) =>
             {
-                return true;
-            }
-
-            if (sealKind == SealDirectoryKind.Full || sealKind == SealDirectoryKind.Partial)
-            {
-                var isSourceOnly = true;
-                foreach (var file in sd.Contents)
+                var sealKind = PipTable.GetSealDirectoryKind(k);
+                if (sealKind == SealDirectoryKind.SourceAllDirectories || sealKind == SealDirectoryKind.SourceTopDirectoryOnly)
                 {
-                    if (file.IsOutputFile)
-                    {
-                        isSourceOnly = false;
-                    }
+                    return true;
                 }
 
-                return isSourceOnly;
-            }
+                if (sealKind == SealDirectoryKind.Full || sealKind == SealDirectoryKind.Partial)
+                {
+                    var isSourceOnly = true;
+                    var sd = (SealDirectory)GetPip(k);
+                    foreach (var file in sd.Contents)
+                    {
+                        if (file.IsOutputFile)
+                        {
+                            isSourceOnly = false;
+                        }
+                    }
 
-            return false;
+                    return isSourceOnly;
+                }
+
+                return false;
+            }).Item.Value;
         }
 
         public override void Prepare()
@@ -155,7 +167,7 @@ namespace BuildXL.Execution.Analyzer
 
             Console.WriteLine("Creating nodes");
 
-            for (int i = 0; i < PipTable.Count; i++)
+            foreach (var node in DataflowGraph.Nodes)
             {
                 m_mutableGraph.CreateNode();
             }
@@ -177,6 +189,9 @@ namespace BuildXL.Execution.Analyzer
             {
                 var sealId = PipGraph.GetSealedDirectoryNode(directory).ToPipId();
                 var sealKind = PipTable.GetSealDirectoryKind(sealId);
+
+                // Populate map of whether this is a source only seal
+                IsSourceOnlySeal(sealId);
 
                 if (sealKind == SealDirectoryKind.Full || sealKind == SealDirectoryKind.Partial)
                 {
@@ -214,22 +229,159 @@ namespace BuildXL.Execution.Analyzer
             m_block.Complete();
             m_block.CompletionAsync().GetAwaiter().GetResult();
 
+            Console.WriteLine($"Writing Graph");
+
+            foreach (var pip in PipGraph.RetrieveAllPips())
+            {
+                var serializedPip = pip;
+                var nodeId = pip.PipId.ToNodeId();
+
+                bool addEdges = true;
+                if (pip.PipType == PipType.Process)
+                {
+                    var entry = GetEntry(pip.PipId);
+                    serializedPip = entry.Process;
+                    addEdges = !entry.AddedEdges;
+                }
+
+                if (addEdges && AddEdgesForPips)
+                {
+                    using (var scope = m_mutableGraph.AcquireExclusiveIncomingEdgeScope(nodeId))
+                    {
+                        foreach (var edge in DataflowGraph.GetIncomingEdges(nodeId))
+                        {
+                            scope.AddEdge(edge.OtherNode, edge.IsLight);
+                        }
+                    }
+                }
+
+                serializedPip.ResetPipIdForTesting();
+                m_pipTable.Add(nodeId.Value, serializedPip);
+            }
+
             m_mutableGraph.Seal();
+
+            CachedGraph.Serializer.SerializeToFileAsync(
+                    GraphCacheFile.DirectedGraph,
+                    m_mutableGraph.Serialize,
+                    Path.Combine(OutputFilePath, nameof(GraphCacheFile.DirectedGraph)))
+                .GetAwaiter().GetResult();
+
+            CachedGraph.Serializer.SerializeToFileAsync(
+                    GraphCacheFile.PipTable,
+                    w => m_pipTable.Serialize(w, Environment.ProcessorCount),
+                    Path.Combine(OutputFilePath, nameof(GraphCacheFile.PipTable)))
+                .GetAwaiter().GetResult();
+
+            CachedGraph.Serializer.SerializeToFileAsync(
+                    GraphCacheFile.PipGraphId,
+                    PipGraph.SerializeGraphId,
+                    Path.Combine(OutputFilePath, nameof(GraphCacheFile.PipGraphId)))
+                .GetAwaiter().GetResult();
 
             Console.WriteLine($"Simulating [Reading]");
             var simulator = new BuildSimulatorAnalyzer(Input);
             simulator.ExecutionData.DataflowGraph = m_mutableGraph;
-            simulator.OutputDirectory = Path.Combine(OutputFilePath, "sim");
+
+            simulator.OutputDirectory = OutputFilePath;
             simulator.ReadExecutionLog();
 
             Console.WriteLine($"Simulating [Analyzing]");
             simulator.Analyze();
+
+            Console.WriteLine($"Blocking Dependency Analysis");
+
+            DisplayTable<DepColumn> depTable = new DisplayTable<DepColumn>(" , ");
+            foreach (var pipId in PipTable.Keys)
+            {
+                var pipType = PipTable.GetPipType(pipId);
+                if (pipType == PipType.Process)
+                {
+                    var entry = GetEntry(pipId);
+                    (PipId node, ulong cost) maxConsumedDependency = default;
+                    (PipId node, ulong cost) maxDependency = default;
+
+                    foreach (var dep in entry.PipDependencies)
+                    {
+                        var cost = simulator.ExecutionData.BottomUpAggregateCosts[dep.Key.ToNodeId()];
+                        if (!maxDependency.node.IsValid || cost > maxDependency.cost)
+                        {
+                            maxDependency = (dep.Key, cost);
+                        }
+
+                        if (dep.Value != null && dep.Value.HasFlag(ContentFlag.Consumed))
+                        {
+                            if (!maxConsumedDependency.node.IsValid || cost > maxConsumedDependency.cost)
+                            {
+                                maxConsumedDependency = (dep.Key, cost);
+                            }
+                        }
+                    }
+
+                    depTable.NextRow();
+                    depTable.Set(DepColumn.Id, $"{entry.SpecFileName}-{entry.Identifier}");
+                    depTable.Set(DepColumn.MaxConsumedDependency, ToString(maxConsumedDependency.node));
+                    depTable.Set(DepColumn.MaxConsumedDependencyChainCost, maxConsumedDependency.cost.ToMinutes());
+                    depTable.Set(DepColumn.MaxDependency, ToString(maxDependency.node));
+                    depTable.Set(DepColumn.MaxDependencyChainCost, maxDependency.cost.ToMinutes());
+                }
+                else if (pipType == PipType.SealDirectory
+                    && !PipTable.GetSealDirectoryKind(pipId).IsSourceSeal()
+                    && !IsSourceOnlySeal(pipId))
+                {
+                    var seal = (SealDirectory)GetPip(pipId);
+                    var entry = GetEntry(seal.Directory);
+                    (PipId node, ulong cost) maxDependency = default;
+
+                    foreach (var dep in DataflowGraph.GetIncomingEdges(pipId.ToNodeId()))
+                    {
+                        var cost = simulator.ExecutionData.BottomUpAggregateCosts[dep.OtherNode];
+                        if (!maxDependency.node.IsValid || cost > maxDependency.cost)
+                        {
+                            maxDependency = (dep.OtherNode.ToPipId(), cost);
+                        }
+                    }
+
+                    depTable.NextRow();
+                    depTable.Set(DepColumn.Id, $"{entry.SpecFileName}-{entry.Identifier} ({entry.FileCount} files)");
+                    depTable.Set(DepColumn.MaxDependency, ToString(maxDependency.node));
+                    depTable.Set(DepColumn.MaxDependencyChainCost, maxDependency.cost.ToMinutes());
+                    depTable.Set(DepColumn.Directory, seal.DirectoryRoot.ToString(PathTable));
+                }
+            }
+
+            using (var blockAnalysisWriter = new StreamWriter(Path.Combine(OutputFilePath, "blockAnalysis.txt")))
+            {
+                depTable.Write(blockAnalysisWriter);
+            }
 
             m_writer.Dispose();
 
             Console.WriteLine($"Analyzing complete");
 
             return 0;
+        }
+
+        private string ToString(PipId pipId)
+        {
+            if (!pipId.IsValid)
+            {
+                return string.Empty;
+            }
+
+            var pipType = PipTable.GetPipType(pipId);
+            var type = pipType == PipType.SealDirectory ? PipTable.GetSealDirectoryKind(pipId).ToString() : pipType.ToString();
+            return $"{PipTable.GetFormattedSemiStableHash(pipId)} [{type}]";
+        }
+
+        private enum DepColumn
+        {
+            Id,
+            MaxConsumedDependency,
+            MaxConsumedDependencyChainCost,
+            MaxDependency,
+            MaxDependencyChainCost,
+            Directory
         }
 
         private PipId GetActualDependencyId(PipId pipId)
@@ -262,6 +414,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 PipId = pipId,
                 PipType = pip.PipType,
+                Process = pip as Process,
                 SemistableHash = pip.SemiStableHash,
                 Identifier = $"{pip.FormattedSemiStableHash} [{pip.PipType}]",
                 SpecFile = pip.Provenance?.Token.Path ?? AbsolutePath.Invalid,
@@ -327,15 +480,32 @@ namespace BuildXL.Execution.Analyzer
 
             var pipId = PipGraph.TryGetProducer(dir);
             var producer = GetEntry(pipId);
-            return new DirectoryEntry()
+
+            var pip = (SealDirectory)GetPip(sealId);
+
+            var kind = pip.Kind.ToString();
+            if (pip.IsComposite)
+            {
+                kind = "Composite" + kind;
+            }
+
+            var entry = new DirectoryEntry()
             {
                 Directory = dir,
                 Producer = GetEntry(pipId),
                 FileCount = GetContents(dir).Length,
                 Kind = sealKind,
                 SemistableHash = producer?.Identifier ?? string.Empty,
+                Identifier = $"{pip.FormattedSemiStableHash} [{kind}]",
                 Id = dir.PartialSealId.ToString(),
             };
+
+            if (pip.Provenance.Token.Path.IsValid)
+            {
+                entry.SpecFileName = pip.Provenance.Token.Path.GetName(PathTable).ToString(StringTable);
+            }
+
+            return entry;
         }
 
         private bool TryResolve(FileArtifact file, PipEntry consumer, out FileArtifact resolvedFile)
@@ -471,10 +641,12 @@ namespace BuildXL.Execution.Analyzer
         {
             public PipId PipId;
             public PipType PipType;
+            public Process Process;
             public string Identifier;
             public long SemistableHash;
             public AbsolutePath SpecFile;
             public string SpecFileName;
+            public bool AddedEdges;
             public readonly List<FileReference> FileDependencies = new List<FileReference>();
             public readonly Dictionary<PipId, PipReference> PipDependencies = new Dictionary<PipId, PipReference>();
         }
@@ -495,6 +667,7 @@ namespace BuildXL.Execution.Analyzer
             public string SemistableHash;
             public string SpecFileName;
             public string Id;
+            public string Identifier;
         }
 
         private class PipReference
@@ -506,12 +679,18 @@ namespace BuildXL.Execution.Analyzer
             {
                 return (Flags & flag) == flag;
             }
+
+            public void AddFlag(ContentFlag flag)
+            {
+                Flags |= flag;
+            }
         }
 
         private class FileReference
         {
             public ConsumedFile ConsumedFile;
             public DirectoryEntry Directory;
+            public ObservedInputType? InputType;
 
             public PipEntry Producer => ConsumedFile.File.Producer ?? Directory?.Producer;
         }
@@ -521,6 +700,7 @@ namespace BuildXL.Execution.Analyzer
             public FileEntry File;
             public ContentFlag Flags;
             public ConsumedFile FinalFile;
+            public ConsumedFile SourceFile;
 
             public ConsumedFile AddFlag(ContentFlag flag)
             {
@@ -543,6 +723,8 @@ namespace BuildXL.Execution.Analyzer
             private Dictionary<PipId, int> m_dependencyConsumedFileEndIndex = new Dictionary<PipId, int>();
             private StringBuilder m_builder = new StringBuilder();
             private HashSet<(PipId, DirectoryArtifact)> m_dependencies = new HashSet<(PipId, DirectoryArtifact)>();
+            private Dictionary<DirectoryArtifact, bool> m_directoryDependenciesFilterMap = new Dictionary<DirectoryArtifact, bool>();
+            private HashSet<DirectoryArtifact> m_directoryHasSources = new HashSet<DirectoryArtifact>();
             private PipEntry m_consumer;
 
             public string Name { get; }
@@ -553,24 +735,33 @@ namespace BuildXL.Execution.Analyzer
                 Name = name;
             }
 
-            public void AddConsumedFile(FileArtifact file, DirectoryArtifact directory, ContentFlag flag)
+            public void AddConsumedFile(FileArtifact file, DirectoryArtifact directory, ContentFlag flag, ObservedInputType? inputType = null)
             {
                 var consumedFile = AddConsumedFile(file, flag);
+
+                m_consumer.FileDependencies.Add(
+                    new FileReference()
+                    {
+                        InputType = inputType,
+                        ConsumedFile = consumedFile,
+                        Directory = m_analyzer.GetEntry(directory)
+                    });
 
                 if (m_analyzer.TryResolve(file, m_consumer, out FileArtifact resolvedFile))
                 {
                     var resolvedConsumedFile = AddConsumedFile(resolvedFile, flag);
                     resolvedConsumedFile.AddFlag(ContentFlag.Copy);
+                    consumedFile.SourceFile = resolvedConsumedFile;
                     resolvedConsumedFile.FinalFile = consumedFile;
-                    consumedFile = resolvedConsumedFile;
-                }
 
-                m_consumer.FileDependencies.Add(
-                    new FileReference()
-                    {
-                        ConsumedFile = consumedFile,
-                        Directory = m_analyzer.GetEntry(directory)
-                    });
+                    m_consumer.FileDependencies.Add(
+                        new FileReference()
+                        {
+                            InputType = inputType,
+                            ConsumedFile = resolvedConsumedFile,
+                            Directory = m_analyzer.GetEntry(directory)
+                        });
+                }
             }
 
             private ConsumedFile AddConsumedFile(FileArtifact file, ContentFlag flag)
@@ -616,6 +807,8 @@ namespace BuildXL.Execution.Analyzer
                 m_dependencyConsumedFileEndIndex.Clear();
                 m_dependencies.Clear();
                 m_builder.Clear();
+                m_directoryDependenciesFilterMap.Clear();
+                m_directoryHasSources.Clear();
 
                 var computation = data.StrongFingerprintComputations[0];
                 var pip = m_analyzer.GetPip(data.PipId);
@@ -629,6 +822,11 @@ namespace BuildXL.Execution.Analyzer
                     {
                         foreach (var file in m_analyzer.GetContents(input.DirectoryArtifact))
                         {
+                            if (file.IsSourceFile)
+                            {
+                                m_directoryHasSources.Add(input.DirectoryArtifact);
+                            }
+
                             AddConsumedFile(file, input.DirectoryArtifact, ContentFlag.Dynamic);
                         }
                     }
@@ -643,7 +841,16 @@ namespace BuildXL.Execution.Analyzer
                         var flag = input.Type == ObservedInputType.FileContentRead ? ContentFlag.Content : ContentFlag.Probe;
                         if (m_consumedFilesByPath.TryGetValue(input.Path, out var file))
                         {
-                            file.Flags |= (flag | ContentFlag.Consumed);
+                            file.AddFlag(ContentFlag.Consumed);
+                            if (file.SourceFile != null)
+                            {
+                                file.SourceFile.AddFlag(ContentFlag.Consumed);
+                            }
+
+                            if (file.FinalFile != null)
+                            {
+                                file.FinalFile.AddFlag(ContentFlag.Consumed);
+                            }
                         }
                         else
                         {
@@ -689,28 +896,71 @@ namespace BuildXL.Execution.Analyzer
                         {
                             if (pipReference.HasFlag(ContentFlag.Consumed))
                             {
-                                m_builder.AppendLine($"Retaining dependency on '{describe(pipReference.Pip)}' (declared via directory '{ToString(fileDependency.Directory)}') (consumes '{ToString(fileDependency.ConsumedFile.File.Artifact)}')");
+                                m_directoryDependenciesFilterMap[directory] = true;
+                                m_builder.AppendLine($"{entry.Identifier} -> Retaining pip dependency on '{describe(pipReference.Pip)}' (declared via directory '{ToString(fileDependency.Directory)}') (consumes '{ToString(fileDependency.ConsumedFile.File.Artifact)}')");
                             }
                             else
                             {
-                                m_builder.AppendLine($"Removing dependency on '{describe(pipReference.Pip)}' (declared via directory '{ToString(fileDependency.Directory)}')");
+                                m_directoryDependenciesFilterMap.TryAdd(directory, false);
+                                m_builder.AppendLine($"{entry.Identifier} -> Removing pip dependency on '{describe(pipReference.Pip)}' (declared via directory '{ToString(fileDependency.Directory)}')");
                             }
                         }
                     }
                 }
 
+                var trimmedDirectoryDependencies = new List<DirectoryArtifact>();
+
+                foreach (var d in entry.Process.DirectoryDependencies)
+                {
+                    if (m_directoryDependenciesFilterMap.TryGetValue(d, out var shouldInclude))
+                    {
+                        if (shouldInclude)
+                        {
+                            m_builder.AppendLine($"{entry.Identifier} -> Retaining directory dependency on '{ToString(d)}' (used)");
+                        }
+                        else if (m_directoryHasSources.Contains(d))
+                        {
+                            m_builder.AppendLine($"{entry.Identifier} -> Retaining directory dependency on '{ToString(d)}' (has sources)");
+                        }
+                        else
+                        {
+                            m_builder.AppendLine($"{entry.Identifier} -> Removing directory dependency on '{ToString(d)}'");
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        var sealId = m_analyzer.PipGraph.GetSealedDirectoryNode(d).ToPipId();
+                        if (!m_directoryHasSources.Contains(d) && !m_analyzer.PipTable.GetSealDirectoryKind(sealId).IsSourceSeal())
+                        {
+                            m_builder.AppendLine($"{entry.Identifier} -> Removing directory dependency on '{ToString(d)}' (unused output directory)");
+                            continue;
+                        }
+                    }
+
+                    entry.PipDependencies.TryAdd(m_analyzer.PipGraph.GetSealedDirectoryNode(d).ToPipId(), default);
+                    trimmedDirectoryDependencies.Add(d);
+                }
+
+                // Update directory dependencies which trimmed directory dependencies to allow writing
+                // a pip into the serialized pip table that can run without the unnecessary dependencies
+                entry.Process.UnsafeUpdateDirectoryDependencies(trimmedDirectoryDependencies.ToReadOnlyArray());
+
                 m_builder.AppendLine();
 
+                // Update the graph
                 var modifiedGraph = m_analyzer.m_mutableGraph;
                 using (var scope = modifiedGraph.AcquireExclusiveIncomingEdgeScope(entry.PipId.ToNodeId()))
                 {
                     foreach (var dependency in entry.PipDependencies)
                     {
-                        if (dependency.Value.HasFlag(ContentFlag.Consumed))
+                        if (dependency.Value == null || dependency.Value.HasFlag(ContentFlag.Consumed))
                         {
                             scope.AddEdge(dependency.Key.ToNodeId());
                         }
                     }
+
+                    entry.AddedEdges = true;
                 }
 
                 if (m_analyzer.SemiStableHashes.Contains(entry.SemistableHash))
@@ -758,7 +1008,7 @@ namespace BuildXL.Execution.Analyzer
                 return path.GetName(m_analyzer.PathTable).ToString(m_analyzer.StringTable);
             }
 
-            private string ToString(DirectoryEntry directory)
+            public string ToString(DirectoryEntry directory)
             {
                 if (directory == null)
                 {
@@ -787,8 +1037,7 @@ namespace BuildXL.Execution.Analyzer
 
                 if (p.PipType == PipType.SealDirectory)
                 {
-                    SealDirectory sd = (SealDirectory)p;
-                    return m_analyzer.IsSourceOnlySeal(sd);
+                    return m_analyzer.IsSourceOnlySeal(p.PipId);
                 }
 
                 return false;

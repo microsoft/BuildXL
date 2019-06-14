@@ -19,6 +19,8 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
         public ConcurrentNodeDictionary<int> RefCounts = new ConcurrentNodeDictionary<int>(false);
         public ConcurrentNodeDictionary<ulong> EndTimes = new ConcurrentNodeDictionary<ulong>(false);
         public ConcurrentNodeDictionary<ulong> MinimumStartTimes = new ConcurrentNodeDictionary<ulong>(false);
+        public ConcurrentNodeDictionary<NodeId> LastRunningDependency = new ConcurrentNodeDictionary<NodeId>(false);
+        public ConcurrentNodeDictionary<NodeId> LongestRunningDependency = new ConcurrentNodeDictionary<NodeId>(false);
         public ConcurrentNodeDictionary<ulong> Priorities;
         public ConcurrentNodeDictionary<ulong> StartTimes = new ConcurrentNodeDictionary<ulong>(false);
 
@@ -258,9 +260,31 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
 
                     Assert(execution.EndTime == EndTimes[node]);
 
+                    ulong maxDuration = 0;
+
                     foreach (var incoming in graph.GetIncomingEdges(node))
                     {
+                        var longestRunningDepCandidate = incoming.OtherNode;
+                        var pipType = ExecutionData.GetPipType(longestRunningDepCandidate);
+
+                        if (pipType == Pips.Operations.PipType.SealDirectory)
+                        {
+                            var dep = LongestRunningDependency[longestRunningDepCandidate];
+                            if (dep.IsValid)
+                            {
+                                longestRunningDepCandidate = dep;
+                            }
+                        }
+
+                        var duration = ExecutionData.Durations[longestRunningDepCandidate];
+                        if (duration > maxDuration)
+                        {
+                            LongestRunningDependency[node] = longestRunningDepCandidate;
+                            maxDuration = duration;
+                        }
+
                         var incomingEndTime = EndTimes[incoming.OtherNode];
+
                         Assert(incomingEndTime <= execution.StartTime);
                     }
 
@@ -330,6 +354,10 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
                 RefCounts[consumer] = consumerRefCount;
                 var minimumStartTime = Math.Max(endTime, MinimumStartTimes[consumer]);
                 MinimumStartTimes[consumer] = minimumStartTime;
+                if (minimumStartTime == endTime)
+                {
+                    LastRunningDependency[consumer] = pip;
+                }
 
                 // all dependencies have been processed, so the node itself can be processed.
                 if (consumerRefCount == 0)

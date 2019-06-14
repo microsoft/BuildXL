@@ -42,16 +42,17 @@ namespace BuildXL.Execution.Analyzer
             m_rows.Add(m_currentRow);
         }
 
-        public void Set(TEnum column, string value)
+        public void Set(TEnum column, object value)
         {
             if (value == null)
             {
                 return;
             }
 
+            var stringValue = value.ToString();
             var columnIndex = EnumTraits<TEnum>.ToInteger(column);
-            m_maxColumnLengths[columnIndex] = Math.Max(m_maxColumnLengths[columnIndex], value.Length);
-            m_currentRow[columnIndex] = value;
+            m_maxColumnLengths[columnIndex] = Math.Max(m_maxColumnLengths[columnIndex], stringValue.Length);
+            m_currentRow[columnIndex] = stringValue;
         }
 
         public void Write(TextWriter writer)

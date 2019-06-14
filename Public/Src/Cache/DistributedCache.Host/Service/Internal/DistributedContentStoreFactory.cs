@@ -274,12 +274,12 @@ namespace BuildXL.Cache.Host.Service.Internal
                 value => configuration.WriteMode = (ContentLocationMode)Enum.Parse(typeof(ContentLocationMode), value));
             ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, value => configuration.LocationEntryExpiry = TimeSpan.FromMinutes(value));
 
-            var storageConnectionStrings = GetStorageConnectionStrings(secrets, errorBuilder);
+            var storageCredentials = GetStorageCredentials(secrets, errorBuilder);
             // We already retrieved storage connection strings, so the result should not be null.
-            Contract.Assert(storageConnectionStrings != null);
+            Contract.Assert(storageCredentials != null);
 
             var blobStoreConfiguration = new BlobCentralStoreConfiguration(
-                connectionStrings: storageConnectionStrings,
+                credentials: storageCredentials,
                 containerName: "checkpoints",
                 checkpointsKey: "checkpoints-eventhub");
 
@@ -312,7 +312,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 value => eventStoreConfiguration.MaxEventProcessingConcurrency = value);
         }
 
-        private string[] GetStorageConnectionStrings(Dictionary<string, string> settings, StringBuilder errorBuilder)
+        private AzureBlobStorageCredentials[] GetStorageCredentials(Dictionary<string, string> settings, StringBuilder errorBuilder)
         {
             var storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
             if (storageSecretNames == null)
@@ -320,7 +320,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                 return null;
             }
 
-            return storageSecretNames.Select(name => GetRequiredSecret(settings, name)).ToArray();
+            return storageSecretNames.Select(name => {
+                return new AzureBlobStorageCredentials(GetRequiredSecret(settings, name));
+            }).ToArray();
         }
 
         private List<string> GetAzureStorageSecretNames(StringBuilder errorBuilder)

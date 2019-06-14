@@ -241,14 +241,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Uses Azure Blob's storage credentials. This allows us to use SAS tokens, and to update shared secrets
         /// without restarting the service.
         /// </summary>
-        public AzureBlobStorageCredentials(StorageCredentials storageCredentials, string accountName, string endpointSuffix)
+        public AzureBlobStorageCredentials(StorageCredentials storageCredentials, string accountName, string endpointSuffix = null)
         {
-            // Unfortunately, even though you can't generate a storage credentials without an account name and
-            // endpoint suffix, those aren't stored inside object unless a shared secret is being used. Hence, we are
-            // forced to keep those here as well.
+            // Unfortunately, even though you can't generate a storage credentials without an account name, it isn't
+            // stored inside object unless a shared secret is being used. Hence, we are forced to keep it here.
             Contract.Requires(storageCredentials != null);
             Contract.Requires(!string.IsNullOrEmpty(accountName));
-            Contract.Requires(!string.IsNullOrEmpty(endpointSuffix));
             StorageCredentials = storageCredentials;
             AccountName = accountName;
             EndpointSuffix = endpointSuffix;
@@ -288,21 +286,15 @@ namespace BuildXL.Cache.ContentStore.Distributed
         {
             Contract.Requires(!string.IsNullOrEmpty(containerName));
             Contract.Requires(!string.IsNullOrEmpty(checkpointsKey));
-            Contract.Requires(credentials != null && credentials.Count > 0, "BlobCentralStorage must have at least one credential in its configuration.");
+            Contract.Requires(credentials != null && credentials.Count > 0, "BlobCentralStorage must have at least one set of credentials in its configuration.");
 
             ContainerName = containerName;
             Credentials = credentials;
         }
 
         /// <nodoc />
-        public BlobCentralStoreConfiguration(IEnumerable<string> connectionStrings, string containerName, string checkpointsKey)
-            : this(connectionStrings.Select(s => new AzureBlobStorageCredentials(s)).ToArray(), containerName, checkpointsKey)
-        {
-        }
-
-        /// <nodoc />
-        public BlobCentralStoreConfiguration(string connectionString, string containerName, string checkpointsKey)
-            : this(new[] { new AzureBlobStorageCredentials(connectionString) }, containerName, checkpointsKey)
+        public BlobCentralStoreConfiguration(AzureBlobStorageCredentials credentials, string containerName, string checkpointsKey)
+            : this(new[] { credentials }, containerName, checkpointsKey)
         {
         }
 

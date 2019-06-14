@@ -1728,7 +1728,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     config.CentralStore = centralStoreConfiguration;
 
                     config.CentralStore = new BlobCentralStoreConfiguration(
-                                              connectionString: storageConnectionString,
+                                              credentials: new AzureBlobStorageCredentials(storageConnectionString),
                                               containerName: "checkpointscontainer",
                                               checkpointsKey: checkpointsKey)
                     {
@@ -2080,7 +2080,7 @@ namespace ContentStoreTest.Distributed.Sessions
             var blobStoreCredentials = new StorageCredentials(sasToken);
 
             var blobCentralStoreConfiguration = new BlobCentralStoreConfiguration(
-                new[] { new AzureBlobStorageCredentials(blobStoreCredentials, storageAccountName, storageAccountEndpointSuffix) },
+                new AzureBlobStorageCredentials(blobStoreCredentials, storageAccountName, storageAccountEndpointSuffix),
                 containerName,
                 checkpointsKey);
             var blobCentralStore = new BlobCentralStorage(blobCentralStoreConfiguration);

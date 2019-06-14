@@ -916,6 +916,12 @@ namespace BuildXL
                             "unsafe_ForceSkipDeps",
                             (opt, sign) => HandleForceSkipDependenciesOption(opt, sign, schedulingConfiguration),
                             isUnsafe: true),
+                        OptionHandlerFactory.CreateOption(
+                            "unsafe_GlobalPassthroughEnvVars",
+                            opt => frontEndConfiguration.GlobalUnsafePassthroughEnvironmentVariables.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", v => v ))),
+                        OptionHandlerFactory.CreateOption(
+                            "unsafe_GlobalUntrackedScopes",
+                            opt => sandboxConfiguration.GlobalUnsafeUntrackedScopes.AddRange(CommandLineUtilities.ParseRepeatingPathOption(opt, pathTable, ";"))),
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnoreGetFinalPathNameByHandle",
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreGetFinalPathNameByHandle = sign,
@@ -1249,12 +1255,18 @@ namespace BuildXL
 
                 if (ideConfiguration.IsEnabled)
                 {
-                    // Disable incrementalScheduling if the /vs is passed. Ide generator needs to catch all scheduled nodes and should not ignore the skipped ones due to the incremental scheduling
+                    // Disable incrementalScheduling if the /vs is passed. IDE generator needs to catch all scheduled nodes and should not ignore the skipped ones due to the incremental scheduling
                     schedulingConfiguration.IncrementalScheduling = false;
                 }
 
                 // Disable any options that may prevent cache convergence
                 if (engineConfiguration.Converge)
+                {
+                    schedulingConfiguration.IncrementalScheduling = false;
+                }
+
+                // Disable any option that may interfere with determinism validation
+                if (cacheConfiguration.DeterminismProbe)
                 {
                     schedulingConfiguration.IncrementalScheduling = false;
                 }

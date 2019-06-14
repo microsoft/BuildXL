@@ -102,7 +102,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Sum of all table sizes in bytes.
         /// </summary>
-        public int TotalSizeInBytes() => AllTableStats.Sum(s => s.SizeInBytes);
+        public long TotalSizeInBytes() => AllTableStats.Sum(s => s.SizeInBytes);
 
         /// <nodoc/>
         public HistoricDataPoint(TableStats pathTableStats, TableStats symbolTableStats, TableStats stringTableStats)
@@ -175,10 +175,10 @@ namespace BuildXL.Engine
         public int Count { get; }
 
         /// <summary>Size of the table in bytes. </summary>
-        public int SizeInBytes { get; }
+        public long SizeInBytes { get; }
 
         /// <nodoc/>
-        public TableStats(int count, int sizeInBytes)
+        public TableStats(int count, long sizeInBytes)
         {
             Count = count;
             SizeInBytes = sizeInBytes;
@@ -199,7 +199,7 @@ namespace BuildXL.Engine
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(Count, SizeInBytes);
+            return HashCodeHelper.Combine(Count, HashCodeHelper.GetHashCode(SizeInBytes));
         }
 
         /// <inheritdoc/>

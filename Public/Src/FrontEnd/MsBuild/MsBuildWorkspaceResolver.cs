@@ -21,6 +21,7 @@ using BuildXL.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using JetBrains.Annotations;
 using Newtonsoft.Json;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
@@ -50,6 +51,10 @@ namespace BuildXL.FrontEnd.MsBuild
             new ConcurrentDictionary<AbsolutePath, SourceFile>();
 
         private Possible<ProjectGraphResult>? m_projectGraph;
+
+        private ICollection<string> m_passthroughVariables;
+
+        private IDictionary<string, string> m_userDefinedEnvironment;
 
         /// <summary>
         /// Set of well known locations that are used to identify a candidate entry point to parse, if a specific one is not provided
@@ -91,7 +96,31 @@ namespace BuildXL.FrontEnd.MsBuild
                 Contract.Assert(m_projectGraph.HasValue, "The computation of the build graph should have been triggered to be able to retrieve this value");
                 return m_projectGraph.Value;
             }
-        } 
+        }
+
+        /// <summary>
+        /// Environment variables defined by the user that are exposed to the graph construction process and pip execution
+        /// </summary>
+        public IEnumerable<KeyValuePair<string, string>> UserDefinedEnvironment
+        {
+            get
+            {
+                Contract.Assert(m_projectGraph.HasValue, "The computation of the build graph should have been triggered to be able to retrieve this value");
+                return m_userDefinedEnvironment;
+            }
+        }
+
+        /// <summary>
+        /// Passthrough environment variables defined by the user that are exposed to the graph construction process and pip execution
+        /// </summary>
+        public IEnumerable<string> UserDefinedPassthroughVariables
+        {
+            get
+            {
+                Contract.Assert(m_projectGraph.HasValue, "The computation of the build graph should have been triggered to be able to retrieve this value");
+                return m_passthroughVariables;
+            }
+        }
 
         /// <inheritdoc/>
         public MsBuildWorkspaceResolver()
@@ -139,6 +168,8 @@ namespace BuildXL.FrontEnd.MsBuild
             m_configuration = configuration;
 
             m_resolverSettings = resolverSettings as IMsBuildResolverSettings;
+            m_resolverSettings.ComputeEnvironment(out m_userDefinedEnvironment, out m_passthroughVariables);
+
             Contract.Assert(m_resolverSettings != null);
 
             m_requestedQualifiers = requestedQualifiers;
@@ -259,16 +290,15 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private BuildParameters.IBuildParameters RetrieveBuildParameters()
         {
-            // If the environment is not specified, expose the whole process environment
-            if (m_resolverSettings.Environment == null)
-            {
-                return BuildParameters.GetFactory().PopulateFromEnvironment();
-            }
-
-            // Otherwise, just what the environment specified (plus a handful of extra required ones)
+            // The full environment is built with all user-defined env variables plus the passthrough variables with their current values
+            var fullEnvironment = m_userDefinedEnvironment.Union(
+                m_passthroughVariables.Select(variable => 
+                    // Here we explicitly skip the front end engine for retrieving the passthrough values: we need these values for graph construction
+                    // purposes but they shouldn't be tracked
+                    new KeyValuePair<string, string>(variable, Environment.GetEnvironmentVariable(variable))));
 
             // User-configured environment
-            var configuredEnvironment = BuildParameters.GetFactory().PopulateFromDictionary(m_resolverSettings.Environment);
+            var configuredEnvironment = BuildParameters.GetFactory().PopulateFromDictionary(fullEnvironment);
 
             // Combine the ones above with a set of OS-wide properties processes should see
             var buildParameters = BuildParameters
@@ -463,7 +493,7 @@ namespace BuildXL.FrontEnd.MsBuild
                     standardError);
             }
 
-            TrackFilesAndEnvironment(buildParameters, result.AllUnexpectedFileAccesses, outputFile.GetParent(m_context.PathTable));
+            TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses, outputFile.GetParent(m_context.PathTable));
 
             var serializer = JsonSerializer.Create(ProjectGraphSerializationSettings.Settings);
             serializer.Converters.Add(new AbsolutePathJsonConverter(m_context.PathTable));
@@ -491,12 +521,13 @@ namespace BuildXL.FrontEnd.MsBuild
             }
         }
 
-        private void TrackFilesAndEnvironment(BuildParameters.IBuildParameters buildParameters, ISet<ReportedFileAccess> fileAccesses, AbsolutePath frontEndFolder)
+        private void TrackFilesAndEnvironment(ISet<ReportedFileAccess> fileAccesses, AbsolutePath frontEndFolder)
         {
             // Register all build parameters passed to the graph construction process
+            // Observe passthrough variables are explicitly skipped: we don't want the engine to track them
             // TODO: we actually need the build parameters *used* by the graph construction process, but for now this is a compromise to keep
             // graph caching sound. We need to modify this when MsBuild static graph API starts providing used env vars.
-            foreach (string key in buildParameters.ToDictionary().Keys)
+            foreach (string key in m_userDefinedEnvironment.Keys)
             {
                 m_host.Engine.TryGetBuildParameter(key, MsBuildFrontEnd.Name, out _);
             }

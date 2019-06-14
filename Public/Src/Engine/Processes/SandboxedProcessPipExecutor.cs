@@ -1605,6 +1605,12 @@ namespace BuildXL.Processes
                 }
             }
 
+            // Untrack the globally untracked paths specified in the configuration 
+            foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
+            {
+                m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+            }
+
             // For some static system mounts (currently only for AppData\Roaming) we allow CreateDirectory requests for all processes.
             // This is done because many tools are using CreateDirectory to check for the existence of that directory. Since system directories
             // always exist, allowing such requests would not lead to any changes on the disk. Moreover, we are applying an exact path policy (i.e., not a scope policy).
@@ -1919,7 +1925,7 @@ namespace BuildXL.Processes
             // Rationale: probes may be performed on those directories (directory probes don't need declarations)
             // so they need to be faked as well
             var currentPath = path.GetParent(m_pathTable);
-            while (!allInputPathsUnderSharedOpaques.Contains(currentPath) && currentPath.IsWithin(m_pathTable, sharedOpaqueRoot))
+            while (currentPath.IsValid && !allInputPathsUnderSharedOpaques.Contains(currentPath) && currentPath.IsWithin(m_pathTable, sharedOpaqueRoot))
             {
                 // We want to set a policy for the directory without affecting the scope for the underlying artifacts
                 m_fileAccessManifest.AddPath(

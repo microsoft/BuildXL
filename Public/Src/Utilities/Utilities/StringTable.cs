@@ -81,7 +81,7 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Captures the size in bytes of the table after invalidation
         /// </summary>
-        private int m_sizeInBytes;
+        private long m_sizeInBytes;
 
         /// <summary>
         /// Whether StringTable is being serialized
@@ -949,13 +949,13 @@ namespace BuildXL.Utilities
         /// <remarks>
         /// This assumes the table has been frozen as the data that gets freed when freezing is not counted here.
         /// </remarks>
-        public int SizeInBytes
+        public long SizeInBytes
         {
             get
             {
                 if (IsValid())
                 {
-                    int size = m_byteBuffers.Length * 8; // pointers to the individual buffers
+                    long size = m_byteBuffers.Length * 8L; // pointers to the individual buffers
                     size += 12; // array overhead
                     foreach (var t in m_byteBuffers)
                     {

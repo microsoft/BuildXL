@@ -13,6 +13,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using JetBrains.Annotations;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
 
 namespace BuildXL.FrontEnd.MsBuild
@@ -35,7 +36,9 @@ namespace BuildXL.FrontEnd.MsBuild
             ModuleDefinition moduleDefinition,
             IMsBuildResolverSettings resolverSettings,
             AbsolutePath pathToMsBuildExe,
-            string frontEndName)
+            string frontEndName,
+            IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
+            IEnumerable<string> userDefinedPassthroughVariables)
         {
             Contract.Requires(context != null);
             Contract.Requires(frontEndHost != null);
@@ -43,10 +46,12 @@ namespace BuildXL.FrontEnd.MsBuild
             Contract.Requires(resolverSettings != null);
             Contract.Requires(pathToMsBuildExe.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
+            Contract.Requires(userDefinedEnvironment != null);
+            Contract.Requires(userDefinedPassthroughVariables != null);
 
             m_context = context;
             m_frontEndHost = frontEndHost;
-            m_pipConstructor = new PipConstructor(context, frontEndHost, moduleDefinition, resolverSettings, pathToMsBuildExe, frontEndName);
+            m_pipConstructor = new PipConstructor(context, frontEndHost, moduleDefinition, resolverSettings, pathToMsBuildExe, frontEndName, userDefinedEnvironment, userDefinedPassthroughVariables);
         }
 
         /// <summary>

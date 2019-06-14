@@ -2281,7 +2281,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             Keywords = (int)Events.Keywords.Performance | (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.Engine,
             Message = "  {0}: {1} entries, {2} bytes of heap, {3} skipped allocated entries")]
-        public abstract void InterningStats(LoggingContext context, string table, int entryCount, int sizeInBytes, int skippedEntries = 0);
+        public abstract void InterningStats(LoggingContext context, string table, int entryCount, long sizeInBytes, int skippedEntries = 0);
 
         [GeneratedEvent(
             (int)EventId.ObjectCacheStats,

@@ -152,15 +152,50 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
                 m_defaults.DbOptions = new DbOptions()
                     .SetCreateIfMissing(true)
-                    .SetCreateMissingColumnFamilies(true);
+                    .SetCreateMissingColumnFamilies(true)
+                    // The background compaction threads run in low priority, so they should not hamper the rest of
+                    // the system. The number of cores in the system is what we want here according to official docs,
+                    // and we are setting this to the number of logical processors, which may be higher.
+                    .SetMaxBackgroundCompactions(Environment.ProcessorCount)
+                    .SetMaxBackgroundFlushes(1)
+                    .IncreaseParallelism(Environment.ProcessorCount / 2)
+                    // Ensure we have performance statistics for profiling
+                    .EnableStatistics();
 
-                // Disable the write ahead log to reduce disk IO. The write ahead log
-                // is used to recover the store on crashes, so a crash will lose some writes.
-                // Writes will be made in-memory only until the write buffer size
-                // is reached and then they will be flushed to storage files.
-                m_defaults.WriteOptions = new WriteOptions().DisableWal(1);
+                // A small comment on things tested that did not work:
+                //  * SetAllowMmapReads(true) and SetAllowMmapWrites(true) produce a dramatic performance drop
+                //  * SetUseDirectReads(true) disables the OS cache, and although that's good for random point lookups,
+                //    it produces a dramatic performance drop otherwise.
 
-                m_defaults.ColumnFamilyOptions = new ColumnFamilyOptions();
+                m_defaults.WriteOptions = new WriteOptions()
+                    // Disable the write ahead log to reduce disk IO. The write ahead log
+                    // is used to recover the store on crashes, so a crash will lose some writes.
+                    // Writes will be made in-memory only until the write buffer size
+                    // is reached and then they will be flushed to storage files.
+                    .DisableWal(1)
+                    // This option is off by default, but just making sure that the C# wrapper 
+                    // doesn't change anything. The idea is that the DB won't wait for fsync to
+                    // return before acknowledging the write as successful. This affects 
+                    // correctness, because a write may be ACKd before it is actually on disk,
+                    // but it is much faster.
+                    .SetSync(false);
+
+
+                var blockBasedTableOptions = new BlockBasedTableOptions()
+                    // Use a bloom filter to help reduce read amplification on point lookups. 10 bits per key yields a
+                    // ~1% false positive rate as per the RocksDB documentation. This builds one filter per SST, which
+                    // means its optimized for not having a key.
+                    .SetFilterPolicy(BloomFilterPolicy.Create(10, false))
+                    // Use a hash index in SST files to speed up point lookup.
+                    .SetIndexType(BlockBasedTableIndexType.HashSearch)
+                    // Whether to use the whole key or a prefix of it (obtained through the prefix extractor below).
+                    // Since the prefix extractor is a no-op, better performance is achieved by turning this off (i.e.
+                    // setting it to true).
+                    .SetWholeKeyFiltering(true);
+
+                m_defaults.ColumnFamilyOptions = new ColumnFamilyOptions()
+                    .SetBlockBasedTableFactory(blockBasedTableOptions)
+                    .SetPrefixExtractor(SliceTransform.CreateNoOp());
 
                 m_columns = new Dictionary<string, ColumnFamilyInfo>();
 
@@ -293,11 +328,47 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
                 using (var writeBatch = new WriteBatch())
                 {
-                    writeBatch.Put(key, (uint)key.Length, value, (uint)value.Length, columnFamilyInfo.Handle);
+                    AddPutOperation(writeBatch, columnFamilyInfo, key, value);
+                    WriteInternal(writeBatch);
+                }
+            }
 
-                    if (columnFamilyInfo.UseKeyTracking)
+            /// <summary>
+            /// Adds a put operation for a key to a <see cref="WriteBatch"/>. These are not written
+            /// to the store by this function, just added to the <see cref="WriteBatch"/>.
+            /// </summary>
+            private static void AddPutOperation(WriteBatch writeBatch, ColumnFamilyInfo columnFamilyInfo, byte[] key, byte[] value)
+            {
+                writeBatch.Put(key, (uint)key.Length, value, (uint)value.Length, columnFamilyInfo.Handle);
+
+                if (columnFamilyInfo.UseKeyTracking)
+                {
+                    writeBatch.Put(key, s_emptyValue, columnFamilyInfo.KeyHandle);
+                }
+            }
+
+            /// <inheritdoc />
+            public void ApplyBatch(IEnumerable<string> keys, IEnumerable<string> values, string columnFamilyName = null)
+            {
+                ApplyBatch(keys.Select(k => StringToBytes(k)), values.Select(v => StringToBytes(v)), columnFamilyName);
+            }
+
+            /// <inheritdoc />
+            public void ApplyBatch(IEnumerable<byte[]> keys, IEnumerable<byte[]> values, string columnFamilyName = null)
+            {
+                var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
+
+                using (var writeBatch = new WriteBatch())
+                {
+                    foreach (var keyValuePair in keys.Zip(values, (k, v) => (k, v)))
                     {
-                        writeBatch.Put(key, s_emptyValue, columnFamilyInfo.KeyHandle);
+                        if (keyValuePair.v == null)
+                        {
+                            AddDeleteOperation(writeBatch, columnFamilyInfo, keyValuePair.k);
+                        } else
+                        {
+                            AddPutOperation(writeBatch, columnFamilyInfo, keyValuePair.k, keyValuePair.v);
+                        }
                     }
 
                     WriteInternal(writeBatch);

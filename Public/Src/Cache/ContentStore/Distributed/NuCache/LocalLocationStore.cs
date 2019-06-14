@@ -393,15 +393,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         Tracer.Debug(context, $"Switching Roles: New={newRole}, Old={oldRole}.");
 
-                            // Local database should be immutable on workers and only master is responsible for collecting stale records
-                            Database.ConfigureGarbageCollection(shouldDoGc: newRole == Role.Master);
+                        // Local database should be immutable on workers and only master is responsible for collecting stale records
+                        Database.SetDatabaseMode(isDatabaseWritable: newRole == Role.Master);
                     }
 
-                        // Always restore when switching roles
-                        bool shouldRestore = switchedRoles;
+                    // Always restore when switching roles
+                    bool shouldRestore = switchedRoles;
 
-                        // Restore if this is a worker and the last restore time is past the restore interval
-                        shouldRestore |= (newRole == Role.Worker && ShouldSchedule(
+                    // Restore if this is a worker and the last restore time is past the restore interval
+                    shouldRestore |= (newRole == Role.Worker && ShouldSchedule(
                                           _configuration.Checkpoint.RestoreCheckpointInterval,
                                           _lastRestoreTime));
 
@@ -415,8 +415,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         _lastRestoreTime = _clock.UtcNow;
 
-                            // Update the checkpoint time to avoid uploading a checkpoint immediately after restoring on the master
-                            _lastCheckpointTime = _lastRestoreTime;
+                        // Update the checkpoint time to avoid uploading a checkpoint immediately after restoring on the master
+                        _lastCheckpointTime = _lastRestoreTime;
                     }
 
                     var updateResult = await UpdateClusterStateAsync(context);
@@ -428,13 +428,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (newRole == Role.Master)
                     {
-                            // Start receiving events from the given checkpoint
-                            result = EventStore.StartProcessing(context, checkpointState.StartSequencePoint);
+                        // Start receiving events from the given checkpoint
+                        result = EventStore.StartProcessing(context, checkpointState.StartSequencePoint);
                     }
                     else
                     {
-                            // Stop receiving events.
-                            result = EventStore.SuspendProcessing(context);
+                        // Stop receiving events.
+                        result = EventStore.SuspendProcessing(context);
                     }
 
                     if (!result)
@@ -444,8 +444,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (newRole == Role.Master)
                     {
-                            // Only create a checkpoint if the machine is currently a master machine and was a master machine
-                            if (ShouldSchedule(_configuration.Checkpoint.CreateCheckpointInterval, _lastCheckpointTime))
+                        // Only create a checkpoint if the machine is currently a master machine and was a master machine
+                        if (ShouldSchedule(_configuration.Checkpoint.CreateCheckpointInterval, _lastCheckpointTime))
                         {
                             result = await CreateCheckpointAsync(context);
                             if (!result)
@@ -457,8 +457,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
 
-                        // Successfully, applied changes for role. Set it as the current role.
-                        CurrentRole = newRole;
+                    // Successfully, applied changes for role. Set it as the current role.
+                    CurrentRole = newRole;
 
                     return result;
                 });
@@ -784,13 +784,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             SkippedDueToRedundantAdd,
         }
 
+        private enum RegisterCoreAction
+        {
+            Skip,
+            Events,
+            Global,
+        }
+
+        private static RegisterCoreAction ToCoreAction(RegisterAction action)
+        {
+            switch (action)
+            {
+                case RegisterAction.EagerGlobal:
+                case RegisterAction.RecentInactiveEagerGlobal:
+                case RegisterAction.RecentRemoveEagerGlobal:
+                    return RegisterCoreAction.Global;
+                case RegisterAction.LazyEventOnly:
+                case RegisterAction.LazyTouchEventOnly:
+                    return RegisterCoreAction.Events;
+                case RegisterAction.SkippedDueToRecentAdd:
+                case RegisterAction.SkippedDueToRedundantAdd:
+                    return RegisterCoreAction.Skip;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(action), action, $"Unexpected action '{action}'.");
+            }
+        }
+
         private RegisterAction GetRegisterAction(OperationContext context, ContentHash hash, DateTime now)
         {
-            if (_configuration.SkipRedundantContentLocationAdd && _recentlyAddedHashes.Contains(hash))
+            if (_configuration.SkipRedundantContentLocationAdd && _recentlyRemovedHashes.Contains(hash))
             {
-                // Content was recently added for the machine by a prior operation
-                Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Increment();
-                return RegisterAction.SkippedDueToRecentAdd;
+                // Content was recently removed. Eagerly register with global store.
+                Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Increment();
+                return RegisterAction.RecentRemoveEagerGlobal;
             }
 
             if (ClusterState.LastInactiveTime.IsRecent(now, _configuration.RecomputeInactiveMachinesExpiry.Multiply(5)))
@@ -801,11 +827,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return RegisterAction.RecentInactiveEagerGlobal;
             }
 
-            if (_recentlyRemovedHashes.Contains(hash))
+            if (_configuration.SkipRedundantContentLocationAdd && _recentlyAddedHashes.Contains(hash))
             {
-                // Content was recently removed. Eagerly register with global store.
-                Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Increment();
-                return RegisterAction.RecentRemoveEagerGlobal;
+                // Content was recently added for the machine by a prior operation
+                Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Increment();
+                return RegisterAction.SkippedDueToRecentAdd;
             }
 
             // Query local db and only eagerly update global store if replica count is below threshold
@@ -816,7 +842,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (_configuration.SkipRedundantContentLocationAdd
                     && entry.Locations[LocalMachineId.Index]) // content is registered for this machine
                 {
-
                     // If content was touched recently, we can skip. Otherwise, we touch via event
                     if (entry.LastAccessTimeUtc.ToDateTime().IsRecent(now, _configuration.TouchFrequency))
                     {
@@ -881,53 +906,50 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         var registerAction = GetRegisterAction(context, contentHash.Hash, now);
                         actions.Add(registerAction);
-                        if (registerAction == RegisterAction.SkippedDueToRecentAdd || registerAction == RegisterAction.SkippedDueToRedundantAdd)
+
+                        var coreAction = ToCoreAction(registerAction);
+                        if (coreAction == RegisterCoreAction.Skip)
                         {
                             continue;
                         }
 
+                        // In both cases (RegisterCoreAction.Events and RegisterCoreAction.Global)
+                        // we need to send an events over event hub.
                         eventContentHashes.Add(contentHash);
-                        if (registerAction == RegisterAction.LazyEventOnly || registerAction == RegisterAction.LazyTouchEventOnly)
+
+                        if (coreAction == RegisterCoreAction.Global)
                         {
-                            continue;
-                        }
-                        else
-                        {
-                            Contract.Assert(registerAction == RegisterAction.EagerGlobal || registerAction == RegisterAction.RecentInactiveEagerGlobal || registerAction == RegisterAction.RecentRemoveEagerGlobal);
                             eagerContentHashes.Add(contentHash);
                         }
                     }
 
-                    var registerActionsMessage = string.Join(", ", contentHashes.Select((c, i) => $"{new ShortHash(c.Hash)}={actions[i]}"));
+                    var registerActionsMessage = string.Join(", ", contentHashes.Select((c, i) => $"{new ShortHash(c.Hash).ToString()}={actions[i]}"));
                     Tracer.Debug(context, $"Register actions(Eager={eagerContentHashes.Count}, Event={eventContentHashes.Count}): [{registerActionsMessage}]");
 
                     if (eagerContentHashes.Count != 0)
                     {
                         // Update global store
-                        var result = await GlobalStore.RegisterLocalLocationAsync(context, eagerContentHashes);
-                        if (!result)
-                        {
-                            return result;
-                        }
+                        await GlobalStore.RegisterLocalLocationAsync(context, eagerContentHashes).ThrowIfFailure();
                     }
 
                     if (eventContentHashes.Count != 0)
                     {
                         // Send add events
-                        var result = EventStore.AddLocations(context, LocalMachineId, eventContentHashes);
-                        if (!result)
+                        EventStore.AddLocations(context, LocalMachineId, eventContentHashes).ThrowIfFailure();
+                    }
+
+                    // Register all recently added hashes so subsequent operations do not attempt to re-add
+                    if (_configuration.SkipRedundantContentLocationAdd)
+                    {
+                        foreach (var hash in eventContentHashes)
                         {
-                            return result;
+                            _recentlyAddedHashes.Add(hash.Hash, _configuration.TouchFrequency);
                         }
 
-                        // Register all recently added hashes so subsequent operations do not attempt to re-add
-                        if (_configuration.SkipRedundantContentLocationAdd)
+                        // Only eagerly added hashes should invalidate recently removed hashes.
+                        foreach (var hash in eagerContentHashes)
                         {
-                            foreach (var hash in eventContentHashes)
-                            {
-                                _recentlyAddedHashes.Add(hash.Hash, _configuration.TouchFrequency);
-                                _recentlyRemovedHashes.Invalidate(hash.Hash);
-                            }
+                            _recentlyRemovedHashes.Invalidate(hash.Hash);
                         }
                     }
 

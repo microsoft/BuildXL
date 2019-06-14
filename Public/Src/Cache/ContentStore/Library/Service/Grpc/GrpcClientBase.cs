@@ -69,7 +69,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Scenario = scenario;
 
             GrpcEnvironment.InitializeIfNeeded();
-            Channel = new Channel(GrpcEnvironment.Localhost, (int)grpcPort, ChannelCredentials.Insecure);
+            Channel = new Channel(GrpcEnvironment.Localhost, (int)grpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _clientCapabilities = clientCapabilities;
             _heartbeatInterval = heartbeatInterval ?? TimeSpan.FromMinutes(DefaultHeartbeatIntervalMinutes);
         }

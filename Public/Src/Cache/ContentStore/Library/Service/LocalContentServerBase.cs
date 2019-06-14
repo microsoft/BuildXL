@@ -249,7 +249,7 @@ namespace BuildXL.Cache.ContentStore.Service
         {
             Contract.Requires(definitions.Length != 0);
             GrpcEnvironment.InitializeIfNeeded();
-            _grpcServer = new Server
+            _grpcServer = new Server(GrpcEnvironment.DefaultConfiguration)
                           {
                               Ports = { new ServerPort(IPAddress.Any.ToString(), grpcPort, ServerCredentials.Insecure) },
 

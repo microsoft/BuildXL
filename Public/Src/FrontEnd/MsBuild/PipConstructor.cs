@@ -79,8 +79,8 @@ namespace BuildXL.FrontEnd.MsBuild
             IMsBuildResolverSettings resolverSettings,
             AbsolutePath pathToMsBuildExe,
             string frontEndName,
-            [CanBeNull] IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
-            [CanBeNull] IEnumerable<string> userDefinedPassthroughVariables)
+            IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
+            IEnumerable<string> userDefinedPassthroughVariables)
         {
             Contract.Requires(context != null);
             Contract.Requires(frontEndHost != null);
@@ -88,7 +88,9 @@ namespace BuildXL.FrontEnd.MsBuild
             Contract.Requires(resolverSettings != null);
             Contract.Requires(pathToMsBuildExe.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
-            
+            Contract.Requires(userDefinedEnvironment != null);
+            Contract.Requires(userDefinedPassthroughVariables != null);
+
             m_context = context;
             m_frontEndHost = frontEndHost;
             m_moduleDefinition = moduleDefinition;
@@ -154,11 +156,9 @@ namespace BuildXL.FrontEnd.MsBuild
             // Check UseSynchronousLogging on https://github.com/Microsoft/msbuild
             env[BuildEnvironmentConstants.MsBuildLogAsyncEnvVar] = "1";
 
-            // If the resolver settings environment was not specified, we expose the whole process environment
-            var environment = m_userDefinedEnvironment ?? Environment.GetEnvironmentVariables().Cast<DictionaryEntry>().Select(
-                    entry => new KeyValuePair<string, string>((string)entry.Key, (string)entry.Value));
-
-            foreach (var input in environment)
+            // Observe there is no need to inform the engine this environment is being used since
+            // the same environment was used during graph construction, and the engine is already tracking them
+            foreach (var input in m_userDefinedEnvironment)
             {
                 string envVarName = input.Key;
 
@@ -170,9 +170,6 @@ namespace BuildXL.FrontEnd.MsBuild
                 }
 
                 env[envVarName] = input.Value;
-
-                // We don't actually need the value, but we need to tell the engine that the value is being used
-                Engine.TryGetBuildParameter(envVarName, m_frontEndName, out _);
             }
 
             //

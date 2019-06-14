@@ -87,6 +87,36 @@ namespace BuildXL.Cache.Host.Service.Internal
                     dbConfig.LocalDatabaseGarbageCollectionInterval = TimeSpan.FromMinutes(_distributedSettings.ContentLocationDatabaseGcIntervalMinutes.Value);
                 }
 
+                if (_distributedSettings.ContentLocationDatabaseCacheEnabled.HasValue)
+                {
+                    dbConfig.CacheEnabled = _distributedSettings.ContentLocationDatabaseCacheEnabled.Value;
+                }
+
+                if (_distributedSettings.ContentLocationDatabaseFlushDegreeOfParallelism.HasValue)
+                {
+                    dbConfig.FlushDegreeOfParallelism = _distributedSettings.ContentLocationDatabaseFlushDegreeOfParallelism.Value;
+                }
+
+                if (_distributedSettings.ContentLocationDatabaseFlushSingleTransaction.HasValue)
+                {
+                    dbConfig.FlushSingleTransaction = _distributedSettings.ContentLocationDatabaseFlushSingleTransaction.Value;
+                }
+
+                if (_distributedSettings.ContentLocationDatabaseFlushPreservePercentInMemory.HasValue)
+                {
+                    dbConfig.FlushPreservePercentInMemory = _distributedSettings.ContentLocationDatabaseFlushPreservePercentInMemory.Value;
+                }
+
+                if (_distributedSettings.ContentLocationDatabaseCacheMaximumUpdatesPerFlush.HasValue)
+                {
+                    dbConfig.CacheMaximumUpdatesPerFlush = _distributedSettings.ContentLocationDatabaseCacheMaximumUpdatesPerFlush.Value;
+                }
+
+                if (_distributedSettings.ContentLocationDatabaseCacheFlushingMaximumInterval.HasValue)
+                {
+                    dbConfig.CacheFlushingMaximumInterval = _distributedSettings.ContentLocationDatabaseCacheFlushingMaximumInterval.Value;
+                }
+
                 ApplySecretSettingsForLlsAsync(redisContentLocationStoreConfiguration, localCacheRoot).GetAwaiter().GetResult();
             }
 

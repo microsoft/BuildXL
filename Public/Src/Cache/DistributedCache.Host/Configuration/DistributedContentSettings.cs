@@ -309,6 +309,24 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int? ContentLocationDatabaseEntryTimeToLiveMinutes { get; set; }
 
+        [DataMember]
+        public bool? ContentLocationDatabaseCacheEnabled { get; set; }
+
+        [DataMember]
+        public int? ContentLocationDatabaseFlushDegreeOfParallelism { get; set; }
+
+        [DataMember]
+        public bool? ContentLocationDatabaseFlushSingleTransaction { get; set; }
+
+        [DataMember]
+        public double? ContentLocationDatabaseFlushPreservePercentInMemory { get; set; }
+
+        [DataMember]
+        public int? ContentLocationDatabaseCacheMaximumUpdatesPerFlush { get; set; }
+
+        [DataMember]
+        public TimeSpan? ContentLocationDatabaseCacheFlushingMaximumInterval { get; set; }
+
         // Key Vault Settings
         [DataMember]
         public string KeyVaultSettingsString { get; set; }

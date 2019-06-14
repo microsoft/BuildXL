@@ -1255,7 +1255,7 @@ namespace BuildXL
 
                 if (ideConfiguration.IsEnabled)
                 {
-                    // Disable incrementalScheduling if the /vs is passed. Ide generator needs to catch all scheduled nodes and should not ignore the skipped ones due to the incremental scheduling
+                    // Disable incrementalScheduling if the /vs is passed. IDE generator needs to catch all scheduled nodes and should not ignore the skipped ones due to the incremental scheduling
                     schedulingConfiguration.IncrementalScheduling = false;
                 }
 

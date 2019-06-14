@@ -86,7 +86,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 workingDirectory,
                 checkpointsKey);
             var blobStoreConfiguration = new BlobCentralStoreConfiguration(
-                connectionString: storageConnectionString,
+                credentials: new AzureBlobStorageCredentials(storageConnectionString),
                 containerName: "checkpoints",
                 checkpointsKey: checkpointsKey);
 

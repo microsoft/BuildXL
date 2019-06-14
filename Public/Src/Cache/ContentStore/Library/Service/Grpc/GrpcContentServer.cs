@@ -293,8 +293,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Debug.Assert(!(responseStream is null));
 
             int chunkSize = 0;
-            async Task<int> ReadNextChunk() { chunkSize = await reader.ReadAsync(buffer, 0, buffer.Length, ct); return chunkSize; }
-
             long chunks = 0L;
             long bytes = 0L;
 
@@ -318,6 +316,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             return (chunks, bytes);
+
+            async Task<int> ReadNextChunk() { chunkSize = await reader.ReadAsync(buffer, 0, buffer.Length, ct); return chunkSize; }
         }
 
         private async Task<(long Chunks, long Bytes)> StreamContentWithCompressionAsync(Stream reader, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct = default(CancellationToken))

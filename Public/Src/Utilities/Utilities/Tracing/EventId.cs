@@ -705,7 +705,7 @@ namespace BuildXL.Utilities.Tracing
         IncompatibleJournalService = 2906,
         FailedToUpgradeJournalService = 2907,
         UserRefusedElevation = 2908,
-        FailedCheckingDirectJournalAccess = 2909,
+        // was FailedCheckingDirectJournalAccess = 2909,
         RunDominoWithSetupJournal = 2910,
         EndInstallJournalService = 2911,
         EndRunJournalService = 2912,

@@ -23,8 +23,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             PolicyRules = policyRules ?? CollectionUtilities.EmptyArray<string>();
             UnsafeOptions = UnsafeConversionConfiguration.GetConfigurationFromEnvironmentVariables();
 
-            // In DScript V2 AST converter itself does not convert nodes in parallel.
-            DegreeOfParalellism = useLegacyOfficeLogic ? degreeOfParallelism : 1;
+            DegreeOfParalellism = 1;
             DisableLanguagePolicies = disableLanguagePolicies;
         }
 

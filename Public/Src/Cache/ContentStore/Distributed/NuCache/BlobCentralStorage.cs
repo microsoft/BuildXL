@@ -15,9 +15,9 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Utilities.Tasks;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
-using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -42,22 +42,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public BlobCentralStorage(BlobCentralStoreConfiguration configuration)
         {
-            Contract.Requires(configuration.ConnectionStrings.Count != 0);
-
             _configuration = configuration;
 
-            _containers = _configuration.ConnectionStrings.Select(
-                (connectionString, index) =>
+            _containers = _configuration.Credentials.Select(
+                (credentials, index) =>
                 {
-                    var storage = CloudStorageAccount.Parse(connectionString);
-                    var blobClient = storage.CreateCloudBlobClient();
-                    return (blobClient.GetContainerReference(configuration.ContainerName), shardId: index);
+                    Contract.Requires(credentials != null);
+                    var cloudBlobClient = credentials.CreateCloudBlobClient();
+                    return (cloudBlobClient.GetContainerReference(configuration.ContainerName), shardId: index);
                 }).ToArray();
-
-            // Need to shuffle all the connection strings to reduce the traffic over the storage accounts.
             _containers.Shuffle();
 
-            _containersCreated = new bool[_configuration.ConnectionStrings.Count];
+            _containersCreated = new bool[_configuration.Credentials.Count];
         }
 
         /// <inheritdoc />

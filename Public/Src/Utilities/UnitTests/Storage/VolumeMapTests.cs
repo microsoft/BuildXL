@@ -145,7 +145,7 @@ namespace Test.BuildXL.Storage
 
         private static VolumeMap CreateMapOfAllLocalVolumes()
         {
-            VolumeMap map = VolumeMap.TryCreateMapOfAllLocalVolumes(new LoggingContext("Dummy", "Dummy"));
+            VolumeMap map = JournalUtils.TryCreateMapOfAllLocalVolumes(new LoggingContext("Dummy", "Dummy"));
             XAssert.IsNotNull(map);
             return map;
         }
@@ -154,7 +154,7 @@ namespace Test.BuildXL.Storage
         public void OverlappingJunctionRoots()
         {
             List<string> junctionRoots = new List<string>() { @"c:\windows", @"c:\windows" };
-            VolumeMap map = VolumeMap.TryCreateMapOfAllLocalVolumes(new LoggingContext("Dummy", "Dummy"), junctionRoots);
+            VolumeMap map = JournalUtils.TryCreateMapOfAllLocalVolumes(new LoggingContext("Dummy", "Dummy"), junctionRoots);
         }
     }
 }

@@ -36,6 +36,11 @@ namespace BuildXL.Storage
         /// </summary>
         public IReadOnlyList<string> ChangedJunctionRoots = new List<string>();
 
+        /// <summary>
+        /// Hooks used by unit tests to skip tracking volumes that do not have journal capability.
+        /// </summary>
+        public bool SkipTrackingJournalIncapableVolume { get; set; }
+
         private VolumeMap()
         {
         }

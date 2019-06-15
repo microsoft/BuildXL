@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
 using System.Threading;
+using Grpc.Core;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -21,6 +23,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public const string Localhost = "localhost";
 
         private static int _isInitialized;
+
+        /// <summary>
+        /// Allow sent and received message to have (essentially) unbounded length. This does not cause GRPC to send larger packets, but it does allow larger packets to exist.
+        /// </summary>
+        public static readonly List<ChannelOption> DefaultConfiguration = new List<ChannelOption>() { new ChannelOption(ChannelOptions.MaxSendMessageLength, int.MaxValue), new ChannelOption(ChannelOptions.MaxReceiveMessageLength, int.MaxValue) };
 
         /// <summary>
         /// Initialize the GRPC environment if not yet initialized.

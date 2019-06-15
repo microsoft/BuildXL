@@ -17,6 +17,7 @@ namespace Configuration {
         references: [
             $.dll,
             Interop.dll,
+            $.Collections.dll,
         ],
     });
 }

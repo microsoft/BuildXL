@@ -27,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public GrpcRepairClient(uint grpcPort)
         {
             GrpcEnvironment.InitializeIfNeeded();
-            _channel = new Channel(GrpcEnvironment.Localhost, (int)grpcPort, ChannelCredentials.Insecure);
+            _channel = new Channel(GrpcEnvironment.Localhost, (int)grpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _client = new ContentServer.ContentServerClient(_channel);
         }
 

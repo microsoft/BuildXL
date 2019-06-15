@@ -1925,7 +1925,7 @@ namespace BuildXL.Processes
             // Rationale: probes may be performed on those directories (directory probes don't need declarations)
             // so they need to be faked as well
             var currentPath = path.GetParent(m_pathTable);
-            while (!allInputPathsUnderSharedOpaques.Contains(currentPath) && currentPath.IsWithin(m_pathTable, sharedOpaqueRoot))
+            while (currentPath.IsValid && !allInputPathsUnderSharedOpaques.Contains(currentPath) && currentPath.IsWithin(m_pathTable, sharedOpaqueRoot))
             {
                 // We want to set a policy for the directory without affecting the scope for the underlying artifacts
                 m_fileAccessManifest.AddPath(

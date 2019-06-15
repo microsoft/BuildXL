@@ -2281,7 +2281,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             Keywords = (int)Events.Keywords.Performance | (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.Engine,
             Message = "  {0}: {1} entries, {2} bytes of heap, {3} skipped allocated entries")]
-        public abstract void InterningStats(LoggingContext context, string table, int entryCount, int sizeInBytes, int skippedEntries = 0);
+        public abstract void InterningStats(LoggingContext context, string table, int entryCount, long sizeInBytes, int skippedEntries = 0);
 
         [GeneratedEvent(
             (int)EventId.ObjectCacheStats,
@@ -2661,8 +2661,8 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Informational,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (ushort)Events.Tasks.Engine,
-            Message = "Change journal cannot be accessed directly. The build may still proceed but without use of change journal scanning. See log for details")]
-        internal abstract void FailedToGetJournalAccessor(LoggingContext context);
+            Message = "Change journal cannot be accessed directly. The build may still proceed but without use of change journal scanning. {errorMessage}")]
+        internal abstract void FailedToGetJournalAccessor(LoggingContext context, string errorMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.StartInitializingVm,

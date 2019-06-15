@@ -4,7 +4,7 @@
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 
 import * as Managed      from "Sdk.Managed";
-import * as Qtest from "BuildXL.Tools.QTest";
+import * as Qtest        from "BuildXL.Tools.QTest";
 
 export declare const qualifier : Managed.TargetFrameworks.All;
 const qTestContents = importFrom("CB.QTest").Contents.all;

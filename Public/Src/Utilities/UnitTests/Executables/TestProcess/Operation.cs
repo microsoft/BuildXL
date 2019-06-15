@@ -324,6 +324,17 @@ namespace Test.BuildXL.Executables.TestProcess
         /// </summary>
         public void Run()
         {
+            // Make sure the string version of the paths are set in case the operation is run outside of the context of
+            // TestProcess.exe
+            if (LinkPath.IsValid)
+            {
+                LinkPathAsString = LinkPath.Path.ToString(PathTable);
+            }
+            if (Path.IsValid)
+            {
+                PathAsString = Path.Path.ToString(PathTable);
+            }
+
             try
             {
                 switch (OpType)

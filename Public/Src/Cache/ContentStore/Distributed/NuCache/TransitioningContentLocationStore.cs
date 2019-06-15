@@ -254,7 +254,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Priority queue orders by least first. So we compare by last access time to get the least last access time (i.e. oldest) first.
             var priorityQueue = new PriorityQueue<ContentHashWithLastAccessTimeAndReplicaCount>(
                 pageSize * 2,
-                Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => c1.LastAccessTime.CompareTo(c2.LastAccessTime)));
+                // Assume that EffectiveLastAccessTime will always have a value.
+                Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value)));
 
             var operationContext = new OperationContext(context);
 

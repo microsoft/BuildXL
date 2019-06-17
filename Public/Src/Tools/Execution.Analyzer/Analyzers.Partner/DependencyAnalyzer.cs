@@ -84,11 +84,11 @@ namespace BuildXL.Execution.Analyzer
     {
         public PipId PipId;
         public string Description;
-        public List<AbsolutePath> InputFiles;
-        public List<AbsolutePath> InputDirs;
-        public List<AbsolutePath> OutputFiles;
-        public List<AbsolutePath> OutputDirs;
-        public List<PipId> DownstreamPips;
+        public HashSet<AbsolutePath> InputFiles;
+        public HashSet<AbsolutePath> InputDirs;
+        public HashSet<AbsolutePath> OutputFiles;
+        public HashSet<AbsolutePath> OutputDirs;
+        public HashSet<PipId> DownstreamPips;
     }
 
     internal class DependencyAnalyzerOutputWriter
@@ -214,6 +214,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly HashSet<AbsolutePath> m_allFiles = new HashSet<AbsolutePath>();
         private readonly HashSet<AbsolutePath> m_allDirs = new HashSet<AbsolutePath>();
         private readonly List<DependencyAnalyzerPip> m_allPips = new List<DependencyAnalyzerPip>();
+        private readonly ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>> m_directoryContents = new ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>>();
 
         public DependencyAnalyzer(AnalysisInput input, bool includeDirs, string outputFilePath, Dictionary<string, string> pathMappings) : base(input)
         {
@@ -248,12 +249,12 @@ namespace BuildXL.Execution.Analyzer
             return 0;
         }
 
-        private void GetDeclaredInputsForPip(Pip pip, List<AbsolutePath> inputPaths)
+        private void GetDeclaredInputsForPip(Pip pip, HashSet<AbsolutePath> inputPaths)
         {
             if (pip.PipType == PipType.Process)
             {
                 var processPip = pip as Process;
-                inputPaths.AddRange(processPip.Dependencies.Select(x => x.Path));
+                inputPaths.UnionWith(processPip.Dependencies.Select(x => x.Path));
             }
             else if (pip.PipType == PipType.CopyFile)
             {
@@ -264,23 +265,23 @@ namespace BuildXL.Execution.Analyzer
             // No other pip types have declared inputs
         }
 
-        private void GetObservedInputsForPip(Pip pip, List<AbsolutePath> inputPaths)
+        private void GetObservedInputsForPip(Pip pip, HashSet<AbsolutePath> inputPaths)
         {
             var pipId = pip.PipId;
             var nodeId = pipId.ToNodeId();
 
             if (m_nodesWithObservedInputs.Contains(nodeId))
             {
-                inputPaths.AddRange(m_fingerprintComputations[pip.PipId.Value]);
+                inputPaths.UnionWith(m_fingerprintComputations[pip.PipId.Value]);
             }
         }
 
-        private void GetOutputFilesForPip(Pip pip, List<AbsolutePath> outputPaths)
+        private void GetOutputFilesForPip(Pip pip, HashSet<AbsolutePath> outputPaths)
         {
             if (pip.PipType == PipType.Process)
             {
                 var processPip = pip as Process;
-                outputPaths.AddRange(processPip.FileOutputs.Select(x => x.Path));
+                outputPaths.UnionWith(processPip.FileOutputs.Select(x => x.Path));
             }
             else if (pip.PipType == PipType.CopyFile)
             {
@@ -312,21 +313,22 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <summary>
-        /// Returns the list of downstream pips. Pips will be of one of the following types:
+        /// Returns the set of downstream pips. Pips will be of one of the following types:
         /// Process, CopyFile, WriteFile
         /// </summary>
         /// <param name="pip"></param>
-        private List<PipId> GetDownstreamPips(Pip rootPip)
+        private HashSet<PipId> GetDownstreamPips(Pip rootPip)
         {
             var pipTable = CachedGraph.PipTable;
 
-            return CachedGraph
+            var pipsEnumerable = CachedGraph
                 .DataflowGraph
                 .GetOutgoingEdges(rootPip.PipId.ToNodeId())
                 .Select(edge => edge.OtherNode)
                 .Select(nodeId => nodeId.ToPipId())
-                .Where(IsRelevantPipType)
-                .ToList();
+                .Where(IsRelevantPipType);
+
+            return new HashSet<PipId>(pipsEnumerable);
         }
 
         private void PopulatePipsAndFilesInGraph()
@@ -339,8 +341,8 @@ namespace BuildXL.Execution.Analyzer
 
             foreach (var pip in pips)
             {
-                var allInputs = new List<AbsolutePath>();
-                var allOutputs = new List<AbsolutePath>();
+                var allInputs = new HashSet<AbsolutePath>();
+                var allOutputs = new HashSet<AbsolutePath>();
 
                 GetDeclaredInputsForPip(pip, allInputs);
                 GetObservedInputsForPip(pip, allInputs);
@@ -349,11 +351,40 @@ namespace BuildXL.Execution.Analyzer
                 var downstreamPips = GetDownstreamPips(pip);
 
                 var process = pip as Process;
-                var inputDirs = (process != null && m_includeDirs) ? process.DirectoryDependencies.Select(x => x.Path).ToList() : new List<AbsolutePath>();
-                var outputDirs = (process != null && m_includeDirs) ? process.DirectoryOutputs.Select(x => x.Path).ToList() : new List<AbsolutePath>();
 
-                AddRange(m_allFiles, allInputs.Concat(allOutputs));
-                AddRange(m_allDirs, inputDirs.Concat(outputDirs));
+                var inputDirs = (process != null && m_includeDirs) ?
+                    new HashSet<AbsolutePath>(process.DirectoryDependencies.Select(x => x.Path)) :
+                    new HashSet<AbsolutePath>();
+
+                var outputDirs = (process != null && m_includeDirs) ?
+                    new HashSet<AbsolutePath>(process.DirectoryOutputs.Select(x => x.Path)) :
+                    new HashSet<AbsolutePath>();
+
+                // Get all file members of opaque directory outputs, and add them to the
+                // output files list of this pip
+                if (process != null)
+                {
+                    var outputFilesInOpaques = process.DirectoryOutputs.SelectMany(dir =>
+                    {
+                        if (m_directoryContents.TryGetValue(dir, out var fileMembers))
+                        {
+                            return fileMembers;
+                        }
+                        else
+                        {
+                            return Enumerable.Empty<FileArtifact>();
+                        }
+                    })
+                    .Select(fileArtifact => fileArtifact.Path);
+
+                    allOutputs.UnionWith(outputFilesInOpaques);
+                }
+
+                m_allFiles.UnionWith(allInputs);
+                m_allFiles.UnionWith(allOutputs);
+
+                m_allDirs.UnionWith(inputDirs);
+                m_allDirs.UnionWith(outputDirs);
 
                 var dependencyAnalyzerPip = new DependencyAnalyzerPip
                 {
@@ -367,14 +398,6 @@ namespace BuildXL.Execution.Analyzer
                 };
 
                 m_allPips.Add(dependencyAnalyzerPip);
-
-                void AddRange<T>(HashSet<T> set, IEnumerable<T> elems)
-                {
-                    foreach (var e in elems)
-                    {
-                        set.Add(e);
-                    }
-                }
             }
         }
 
@@ -392,6 +415,14 @@ namespace BuildXL.Execution.Analyzer
                     .Where(x => x.Type == ObservedInputType.FileContentRead)
                     .Select(observedInput => observedInput.Path)
                     .ToList();
+            }
+        }
+
+        public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
+        {
+            foreach (var item in data.DirectoryOutputs)
+            {
+                m_directoryContents[item.directoryArtifact] = item.fileArtifactArray;
             }
         }
     }

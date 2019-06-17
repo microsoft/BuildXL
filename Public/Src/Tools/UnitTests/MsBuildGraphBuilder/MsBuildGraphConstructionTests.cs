@@ -70,7 +70,7 @@ namespace Test.ProjectGraphBuilder
     <PropertyGroup>
        <InnerBuildProperty>InnerBuild</InnerBuildProperty>
        <InnerBuildPropertyValues>InnerBuildProperties</InnerBuildPropertyValues>
-�      <InnerBuildProperties>A;A</InnerBuildProperties>
+       <InnerBuildProperties>A;A</InnerBuildProperties>
     </PropertyGroup>
 </Project>";
 

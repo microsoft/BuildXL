@@ -3,9 +3,10 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Collections.Generic;
 using System.IO;
+using BuildXL.Native.IO;
 using Microsoft.Build.Prediction;
 
 namespace MsBuildGraphBuilderTool
@@ -68,10 +69,11 @@ namespace MsBuildGraphBuilderTool
 
             if (Directory.Exists(absolutePath))
             {
-                foreach (string file in Directory.EnumerateFiles(absolutePath))
-                {
-                    m_inputFilePredictions.Add(file);
-                }
+                FileUtilities.EnumerateFiles(
+                    absolutePath,
+                    false,
+                    "*",
+                    (dir, fileName, attrs, length) => m_inputFilePredictions.Add(Path.Combine(dir, fileName)));
             }
             // TODO: Can we do anything to flag that the input prediction is not going to be used?
         }

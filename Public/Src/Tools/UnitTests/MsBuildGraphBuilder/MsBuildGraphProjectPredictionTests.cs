@@ -17,16 +17,16 @@ using Xunit.Abstractions;
 namespace Test.ProjectGraphBuilder
 {
     /// <summary>
-    /// Makes sure that static predictions are plumbed through and serialized into the project graph. The actual predictions are not tested here.
+    /// Makes sure that project predictions are plumbed through and serialized into the project graph. The actual predictions are not tested here.
     /// </summary>
-    public class MsBuildGraphStaticPredictionTests : TemporaryStorageTestBase
+    public class MsBuildGraphProjectPredictionTests : TemporaryStorageTestBase
     {
-        public MsBuildGraphStaticPredictionTests(ITestOutputHelper output): base(output)
+        public MsBuildGraphProjectPredictionTests(ITestOutputHelper output): base(output)
         {
         }
 
         [Fact]
-        public void StaticPredictionsAreSerialized()
+        public void ProjectPredictionsAreSerialized()
         {
             string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
             string entryPoint = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
@@ -45,7 +45,6 @@ namespace Test.ProjectGraphBuilder
 
             MsBuildGraphBuilder.BuildGraphAndSerialize(
                 new MSBuildGraphBuilderArguments(
-                    TestOutputDirectory,
                     new[] { entryPoint },
                     outputFile,
                     globalProperties: GlobalProperties.Empty,
@@ -74,7 +73,6 @@ namespace Test.ProjectGraphBuilder
             using (var reporter = new GraphBuilderReporter(Guid.NewGuid().ToString()))
             {
                 var arguments = new MSBuildGraphBuilderArguments(
-                    TestOutputDirectory,
                     new[] { entryPoint },
                     outputFile,
                     globalProperties: GlobalProperties.Empty,
@@ -84,12 +82,12 @@ namespace Test.ProjectGraphBuilder
                     allowProjectsWithoutTargetProtocol: false);
 
                 MsBuildGraphBuilder.BuildGraphAndSerializeForTesting(
-                    MsBuildAssemblyLoader.Instance, 
-                    reporter, 
+                    MsBuildAssemblyLoader.Instance,
+                    reporter,
                     arguments,
-                    new IProjectStaticPredictor[] { new ThrowOnPredictionPredictor() });
+                    new IProjectPredictor[] { new ThrowOnPredictionPredictor() });
             }
-            
+
             var result = SimpleDeserializer.Instance.DeserializeGraph(outputFile);
 
             // The result should gracefully fail, with some error message.

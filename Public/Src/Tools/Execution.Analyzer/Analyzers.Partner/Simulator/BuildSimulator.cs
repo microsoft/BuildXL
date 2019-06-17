@@ -35,6 +35,10 @@ namespace BuildXL.Execution.Analyzer
                 {
                     simulator.IncludedExecutionSteps[(int)ParseEnumOption<PipExecutionStep>(opt)] = true;
                 }
+                else if (opt.Name.Equals("increment", StringComparison.OrdinalIgnoreCase))
+                {
+                    simulator.Increment = ParseInt32Option(opt, 1, int.MaxValue);
+                }
                 else
                 {
                     throw Error("Unknown option for build simulation analysis: {0}", opt.Name);
@@ -63,7 +67,6 @@ namespace BuildXL.Execution.Analyzer
         public string OutputDirectory;
 
         public string ResultsDirectory;
-
 
         public bool[] IncludedExecutionSteps = new bool[EnumTraits<PipExecutionStep>.MaxValue + 1];
 

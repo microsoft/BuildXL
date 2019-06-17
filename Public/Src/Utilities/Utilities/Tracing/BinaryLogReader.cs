@@ -248,6 +248,10 @@ namespace BuildXL.Utilities.Tracing
             AbsolutePath parent = reader.ReadAbsolutePath();
             int index = reader.ReadInt32Compact();
             string name = reader.ReadString();
+
+            // NOTE: We use PathAtom.UnsafeCreateFrom here because when reading from an xlg produced on a different
+            // platform, the rules for path atom validity may change so we should just respect the path atom as-is without
+            // doing validation.
             AbsolutePath path = parent.IsValid 
                 ? parent.Combine(m_context.PathTable, PathAtom.UnsafeCreateFrom(StringId.Create(m_context.StringTable, name))) 
                 : AbsolutePath.Create(m_context.PathTable, name);

@@ -44,9 +44,18 @@ namespace BuildXL.Execution.Analyzer
                 {
                     analyzer.AddEdgesForPips = !ParseBooleanOption(opt);
                 }
+                else if (opt.Name.Equals("si", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("simulatorIncrement", StringComparison.OrdinalIgnoreCase))
+                {
+                    analyzer.SimulatorIncrement = ParseInt32Option(opt, 1, int.MaxValue);
+                }
+                else if (opt.Name.Equals("allAccesses", StringComparison.OrdinalIgnoreCase))
+                {
+                    analyzer.AllAccesses = ParseBooleanOption(opt);
+                }
                 else
                 {
-                    throw Error("Unknown option for fingerprint text analysis: {0}", opt.Name);
+                    throw Error("Unknown option for required dependency analysis: {0}", opt.Name);
                 }
             }
 
@@ -74,6 +83,8 @@ namespace BuildXL.Execution.Analyzer
         public long ProcessingPips = 0;
         public long ProcessedPips = 0;
         public bool AddEdgesForPips = true;
+        public int? SimulatorIncrement = null;
+        public bool AllAccesses = false;
         public HashSet<long> SemiStableHashes = new HashSet<long>();
 
         private static readonly Comparer<PipEntry> s_pipEntryComparer = new ComparerBuilder<PipEntry>()
@@ -281,6 +292,7 @@ namespace BuildXL.Execution.Analyzer
 
             Console.WriteLine($"Simulating [Reading]");
             var simulator = new BuildSimulatorAnalyzer(Input);
+            simulator.Increment = SimulatorIncrement ?? simulator.Increment;
             simulator.ExecutionData.DataflowGraph = m_mutableGraph;
 
             simulator.OutputDirectory = OutputFilePath;
@@ -635,6 +647,31 @@ namespace BuildXL.Execution.Analyzer
             Unknown = 1 << 6,
 
             Copy = 1 << 9,
+
+            /// <summary>
+            /// A path was probed, but did not exist.
+            /// </summary>
+            AbsentPathProbe = 1 << (10 + ObservedInputType.AbsentPathProbe),
+
+            /// <summary>
+            /// A file with known contents was read.
+            /// </summary>
+            FileContentRead = 1 << (10 + ObservedInputType.FileContentRead),
+
+            /// <summary>
+            /// A directory was enumerated (kind of like a directory read).
+            /// </summary>
+            DirectoryEnumeration = 1 << (10 + ObservedInputType.DirectoryEnumeration),
+
+            /// <summary>
+            /// An existing directory probe.
+            /// </summary>
+            ExistingDirectoryProbe = 1 << (10 + ObservedInputType.ExistingDirectoryProbe),
+
+            /// <summary>
+            /// An existing file probe.
+            /// </summary>
+            ExistingFileProbe = 1 << (10 + ObservedInputType.ExistingFileProbe),
         }
 
         private class PipEntry
@@ -690,7 +727,6 @@ namespace BuildXL.Execution.Analyzer
         {
             public ConsumedFile ConsumedFile;
             public DirectoryEntry Directory;
-            public ObservedInputType? InputType;
 
             public PipEntry Producer => ConsumedFile.File.Producer ?? Directory?.Producer;
         }
@@ -735,14 +771,13 @@ namespace BuildXL.Execution.Analyzer
                 Name = name;
             }
 
-            public void AddConsumedFile(FileArtifact file, DirectoryArtifact directory, ContentFlag flag, ObservedInputType? inputType = null)
+            public void AddConsumedFile(FileArtifact file, DirectoryArtifact directory, ContentFlag flag)
             {
                 var consumedFile = AddConsumedFile(file, flag);
 
                 m_consumer.FileDependencies.Add(
                     new FileReference()
                     {
-                        InputType = inputType,
                         ConsumedFile = consumedFile,
                         Directory = m_analyzer.GetEntry(directory)
                     });
@@ -757,7 +792,6 @@ namespace BuildXL.Execution.Analyzer
                     m_consumer.FileDependencies.Add(
                         new FileReference()
                         {
-                            InputType = inputType,
                             ConsumedFile = resolvedConsumedFile,
                             Directory = m_analyzer.GetEntry(directory)
                         });
@@ -811,7 +845,7 @@ namespace BuildXL.Execution.Analyzer
                 m_directoryHasSources.Clear();
 
                 var computation = data.StrongFingerprintComputations[0];
-                var pip = m_analyzer.GetPip(data.PipId);
+                var pip = (Process)m_analyzer.GetPip(data.PipId);
                 PipArtifacts.ForEachInput(pip, input =>
                 {
                     if (input.IsFile)
@@ -836,9 +870,9 @@ namespace BuildXL.Execution.Analyzer
 
                 foreach (var input in computation.ObservedInputs)
                 {
+                    var flag = (ContentFlag)((int)ContentFlag.AbsentPathProbe << (int)input.Type) | ContentFlag.Consumed;
                     if (input.Type == ObservedInputType.FileContentRead || input.Type == ObservedInputType.ExistingFileProbe)
                     {
-                        var flag = input.Type == ObservedInputType.FileContentRead ? ContentFlag.Content : ContentFlag.Probe;
                         if (m_consumedFilesByPath.TryGetValue(input.Path, out var file))
                         {
                             file.AddFlag(ContentFlag.Consumed);
@@ -854,8 +888,12 @@ namespace BuildXL.Execution.Analyzer
                         }
                         else
                         {
-                            AddConsumedFile(FileArtifact.CreateSourceFile(input.Path), m_analyzer.PipGraph.TryGetSealSourceAncestor(input.Path), flag | ContentFlag.Consumed | ContentFlag.Unknown);
+                            AddConsumedFile(FileArtifact.CreateSourceFile(input.Path), m_analyzer.PipGraph.TryGetSealSourceAncestor(input.Path), flag | ContentFlag.Unknown);
                         }
+                    }
+                    else if (m_analyzer.AllAccesses)
+                    {
+                        AddConsumedFile(FileArtifact.CreateSourceFile(input.Path), m_analyzer.PipGraph.TryGetSealSourceAncestor(input.Path), flag);
                     }
                 }
 

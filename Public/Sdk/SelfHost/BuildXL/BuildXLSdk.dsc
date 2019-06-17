@@ -89,6 +89,7 @@ export interface TestArguments extends Arguments, Managed.TestArguments {
 
 @@public
 export interface TestResult extends Managed.TestResult {
+    adminTestResults?: TestResult;
 }
 
 /**
@@ -145,6 +146,12 @@ namespace Flags {
      */
     @@public
     export const excludeBuildXLExplorer = Environment.getFlag("[Sdk.BuildXL]ExcludeBuildXLExplorer");
+
+    /**
+     * Build tests that require admin privilege in VM.
+     */
+    @@public
+    export const buildRequiredAdminPrivilegeTestInVm = Environment.getFlag("[Sdk.BuildXL]BuildRequiredAdminPrivilegeTestInVm");
 }
 
 @@public
@@ -305,7 +312,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Managed.
 @@public
 export function test(args: TestArguments) : TestResult {
     args = processTestArguments(args);
-    const result = Managed.test(args);
+    let result = Managed.test(args);
 
     if (!args.skipTestRun) {
         StandaloneTest.deploy(
@@ -317,6 +324,28 @@ export function test(args: TestArguments) : TestResult {
             /* limitCategories:      */ args.runTestArgs && args.runTestArgs.limitGroups,
             /* skipCategories:       */ args.runTestArgs && args.runTestArgs.skipGroups,
             /* untrackTestDirectory: */ args.runTestArgs && args.runTestArgs.untrackTestDirectory);
+
+        if (Flags.buildRequiredAdminPrivilegeTestInVm) {
+            // QTest doesn't really work when the limit categories filter out all the tests.
+            // Basically, the logic below follows standalone test runner.
+            const untrackedFramework = importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework;
+            const trackedFramework = importFrom("Sdk.Managed.Testing.XUnit").framework;
+            const untracked = args.testFramework && args.testFramework.name.endsWith(untrackedFramework.name);
+            const framework = untracked ? untrackedFramework : trackedFramework;
+            args = args.merge({
+                framework: framework,
+                runTestArgs: {
+                    privilegeLevel: <"standard"|"admin">"admin",
+                    limitGroups: ["RequiresAdmin"],
+                    parallelGroups: undefined,
+                }
+            });
+            const adminResult = Managed.runTestOnly(
+                args, 
+                /* compileArguments: */ true,
+                /* testDeployment:   */ result.testDeployment);
+            result = result.override<TestResult>({ adminTestResults: adminResult });
+        }
     }
 
     return result;

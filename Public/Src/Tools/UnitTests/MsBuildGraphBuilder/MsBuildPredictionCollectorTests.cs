@@ -13,9 +13,6 @@ using Xunit.Abstractions;
 
 namespace Test.ProjectGraphBuilder
 {
-    /// <summary>
-    /// Makes sure that project predictions are plumbed through and serialized into the project graph. The actual predictions are not tested here.
-    /// </summary>
     public class MsBuildPredictionCollectorTests : TemporaryStorageTestBase
     {
         public MsBuildPredictionCollectorTests(ITestOutputHelper output): base(output)

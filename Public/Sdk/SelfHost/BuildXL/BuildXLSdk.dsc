@@ -333,7 +333,7 @@ export function test(args: TestArguments) : TestResult {
             const untracked = args.testFramework && args.testFramework.name.endsWith(untrackedFramework.name);
             const framework = untracked ? untrackedFramework : trackedFramework;
             args = args.merge({
-                framework: framework,
+                testFramework: framework,
                 runTestArgs: {
                     privilegeLevel: <"standard"|"admin">"admin",
                     limitGroups: ["RequiresAdmin"],

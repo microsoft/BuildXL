@@ -9,6 +9,7 @@ namespace TestProcess {
     export const exe = BuildXLSdk.nativeExecutable({
         assemblyName: "Test.BuildXL.Executables.TestProcess",
         sources: globR(d`.`, "*.cs"),
+        defineConstants: [ "TestProcess" ],
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,

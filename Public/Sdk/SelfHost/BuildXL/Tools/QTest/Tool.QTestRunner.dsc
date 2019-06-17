@@ -336,7 +336,7 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     /** Specifies the environment variables to forward to qtest */
     qTestEnvironmentVariables?: Transformer.EnvironmentVariable[];
     /** Specify the path relative to enlistment root of the sources from which the test target is built */
-    testSourceDir?: string;
+    testSourceDir?: RelativePath;
 }
 /**
  * Test results from a vstest.console.exe run

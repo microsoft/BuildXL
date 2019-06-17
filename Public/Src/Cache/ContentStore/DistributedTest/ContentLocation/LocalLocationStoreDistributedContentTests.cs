@@ -35,6 +35,9 @@ using ContentStoreTest.Distributed.ContentLocation;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;
+using Microsoft.Azure.EventHubs;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Auth;
 using Xunit;
 using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -309,7 +312,6 @@ namespace ContentStoreTest.Distributed.Sessions
             int machineCount = 5;
             ConfigureWithOneMaster();
 
-            // HACK: Existing purge code removes an extra file. Testing with this in mind.
             await RunTestAsync(
                 loggingContext,
                 machineCount,
@@ -321,18 +323,18 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var defaultFileSize = (Config.MaxSizeQuota.Hard / 4) + 1;
 
-                    // Insert random file #1 into session
+                    // Insert random file #0 into session
                     var putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
                     contentHashes.Add(putResult.ContentHash);
 
                     // Ensure first piece of content older than other content by at least the replica credit
                     TestClock.UtcNow += TimeSpan.FromMinutes(ReplicaCreditInMinutes);
 
-                    // Put random large file #2 into session.
+                    // Put random large file #1 into session.
                     putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
                     contentHashes.Add(putResult.ContentHash);
 
-                    // Put random large file #3 into session.
+                    // Put random large file #2 into session.
                     putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
                     contentHashes.Add(putResult.ContentHash);
 
@@ -354,14 +356,13 @@ namespace ContentStoreTest.Distributed.Sessions
                         UrgencyHint.Nominal,
                         GetBulkOrigin.Local).ShouldBeSuccess();
 
-                    // Random file #2 and 3 should not be found
+                    // Random file #2 should be found in all machines.
                     locationsResult.ContentHashesInfo.Count.Should().Be(3);
                     locationsResult.ContentHashesInfo[0].Locations.Count.Should().Be(1);
                     locationsResult.ContentHashesInfo[1].Locations.Count.Should().Be(1);
                     locationsResult.ContentHashesInfo[2].Locations.Count.Should().Be(machineCount);
 
-                    // Put random large file #4 into session that will evict file #2 and #3.
-                    putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
+                    // Put random large file #3 into session that will evict file #2.
                     putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
                     contentHashes.Add(putResult.ContentHash);
 
@@ -374,9 +375,10 @@ namespace ContentStoreTest.Distributed.Sessions
                         UrgencyHint.Nominal,
                         GetBulkOrigin.Local).ShouldBeSuccess();
 
-                    // Random file #2 and 3 should not be found
+                    // Random file #2 should have been evicted from master.
                     locationsResult.ContentHashesInfo.Count.Should().Be(4);
-                    locationsResult.ContentHashesInfo[0].Locations.Should().BeEmpty();
+                    locationsResult.ContentHashesInfo[0].Locations.Should().NotBeEmpty();
+                    locationsResult.ContentHashesInfo[1].Locations.Should().NotBeEmpty();
                     locationsResult.ContentHashesInfo[2].Locations.Count.Should().Be(machineCount - 1, "Master should have evicted newer content because effective age due to replicas was older than other content");
                     locationsResult.ContentHashesInfo[3].Locations.Should().NotBeEmpty();
                 },
@@ -640,7 +642,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        private static bool HasLocation(ContentLocationDatabase db, OperationContext context, ContentHash hash, MachineId machine, long size)
+        private static bool HasLocation(ContentLocationDatabase db, BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext context, ContentHash hash, MachineId machine, long size)
         {
             if (!db.TryGetEntry(context, hash, out var entry))
             {
@@ -1398,7 +1400,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     int pageNumber = 0;
                     int cumulativeCount = 0;
                     long lastTime = 0;
-                    long lastOriginalTime = 0;
                     HashSet<ContentHash> hashes = new HashSet<ContentHash>();
                     foreach (var page in master.GetLruPages(context, lruContent))
                     {
@@ -1408,10 +1409,9 @@ namespace ContentStoreTest.Distributed.Sessions
                         foreach (var item in page)
                         {
                             tracer.Debug($"{item}");
-                            tracer.Debug($"LTO: {item.LastAccessTime.Ticks - lastTime}, LOTO: {item.OriginalLastAccessTime.Ticks - lastOriginalTime}, IsDupe: {!hashes.Add(item.ContentHash)}");
+                            tracer.Debug($"LTO: {item.LastAccessTime.Ticks - lastTime}, LOTO: {item.LastAccessTime.Ticks - lastTime}, IsDupe: {!hashes.Add(item.ContentHash)}");
 
                             lastTime = item.LastAccessTime.Ticks;
-                            lastOriginalTime = item.OriginalLastAccessTime.Ticks;
                         }
                     }
 
@@ -1780,7 +1780,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     config.CentralStore = centralStoreConfiguration;
 
                     config.CentralStore = new BlobCentralStoreConfiguration(
-                                              connectionString: storageConnectionString,
+                                              credentials: new AzureBlobStorageCredentials(storageConnectionString),
                                               containerName: "checkpointscontainer",
                                               checkpointsKey: checkpointsKey)
                     {
@@ -2102,6 +2102,65 @@ namespace ContentStoreTest.Distributed.Sessions
 
             Output.WriteLine("The test is configured correctly.");
             return true;
+        }
+
+        [Fact(Skip = "For manual testing only. Requires storage account credentials")]
+        public async Task BlobCentralStorageCredentialsUpdate()
+        {
+            var testBasePath = FileSystem.GetTempPath();
+            var containerName = "checkpoints";
+            var checkpointsKey = "checkpoints-eventhub";
+            var storageAccountEndpointSuffix = "core.windows.net";
+
+            if (!ReadConfiguration(out var storageAccountKey, out var storageAccountName, out var eventHubConnectionString, out var eventHubName))
+            {
+                Output.WriteLine("The test is skipped due to misconfiguration.");
+                return;
+            }
+
+            var credentials = new StorageCredentials(storageAccountName, storageAccountKey);
+            var account = new CloudStorageAccount(credentials, storageAccountName, storageAccountEndpointSuffix, useHttps: true);
+
+            var sasToken = account.GetSharedAccessSignature(new SharedAccessAccountPolicy
+            {
+                SharedAccessExpiryTime = DateTimeOffset.UtcNow + TimeSpan.FromMinutes(5),
+                Permissions = SharedAccessAccountPermissions.None,
+                Services = SharedAccessAccountServices.Blob,
+                ResourceTypes = SharedAccessAccountResourceTypes.Object,
+                Protocols = SharedAccessProtocol.HttpsOnly
+            });
+            var blobStoreCredentials = new StorageCredentials(sasToken);
+
+            var blobCentralStoreConfiguration = new BlobCentralStoreConfiguration(
+                new AzureBlobStorageCredentials(blobStoreCredentials, storageAccountName, storageAccountEndpointSuffix),
+                containerName,
+                checkpointsKey);
+            var blobCentralStore = new BlobCentralStorage(blobCentralStoreConfiguration);
+
+            var operationContext = new BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext(new Context(Logger));
+
+            // Attempt a get of an inexistent file. It should fail due to permissions.
+            var forbiddenReadResult = await blobCentralStore.TryGetFileAsync(operationContext,
+                "fail",
+                AbsolutePath.CreateRandomFileName(testBasePath));
+            forbiddenReadResult.ShouldBeError("(403) Forbidden");
+
+            // Update the token, this would usually be done by the secret store.
+            var sasTokenWithReadPermission = account.GetSharedAccessSignature(new SharedAccessAccountPolicy
+            {
+                SharedAccessExpiryTime = DateTimeOffset.UtcNow + TimeSpan.FromMinutes(5),
+                Permissions = SharedAccessAccountPermissions.Read | SharedAccessAccountPermissions.List,
+                Services = SharedAccessAccountServices.Blob,
+                ResourceTypes = SharedAccessAccountResourceTypes.Object,
+                Protocols = SharedAccessProtocol.HttpsOnly
+            });
+            blobStoreCredentials.UpdateSASToken(sasTokenWithReadPermission);
+
+            // Attempt a get of an inexistent file. It should fail due to it not existing.
+            var allowedReadResult = await blobCentralStore.TryGetFileAsync(operationContext,
+                "fail",
+                AbsolutePath.CreateRandomFileName(testBasePath));
+            allowedReadResult.ShouldBeError(@"Checkpoint blob 'checkpoints\fail' does not exist in shard #0.");
         }
 
         [Fact(Skip = "For manual usage only")]

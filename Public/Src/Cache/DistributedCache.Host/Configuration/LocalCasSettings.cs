@@ -37,7 +37,8 @@ namespace BuildXL.Cache.Host.Configuration
             string scenarioName = null,
             uint grpcPort = 0,
             string grpcPortFileName = null,
-            bool supportsProactiveReplication = true)
+            bool supportsProactiveReplication = true,
+            int? bufferSizeForGrpcCopies = null)
         {
             CasClientSettings = new LocalCasClientSettings(useCasService, cacheName, connectionsPerSession, retryIntervalSecondsOnFailServiceCalls, retryCountOnFailServiceCalls);
 
@@ -47,7 +48,8 @@ namespace BuildXL.Cache.Host.Configuration
                 maxPipeListeners: maxPipeListeners,
                 scenarioName: scenarioName,
                 grpcPort: grpcPort,
-                grpcPortFileName: grpcPortFileName);
+                grpcPortFileName: grpcPortFileName,
+                bufferSizeForGrpcCopies: bufferSizeForGrpcCopies);
 
             AddNamedCache(cacheName, new NamedCacheSettings(
                 cacheRootPath, cacheSizeQuotaString, supportsSensitiveSessions, supportsProactiveReplication, requiredCapabilites: null));

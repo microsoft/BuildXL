@@ -143,7 +143,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             RedisContentLocationStoreConfiguration configuration)
         {
             string blobStoreConfigurationAsText = configuration.CentralStore is BlobCentralStoreConfiguration blobStoreConfiguration
-                ? $"BlobCentralStore=True, #Shards={blobStoreConfiguration.ConnectionStrings.Count}, "
+                ? $"BlobCentralStore=True, #Shards={blobStoreConfiguration.Credentials.Count}, "
                 : "BlobCentralStore=False, ";
 
             var message = $"{tracer.Name}: Starting content location store. "

@@ -79,8 +79,8 @@ namespace BuildXL.FrontEnd.MsBuild
             IMsBuildResolverSettings resolverSettings,
             AbsolutePath pathToMsBuildExe,
             string frontEndName,
-            [CanBeNull] IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
-            [CanBeNull] IEnumerable<string> userDefinedPassthroughVariables)
+            IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
+            IEnumerable<string> userDefinedPassthroughVariables)
         {
             Contract.Requires(context != null);
             Contract.Requires(frontEndHost != null);
@@ -88,7 +88,9 @@ namespace BuildXL.FrontEnd.MsBuild
             Contract.Requires(resolverSettings != null);
             Contract.Requires(pathToMsBuildExe.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
-            
+            Contract.Requires(userDefinedEnvironment != null);
+            Contract.Requires(userDefinedPassthroughVariables != null);
+
             m_context = context;
             m_frontEndHost = frontEndHost;
             m_moduleDefinition = moduleDefinition;
@@ -154,11 +156,9 @@ namespace BuildXL.FrontEnd.MsBuild
             // Check UseSynchronousLogging on https://github.com/Microsoft/msbuild
             env[BuildEnvironmentConstants.MsBuildLogAsyncEnvVar] = "1";
 
-            // If the resolver settings environment was not specified, we expose the whole process environment
-            var environment = m_userDefinedEnvironment ?? Environment.GetEnvironmentVariables().Cast<DictionaryEntry>().Select(
-                    entry => new KeyValuePair<string, string>((string)entry.Key, (string)entry.Value));
-
-            foreach (var input in environment)
+            // Observe there is no need to inform the engine this environment is being used since
+            // the same environment was used during graph construction, and the engine is already tracking them
+            foreach (var input in m_userDefinedEnvironment)
             {
                 string envVarName = input.Key;
 
@@ -170,9 +170,6 @@ namespace BuildXL.FrontEnd.MsBuild
                 }
 
                 env[envVarName] = input.Value;
-
-                // We don't actually need the value, but we need to tell the engine that the value is being used
-                Engine.TryGetBuildParameter(envVarName, m_frontEndName, out _);
             }
 
             //
@@ -566,10 +563,8 @@ namespace BuildXL.FrontEnd.MsBuild
             // Just let it be killed.
             // TODO: Can we stop it running? https://stackoverflow.microsoft.com/questions/74425/how-to-disable-vctip-exe-in-vc14
             //
-            // conhost.exe: This process needs a little bit more time to finish after the main process. We shouldn't be allowing
-            // this one to survive, we just need the timeout to be slightly more than zero. This will also be beneficial to other 
-            // arbitrary processeses that need a little bit more time. But, apparently, setting a timeout has a perf impact that is 
-            // being investigated. TODO: revisit this once this is fixed.
+            // conhost.exe: This process needs a little bit more time to finish after the main process, but killing it right away
+            // is inconsequential. 
             //
             // All child processes: Don't wait to kill the processes.
             // CODESYNC: CloudBuild repo TrackerExecutor.cs "info.NestedProcessTerminationTimeout = TimeSpan.Zero"
@@ -578,7 +573,12 @@ namespace BuildXL.FrontEnd.MsBuild
                 PathAtom.Create(m_context.StringTable, "vctip.exe"),
                 PathAtom.Create(m_context.StringTable, "conhost.exe"),
                 PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe"));
-            processBuilder.NestedProcessTerminationTimeout = TimeSpan.Zero;
+            // There are some cases (e.g. a 64-bit MSBuild launched as a child process from a 32-bit MSBuild instance) where
+            // processes need a little bit more time to finish. Increasing the timeout does not affect job objects where no child
+            // processes survive, or job object where the only surviving processes are the ones explicitly allowed to survive (which
+            // are killed immediately). So overall, this non-zero timeout will only make some pips that would have failed to take a little
+            // bit longer (and hopefully succeed)
+            processBuilder.NestedProcessTerminationTimeout = TimeSpan.FromMilliseconds(500);
 
             SetProcessEnvironmentVariables(CreateEnvironment(logDirectory, project), processBuilder);
 

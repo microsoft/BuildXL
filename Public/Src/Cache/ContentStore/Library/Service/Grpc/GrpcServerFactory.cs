@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Net;
 using Grpc.Core;
@@ -18,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Contract.Requires(service != null);
 
             GrpcEnvironment.InitializeIfNeeded();
-            return new Server
+            return new Server(GrpcEnvironment.DefaultConfiguration)
             {
                 Services = { service },
                 Ports = { new ServerPort(IPAddress.Any.ToString(), grpcPort, ServerCredentials.Insecure) },
@@ -33,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Contract.Requires(services.Length != 0);
 
             GrpcEnvironment.InitializeIfNeeded();
-            var server = new Server
+            var server = new Server(GrpcEnvironment.DefaultConfiguration)
             {
                 Ports = { new ServerPort(IPAddress.Any.ToString(), grpcPort, ServerCredentials.Insecure) },
                 // need a higher number here to avoid throttling: 7000 worked for initial experiments.

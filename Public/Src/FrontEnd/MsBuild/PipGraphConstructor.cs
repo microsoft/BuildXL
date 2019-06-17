@@ -37,8 +37,8 @@ namespace BuildXL.FrontEnd.MsBuild
             IMsBuildResolverSettings resolverSettings,
             AbsolutePath pathToMsBuildExe,
             string frontEndName,
-            [CanBeNull] IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
-            [CanBeNull] IEnumerable<string> userDefinedPassthroughVariables)
+            IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
+            IEnumerable<string> userDefinedPassthroughVariables)
         {
             Contract.Requires(context != null);
             Contract.Requires(frontEndHost != null);
@@ -46,6 +46,8 @@ namespace BuildXL.FrontEnd.MsBuild
             Contract.Requires(resolverSettings != null);
             Contract.Requires(pathToMsBuildExe.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
+            Contract.Requires(userDefinedEnvironment != null);
+            Contract.Requires(userDefinedPassthroughVariables != null);
 
             m_context = context;
             m_frontEndHost = frontEndHost;

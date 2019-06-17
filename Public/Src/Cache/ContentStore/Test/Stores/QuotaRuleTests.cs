@@ -37,7 +37,7 @@ namespace ContentStoreTest.Stores
         [InlineData(false, false)]
         public async Task NoPurgingIf(bool withinTargetQuota, bool canceled)
         {
-            var evictResult = new EvictResult(10, 20, 30, lastAccessTime: DateTime.Now, successfullyEvictedHash: true, replicaCount: 1);
+            var evictResult = new EvictResult(10, 20, 30, lastAccessTime: DateTime.Now, effectiveLastAccessTime: null, successfullyEvictedHash: true, replicaCount: 1);
             var rule = CreateRule(withinTargetQuota ? SizeWithinTargetQuota : SizeBeyondTargetQuota, evictResult);
 
             using (var cts = new CancellationTokenSource())

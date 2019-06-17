@@ -163,6 +163,28 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             Assert.True(testProj.EnvironmentVariables.Any(e => e.Name.Equals(mspdbsrvEnvVarStringId)));
         }
 
+        public void FullEnvironmentIsExposedToTheProcess()
+        {
+            var project = CreateProjectWithPredictions("A.proj");
+            // We define a tracked environment variable and a passthrough one
+            var testProj = Start(new MsBuildResolverSettings { Environment = new Dictionary<string, DiscriminatingUnion<string, UnitValue>>
+            {
+                ["TrackedEnv"] = new DiscriminatingUnion<string, UnitValue>("1"),
+                ["PassThroughEnv"] = new DiscriminatingUnion<string, UnitValue>(UnitValue.Unit),
+
+            }})
+                .Add(project)
+                .ScheduleAll()
+                .AssertSuccess()
+                .RetrieveSuccessfulProcess(project);
+
+            // Both should be exposed to the process
+            StringId tracked = StringId.Create(PathTable.StringTable, "TrackedEnv");
+            StringId passthrough = StringId.Create(PathTable.StringTable, "PassThroughEnv");
+            Assert.Contains(tracked, testProj.EnvironmentVariables.Select(e => e.Name));
+            Assert.Contains(passthrough, testProj.EnvironmentVariables.Select(e => e.Name));
+        }
+
         [Fact]
         public void EnvironmentIsHonored()
         {

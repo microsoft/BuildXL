@@ -14,6 +14,9 @@ chmod +x "$bxlSh"
 find "$MY_DIR/TestProj/tests" -name "*.TestProcess" -exec chmod +x {} \;
 find "$MY_DIR/TestProj/tests" -name "*CoreDump*" -exec chmod +x {} \;
 
+# Allow for up to 4mb of thread stack size
+export COMPlus_DefaultStackSize=400000
+
 # run the build
 # Temporarily disable this until we have the new macOS based CI
 # /kextMeasureProcessCpuTimes

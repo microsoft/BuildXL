@@ -116,7 +116,7 @@ export const r = ""other.."" + p`myfile.txt`;
             Assert.True(((string)result).EndsWith("/myfile.txt`"));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void SuperLongBinaryExpressionShouldNotLeadToStackoverflow()
         {
             // This sample led to stack overflow when NodeWalker was recursive

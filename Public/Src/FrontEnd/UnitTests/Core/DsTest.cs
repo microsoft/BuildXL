@@ -1167,9 +1167,7 @@ namespace Test.BuildXL.FrontEnd.Core
         {
             var conversionConfiguration = new AstConversionConfiguration(
                 policyRules: customRules ?? new string[] { },
-                degreeOfParallelism: 1,
-                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis(),
-                useLegacyOfficeLogic: false)
+                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis())
             {
                 PreserveFullNameSymbols = true,
             };

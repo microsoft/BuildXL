@@ -53,9 +53,14 @@ namespace BuildXL.Engine
         public readonly PipGraph PipGraph;
 
         /// <summary>
+        /// The engine serializer
+        /// </summary>
+        public readonly EngineSerializer Serializer;
+
+        /// <summary>
         /// Class constructor
         /// </summary>
-        public CachedGraph(PipGraph pipGraph, DirectedGraph dataflowGraph, PipExecutionContext context, MountPathExpander mountPathExpander)
+        public CachedGraph(PipGraph pipGraph, DirectedGraph dataflowGraph, PipExecutionContext context, MountPathExpander mountPathExpander, EngineSerializer serializer = null)
         {
             Contract.Requires(pipGraph != null);
             Contract.Requires(dataflowGraph != null);
@@ -67,6 +72,7 @@ namespace BuildXL.Engine
             MountPathExpander = mountPathExpander;
             Context = context;
             PipGraph = pipGraph;
+            Serializer = serializer;
         }
 
         /// <summary>
@@ -113,6 +119,8 @@ namespace BuildXL.Engine
         private readonly Lazy<Task<HistoricTableSizes>> m_historicDataTask;
         private readonly Lazy<Task<PipGraph>> m_pipGraphTask;
 
+        public readonly EngineSerializer Serializer;
+
         /// <summary>
         /// Loads a cache graph from a given cached graph directory
         /// </summary>
@@ -140,6 +148,7 @@ namespace BuildXL.Engine
 
         private CachedGraphLoader(CancellationToken cancellationToken, EngineSerializer serializer)
         {
+            Serializer = serializer;
             m_pipGraphIdTask = CreateLazyFileDeserialization(
                 serializer,
                 GraphCacheFile.PipGraph,
@@ -240,7 +249,7 @@ namespace BuildXL.Engine
             m_cachedGraphTask = CreateAsyncLazyFromResult(new CachedGraph(pipGraph, pipGraph.DataflowGraph, m_pipExecutionContextTask.Value.Result, engineState.MountPathExpander));
         }
 
-        private static async Task<CachedGraph> CreateCachedGraph(Task<PipTable> pipTableTask, Task<PipGraph> pipGraphTask, Task<DeserializedDirectedGraph> directedGraphTask, Task<PipExecutionContext> contextTask, Task<MountPathExpander> mountPathExpanderTask)
+        private async Task<CachedGraph> CreateCachedGraph(Task<PipTable> pipTableTask, Task<PipGraph> pipGraphTask, Task<DeserializedDirectedGraph> directedGraphTask, Task<PipExecutionContext> contextTask, Task<MountPathExpander> mountPathExpanderTask)
         {
             var pipGraph = await pipGraphTask;
             var directedGraph = await directedGraphTask;
@@ -260,7 +269,7 @@ namespace BuildXL.Engine
                 return null;
             }
 
-            return new CachedGraph(pipGraph, directedGraph, context, mountPathExpander);
+            return new CachedGraph(pipGraph, directedGraph, context, mountPathExpander, Serializer);
         }
 
         private static async Task<SemanticPathExpander> ToSemanticPathExpander(Task<MountPathExpander> mountPathExpander)

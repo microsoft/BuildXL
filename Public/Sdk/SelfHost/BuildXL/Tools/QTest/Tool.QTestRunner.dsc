@@ -182,6 +182,7 @@ export function runQTest(args: QTestArguments): Result {
         untrackedScopes: [
             d`d:/data`,
             d`d:/app`,
+            d`${sandboxDir.pathRoot}/$Recycle.Bin`,
             ...addIf(Environment.hasVariable("QAUTHMATERIALROOT"), Environment.getDirectoryValue("QAUTHMATERIALROOT")),
         ]
     };

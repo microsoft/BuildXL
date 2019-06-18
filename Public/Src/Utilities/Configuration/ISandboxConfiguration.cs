@@ -244,7 +244,7 @@ namespace BuildXL.Utilities.Configuration
         /// can break customers who assume that additional temp directories are not created before the pip executes.
         /// Thus, this enforcement is made opt-in.
         /// </remarks>
-        bool EnsureTempDirectoriesExistenceBeforePipExecution { get; }
+        bool EnsureTempDirectoriesExistenceBeforePipExecution { get; set; }
 
         /// <summary> 
         /// Paths and Directory Paths which should be untracked for all processes 
@@ -256,6 +256,6 @@ namespace BuildXL.Utilities.Configuration
         /// Moreover, this global configuration from cammand line will bypass cache,
         /// which means pips and graph will be cached ignoring paths specified in this configure
         /// </remarks>
-        IReadOnlyList<AbsolutePath> GlobalUnsafeUntrackedScopes { get; }
+        List<AbsolutePath> GlobalUnsafeUntrackedScopes { get; set; }
     }
 }

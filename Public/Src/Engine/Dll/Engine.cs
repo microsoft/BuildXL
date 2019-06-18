@@ -1645,6 +1645,8 @@ namespace BuildXL.Engine
                                         primaryConfigFile = m_translator.Translate(primaryConfigFile);
                                         logsDirectory = m_translator.Translate(logsDirectory);
                                         binDirectory = m_translator.Translate(binDirectory);
+                                        Configuration.Sandbox.GlobalUnsafeUntrackedScopes = Configuration.Sandbox.GlobalUnsafeUntrackedScopes.Select(path => AbsolutePath.Create(Context.PathTable, m_translator.Translate(path.ToString(Context.PathTable)))).ToList(); ;
+
                                     }
 
                                     new Invocations().RecordInvocation(

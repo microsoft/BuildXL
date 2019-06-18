@@ -11,7 +11,7 @@ namespace Distributed {
         // Microsoft.Azure.EventHubs removes 'System.Diagnostics.DiagnosticSource' as the dependency to avoid deployment issue for .netstandard2.0, but this dependency
         // is required for non-.net core builds.
         ...((qualifier.targetFramework === 'net472' || qualifier.targetFramework === 'net451')
-            ? [ importFrom("System.Diagnostics.DiagnosticSource").pkg ] 
+            ? [ importFrom("System.Diagnostics.DiagnosticSource").pkg, importFrom("Microsoft.IdentityModel.Tokens").pkg,importFrom("Microsoft.IdentityModel.Logging").pkg ] 
             : []),
 
     ];

@@ -233,41 +233,20 @@ void RegisterSignalHandlers()
     struct sigaction action = { 0 };
     action.sa_handler = SIG_IGN;
 
-    sigaction(SIGBUS, &action, NULL);
-    sigaction(SIGILL, &action, NULL);
-    sigaction(SIGHUP, &action, NULL);
-    sigaction(SIGABRT, &action, NULL);
-    sigaction(SIGSEGV, &action, NULL);
+    int signals[] = { SIGBUS, SIGILL, SIGHUP, SIGABRT, SIGSEGV };
+    int signalsLength = sizeof(signals) / sizeof(signals[0]);
 
-    // Signals are delivered asynchronously, register signal handlers and dispatch a block to handle the signal on the
-    // default global dispatch queue to avoid reentrancy problems
-    dispatch_source_t source = dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGBUS, 0, dispatch_get_global_queue(0, 0));
-    dispatch_source_set_event_handler(source, ^{
-        sigCrashHandler(SIGBUS);
-    });
-    dispatch_resume(source);
+    for (int i = 0; i < signalsLength; i++)
+    {
+        int sig = signals[i];
+        sigaction(sig, &action, NULL);
 
-    source = dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGILL, 0, dispatch_get_global_queue(0, 0));
-    dispatch_source_set_event_handler(source, ^{
-        sigCrashHandler(SIGILL);
-    });
-    dispatch_resume(source);
+        dispatch_source_t source = dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, sig, 0, dispatch_get_global_queue(0, 0));
+        dispatch_source_set_event_handler(source, ^()
+        {
+            sigCrashHandler(sig);
+        });
 
-    source = dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGHUP, 0, dispatch_get_global_queue(0, 0));
-    dispatch_source_set_event_handler(source, ^{
-        sigCrashHandler(SIGHUP);
-    });
-    dispatch_resume(source);
-
-    source = dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGABRT, 0, dispatch_get_global_queue(0, 0));
-    dispatch_source_set_event_handler(source, ^{
-        sigCrashHandler(SIGABRT);
-    });
-    dispatch_resume(source);
-
-    source = dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGSEGV, 0, dispatch_get_global_queue(0, 0));
-    dispatch_source_set_event_handler(source, ^{
-        sigCrashHandler(SIGSEGV);
-    });
-    dispatch_resume(source);
+        dispatch_resume(source);
+    }
 }

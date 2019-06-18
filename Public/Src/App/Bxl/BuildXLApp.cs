@@ -208,9 +208,12 @@ namespace BuildXL
             {
                 ConfigureCacheMissLogging(pathTable, mutableConfig);
             }
-
+       
             m_configuration = mutableConfig;
             m_initialConfiguration = mutableConfig;
+
+            PathTranslator.CreateIfEnabled(m_configuration.Logging.SubstSource, m_configuration.Logging.SubstTarget, pathTable, out var translator);
+            m_configuration.Sandbox.GlobalUnsafeUntrackedScopes = m_configuration.Sandbox.GlobalUnsafeUntrackedScopes.Select(path => AbsolutePath.Create(pathTable, translator.Translate(path.ToString(pathTable)))).ToList();
 
             if (console == null)
             {

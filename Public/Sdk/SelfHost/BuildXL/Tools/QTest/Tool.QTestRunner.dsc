@@ -171,7 +171,8 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
         Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
-        Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset")
+        Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset"),
+        Cmd.option("--testSourceDir ", args.testSourceDir)
     ];          
 
     let unsafeOptions = {
@@ -334,6 +335,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestBuildType?: string;
     /** Specifies the environment variables to forward to qtest */
     qTestEnvironmentVariables?: Transformer.EnvironmentVariable[];
+    /** Specify the path relative to enlistment root of the sources from which the test target is built */
+    testSourceDir?: RelativePath;
 }
 /**
  * Test results from a vstest.console.exe run

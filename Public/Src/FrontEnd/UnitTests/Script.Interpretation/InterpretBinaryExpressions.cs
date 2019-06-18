@@ -116,7 +116,11 @@ export const r = ""other.."" + p`myfile.txt`;
             Assert.True(((string)result).EndsWith("/myfile.txt`"));
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        /*
+         * On macOS the default stack size is 512kb and this test fails if the stack size limit is not adjusted prior to CoreCLR init
+         * (e.g. if running the thest within a debugger / IDE). Our bxl wrapper shell scripts currently set COMPlus_DefaultStackSize to fix this.
+         */
+        [Fact]
         public void SuperLongBinaryExpressionShouldNotLeadToStackoverflow()
         {
             // This sample led to stack overflow when NodeWalker was recursive

@@ -1077,7 +1077,7 @@
 /* Begin XCBuildConfiguration section */
 		3CCA66CD20D15BBD0051F984 /* debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F598838D22527E7400A7A2D9 /* BundleInfo.xcconfig */;
+			baseConfigurationReference = F598838C22527E7400A7A2D9 /* BundleInfoDebug.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;

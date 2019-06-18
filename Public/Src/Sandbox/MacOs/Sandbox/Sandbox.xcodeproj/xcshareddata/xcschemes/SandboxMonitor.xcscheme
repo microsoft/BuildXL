@@ -94,7 +94,7 @@
       debugDocumentVersioning = "YES">
    </ProfileAction>
    <AnalyzeAction
-      buildConfiguration = "release">
+      buildConfiguration = "debug">
    </AnalyzeAction>
    <ArchiveAction
       buildConfiguration = "release"

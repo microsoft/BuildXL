@@ -1608,7 +1608,7 @@ namespace BuildXL.Processes
             // Untrack the globally untracked paths specified in the configuration 
             foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
             {
-                m_fileAccessManifest.AddScope(path, FileAccessPolicy.MaskNothing, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
             }
 
             // For some static system mounts (currently only for AppData\Roaming) we allow CreateDirectory requests for all processes.
@@ -1752,7 +1752,7 @@ namespace BuildXL.Processes
                         AllowCreateDirectoryForDirectoriesOnPath(correspondingPath, processedPaths);
                     }
 
-                    // Untrack real logs directory if the redirected one is untracked.
+                    // Untrack real logs directory if the redirected one is untracked.                   
                     if (m_loggingConfiguration != null && m_loggingConfiguration.RedirectedLogsDirectory.IsValid && m_loggingConfiguration.RedirectedLogsDirectory == path)
                     {
                         m_fileAccessManifest.AddPath(m_loggingConfiguration.LogsDirectory, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps, mask: m_excludeReportAccessMask);

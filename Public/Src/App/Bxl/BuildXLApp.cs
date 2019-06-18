@@ -208,12 +208,9 @@ namespace BuildXL
             {
                 ConfigureCacheMissLogging(pathTable, mutableConfig);
             }
-       
+
             m_configuration = mutableConfig;
             m_initialConfiguration = mutableConfig;
-
-            PathTranslator.CreateIfEnabled(m_configuration.Logging.SubstSource, m_configuration.Logging.SubstTarget, pathTable, out var translator);
-            m_configuration.Sandbox.GlobalUnsafeUntrackedScopes = m_configuration.Sandbox.GlobalUnsafeUntrackedScopes.Select(path => AbsolutePath.Create(pathTable, translator.Translate(path.ToString(pathTable)))).ToList();
 
             if (console == null)
             {
@@ -234,9 +231,15 @@ namespace BuildXL
             // We store this to log it once the appropriate listeners are set up
             m_serverModeStatusAndPerf = serverModeStatusAndPerf;
 
-            m_crashCollector = OperatingSystemHelper.IsUnixOS 
+            m_crashCollector = OperatingSystemHelper.IsUnixOS
                 ? new CrashCollectorMacOS(new[] { CrashType.BuildXL, CrashType.Kernel })
                 : null;
+        }
+
+        private void TranslateGlobalUntrackedScope()
+        {
+            PathTranslator.CreateIfEnabled(m_configuration.Logging.SubstSource, m_configuration.Logging.SubstTarget, m_pathTable, out var translator);
+            m_configuration.Sandbox.GlobalUnsafeUntrackedScopes = m_configuration.Sandbox.GlobalUnsafeUntrackedScopes.Select(path => AbsolutePath.Create(m_pathTable, translator.Translate(path.ToString(m_pathTable)))).ToList();
         }
 
         private static void ConfigureCacheMissLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
@@ -898,6 +901,8 @@ namespace BuildXL
                         var logDirectory = m_configuration.Logging.LogsDirectory.ToString(m_pathTable);
                         translatedLogDirectory = pathTranslator != null ? pathTranslator.Translate(logDirectory) : logDirectory;
                     }
+
+                    TranslateGlobalUntrackedScope();
 
                     Logger.LogDominoInvocation(
                         loggingContext,

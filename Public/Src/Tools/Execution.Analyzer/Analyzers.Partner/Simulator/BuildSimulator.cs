@@ -263,8 +263,6 @@ namespace BuildXL.Execution.Analyzer
                 .Select(g => $"Height: {g.Key}, Count: {g.Count()}"));
 
             // information on each process during simulation
-            string csvFormat = "{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}";
-
             DisplayTable<SimColumns> table = new DisplayTable<SimColumns>(" , ");
 
             using (var streamWriter = new StreamWriter(GetResultsPath("actualSimulation.txt")))
@@ -286,17 +284,6 @@ namespace BuildXL.Execution.Analyzer
 
                 table.Write(streamWriter);
             }
-
-            //File.WriteAllLines(GetResultsPath("actualSimulation.txt"), new string[] { csvFormat.FormatWith("Id", "Thread", "Minimum Start Time", "Start Time", "End Time", "Duration", "Incoming", "Outgoing") }.Concat(actualSimulation.GetSpans().Select(ps =>
-            //    csvFormat.FormatWith(
-            //        ps.Id.Value,
-            //        ps.Thread,
-            //        actualSimulation.MinimumStartTimes[ps.Id].ToMinutes(),
-            //        ps.StartTime.ToMinutes(),
-            //        ps.EndTime.ToMinutes(),
-            //        ps.Duration.ToMinutes(),
-            //        data.DataflowGraph.GetIncomingEdgesCount(ps.Id),
-            //        data.DataflowGraph.GetIncomingEdgesCount(ps.Id)))));
         }
 
         private enum SimColumns

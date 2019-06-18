@@ -1974,7 +1974,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 MachineExpiry = TimeSpan.FromMinutes(10),
                 EnableReconciliation = _enableReconciliation,
                 InlinePostInitialization = true,
-                ReplicaPenaltyInMinutes = ReplicaCreditInMinutes,
+                ContentLifetime = TimeSpan.FromMinutes(ReplicaCreditInMinutes),
 
                 // Set recompute time to zero to force recomputation on every heartbeat
                 RecomputeInactiveMachinesExpiry = TimeSpan.Zero,

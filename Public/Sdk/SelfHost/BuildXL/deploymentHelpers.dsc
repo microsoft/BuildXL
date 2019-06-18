@@ -1,7 +1,7 @@
 import * as Deployment from "Sdk.Deployment";
 import * as Managed from "Sdk.Managed";
 
-import {DropDaemonRunner, DropRunner, DropCreateResult, FileInfo, Result as DropOperationResult, DropOperationArguments} from "BuildXL.Tools.DropDaemon";
+import {DropDaemonRunner, DropRunner, DropCreateResult, FileInfo, DirectoryInfo, Result as DropOperationResult, DropOperationArguments} from "BuildXL.Tools.DropDaemon";
 
 namespace DeploymentHelpers {
 
@@ -82,17 +82,12 @@ namespace DeploymentHelpers {
             const flattenedResult = Deployment.flatten(deployment, undefined, deploymentOptions);
 
             // Add all the files via a batch call.
-            let filesToAdd = flattenedResult.flattenedFiles.forEach(kvp => <FileInfo>{dropPath: kvp[0], file: kvp[1].file });
-            let filesResult = runner.addFilesToDrop(createResult, args, filesToAdd);
+            const filesToAdd = flattenedResult.flattenedFiles.forEach(kvp => <FileInfo>{dropPath: kvp[0], file: kvp[1].file });
+            const filesResult = runner.addFilesToDrop(createResult, args, filesToAdd);
 
-            
-            //- There is a bug on cloudbuild when uploading opaque directories to drops
-
-            // Opaque directories have to be added one by one.
-            //let directoryResults = flattenedResult.flattenedOpaques.forEach(kvp => {
-            //    runner.addDirectoriesToDrop(createResult, args, [{dropPath: kvp[0], directory: kvp[1]}]);
-            //});
+            // Add all Opaque directories via a batch call.
+            const directoriesToAdd = flattenedResult.flattenedOpaques.forEach(kvp => <DirectoryInfo>{dropPath: kvp[0], directory: kvp[1]});
+            const directoryResults = runner.addDirectoriesToDrop(createResult, args, directoriesToAdd);
         };
-
     }
 }

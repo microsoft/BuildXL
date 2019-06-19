@@ -15,6 +15,7 @@ namespace Test.BuildXL.Scheduler
 {
     public class PipRunningTimeTableTests
     {
+#if false
         [Fact]
         public void PipHistoricPerfDataConstructorDoesntCrash()
         {
@@ -191,5 +192,6 @@ namespace Test.BuildXL.Scheduler
             XAssert.AreEqual(1u, table[semiStableHashToKeep].DurationInMs);
             XAssert.AreEqual(0u, table[semiStableHashToDrop].DurationInMs);
         }
+#endif
     }
 }

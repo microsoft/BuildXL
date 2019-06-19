@@ -34,6 +34,7 @@ namespace Test.BuildXL.Scheduler
         {
         }
 
+#if false
         [Fact]
         public void TestRoundTripExecutionLog()
         {
@@ -542,5 +543,6 @@ namespace Test.BuildXL.Scheduler
         {
             bool VerifyEquals(T expected, T actual);
         }
+#endif
     }
 }

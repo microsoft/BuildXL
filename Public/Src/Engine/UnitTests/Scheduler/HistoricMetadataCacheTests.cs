@@ -30,7 +30,7 @@ namespace Test.BuildXL.Scheduler
     {
         public HistoricMetadataCacheTests(ITestOutputHelper output)
             : base(output) { }
-
+#if false
         [Fact(Skip = "Failed on RunCheckInTest or Rolling build")]
         public async Task TestHistoricMetadataPathStringRoundtrip()
         {
@@ -261,5 +261,6 @@ namespace Test.BuildXL.Scheduler
                 }
             }
         }
+#endif
     }
 }

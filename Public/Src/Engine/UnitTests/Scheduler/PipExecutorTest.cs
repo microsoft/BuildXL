@@ -58,7 +58,7 @@ namespace Test.BuildXL.Scheduler
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Engine.Cache.ETWLogger.Log);
         }
-
+#if false
         [Fact]
         public async Task WriteFile()
         {
@@ -3276,8 +3276,9 @@ EXIT /b 3
                 }
             }
         }
+#endif
     }
-
+#if false
     // This class creates a fake ITwoPhaseFingerprintStore implementation to be used for mocking the 
     // behavior of duplicated cache entry for this strong fingerprint in the L2 cache.
     // It is necessary to test the convergence of cache content.
@@ -3343,4 +3344,5 @@ EXIT /b 3
         // This is finished task that is used to prevent compilation warning in async method with no reasonable await.
         private static Task FinishedTask { get; } = Task.FromResult(42);
     }
+#endif
 }

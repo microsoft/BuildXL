@@ -9,7 +9,7 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+// using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -23,6 +23,7 @@ namespace Test.BuildXL.Scheduler
         {
         }
 
+#if false
         [Fact]
         public void ProjectPathSet()
         {
@@ -156,5 +157,6 @@ namespace Test.BuildXL.Scheduler
                 Fingerprints.Add(fp);
             }
         }
+#endif
     }
 }

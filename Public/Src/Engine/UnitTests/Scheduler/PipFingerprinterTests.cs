@@ -9,7 +9,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+// using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;

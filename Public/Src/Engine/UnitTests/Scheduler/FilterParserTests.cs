@@ -26,7 +26,7 @@ namespace Test.BuildXL.Scheduler
         {
             m_context = BuildXLContext.CreateInstanceForTesting();
         }
-
+#if false
         [Fact]
         public void NullFilter()
         {
@@ -194,7 +194,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.AreEqual(length - 1, statistics.BinaryFilterCount);
         }
 
-        #region Filter specific tests
+#region Filter specific tests
         [Fact]
         public void TagFilter()
         {
@@ -674,7 +674,7 @@ namespace Test.BuildXL.Scheduler
             RunPositiveFilterParserTest($"input='*{Path.DirectorySeparatorChar}Program.cs'", expected);
         }
 
-        #endregion
+#endregion
 
         private RootFilter Deserialize(string inputString)
         {
@@ -721,5 +721,6 @@ namespace Test.BuildXL.Scheduler
             path = AbsolutePath.Invalid;
             return false;
         }
+#endif 
     }
 }

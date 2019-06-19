@@ -16,15 +16,12 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <nodoc/>
         public AstConversionConfiguration(
             [CanBeNull]IEnumerable<string> policyRules,
-            int degreeOfParallelism,
-            bool disableLanguagePolicies,
-            bool useLegacyOfficeLogic)
+            bool disableLanguagePolicies)
         {
             PolicyRules = policyRules ?? CollectionUtilities.EmptyArray<string>();
             UnsafeOptions = UnsafeConversionConfiguration.GetConfigurationFromEnvironmentVariables();
 
-            // In DScript V2 AST converter itself does not convert nodes in parallel.
-            DegreeOfParalellism = useLegacyOfficeLogic ? degreeOfParallelism : 1;
+            DegreeOfParalellism = 1;
             DisableLanguagePolicies = disableLanguagePolicies;
         }
 
@@ -33,9 +30,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         {
             return new AstConversionConfiguration(
                 policyRules: configuration.EnabledPolicyRules,
-                degreeOfParallelism: configuration.MaxFrontEndConcurrency(),
-                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis(),
-                useLegacyOfficeLogic: configuration.UseLegacyOfficeLogic())
+                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis())
             {
                 PreserveFullNameSymbols = configuration.PreserveFullNames(),
             };
@@ -48,9 +43,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         {
             return new AstConversionConfiguration(
                 policyRules: configuration.EnabledPolicyRules,
-                degreeOfParallelism: configuration.MaxFrontEndConcurrency(),
-                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis(),
-                useLegacyOfficeLogic: configuration.UseLegacyOfficeLogic())
+                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis())
             {
                 PreserveFullNameSymbols = configuration.PreserveFullNames(),
             };

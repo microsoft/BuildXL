@@ -47,7 +47,7 @@ namespace Test.ProjectGraphBuilder
         public void ValidProjectFileSucceedsAndAssemblyLocationsAreSetProperly()
         {
             // Write an empty project
-            string entryPoint = 
+            string entryPoint =
 @"<?xml version=""1.0"" encoding=""utf-8""?>
 <Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003""/>";
 
@@ -78,7 +78,6 @@ namespace Test.ProjectGraphBuilder
             using (var reporter = new GraphBuilderReporter(Guid.NewGuid().ToString()))
             {
                 var arguments = new MSBuildGraphBuilderArguments(
-                    TemporaryDirectory,
                     new[] { entryPoint },
                     outputFile,
                     globalProperties: GlobalProperties.Empty,

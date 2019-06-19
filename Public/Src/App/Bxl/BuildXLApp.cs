@@ -896,6 +896,8 @@ namespace BuildXL
                         translatedLogDirectory = pathTranslator != null ? pathTranslator.Translate(logDirectory) : logDirectory;
                     }
 
+                    TranslateGlobalUntrackedScope();
+
                     Logger.LogDominoInvocation(
                         loggingContext,
                         GetExpandedCmdLine(m_commandLineArguments),
@@ -977,6 +979,12 @@ namespace BuildXL
             }
 
             return result;
+        }
+
+        private void TranslateGlobalUntrackedScope()
+        {
+            PathTranslator.CreateIfEnabled(m_configuration.Logging.SubstSource, m_configuration.Logging.SubstTarget, m_pathTable, out var translator);
+            m_configuration.Sandbox.GlobalUnsafeUntrackedScopes = m_configuration.Sandbox.GlobalUnsafeUntrackedScopes.Select(path => AbsolutePath.Create(m_pathTable, translator.Translate(path.ToString(m_pathTable)))).ToList();
         }
 
         private static void LogTelemetryShutdownInfo(LoggingContext loggingContext, long elapsedMilliseconds)

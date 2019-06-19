@@ -25,9 +25,9 @@ namespace Scheduler {
             parallelGroups: categoriesToRunInParallel,
         },
         references: [
-            ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.System.Reflection.dll
-            ),
+            // ...addIf(BuildXLSdk.isFullFramework,
+            //   NetFx.System.Reflection.dll
+            // ),
             EngineTestUtilities.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
@@ -52,8 +52,8 @@ namespace Scheduler {
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Utilities").Configuration.dll,
         ],
-        runtimeContent: [
-            importFrom("BuildXL.Utilities.UnitTests").testProcessExe
-        ],
+        // runtimeContent: [
+        //    importFrom("BuildXL.Utilities.UnitTests").testProcessExe
+        // ],
     });
 }

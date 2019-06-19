@@ -30,7 +30,7 @@ namespace Test.BuildXL.Scheduler
         {
         }
 
-        [Theory]
+        /*[Theory]
         [InlineDataForOutputDirectory]
         public virtual void SimpleDirectoryProduceConsume(AddDirectory addDirectory)
         {
@@ -180,7 +180,7 @@ namespace Test.BuildXL.Scheduler
 
                 AssertFailedGraphBuilding(env);
             }
-        }
+        }*/
     }
 
     #region helpers
@@ -194,7 +194,7 @@ namespace Test.BuildXL.Scheduler
     /// Works similarly as <see cref="InlineDataAttribute"/>, but runs each test twice: one time for the case of regular opaque directories and another time for shared opaque directories.
     /// The first argument passed to the test is a generic addDirectory method that adds a regular or shared opaque to the pip builder, depending on the case
     /// </summary>
-    public sealed class InlineDataForOutputDirectoryAttribute : Xunit.Sdk.DataAttribute
+    public sealed class InlineDataForOutputDirectoryAttribute /* : Xunit.Sdk.DataAttribute */
     {
         private readonly object[] m_dataForRegularOpaque;
         private readonly object[] m_dataForSharedOpaque;
@@ -210,11 +210,11 @@ namespace Test.BuildXL.Scheduler
             m_dataForSharedOpaque = AddDirectoryCallback(s_addSharedOpaqueDirectory, data);
         }
 
-        public override IEnumerable<object[]> GetData(System.Reflection.MethodInfo testMethod)
+        /* public override IEnumerable<object[]> GetData(System.Reflection.MethodInfo testMethod)
         {
             yield return m_dataForRegularOpaque;
             yield return m_dataForSharedOpaque;
-        }
+        }*/
 
         private static object[] AddDirectoryCallback(AddDirectory addDirectoryCallback, object[] originalData)
         {

@@ -111,13 +111,13 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
         // Find the close quote. Might not be present which means the command
         // is the full command line minus the initial quote.
         size_t closeQuoteIndex = fullCommandLine.find('"', 1);
-		if (closeQuoteIndex == wstring::npos)
-		{
-			// No close quote. Take everything through the end of the command line as the command.
-			command = fullCommandLine.substr(1);
-			trim_inplace(command);
-			commandArgs = wstring();
-		}
+        if (closeQuoteIndex == wstring::npos)
+        {
+            // No close quote. Take everything through the end of the command line as the command.
+            command = fullCommandLine.substr(1);
+            trim_inplace(command);
+            commandArgs = wstring();
+        }
         else
         {
             if (closeQuoteIndex == fullCommandLine.length() - 1)

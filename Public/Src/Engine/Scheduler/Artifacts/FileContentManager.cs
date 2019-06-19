@@ -1579,9 +1579,12 @@ namespace BuildXL.Scheduler.Artifacts
 
                     if (sealDirectoryKind == SealDirectoryKind.Opaque)
                     {
-                        // Dynamic directories must be deleted before materializing files
-                        // We don't want this to happen for shared dynamic ones
-                        AddDirectoryDeletion(state, artifact.DirectoryArtifact);
+                        if (Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Enabled || !PipArtifacts.IsPreservedOutputByPip(state.PipInfo.UnderlyingPip, directory.Path, Context.PathTable))
+                        {
+                            // Dynamic directories must be deleted before materializing files
+                            // We don't want this to happen for shared dynamic ones
+                            AddDirectoryDeletion(state, artifact.DirectoryArtifact);
+                        }
 
                         // For dynamic directories we need to specify the value of
                         // allow read only since the host will not know about the

@@ -12,6 +12,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
+using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -323,6 +324,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// Testing preserve outputs in an opaque dir with preserveoutputwhitelist
         /// </summary>
         [Fact]
+        [Feature(Features.OpaqueDirectory)]
         public void PreserveOutputsOpaqueTestWithWhitelist()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
@@ -330,15 +332,19 @@ namespace IntegrationTest.BuildXL.Scheduler
             var input = CreateSourceFile();
             var opaquePreservedPath = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "opaquePreservedDir"));
             var outputUnderPreservedOpaque = CreateOutputFileArtifact(opaquePreservedPath);
+            var createdDirectoryUnderPreservedOpaque = DirectoryArtifact.CreateWithZeroPartialSealId(opaquePreservedPath.Combine(Context.PathTable, "CreatedDir"));
 
             var opaqueUnpreservedPath = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "opaqueUnpreservedDir"));
             var outputUnderUnpreservedOpaque = CreateOutputFileArtifact(opaqueUnpreservedPath);
+            var createdDirectoryUnderUnpreservedOpaque = DirectoryArtifact.CreateWithZeroPartialSealId(opaqueUnpreservedPath.Combine(Context.PathTable, "CreatedDir"));
 
             var builder = CreatePipBuilder(new Operation[]
             {
                 Operation.ReadFile(input),
                 Operation.WriteFile(outputUnderPreservedOpaque, CONTENT, doNotInfer: true),
-                Operation.WriteFile(outputUnderUnpreservedOpaque, CONTENT, doNotInfer: true)
+                Operation.CreateDir(createdDirectoryUnderPreservedOpaque, doNotInfer: true),
+                Operation.WriteFile(outputUnderUnpreservedOpaque, CONTENT, doNotInfer: true),
+                Operation.CreateDir(createdDirectoryUnderUnpreservedOpaque, doNotInfer: true),
             });
 
             builder.AddOutputDirectory(opaquePreservedPath);
@@ -365,6 +371,12 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Cache hit
             outputContents = RunSchedulerAndGetOutputContents(outputUnderPreservedOpaque, cacheHitAssert: true, id: processAndOutputs.Process.PipId);
+            XAssert.IsTrue(Directory.Exists(createdDirectoryUnderPreservedOpaque.Path.ToString(Context.PathTable)), "Empty directory under preserved opaque should have existed.");
+            // Incremental scheduling doesn't replay the pip from cache and just leaves the filesystem as-is
+            if (!Configuration.Schedule.GraphAgnosticIncrementalScheduling && !Configuration.Schedule.GraphAgnosticIncrementalScheduling)
+            {
+                XAssert.IsFalse(Directory.Exists(createdDirectoryUnderUnpreservedOpaque.Path.ToString(Context.PathTable)), "Empty directory under non-preserved opaque should not exist.");
+            }
 
             // The appended file (CONTENT_TWICE) should remain the same.
             XAssert.AreEqual(CONTENT_TWICE, outputContents);

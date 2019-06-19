@@ -1113,6 +1113,9 @@ namespace BuildXL.Engine
                 mutableConfig.Schedule.EarlyWorkerRelease = false;
             }
 
+            PathTranslator.CreateIfEnabled(mutableConfig.Logging.SubstSource, mutableConfig.Logging.SubstTarget, pathTable, out var translator);
+            mutableConfig.Sandbox.GlobalUnsafeUntrackedScopes = mutableConfig.Sandbox.GlobalUnsafeUntrackedScopes.Select(path => AbsolutePath.Create(pathTable, translator.Translate(path.ToString(pathTable)))).ToList();
+
             return success;
         }
 

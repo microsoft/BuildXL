@@ -256,6 +256,6 @@ namespace BuildXL.Utilities.Configuration
         /// Moreover, this global configuration from cammand line will bypass cache,
         /// which means pips and graph will be cached ignoring paths specified in this configure
         /// </remarks>
-        List<AbsolutePath> GlobalUnsafeUntrackedScopes { get; set; }
+        IReadOnlyList<AbsolutePath> GlobalUnsafeUntrackedScopes { get; }
     }
 }

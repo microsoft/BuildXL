@@ -134,8 +134,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 var missingContentLocations = new HashSet<MachineLocation>();
                 int attemptCount = 0;
 
-                Tracer.Debug(operationContext, $"Copying {hashInfo.ContentHash} with {hashInfo.Locations.Count} locations");
-
                 while (attemptCount < _retryIntervals.Count && (putResult == null || !putResult))
                 {
                     bool retry;

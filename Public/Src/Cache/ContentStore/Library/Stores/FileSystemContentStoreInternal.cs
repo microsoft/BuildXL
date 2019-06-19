@@ -941,8 +941,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     }
                 }
 
-                var result = await PutFileAsync(
-                    context, path, contentHash.HashType, realizationMode, wrapStream, pinRequest);
+                var result = await PutFileAsync(context, path, contentHash.HashType, realizationMode, wrapStream, pinRequest);
 
                 if (realizationMode != FileRealizationMode.CopyNoVerify && result.ContentHash != contentHash && result.Succeeded)
                 {
@@ -3032,7 +3031,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             return OpenStreamCall<ContentStoreInternalTracer>.RunAsync(_tracer, OperationContext(context), contentHash, async () =>
             {
-
                 // Short-circut requests for the empty stream
                 // No lock is required since no file is involved.
                 if (_settings.UseEmptyFileHashShortcut && contentHash.IsEmptyHash())

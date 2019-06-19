@@ -50,6 +50,7 @@ namespace Test.BuildXL.Scheduler
 
         public PipFingerprinterTests(ITestOutputHelper output) : base(output) => m_context = BuildXLContext.CreateInstanceForTesting();
 
+#if false
         internal static PipFragmentRenderer.ContentHashLookup GetContentHashLookup(FileArtifact executable)
         {
             return file =>
@@ -2061,5 +2062,6 @@ namespace Test.BuildXL.Scheduler
                 yield return result;
             }
         }
+#endif
     }
 }

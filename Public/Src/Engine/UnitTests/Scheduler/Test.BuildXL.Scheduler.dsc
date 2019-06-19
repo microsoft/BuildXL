@@ -31,7 +31,7 @@ namespace Scheduler {
             EngineTestUtilities.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
-            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
+            // importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Engine.dll,
@@ -49,8 +49,7 @@ namespace Scheduler {
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
-            importFrom("Newtonsoft.Json").pkg,
-            importFrom("BuildXL.Utilities").Configuration.dll,
+            // importFrom("Newtonsoft.Json").pkg,
         ],
     });
 }

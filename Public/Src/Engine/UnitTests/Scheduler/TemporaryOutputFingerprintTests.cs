@@ -21,7 +21,7 @@ namespace Test.BuildXL.Scheduler
         {
             m_context = BuildXLContext.CreateInstanceForTesting();
         }
-
+#if false
         /// <summary>
         /// Fingerprinting logic depends on the FileExistence attributes but not on rewrite count.
         /// I.e. two process with the same output paths but with different version should produce the same
@@ -88,5 +88,6 @@ namespace Test.BuildXL.Scheduler
                 FingerprintTextEnabled = true
             };
         }
+#endif
     }
 }

@@ -881,6 +881,7 @@ ENDLOCAL && EXIT /b 1
             IgnoreWarnings();
         }
 
+#if false
         /// <summary>
         /// Verify that dirtying a node will dirty all dependents.
         /// </summary>
@@ -2199,5 +2200,6 @@ ENDLOCAL && EXIT /b 1
         {
             return LabelPipWithStatus(processes[label], label, status);
         }
+#endif
     }
 }

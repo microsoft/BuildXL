@@ -152,7 +152,7 @@ namespace Test.BuildXL.Scheduler
                 });
         }
 
-        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        /* [TheoryIfSupported(requiresSymlinkPermission: true)]
         [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
         public async Task CopySymlinkTest(bool allowCopySymlink, bool storeOutputsToCache)
         {
@@ -185,7 +185,7 @@ namespace Test.BuildXL.Scheduler
             {
                 SetExpectedFailures(1, 0, "DX0008");
             }
-        }
+        }*/
 
         [Fact]
         public async Task CopyFileWhenSourceIsIntermediate()

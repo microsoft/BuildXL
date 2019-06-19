@@ -19,7 +19,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Aria.Cpp.SDK.osx-x64", version: "8.5.4" },
 
     { id: "CB.QTest", version: "19.6.12.220934" },
-    { id: "CloudBuild.VmCommandProxy", version: "19.6.9.150831" },
+    { id: "CloudBuild.VmCommandProxy", version: "19.6.17.154318" },
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 

@@ -1660,7 +1660,7 @@ namespace BuildXL.Engine
                         symlinkDefinitions: await symlinkDefinitionsTask,
                         buildEngineFingerprint: buildEngineFingerprint,
                         vmInitializer: VmInitializer.CreateFromEngine(
-                            configuration.Layout.BuildEngineDirectory.ToString(pathTable),
+                            newConfiguration.Layout.BuildEngineDirectory.ToString(newContext.PathTable),
                             message => Logger.Log.StartInitializingVm(loggingContext, message),
                             message => Logger.Log.EndInitializingVm(loggingContext, message),
                             message => Logger.Log.InitializingVm(loggingContext, message)));

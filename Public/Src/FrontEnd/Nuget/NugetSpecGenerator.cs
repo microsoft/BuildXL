@@ -124,6 +124,14 @@ namespace BuildXL.FrontEnd.Nuget
             var valid = analyzedPackage.TargetFrameworks.Exists(moniker => m_nugetFrameworkMonikers.FullFrameworkVersionHistory.Contains(moniker) || m_nugetFrameworkMonikers.NetCoreVersionHistory.Contains(moniker));
             Contract.Assert(valid, "Target framework monikers must exsist and be registered with internal target framework version helpers.");
 
+            var fullFrameworkDeps = m_nugetFrameworkMonikers.FullFrameworkVersionHistory
+                .SelectMany(m =>
+                    analyzedPackage.DependenciesPerFramework.TryGetValue(m, out IReadOnlyList<INugetPackage> dependencySpecificFrameworks)
+                        ? dependencySpecificFrameworks
+                        : new List<INugetPackage>())
+                .GroupBy(pkg => pkg.Id)
+                .Select(grp => grp.OrderBy(pkg => pkg.Version).Last());
+
             foreach (var versionHistory in new List<PathAtom>[] { m_nugetFrameworkMonikers.FullFrameworkVersionHistory, m_nugetFrameworkMonikers.NetCoreVersionHistory })
             {
                 FindAllCompatibleFrameworkMonikers(analyzedPackage, (List<PathAtom> monikers) =>
@@ -158,11 +166,21 @@ namespace BuildXL.FrontEnd.Nuget
                     }
 
                     // Dependency items
-                    if (analyzedPackage.DependenciesPerFramework.TryGetValue(monikers.First(), out IReadOnlyList<INugetPackage> dependencySpecificFrameworks))
+                    if (m_nugetFrameworkMonikers.IsFullFrameworkMoniker(monikers.First()))
                     {
-                        foreach (var dependencySpecificFramework in dependencySpecificFrameworks)
+                        foreach (var dependencySpecificFramework in fullFrameworkDeps)
                         {
                             dependencies.Add(CreateImportFromForDependency(dependencySpecificFramework));
+                        }
+                    }
+                    else
+                    {
+                        if (analyzedPackage.DependenciesPerFramework.TryGetValue(monikers.First(), out IReadOnlyList<INugetPackage> dependencySpecificFrameworks))
+                        {
+                            foreach (var dependencySpecificFramework in dependencySpecificFrameworks)
+                            {
+                                dependencies.Add(CreateImportFromForDependency(dependencySpecificFramework));
+                            }
                         }
                     }
 
@@ -177,6 +195,7 @@ namespace BuildXL.FrontEnd.Nuget
                                     PropertyAccess("Contents", "all"),
                                     Array(compile),
                                     Array(runtime),
+                                    m_nugetFrameworkMonikers.IsFullFrameworkMoniker(monikers.Last()) ? Array(dependencies) :
                                     Array(new CallExpression(new Identifier("...addIfLazy"),
                                         new BinaryExpression(
                                             new PropertyAccessExpression("qualifier", "targetFramework"),

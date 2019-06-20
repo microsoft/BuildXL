@@ -114,6 +114,9 @@ namespace BuildXL.FrontEnd.Nuget
         public Dictionary<string, PathAtom> TargetFrameworkNameToMoniker { get; }
 
         /// <nodoc />
+        public bool IsFullFrameworkMoniker(PathAtom moniker) => FullFrameworkVersionHistory.Contains(moniker);
+
+        /// <nodoc />
         public NugetFrameworkMonikers(StringTable stringTable)
         {
             LibFolderName = PathAtom.Create(stringTable, "lib");

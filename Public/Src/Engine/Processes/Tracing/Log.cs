@@ -513,7 +513,7 @@ namespace BuildXL.Processes.Tracing
             Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
             EventTask = (int)Events.Tasks.PipExecutor,
             Message = Events.PipPrefix + "Unexpected child processes survived: {2} process(es){3}")]
-        public abstract void PipProcessChildrenSurvivedError(LoggingContext context, long pipSemiStableHash, string pipDescription, int count,  string paths);
+        public abstract void PipProcessChildrenSurvivedError(LoggingContext context, long pipSemiStableHash, string pipDescription, int count, string paths);
 
         [GeneratedEvent(
             (int)EventId.PipProcessChildrenSurvivedTooMany,
@@ -902,7 +902,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipSpecifiedToRunInContainerButIsolationIsNotSupported(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int) EventId.PipProcessStartExternalTool,
+            (int)EventId.PipProcessStartExternalTool,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Events.Keywords.UserMessage,
@@ -954,13 +954,27 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Events.Tasks.PipExecutor,
             Message = Events.PipPrefix + "Process needs to be executed externally because (require admin privilege: {requiredAdminPrivilege} | execution mode: {executionMode}), but instead it executes internally because (Win OS: {isWinOS} | container enabled: {isContainerEnabled} | listener existence: {existsListener})")]
         public abstract void PipProcessNeedsExecuteExternalButExecuteInternal(
-            LoggingContext context, 
-            long pipSemiStableHash, 
-            string pipDescription, 
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
             bool requiredAdminPrivilege,
             string executionMode,
             bool isWinOS,
             bool isContainerEnabled,
             bool existsListener);
+
+        [GeneratedEvent(
+            (int)EventId.TranslatePathInGlobalUnsafeUntrackedScopes,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "{path} in GlobalUnsafeUntrackedScopes get translated to {translatedPath}")]
+        public abstract void TranslatePathInGlobalUnsafeUntrackedScopes(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path,
+            string translatedPath);
     }
 }

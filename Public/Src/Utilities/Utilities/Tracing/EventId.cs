@@ -116,7 +116,7 @@ namespace BuildXL.Utilities.Tracing
         // Reserved  = 90,
         // Reserved  = 91,
         PipProcessNeedsExecuteExternalButExecuteInternal = 92,
-        // Reserved  = 93,
+        TranslatePathInGlobalUnsafeUntrackedScopes = 93,
         EnvironmentValueForTempDisallowed = 94,
         CannotHonorLowPriority = 95,
         // Reserved  = 96,

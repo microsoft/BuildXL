@@ -48,11 +48,6 @@ namespace BuildXL.Utilities.Tracing
         public const string CustomPipDescriptionMarker = " || ";
 
         /// <summary>
-        /// The UTC time representing time 0 for this listener
-        /// </summary>
-        protected readonly DateTime BaseTime;
-
-        /// <summary>
         /// The time format that should be used
         /// </summary>
         protected readonly TimeDisplay TimeDisplay;
@@ -111,11 +106,10 @@ namespace BuildXL.Utilities.Tracing
             DisabledDueToDiskWriteFailureEventHandler onDisabledDueToDiskWriteFailure = null,
             bool listenDiagnosticMessages = false,
             bool useCustomPipDescription = false)
-            : base(eventSource, warningMapper, level, captureAllDiagnosticMessages, eventMask, onDisabledDueToDiskWriteFailure, listenDiagnosticMessages)
+            : base(eventSource, warningMapper, baseTime, level, captureAllDiagnosticMessages, eventMask, onDisabledDueToDiskWriteFailure, listenDiagnosticMessages)
         {
             Contract.Requires(eventSource != null);
 
-            BaseTime = baseTime;
             TimeDisplay = timeDisplay;
             UseCustomPipDescription = useCustomPipDescription;
         }

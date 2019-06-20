@@ -514,7 +514,7 @@ namespace DetoursCrossBitTests
                 new ConcurrentDictionary<FileAccessDescription, object>();
 
             public FileAccessListener(Events eventSource)
-                : base(eventSource, null)
+                : base(eventSource, null, DateTime.Now)
             {
             }
 

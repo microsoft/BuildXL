@@ -51,6 +51,11 @@ namespace BuildXL.Utilities.Tracing
         private readonly EventMask m_eventMask;
 
         /// <summary>
+        /// The UTC time representing time 0 for this listener
+        /// </summary>
+        protected readonly DateTime BaseTime;
+
+        /// <summary>
         /// See <see cref="SuppressNonCriticalEventsInPreparationForCrash"/>
         /// </summary>
         private bool m_limitToCriticalLevelOnly = false;
@@ -80,6 +85,9 @@ namespace BuildXL.Utilities.Tracing
         /// <param name="warningMapper">
         /// An optional delegate that is used to map warnings into errors or to suppress warnings.
         /// </param>
+        /// <param name="baseTime">
+        /// The starting time that events are compared against for displaying relative time for messages.
+        /// </param>
         /// <param name="level">
         /// The base level of data to be sent to the listener.
         /// </param>
@@ -100,6 +108,7 @@ namespace BuildXL.Utilities.Tracing
         protected BaseEventListener(
             Events eventSource,
             WarningMapper warningMapper,
+            DateTime baseTime,
             EventLevel level = EventLevel.Verbose,
             bool captureAllDiagnosticMessages = false,
             EventMask eventMask = null,

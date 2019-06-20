@@ -319,7 +319,7 @@ namespace BuildXL.Scheduler.Tracing
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (ushort)Events.Tasks.Scheduler,
             Message = "[{pipDescription}] Failed to materialize pip dependencies content from cache: {errorMessage}")]
-        internal abstract void PipMaterializeDependenciesFromCacheFailure(LoggingContext loggingContext, string pipDescription, string errorMessage);
+        public abstract void PipMaterializeDependenciesFromCacheFailure(LoggingContext loggingContext, string pipDescription, string errorMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.PipFailedDueToDependenciesCannotBeHashed,

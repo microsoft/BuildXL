@@ -96,7 +96,7 @@ namespace Test.BuildXL.TestUtilities
         /// Writes to the console if unspecified
         /// </param>
         protected TestEventListenerBase(Events eventSource, string fullyQualifiedTestName, bool captureAllDiagnosticMessages = true, Action<string> logAction = null)
-            : base(eventSource, null, EventLevel.Verbose, captureAllDiagnosticMessages: captureAllDiagnosticMessages, listenDiagnosticMessages: true)
+            : base(eventSource, null, DateTime.Now, EventLevel.Verbose, captureAllDiagnosticMessages: captureAllDiagnosticMessages, listenDiagnosticMessages: true)
         {
             Contract.Requires(eventSource != null);
             Contract.Requires(!string.IsNullOrEmpty(fullyQualifiedTestName));

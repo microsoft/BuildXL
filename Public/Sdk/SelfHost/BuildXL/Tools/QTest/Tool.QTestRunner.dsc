@@ -210,7 +210,6 @@ export function runQTest(args: QTestArguments): Result {
             ) : []),
             ...(args.qTestRuntimeDependencies || []),
         ],
-        unsafe: unsafeOptions
     });
 
     const qTestLogsDir: StaticDirectory = result.getOutputDirectory(logDir);
@@ -239,7 +238,6 @@ export function runQTest(args: QTestArguments): Result {
             workingDirectory: tempDirectory,
             disableCacheLookup: true,
             privilegeLevel: args.privilegeLevel,
-            unsafe: unsafeOptions
         });
     }
 

@@ -8,6 +8,15 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
 {
     internal static class Extensions
     {
+        public static T GetOrDefault<T>(this ConcurrentNodeDictionary<T> d, NodeId node)
+        {
+            if (!node.IsValid)
+            {
+                return default;
+            }
+
+            return d[node];
+        }
         public static string Format(this string s, string format, params object[] args)
         {
             object[] resultArgs = new object[args.Length + 1];

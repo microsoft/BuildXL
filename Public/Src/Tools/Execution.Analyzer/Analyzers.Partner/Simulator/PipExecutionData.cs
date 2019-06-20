@@ -18,11 +18,12 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
         #region Loaded State
 
         // Loaded state
-        public DirectedGraph DataflowGraph => CachedGraph.DataflowGraph;
+        public DirectedGraph DataflowGraph { get; set; }
 
-        public CachedGraph CachedGraph;
+        public CachedGraph CachedGraph { get; }
         public ConcurrentNodeDictionary<ulong> StartTimes = new ConcurrentNodeDictionary<ulong>(false);
         public ConcurrentNodeDictionary<ulong> Durations = new ConcurrentNodeDictionary<ulong>(false);
+        public ConcurrentNodeDictionary<string> FormattedSemistableHashes = new ConcurrentNodeDictionary<string>(false);
 
         public ulong MinStartTime = ulong.MaxValue;
         public ulong MaxEndTime;
@@ -38,6 +39,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
         public ConcurrentNodeDictionary<NodeId> CriticalChain = new ConcurrentNodeDictionary<NodeId>(false);
         public ConcurrentNodeDictionary<ulong> AggregateCosts = new ConcurrentNodeDictionary<ulong>(false);
         public ConcurrentNodeDictionary<ulong> ConstrainedAggregateCosts = new ConcurrentNodeDictionary<ulong>(false);
+        public ConcurrentNodeDictionary<ulong> BottomUpAggregateCosts = new ConcurrentNodeDictionary<ulong>(false);
         public ConcurrentNodeDictionary<int> MaxConeConcurrency = new ConcurrentNodeDictionary<int>(false);
         public ulong MaxAggregateCost = 0;
         public NodeId CriticalPathHeadNode = NodeId.Invalid;
@@ -53,13 +55,18 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
         public ConcurrentNodeDictionary<int> PipIds = new ConcurrentNodeDictionary<int>(false);
         public ConcurrentNodeDictionary<int> RefCounts = new ConcurrentNodeDictionary<int>(false);
         public ConcurrentNodeDictionary<bool> Computed = new ConcurrentNodeDictionary<bool>(false);
-        public ConcurrentNodeDictionary<List<NodeId>> Refs = new ConcurrentNodeDictionary<List<NodeId>>(false);
         public object[] Locks = Enumerable.Range(0, 31).Select(i => new object()).ToArray();
 
         public int ComputedPips = 0;
         public List<PipSpan> Spans;
 
         #endregion
+
+        public PipExecutionData(CachedGraph cachedGraph, DirectedGraph dataflowGraphOverride = null)
+        {
+            CachedGraph = cachedGraph;
+            DataflowGraph = dataflowGraphOverride ?? CachedGraph.DataflowGraph;
+        }
 
         public string GetName(NodeId node)
         {
@@ -227,38 +234,24 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
             return false;
         }
 
-        public ConcurrentNodeDictionary<ulong> ComputeAggregateCosts(ConcurrentNodeDictionary<ulong> durations)
-        {
-            ConcurrentNodeDictionary<ulong> aggregateCosts = new ConcurrentNodeDictionary<ulong>(true);
-
-            List<NodeId> sortedNodes = new List<NodeId>();
-            sortedNodes.AddRange(DataflowGraph.Nodes);
-            sortedNodes.Sort((n1, n2) => -DataflowGraph.GetNodeHeight(n1).CompareTo(DataflowGraph.GetNodeHeight(n2)));
-            foreach (var node in sortedNodes)
-            {
-                // int maxConeConcurrency = 0;
-                ulong aggregateCost = 0;
-                NodeId maxChild = NodeId.Invalid;
-                foreach (var outgoing in DataflowGraph.GetOutgoingEdges(node))
-                {
-                    if (aggregateCosts[outgoing.OtherNode].Max(ref aggregateCost) || !maxChild.IsValid)
-                    {
-                        maxChild = outgoing.OtherNode;
-                    }
-                }
-
-                aggregateCost += durations[node];
-                aggregateCosts[node] = aggregateCost;
-            }
-
-            return aggregateCosts;
-        }
-
         public void ComputeAggregateCosts()
         {
             PipAndPriority maxPipAndPriority = default(PipAndPriority);
             List<NodeId> sortedNodes = new List<NodeId>();
             sortedNodes.AddRange(DataflowGraph.Nodes);
+            sortedNodes.Sort((n1, n2) => DataflowGraph.GetNodeHeight(n1).CompareTo(DataflowGraph.GetNodeHeight(n2)));
+            foreach (var node in sortedNodes)
+            {
+                ulong aggregateCost = 0;
+                foreach (var incoming in DataflowGraph.GetIncomingEdges(node))
+                {
+                    BottomUpAggregateCosts[incoming.OtherNode].Max(ref aggregateCost);
+                }
+
+                aggregateCost += Durations[node];
+                BottomUpAggregateCosts[node] = aggregateCost;
+            }
+
             sortedNodes.Sort((n1, n2) => -DataflowGraph.GetNodeHeight(n1).CompareTo(DataflowGraph.GetNodeHeight(n2)));
             foreach (var node in sortedNodes)
             {
@@ -275,6 +268,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
                     }
                 }
 
+                FormattedSemistableHashes[node] = CachedGraph.PipTable.GetFormattedSemiStableHash(node.ToPipId());
                 aggregateCost += Durations[node];
                 AggregateCosts[node] = aggregateCost;
                 aggregateCost.Max(ref MaxAggregateCost);

@@ -312,7 +312,7 @@ namespace BuildXL.Engine
         /// <param name="serializer">Serialization action to perform</param>
         /// <param name="overrideName">Overrides the default file name for the file type. This is used to atomically write some files (via renames)</param>
         /// <returns>whether serialization was successful</returns>
-        internal Task<SerializationResult> SerializeToFileAsync(
+        public Task<SerializationResult> SerializeToFileAsync(
             GraphCacheFile fileType,
             Action<BuildXLWriter> serializer,
             string overrideName = null)
@@ -509,7 +509,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Result from serialization
         /// </summary>
-        internal struct SerializationResult
+        public struct SerializationResult
         {
             /// <summary>
             /// Whether serialization was successful

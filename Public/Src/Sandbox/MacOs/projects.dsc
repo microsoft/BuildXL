@@ -60,12 +60,14 @@ namespace Sandbox {
         : f`BundleInfo.xcconfig`;
 
     const isMacOs = Context.getCurrentHost().os === "macOS";
+
     const interopXcodeproj = Transformer.sealDirectory({
-        root: d`Interop/Interop.xcodeproj`, 
+        root: d`Interop/Interop.xcodeproj`,
         files: globR(d`Interop/Interop.xcodeproj`, "*")
     });
+
     const sandboxXcodeproj = Transformer.sealDirectory({
-        root: d`Sandbox/Sandbox.xcodeproj`, 
+        root: d`Sandbox/Sandbox.xcodeproj`,
         files: globR(d`Sandbox/Sandbox.xcodeproj`, "*")
     });
 

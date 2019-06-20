@@ -26,4 +26,6 @@ typedef struct {
 bool SetupProcessDumps(const char *logsDirectory, /*out*/ char *buffer, size_t bufsiz);
 void TeardownProcessDumps(void);
 
+void RegisterSignalHandlers(void);
+
 #endif /* process_h */

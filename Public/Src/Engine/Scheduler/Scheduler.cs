@@ -4808,7 +4808,8 @@ namespace BuildXL.Scheduler
                     m_fileContentTable,
                     m_fileChangeTracker,
                     DirectoryTranslator,
-                    fileChangeTrackingSelector);
+                    fileChangeTrackingSelector,
+                    vfsCasRoot: m_configuration.Cache.VfsCasRoot);
 
                 m_pipOutputMaterializationTracker = new PipOutputMaterializationTracker(this, IncrementalSchedulingState);
 

@@ -40,8 +40,8 @@ namespace Processes {
                 {
                     subfolder: a`DetoursCrossBitTests`,
                     contents: [
-                        DetoursCrossBitTests.withQualifier(BuildXLSdk.LatestFullFrameworkQualifier).x64,
-                        DetoursCrossBitTests.withQualifier(BuildXLSdk.LatestFullFrameworkQualifier).x86,
+                        DetoursCrossBitTests.x64,
+                        DetoursCrossBitTests.x86,
                         {
                             subfolder: a`x64`,
                             contents: [

@@ -13,8 +13,7 @@ import * as Xml from "Sdk.Xml";
 @@public
 export function test(args: TestArguments) : TestResult {
     let testFramework = args.testFramework;
-    if (!testFramework)
-    {
+    if (!testFramework) {
         Contract.fail("You must specify a Testing framework. For exmple: 'importFrom(\"Sdk.Managed.Testing.XUnit\").framework' ");
     }
 
@@ -43,6 +42,27 @@ export function test(args: TestArguments) : TestResult {
         tags: [ "testDeployment" ]
     });
 
+    return assembly.merge<TestResult>(runTestOnly(
+        args, 
+        /* compileArguments: */ false,
+        /* testDeployment:   */ testDeployment));
+}
+
+/**
+ * Runs test only provided that the test deployment has been given.
+ */
+@@public
+export function runTestOnly(args: TestArguments, compileArguments: boolean, testDeployment: Deployment.OnDiskDeployment) : TestResult
+{
+    let testFramework = args.testFramework;
+    if (!testFramework) {
+        Contract.fail("You must specify a Testing framework. For exmple: 'importFrom(\"Sdk.Managed.Testing.XUnit\").framework' ");
+    }
+    
+    if (testFramework.compileArguments && compileArguments) {
+        args = testFramework.compileArguments(args);
+    }
+
     let testRunArgs = Object.merge(args.runTestArgs, {testDeployment: testDeployment});
     testRunArgs = prepareForTestData(testRunArgs);
 
@@ -63,10 +83,10 @@ export function test(args: TestArguments) : TestResult {
         }
     }
 
-    return assembly.merge<TestResult>({
+    return <TestResult>{
         testResults: testResults,
-        testDeployment: testDeployment,
-    });
+        testDeployment: testDeployment
+    };
 }
 
 namespace TestHelpers {

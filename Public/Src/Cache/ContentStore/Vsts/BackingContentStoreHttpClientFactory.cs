@@ -58,8 +58,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 _httpClientFactory = new ArtifactHttpClientFactory(
                     creds,
                     _httpSendTimeout,
-                    new VssHttpRetryOptions(),
-                    retryTimeouts: true,
                     tracer: new AppTraceSourceContextAdapter(context, nameof(BackingContentStoreHttpClientFactory), SourceLevels.All),
                     verifyConnectionCancellationToken: CancellationToken.None); // TODO: Pipe down cancellation support (bug 1365340)
                 StartupCompleted = true;

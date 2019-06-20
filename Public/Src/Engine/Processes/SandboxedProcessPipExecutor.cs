@@ -1606,17 +1606,24 @@ namespace BuildXL.Processes
             }
 
             // Untrack the globally untracked paths specified in the configuration 
-            var reverseTranslator = m_fileAccessManifest.DirectoryTranslator.GetReverseTranslator();
+            var reverseTranslator = m_fileAccessManifest.DirectoryTranslator?.GetReverseTranslator();
             foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
             {
-                var pathString = path.ToString(m_pathTable);
-                var translatedPathString = reverseTranslator.Translate(pathString);
-                var translatedPath = AbsolutePath.Create(m_pathTable, translatedPathString);
-                if (pathString != translatedPathString)
+                // translate the path and untrack the translated one
+                if (reverseTranslator != null)
                 {
-                    Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString, translatedPathString);
-                }               
-                m_fileAccessManifest.AddScope(translatedPath, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                    var pathString = path.ToString(m_pathTable);
+                    var translatedPathString = reverseTranslator?.Translate(pathString);
+                    var translatedPath = AbsolutePath.Create(m_pathTable, translatedPathString);
+                  
+                    if (pathString != translatedPathString)
+                    {
+                        m_fileAccessManifest.AddScope(translatedPath, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                        Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString, translatedPathString);
+                    }
+                }
+                
+                m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
             }
 
             // For some static system mounts (currently only for AppData\Roaming) we allow CreateDirectory requests for all processes.

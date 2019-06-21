@@ -15,22 +15,22 @@ namespace BuildXL.Utilities.Tracing
         /// <summary>
         /// The name of the first error of this category logged
         /// </summary>
-        public string FirstErrorName { get; set; }
+        public string FirstErrorName { get; private set; }
 
         /// <summary>
         /// The message for the first error logged of this category
         /// </summary>
-        public string FirstErrorMessage { get; set; }
+        public string FirstErrorMessage { get; private set; }
 
         /// <summary>
         /// THe name of the last error of this category logged
         /// </summary>
-        public string LastErrorName { get; set; }
+        public string LastErrorName { get; private set; }
 
         /// <summary>
         /// The message for the last error logged of this category
         /// </summary>
-        public string LastErrorMessage { get; set; }
+        public string LastErrorMessage { get; private set; }
 
         /// <summary>
         /// The number of errors logged for the category

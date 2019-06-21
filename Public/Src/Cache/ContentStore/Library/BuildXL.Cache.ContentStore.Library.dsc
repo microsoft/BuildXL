@@ -13,6 +13,9 @@ namespace Library {
             ...(BuildXLSdk.isDotNetCoreBuild ? [
                 // TODO: This is to get a .Net Core build, but it may not pass tests
                 importFrom("System.Data.SQLite.Core").withQualifier({targetFramework: "net461"}).pkg,
+                // importFrom("Microsoft.Azure.Kusto.Data.NETStandard").pkg,
+                // importFrom("Microsoft.Azure.Kusto.Ingest.NETStandard").pkg,
+            
             ] :
             [
                 importFrom("System.Data.SQLite.Core").pkg,
@@ -30,6 +33,14 @@ namespace Library {
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("Grpc.Core").pkg,
             importFrom("Google.Protobuf").pkg,
+            importFrom("Microsoft.Azure.Kusto.Data.NETStandard").withQualifier({targetFramework: "netcoreapp3.0"}).pkg,
+            importFrom("Microsoft.Azure.Kusto.Ingest.NETStandard").withQualifier({targetFramework: "netcoreapp3.0"}).pkg,
+            importFrom("Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard").withQualifier({targetFramework: "netcoreapp3.0"}).pkg,
+            importFrom("Microsoft.Azure.Kusto.Cloud.Platform.NETStandard").withQualifier({targetFramework: "netcoreapp3.0"}).pkg,
+            importFrom("Microsoft.Extensions.PlatformAbstractions").withQualifier({targetFramework: "net472"}).pkg,
+            importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
+
+            //importFrom("")
             importFrom("System.Interactive.Async").pkg,
 
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),

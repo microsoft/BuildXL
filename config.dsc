@@ -113,7 +113,7 @@ config({
                 { id: "Microsoft.Diagnostics.Tracing.TraceEvent", version: "2.0.30" },
                 { id: "Microsoft.Extensions.Globalization.CultureInfoCache", version: "1.0.0-rc1-final" },
                 { id: "Microsoft.Extensions.MemoryPool", version: "1.0.0-rc1-final" },
-                { id: "Microsoft.Extensions.PlatformAbstractions", version: "1.0.0-rc1-final" },
+                { id: "Microsoft.Extensions.PlatformAbstractions", version: "1.1.0" },
 
                 { id: "Microsoft.Tpl.Dataflow", version: "4.5.24" },
                 { id: "Microsoft.TypeScript.Compiler", version: "1.8" },
@@ -162,7 +162,7 @@ config({
                 ...importFile(f`config.nuget.aspNetCore.dsc`).pkgs,
                 ...importFile(f`config.microsoftInternal.dsc`).pkgs,
 
-                { id: "WindowsAzure.Storage", version: "8.7.0", alias: "WindowsAzure.Storage" },
+                { id: "WindowsAzure.Storage", version: "9.3.3", alias: "WindowsAzure.Storage" },
                 { id: "Microsoft.Data.OData", version: "5.8.2" },
                 { id: "Microsoft.Data.Services.Client", version: "5.8.2" },
                 { id: "System.Spatial", version: "5.8.2" },
@@ -181,7 +181,7 @@ config({
                 { id: "xunit.runner.utility", version: "2.4.1" },
                 { id: "xunit.runner.visualstudio", version: "2.4.1" },
 
-                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "3.17.2" },
+                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "5.1.0" },
 
                 // CloudStore dependencies
                 { id: "Microsoft.Bcl", version: "1.1.10" },
@@ -455,7 +455,22 @@ config({
 
                 // CoreRT
                 { id: "runtime.osx-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
-                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" }
+                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
+
+                // Kusto SDK (for netstandard)
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard", version: "6.1.8", dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"], dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform.NETStandard", version: "6.1.8", dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"], dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.Azure.Kusto.Data.NETStandard", version: "6.1.8", dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"], dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.Azure.Kusto.Ingest.NETStandard", version: "6.1.8", dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"], dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.IO.RecyclableMemoryStream", version: "1.2.2" },
+                { id: "Microsoft.Azure.KeyVault", version: "3.0.1"},
+                { id: "Microsoft.Azure.KeyVault.WebKey", version: "3.0.1"},
+                { id: "Microsoft.Rest.ClientRuntime", version: "3.0.0" },
+                { id: "Microsoft.Rest.ClientRuntime.Azure", version: "3.3.18" },
+                { id: "Microsoft.NETCore.Runtime", version: "1.0.2-rc2-23931" },
+                { id: "Microsoft.NETCore.Runtime.CoreCLR", version: "1.0.2-rc2-23931" },
+                { id: "Microsoft.NETCore.Runtime.Native", version: "1.0.2-rc2-23931" },
+                { id: "Microsoft.NETCore.Windows.ApiSets", version: "1.0.1" },
             ],
 
             doNotEnforceDependencyVersions: true,

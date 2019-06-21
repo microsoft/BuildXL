@@ -232,11 +232,7 @@ namespace BuildXL.Execution.Analyzer
         private VssAadCredential GetVSTSCredential()
         {
             var authenticationContext = new AuthenticationContext(Authority);
-#if FEATURE_CORECLR
-            var platformParameters = new PlatformParameters();
-#else
-            var platformParameters = new PlatformParameters(PromptBehavior.Auto);
-#endif
+            var platformParameters = new PlatformParameters(PromptBehavior.Auto, customWebUi: null);
 
             var authenticationResult = authenticationContext.AcquireTokenAsync(Resource, Client, RedirectUri, platformParameters).GetAwaiter().GetResult();
             var credential = new VssAadCredential(new VssAadToken(authenticationResult));

@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -28,6 +27,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
+using BuildXL.Utilities.Instrumentation.Common;
 using CLAP;
 
 // ReSharper disable UnusedMember.Global
@@ -39,22 +39,42 @@ namespace BuildXL.Cache.ContentStore.App
     internal sealed partial class Application : IDisposable
     {
         private const string HashTypeDescription = "Content hash type (SHA1/SHA256/MD5/Vso0/DedupChunk/DedupNode)";
+
+        private const string CsvLogFileExt = ".csv";
+        private const string TmpCsvLogFileExt = ".csvtmp";
+        private const string KustoConnectionStringEnvVarName = "KustoConnectionString";
+        private const string KustoDatabase = "CloudBuildCBTest";
+        private const string KustoTable = "ContentStoreAppMessage";
+        private static readonly CsvFileLog.ColumnType[] KustoTableSchema = new[]
+        {
+            CsvFileLog.ColumnType.Timestamp,
+            CsvFileLog.ColumnType.SessionId,
+            CsvFileLog.ColumnType.HostName,
+            CsvFileLog.ColumnType.Severity,
+            CsvFileLog.ColumnType.ThreadId,
+            CsvFileLog.ColumnType.Message,
+        };
+
         private readonly IAbsFileSystem _fileSystem;
         private readonly ConsoleLog _consoleLog;
         private readonly Logger _logger;
         private readonly Tracer _tracer;
+        private readonly KustoUploader _kustoUploader;
         private bool _waitForDebugger;
         private FileLog _fileLog;
+        private CsvFileLog _csvFileLog;
         private Severity _fileLogSeverity = Severity.Diagnostic;
         private bool _logAutoFlush;
         private string _logDirectoryPath;
         private long _logMaxFileSize;
+        private long _csvLogMaxFileSize = 100 * 1024 * 1024; // 100 MB
         private int _logMaxFileCount;
         private bool _pause;
         private string _scenario;
         private uint _connectionsPerSession;
         private uint _retryIntervalSeconds;
         private uint _retryCount;
+        private bool _enableRemoteTelemetry;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Application"/> class.
@@ -65,14 +85,35 @@ namespace BuildXL.Cache.ContentStore.App
             _logger = new Logger(true, _consoleLog);
             _fileSystem = new PassThroughFileSystem(_logger);
             _tracer = new Tracer(nameof(Application));
+
+            var kustoConnectionString = Environment.GetEnvironmentVariable(KustoConnectionStringEnvVarName);
+            _kustoUploader = string.IsNullOrWhiteSpace(kustoConnectionString)
+                ? null
+                : new KustoUploader
+                    (
+                    kustoConnectionString,
+                    database: KustoDatabase,
+                    table: KustoTable,
+                    deleteFilesOnSuccess: true,
+                    checkForIngestionErrors: true,
+                    log: _consoleLog
+                    );
         }
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "_fileLog")]
         public void Dispose()
         {
+            // 1. it's important to dispose _logger before log objects
+            //    because _logger.Dispose() calls Flush() on its log objects
+            // 2. it's important to dispose _csvFileLogger before _kustoUploader because
+            //    csvFileLogger.Dispose() can post one last file to be uploaded to Kusto
+            // 3. it's important to dispose _kustoUploader before _consoleLog because
+            //    _kustoUploader uses _consoleLog
             _logger.Dispose();
             _fileLog?.Dispose();
+            _csvFileLog?.Dispose();
+            _kustoUploader?.Dispose(); 
             _consoleLog.Dispose();
             _fileSystem.Dispose();
         }
@@ -178,6 +219,15 @@ namespace BuildXL.Cache.ContentStore.App
         }
 
         /// <summary>
+        ///     Set CSV log rolling max file size.
+        /// </summary>
+        [Global("CsvLogMaxFileSizeMB", Description = "Set CSV log (used only when remote telemetry is enabled) rolling max file size in MB")]
+        public void SetCsvLogMaxFileSizeMB(long value)
+        {
+            _csvLogMaxFileSize = value * 1024 * 1024;
+        }
+
+        /// <summary>
         ///     Set log rolling max file count.
         /// </summary>
         [Global("LogMaxFileCount", Description = "Set log rolling max file count")]
@@ -240,6 +290,15 @@ namespace BuildXL.Cache.ContentStore.App
             _retryCount = value;
         }
 
+        /// <summary>
+        ///     Whether or not to enable remote telemetry.
+        /// </summary>
+        [Global("RemoteTelemetry", Description = "Enable remote telemetry")]
+        public void EnableRemoteTelemetry(bool enableRemoteTelemetry)
+        {
+            _enableRemoteTelemetry = enableRemoteTelemetry;
+        }
+
         private static void SetThreadPoolSizes()
         {
             ThreadPool.GetMaxThreads(out var workerThreads, out var completionPortThreads);
@@ -285,11 +344,50 @@ namespace BuildXL.Cache.ContentStore.App
 
             SetThreadPoolSizes();
 
+            string logFilePath = FileLog.GetLogFilePath(_logDirectoryPath, logFileBaseName: null, dateInFileName: true, processIdInFileName: true);
             if (_fileLog == null)
             {
-                _fileLog = new FileLog(_logDirectoryPath, null, _fileLogSeverity, _logAutoFlush, _logMaxFileSize, _logMaxFileCount);
+                _fileLog = new FileLog(logFilePath, _fileLogSeverity, _logAutoFlush, _logMaxFileSize, _logMaxFileCount);
                 _logger.AddLog(_fileLog);
             }
+
+            EnableRemoteTelemetryIfNeeded(logFilePath);
+        }
+
+        private void EnableRemoteTelemetryIfNeeded(string logFilePath)
+        {
+            if (!_enableRemoteTelemetry)
+            {
+                return;
+            }
+
+            if (_kustoUploader == null)
+            {
+                _logger.Warning
+                    (
+                    "Remote telemetry flag is enabled but no Kusto connection string was found in environment variable '{0}'",
+                    KustoConnectionStringEnvVarName
+                    );
+                return;
+            }
+
+            _csvFileLog = new CsvFileLog
+                (
+                logFilePath: logFilePath + TmpCsvLogFileExt, 
+                schema: KustoTableSchema,
+                severity: _fileLogSeverity,
+                maxFileSize: _csvLogMaxFileSize
+                );
+
+            _csvFileLog.OnLogFileProduced += (path) =>
+            {
+                string newPath = Path.ChangeExtension(path, CsvLogFileExt);
+                File.Move(path, newPath);
+                _kustoUploader.PostFileForIngestion(newPath, _csvFileLog.Guid);
+            };
+
+            _logger.AddLog(_csvFileLog);
+            _logger.Always("Remote telemetry enabled");
         }
 
         private void RunFileSystemContentStoreInternal(AbsolutePath rootPath, System.Func<Context, FileSystemContentStoreInternal, Task> funcAsync)

@@ -33,6 +33,11 @@ namespace BuildXL.Utilities.Tracing
         private readonly BigBuffer<int> m_eventCounts = new BigBuffer<int>(entriesPerBufferBitWidth: 14);
 
         /// <summary>
+        /// The UTC time representing time 0 for this listener
+        /// </summary>
+        private readonly DateTime m_baseTime;
+
+        /// <summary>
         /// Initializes an instance.
         /// </summary>
         /// <param name="eventSource">
@@ -48,9 +53,9 @@ namespace BuildXL.Utilities.Tracing
             : base(
                 eventSource,
                 warningMapper,
-                baseTime == default(DateTime) ? DateTime.Now : baseTime,
                 EventLevel.Verbose)
         {
+            m_baseTime = baseTime == default(DateTime) ? DateTime.Now : baseTime;
             Contract.Requires(eventSource != null);
             m_eventCounts.Initialize(MaxEventIdExclusive);
         }
@@ -207,7 +212,7 @@ namespace BuildXL.Utilities.Tracing
             {
                 long keywords = (long)eventData.Keywords;
                 string eventName = eventData.EventName;
-                string eventMessage = FormattingEventListener.CreateFullMessageString(eventData, "error", eventData.Message, BaseTime, useCustomPipDescription: false);
+                string eventMessage = FormattingEventListener.CreateFullMessageString(eventData, "error", eventData.Message, m_baseTime, useCustomPipDescription: false);
 
                 // Errors replayed from workers should respect their original event name and keywords
                 if (eventData.EventId == (int)EventId.DistributionWorkerForwardedError)

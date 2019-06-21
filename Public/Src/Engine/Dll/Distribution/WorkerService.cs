@@ -903,7 +903,7 @@ namespace BuildXL.Engine.Distribution
                 private Snapshot m_pipStateSnapshot;
 
                 public StatusReporter(LoggingContext loggingContext, WorkerServicePipStateManager stateManager)
-                    : base(Events.Log, baseTime:DateTime.MinValue, warningMapper: null, eventMask: new EventMask(enabledEvents: new int[] { (int)EventId.PipStatus }, disabledEvents: null))
+                    : base(Events.Log, warningMapper: null, eventMask: new EventMask(enabledEvents: new int[] { (int)EventId.PipStatus }, disabledEvents: null))
                 {
                     m_loggingContext = loggingContext;
                     m_pipStateSnapshot = stateManager.GetSnapshot();

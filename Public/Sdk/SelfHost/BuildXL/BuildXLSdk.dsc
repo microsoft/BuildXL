@@ -338,6 +338,7 @@ export function test(args: TestArguments) : TestResult {
                     privilegeLevel: <"standard"|"admin">"admin",
                     limitGroups: ["RequiresAdmin"],
                     parallelGroups: undefined,
+                    tags: ["RequiresAdminTest"],
                 }
             });
             const adminResult = Managed.runTestOnly(

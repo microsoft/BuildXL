@@ -1081,31 +1081,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 () =>
                 {
                     var effectiveLastAccessTimes = new List<ContentHashWithLastAccessTimeAndReplicaCount>();
-                    int replicaCount = 1;
+                    double logInverseMachineRisk = -Math.Log(_configuration.MachineRisk);
 
                     foreach (var contentHash in contentHashes)
                     {
+                        DateTime lastAccessTime = contentHash.LastAccessTime;
+                        int replicaCount = 1;
                         DateTime? effectiveLastAccessTime = null;
+
                         if (TryGetContentLocations(context, contentHash.Hash, out var entry))
                         {
+                            // Use the latest last access time between LLS and local last access time
+                            DateTime distributedLastAccessTime = entry.LastAccessTimeUtc.ToDateTime();
+                            lastAccessTime = distributedLastAccessTime > lastAccessTime ? distributedLastAccessTime : lastAccessTime;
+
                             // TODO[LLS]: Maybe some machines should be primary replicas for the content and not prioritize deletion (bug 1365340)
                             // just because there are many replicas
+
+                            replicaCount = entry.Locations.Count;
 
                             // Incorporate both replica count and size into an evictability metric.
                             // It's better to eliminate big content (more bytes freed per eviction) and it's better to eliminate content with more replicas (less chance
                             // of all replicas being inaccessible).
                             // A simple model with exponential decay of likelihood-to-use and a fixed probability of each replica being inaccessible shows that the metric
-                            //   evictability = age + (time decay parameter) * (number of replicas + log(size of content))
+                            //   evictability = age + (time decay parameter) * (-log(risk of content unavailability) * (number of replicas) + log(size of content))
                             // minimizes the increase in the probability of (content wanted && all replicas inaccessible) / per bytes freed.
                             // Since this metric is just the age plus a computed quantity, it can be intrepreted as an "effective age".
                             // (One dev wanted no penalty until we reach a threshold number of replicas. We don't have a model justification for this but I'm content to oblige.)
-                            TimeSpan totalReplicaPenalty = TimeSpan.FromMinutes(_configuration.ReplicaPenaltyInMinutes * (Math.Max(0, entry.Locations.Count - 3) + Math.Log(Math.Max(1, entry.ContentSize))));
+                            TimeSpan totalReplicaPenalty = TimeSpan.FromMinutes(_configuration.ContentLifetime.TotalMinutes * (Math.Max(0, replicaCount - 3) * logInverseMachineRisk + Math.Log(Math.Max(1, entry.ContentSize))));
+                            effectiveLastAccessTime = lastAccessTime - totalReplicaPenalty;
 
-                            // Use the latest last access time between LLS and local last access time
-                            var lastAccessTime = entry.LastAccessTimeUtc > contentHash.LastAccessTime
-                                ? entry.LastAccessTimeUtc
-                                : contentHash.LastAccessTime;
-                            effectiveLastAccessTime = lastAccessTime.ToDateTime() - totalReplicaPenalty;
                             Counters[ContentLocationStoreCounters.EffectiveLastAccessTimeLookupHit].Increment();
                         }
                         else
@@ -1113,7 +1118,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             Counters[ContentLocationStoreCounters.EffectiveLastAccessTimeLookupMiss].Increment();
                         }
 
-                        effectiveLastAccessTimes.Add(new ContentHashWithLastAccessTimeAndReplicaCount(contentHash.Hash, effectiveLastAccessTime ?? contentHash.LastAccessTime, replicaCount, originalLastAccessTime: contentHash.LastAccessTime));
+                        effectiveLastAccessTimes.Add(new ContentHashWithLastAccessTimeAndReplicaCount(contentHash.Hash, lastAccessTime, replicaCount, effectiveLastAccessTime: effectiveLastAccessTime ?? lastAccessTime));
                     }
 
                     return Result.Success<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>(effectiveLastAccessTimes);

@@ -369,13 +369,13 @@ namespace Test.BuildXL.Scheduler
 
             IReadOnlyList<string> junctionRoots = Configuration.Engine.DirectoriesToTranslate?.Select(a => a.ToPath.ToString(Context.PathTable)).ToList();
 
-            var map = VolumeMap.TryCreateMapOfAllLocalVolumes(localLoggingContext, junctionRoots);
-            var optionalAccessor = TryGetJournalAccessor(map);
+            var map = JournalUtils.TryCreateMapOfAllLocalVolumes(localLoggingContext, junctionRoots);
+            var maybeAccessor = TryGetJournalAccessor(map);
 
             // Although scan change journal is enabled, but if we cannot create an enabled journal accessor, then create a disabled one.
-            m_journalState = map == null || !optionalAccessor.IsValid
+            m_journalState = map == null || !maybeAccessor.Succeeded
                 ? JournalState.DisabledJournal
-                : JournalState.CreateEnabledJournal(map, optionalAccessor.Value);
+                : JournalState.CreateEnabledJournal(map, maybeAccessor.Result);
 
             if (config.Schedule.IncrementalScheduling)
             {
@@ -471,11 +471,11 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
-        private Optional<global::BuildXL.Storage.ChangeJournalService.IChangeJournalAccessor> TryGetJournalAccessor(VolumeMap map)
+        private Possible<global::BuildXL.Storage.ChangeJournalService.IChangeJournalAccessor> TryGetJournalAccessor(VolumeMap map)
         {
             return map.Volumes.Any()
-                ? JournalAccessorGetter.TryGetJournalAccessor(LoggingContext, map, AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()))
-                : Optional<global::BuildXL.Storage.ChangeJournalService.IChangeJournalAccessor>.Invalid;
+                ? JournalUtils.TryGetJournalAccessorForTest(map)
+                : new Failure<string>("Invalid");
         }
 
         public string ArtifactToString(FileOrDirectoryArtifact file, PathTable pathTable = null)

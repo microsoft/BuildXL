@@ -27,25 +27,25 @@ namespace Test.ProjectGraphBuilder
         // One isolated project
         [InlineData(true, "[A]")]
         // Two isolated projects
-        [InlineData(false, "[A]", 
+        [InlineData(false, "[A]",
                            "B")]
         // Simple dependency
-        [InlineData(true, "[A] -> B")] 
+        [InlineData(true, "[A] -> B")]
         // Transitive dependency
-        [InlineData(true, "[A] -> B -> C", 
+        [InlineData(true, "[A] -> B -> C",
                           "A -> C")]
         // Fan-out test
-        [InlineData(true, "[A] -> B", 
+        [InlineData(true, "[A] -> B",
                           "A -> C")]
         // Fan-in test
-        [InlineData(false, "[A] -> B", 
+        [InlineData(false, "[A] -> B",
                            "C -> B")]
         // Diamond test
-        [InlineData(true, "[A] -> B1 -> C", 
+        [InlineData(true, "[A] -> B1 -> C",
                           "A -> B2 -> C")]
         // Two connected components
-        [InlineData(false, "A -> B", 
-                           "[C] -> D")] 
+        [InlineData(false, "A -> B",
+                           "[C] -> D")]
         public void ValidateRoundtripProjects(bool exactMatch, params string[] projectChains)
         {
             // Write to disk the set of projects that the project chains represent
@@ -70,14 +70,14 @@ namespace Test.ProjectGraphBuilder
     <PropertyGroup>
        <InnerBuildProperty>InnerBuild</InnerBuildProperty>
        <InnerBuildPropertyValues>InnerBuildProperties</InnerBuildPropertyValues>
-       <InnerBuildProperties>A;A</InnerBuildProperties>
+       <InnerBuildProperties>A;A</InnerBuildProperties>
     </PropertyGroup>
 </Project>";
 
             var entryPointPath = m_builder.WriteProjectsWithReferences(("A", DoubleReferenceProject));
 
             // Parse the projects, build the graph, serialize it to disk and deserialize it back
-            var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(new[] { entryPointPath }); 
+            var projectGraphWithPredictionsResult = BuildGraphAndDeserialize(new[] { entryPointPath });
 
             Assert.True(projectGraphWithPredictionsResult.Succeeded);
 
@@ -125,7 +125,7 @@ namespace Test.ProjectGraphBuilder
 
             Assert.True(projectGraphWithPredictionsResult.Succeeded);
             var projectProperties = projectGraphWithPredictionsResult.Result.ProjectNodes.Single().GlobalProperties;
-            
+
             Assert.Equal("x64", projectProperties["platform"]);
             Assert.Equal("release", projectProperties["configuration"]);
         }
@@ -195,7 +195,7 @@ namespace Test.ProjectGraphBuilder
     <ProjectReference Include='B.proj'/>
   </ItemGroup>
   <Target Name='Build'/>
-</Project>"), 
+</Project>"),
                 ("B.proj", @"
 <Project DefaultTargets='Build;Pack'>
   <Target Name='Build'/>
@@ -210,7 +210,7 @@ namespace Test.ProjectGraphBuilder
             Assert.True(projectGraphWithPredictionsResult.Succeeded);
             var projectB = projectGraphWithPredictionsResult.Result.ProjectNodes.First(projectNode => projectNode.FullPath.Contains("B.proj"));
 
-            // The targets of B should be flagged so we know default targets were appended, 
+            // The targets of B should be flagged so we know default targets were appended,
             // and B targets should contain the default targets
             Assert.True(projectB.PredictedTargetsToExecute.IsDefaultTargetsAppended);
             Assert.Contains("Build", projectB.PredictedTargetsToExecute.Targets);
@@ -234,7 +234,6 @@ namespace Test.ProjectGraphBuilder
             string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
 
             var arguments = new MSBuildGraphBuilderArguments(
-                    TestOutputDirectory,
                     projectEntryPoints,
                     outputFile,
                     globalProperties: GlobalProperties.Empty,
@@ -244,14 +243,13 @@ namespace Test.ProjectGraphBuilder
                     allowProjectsWithoutTargetProtocol: true);
 
             return BuildGraphAndDeserialize(arguments);
-            
+
         }
 
         private MSBuildGraphBuilderArguments CreateBuilderArguments(string entryPointPath, GlobalProperties[] requestedQualifiers = null, GlobalProperties globalProperties = null, bool allowProjectsWithoutTargetProtocol = true)
         {
             string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
             var arguments = new MSBuildGraphBuilderArguments(
-                    TestOutputDirectory,
                     new string[] { entryPointPath },
                     outputFile,
                     globalProperties: globalProperties ?? GlobalProperties.Empty,

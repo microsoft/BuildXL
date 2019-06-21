@@ -35,6 +35,10 @@ namespace BuildXL.Execution.Analyzer
                 {
                     simulator.IncludedExecutionSteps[(int)ParseEnumOption<PipExecutionStep>(opt)] = true;
                 }
+                else if (opt.Name.Equals("increment", StringComparison.OrdinalIgnoreCase))
+                {
+                    simulator.Increment = ParseInt32Option(opt, 1, int.MaxValue);
+                }
                 else
                 {
                     throw Error("Unknown option for build simulation analysis: {0}", opt.Name);
@@ -62,15 +66,17 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public string OutputDirectory;
 
-        public bool[] IncludedExecutionSteps = new bool[EnumTraits<PipExecutionStep>.MaxValue + 1];
-        private static string resultsFormat;
+        public string ResultsDirectory;
 
-        private readonly PipExecutionData m_executionData = new PipExecutionData();
+        public bool[] IncludedExecutionSteps = new bool[EnumTraits<PipExecutionStep>.MaxValue + 1];
+
+        public readonly PipExecutionData ExecutionData;
+        public int Increment { get; set; } = 12;
 
         public BuildSimulatorAnalyzer(AnalysisInput input)
             : base(input)
         {
-            m_executionData.CachedGraph = input.CachedGraph;
+            ExecutionData = new PipExecutionData(input.CachedGraph);
         }
 
         public override void Prepare()
@@ -78,7 +84,7 @@ namespace BuildXL.Execution.Analyzer
             // Always include execution
             IncludedExecutionSteps[(int)PipExecutionStep.ExecuteProcess] = true;
             IncludedExecutionSteps[(int)PipExecutionStep.ExecuteNonProcessPip] = true;
-            resultsFormat = @"{0}\sim\{{0}}".FormatWith(OutputDirectory);
+            ResultsDirectory = Path.Combine(OutputDirectory, "sim");
 
             base.Prepare();
         }
@@ -87,42 +93,40 @@ namespace BuildXL.Execution.Analyzer
         {
             var startTime = (ulong)data.StartTime.Ticks;
             var endTime = (ulong)(data.StartTime + data.Duration).Ticks;
-            startTime.Min(ref m_executionData.MinStartTime);
-            endTime.Max(ref m_executionData.MaxEndTime);
+            startTime.Min(ref ExecutionData.MinStartTime);
+            endTime.Max(ref ExecutionData.MaxEndTime);
 
             if (!IncludedExecutionSteps[(int)data.Step])
             {
                 return;
             }
 
-            var currentStartTime = m_executionData.StartTimes[data.PipId.ToNodeId()];
+            var currentStartTime = ExecutionData.StartTimes[data.PipId.ToNodeId()];
             if (currentStartTime == 0 || currentStartTime > startTime)
             {
-                m_executionData.StartTimes[data.PipId.ToNodeId()] = startTime;
+                ExecutionData.StartTimes[data.PipId.ToNodeId()] = startTime;
             }
 
-            m_executionData.Durations[data.PipId.ToNodeId()] += endTime - startTime;
+            ExecutionData.Durations[data.PipId.ToNodeId()] += endTime - startTime;
         }
 
         public override int Analyze()
         {
             Console.WriteLine("Analyzing");
 
-            var data = m_executionData;
+            var data = ExecutionData;
             data.Compute();
-            Directory.CreateDirectory(resultsFormat.FormatWith(string.Empty));
+            Directory.CreateDirectory(ResultsDirectory);
 
             int simulationCount = 24;
-            int increment = 100;
-
-            using (StreamWriter sw = new StreamWriter(resultsFormat.FormatWith("result.txt")))
+            using (StreamWriter sw = new StreamWriter(GetResultsPath("results.txt")))
             {
-                int actualConcurrency = data.ActualConcurrency <= 0 ? increment : data.ActualConcurrency;
+                int actualConcurrency = data.ActualConcurrency <= 0 ? Increment : data.ActualConcurrency;
 
                 // write result.txt
                 var writers = new MultiWriter(sw, Console.Out);
 
-                //SimulateActual(data, actualConcurrency, writers);
+                SimulateActual(data, actualConcurrency, writers);
 
                 // a Pip is a process (entity of invocation) or a target for CB
                 int nameWidth = data.LongestRunningPips.Select(n => data.GetName(n.Node).Length).Max();
@@ -140,7 +144,7 @@ namespace BuildXL.Execution.Analyzer
                     writers.WriteLine("{0} [{2}]: {1} min", data.GetName(p.Node).PadLeft(nameWidth), p.Priority.ToMinutes(), data.PipIds[p.Node]);
                 }
 
-                SimulationResult[] results = SimulateBuildWithVaryingThreatCount(data, simulationCount, increment);
+                SimulationResult[] results = SimulateBuildWithVaryingThreatCount(data, simulationCount, Increment);
 
                 results = results.OrderBy(s => s.Threads.Count).ToArray();
 
@@ -189,7 +193,7 @@ namespace BuildXL.Execution.Analyzer
             return 0;
         }
 
-        private static void SimulateActual(PipExecutionData data, int actualConcurrency, MultiWriter writers)
+        private void SimulateActual(PipExecutionData data, int actualConcurrency, MultiWriter writers)
         {
             // simulate with actual concurrency
             Console.WriteLine("Simulating actual build");
@@ -218,7 +222,7 @@ namespace BuildXL.Execution.Analyzer
             ulong criticalPathCost = WriteCriticalPathToResult(writers, data, actualSimulation);
         }
 
-        private static SimulationResult[] SimulateBuildWithVaryingThreatCount(PipExecutionData data, int simulationCount, int increment)
+        private SimulationResult[] SimulateBuildWithVaryingThreatCount(PipExecutionData data, int simulationCount, int increment)
         {
             SimulationResult[] results = new SimulationResult[simulationCount];
             int?[] threadCounts = new int?[simulationCount];
@@ -235,36 +239,65 @@ namespace BuildXL.Execution.Analyzer
             return results;
         }
 
-        private static void WriteActualAndSimulationResults(PipExecutionData data, SimulationResult actualSimulation)
+        private string GetResultsPath(string fileName)
+        {
+            return Path.Combine(ResultsDirectory, fileName);
+        }
+
+        private void WriteActualAndSimulationResults(PipExecutionData data, SimulationResult actualSimulation)
         {
             // write results actual
-            File.WriteAllLines(resultsFormat.FormatWith("actual.durations.csv"), data.Spans.Where(ps => data.GetPipType(ps.Id) == PipType.Process).Select(ps => string.Join(",", data.GetName(ps.Id), ps.Duration.ToMinutes().ToString())));
-            File.WriteAllLines(resultsFormat.FormatWith("actual.durations.txt"), data.Spans.Select(ps => ps.Duration.ToMinutes().ToString()));
-            File.WriteAllLines(resultsFormat.FormatWith("actual.starts.txt"), data.Spans.Select(ps => ps.StartTime.ToMinutes().ToString()));
-            File.WriteAllLines(resultsFormat.FormatWith("actual.ends.txt"), data.Spans.Select(ps => ps.EndTime.ToMinutes().ToString()));
+            File.WriteAllLines(GetResultsPath("actual.durations.csv"), data.Spans.Where(ps => data.GetPipType(ps.Id) == PipType.Process).Select(ps => string.Join(",", data.GetName(ps.Id), ps.Duration.ToMinutes().ToString())));
+            File.WriteAllLines(GetResultsPath("actual.durations.txt"), data.Spans.Select(ps => ps.Duration.ToMinutes().ToString()));
+            File.WriteAllLines(GetResultsPath("actual.starts.txt"), data.Spans.Select(ps => ps.StartTime.ToMinutes().ToString()));
+            File.WriteAllLines(GetResultsPath("actual.ends.txt"), data.Spans.Select(ps => ps.EndTime.ToMinutes().ToString()));
 
             // write simulation actual
-            File.WriteAllLines(resultsFormat.FormatWith("actualSimulation.durations.txt"), actualSimulation.GetSpans().Select(ps => ps.Duration.ToMinutes().ToString()));
-            File.WriteAllLines(resultsFormat.FormatWith("actualSimulation.starts.txt"), actualSimulation.GetSpans().Select(ps => ps.StartTime.ToMinutes().ToString()));
-            File.WriteAllLines(resultsFormat.FormatWith("actualSimulation.ends.txt"), actualSimulation.GetSpans().Select(ps => ps.EndTime.ToMinutes().ToString()));
-            File.WriteAllLines(resultsFormat.FormatWith("heights.txt"), data.Spans.Where(ps => data.GetPipType(ps.Id) == PipType.Process)
+            File.WriteAllLines(GetResultsPath("actualSimulation.durations.txt"), actualSimulation.GetSpans().Select(ps => ps.Duration.ToMinutes().ToString()));
+            File.WriteAllLines(GetResultsPath("actualSimulation.starts.txt"), actualSimulation.GetSpans().Select(ps => ps.StartTime.ToMinutes().ToString()));
+            File.WriteAllLines(GetResultsPath("actualSimulation.ends.txt"), actualSimulation.GetSpans().Select(ps => ps.EndTime.ToMinutes().ToString()));
+            File.WriteAllLines(GetResultsPath("heights.txt"), data.Spans.Where(ps => data.GetPipType(ps.Id) == PipType.Process)
                 .Select(ps => data.DataflowGraph.GetNodeHeight(ps.Id))
                 .GroupBy(i => i)
                 .OrderBy(g => g.Key)
                 .Select(g => $"Height: {g.Key}, Count: {g.Count()}"));
 
             // information on each process during simulation
-            string csvFormat = "{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}";
-            File.WriteAllLines(resultsFormat.FormatWith("actualSimulation.txt"), new string[] { csvFormat.FormatWith("Id", "Thread", "Minimum Start Time", "Start Time", "End Time", "Duration", "Incoming", "Outgoing") }.Concat(actualSimulation.GetSpans().Select(ps =>
-                csvFormat.FormatWith(
-                    ps.Id.Value,
-                    ps.Thread,
-                    actualSimulation.MinimumStartTimes[ps.Id].ToMinutes(),
-                    ps.StartTime.ToMinutes(),
-                    ps.EndTime.ToMinutes(),
-                    ps.Duration.ToMinutes(),
-                    data.DataflowGraph.GetIncomingEdgesCount(ps.Id),
-                    data.DataflowGraph.GetIncomingEdgesCount(ps.Id)))));
+            DisplayTable<SimColumns> table = new DisplayTable<SimColumns>(" , ");
+
+            using (var streamWriter = new StreamWriter(GetResultsPath("actualSimulation.txt")))
+            {
+                foreach (var ps in actualSimulation.GetSpans())
+                {
+                    table.NextRow();
+                    table.Set(SimColumns.Id, data.FormattedSemistableHashes[ps.Id]);
+                    table.Set(SimColumns.Thread, ps.Thread);
+                    table.Set(SimColumns.MinimumStartTime, actualSimulation.MinimumStartTimes[ps.Id].ToMinutes());
+                    table.Set(SimColumns.StartTime, ps.StartTime.ToMinutes());
+                    table.Set(SimColumns.EndTime, ps.EndTime.ToMinutes());
+                    table.Set(SimColumns.Duration, ps.Duration.ToMinutes());
+                    table.Set(SimColumns.Incoming, data.DataflowGraph.GetIncomingEdgesCount(ps.Id));
+                    table.Set(SimColumns.Outgoing, data.DataflowGraph.GetIncomingEdgesCount(ps.Id));
+                    table.Set(SimColumns.LongestRunningDependency, data.FormattedSemistableHashes.GetOrDefault(actualSimulation.LongestRunningDependency[ps.Id]));
+                    table.Set(SimColumns.LastRunningDependency, data.FormattedSemistableHashes.GetOrDefault(actualSimulation.LastRunningDependency[ps.Id]));
+                }
+
+                table.Write(streamWriter);
+            }
+        }
+
+        private enum SimColumns
+        {
+            Id,
+            LongestRunningDependency,
+            LastRunningDependency,
+            Thread,
+            MinimumStartTime,
+            StartTime,
+            EndTime,
+            Duration,
+            Incoming,
+            Outgoing
         }
 
         private static ulong WriteCriticalPathToResult(MultiWriter writers, PipExecutionData data, SimulationResult testSimulation)

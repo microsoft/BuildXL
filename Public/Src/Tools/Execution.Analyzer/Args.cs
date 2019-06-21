@@ -295,6 +295,9 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.PipFingerprint:
                     m_analyzer = InitializePipFingerprintAnalyzer(m_analysisInput);
                     break;
+                case AnalysisMode.RequiredDependencies:
+                    m_analyzer = InitializeRequiredDependencyAnalyzer();
+                    break;
                 case AnalysisMode.ScheduledInputsOutputs:
                     m_analyzer = InitializeScheduledInputsOutputsAnalyzer();
                     break;
@@ -576,6 +579,12 @@ namespace BuildXL.Execution.Analyzer
         public void LogEventSummary()
         {
             Tracing.Logger.Log.ExecutionAnalyzerEventCount(LoggingContext, TrackingEventListener.ToEventCountDictionary());
+        }
+
+        public long ParseSemistableHash(Option opt)
+        {
+            var adjustedOption = new Option() { Name = opt.Name, Value = opt.Value.ToUpper().Replace("PIP", "") };
+            return Convert.ToInt64(ParseStringOption(adjustedOption), 16);
         }
     }
 

@@ -2084,7 +2084,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 if (contentHashHandle == null)
                 {
                     _tracer.Debug(context, $"Skipping check of pinned size for {contentHash.ToShortString()} because another thread has a lock on it.");
-                    return new EvictResult(evictedSize: 0, evictedFiles: 0, pinnedSize: 0, contentHashInfo.LastAccessTime, successfullyEvictedHash: false, contentHashInfo.ReplicaCount);
+                    return new EvictResult(contentHashInfo, evictedSize: 0, evictedFiles: 0, pinnedSize: 0, successfullyEvictedHash: false);
                 }
 
                 // Only checked PinMap if force is false, otherwise even pinned content should be evicted.
@@ -2096,7 +2096,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         pinnedSize = size;
                     }
 
-                    return new EvictResult(evictedSize: 0, evictedFiles: 0, pinnedSize: pinnedSize, contentHashInfo.LastAccessTime, successfullyEvictedHash: false, contentHashInfo.ReplicaCount);
+                    return new EvictResult(contentHashInfo, evictedSize: 0, evictedFiles: 0, pinnedSize: pinnedSize, successfullyEvictedHash: false);
                 }
 
                 // Intentionally tracking only (potentially) successful eviction.
@@ -2222,7 +2222,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                 return null;
                             });
 
-                    return new EvictResult(evictedSize, evictedFiles, pinnedSize, contentHashInfo.LastAccessTime, successfullyEvictedHash, contentHashInfo.ReplicaCount);
+                    return new EvictResult(contentHashInfo, evictedSize, evictedFiles, pinnedSize,successfullyEvictedHash);
                 });
             }
         }

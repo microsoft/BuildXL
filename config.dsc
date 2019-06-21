@@ -445,7 +445,7 @@ config({
                 { id: "System.CodeDom", version: "4.4.0"},
 
                 // Used for MSBuild input/output prediction
-                { id: "Microsoft.Build.Prediction", version: "0.1.0" },
+                { id: "Microsoft.Build.Prediction", version: "0.2.0" },
 
                 { id: "SharpZipLib", version: "1.1.0" },
 

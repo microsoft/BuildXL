@@ -11,10 +11,10 @@ namespace Test.Tool.ProjectGraphBuilder.Mocks
     /// <summary>
     /// A predictor that throws on prediction
     /// </summary>
-    public class ThrowOnPredictionPredictor : IProjectStaticPredictor
+    public class ThrowOnPredictionPredictor : IProjectPredictor
     {
         /// <inheritdoc/>
-        public bool TryPredictInputsAndOutputs(Project project, ProjectInstance projectInstance, string repositoryRootDirectory, out StaticPredictions predictions)
+        public void PredictInputsAndOutputs(Project project, ProjectInstance projectInstance, ProjectPredictionReporter predictionReporter)
         {
             throw new InvalidOperationException();
         }

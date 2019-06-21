@@ -38,6 +38,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly ISessionHandler<IContentSession> _sessionHandler;
         private readonly ContentServerAdapter _adapter;
         private readonly int _bufferSize;
+        private readonly ByteArrayPool _pool;
 
         /// <nodoc />
         public GrpcContentServer(
@@ -53,6 +54,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _adapter = new ContentServerAdapter(this);
             _contentStoreByCacheName = storesByName;
             _bufferSize = bufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
+            _pool = new ByteArrayPool(_bufferSize);
         }
 
         /// <nodoc />
@@ -267,16 +269,19 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     {
                         _logger.Debug($"Streaming file through GRPC with GZip {(compression == CopyCompression.Gzip ? "on" : "off")}");
 
-                        byte[] buffer = new byte[_bufferSize];
-                        switch (compression)
+                        using (var arrayHandle = _pool.Get())
                         {
-                            case CopyCompression.None:
-                                await StreamContentAsync(result.Stream, buffer, responseStream, context.CancellationToken);
-                                break;
-                            case CopyCompression.Gzip:
-                                await StreamContentWithCompressionAsync(result.Stream, buffer, responseStream, context.CancellationToken);
-                                break;
-                        }               
+                            byte[] buffer = arrayHandle.Value;
+                            switch (compression)
+                            {
+                                case CopyCompression.None:
+                                    await StreamContentAsync(result.Stream, buffer, responseStream, context.CancellationToken);
+                                    break;
+                                case CopyCompression.Gzip:
+                                    await StreamContentWithCompressionAsync(result.Stream, buffer, responseStream, context.CancellationToken);
+                                    break;
+                            }
+                        }
                     }
                 }
             

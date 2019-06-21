@@ -9,6 +9,9 @@ namespace Test.BuildXL.Executables.TestProcess
     /// <summary>
     /// Encapsulates an executable process that can perform filesystem operations
     /// </summary>
+    /// <remarks>
+    /// Keep this process simple and avoid referencing complex datastructures like the PathTable to avoid JIT overhead.
+    /// </remarks>
     public sealed class Executable
     {
         // Queue of ops the process will run
@@ -19,13 +22,10 @@ namespace Test.BuildXL.Executables.TestProcess
         /// </summary>
         public Executable(string[] args)
         {
-            // The process as a test executable doesn't require a PathTable, so pass a dummy
-            var pathTable = new PathTable();
-
             // Add all the process operations in order to queue
             for (int i = 0; i < args.Length; i++)
             {
-                m_opQueue.Enqueue(Operation.CreateFromCommandLine(pathTable, args[i]));
+                m_opQueue.Enqueue(Operation.CreateFromCommandLine(args[i]));
             }
         }
 

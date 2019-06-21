@@ -4,10 +4,8 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Reflection;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
-using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using Xunit.Sdk;
@@ -36,6 +34,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         private static bool? s_canCreateSymlink;
         private static bool? s_canScanJournal;
         private static bool? s_isHeliumFiltersAvailable;
+        private static string s_journalAccessorFailure;
 
         /// <nodoc/>
         public bool RequiresAdmin { get; set; }
@@ -106,14 +105,18 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 if (!s_canScanJournal.HasValue)
                 {
                     var loggingContext = new LoggingContext("Dummy", "Dummy");
-                    var map = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext);
-                    var accessor = JournalAccessorGetter.TryGetJournalAccessor(loggingContext, map, AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
-                    s_canScanJournal = accessor.IsValid && accessor.Value != null;
+                    var map = JournalUtils.TryCreateMapOfAllLocalVolumes(loggingContext);
+                    var accessor = JournalUtils.TryGetJournalAccessorForTest(map);
+                    s_canScanJournal = accessor.Succeeded;
+                    if (!accessor.Succeeded)
+                    {
+                        s_journalAccessorFailure = accessor.Failure.Describe();
+                    }
                 }
 
                 if (!s_canScanJournal.Value)
                 {
-                    Skip = "Test requires access to the in process change journal scan. Either run elevated on install RS2.";
+                    Skip = $"Test requires access to the in process change journal scan but getting the journal access failed. {s_journalAccessorFailure ?? string.Empty}{Environment.NewLine}Either run elevated or install RS2.";
                     return; 
                 }
             }

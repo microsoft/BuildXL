@@ -488,6 +488,26 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <summary>
+        /// Extracts <see cref="RelativePath"/> instance from a given object.
+        /// </summary>
+        /// <remarks>
+        /// Returns <see cref="RelativePath.Invalid"/> if <paramref name="allowUndefined"/> is true and <paramref name="literal"/> doesn't have a given property.
+        /// </remarks>
+        public static RelativePath ExtractRelativePath(ObjectLiteral literal, SymbolAtom property, bool allowUndefined = false)
+        {
+            var value = literal[property];
+            if (allowUndefined && value.IsUndefined)
+            {
+                return RelativePath.Invalid;
+            }
+
+            return ExpectRelativePath(
+                value,
+                context: new ConversionContext(name: property, objectCtx: literal));
+        }
+
+
+        /// <summary>
         /// Extracts <see cref="AbsolutePath"/> instance from a given object.
         /// </summary>
         /// <remarks>

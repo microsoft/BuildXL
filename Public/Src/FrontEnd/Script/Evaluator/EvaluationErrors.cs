@@ -17,6 +17,7 @@ using BuildXL.Utilities.Qualifier;
 using static BuildXL.Utilities.FormattableStringEx;
 using static BuildXL.FrontEnd.Script.DisplayStringHelper;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
+using TypeScript.Net.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Evaluator
 {
@@ -396,6 +397,25 @@ namespace BuildXL.FrontEnd.Script.Evaluator
                 location.AsLoggingLocation(),
                 expression.ToDisplayString(Context),
                 errorInformation,
+                Context.GetStackTraceAsErrorMessage(location));
+        }
+
+        /// <nodoc />
+        [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
+        public void DirectoryNotSupportedException(
+            ModuleLiteral env,
+            Expression expression,
+            LineInfo lineInfo)
+        {
+            Contract.Requires(env != null);
+            Contract.Requires(expression != null);
+
+            var location = lineInfo.AsUniversalLocation(env, Context);
+
+            Logger.DirectoryNotSupportedException(
+                LoggingContext,
+                location.AsLoggingLocation(),
+                expression.ToDisplayString(Context),
                 Context.GetStackTraceAsErrorMessage(location));
         }
 

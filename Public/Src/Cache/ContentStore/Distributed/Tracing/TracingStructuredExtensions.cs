@@ -85,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                 return result.ToString();
             }
 
-            return string.Join(", ", result.ContentHashesInfo.Select(info => $"{new ShortHash(info.ContentHash)}={info.Locations?.Count ?? 0}"));
+            return string.Join(", ", result.ContentHashesInfo.Select(info => $"{info.ContentHash.ToShortString()}={info.Locations?.Count ?? 0}"));
         }
 
         /// <nodoc />
@@ -98,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             {
                 foreach (var page in group.GetPages(ShortHashTracingDefaultBatchSize))
                 {
-                    var results = string.Join(", ", page.GroupBy(t => t.hash).Select(g => $"{g.Key}={g.Sum(o => o.modificationCount)}"));
+                    var results = string.Join(", ", page.GroupBy(t => t.hash).Select(g => $"{g.Key.ToString()}={g.Sum(o => o.modificationCount)}"));
                     context.TraceDebug($"{tracerName}: Handling operation {PrintOperation(group.Key)}({page.Count()}): [{results}]");
                 }
             }

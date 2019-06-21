@@ -178,7 +178,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
             }
 
-            return new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, $"{hash} to found");
+            return new OpenStreamResult(OpenStreamResult.ResultCode.ContentNotFound, $"{hash.ToShortString()} to found");
         }
 
         private async Task<ExistenceResponse> CheckFileExistsAsync(ExistenceRequest request, CancellationToken token)
@@ -210,7 +210,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
             }
 
-            return new ExistenceResponse { Header = ResponseHeader.Failure(startTime, $"{hash} not found in the cache") };
+            return new ExistenceResponse { Header = ResponseHeader.Failure(startTime, $"{hash.ToShortString()} not found in the cache") };
         }
 
         /// <summary>

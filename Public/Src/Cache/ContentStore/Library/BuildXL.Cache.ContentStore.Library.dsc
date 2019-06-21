@@ -13,10 +13,11 @@ namespace Library {
             ...(BuildXLSdk.isDotNetCoreBuild ? [
                 // TODO: This is to get a .Net Core build, but it may not pass tests
                 importFrom("System.Data.SQLite.Core").withQualifier({targetFramework: "net461"}).pkg,
-                importFrom("Microsoft.Azure.Kusto.Data.NETStandard").withQualifier({targetFramework: "netcoreapp3.0"}).pkg,
-                importFrom("Microsoft.Azure.Kusto.Ingest.NETStandard").withQualifier({targetFramework: "netcoreapp3.0"}).pkg,
-                importFrom("Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard").withQualifier({targetFramework: "netcoreapp3.0"}).pkg,
-                importFrom("Microsoft.Azure.Kusto.Cloud.Platform.NETStandard").withQualifier({targetFramework: "netcoreapp3.0"}).pkg,
+                
+                importFrom("Microsoft.Azure.Kusto.Data.NETStandard").pkg,
+                importFrom("Microsoft.Azure.Kusto.Ingest.NETStandard").pkg,
+                importFrom("Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard").pkg,
+                importFrom("Microsoft.Azure.Kusto.Cloud.Platform.NETStandard").pkg,
                 importFrom("Microsoft.Extensions.PlatformAbstractions").withQualifier({targetFramework: "net472"}).pkg,
             ] :
             [

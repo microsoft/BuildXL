@@ -77,8 +77,8 @@ namespace BuildXL.Cache.ContentStore.Logging
             (
             string logFilePath,
             IEnumerable<ColumnType> schema,
-            Severity severity,
-            long maxFileSize
+            Severity severity = Severity.Diagnostic,
+            long maxFileSize = 0
             )
             :
             base

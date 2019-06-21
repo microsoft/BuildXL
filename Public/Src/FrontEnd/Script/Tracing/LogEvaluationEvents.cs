@@ -259,6 +259,18 @@ namespace BuildXL.FrontEnd.Script.Tracing
             LoggingContext context, Location location, string expression, string additionalInformation, string stackTrace);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DirectoryNotSupportedException,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Events.Tasks.Parser,
+            Message =
+                Events.LabeledProvenancePrefix + "Directory operation for '{expression}' is not supported for this SealedDirectory. At the moment this is only supported for Full and Partially sealed directories.{stackTrace}",
+            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+        public abstract void DirectoryNotSupportedException(
+            LoggingContext context, Location location, string expression, string stackTrace);
+
+
+        [GeneratedEvent(
             (ushort)LogEventId.FileOperationError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

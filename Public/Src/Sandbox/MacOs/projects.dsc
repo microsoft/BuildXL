@@ -21,7 +21,7 @@ namespace Sandbox {
         derivedDataOutDir: StaticDirectory
     }
 
-    function sourceFileDependencies()
+    const sourceFileDependencies = (() =>
     {
         const sandboxDir = d`${Context.getMount("Sandbox").path}`;
         const thirdPartyDir = d`../../../../third_party`;
@@ -37,7 +37,7 @@ namespace Sandbox {
                 ...Transformer.sealDirectory(sandboxDir, globR(sandboxDir, globPattern)).contents,
                 ...Transformer.sealDirectory(thirdPartyDir, globR(thirdPartyDir, globPattern)).contents
             ];
-    }
+    })();
 
     export function build(args: Args): Result {
         const conf = args.configuration || qualifier.configuration;
@@ -55,7 +55,7 @@ namespace Sandbox {
             ],
             dependencies: [
                 ...(args.dependencies || []),
-                ...sourceFileDependencies()
+                ...sourceFileDependencies
             ]
         });
 

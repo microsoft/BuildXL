@@ -124,7 +124,7 @@ namespace BuildXL.FrontEnd.Nuget
             var valid = analyzedPackage.TargetFrameworks.Exists(moniker => m_nugetFrameworkMonikers.FullFrameworkVersionHistory.Contains(moniker) || m_nugetFrameworkMonikers.NetCoreVersionHistory.Contains(moniker));
             Contract.Assert(valid, "Target framework monikers must exsist and be registered with internal target framework version helpers.");
 
-            var fullFrameworkDeps = m_nugetFrameworkMonikers.FullFrameworkVersionHistory
+            var allFullFrameworkDeps = m_nugetFrameworkMonikers.FullFrameworkVersionHistory
                 .SelectMany(m =>
                     analyzedPackage.DependenciesPerFramework.TryGetValue(m, out IReadOnlyList<INugetPackage> dependencySpecificFrameworks)
                         ? dependencySpecificFrameworks
@@ -165,10 +165,11 @@ namespace BuildXL.FrontEnd.Nuget
                         }
                     }
 
-                    // Dependency items
+                    // For full framework dependencies we unconditionally include all the distinct dependencies from the nuspec file,
+                    // .NETStandard dependencies are only included if the monikor and the parsed target framework match!
                     if (m_nugetFrameworkMonikers.IsFullFrameworkMoniker(monikers.First()))
                     {
-                        foreach (var dependencySpecificFramework in fullFrameworkDeps)
+                        foreach (var dependencySpecificFramework in allFullFrameworkDeps)
                         {
                             dependencies.Add(CreateImportFromForDependency(dependencySpecificFramework));
                         }
@@ -195,18 +196,19 @@ namespace BuildXL.FrontEnd.Nuget
                                     PropertyAccess("Contents", "all"),
                                     Array(compile),
                                     Array(runtime),
-                                    m_nugetFrameworkMonikers.IsFullFrameworkMoniker(monikers.Last()) ? Array(dependencies) :
-                                    Array(new CallExpression(new Identifier("...addIfLazy"),
-                                        new BinaryExpression(
-                                            new PropertyAccessExpression("qualifier", "targetFramework"),
-                                            SyntaxKind.EqualsEqualsEqualsToken,
-                                            new LiteralExpression(monikers.First().ToString(m_pathTable.StringTable))
-                                        ),
-                                        new ArrowFunction(
-                                            CollectionUtilities.EmptyArray<IParameterDeclaration>(),
-                                            Array(dependencies)
-                                        )
-                                    ))
+                                    m_nugetFrameworkMonikers.IsFullFrameworkMoniker(monikers.Last()) 
+                                        ? Array(dependencies) 
+                                        : Array(new CallExpression(new Identifier("...addIfLazy"),
+                                            new BinaryExpression(
+                                                new PropertyAccessExpression("qualifier", "targetFramework"),
+                                                SyntaxKind.EqualsEqualsEqualsToken,
+                                                new LiteralExpression(monikers.First().ToString(m_pathTable.StringTable))
+                                            ),
+                                            new ArrowFunction(
+                                                CollectionUtilities.EmptyArray<IParameterDeclaration>(),
+                                                Array(dependencies)
+                                            )
+                                        ))
                                 )
                             )
                         )

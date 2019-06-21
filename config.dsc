@@ -458,19 +458,22 @@ config({
                 { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
 
                 // Kusto SDK (for netstandard)
-                { id: "Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard", version: "6.1.8", dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"], dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
-                { id: "Microsoft.Azure.Kusto.Cloud.Platform.NETStandard", version: "6.1.8", dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"], dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
-                { id: "Microsoft.Azure.Kusto.Data.NETStandard", version: "6.1.8", dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"], dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
-                { id: "Microsoft.Azure.Kusto.Ingest.NETStandard", version: "6.1.8", dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"], dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard", version: "6.1.8", dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform.NETStandard", version: "6.1.8", dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.Azure.Kusto.Data.NETStandard", version: "6.1.8", dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.Azure.Kusto.Ingest.NETStandard", version: "6.1.8", dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
                 { id: "Microsoft.IO.RecyclableMemoryStream", version: "1.2.2" },
                 { id: "Microsoft.Azure.KeyVault", version: "3.0.1"},
                 { id: "Microsoft.Azure.KeyVault.WebKey", version: "3.0.1"},
-                { id: "Microsoft.Rest.ClientRuntime", version: "3.0.0" },
+                { id: "Microsoft.Rest.ClientRuntime", version: "3.0.0", dependentPackageIdsToIgnore: ["Microsoft.NETCore.Runtime"]  },
                 { id: "Microsoft.Rest.ClientRuntime.Azure", version: "3.3.18" },
-                { id: "Microsoft.NETCore.Runtime", version: "1.0.2-rc2-23931" },
-                { id: "Microsoft.NETCore.Runtime.CoreCLR", version: "1.0.2-rc2-23931" },
-                { id: "Microsoft.NETCore.Runtime.Native", version: "1.0.2-rc2-23931" },
                 { id: "Microsoft.NETCore.Windows.ApiSets", version: "1.0.1" },
+
+                // Kusto SDK (for full framework)
+                { id: "Microsoft.Azure.Kusto.Data", version: "6.1.8" },
+                { id: "Microsoft.Azure.Kusto.Ingest", version: "6.1.8" },
+                { id: "Microsoft.Azure.Kusto.Tools", version: "2.2.2" },
+                { id: "Microsoft.Azure.Management.Kusto", version: "1.0.0" },
             ],
 
             doNotEnforceDependencyVersions: true,

@@ -82,7 +82,6 @@ namespace BuildXL.Ipc.Common
             {
                 if (numAttempts > 0)
                 {
-                    // TODO: consider implementing exponential backoff instead
                     await Task.Delay(waitTimeBetweenAttempts * numAttempts);
                 }
 

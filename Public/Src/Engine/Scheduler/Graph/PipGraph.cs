@@ -924,7 +924,7 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Gets all pip static fingerprints.
         /// </summary>
-        public IEnumerable<KeyValuePair<PipId, ContentFingerprint>> AllPipStaticFingerprints => PipStaticFingerprints.PipStaticFingerprints;
+        public IEnumerable<ConcurrentBigMapEntry<PipId, ContentFingerprint>> AllPipStaticFingerprints => PipStaticFingerprints.PipStaticFingerprints;
 
         /// <summary>
         /// Checks if artifact must remain writable.

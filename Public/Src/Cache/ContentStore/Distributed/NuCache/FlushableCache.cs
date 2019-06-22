@@ -125,7 +125,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
                 else
                 {
-                    var actionBlock = new ActionBlockSlim<KeyValuePair<ShortHash, ContentLocationEntry>>(_configuration.FlushDegreeOfParallelism, kv =>
+                    var actionBlock = new ActionBlockSlim<ConcurrentBigMapEntry<ShortHash, ContentLocationEntry>>(_configuration.FlushDegreeOfParallelism, kv =>
                     {
                         // Do not lock on GetLock here, as it will cause a deadlock with
                         // SetMachineExistenceAndUpdateDatabase. It is correct not do take any locks as well, because

@@ -123,7 +123,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                 var pathMap = ConcurrentBigMap<AbsolutePath, AbsolutePath>.Deserialize(
                     reader,
-                    () => new KeyValuePair<AbsolutePath, AbsolutePath>(
+                    () => new ConcurrentBigMapEntry<AbsolutePath, AbsolutePath>(
                         key: reader.ReadAbsolutePath(),
                         value: reader.ReadAbsolutePath()));
 

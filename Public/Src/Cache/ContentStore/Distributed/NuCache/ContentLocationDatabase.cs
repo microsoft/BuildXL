@@ -478,7 +478,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal abstract void Persist(OperationContext context, ShortHash hash, ContentLocationEntry entry);
 
         /// <nodoc />
-        internal virtual void PersistBatch(OperationContext context, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs)
+        internal virtual void PersistBatch(OperationContext context, IEnumerable<ConcurrentBigMapEntry<ShortHash, ContentLocationEntry>> pairs)
         {
             foreach (var pair in pairs)
             {

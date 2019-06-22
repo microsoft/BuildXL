@@ -29,7 +29,7 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Gets all pip static fingerprints.
         /// </summary>
-        public IEnumerable<KeyValuePair<PipId, ContentFingerprint>> PipStaticFingerprints => m_pipsToStaticFingerprints;
+        public IEnumerable<ConcurrentBigMapEntry<PipId, ContentFingerprint>> PipStaticFingerprints => m_pipsToStaticFingerprints;
 
         /// <summary>
         /// Creates an instance of <see cref="PipGraphStaticFingerprints"/>.
@@ -133,11 +133,11 @@ namespace BuildXL.Scheduler.Graph
 
             var staticFingerprintsToPips = ConcurrentBigMap<ContentFingerprint, PipId>.Deserialize(
                 reader,
-                () => new System.Collections.Generic.KeyValuePair<ContentFingerprint, PipId>(new ContentFingerprint(reader), PipId.Deserialize(reader)));
+                () => new ConcurrentBigMapEntry<ContentFingerprint, PipId>(new ContentFingerprint(reader), PipId.Deserialize(reader)));
 
             var pipsToStaticFingerprints = ConcurrentBigMap<PipId, ContentFingerprint>.Deserialize(
                 reader,
-                () => new System.Collections.Generic.KeyValuePair<PipId, ContentFingerprint>(PipId.Deserialize(reader), new ContentFingerprint(reader)));
+                () => new ConcurrentBigMapEntry<PipId, ContentFingerprint>(PipId.Deserialize(reader), new ContentFingerprint(reader)));
 
             return new PipGraphStaticFingerprints(staticFingerprintsToPips, pipsToStaticFingerprints);
         }

@@ -99,9 +99,9 @@ namespace BuildXL.Scheduler
             return TryFindSealDirectoryEntryContainingFileArtifact(pipTable, artifact).Value.PipId;
         }
 
-        private KeyValuePair<DirectoryArtifact, Node> TryFindSealDirectoryEntryContainingFileArtifact(PipTable pipTable, FileArtifact artifact)
+        private ConcurrentBigMapEntry<DirectoryArtifact, Node> TryFindSealDirectoryEntryContainingFileArtifact(PipTable pipTable, FileArtifact artifact)
         {
-            KeyValuePair<DirectoryArtifact, Node> smallestMatchingSeal = default(KeyValuePair<DirectoryArtifact, Node>);
+            ConcurrentBigMapEntry<DirectoryArtifact, Node> smallestMatchingSeal = default(ConcurrentBigMapEntry<DirectoryArtifact, Node>);
             int smallestMatchingSealSize = int.MaxValue;
             int next = GetHeadNodeIndex(artifact);
             while (next >= 0)
@@ -302,7 +302,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Handles updating the seal info for a path
         /// </summary>
-        private readonly struct UpdateSealItem : IPendingSetItem<KeyValuePair<HierarchicalNameId, SealInfo>>
+        private readonly struct UpdateSealItem : IPendingSetItem<ConcurrentBigMapEntry<HierarchicalNameId, SealInfo>>
         {
             private readonly SealedDirectoryTable m_owner;
             private readonly SealDirectory m_seal;
@@ -315,7 +315,7 @@ namespace BuildXL.Scheduler
 
             public int HashCode => m_seal.DirectoryRoot.Value.GetHashCode();
 
-            public bool Equals(KeyValuePair<HierarchicalNameId, SealInfo> other)
+            public bool Equals(ConcurrentBigMapEntry<HierarchicalNameId, SealInfo> other)
             {
                 return m_seal.DirectoryRoot.Value == other.Key;
             }
@@ -324,7 +324,7 @@ namespace BuildXL.Scheduler
             /// Adds a new head node for the sealed directory at path and
             /// updates flags for path in hierarchical name table
             /// </summary>
-            public KeyValuePair<HierarchicalNameId, SealInfo> CreateOrUpdateItem(KeyValuePair<HierarchicalNameId, SealInfo> oldItem, bool hasOldItem, out bool remove)
+            public ConcurrentBigMapEntry<HierarchicalNameId, SealInfo> CreateOrUpdateItem(ConcurrentBigMapEntry<HierarchicalNameId, SealInfo> oldItem, bool hasOldItem, out bool remove)
             {
                 remove = false;
                 int backingIndex;
@@ -350,7 +350,7 @@ namespace BuildXL.Scheduler
                 }
 
                 // We can safely update the head node here because we are in the write lock for this key
-                return new KeyValuePair<HierarchicalNameId, SealInfo>(
+                return new ConcurrentBigMapEntry<HierarchicalNameId, SealInfo>(
                     m_seal.DirectoryRoot.Value,
                     new SealInfo(fullSealIndex: fullSealIndex, headIndex: backingIndex));
             }

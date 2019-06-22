@@ -145,7 +145,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 reader,
                 () =>
                 {
-                    var kvp = new KeyValuePair<ContentFingerprint, (long semiStableHash, int pipGraphIndex)>(
+                    var kvp = new ConcurrentBigMapEntry<ContentFingerprint, (long semiStableHash, int pipGraphIndex)>(
                         reader.ReadContentFingerprint(buffer),
                         (reader.ReadInt64(), reader.ReadInt32()));
                     return kvp;

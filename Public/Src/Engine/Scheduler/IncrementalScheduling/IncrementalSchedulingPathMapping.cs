@@ -189,7 +189,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                         values.Add(value);
                     }
 
-                    return new KeyValuePair<AbsolutePath, HashSet<T>>(path, values);
+                    return new ConcurrentBigMapEntry<AbsolutePath, HashSet<T>>(path, values);
                 });
 
             return new IncrementalSchedulingPathMapping<T>(pathToValue, valueToPathApproximation);

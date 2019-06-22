@@ -1370,13 +1370,13 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                         pipProducers = PipProducers.Deserialize(reader);
                         cleanPips = ConcurrentBigMap<PipStableId, PipGraphSequenceNumber>.Deserialize(
                             reader,
-                            () => new KeyValuePair<PipStableId, PipGraphSequenceNumber>(reader.ReadPipStableId(), PipGraphSequenceNumber.Deserialize(reader)));
+                            () => new ConcurrentBigMapEntry<PipStableId, PipGraphSequenceNumber>(reader.ReadPipStableId(), PipGraphSequenceNumber.Deserialize(reader)));
                         materializedPips = ConcurrentBigSet<PipStableId>.Deserialize(
                             reader,
                             () => reader.ReadPipStableId());
                         cleanSourceFiles = ConcurrentBigMap<AbsolutePath, PipGraphSequenceNumber>.Deserialize(
                             reader,
-                            () => new KeyValuePair<AbsolutePath, PipGraphSequenceNumber>(reader.ReadAbsolutePath(), PipGraphSequenceNumber.Deserialize(reader)));
+                            () => new ConcurrentBigMapEntry<AbsolutePath, PipGraphSequenceNumber>(reader.ReadAbsolutePath(), PipGraphSequenceNumber.Deserialize(reader)));
                         dynamicallyObservedFiles = IncrementalSchedulingPathMapping<PipStableId>.Deserialize(reader, r => r.ReadPipStableId());
                         dynamicallyObservedEnumerations = IncrementalSchedulingPathMapping<PipStableId>.Deserialize(reader, r => r.ReadPipStableId());
                         pipOrigins = PipOrigins.Deserialize(reader);

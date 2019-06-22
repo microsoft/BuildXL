@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
@@ -170,25 +171,25 @@ namespace BuildXL.Scheduler.Graph
 
                 var pipProducers = ConcurrentBigMap<FileArtifact, NodeId>.Deserialize(
                     reader,
-                    () => new KeyValuePair<FileArtifact, NodeId>(
+                    () => new ConcurrentBigMapEntry<FileArtifact, NodeId>(
                         reader.ReadFileArtifact(),
                         new NodeId(reader.ReadUInt32())));
 
                 var opaqueDirectoryProducers = ConcurrentBigMap<DirectoryArtifact, NodeId>.Deserialize(
                     reader,
-                    () => new KeyValuePair<DirectoryArtifact, NodeId>(
+                    () => new ConcurrentBigMapEntry<DirectoryArtifact, NodeId>(
                         reader.ReadDirectoryArtifact(),
                         new NodeId(reader.ReadUInt32())));
 
                 var outputDirectoryRoots = ConcurrentBigMap<AbsolutePath, bool>.Deserialize(
                     reader,
-                    () => new KeyValuePair<AbsolutePath, bool>(
+                    () => new ConcurrentBigMapEntry<AbsolutePath, bool>(
                         reader.ReadAbsolutePath(),
                         reader.ReadBoolean()));
 
                 var compositeOutputDirectoryProducers = ConcurrentBigMap<DirectoryArtifact, NodeId>.Deserialize(
                     reader,
-                    () => new KeyValuePair<DirectoryArtifact, NodeId>(
+                    () => new ConcurrentBigMapEntry<DirectoryArtifact, NodeId>(
                         reader.ReadDirectoryArtifact(),
                         new NodeId(reader.ReadUInt32())));
 
@@ -216,13 +217,15 @@ namespace BuildXL.Scheduler.Graph
                             d[fileArtifact.Path] = latestWriteCount;
                         }
 
-                        return ConcurrentBigMap<AbsolutePath, int>.Create(capacity: d.Count, items: d);
+                        return ConcurrentBigMap<AbsolutePath, int>.Create(
+                            capacity: d.Count, 
+                            items: d.Select(kvp => new ConcurrentBigMapEntry<AbsolutePath, int>(kvp.Key, kvp.Value)));
                     });
 
                 var values = ConcurrentBigMap<(FullSymbol, QualifierId, AbsolutePath), NodeId>.Deserialize(
                     reader,
                     () =>
-                        new KeyValuePair<(FullSymbol, QualifierId, AbsolutePath), NodeId>(
+                        new ConcurrentBigMapEntry<(FullSymbol, QualifierId, AbsolutePath), NodeId>(
                                (
                                 reader.ReadFullSymbol(),
                                 reader.ReadQualifierId(),
@@ -232,14 +235,14 @@ namespace BuildXL.Scheduler.Graph
                 var specFiles = ConcurrentBigMap<FileArtifact, NodeId>.Deserialize(
                     reader,
                     () =>
-                        new KeyValuePair<FileArtifact, NodeId>(
+                        new ConcurrentBigMapEntry<FileArtifact, NodeId>(
                             reader.ReadFileArtifact(),
                             new NodeId(reader.ReadUInt32())));
 
                 var modules = ConcurrentBigMap<ModuleId, NodeId>.Deserialize(
                     reader,
                     () =>
-                        new KeyValuePair<ModuleId, NodeId>(
+                        new ConcurrentBigMapEntry<ModuleId, NodeId>(
                             reader.ReadModuleId(),
                             new NodeId(reader.ReadUInt32())));
 
@@ -249,7 +252,7 @@ namespace BuildXL.Scheduler.Graph
                     {
                         var path = reader.ReadAbsolutePath();
                         var directoryArtifact = reader.ReadDirectoryArtifact();
-                        return new KeyValuePair<AbsolutePath, DirectoryArtifact>(path, directoryArtifact);
+                        return new ConcurrentBigMapEntry<AbsolutePath, DirectoryArtifact>(path, directoryArtifact);
                     });
 
                 var temporaryPaths = ConcurrentBigMap<AbsolutePath, PipId>.Deserialize(
@@ -258,7 +261,7 @@ namespace BuildXL.Scheduler.Graph
                     {
                         var path = reader.ReadAbsolutePath();
                         var pipId = PipId.Deserialize(reader);
-                        return new KeyValuePair<AbsolutePath, PipId>(path, pipId);
+                        return new ConcurrentBigMapEntry<AbsolutePath, PipId>(path, pipId);
                     });
 
                 var sealDirectoryNodes = ConcurrentBigMap<DirectoryArtifact, NodeId>.Deserialize(
@@ -267,7 +270,7 @@ namespace BuildXL.Scheduler.Graph
                         {
                             var directory = reader.ReadDirectoryArtifact();
                             var nodeId = reader.ReadUInt32();
-                            return new KeyValuePair<DirectoryArtifact, NodeId>(directory, directory.IsValid ? new NodeId(nodeId) : NodeId.Invalid);
+                            return new ConcurrentBigMapEntry<DirectoryArtifact, NodeId>(directory, directory.IsValid ? new NodeId(nodeId) : NodeId.Invalid);
                         });
 
                 var rewritingPips = ConcurrentBigSet<PipId>.Deserialize(reader, () => PipId.Deserialize(reader));
@@ -279,7 +282,7 @@ namespace BuildXL.Scheduler.Graph
                         {
                             var servicePipId = PipId.Deserialize(reader);
                             var clientPipIds = ConcurrentBigSet<PipId>.Deserialize(reader, () => PipId.Deserialize(reader));
-                            return new KeyValuePair<PipId, ConcurrentBigSet<PipId>>(servicePipId, clientPipIds);
+                            return new ConcurrentBigMapEntry<PipId, ConcurrentBigSet<PipId>>(servicePipId, clientPipIds);
                         });
 
                 var apiServerMoniker = reader.ReadStringId();

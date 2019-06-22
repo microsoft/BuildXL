@@ -19,6 +19,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Threading;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -456,12 +457,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        internal override void PersistBatch(OperationContext context, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs)
+        internal override void PersistBatch(OperationContext context, IEnumerable<ConcurrentBigMapEntry<ShortHash, ContentLocationEntry>> pairs)
         {
             _keyValueStore.Use((store, state) => PersistBatchHelper(store, state.pairs, state.db), (pairs, db: this)).ThrowOnError();
         }
 
-        private static Unit PersistBatchHelper(IBuildXLKeyValueStore store, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs, RocksDbContentLocationDatabase db)
+        private static Unit PersistBatchHelper(IBuildXLKeyValueStore store, IEnumerable<ConcurrentBigMapEntry<ShortHash, ContentLocationEntry>> pairs, RocksDbContentLocationDatabase db)
         {
             store.ApplyBatch(
                 pairs.Select(pair => db.GetKey(pair.Key)),

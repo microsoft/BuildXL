@@ -16,12 +16,12 @@ namespace BuildXL.Utilities.Collections
     /// <typeparam name="TKey">the key type</typeparam>
     /// <typeparam name="TValue">the value type</typeparam>
     [SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
-    public sealed class ConcurrentBigMap<TKey, TValue> : IReadOnlyCollection<KeyValuePair<TKey, TValue>>
+    public sealed class ConcurrentBigMap<TKey, TValue> : IReadOnlyCollection<ConcurrentBigMapEntry<TKey, TValue>>
     {
         /// <summary>
         /// The underlying set for the map
         /// </summary>
-        public readonly ConcurrentBigSet<KeyValuePair<TKey, TValue>> BackingSet;
+        public readonly ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>> BackingSet;
 
         /// <summary>
         /// The comparer used to comparer key-value pairs
@@ -39,7 +39,7 @@ namespace BuildXL.Utilities.Collections
         /// <param name="backingSet">the backing set for the map</param>
         /// <param name="keyComparer">the comparer for keys</param>
         /// <param name="valueComparer">the comparer for values used in compare exchange operations</param>
-        public ConcurrentBigMap(ConcurrentBigSet<KeyValuePair<TKey, TValue>> backingSet, IEqualityComparer<TKey> keyComparer = null, IEqualityComparer<TValue> valueComparer = null)
+        public ConcurrentBigMap(ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>> backingSet, IEqualityComparer<TKey> keyComparer = null, IEqualityComparer<TValue> valueComparer = null)
         {
             Contract.Requires(backingSet != null);
 
@@ -57,11 +57,11 @@ namespace BuildXL.Utilities.Collections
         /// <param name="keyComparer">the comparer for keys</param>
         /// <param name="valueComparer">the comparer for values used in compare exchange operations</param>
         public ConcurrentBigMap(
-            int concurrencyLevel = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.DefaultConcurrencyLevel,
-            int capacity = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.DefaultCapacity,
-            int ratio = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.DefaultBucketToItemsRatio,
+            int concurrencyLevel = ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>.DefaultConcurrencyLevel,
+            int capacity = ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>.DefaultCapacity,
+            int ratio = ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>.DefaultBucketToItemsRatio,
             IEqualityComparer<TKey> keyComparer = null, IEqualityComparer<TValue> valueComparer = null)
-            : this(new ConcurrentBigSet<KeyValuePair<TKey, TValue>>(concurrencyLevel, capacity, ratio), keyComparer, valueComparer)
+            : this(new ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>(concurrencyLevel, capacity, ratio), keyComparer, valueComparer)
         {
         }
 
@@ -75,10 +75,10 @@ namespace BuildXL.Utilities.Collections
         /// <param name="keyComparer">the comparer for keys</param>
         /// <param name="valueComparer">the comparer for values used in compare exchange operations</param>
         public static ConcurrentBigMap<TKey, TValue> Create(
-            int concurrencyLevel = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.DefaultConcurrencyLevel,
-            int capacity = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.DefaultCapacity,
-            int ratio = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.DefaultBucketToItemsRatio,
-            IEnumerable<KeyValuePair<TKey, TValue>> items = null,
+            int concurrencyLevel = ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>.DefaultConcurrencyLevel,
+            int capacity = ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>.DefaultCapacity,
+            int ratio = ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>.DefaultBucketToItemsRatio,
+            IEnumerable<ConcurrentBigMapEntry<TKey, TValue>> items = null,
             IEqualityComparer<TKey> keyComparer = null, IEqualityComparer<TValue> valueComparer = null)
         {
             var result = new ConcurrentBigMap<TKey, TValue>(concurrencyLevel: concurrencyLevel, capacity: capacity, ratio: ratio, keyComparer: keyComparer, valueComparer: valueComparer);
@@ -101,7 +101,7 @@ namespace BuildXL.Utilities.Collections
         {
             Contract.Requires(convert != null);
 
-            return new ConcurrentBigMap<TKey, TNewValue>(BackingSet.ConvertUnsafe(kvp => new KeyValuePair<TKey, TNewValue>(kvp.Key, convert(kvp.Value))), m_keyComparer, valueComparer);
+            return new ConcurrentBigMap<TKey, TNewValue>(BackingSet.ConvertUnsafe(kvp => new ConcurrentBigMapEntry<TKey, TNewValue>(kvp.Key, convert(kvp.Value))), m_keyComparer, valueComparer);
         }
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace BuildXL.Utilities.Collections
         /// <remarks>
         /// This method is not threadsafe.
         /// </remarks>
-        public void Serialize(BinaryWriter writer, Action<KeyValuePair<TKey, TValue>> itemWriter)
+        public void Serialize(BinaryWriter writer, Action<ConcurrentBigMapEntry<TKey, TValue>> itemWriter)
         {
             Contract.Requires(writer != null);
             Contract.Requires(itemWriter != null);
@@ -127,14 +127,14 @@ namespace BuildXL.Utilities.Collections
         /// <param name="valueComparer">the comparer for values used in compare exchange operations</param>
         public static ConcurrentBigMap<TKey, TValue> Deserialize(
             BinaryReader reader,
-            Func<KeyValuePair<TKey, TValue>> itemReader,
-            int concurrencyLevel = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.DefaultConcurrencyLevel,
+            Func<ConcurrentBigMapEntry<TKey, TValue>> itemReader,
+            int concurrencyLevel = ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>.DefaultConcurrencyLevel,
             IEqualityComparer<TKey> keyComparer = null,
             IEqualityComparer<TValue> valueComparer = null)
         {
             Contract.Ensures(Contract.Result<ConcurrentBigMap<TKey, TValue>>() != null);
 
-            var set = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.Deserialize(
+            var set = ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>.Deserialize(
                 reader,
                 itemReader,
                 concurrencyLevel);
@@ -149,7 +149,7 @@ namespace BuildXL.Utilities.Collections
             return BackingSet.Validate(new Comparer(m_keyComparer));
         }
 
-        private sealed class Comparer : IEqualityComparer<KeyValuePair<TKey, TValue>>
+        private sealed class Comparer : IEqualityComparer<ConcurrentBigMapEntry<TKey, TValue>>
         {
             public readonly IEqualityComparer<TKey> KeyComparer;
 
@@ -158,12 +158,12 @@ namespace BuildXL.Utilities.Collections
                 KeyComparer = keyComparer;
             }
 
-            public bool Equals(KeyValuePair<TKey, TValue> x, KeyValuePair<TKey, TValue> y)
+            public bool Equals(ConcurrentBigMapEntry<TKey, TValue> x, ConcurrentBigMapEntry<TKey, TValue> y)
             {
                 return KeyComparer.Equals(x.Key, y.Key);
             }
 
-            public int GetHashCode(KeyValuePair<TKey, TValue> obj)
+            public int GetHashCode(ConcurrentBigMapEntry<TKey, TValue> obj)
             {
                 return KeyComparer.GetHashCode(obj.Key);
             }
@@ -177,7 +177,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>true if the key was found. Otherwise, false.</returns>
         public bool TryGetValue(TKey key, out TValue value)
         {
-            KeyValuePair<TKey, TValue> foundPair;
+            ConcurrentBigMapEntry<TKey, TValue> foundPair;
             if (BackingSet.TryGetItem(CreateKeyValuePendingItem(key), out foundPair))
             {
                 value = foundPair.Value;
@@ -193,7 +193,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         /// <param name="key">The key of the value to get.</param>
         /// <returns>the result of the get operation</returns>
-        public ConcurrentBigSet<KeyValuePair<TKey, TValue>>.GetAddOrUpdateResult TryGet(TKey key)
+        public ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>.GetAddOrUpdateResult TryGet(TKey key)
         {
             return BackingSet.GetOrAddItem(CreateKeyValuePendingItem(key), allowAdd: false);
         }
@@ -249,7 +249,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         /// <param name="key">the key to add/update</param>
         /// <param name="value">the value</param>
-        public ConcurrentBigSet<KeyValuePair<TKey, TValue>>.GetAddOrUpdateResult Update(TKey key, TValue value)
+        public ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>.GetAddOrUpdateResult Update(TKey key, TValue value)
         {
             return BackingSet.UpdateItem(CreateKeyValuePendingItem(key, value));
         }
@@ -261,7 +261,7 @@ namespace BuildXL.Utilities.Collections
         /// <param name="key">the key to add</param>
         /// <param name="data">additional data used to create the value</param>
         /// <param name="addValueFactory">creates the value to add</param>
-        public ConcurrentBigSet<KeyValuePair<TKey, TValue>>.GetAddOrUpdateResult GetOrAdd<TData>(TKey key, TData data, Func<TKey, TData, TValue> addValueFactory)
+        public ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>.GetAddOrUpdateResult GetOrAdd<TData>(TKey key, TData data, Func<TKey, TData, TValue> addValueFactory)
         {
             var result = BackingSet.GetOrAddItem(
                 new KeyValuePendingItem<DelegateValueCreator<TData>>(
@@ -277,7 +277,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         /// <param name="key">the key to add</param>
         /// <param name="value">the value to add</param>
-        public ConcurrentBigSet<KeyValuePair<TKey, TValue>>.GetAddOrUpdateResult GetOrAdd(TKey key, TValue value)
+        public ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>.GetAddOrUpdateResult GetOrAdd(TKey key, TValue value)
         {
             return BackingSet.GetOrAddItem(CreateKeyValuePendingItem(key, value));
         }
@@ -290,7 +290,7 @@ namespace BuildXL.Utilities.Collections
         /// <param name="data">additional data used to create the value</param>
         /// <param name="addValueFactory">creates the value to add</param>
         /// <param name="updateValueFactory">updates the value</param>
-        public ConcurrentBigSet<KeyValuePair<TKey, TValue>>.GetAddOrUpdateResult AddOrUpdate<TData>(TKey key, TData data, Func<TKey, TData, TValue> addValueFactory, Func<TKey, TData, TValue, TValue> updateValueFactory)
+        public ConcurrentBigSet<ConcurrentBigMapEntry<TKey, TValue>>.GetAddOrUpdateResult AddOrUpdate<TData>(TKey key, TData data, Func<TKey, TData, TValue> addValueFactory, Func<TKey, TData, TValue, TValue> updateValueFactory)
         {
             var result = BackingSet.UpdateItem(
                 new KeyValuePendingItem<DelegateValueCreator<TData>>(
@@ -417,7 +417,7 @@ namespace BuildXL.Utilities.Collections
         /// Gets the enumerator for the entries in the map
         /// NOTE: Enumeration NOT threadsafe with respect to update/remove operations.
         /// </summary>
-        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        public IEnumerator<ConcurrentBigMapEntry<TKey, TValue>> GetEnumerator()
         {
             return BackingSet.UnsafeGetList().GetEnumerator();
         }
@@ -487,7 +487,7 @@ namespace BuildXL.Utilities.Collections
             }
         }
 
-        private readonly struct KeyValuePendingItem<TMapOperation> : IPendingSetItem<KeyValuePair<TKey, TValue>>
+        private readonly struct KeyValuePendingItem<TMapOperation> : IPendingSetItem<ConcurrentBigMapEntry<TKey, TValue>>
             where TMapOperation : IMapOperation
         {
             private readonly IEqualityComparer<TKey> m_keyComparer;
@@ -519,7 +519,7 @@ namespace BuildXL.Utilities.Collections
 
             public int HashCode => m_keyComparer.GetHashCode(Key);
 
-            public bool Equals(KeyValuePair<TKey, TValue> other)
+            public bool Equals(ConcurrentBigMapEntry<TKey, TValue> other)
             {
                 return m_keyComparer.Equals(Key, other.Key) &&
 
@@ -527,15 +527,15 @@ namespace BuildXL.Utilities.Collections
                     (m_valueComparer == null || m_valueComparer.Equals(ComparisonValue, other.Value));
             }
 
-            public KeyValuePair<TKey, TValue> CreateOrUpdateItem(KeyValuePair<TKey, TValue> oldItem, bool hasOldItem, out bool remove)
+            public ConcurrentBigMapEntry<TKey, TValue> CreateOrUpdateItem(ConcurrentBigMapEntry<TKey, TValue> oldItem, bool hasOldItem, out bool remove)
             {
                 remove = !m_allowCreate;
                 if (remove)
                 {
-                    return default(KeyValuePair<TKey, TValue>);
+                    return default(ConcurrentBigMapEntry<TKey, TValue>);
                 }
 
-                return new KeyValuePair<TKey, TValue>(Key, ValueCreator.CreateOrUpdateItem(Key, oldItem.Value, hasOldItem, out remove));
+                return new ConcurrentBigMapEntry<TKey, TValue>(Key, ValueCreator.CreateOrUpdateItem(Key, oldItem.Value, hasOldItem, out remove));
             }
         }
     }

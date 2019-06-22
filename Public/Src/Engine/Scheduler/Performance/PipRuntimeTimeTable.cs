@@ -153,7 +153,7 @@ namespace BuildXL.Scheduler
                     using (BuildXLWriter writer = new BuildXLWriter(debug: false, stream: stream, leaveOpen: true, logStats: false))
                     {
                         writer.Write(m_runtimeData.Count);
-                        foreach (KeyValuePair<long, PipHistoricPerfData> kvp in m_runtimeData)
+                        foreach (var kvp in m_runtimeData)
                         {
                             writer.Write(kvp.Key);
                             kvp.Value.Serialize(writer);

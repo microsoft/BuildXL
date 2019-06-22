@@ -138,7 +138,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                             return existingSet;
                         });
 
-                    return new KeyValuePair<AbsolutePath, PipStableId>(path, producer);
+                    return new ConcurrentBigMapEntry<AbsolutePath, PipStableId>(path, producer);
                 });
 
             return new PipProducers(pipProducers, producedPaths);

@@ -3363,7 +3363,7 @@ namespace BuildXL.Scheduler.Artifacts
                 FileArtifactContentHashesIndex = fileArtifactContentHashesIndex;
             }
 
-            private KeyValuePair<FileArtifact, FileMaterializationInfo> GetEntry(FileContentManager manager)
+            private ConcurrentBigMapEntry<FileArtifact, FileMaterializationInfo> GetEntry(FileContentManager manager)
             {
                 Contract.Assert(FileArtifactContentHashesIndex >= 0);
                 return manager

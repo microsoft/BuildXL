@@ -946,7 +946,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (realizationMode != FileRealizationMode.CopyNoVerify && result.ContentHash != contentHash && result.Succeeded)
                 {
-                    return new PutResult(result.ContentHash, $"Content at {path} had actual content hash {result.ContentHash.ToShortString()} and did not match expected value of {contentHash.ToShortString()}");
+                    return new PutResult(result.ContentHash, $"Content at {path} had actual content hash {result.ContentHash} and did not match expected value of {contentHash}");
                 }
 
                 return result;
@@ -1243,7 +1243,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                         _tracer.Debug(
                             context,
-                            $"Content at {contentFile} content hash {hashFromContents.ToShortString()} did not match expected value of {hashFromPath.ToShortString()}.");
+                            $"Content at {contentFile} content hash {hashFromContents} did not match expected value of {hashFromPath}.");
                     }
                 }));
 
@@ -1322,14 +1322,14 @@ namespace BuildXL.Cache.ContentStore.Stores
                     if (fileInfo == null)
                     {
                         contentDirectoryMismatchCount++;
-                        _tracer.Always(context, $"Cache content directory for hash {fileSystemHash.ToShortString()} from disk does not exist.");
+                        _tracer.Always(context, $"Cache content directory for hash {fileSystemHash} from disk does not exist.");
                     }
                     else if (fileInfo.ReplicaCount != fileSystemHashReplicaCount)
                     {
                         contentDirectoryMismatchCount++;
                         _tracer.Always(
                             context,
-                            $"Directory for hash {fileSystemHash.ToShortString()} describes {fileInfo.ReplicaCount} replicas, but {fileSystemHashReplicaCount} replicas exist on disk.");
+                            $"Directory for hash {fileSystemHash} describes {fileInfo.ReplicaCount} replicas, but {fileSystemHashReplicaCount} replicas exist on disk.");
                     }
 
                     return null;
@@ -1347,7 +1347,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     {
                         _tracer.Always(
                             context,
-                            $"Directory for hash {missingHash.ToShortString()} describes {fileInfo.ReplicaCount} replicas, but no replicas exist on disk.");
+                            $"Directory for hash {missingHash} describes {fileInfo.ReplicaCount} replicas, but no replicas exist on disk.");
                     }
 
                     return null;
@@ -1492,7 +1492,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 var r = await PutStreamImplAsync(context, stream, contentHash.HashType, pinRequest);
 
                 return r.ContentHash != contentHash && r.Succeeded
-                    ? new PutResult(r, contentHash, $"Calculated hash={r.ContentHash.ToShortString()} does not match caller's hash={contentHash.ToShortString()}")
+                    ? new PutResult(r, contentHash, $"Calculated hash={r.ContentHash} does not match caller's hash={contentHash}")
                     : r;
             });
         }
@@ -1553,7 +1553,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                             return true;
                         }))
                     {
-                        return new PutResult(contentHash, $"{nameof(PutStreamAsync)} failed to put {pathToTempContent} with hash {contentHash.ToShortString()} with an unknown error");
+                        return new PutResult(contentHash, $"{nameof(PutStreamAsync)} failed to put {pathToTempContent} with hash {contentHash} with an unknown error");
                     }
 
                     return new PutResult(contentHash, contentSize)
@@ -1618,13 +1618,13 @@ namespace BuildXL.Cache.ContentStore.Stores
             try
             {
                 ForceDeleteFile(path);
-                _tracer.Debug(context, $"Deleted temp content at '{path.Path}' for {contentHash.ToShortString()}");
+                _tracer.Debug(context, $"Deleted temp content at '{path.Path}' for {contentHash}");
             }
             catch (Exception exception) when (exception is IOException || exception is BuildXLException || exception is UnauthorizedAccessException)
             {
                 _tracer.Warning(
                     context,
-                    $"Unable to delete temp content at '{path.Path}' for {contentHash.ToShortString()} due to exception: {exception}");
+                    $"Unable to delete temp content at '{path.Path}' for {contentHash} due to exception: {exception}");
             }
         }
 
@@ -2083,7 +2083,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 if (contentHashHandle == null)
                 {
-                    _tracer.Debug(context, $"Skipping check of pinned size for {contentHash.ToShortString()} because another thread has a lock on it.");
+                    _tracer.Debug(context, $"Skipping check of pinned size for {contentHash} because another thread has a lock on it.");
                     return new EvictResult(contentHashInfo, evictedSize: 0, evictedFiles: 0, pinnedSize: 0, successfullyEvictedHash: false);
                 }
 
@@ -2158,7 +2158,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                                 evicted?.Invoke(fileInfo.FileSize);
                                                 _tracer.Diagnostic(
                                                     context,
-                                                    $"Evicted content hash=[{contentHash.ToShortString()}] replica=[{replicaIndex}] size=[{fileInfo.FileSize}]");
+                                                    $"Evicted content hash=[{contentHash}] replica=[{replicaIndex}] size=[{fileInfo.FileSize}]");
                                                 evictedFiles++;
                                                 evictedSize += fileInfo.FileSize;
                                                 evictions.Add(new ContentHashWithSize(contentHash, fileInfo.FileSize));
@@ -2432,7 +2432,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         }
                         else
                         {
-                            return new PlaceFileResult(e, $"Failed to place hash=[{contentHash.ToShortString()}] to path=[{destinationPath}]");
+                            return new PlaceFileResult(e, $"Failed to place hash=[{contentHash}] to path=[{destinationPath}]");
                         }
                     }
 
@@ -2496,7 +2496,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                             }
                             else
                             {
-                                return new PlaceFileResult(e, $"Failed to place hash=[{contentHash.ToShortString()}] to path=[{destinationPath}]");
+                                return new PlaceFileResult(e, $"Failed to place hash=[{contentHash}] to path=[{destinationPath}]");
                             }
                         }
                     }
@@ -2650,7 +2650,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     _tracer.Warning(
                         context,
-                        $"Missing replica for hash=[{contentHash.ToShortString()}]. Recreating replica=[{replicaPath}] from primary replica.");
+                        $"Missing replica for hash=[{contentHash}]. Recreating replica=[{replicaPath}] from primary replica.");
                     Interlocked.Increment(ref _contentDirectoryMismatchCount);
                     await SafeCopyFileAsync(
                             context,
@@ -2711,7 +2711,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 _tracer.Warning(
                     context,
-                    $"Removed content directory entry for hash {contentHash.ToShortString()} because the cache does not have content at {primaryPath}.");
+                    $"Removed content directory entry for hash {contentHash} because the cache does not have content at {primaryPath}.");
                 Interlocked.Increment(ref _contentDirectoryMismatchCount);
                 return true;
             }
@@ -2739,7 +2739,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (extraReplicaPaths.Any())
             {
-                _tracer.Warning(context, $"Unexpected cache blob for hash=[{contentHash.ToShortString()}]. Removing extra blob(s).");
+                _tracer.Warning(context, $"Unexpected cache blob for hash=[{contentHash}]. Removing extra blob(s).");
                 Interlocked.Increment(ref _contentDirectoryMismatchCount);
             }
 
@@ -2760,7 +2760,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 SafeForceDeleteFile(context, replicaPath);
             }
 
-            _tracer.Debug(context, $"Removing content directory entry for corrupted hash {contentHash.ToShortString()}.");
+            _tracer.Debug(context, $"Removing content directory entry for corrupted hash {contentHash}.");
             await ContentDirectory.RemoveAsync(contentHash);
 
             throw new ContentHashMismatchException(destinationPath, computedHash, contentHash);
@@ -2970,13 +2970,13 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 if (!pinned)
                 {
-                    throw new CacheException("Expected content with hash {0} to be pinned, but it was not.", contentHash.ToShortString());
+                    throw new CacheException("Expected content with hash {0} to be pinned, but it was not.", contentHash);
                 }
 
                 if (verifyPinContext != null && !verifyPinContext.Contains(contentHash))
                 {
                     throw new CacheException(
-                        "Expected content with hash {0} was pinned, but not to the expected pin context.", contentHash.ToShortString());
+                        "Expected content with hash {0} was pinned, but not to the expected pin context.", contentHash);
                 }
             }
 

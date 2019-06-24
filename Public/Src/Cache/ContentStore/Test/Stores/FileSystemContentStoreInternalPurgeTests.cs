@@ -264,13 +264,13 @@ namespace ContentStoreTest.Stores
         protected async Task AssertContainsHash(IContentStoreInternal store, ContentHash contentHash)
         {
             var contains = await store.ContainsAsync(Context, contentHash);
-            contains.Should().BeTrue($"Expected hash={contentHash.ToShortString()} to be present but was not");
+            contains.Should().BeTrue($"Expected hash={contentHash} to be present but was not");
         }
 
         protected async Task AssertDoesNotContain(IContentStoreInternal store, ContentHash contentHash)
         {
             var contains = await store.ContainsAsync(Context, contentHash);
-            contains.Should().BeFalse($"Expected hash={contentHash.ToShortString()} to not be present but was");
+            contains.Should().BeFalse($"Expected hash={contentHash} to not be present but was");
         }
 
         protected async Task<bool> ContainsAsync(IContentStoreInternal store, ContentHash contentHash)

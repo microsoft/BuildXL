@@ -32,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Distributed
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"[ContentHash={ContentHash.ToShortString()} Exists={Exists}]";
+            return $"[ContentHash={ContentHash} Exists={Exists}]";
         }
     }
 }

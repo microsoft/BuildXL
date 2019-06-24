@@ -144,7 +144,7 @@ function startContentStoreApp {
         /logdirectorypath:${CACHE_ROOT}/logs)
 
     pushd "${CACHE_ROOT}" > /dev/null
-    ${BUILDXL_BIN}/ContentStoreApp "${casaasArgs[@]}" #> "${CACHE_STDOUT}" &
+    ${BUILDXL_BIN}/ContentStoreApp "${casaasArgs[@]}" > "${CACHE_STDOUT}" &
     echo "Exited with code: $?"
     popd > /dev/null
 }
@@ -198,11 +198,11 @@ else
 fi
 
 # run the build
-# runBuildXL "$@" || print_error "Build failed."
+runBuildXL "$@" || print_error "Build failed."
 
 # in any case, kill ContentAppStore
 print_info "Shutting down ContentAppStore..."
-kill -s TERM $casaasPid
+kill -s INT $casaasPid
 sleep 1
 if [[ -z $(printRunningCasaasPid) ]]; then 
     print_info "Success"

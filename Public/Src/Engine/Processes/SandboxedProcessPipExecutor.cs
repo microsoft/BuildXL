@@ -942,7 +942,6 @@ namespace BuildXL.Processes
             else
             {
                 Tracing.Logger.Log.TranslatorInfo(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.TargetPath)), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.SourcePath)), "Translator: ");
-
             }
 
             if (m_fileAccessManifest.DirectoryTranslator.Translations.Count() == 0)
@@ -954,7 +953,7 @@ namespace BuildXL.Processes
             var reverseTranslator = m_fileAccessManifest.DirectoryTranslator.GetReverseTranslator();
             Tracing.Logger.Log.TranslatorInfo(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), string.Join(";", reverseTranslator.Translations.Select(t => t.TargetPath)), string.Join(";", reverseTranslator.Translations.Select(t => t.SourcePath)), "reverseTranslator: ");
 
-            return m_fileAccessManifest.DirectoryTranslator.GetReverseTranslator();
+            return reverseTranslator;
         }
 
         private async Task<SandboxedProcessPipExecutionResult> GetAndProcessResultAsync(

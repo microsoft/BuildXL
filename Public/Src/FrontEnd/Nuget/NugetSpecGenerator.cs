@@ -155,38 +155,26 @@ namespace BuildXL.FrontEnd.Nuget
                     // Compile items
                     if (TryGetValueForFrameworkAndFallbacks(analyzedPackage.References, new NugetTargetFramework(monikers.First()), out IReadOnlyList<RelativePath> refAssemblies))
                     {
-                        foreach (var assembly in refAssemblies)
-                        {
-                            compile.Add(CreateSimpleBinary(assembly));
-                        }
+                        compile.AddRange(refAssemblies.Select(r => CreateSimpleBinary(r)));
                     }
 
                     // Runtime items
                     if (TryGetValueForFrameworkAndFallbacks(analyzedPackage.Libraries, new NugetTargetFramework(monikers.First()), out IReadOnlyList<RelativePath> libAssemblies))
                     {
-                        foreach (var assembly in libAssemblies)
-                        {
-                            runtime.Add(CreateSimpleBinary(assembly));
-                        }
+                        runtime.AddRange(libAssemblies.Select(l => CreateSimpleBinary(l)));
                     }
 
                     // For full framework dependencies we unconditionally include all the distinct dependencies from the nuspec file,
                     // .NETStandard dependencies are only included if the monikor and the parsed target framework match!
                     if (m_nugetFrameworkMonikers.IsFullFrameworkMoniker(monikers.First()))
                     {
-                        foreach (var dependencySpecificFramework in allFullFrameworkDeps)
-                        {
-                            dependencies.Add(CreateImportFromForDependency(dependencySpecificFramework));
-                        }
+                        dependencies.AddRange(allFullFrameworkDeps.Select(dep => CreateImportFromForDependency(dep)));
                     }
                     else
                     {
                         if (analyzedPackage.DependenciesPerFramework.TryGetValue(monikers.First(), out IReadOnlyList<INugetPackage> dependencySpecificFrameworks))
                         {
-                            foreach (var dependencySpecificFramework in dependencySpecificFrameworks)
-                            {
-                                dependencies.Add(CreateImportFromForDependency(dependencySpecificFramework));
-                            }
+                            dependencies.AddRange(dependencySpecificFrameworks.Select(dep => CreateImportFromForDependency(dep)));\
                         }
                     }
 

@@ -1607,6 +1607,21 @@ namespace BuildXL.Processes
 
             // Untrack the globally untracked paths specified in the configuration 
             var reverseTranslator = m_fileAccessManifest.DirectoryTranslator?.GetReverseTranslator();
+
+            if (m_fileAccessManifest.DirectoryTranslator != null)
+            {
+                var targets = string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.TargetPath));
+                var sources = string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.SourcePath));
+                Tracing.Logger.Log.TranslatorInfo(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), targets, sources, "DirectoryTranslator");
+            }
+
+            if (reverseTranslator != null)
+            {
+                var targets = string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.TargetPath));
+                var sources = string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.SourcePath));
+                Tracing.Logger.Log.TranslatorInfo(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), targets, sources, "reverseTranslator");
+            }
+            
             foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
             {
                 // translate the path and untrack the translated one

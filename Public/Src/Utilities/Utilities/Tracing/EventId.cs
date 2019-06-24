@@ -119,7 +119,7 @@ namespace BuildXL.Utilities.Tracing
         TranslatePathInGlobalUnsafeUntrackedScopes = 93,
         EnvironmentValueForTempDisallowed = 94,
         CannotHonorLowPriority = 95,
-        // Reserved  = 96,
+        TranslatorInfo = 96,
         // Reserved  = 97,
         // Reserved  = 98,
         [SuppressMessage("Microsoft.Naming", "CA1700:IdentifiersShouldBeSpelledCorrectly")]

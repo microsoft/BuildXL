@@ -976,5 +976,20 @@ namespace BuildXL.Processes.Tracing
             string pipDescription,
             string path,
             string translatedPath);
+
+        [GeneratedEvent(
+            (int)EventId.TranslatorInfo,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (int)Events.Tasks.PipExecutor,
+            Message = Events.PipPrefix + "translator: Target is {target} and source is {source}")]
+        public abstract void TranslatorInfo(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string target,
+            string source,
+            string translator);
     }
 }

@@ -319,6 +319,9 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.DumpMounts:
                     m_analyzer = InitializeDumpMountsAnalyzer();
                     break;
+                case AnalysisMode.CopyFile:
+                    m_analyzer = InitializeCopyFilesAnalyzer();
+                    break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
                     break;
@@ -574,6 +577,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteCosineDumpPipHelp(writer);
+
+            writer.WriteLine("");
+            WriteCopyFilesAnalyzerHelp(writer);
         }
 
         public void LogEventSummary()

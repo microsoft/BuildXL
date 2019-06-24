@@ -165,7 +165,7 @@ namespace BuildXL.FrontEnd.Nuget
                     }
 
                     // For full framework dependencies we unconditionally include all the distinct dependencies from the nuspec file,
-                    // .NETStandard dependencies are only included if the monikor and the parsed target framework match!
+                    // .NETStandard dependencies are only included if the moniker and the parsed target framework match!
                     if (m_nugetFrameworkMonikers.IsFullFrameworkMoniker(monikers.First()))
                     {
                         dependencies.AddRange(allFullFrameworkDeps.Select(dep => CreateImportFromForDependency(dep)));

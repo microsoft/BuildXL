@@ -496,7 +496,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                     contentHashWithSizeAndLocations,
                                     cts,
                                     urgencyHint,
-                                    // We just traced all the hashes as a result of GetBulk call, no need to trace each and individual hash.
+                                    // We just traced all the hashes as a result of GetBulk call, no need to trace each individual hash.
                                     trace: false);
                                 if (!putResult)
                                 {

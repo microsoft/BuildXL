@@ -936,8 +936,23 @@ namespace BuildXL.Processes
             if (m_fileAccessManifest.DirectoryTranslator is null)
             {
                 m_fileAccessManifest.DirectoryTranslator = new DirectoryTranslator();
-                m_fileAccessManifest.DirectoryTranslator.AddTranslation(m_loggingConfiguration.SubstTarget.ToString(m_pathTable), m_loggingConfiguration.SubstSource.ToString(m_pathTable));
+                Tracing.Logger.Log.TranslatorInfo(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.TargetPath)), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.SourcePath)), "new created translator: ");
+
             }
+            else
+            {
+                Tracing.Logger.Log.TranslatorInfo(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.TargetPath)), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.SourcePath)), "Translator: ");
+
+            }
+
+            if (m_fileAccessManifest.DirectoryTranslator.Translations.Count() == 0)
+            {
+                m_fileAccessManifest.DirectoryTranslator.AddTranslation(m_loggingConfiguration.SubstTarget.ToString(m_pathTable), m_loggingConfiguration.SubstSource.ToString(m_pathTable));
+                Tracing.Logger.Log.TranslatorInfo(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.TargetPath)), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.SourcePath)), "new added translator: ");
+            }
+
+            var reverseTranslator = m_fileAccessManifest.DirectoryTranslator.GetReverseTranslator();
+            Tracing.Logger.Log.TranslatorInfo(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), string.Join(";", reverseTranslator.Translations.Select(t => t.TargetPath)), string.Join(";", reverseTranslator.Translations.Select(t => t.SourcePath)), "reverseTranslator: ");
 
             return m_fileAccessManifest.DirectoryTranslator.GetReverseTranslator();
         }

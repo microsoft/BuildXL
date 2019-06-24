@@ -111,7 +111,16 @@ namespace BuildXL.FrontEnd.Nuget
         public readonly List<PathAtom> NetCoreVersionHistory;
 
         /// <nodoc />
+        public readonly List<PathAtom> NetCoreAppVersionHistory;
+
+        /// <nodoc />
+        public readonly List<PathAtom> NetStandardToFullFrameworkCompatibility;
+
+        /// <nodoc />
         public Dictionary<string, PathAtom> TargetFrameworkNameToMoniker { get; }
+
+        /// <nodoc />
+        public bool IsFullFrameworkMoniker(PathAtom moniker) => FullFrameworkVersionHistory.Contains(moniker);
 
         /// <nodoc />
         public NugetFrameworkMonikers(StringTable stringTable)
@@ -138,6 +147,8 @@ namespace BuildXL.FrontEnd.Nuget
             NetCoreApp30  = Register(stringTable, "netcoreapp3.0",  ".NETCoreApp3.0", NetCoreVersionHistory);
             NetStandard21 = Register(stringTable, "netstandard2.1", ".NETStandard2.1", NetCoreVersionHistory);
 
+            NetCoreAppVersionHistory = new List<PathAtom>() { NetCoreApp20, NetCoreApp21, NetCoreApp22, NetCoreApp30 };
+
             Net10  = Register(stringTable, "net10",  ".NETFramework1.0", FullFrameworkVersionHistory);
             Net11  = Register(stringTable, "net11",  ".NETFramework1.1", FullFrameworkVersionHistory);
             Net20  = Register(stringTable, "net20",  ".NETFramework2.0", FullFrameworkVersionHistory);
@@ -150,6 +161,8 @@ namespace BuildXL.FrontEnd.Nuget
             Net461 = Register(stringTable, "net461", ".NETFramework4.6.1", FullFrameworkVersionHistory);
             Net462 = Register(stringTable, "net462", ".NETFramework4.6.2", FullFrameworkVersionHistory);
             Net472 = Register(stringTable, "net472", ".NETFramework4.7.2", FullFrameworkVersionHistory);
+
+            NetStandardToFullFrameworkCompatibility = new List<PathAtom>() { Net461, Net462, Net472 };
         }
 
         private PathAtom Register(StringTable stringTable, string smallMoniker, string largeMoniker, List<PathAtom> versions)

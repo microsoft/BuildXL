@@ -983,7 +983,7 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Events.Keywords.UserMessage,
             EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "translator: Target is {target} and source is {source}")]
+            Message = Events.PipPrefix + "{translator}: Target is {target} and source is {source}")]
         public abstract void TranslatorInfo(
             LoggingContext context,
             long pipSemiStableHash,

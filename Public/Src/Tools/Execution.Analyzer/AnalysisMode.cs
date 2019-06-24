@@ -54,5 +54,6 @@ namespace BuildXL.Execution.Analyzer
         DumpMounts,
         FailedPipsDump,
         PipFingerprint,
+        CopyFile
     }
 }

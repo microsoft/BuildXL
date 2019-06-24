@@ -736,7 +736,13 @@ namespace BuildXL.FrontEnd.Script
             return Task.Run(
                 () =>
                 {
-                    ParallelAlgorithms.WhileNotEmpty(new[] { Tuple.Create(rootPath, false) }, collect);
+                    ParallelAlgorithms.WhileNotEmpty(
+                        new ParallelOptions
+                        {
+                            CancellationToken = Context.CancellationToken
+                        },
+                        new[] { Tuple.Create(rootPath, false) }, 
+                        collect);
                     return true;
                 });
         }

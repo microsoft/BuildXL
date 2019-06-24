@@ -69,15 +69,15 @@ namespace BuildXL.Execution.Analyzer
         public override int Analyze()
         {
             List<string> copyFileLines = new List<string>();
-            foreach (var copyFilePipId in CachedGraph.PipTable.Keys.Where(pipId => CachedGraph.PipTable.GetPipType(pipId) == PipType.CopyFile))
+            foreach (var pip in CachedGraph.PipGraph.RetrievePipsOfType(PipType.CopyFile))
             {
-                CopyFile copyFilePip = (CopyFile)CachedGraph.PipTable.HydratePip(copyFilePipId, PipQueryContext.ViewerAnalyzer);
+                var copyFilePip = (CopyFile)pip;
                 string destination = copyFilePip.Destination.Path.ToString(CachedGraph.Context.PathTable);
                 string source = copyFilePip.Source.Path.ToString(CachedGraph.Context.PathTable);
                 copyFileLines.Add(destination + "\t" + source);
             }
 
-            File.WriteAllLines(m_outputFilePath, copyFileLines);
+            File.WriteAllLines(m_outputFilePath, copyFileLines.OrderBy(x => x));
             return 0;
         }
     }

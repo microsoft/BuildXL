@@ -13,18 +13,11 @@ namespace Library {
             ...(BuildXLSdk.isDotNetCoreBuild ? [
                 // TODO: This is to get a .Net Core build, but it may not pass tests
                 importFrom("System.Data.SQLite.Core").withQualifier({targetFramework: "net461"}).pkg,
-                
-                importFrom("Microsoft.Azure.Kusto.Data.NETStandard").pkg,
-                importFrom("Microsoft.Azure.Kusto.Ingest.NETStandard").pkg,
-                importFrom("Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard").pkg,
-                importFrom("Microsoft.Azure.Kusto.Cloud.Platform.NETStandard").pkg,
-                importFrom("Microsoft.Extensions.PlatformAbstractions").withQualifier({targetFramework: "net472"}).pkg,
             ] :
             [
                 importFrom("System.Data.SQLite.Core").pkg,
                 NetFx.System.Data.dll,
                 NetFx.System.Runtime.Serialization.dll,
-                importFrom("Microsoft.Azure.Kusto.Ingest").withQualifier({targetFramework: "net462"}).pkg,
             ]),
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             UtilitiesCore.dll,
@@ -37,7 +30,6 @@ namespace Library {
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("Grpc.Core").pkg,
             importFrom("Google.Protobuf").pkg,
-            importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("System.Interactive.Async").pkg,
 
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),

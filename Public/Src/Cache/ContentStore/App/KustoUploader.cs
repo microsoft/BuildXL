@@ -5,10 +5,11 @@ using System;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks.Dataflow;
+using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using Kusto.Ingest;
 
-namespace BuildXL.Cache.ContentStore.Logging
+namespace BuildXL.Cache.ContentStore.App
 {
     /// <summary>
     ///     Responsible for pumping provided log files to Kusto.

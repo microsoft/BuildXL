@@ -141,6 +141,11 @@ namespace BuildXL.FrontEnd.Nuget
                         return;
                     }
 
+                    if (analyzedPackage.IsNetStandardPackageOnly)
+                    {
+                        cases.AddRange(m_nugetFrameworkMonikers.NetStandardToFullFrameworkCompatibility.Select(m => new CaseClause(new LiteralExpression(m.ToString(m_pathTable.StringTable)))));
+                    }
+
                     cases.AddRange(monikers.Take(monikers.Count - 1).Select(m => new CaseClause(new LiteralExpression(m.ToString(m_pathTable.StringTable)))));
 
                     var compile = new List<IExpression>();
@@ -196,8 +201,8 @@ namespace BuildXL.FrontEnd.Nuget
                                     PropertyAccess("Contents", "all"),
                                     Array(compile),
                                     Array(runtime),
-                                    m_nugetFrameworkMonikers.IsFullFrameworkMoniker(monikers.Last()) 
-                                        ? Array(dependencies) 
+                                    m_nugetFrameworkMonikers.IsFullFrameworkMoniker(monikers.Last())
+                                        ? Array(dependencies)
                                         : Array(new CallExpression(new Identifier("...addIfLazy"),
                                             new BinaryExpression(
                                                 new PropertyAccessExpression("qualifier", "targetFramework"),
@@ -335,6 +340,11 @@ namespace BuildXL.FrontEnd.Nuget
         private bool TryCreateQualifier(NugetAnalyzedPackage analyzedPackage, out IStatement statement)
         {
             List<PathAtom> compatibleTfms = new List<PathAtom>();
+
+            if (analyzedPackage.IsNetStandardPackageOnly)
+            {
+                compatibleTfms.AddRange(m_nugetFrameworkMonikers.NetStandardToFullFrameworkCompatibility);
+            }
 
             FindAllCompatibleFrameworkMonikers(analyzedPackage,
                 (List<PathAtom> monikers) => compatibleTfms.AddRange(monikers),

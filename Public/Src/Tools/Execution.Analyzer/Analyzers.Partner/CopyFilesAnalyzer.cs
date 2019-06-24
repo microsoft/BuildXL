@@ -33,7 +33,7 @@ namespace BuildXL.Execution.Analyzer
                 }
                 else
                 {
-                    throw Error("Unknown option for dump pip analysis: {0}", opt.Name);
+                    throw Error("Unknown option for copy file analysis: {0}", opt.Name);
                 }
             }
 
@@ -48,7 +48,7 @@ namespace BuildXL.Execution.Analyzer
         private static void WriteCopyFilesAnalyzerHelp(HelpWriter writer)
         {
             writer.WriteBanner("Copy Files Analysis");
-            writer.WriteModeOption(nameof(AnalysisMode.DumpPip), "Lists all copy files by: destination src");
+            writer.WriteModeOption(nameof(AnalysisMode.CopyFile), "Lists all copy files by: destination src");
             writer.WriteOption("outputFile", "Required. The location of the output file.", shortName: "o");
         }
     }

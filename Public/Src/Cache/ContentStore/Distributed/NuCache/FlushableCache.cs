@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;

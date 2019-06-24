@@ -452,6 +452,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             try
             {
+                // Tracing the hashes here for the entire list, instead of tracing one hash at a time inside TryCopyAndPutAsync method.
+
                 // This returns failure if any item in the batch wasn't copied locally
                 // TODO: split results and call PlaceFile on successfully copied files (bug 1365340)
                 if (!getBulkResult.Succeeded || !getBulkResult.ContentHashesInfo.Any())
@@ -463,6 +465,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 "Metadata records not found in content location store"))
                         .AsIndexedTasks();
                 }
+
+                Tracer.Debug(context, $"Copying {getBulkResult.ContentHashesInfo.Count} files locally.");
 
                 // TransformBlock is supposed to return items in FIFO order, so we don't need to index the input
                 var copyFilesLocallyBlock =
@@ -491,7 +495,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                     OperationContext(context),
                                     contentHashWithSizeAndLocations,
                                     cts,
-                                    urgencyHint);
+                                    urgencyHint,
+                                    // We just traced all the hashes as a result of GetBulk call, no need to trace each individual hash.
+                                    trace: false);
                                 if (!putResult)
                                 {
                                     result = new PlaceFileResult(putResult);
@@ -559,8 +565,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return BoolResult.Success;
         }
 
-        private async Task<PutResult> TryCopyAndPutAsync(Context context, ContentHashWithSizeAndLocations hashInfo, CancellationToken cts, UrgencyHint urgencyHint)
+        private async Task<PutResult> TryCopyAndPutAsync(Context context, ContentHashWithSizeAndLocations hashInfo, CancellationToken cts, UrgencyHint urgencyHint, bool trace = true)
         {
+            if (trace)
+            {
+                Tracer.Debug(context, $"Copying {hashInfo.ContentHash} with {hashInfo.Locations.Count} locations");
+            }
+
             using (var operationContext = TrackShutdown(context, cts))
             {
                 if (ContentLocationStore.AreBlobsSupported && hashInfo.Size > 0 && hashInfo.Size <= ContentLocationStore.MaxBlobSize)

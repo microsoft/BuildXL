@@ -931,6 +931,17 @@ namespace BuildXL.Processes
             info.FileAccessManifest.DirectoryTranslator = newTranslator;
         }
 
+        private DirectoryTranslator GetReverseTranslator()
+        {
+            if (m_fileAccessManifest.DirectoryTranslator is null)
+            {
+                m_fileAccessManifest.DirectoryTranslator = new DirectoryTranslator();
+                m_fileAccessManifest.DirectoryTranslator.AddTranslation(m_loggingConfiguration.SubstTarget.ToString(m_pathTable), m_loggingConfiguration.SubstSource.ToString(m_pathTable));
+            }
+
+            return m_fileAccessManifest.DirectoryTranslator.GetReverseTranslator();
+        }
+
         private async Task<SandboxedProcessPipExecutionResult> GetAndProcessResultAsync(
             ISandboxedProcess process,
             HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
@@ -1606,22 +1617,7 @@ namespace BuildXL.Processes
             }
 
             // Untrack the globally untracked paths specified in the configuration 
-            var reverseTranslator = m_fileAccessManifest.DirectoryTranslator?.GetReverseTranslator();
-
-            if (m_fileAccessManifest.DirectoryTranslator != null)
-            {
-                var targets = string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.TargetPath));
-                var sources = string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.SourcePath));
-                Tracing.Logger.Log.TranslatorInfo(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), targets, sources, "DirectoryTranslator");
-            }
-
-            if (reverseTranslator != null)
-            {
-                var targets = string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.TargetPath));
-                var sources = string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.SourcePath));
-                Tracing.Logger.Log.TranslatorInfo(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), targets, sources, "reverseTranslator");
-            }
-            
+            var reverseTranslator = GetReverseTranslator();           
             foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
             {
                 // translate the path and untrack the translated one

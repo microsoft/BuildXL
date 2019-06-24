@@ -532,9 +532,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             var task = _postInitializationCompletion.Task;
             if (!task.IsCompleted)
             {
+                var operationContext = new OperationContext(context);
+                operationContext.PerformOperation(Tracer, () => waitForCompletion(), traceOperationStarted: false).ThrowIfFailure();
+            }
+
+            BoolResult waitForCompletion()
+            {
                 context.Debug($"Post-initialization is not done. Waiting for it to finish...");
-                task.GetAwaiter().GetResult().ThrowIfFailure();
-                context.Debug($"Post-initialization is done.");
+                return task.GetAwaiter().GetResult();
             }
         }
 

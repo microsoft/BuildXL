@@ -74,7 +74,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
 
     const qualifierRelative = r`${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`;
     const parallelRelative = args.parallelBucketIndex !== undefined ? `${args.parallelBucketIndex}` : `0`;
-    const privilege = args.privilegeLevel !== undefined ? `${args.privilegeLevel}` : `standard`;
+    const privilege = args.privilegeLevel || "standard";
     const xunitLogDir = d`${Context.getMount("LogsDirectory").path}/XUnit/${Context.getLastActiveUseModuleName()}/${Context.getLastActiveUseName()}/${qualifierRelative}/${privilege}/${parallelRelative}`;
 
     result.getOutputFiles().map(f => Transformer.copyFile(f, p`${xunitLogDir}/${f.name}`));

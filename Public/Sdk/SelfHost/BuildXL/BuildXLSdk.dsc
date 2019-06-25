@@ -61,6 +61,9 @@ export interface Arguments extends Managed.Arguments {
 
     /** Whether to run LogGen. */
     generateLogs?: boolean;
+    
+    /** Whether we can use the fast lite version of loggen. Defaults to true. */
+    generateLogsLite?: boolean;
 
     /** Disables assembly signing with the BuildXL key. */
     skipAssemblySigning?: boolean;
@@ -476,30 +479,43 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         });
     }
 
-    // run the LogGenerator (if requested) and add generated log.g.cs file to `sources`
     if (args.generateLogs) {
-        let compileClosure = Managed.Helpers.computeCompileClosure(framework, args.references);
+        let compileClosure = args.generateLogsLite === false
+            ? Managed.Helpers.computeCompileClosure(framework, args.references)
+            : [
+                importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll.compile,
+                importFrom("BuildXL.Utilities.Instrumentation").Common.dll.compile,
+                ...(isDotNetCoreBuild ? [] : 
+                    importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").pkg.compile
+                ),
+                ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),
 
-        let extraSourceFile = LogGenerator.generate(
-            {
-                references: compileClosure,
-                sources: args.sources,
-                outputFile: "log.g.cs",
-                generationNamespace: rootNamespace,
-                defines: args.defineConstants,
-                aliases: brandingDefines,
-                targetFramework: qualifier.targetFramework,
-                targetRuntime: qualifier.targetRuntime,
-            }
-        );
+                // TODO More types needed from utilities into BuildXL.Utilities.Instrumentation.Common.
+                importFrom("BuildXL.Utilities").dll.compile,
+            ];
+        
+        let sources = args.generateLogsLite === false
+            ? args.sources
+            : args.sources.filter(f => f.parent.name === a`Tracing`);
 
+        let extraSourceFile = LogGenerator.generate({
+            references: compileClosure,
+            sources: sources,
+            outputFile: "log.g.cs",
+            generationNamespace: rootNamespace,
+            defines: args.defineConstants,
+            aliases: brandingDefines,
+            targetFramework: qualifier.targetFramework,
+            targetRuntime: qualifier.targetRuntime,
+        });
+        
         args = args.merge({
             sources: [
                 extraSourceFile
             ],
         });
     }
-
+    
     // Handle internalsVisibleTo
     if (args.internalsVisibleTo) {
         const internalsVisibleToFile = Transformer.writeAllLines({

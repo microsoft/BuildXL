@@ -38,6 +38,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly ISessionHandler<IContentSession> _sessionHandler;
         private readonly ContentServerAdapter _adapter;
         private readonly int _bufferSize;
+        private readonly int _gzipSizeBarrier;
         private readonly ByteArrayPool _pool;
 
         /// <nodoc />
@@ -46,7 +47,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Capabilities serviceCapabilities,
             ISessionHandler<IContentSession> sessionHandler,
             Dictionary<string, IContentStore> storesByName,
-            int? bufferSize = null)
+            int? bufferSize = null,
+            int? gzipSizeBarrier = null)
         {
             _logger = logger;
             _serviceCapabilities = serviceCapabilities;
@@ -54,6 +56,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _adapter = new ContentServerAdapter(this);
             _contentStoreByCacheName = storesByName;
             _bufferSize = bufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
+            _gzipSizeBarrier = gzipSizeBarrier ?? _bufferSize * 8;
             _pool = new ByteArrayPool(_bufferSize);
         }
 
@@ -250,7 +253,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             Debug.Assert(result.Stream != null);
                             long size = result.Stream.Length;
                             headers.Add("FileSize", size.ToString());
-                            if ((request.Compression == CopyCompression.Gzip) && (size > _bufferSize))
+                            if ((request.Compression == CopyCompression.Gzip) && (size > _gzipSizeBarrier))
                             {
                                 compression = CopyCompression.Gzip;
                             }

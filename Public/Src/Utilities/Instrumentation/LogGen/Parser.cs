@@ -51,7 +51,9 @@ namespace BuildXL.LogGen
             // First create a compilation to act upon values and run codegen
             var syntaxTrees = new ConcurrentBag<SyntaxTree>();
 
-            CSharpParseOptions opts = new CSharpParseOptions(preprocessorSymbols: m_configuration.PreprocessorDefines.ToArray());
+            CSharpParseOptions opts = new CSharpParseOptions(
+                preprocessorSymbols: m_configuration.PreprocessorDefines.ToArray(),
+                languageVersion: LanguageVersion.Latest);
 
             Parallel.ForEach(
                 m_configuration.SourceFiles.Distinct(StringComparer.OrdinalIgnoreCase),
@@ -84,7 +86,11 @@ namespace BuildXL.LogGen
                 "temp",
                 syntaxTrees,
                 metadataFileReferences,
-                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+                new CSharpCompilationOptions(
+                    OutputKind.DynamicallyLinkedLibrary,
+                    deterministic: true
+                )
+            );
 
             // Hold on to all of the errors. Most are probably ok but some may be relating to event definitions and
             // should cause errors
@@ -98,6 +104,7 @@ namespace BuildXL.LogGen
 
                 if (d.Severity == DiagnosticSeverity.Error)
                 {
+                    Console.WriteLine(d.ToString());
                     errorsByFile.Add(d.Location.SourceTree.FilePath, d);
                 }
             }
@@ -225,7 +232,7 @@ namespace BuildXL.LogGen
                 return false;
             }
 
-            if (loggingSite.SpecifiedMessageFormat.StartsWith(Events.LabeledProvenancePrefix, StringComparison.Ordinal) && method.Parameters.Length >= 2 && method.Parameters[1].Name != "location")
+            if (loggingSite.SpecifiedMessageFormat.StartsWith(EventConstants.LabeledProvenancePrefix, StringComparison.Ordinal) && method.Parameters.Length >= 2 && method.Parameters[1].Name != "location")
             {
                 m_errorReport.ReportError(method, "Message is using provenance prefix information to indicate line information. Therefore the location must be the first parameter after the LoggingContext. This method declares '{0}' as that parameter", method.Parameters[1].Name);
                 return false;

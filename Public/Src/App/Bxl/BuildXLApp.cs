@@ -1124,7 +1124,7 @@ namespace BuildXL
         /// </summary>
         private static void EnableTaskDiagnostics(ILoggingConfiguration configuration, BaseEventListener listener)
         {
-            for (int i = 1; i <= (int)Events.Tasks.Max; i++)
+            for (int i = 1; i <= (int)Tasks.Max; i++)
             {
                 if ((configuration.Diagnostic & (DiagnosticLevels)(1 << i)) != 0)
                 {
@@ -1376,7 +1376,7 @@ namespace BuildXL
                             writer,
                             loggingContext,
                             onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure);
-                        m_statisticsEventListener.EnableTaskDiagnostics(Events.Tasks.CommonInfrastructure);
+                        m_statisticsEventListener.EnableTaskDiagnostics(Tasks.CommonInfrastructure);
                         return m_statisticsEventListener;
                     });
             }
@@ -1392,7 +1392,7 @@ namespace BuildXL
                             writer,
                             m_baseTime,
                             onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure);
-                        listener.EnableTaskDiagnostics(Events.Tasks.CommonInfrastructure);
+                        listener.EnableTaskDiagnostics(Tasks.CommonInfrastructure);
                         return listener;
                     });
             }

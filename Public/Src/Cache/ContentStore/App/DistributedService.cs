@@ -55,8 +55,23 @@ namespace BuildXL.Cache.ContentStore.App
             try
             {
                 var cancellationTokenSource = new CancellationTokenSource();
+
+                // IMPORTANT
+                // 
+                // gRPC server also registers a CancelKeyPress handler, which is why we must:
+                //   - register ours before initializing gRPC server (so that we get called first)
+                //   - cancel the event once we handle it, so that gRPC's handler doesn't get called
+                //
+                // If both handlers are invoked, then once we call _grpcServer.KillAsync() in response
+                // to this event, the gRPC server will have already shut down (because of its own response
+                // to this event) and so we calling KillAsync() again instantly (and silently) kills the
+                // whole program (at least on .NET Core on Mac).  This happens somewhere in native gRPC
+                // code, so everything looks like the program exited normally, when in fact the program
+                // exited inside of _grpcServer.KillAsync() and the rest of our cleanup code (e.g., 
+                // Application.Dispose()) was never executed.
                 Console.CancelKeyPress += (sender, args) =>
                 {
+                    args.Cancel = true;
                     cancellationTokenSource.Cancel();
                 };
 

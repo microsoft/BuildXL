@@ -18,8 +18,8 @@ namespace BuildXL.SandboxExec.Tracing
     /// Logging for SandboxExec.
     /// There are no log files, so messages for events with <see cref="EventGenerators.LocalOnly"/> will be lost.
     /// </summary>
-    [EventKeywordsType(typeof(Events.Keywords))]
-    [EventTasksType(typeof(Events.Tasks))]
+    [EventKeywordsType(typeof(Keywords))]
+    [EventTasksType(typeof(Tasks))]
     public abstract partial class Logger : LoggerBase
     {
         /// <summary>

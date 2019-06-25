@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
+using BuildXL.Utilities.Instrumentation.Common;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
@@ -36,12 +37,12 @@ namespace BuildXL.Utilities.Tracing
         /// <summary>
         /// Match-any keywords when diagnostics are not enabled.
         /// </summary>
-        private const EventKeywords NormalKeywords = Events.Keywords.UserMessage | Events.Keywords.Progress | Events.Keywords.SelectivelyEnabled;
+        private const EventKeywords NormalKeywords = Keywords.UserMessage | Keywords.Progress | Keywords.SelectivelyEnabled;
 
         /// <summary>
         /// Match-any keywords when diagnostics are enabled.
         /// </summary>
-        private const EventKeywords DiagnosticsKeywords = NormalKeywords | Events.Keywords.Diagnostics;
+        private const EventKeywords DiagnosticsKeywords = NormalKeywords | Keywords.Diagnostics;
 
         private readonly Events m_eventSource;
         private readonly EventLevel m_level;
@@ -67,9 +68,9 @@ namespace BuildXL.Utilities.Tracing
         private readonly bool m_diagnosticsEnabled;
 
         /// <summary>
-        /// For each task in <see cref="Events.Tasks"/>, indicates if diagnostic events for that task should be observed by this listener.
+        /// For each task in <see cref="Tasks"/>, indicates if diagnostic events for that task should be observed by this listener.
         /// </summary>
-        private readonly bool[] m_enableTaskDiagnostics = new bool[(int)Events.Tasks.Max + 1];
+        private readonly bool[] m_enableTaskDiagnostics = new bool[(int)BuildXL.Utilities.Instrumentation.Common.Tasks.Max + 1];
 
         /// <summary>
         /// Initializes an instance.
@@ -84,7 +85,7 @@ namespace BuildXL.Utilities.Tracing
         /// The base level of data to be sent to the listener.
         /// </param>
         /// <param name="captureAllDiagnosticMessages">
-        /// If true, all messages tagged with <see cref="Events.Keywords.Diagnostics" /> at or above <paramref name="level"/> are captured (rather than needing to be enabled per-task).
+        /// If true, all messages tagged with <see cref="Keywords.Diagnostics" /> at or above <paramref name="level"/> are captured (rather than needing to be enabled per-task).
         /// </param>
         /// <param name="eventMask">
         /// If specified, an EventMask that allows selectively enabling or disabling events
@@ -94,7 +95,7 @@ namespace BuildXL.Utilities.Tracing
         /// Otherwise, such conditions will throw an exception.
         /// </param>
         /// <param name="listenDiagnosticMessages">
-        /// If true, all messages tagged with <see cref="Events.Keywords.Diagnostics" /> at or above <paramref name="level"/> are enabled but not captured unless diagnostics are enabled per-task.
+        /// If true, all messages tagged with <see cref="Keywords.Diagnostics" /> at or above <paramref name="level"/> are enabled but not captured unless diagnostics are enabled per-task.
         /// This is useful for StatisticsEventListener, where you need to listen diagnostics messages but capture only ones tagged with CommonInfrastructure task.
         /// </param>
         protected BaseEventListener(
@@ -144,7 +145,7 @@ namespace BuildXL.Utilities.Tracing
         }
 
         /// <summary>
-        /// Enables <see cref="Events.Keywords.Diagnostics"/> events (at the listener's level) for the given <paramref name="task"/>.
+        /// Enables <see cref="Keywords.Diagnostics"/> events (at the listener's level) for the given <paramref name="task"/>.
         /// These events may have been excluded from this listener by default.
         /// </summary>
         public void EnableTaskDiagnostics(EventTask task)
@@ -195,12 +196,12 @@ namespace BuildXL.Utilities.Tracing
             {
                 if ((eventData.Keywords & NormalKeywords) == 0 &&
                     (eventData.Keywords & DiagnosticsKeywords) != 0 &&
-                    (eventData.Task > Events.Tasks.Max || !m_enableTaskDiagnostics[unchecked((int)eventData.Task)]))
+                    (eventData.Task > BuildXL.Utilities.Instrumentation.Common.Tasks.Max || !m_enableTaskDiagnostics[unchecked((int)eventData.Task)]))
                 {
                     return;
                 }
 
-                if ((eventData.Keywords & Events.Keywords.SelectivelyEnabled) != 0 &&
+                if ((eventData.Keywords & Keywords.SelectivelyEnabled) != 0 &&
                     (m_eventMask?.IsSelectivelyEnabled != true))
                 {
                     // Exclude any event which is selectively enabled if this event listener does

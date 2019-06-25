@@ -469,6 +469,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             try
             {
                 var checkpointState = await GlobalStore.GetCheckpointStateAsync(context);
+                
                 if (!checkpointState)
                 {
                     // The error is already logged.
@@ -892,13 +893,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return BoolResult.Success;
             }
 
+            string extraMessage = string.Empty;
             return await context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
-                    var eventContentHashes = new List<ContentHashWithSize>();
-                    var eagerContentHashes = new List<ContentHashWithSize>();
-                    var actions = new List<RegisterAction>();
+                    var eventContentHashes = new List<ContentHashWithSize>(contentHashes.Count);
+                    var eagerContentHashes = new List<ContentHashWithSize>(contentHashes.Count);
+                    var actions = new List<RegisterAction>(contentHashes.Count);
                     var now = _clock.UtcNow;
 
                     // Select which hashes are not already registered for the local machine and those which must eagerly go to the global store
@@ -923,8 +925,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
 
-                    var registerActionsMessage = string.Join(", ", contentHashes.Select((c, i) => $"{new ShortHash(c.Hash).ToString()}={actions[i]}"));
-                    Tracer.Debug(context, $"Register actions(Eager={eagerContentHashes.Count}, Event={eventContentHashes.Count}): [{registerActionsMessage}]");
+                    var registerActionsMessage = string.Join(", ", contentHashes.Select((c, i) => $"{new ShortHash(c.Hash)}={actions[i]}"));
+                    extraMessage = $"Register actions(Eager={eagerContentHashes.Count.ToString()}, Event={eventContentHashes.Count.ToString()}): [{registerActionsMessage}]";
 
                     if (eagerContentHashes.Count != 0)
                     {
@@ -955,7 +957,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     return BoolResult.Success;
                 },
-                Counters[ContentLocationStoreCounters.RegisterLocalLocation]);
+                Counters[ContentLocationStoreCounters.RegisterLocalLocation],
+                traceOperationStarted: false,
+                extraEndMessage: _ => extraMessage);
         }
 
         /// <nodoc />

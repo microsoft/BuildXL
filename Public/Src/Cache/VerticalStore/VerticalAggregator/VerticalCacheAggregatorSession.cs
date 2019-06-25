@@ -8,6 +8,7 @@ using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
+using BuildXL.Native.IO;
 using BuildXL.Utilities;
 
 // ReSharper disable InconsistentNaming
@@ -1217,7 +1218,7 @@ namespace BuildXL.Cache.VerticalAggregator
                         // TODO: Remove this once the remote properly handles the directory's nonexistence
                         // NOTE: There are unit tests that validate this behavior but the VSTS cache does not
                         //       seem to run these tests.  Unclear why it does not run the normal ICache test suite
-                        Directory.CreateDirectory(Path.GetDirectoryName(filename));
+                        FileUtilities.CreateDirectory(Path.GetDirectoryName(filename));
 
                         // This is for the potential inconssistent hash recovery operation
                         bool secondTry = false;

@@ -428,8 +428,11 @@ interface StaticDirectory extends PathQueries {
     /** Gets the file given its path; returns undefined if no such a file exists in this static directory. */
     getFile: (path: Path | PathFragment) => File;
     
-        /** Gets an array of files given its paths; returns undefined in the result array if no such a file exists in this static directory. */
+    /** Gets an array of files given its paths; returns undefined in the result array if no such a file exists in this static directory. */
     getFiles: (path: (Path | PathFragment)[]) => File[];
+
+    /** ensures the subFolder exists in the sealed directory and will return a new sealed directory scoped to that subdirectory */
+    ensureContents: (args: {subFolder: RelativePath}) => StaticDirectory;
 
     /** Checks whether the sealed directory has the given file. */
     hasFile: (path: Path | PathFragment) => boolean;

@@ -47,8 +47,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Http
             var httpClientFactory = new ArtifactHttpClientFactory(
                 creds,
                 _httpSendTimeout,
-                new VssHttpRetryOptions(),
-                retryTimeouts: true,
                 tracer: new AppTraceSourceContextAdapter(context, "BuildCacheHttpClientFactory", SourceLevels.All),
                 verifyConnectionCancellationToken: CancellationToken.None); // TODO: Pipe down cancellation support (bug 1365340)
             IBuildCacheHttpClient client =
@@ -74,8 +72,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Http
             var httpClientFactory = new ArtifactHttpClientFactory(
                 creds,
                 _httpSendTimeout,
-                new VssHttpRetryOptions(),
-                retryTimeouts: true,
                 tracer: new AppTraceSourceContextAdapter(context, "BuildCacheHttpClientFactory", SourceLevels.All),
                 verifyConnectionCancellationToken: CancellationToken.None); // TODO: Pipe down cancellation support (bug 1365340)
             IBlobBuildCacheHttpClient client =

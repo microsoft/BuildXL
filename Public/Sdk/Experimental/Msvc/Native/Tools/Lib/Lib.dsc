@@ -10,10 +10,6 @@ import * as Link from "Sdk.Native.Tools.Link";
 
 export declare const qualifier: PlatformDependentQualifier;
 
-export function defaultTool(): Transformer.ToolDefinition {
-    return importFrom("VisualCpp").libDeployment;
-}
-
 export const defaultLibArguments: Arguments = {
     suppressStartupBanner: true,
     libraryType: LibraryType.staticType,
@@ -217,7 +213,7 @@ export function evaluate(args: Arguments): Result {
     ];
 
     let result = Transformer.execute({
-        tool: args.tool || defaultTool(),
+        tool: args.tool || importFrom("VisualCpp").libTool,
         workingDirectory: outDir,
         tags: args.tags,
         arguments: cmdArgs,

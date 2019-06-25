@@ -194,6 +194,7 @@ namespace BuildXL.FrontEnd.Script
             var result = new ConcurrentDictionary<AbsolutePath, ISourceFile>();
             await ParallelAlgorithms.WhenDoneAsync(
                 DegreeOfParallelism,
+                Context.CancellationToken,
                 async (addItem, path) =>
                 {
                     // TODO: File bug to ensure we fail on errors.
@@ -216,7 +217,8 @@ namespace BuildXL.FrontEnd.Script
                             }
                         }
                     }
-                }, configPath);
+                }, 
+                configPath);
 
             return result.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         }
@@ -411,7 +413,8 @@ namespace BuildXL.FrontEnd.Script
             return ParallelAlgorithms.ParallelSelect(
                 specs,
                 kvp => ConvertAndRegisterSourceFile(parserContext, workspace, sourceFile: kvp.Value, path: kvp.Key, isConfig: kvp.Key == configPath),
-                DegreeOfParallelism);
+                DegreeOfParallelism,
+                Context.CancellationToken);
         }
 
         private FileModuleLiteral ConvertAndRegisterSourceFile(RuntimeModelContext runtimeModelContext, Workspace workspace, ISourceFile sourceFile, AbsolutePath path, bool isConfig)

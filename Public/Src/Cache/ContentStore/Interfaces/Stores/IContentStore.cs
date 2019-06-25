@@ -29,4 +29,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// </summary>
         Task<GetStatsResult> GetStatsAsync(Context context);
     }
+
+    /// <summary>
+    /// Special <see cref="IContentStore"/> version that supports notification about initialization completion.
+    /// </summary>
+    public interface IContentStoreWithPostInitialization : IContentStore
+    {
+        /// <summary>
+        /// Notifies that the post initialization step of the outer component is finished.
+        /// </summary>
+        void PostInitializationCompleted(Context context, BoolResult result);
+    }
 }

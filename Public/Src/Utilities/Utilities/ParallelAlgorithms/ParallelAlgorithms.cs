@@ -43,7 +43,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
             var lists = new[] { new ConcurrentStack<T>(initialValues), new ConcurrentStack<T>() };
 
             // Iterate until no more items to be processed.
-            for (var i = 0; ; i++)
+            for (var i = 0; !parallelOptions.CancellationToken.IsCancellationRequested; i++)
             {
                 // Determine which list is the source and which is the destination.
                 var fromIndex = i % 2;
@@ -68,13 +68,13 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <summary>
         /// Process the <paramref name="source"/> in parallel by calling <paramref name="mapFn"/> for each element.
         /// </summary>
-        public static IReadOnlyList<TResult> ParallelSelect<TElement, TResult>(IList<TElement> source, Func<TElement, TResult> mapFn, int degreeOfParallelism)
+        public static IReadOnlyList<TResult> ParallelSelect<TElement, TResult>(IList<TElement> source, Func<TElement, TResult> mapFn, int degreeOfParallelism, CancellationToken cancellationToken)
         {
             var results = new TResult[source.Count];
 
             Parallel.ForEach(
                 source.Select((elem, idx) => Tuple.Create(elem, idx)).ToList(),
-                new ParallelOptions { MaxDegreeOfParallelism = degreeOfParallelism },
+                new ParallelOptions { MaxDegreeOfParallelism = degreeOfParallelism, CancellationToken = cancellationToken },
                 body: (tuple) =>
                 {
                     results[tuple.Item2] = mapFn(tuple.Item1);
@@ -89,12 +89,13 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         public delegate void ScheduleItem<T>(T item);
 
         /// <summary>
-        /// Sync wrapper around <see cref="WhenDoneAsync{T}(int, Func{ScheduleItem{T}, T, Task}, T[])"/>
+        /// Sync wrapper around <see cref="WhenDoneAsync{T}(int, CancellationToken, Func{ScheduleItem{T}, T, Task}, T[])"/>
         /// </summary>
-        public static void WhenDone<T>(int degreeOfParallelism, Action<ScheduleItem<T>, T> action, params T[] items)
+        public static void WhenDone<T>(int degreeOfParallelism, CancellationToken cancellationToken, Action<ScheduleItem<T>, T> action, params T[] items)
         {
             var task = WhenDoneAsync<T>(
                 degreeOfParallelism,
+                cancellationToken,
                 (scheduleItem, item) =>
                 {
                     action(scheduleItem, item);
@@ -114,7 +115,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// this method is suitable for producing-consuming scnarios.
         /// The callback function can discover new work and can call a given call back to schedule more work.
         /// </remarks>
-        public static async Task WhenDoneAsync<T>(int degreeOfParallelism, Func<ScheduleItem<T>, T, Task> action, params T[] items)
+        public static async Task WhenDoneAsync<T>(int degreeOfParallelism, CancellationToken cancellationToken, Func<ScheduleItem<T>, T, Task> action, params T[] items)
         {
             if (items.Length == 0)
             {
@@ -150,9 +151,9 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                 tasks[i] = Task.Run(
                     async () =>
                     {
-                        while (true)
+                        while (!cancellationToken.IsCancellationRequested)
                         {
-                            await semaphore.WaitAsync();
+                            await semaphore.WaitAsync(cancellationToken);
 
                             try
                             {
@@ -176,7 +177,8 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                                 }
                             }
                         }
-                    });
+                    },
+                    cancellationToken);
             }
 
             await Task.WhenAll(tasks);

@@ -411,7 +411,7 @@ export function evaluate(args: Arguments): Map<PathAtom, Result> {
     // Cl.defaultTool() if we actually need to determine the default tool. 
     if (args.cPreprocessor === undefined) {
         args = args.override<Arguments>({
-            cPreprocessor: Cl.defaultTool(),
+            cPreprocessor: importFrom("VisualCpp").clTool,
         });
     }
     let midlDllData: File = undefined;

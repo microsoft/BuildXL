@@ -86,7 +86,7 @@ export function runQTest(args: QTestArguments): Result {
     let tags = Object.merge<string[]>(args.tags, defaultArgs.tags);
     let logDir = args.qTestLogs || Context.getNewOutputDirectory("qtestlogs");
     let consolePath = p`${logDir}/qtest.stdout`;
-    let tempDirectory = Context.getTempDirectory("temp");
+    let qtestRunTempDirectory = Context.getTempDirectory("qtestRunTemp");
     // When invoked to run multiple attempts, QTest makes copies of sandbox
     // for each run. To ensure the sandbox does not throw access violations, 
     // actual sandbox is designed to be a folder inside sandboxDir
@@ -196,7 +196,7 @@ export function runQTest(args: QTestArguments): Result {
         arguments: commandLineArgs,
         consoleOutput: consolePath,
         workingDirectory: sandboxDir,
-        tempDirectory: tempDirectory,
+        tempDirectory: qtestRunTempDirectory,
         weight: args.weight,
         environmentVariables: [
             { name: "[Sdk.BuildXL]qCodeCoverageEnumType", value: qCodeCoverageEnumType },
@@ -225,6 +225,7 @@ export function runQTest(args: QTestArguments): Result {
         const leafDir = d`${logDir}`.nameWithoutExtension;
         const coverageLogDir = d`${parentDir}/CoverageLogs/${leafDir}`;
         const coverageConsolePath = p`${coverageLogDir}/coverageUpload.stdout`;
+        let qtestCodeCovUploadTempDirectory = Context.getTempDirectory("qtestCodeCovUpload");
 
         const commandLineArgsForUploadPip: Argument[] = [
             Cmd.option("--qTestLogsDir ", Artifact.output(coverageLogDir)),
@@ -240,7 +241,7 @@ export function runQTest(args: QTestArguments): Result {
             description: "QTest Coverage Upload",
             arguments: commandLineArgsForUploadPip,
             consoleOutput: coverageConsolePath,
-            workingDirectory: tempDirectory,
+            workingDirectory: qtestCodeCovUploadTempDirectory,
             disableCacheLookup: true,
             privilegeLevel: args.privilegeLevel,
             unsafe: unsafeOptions

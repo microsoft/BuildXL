@@ -343,7 +343,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     chunks++;
                 }
             ))
-
             {
                 using (Stream compressionStream = new GZipStream(grpcStream, System.IO.Compression.CompressionLevel.Fastest, true))
                 {

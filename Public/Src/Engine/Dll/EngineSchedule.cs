@@ -1424,7 +1424,7 @@ namespace BuildXL.Engine
         {
 #pragma warning disable SA1114 // Parameter list must follow declaration
 
-            if (BuildXL.Engine.ETWLogger.Log.IsEnabled(Diagnostics.EventLevel.Verbose, Events.Keywords.Diagnostics))
+            if (BuildXL.Engine.ETWLogger.Log.IsEnabled(Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
             {
                 Logger.Log.PipTableStats(
                     loggingContext,

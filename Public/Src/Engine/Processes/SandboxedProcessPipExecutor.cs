@@ -3534,7 +3534,7 @@ namespace BuildXL.Processes
                 AddTrailingNewLineIfNeeded(outputPathsToLog),
                 result.ExitCode,
                 // if the process finished successfully (exit code 0) and we entered this method --> some outputs are missing
-                exitedWithSuccessExitCode ? BuildXL.Utilities.Tracing.Events.PipProcessErrorMissingOutputsSuffix : string.Empty);
+                exitedWithSuccessExitCode ? EventConstants.PipProcessErrorMissingOutputsSuffix : string.Empty);
         }
 
         private void HandleErrorsFromTool(string error)

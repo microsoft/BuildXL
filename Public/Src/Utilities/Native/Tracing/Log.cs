@@ -16,8 +16,8 @@ namespace BuildXL.Native.Tracing
     /// <summary>
     /// Logging for bxl.exe.
     /// </summary>
-    [EventKeywordsType(typeof(Events.Keywords))]
-    [EventTasksType(typeof(Events.Tasks))]
+    [EventKeywordsType(typeof(Keywords))]
+    [EventTasksType(typeof(Tasks))]
     public abstract partial class Logger
     {
         /// <summary>
@@ -29,8 +29,8 @@ namespace BuildXL.Native.Tracing
             (int)EventId.FileUtilitiesDirectoryDeleteFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.Storage,
-            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Keywords = (int)Keywords.UserMessage,
             Message = "Directory delete for '{path}' failed. An error will be thrown.")]
         public abstract void FileUtilitiesDirectoryDeleteFailed(LoggingContext context, string path);
 
@@ -38,8 +38,8 @@ namespace BuildXL.Native.Tracing
             (int)EventId.FileUtilitiesDiagnostic,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.Storage,
-            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Keywords = (int)Keywords.UserMessage,
             Message = "Diagnostic for '{path}': {description}")]
         public abstract void FileUtilitiesDiagnostic(LoggingContext context, string path, string description);
 
@@ -47,10 +47,10 @@ namespace BuildXL.Native.Tracing
             (int)EventId.RetryOnFailureException,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.Storage,
-            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Keywords = (int)Keywords.UserMessage,
             // TODO: demote this to a diagnostics level once we sort out our file deletion woes as well as materialization failure (FailIfExist)
-            // Keywords = (int)((Events.Keywords.UserMessage) | Events.Keywords.Diagnostics),
+            // Keywords = (int)((Keywords.UserMessage) | Keywords.Diagnostics),
             Message = "Retry attempt failed with exception. {exception}")]
         public abstract void RetryOnFailureException(LoggingContext context, string exception);
 
@@ -58,8 +58,8 @@ namespace BuildXL.Native.Tracing
             (int)EventId.SettingOwnershipAndAcl,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.Storage,
-            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Keywords = (int)Keywords.UserMessage,
             Message = "Attempting to set ownership and ACL to path '{path}'.")]
         public abstract void SettingOwnershipAndAcl(LoggingContext context, string path);
 
@@ -67,8 +67,8 @@ namespace BuildXL.Native.Tracing
             (int)EventId.SettingOwnershipAndAclFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.Storage,
-            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Keywords = (int)Keywords.UserMessage,
             Message = "Failed to set ownership and ACL to path '{path}'. Command {filename} {arguments} {reason}")]
         public abstract void SettingOwnershipAndAclFailed(LoggingContext context, string path, string filename, string arguments, string reason);
 
@@ -76,8 +76,8 @@ namespace BuildXL.Native.Tracing
             (int)EventId.StorageReadUsn,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.Diagnostics,
-            EventTask = (int)Events.Tasks.Storage,
+            Keywords = (int)Keywords.Diagnostics,
+            EventTask = (int)Tasks.Storage,
             Message = "Read USN: (id {0:X16}-{1:X16}) @ {2:X16}")]
         public abstract void StorageReadUsn(LoggingContext context, ulong idHigh, ulong idLow, ulong usn);
 
@@ -85,8 +85,8 @@ namespace BuildXL.Native.Tracing
             (int)EventId.StorageCheckpointUsn,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.Diagnostics,
-            EventTask = (int)Events.Tasks.Storage,
+            Keywords = (int)Keywords.Diagnostics,
+            EventTask = (int)Tasks.Storage,
             Message = "Checkpoint (new USN): {0:X16}")]
         public abstract void StorageCheckpointUsn(LoggingContext context, ulong newUsn);
 
@@ -94,8 +94,8 @@ namespace BuildXL.Native.Tracing
             (int)EventId.StorageTryOpenOrCreateFileFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.Storage,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Storage,
             Message = "Creating a file handle for path {0} (disposition 0x{1:X8}) failed with HRESULT 0x{2:X8}")]
         public abstract void StorageTryOpenOrCreateFileFailure(LoggingContext context, string path, int creationDisposition, int hresult);
 
@@ -103,8 +103,8 @@ namespace BuildXL.Native.Tracing
             (int)EventId.StorageTryOpenDirectoryFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.Diagnostics,
-            EventTask = (int)Events.Tasks.Storage,
+            Keywords = (int)Keywords.Diagnostics,
+            EventTask = (int)Tasks.Storage,
             Message = "Opening a directory handle for path {0} failed with HRESULT 0x{1:X8}")]
         public abstract void StorageTryOpenDirectoryFailure(LoggingContext context, string path, int hresult);
 
@@ -112,8 +112,8 @@ namespace BuildXL.Native.Tracing
             (int)EventId.StorageFoundVolume,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.Diagnostics,
-            EventTask = (int)Events.Tasks.Storage,
+            Keywords = (int)Keywords.Diagnostics,
+            EventTask = (int)Tasks.Storage,
             Message = "Found volume {0} (serial: {1:X16})")]
         public abstract void StorageFoundVolume(LoggingContext context, string volumeGuidPath, ulong serial);
 
@@ -121,8 +121,8 @@ namespace BuildXL.Native.Tracing
             (int)EventId.StorageTryOpenFileByIdFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.Diagnostics,
-            EventTask = (int)Events.Tasks.Storage,
+            Keywords = (int)Keywords.Diagnostics,
+            EventTask = (int)Tasks.Storage,
             Message = "Opening the file with file ID {0:X16}-{1:X16} on {2:X16} failed with HRESULT 0x{3:X8}")]
         public abstract void StorageTryOpenFileByIdFailure(LoggingContext context, ulong idHigh, ulong idLow, ulong volumeSerial, int hresult);
     }

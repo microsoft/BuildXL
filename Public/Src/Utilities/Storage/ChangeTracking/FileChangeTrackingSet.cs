@@ -2649,7 +2649,7 @@ namespace BuildXL.Storage.ChangeTracking
                     currentPathHierarchicalNameId = containerOfCurrentPathAndFlagsOfCurrentPath.nameId;
                 }
 
-                if (added && ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Events.Keywords.Diagnostics))
+                if (added && ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
                 {
                     Logger.Log.TrackChangesToFileDiagnostic(
                         m_loggingContext,

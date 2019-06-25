@@ -232,7 +232,7 @@ namespace BuildXL.LogGen
                 return false;
             }
 
-            if (loggingSite.SpecifiedMessageFormat.StartsWith(Events.LabeledProvenancePrefix, StringComparison.Ordinal) && method.Parameters.Length >= 2 && method.Parameters[1].Name != "location")
+            if (loggingSite.SpecifiedMessageFormat.StartsWith(EventConstants.LabeledProvenancePrefix, StringComparison.Ordinal) && method.Parameters.Length >= 2 && method.Parameters[1].Name != "location")
             {
                 m_errorReport.ReportError(method, "Message is using provenance prefix information to indicate line information. Therefore the location must be the first parameter after the LoggingContext. This method declares '{0}' as that parameter", method.Parameters[1].Name);
                 return false;

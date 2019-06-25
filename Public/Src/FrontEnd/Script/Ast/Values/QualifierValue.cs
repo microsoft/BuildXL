@@ -252,7 +252,9 @@ namespace BuildXL.FrontEnd.Script.Values
             Logger.Log.ErrorUnsupportedQualifierValue(
                 loggingContext,
                 error.Location,
-                error);
+                error.QualifierKey,
+                error.InvalidValue,
+                error.LegalValues);
 
             return false;
         }

@@ -5,17 +5,14 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using BuildXL.Pips;
+//using BuildXL.Pips;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
 using System.Diagnostics.Tracing;
 #endif
-
-using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
@@ -824,7 +821,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
         public abstract void LocalBindingError(LoggingContext context, Location location, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.MaterializingFileToFileDepdencyMap,
+            (ushort)LogEventId.MaterializingFileToFileDepdencyMap,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.LogAlways,
             EventTask = (ushort)Tasks.HostApplication,
@@ -833,7 +830,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
         public abstract void MaterializingFileToFileDepdencyMap(LoggingContext context, string destination);
 
         [GeneratedEvent(
-            (ushort)EventId.ErrorMaterializingFileToFileDepdencyMap,
+            (ushort)LogEventId.ErrorMaterializingFileToFileDepdencyMap,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.LogAlways,
             EventTask = (ushort)Tasks.HostApplication,
@@ -846,21 +843,9 @@ namespace BuildXL.FrontEnd.Core.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Parser,
-            Message = "Pip graph partially reloaded in {elapsedMillis}ms: #affected/total specs = {numAffectedSpecs}/{numTotalSpecs}, #reloaded pips = {numReloaded}, #skipped pips = {numSkipped}.",
+            Message = "Pip graph partially reloaded in {elapsedMillis}ms: #affected/total specs = {numAffectedSpecs}/{numTotalSpecs}, #reloaded pips = {numReloaded} + {numAutoAdded}, #skipped pips = {numSkipped} + {numNotReloadable}.",
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void GraphPartiallyReloaded(LoggingContext context, int numAffectedSpecs, int numTotalSpecs, int elapsedMillis, string numReloaded, string numSkipped);
-
-        public void GraphPartiallyReloaded(LoggingContext context, GraphPatchingStatistics stats, int numUnaffectedSpecs)
-        {
-            var numAffectedSpecs = stats.AffectedSpecs.Count();
-            GraphPartiallyReloaded(
-                context,
-                numAffectedSpecs,
-                numAffectedSpecs + numUnaffectedSpecs,
-                stats.ElapsedMilliseconds,
-                I($"{stats.NumPipsReloaded} + {stats.NumPipsAutomaticallyAdded}"),
-                I($"{stats.NumPipsSkipped} + {stats.NumPipsNotReloadable}"));
-        }
+        public abstract void GraphPartiallyReloaded(LoggingContext context, int numAffectedSpecs, int numTotalSpecs, int elapsedMillis, int numReloaded, int numAutoAdded, int numSkipped, int numNotReloadable);
 
         [GeneratedEvent(
             (ushort)LogEventId.GraphPatchingDetails,

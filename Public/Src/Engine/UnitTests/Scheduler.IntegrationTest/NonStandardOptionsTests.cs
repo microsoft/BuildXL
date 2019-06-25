@@ -16,6 +16,7 @@ using BuildXL.Storage;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
 using BuildXLConfiguration = BuildXL.Utilities.Configuration;
+using StorageLogEventId = BuildXL.Storage.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -258,7 +259,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             
             RunScheduler().AssertSuccess();
             AssertVerboseEventLogged(EventId.ValidateJunctionRoot);
-            AssertVerboseEventLogged(EventId.IgnoredRecordsDueToUnchangedJunctionRootCount);
+            AssertVerboseEventLogged(StorageLogEventId.IgnoredRecordsDueToUnchangedJunctionRootCount);
 
             // Remove junction and recreate one with the same target
             AssertTrue(FileUtilities.TryRemoveDirectory(junctionPathStr, out var hr2));
@@ -267,7 +268,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertSuccess();
             AssertVerboseEventLogged(EventId.ValidateJunctionRoot);
-            AssertVerboseEventLogged(EventId.IgnoredRecordsDueToUnchangedJunctionRootCount);
+            AssertVerboseEventLogged(StorageLogEventId.IgnoredRecordsDueToUnchangedJunctionRootCount);
         }
     }
 }

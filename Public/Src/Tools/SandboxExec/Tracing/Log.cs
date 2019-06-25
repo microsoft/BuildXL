@@ -28,14 +28,14 @@ namespace BuildXL.SandboxExec.Tracing
         public static Logger Log => m_log;
 
         [GeneratedEvent(
-            (ushort)EventId.SandboxExecMacOSCrashReport,
+            (ushort)LogEventId.SandboxExecMacOSCrashReport,
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Critical,
             Message = "Telemetry Only")]
         public abstract void SandboxExecCrashReport(LoggingContext context, string crashSessionId, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.DominoMacOSCrashReport,
+            (ushort)LogEventId.DominoMacOSCrashReport,
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Critical,
             Message = "Telemetry Only")]

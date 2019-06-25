@@ -26,9 +26,9 @@ namespace BuildXL.FrontEnd.Sdk.Tracing
             EventGenerators = Generators.ManifestedEventSource,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
-            Message = EventConstants.LabeledProvenancePrefix + "Unsupported Qualifier Value. The reference passes a qualifier key '{unsupportedQualifierValue.QualifierKey}' with value '{unsupportedQualifierValue.InvalidValue}'. Legal values are: '{unsupportedQualifierValue.LegalValues}'. Please update the import statement to override the key with a legal value.",
+            Message = EventConstants.LabeledProvenancePrefix + "Unsupported Qualifier Value. The reference passes a qualifier key '{qualifierKey}' with value '{invalidValue}'. Legal values are: '{legalValues}'. Please update the import statement to override the key with a legal value.",
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.UserError))]
-        public abstract void ErrorUnsupportedQualifierValue(LoggingContext context, Location location, UnsupportedQualifierValue unsupportedQualifierValue);
+        public abstract void ErrorUnsupportedQualifierValue(LoggingContext context, Location location, string qualifierKey, string invalidValue, string legalValues);
 
         [GeneratedEvent(
             2810,

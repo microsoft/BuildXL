@@ -24,7 +24,7 @@ namespace BuildXL.Engine.Cache.Tracing
 
         /*
         [GeneratedEvent(
-            (int)EventId.StorageCacheCopyLocalError,
+            (int)LogEventId.StorageCacheCopyLocalError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -33,7 +33,7 @@ namespace BuildXL.Engine.Cache.Tracing
         public abstract void StorageCacheCopyLocalError(LoggingContext context, string contentHash, string errorMessage);
         */
         [GeneratedEvent(
-            (int)EventId.StorageFailureToOpenFileForFlushOnIngress,
+            (int)LogEventId.StorageFailureToOpenFileForFlushOnIngress,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -42,7 +42,7 @@ namespace BuildXL.Engine.Cache.Tracing
         public abstract void StorageFailureToOpenFileForFlushOnIngress(LoggingContext context, string path, string errorMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.StoreSymlinkWarning,
+            (ushort)LogEventId.StoreSymlinkWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -51,7 +51,7 @@ namespace BuildXL.Engine.Cache.Tracing
         internal abstract void StoreSymlinkWarning(LoggingContext loggingContext, string file);
 
         [GeneratedEvent(
-            (int)EventId.StorageFailureToFlushFileOnDisk,
+            (int)LogEventId.StorageFailureToFlushFileOnDisk,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -60,7 +60,7 @@ namespace BuildXL.Engine.Cache.Tracing
         public abstract void StorageFailureToFlushFileOnDisk(LoggingContext context, string path, string errorCode);
 
         [GeneratedEvent(
-            (int)EventId.ClosingFileStreamAfterHashingFailed,
+            (int)LogEventId.ClosingFileStreamAfterHashingFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -69,7 +69,7 @@ namespace BuildXL.Engine.Cache.Tracing
         public abstract void ClosingFileStreamAfterHashingFailed(LoggingContext context, string path, string message, string errorCode);
 
         [GeneratedEvent(
-            (int)EventId.FailedOpenHandleToGetKnownHashDuringMaterialization,
+            (int)LogEventId.FailedOpenHandleToGetKnownHashDuringMaterialization,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -78,7 +78,7 @@ namespace BuildXL.Engine.Cache.Tracing
         public abstract void FailedOpenHandleToGetKnownHashDuringMaterialization(LoggingContext context, string path, string message);
 
         [GeneratedEvent(
-            (int)EventId.TimeoutOpeningFileForHashing,
+            (int)LogEventId.TimeoutOpeningFileForHashing,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -87,7 +87,7 @@ namespace BuildXL.Engine.Cache.Tracing
         public abstract void TimeoutOpeningFileForHashing(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.HashedSymlinkAsTargetPath,
+            (int)LogEventId.HashedSymlinkAsTargetPath,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -96,7 +96,7 @@ namespace BuildXL.Engine.Cache.Tracing
         public abstract void HashedSymlinkAsTargetPath(LoggingContext context, string path, string targetPath);
 
         [GeneratedEvent(
-            (int)EventId.TemporalCacheEntryTrace,
+            (int)LogEventId.TemporalCacheEntryTrace,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -105,7 +105,7 @@ namespace BuildXL.Engine.Cache.Tracing
         public abstract void TemporalCacheEntryTrace(LoggingContext context, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.SerializingToPipFingerprintEntryResultInCorruptedData,
+            (ushort)LogEventId.SerializingToPipFingerprintEntryResultInCorruptedData,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -114,7 +114,7 @@ namespace BuildXL.Engine.Cache.Tracing
         internal abstract void SerializingToPipFingerprintEntryResultInCorruptedData(LoggingContext loggingContext, string kind, string blob);
 
         [GeneratedEvent(
-            (ushort)EventId.DeserializingCorruptedPipFingerprintEntry,
+            (ushort)LogEventId.DeserializingCorruptedPipFingerprintEntry,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -123,7 +123,7 @@ namespace BuildXL.Engine.Cache.Tracing
         internal abstract void DeserializingCorruptedPipFingerprintEntry(LoggingContext loggingContext, string kind, string weakFingerprint, string pathSetHash, string strongFingerprint, string expectedHash, string hash, string blob, string actualHash, string actualEntryBlob);
 
         [GeneratedEvent(
-            (ushort)EventId.RetryOnLoadingAndDeserializingMetadata,
+            (ushort)LogEventId.RetryOnLoadingAndDeserializingMetadata,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,

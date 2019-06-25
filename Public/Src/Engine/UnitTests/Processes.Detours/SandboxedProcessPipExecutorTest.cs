@@ -21,6 +21,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using BuildXL.Native.IO;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
 
@@ -1516,7 +1517,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 // Very occasionally the child dump fails to be collected due to ERROR_PARTIAL_COPY (0x12B) or ERROR_BAD_LENGTH 
                 // Check for the masked version of this in the native error code of the process dump message and ignore when it is hit
-                if (EventListener.GetEventCount(EventId.PipFailedToCreateDumpFile) == 1 &&
+                if (EventListener.GetEventCount((int)ProcessesLogEventId.PipFailedToCreateDumpFile) == 1 &&
                     (EventListener.GetLog().Contains("-2147024597")) // -2147024597 && 0x0FFF == 0x12B (ERROR_PARTIAL_COPY)
                     || EventListener.GetLog().Contains("80070018")) // win32 error code 18 is (ERROR_BAD_LENGTH)
                 {

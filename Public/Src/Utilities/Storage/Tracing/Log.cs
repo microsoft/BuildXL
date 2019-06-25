@@ -33,7 +33,7 @@ namespace BuildXL.Storage.Tracing
 
         // ||| TODO: We should have well structured events like normal. As a stopgap, we've promoted some Console.WriteLine debugging to some single-string events.
         [GeneratedEvent(
-            (int)EventId.ChangeDetectionDueToPerpetualDirtyNode,
+            (int)LogEventId.ChangeDetectionDueToPerpetualDirtyNode,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -42,7 +42,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeDetectionDueToPerpetualDirtyNode(LoggingContext context, string message);
 
         [GeneratedEvent(
-            (int)EventId.ChangeDetectionProbeSnapshotInconsistent,
+            (int)LogEventId.ChangeDetectionProbeSnapshotInconsistent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -51,7 +51,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeDetectionProbeSnapshotInconsistent(LoggingContext context, string changedPath, string fullPath, int nativeError);
 
         [GeneratedEvent(
-            (int)EventId.ChangeDetectionComputedDirectoryMembershipTrackingFingerprint,
+            (int)LogEventId.ChangeDetectionComputedDirectoryMembershipTrackingFingerprint,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -60,7 +60,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeDetectionComputedDirectoryMembershipTrackingFingerprint(LoggingContext context, string path, int numberOfEntries, string fingerprint);
 
         [GeneratedEvent(
-            (int)EventId.StartSavingChangeTracker,
+            (int)LogEventId.StartSavingChangeTracker,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -70,7 +70,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StartSavingChangeTracker(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.EndSavingChangeTracker,
+            (int)LogEventId.EndSavingChangeTracker,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -80,7 +80,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void EndSavingChangeTracker(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.SavingChangeTracker,
+            (int)LogEventId.SavingChangeTracker,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -89,7 +89,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void SavingChangeTracker(LoggingContext context, string path, string token, string state, int trackedVolumeCount, long durationMs);
 
         [GeneratedEvent(
-            (int)EventId.ChangeDetectionFailCreateTrackingSetDueToJournalQueryError,
+            (int)LogEventId.ChangeDetectionFailCreateTrackingSetDueToJournalQueryError,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -98,7 +98,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeDetectionFailCreateTrackingSetDueToJournalQueryError(LoggingContext context, long volumeSerial, string volumePath, string errorStatus, string message);
 
         [GeneratedEvent(
-            (int)EventId.ChangeDetectionCreateResult,
+            (int)LogEventId.ChangeDetectionCreateResult,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -107,7 +107,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeDetectionCreateResult(LoggingContext context, long volumeSerial, string volumePath, string status, string nextUsn, string checkpoint);
 
         [GeneratedEvent(
-            (int)EventId.ChangeDetectionSingleVolumeScanJournalResult,
+            (int)LogEventId.ChangeDetectionSingleVolumeScanJournalResult,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -116,7 +116,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeDetectionSingleVolumeScanJournalResult(LoggingContext context, long volumeSerial, string volumePath, string status, string checkpoint, string statMessage);
 
         [GeneratedEvent(
-            (int)EventId.ChangeDetectionSingleVolumeScanJournalResultTelemetry,
+            (int)LogEventId.ChangeDetectionSingleVolumeScanJournalResultTelemetry,
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -125,7 +125,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeDetectionSingleVolumeScanJournalResultTelemetry(LoggingContext context, long volumeSerial, string volumePath, string status, string checkpoint, string statMessage, IDictionary<string, long> stats);
 
         [GeneratedEvent(
-            (int)EventId.ChangedPathsDetectedByJournalScanning,
+            (int)LogEventId.ChangedPathsDetectedByJournalScanning,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -134,7 +134,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangedPathsDetectedByJournalScanning(LoggingContext context, long volumeSerial, string volumePath, string changedPaths);
 
         [GeneratedEvent(
-            (int)EventId.ChangeDetectionParentPathIsUntrackedOnTrackingAbsentRelativePath,
+            (int)LogEventId.ChangeDetectionParentPathIsUntrackedOnTrackingAbsentRelativePath,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -143,7 +143,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeDetectionParentPathIsUntrackedOnTrackingAbsentRelativePath(LoggingContext context, string parentPath, string relativePath);
 
         [GeneratedEvent(
-            (int)EventId.ChangeDetectionScanJournalFailedSinceJournalGotOverwritten,
+            (int)LogEventId.ChangeDetectionScanJournalFailedSinceJournalGotOverwritten,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -152,7 +152,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeDetectionScanJournalFailedSinceJournalGotOverwritten(LoggingContext context, long volumeSerial, string volumePath, string journalSize);
 
         [GeneratedEvent(
-            (int)EventId.ChangeDetectionScanJournalFailedSinceTimeout,
+            (int)LogEventId.ChangeDetectionScanJournalFailedSinceTimeout,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -161,7 +161,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeDetectionScanJournalFailedSinceTimeout(LoggingContext context, long volumeSerial, string volumePath);
 
         [GeneratedEvent(
-            (int)EventId.AntiDependencyValidationPotentiallyAddedButVerifiedAbsent,
+            (int)LogEventId.AntiDependencyValidationPotentiallyAddedButVerifiedAbsent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -170,7 +170,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void AntiDependencyValidationPotentiallyAddedButVerifiedAbsent(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.IgnoredRecordsDueToUnchangedJunctionRootCount,
+            (int)LogEventId.IgnoredRecordsDueToUnchangedJunctionRootCount,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -179,7 +179,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void IgnoredRecordsDueToUnchangedJunctionRootCount(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.TrackChangesToFileDiagnostic,
+            (int)LogEventId.TrackChangesToFileDiagnostic,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -188,7 +188,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void TrackChangesToFileDiagnostic(LoggingContext context, string path, string identity, string mode);
 
         [GeneratedEvent(
-            (int)EventId.AntiDependencyValidationFailedRetrackPathAsNonExistent,
+            (int)LogEventId.AntiDependencyValidationFailedRetrackPathAsNonExistent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -197,7 +197,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void AntiDependencyValidationFailedRetrackPathAsNonExistent(LoggingContext context, string path, string failureMessage);
 
         [GeneratedEvent(
-            (int)EventId.AntiDependencyValidationFailedProbePathToVerifyNonExistent,
+            (int)LogEventId.AntiDependencyValidationFailedProbePathToVerifyNonExistent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -206,7 +206,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void AntiDependencyValidationFailedProbePathToVerifyNonExistent(LoggingContext context, string path, string failureMessage);
 
         [GeneratedEvent(
-            (int)EventId.AntiDependencyValidationStats,
+            (int)LogEventId.AntiDependencyValidationStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -215,7 +215,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void AntiDependencyValidationStats(LoggingContext context, int numOfVerifiedToBeAbsent, int numOfFailedToRetrackAsNonExistent, int numOfFailedToProbe, long elapsedMs);
 
         [GeneratedEvent(
-            (int)EventId.EnumerationDependencyValidationPotentiallyAddedOrRemovedDirectChildrenButVerifiedUnchanged,
+            (int)LogEventId.EnumerationDependencyValidationPotentiallyAddedOrRemovedDirectChildrenButVerifiedUnchanged,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -224,7 +224,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void EnumerationDependencyValidationPotentiallyAddedOrRemovedDirectChildrenButVerifiedUnchanged(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.EnumerationDependencyValidationFailedRetrackUnchangedDirectoryForMembershipChanges,
+            (int)LogEventId.EnumerationDependencyValidationFailedRetrackUnchangedDirectoryForMembershipChanges,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -233,7 +233,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void EnumerationDependencyValidationFailedRetrackUnchangedDirectoryForMembershipChanges(LoggingContext context, string path, string failureMessage);
 
         [GeneratedEvent(
-            (int)EventId.EnumerationDependencyValidationFailedToOpenOrEnumerateDirectoryForMembershipChanges,
+            (int)LogEventId.EnumerationDependencyValidationFailedToOpenOrEnumerateDirectoryForMembershipChanges,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -242,7 +242,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void EnumerationDependencyValidationFailedToOpenOrEnumerateDirectoryForMembershipChanges(LoggingContext context, string path, string failureMessage);
 
         [GeneratedEvent(
-            (int)EventId.EnumerationDependencyValidationStats,
+            (int)LogEventId.EnumerationDependencyValidationStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -251,7 +251,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void EnumerationDependencyValidationStats(LoggingContext context, int numOfUnchanges, int numOfFailedToRetrack, int numOfFailedToOpenAndEnumerate, long elapsedMs);
 
         [GeneratedEvent(
-            (int)EventId.HardLinkValidationPotentiallyChangedButVerifiedUnchanged,
+            (int)LogEventId.HardLinkValidationPotentiallyChangedButVerifiedUnchanged,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -260,7 +260,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void HardLinkValidationPotentiallyChangedButVerifiedUnchanged(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.HardLinkValidationHardLinkChangedBecauseFileIdChanged,
+            (int)LogEventId.HardLinkValidationHardLinkChangedBecauseFileIdChanged,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -269,7 +269,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void HardLinkValidationHardLinkChangedBecauseFileIdChanged(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.HardLinkValidationFailedRetrackUnchangedHardLink,
+            (int)LogEventId.HardLinkValidationFailedRetrackUnchangedHardLink,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -278,7 +278,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void HardLinkValidationFailedRetrackUnchangedHardLink(LoggingContext context, string path, string failureMessage);
 
         [GeneratedEvent(
-            (int)EventId.HardLinkValidationFailedToOpenHardLinkDueToNonExistent,
+            (int)LogEventId.HardLinkValidationFailedToOpenHardLinkDueToNonExistent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -287,7 +287,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void HardLinkValidationFailedToOpenHardLinkDueToNonExistent(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.HardLinkValidationFailedToOpenOrTrackHardLink,
+            (int)LogEventId.HardLinkValidationFailedToOpenOrTrackHardLink,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -296,7 +296,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void HardLinkValidationFailedToOpenOrTrackHardLink(LoggingContext context, string path, string failureMessage);
 
         [GeneratedEvent(
-            (int)EventId.HardLinkValidationStats,
+            (int)LogEventId.HardLinkValidationStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -309,7 +309,7 @@ namespace BuildXL.Storage.Tracing
         #region Change Journal Service
 
         [GeneratedEvent(
-            (int)EventId.ChangeJournalServiceRequestStart,
+            (int)LogEventId.ChangeJournalServiceRequestStart,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -319,7 +319,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeJournalServiceRequestStart(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.ChangeJournalServiceRequestStop,
+            (int)LogEventId.ChangeJournalServiceRequestStop,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -329,7 +329,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeJournalServiceRequestStop(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.ChangeJournalPipeServerInstanceThreadCrash,
+            (int)LogEventId.ChangeJournalPipeServerInstanceThreadCrash,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Critical,
             Keywords = (int)Keywords.UserMessage,
@@ -338,7 +338,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeJournalPipeServerInstanceThreadCrash(LoggingContext context, int hresult, string exceptionMessage);
 
         [GeneratedEvent(
-            (int)EventId.ChangeJournalServiceRequestIOError,
+            (int)LogEventId.ChangeJournalServiceRequestIOError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -347,7 +347,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeJournalServiceRequestIOError(LoggingContext context, int hresult, string exceptionMessage);
 
         [GeneratedEvent(
-            (int)EventId.ChangeJournalServiceProtocolError,
+            (int)LogEventId.ChangeJournalServiceProtocolError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -356,7 +356,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeJournalServiceProtocolError(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.ChangeJournalServiceReadJournalRequest,
+            (int)LogEventId.ChangeJournalServiceReadJournalRequest,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -365,7 +365,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeJournalServiceReadJournalRequest(LoggingContext context, string volumePath, ulong startUsn);
 
         [GeneratedEvent(
-            (int)EventId.ChangeJournalServiceQueryJournalRequest,
+            (int)LogEventId.ChangeJournalServiceQueryJournalRequest,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -374,7 +374,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeJournalServiceQueryJournalRequest(LoggingContext context, string volumePath);
 
         [GeneratedEvent(
-            (int)EventId.ChangeJournalServiceQueryServiceVersionRequest,
+            (int)LogEventId.ChangeJournalServiceQueryServiceVersionRequest,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -383,7 +383,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ChangeJournalServiceQueryServiceVersionRequest(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.ChangeJournalServiceUnsupportedProtocolVersion,
+            (int)LogEventId.ChangeJournalServiceUnsupportedProtocolVersion,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -394,7 +394,7 @@ namespace BuildXL.Storage.Tracing
         #endregion
 
         [GeneratedEvent(
-            (int)EventId.StorageFileContentTableIgnoringFileSinceVersionedFileIdentityIsNotSupported,
+            (int)LogEventId.StorageFileContentTableIgnoringFileSinceVersionedFileIdentityIsNotSupported,
                     EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -406,7 +406,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageFileContentTableIgnoringFileSinceVersionedFileIdentityIsNotSupported(LoggingContext context, string path, string message);
 
         [GeneratedEvent(
-            (int)EventId.StorageLoadFileContentTable,
+            (int)LogEventId.StorageLoadFileContentTable,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -417,7 +417,7 @@ namespace BuildXL.Storage.Tracing
 
         /*
         [GeneratedEvent(
-            (int)EventId.StorageCacheFlushingBegin,
+            (int)LogEventId.StorageCacheFlushingBegin,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -427,7 +427,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageCacheFlushingBegin(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.StorageCacheFlushingComplete,
+            (int)LogEventId.StorageCacheFlushingComplete,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -437,7 +437,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageCacheFlushingComplete(LoggingContext context);
         */
         [GeneratedEvent(
-            (int)EventId.StorageCacheCopyLocalError,
+            (int)LogEventId.StorageCacheCopyLocalError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -447,7 +447,7 @@ namespace BuildXL.Storage.Tracing
 
         /*
         [GeneratedEvent(
-            (int)EventId.StorageCacheGetContentUsingFallback,
+            (int)LogEventId.StorageCacheGetContentUsingFallback,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -456,7 +456,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageCacheGetContentUsingFallback(LoggingContext context, string contentHash, string fallbackPath);
 
         [GeneratedEvent(
-            (int)EventId.StorageCacheStartupError,
+            (int)LogEventId.StorageCacheStartupError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -466,7 +466,7 @@ namespace BuildXL.Storage.Tracing
         */
 
         [GeneratedEvent(
-            (int)EventId.StorageCacheContentPinned,
+            (int)LogEventId.StorageCacheContentPinned,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -475,7 +475,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageCacheContentPinned(LoggingContext loggingContext, string casEntry, string cacheId);
 
         [GeneratedEvent(
-            (int)EventId.FileMaterializationMismatchFileExistenceResult,
+            (int)LogEventId.FileMaterializationMismatchFileExistenceResult,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -484,7 +484,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void FileMaterializationMismatchFileExistenceResult(LoggingContext loggingContext, string path, string message, string cacheExistence);
 
         [GeneratedEvent(
-            (int)EventId.StorageKnownUsnHit,
+            (int)LogEventId.StorageKnownUsnHit,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -493,7 +493,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageKnownUsnHit(LoggingContext context, string path, ulong idHigh, ulong idLow, ulong volumeSerial, ulong usn, string contentHash);
 
         [GeneratedEvent(
-            (int)EventId.StorageUnknownUsnMiss,
+            (int)LogEventId.StorageUnknownUsnMiss,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -502,7 +502,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageUnknownUsnMiss(LoggingContext context, string path, ulong idHigh, ulong idLow, ulong volumeSerial, ulong readUsn, ulong knownUsn, string knownContentHash);
 
         [GeneratedEvent(
-            (int)EventId.StorageUnknownFileMiss,
+            (int)LogEventId.StorageUnknownFileMiss,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -511,7 +511,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageUnknownFileMiss(LoggingContext context, string path, ulong idHigh, ulong idLow, ulong volumeSerial, ulong readUsn);
 
         [GeneratedEvent(
-            (int)EventId.StorageVersionedFileIdentityNotSupportedMiss,
+            (int)LogEventId.StorageVersionedFileIdentityNotSupportedMiss,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -520,7 +520,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageVersionedFileIdentityNotSupportedMiss(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.StorageRecordNewKnownUsn,
+            (int)LogEventId.StorageRecordNewKnownUsn,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -529,7 +529,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageRecordNewKnownUsn(LoggingContext context, string path, ulong idHigh, ulong idLow, ulong volumeSerial, ulong newUsn, string contentHash);
 
         [GeneratedEvent(
-            (int)EventId.StorageUsnMismatchButContentMatch,
+            (int)LogEventId.StorageUsnMismatchButContentMatch,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -538,7 +538,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageUsnMismatchButContentMatch(LoggingContext context, string path, ulong oldUsn, ulong newUsn, string contentHash);
 
         [GeneratedEvent(
-            (int)EventId.StorageVolumeCollision,
+            (int)LogEventId.StorageVolumeCollision,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -547,7 +547,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StorageVolumeCollision(LoggingContext context, ulong serial, string guidPathA, string guidPathB);
 
         [GeneratedEvent(
-            (int)EventId.StartLoadingChangeTracker,
+            (int)LogEventId.StartLoadingChangeTracker,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -557,7 +557,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StartLoadingChangeTracker(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.EndLoadingChangeTracker,
+            (int)LogEventId.EndLoadingChangeTracker,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -567,7 +567,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void EndLoadingChangeTracker(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.LoadingChangeTracker,
+            (int)LogEventId.LoadingChangeTracker,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -576,7 +576,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void LoadingChangeTracker(LoggingContext context, string path, string token, string status, string reason, int trackedVolumeCount, long trackedJournalSizeByte, long durationMs);
 
         [GeneratedEvent(
-            (int)EventId.DisableChangeTracker,
+            (int)LogEventId.DisableChangeTracker,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -585,7 +585,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void DisableChangeTracker(LoggingContext context, string path, string reason);
 
         [GeneratedEvent(
-            (int)EventId.StartScanningJournal,
+            (int)LogEventId.StartScanningJournal,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -595,7 +595,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void StartScanningJournal(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.ScanningJournal,
+            (int)LogEventId.ScanningJournal,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -604,7 +604,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ScanningJournal(LoggingContext context, string token, string status, long durationMs);
 
         [GeneratedEvent(
-            (int)EventId.EndScanningJournal,
+            (int)LogEventId.EndScanningJournal,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
@@ -614,7 +614,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void EndScanningJournal(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.FileCombinerVersionIncremented,
+            (int)LogEventId.FileCombinerVersionIncremented,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -624,7 +624,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void FileCombinerVersionIncremented(LoggingContext context, string usage);
 
         [GeneratedEvent(
-            (int)EventId.FileCombinerFailedToInitialize,
+            (int)LogEventId.FileCombinerFailedToInitialize,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -634,7 +634,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void FileCombinerFailedToInitialize(LoggingContext context, string usage, string exception);
 
         [GeneratedEvent(
-            (int)EventId.FileCombinerFailedToCreate,
+            (int)LogEventId.FileCombinerFailedToCreate,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -648,7 +648,7 @@ namespace BuildXL.Storage.Tracing
 
 #pragma warning restore CA1823 // Unused field
         [GeneratedEvent(
-            (int)EventId.SpecCache,
+            (int)LogEventId.SpecCache,
             EventGenerators = EventGenerators.LocalAndTelemetryAndStatistic,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -658,7 +658,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void SpecCache(LoggingContext context, FileCombinerStats stats);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalFrontendCache,
+            (int)LogEventId.IncrementalFrontendCache,
             EventGenerators = EventGenerators.LocalAndTelemetryAndStatistic,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -668,7 +668,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void IncrementalFrontendCache(LoggingContext context, FileCombinerStats stats);
 
         [GeneratedEvent(
-            (int)EventId.ValidateJunctionRoot,
+            (int)LogEventId.ValidateJunctionRoot,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -677,7 +677,7 @@ namespace BuildXL.Storage.Tracing
         public abstract void ValidateJunctionRoot(LoggingContext context, string path, string result);
 
         [GeneratedEvent(
-            (ushort)EventId.ConflictDirectoryMembershipFingerprint,
+            (ushort)LogEventId.ConflictDirectoryMembershipFingerprint,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,

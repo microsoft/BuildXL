@@ -215,8 +215,8 @@ namespace Test.BuildXL.Storage
                     AddFile(combiner, f1);
                 }
 
-                AssertWarningEventLogged(EventId.FileCombinerFailedToInitialize);
-                AssertWarningEventLogged(EventId.FileCombinerFailedToCreate);
+                AssertWarningEventLogged(LogEventId.FileCombinerFailedToInitialize);
+                AssertWarningEventLogged(LogEventId.FileCombinerFailedToCreate);
             }
         }
 

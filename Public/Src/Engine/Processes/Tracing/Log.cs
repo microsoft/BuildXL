@@ -22,7 +22,7 @@ namespace BuildXL.Processes.Tracing
         public static Logger Log => m_log;
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFileAccess,
+            (int)LogEventId.PipProcessFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -36,7 +36,7 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipFailSymlinkCreation,
+            (int)LogEventId.PipFailSymlinkCreation,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -49,7 +49,7 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipInvalidDetoursDebugFlag1,
+            (int)LogEventId.PipInvalidDetoursDebugFlag1,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -58,7 +58,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipInvalidDetoursDebugFlag1(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.PipInvalidDetoursDebugFlag2,
+            (int)LogEventId.PipInvalidDetoursDebugFlag2,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -67,7 +67,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipInvalidDetoursDebugFlag2(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessStartFailed,
+            (int)LogEventId.PipProcessStartFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -76,7 +76,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessStartFailed(LoggingContext context, long pipSemiStableHash, string pipDescription, int errorCode, string message);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFinished,
+            (int)LogEventId.PipProcessFinished,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -85,7 +85,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessFinished(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFinishedFailed,
+            (int)LogEventId.PipProcessFinishedFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -94,7 +94,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessFinishedFailed(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessMessageParsingError,
+            (int)LogEventId.PipProcessMessageParsingError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -103,7 +103,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessMessageParsingError(LoggingContext context, long pipSemiStableHash, string pipDescription, string error);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFinishedDetourFailures,
+            (int)LogEventId.PipProcessFinishedDetourFailures,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -112,7 +112,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessFinishedDetourFailures(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessDisallowedTempFileAccess,
+            (int)LogEventId.PipProcessDisallowedTempFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -127,7 +127,7 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipOutputNotAccessed,
+            (int)LogEventId.PipOutputNotAccessed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -141,7 +141,7 @@ namespace BuildXL.Processes.Tracing
             string outputFileName);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessDisallowedFileAccess,
+            (int)LogEventId.PipProcessDisallowedFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -157,7 +157,7 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessDisallowedNtCreateFileAccessWarning,
+            (int)LogEventId.PipProcessDisallowedNtCreateFileAccessWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -174,7 +174,7 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessTookTooLongWarning,
+            (int)LogEventId.PipProcessTookTooLongWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -190,7 +190,7 @@ namespace BuildXL.Processes.Tracing
             long hardMax);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessTookTooLongError,
+            (int)LogEventId.PipProcessTookTooLongError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -199,7 +199,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessTookTooLongError(LoggingContext context, long pipSemiStableHash, string pipDescription, long actual, long time, string dumpDetails);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessStandardOutput,
+            (int)LogEventId.PipProcessStandardOutput,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -208,7 +208,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessStandardOutput(LoggingContext context, long pipSemiStableHash, string pipDescription, string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessStandardError,
+            (int)LogEventId.PipProcessStandardError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -217,7 +217,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessStandardError(LoggingContext context, long pipSemiStableHash, string pipDescription, string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFileAccessTableEntry,
+            (int)LogEventId.PipProcessFileAccessTableEntry,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -226,7 +226,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessFileAccessTableEntry(LoggingContext context, long pipSemiStableHash, string pipDescription, string value);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFailedToParsePathOfFileAccess,
+            (int)LogEventId.PipProcessFailedToParsePathOfFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -240,7 +240,7 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessIgnoringPathOfSpecialDeviceFileAccess,
+            (int)LogEventId.PipProcessIgnoringPathOfSpecialDeviceFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -254,7 +254,7 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessIgnoringPathWithWildcardsFileAccess,
+            (int)LogEventId.PipProcessIgnoringPathWithWildcardsFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -268,7 +268,7 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable,
+            (int)LogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -284,7 +284,7 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessDisallowedFileAccessWhitelistedCacheable,
+            (int)LogEventId.PipProcessDisallowedFileAccessWhitelistedCacheable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -300,7 +300,7 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.FileAccessWhitelistFailedToParsePath,
+            (int)LogEventId.FileAccessWhitelistFailedToParsePath,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -317,7 +317,7 @@ namespace BuildXL.Processes.Tracing
             int characterWithError);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessUncacheableWhitelistNotAllowedInDistributedBuilds,
+            (int)LogEventId.PipProcessUncacheableWhitelistNotAllowedInDistributedBuilds,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -333,7 +333,7 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.Process,
+            (int)LogEventId.Process,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -342,7 +342,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcess(LoggingContext context, long pipSemiStableHash, string pipDescription, uint id, string path);
 
         [GeneratedEvent(
-            (int)EventId.BrokeredDetoursInjectionFailed,
+            (int)LogEventId.BrokeredDetoursInjectionFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -351,7 +351,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void BrokeredDetoursInjectionFailed(LoggingContext context, uint processId, string error);
 
         [GeneratedEvent(
-            (int)EventId.LogDetoursDebugMessage,
+            (int)LogEventId.LogDetoursDebugMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -364,7 +364,7 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)EventId.LogMacKextFailure,
+            (int)LogEventId.LogMacKextFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -377,7 +377,7 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)EventId.LogAppleSandboxPolicyGenerated,
+            (int)LogEventId.LogAppleSandboxPolicyGenerated,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -390,7 +390,7 @@ namespace BuildXL.Processes.Tracing
             string policyFilePath);
 
         [GeneratedEvent(
-            (int)EventId.LogDetoursMaxHeapSize,
+            (int)LogEventId.LogDetoursMaxHeapSize,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics),
@@ -410,7 +410,7 @@ namespace BuildXL.Processes.Tracing
             ulong handleMapEntries);
 
         [GeneratedEvent(
-            (int)EventId.LogInternalDetoursErrorFileNotEmpty,
+            (int)LogEventId.LogInternalDetoursErrorFileNotEmpty,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -423,7 +423,7 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)EventId.LogFailedToCreateDirectoryForInternalDetoursFailureFile,
+            (int)LogEventId.LogFailedToCreateDirectoryForInternalDetoursFailureFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -437,7 +437,7 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)EventId.LogGettingInternalDetoursErrorFile,
+            (int)LogEventId.LogGettingInternalDetoursErrorFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -450,7 +450,7 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)EventId.LogMismatchedDetoursVerboseCount,
+            (int)LogEventId.LogMismatchedDetoursVerboseCount,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -463,7 +463,7 @@ namespace BuildXL.Processes.Tracing
             int lastMessageCount);
 
         [GeneratedEvent(
-            (int)EventId.LogMessageCountSemaphoreExists,
+            (int)LogEventId.LogMessageCountSemaphoreExists,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -475,7 +475,7 @@ namespace BuildXL.Processes.Tracing
             string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessCommandLineTooLong,
+            (int)LogEventId.PipProcessCommandLineTooLong,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -489,7 +489,7 @@ namespace BuildXL.Processes.Tracing
             int maxLength);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessInvalidWarningRegex,
+            (int)LogEventId.PipProcessInvalidWarningRegex,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -498,7 +498,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessInvalidWarningRegex(LoggingContext context, long pipSemiStableHash, string pipDescription, string pattern, string options);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessInvalidErrorRegex,
+            (int)LogEventId.PipProcessInvalidErrorRegex,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -507,7 +507,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessInvalidErrorRegex(LoggingContext context, long pipSemiStableHash, string pipDescription, string pattern, string options);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessChildrenSurvivedError,
+            (int)LogEventId.PipProcessChildrenSurvivedError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -516,7 +516,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessChildrenSurvivedError(LoggingContext context, long pipSemiStableHash, string pipDescription, int count,  string paths);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessChildrenSurvivedTooMany,
+            (int)LogEventId.PipProcessChildrenSurvivedTooMany,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -525,7 +525,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessChildrenSurvivedTooMany(LoggingContext context, long pipSemiStableHash, string pipDescription, int count, string paths);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessChildrenSurvivedKilled,
+            (int)LogEventId.PipProcessChildrenSurvivedKilled,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -534,7 +534,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessChildrenSurvivedKilled(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessMissingExpectedOutputOnCleanExit,
+            (int)LogEventId.PipProcessMissingExpectedOutputOnCleanExit,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -543,7 +543,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessMissingExpectedOutputOnCleanExit(LoggingContext context, long pipSemiStableHash, string pipDescription, string pipSpecPath, string pipWorkingDirectory, string path);
 
         [GeneratedEvent(
-          (int)EventId.PipProcessExpectedMissingOutputs,
+          (int)LogEventId.PipProcessExpectedMissingOutputs,
           EventGenerators = EventGenerators.LocalOnly,
           EventLevel = Level.Error,
           Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -556,7 +556,7 @@ namespace BuildXL.Processes.Tracing
             string paths);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessOutputPreparationFailed,
+            (int)LogEventId.PipProcessOutputPreparationFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
@@ -572,7 +572,7 @@ namespace BuildXL.Processes.Tracing
             string exception);
 
         [GeneratedEvent(
-            (int)EventId.PipStandardIOFailed,
+            (int)LogEventId.PipStandardIOFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -587,7 +587,7 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)EventId.PipExitedUncleanly,
+            (int)LogEventId.PipExitedUncleanly,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -603,7 +603,7 @@ namespace BuildXL.Processes.Tracing
             int numSurvivingChildErrors);
 
         [GeneratedEvent(
-            (int)EventId.PipRetryDueToExitedWithAzureWatsonExitCode,
+            (int)LogEventId.PipRetryDueToExitedWithAzureWatsonExitCode,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -617,7 +617,7 @@ namespace BuildXL.Processes.Tracing
             uint processId);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessStandardInputException,
+            (int)LogEventId.PipProcessStandardInputException,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -632,7 +632,7 @@ namespace BuildXL.Processes.Tracing
             string exceptionMessage);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessToolErrorDueToHandleToFileBeingUsed,
+            (int)LogEventId.PipProcessToolErrorDueToHandleToFileBeingUsed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -649,7 +649,7 @@ namespace BuildXL.Processes.Tracing
             string reason);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessError,
+            (int)LogEventId.PipProcessError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -672,7 +672,7 @@ namespace BuildXL.Processes.Tracing
             string optionalMessage);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessWarning,
+            (int)LogEventId.PipProcessWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -693,7 +693,7 @@ namespace BuildXL.Processes.Tracing
             string pathsToLog);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessOutput,
+            (int)LogEventId.PipProcessOutput,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -708,7 +708,7 @@ namespace BuildXL.Processes.Tracing
             string outputToLog);
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempDirectoryCleanupError,
+            (ushort)LogEventId.PipTempDirectoryCleanupError,
             EventLevel = Level.Error,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Keywords.UserMessage,
@@ -717,7 +717,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipTempDirectoryCleanupError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempDirectorySetupError,
+            (ushort)LogEventId.PipTempDirectorySetupError,
             EventLevel = Level.Error,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Keywords.UserMessage,
@@ -726,7 +726,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipTempDirectorySetupError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempSymlinkRedirectionError,
+            (ushort)LogEventId.PipTempSymlinkRedirectionError,
             EventLevel = Level.Error,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Keywords.UserMessage,
@@ -735,7 +735,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipTempSymlinkRedirectionError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directorySymlink, string tempDirectory, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempSymlinkRedirection,
+            (ushort)LogEventId.PipTempSymlinkRedirection,
             EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Keywords.UserMessage,
@@ -744,7 +744,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipTempSymlinkRedirection(LoggingContext context, long pipSemiStableHash, string pipDescription, string directorySymlink, string tempDirectory);
 
         [GeneratedEvent(
-            (ushort)EventId.PipFailedToCreateDumpFile,
+            (ushort)LogEventId.PipFailedToCreateDumpFile,
             EventLevel = Level.Warning,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Keywords.UserMessage,
@@ -753,7 +753,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipFailedToCreateDumpFile(LoggingContext context, long pipSemiStableHash, string pipDescription, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.RetryStartPipDueToErrorPartialCopyDuringDetours,
+            (ushort)LogEventId.RetryStartPipDueToErrorPartialCopyDuringDetours,
             EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Keywords.UserMessage,
@@ -767,7 +767,7 @@ namespace BuildXL.Processes.Tracing
             int retryNumber);
 
         [GeneratedEvent(
-            (int)EventId.DuplicateWindowsEnvironmentVariableEncountered,
+            (int)LogEventId.DuplicateWindowsEnvironmentVariableEncountered,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -780,7 +780,7 @@ namespace BuildXL.Processes.Tracing
             string ignoredValue);
 
         [GeneratedEvent(
-            (int)EventId.ReadWriteFileAccessConvertedToReadMessage,
+            (int)LogEventId.ReadWriteFileAccessConvertedToReadMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -794,7 +794,7 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.ReadWriteFileAccessConvertedToReadWarning,
+            (int)LogEventId.ReadWriteFileAccessConvertedToReadWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -806,7 +806,7 @@ namespace BuildXL.Processes.Tracing
             string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessResponseFileCreationFailed,
+            (int)LogEventId.PipProcessResponseFileCreationFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -821,7 +821,7 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (ushort)EventId.FailedToMergeOutputsToOriginalLocation,
+            (ushort)LogEventId.FailedToMergeOutputsToOriginalLocation,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -830,7 +830,7 @@ namespace BuildXL.Processes.Tracing
         internal abstract void FailedToMergeOutputsToOriginalLocation(LoggingContext loggingContext, long pipSemiStableHash, string pipDescription, string details);
 
         [GeneratedEvent(
-            (ushort)EventId.FailedToCreateHardlinkOnMerge,
+            (ushort)LogEventId.FailedToCreateHardlinkOnMerge,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -839,7 +839,7 @@ namespace BuildXL.Processes.Tracing
         internal abstract void FailedToCreateHardlinkOnMerge(LoggingContext loggingContext, long pipSemiStableHash, string pipDescription, string destinationFile, string sourceFile, string failedStatus);
 
         [GeneratedEvent(
-            (ushort)EventId.DisallowedDoubleWriteOnMerge,
+            (ushort)LogEventId.DisallowedDoubleWriteOnMerge,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -848,7 +848,7 @@ namespace BuildXL.Processes.Tracing
         internal abstract void DisallowedDoubleWriteOnMerge(LoggingContext loggingContext, long pipSemiStableHash, string pipDescription, string destinationFile, string sourceFile);
 
         [GeneratedEvent(
-            (ushort)EventId.DoubleWriteAllowedDueToPolicy,
+            (ushort)LogEventId.DoubleWriteAllowedDueToPolicy,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -857,7 +857,7 @@ namespace BuildXL.Processes.Tracing
         internal abstract void DoubleWriteAllowedDueToPolicy(LoggingContext loggingContext, long pipSemiStableHash, string pipDescription, string destinationFile);
 
         [GeneratedEvent(
-            (ushort)EventId.FailedToCleanUpContainer,
+            (ushort)LogEventId.FailedToCleanUpContainer,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -866,7 +866,7 @@ namespace BuildXL.Processes.Tracing
         internal abstract void FailedToCleanUpContainer(LoggingContext loggingContext, string jobObject, string details);
 
         [GeneratedEvent(
-            (ushort)EventId.WarningSettingUpContainer,
+            (ushort)LogEventId.WarningSettingUpContainer,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -875,7 +875,7 @@ namespace BuildXL.Processes.Tracing
         internal abstract void WarningSettingUpContainer(LoggingContext loggingContext, string jobObject, string warning);
 
         [GeneratedEvent(
-            (int)EventId.PipInContainerStarted,
+            (int)LogEventId.PipInContainerStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -884,7 +884,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipInContainerStarted(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipInContainerStarting,
+            (int)LogEventId.PipInContainerStarting,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -893,7 +893,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipInContainerStarting(LoggingContext context, long pipSemiStableHash, string pipDescription, string remappingInfo);
 
         [GeneratedEvent(
-            (int)EventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported,
+            (int)LogEventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -902,7 +902,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipSpecifiedToRunInContainerButIsolationIsNotSupported(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int) EventId.PipProcessStartExternalTool,
+            (int) LogEventId.PipProcessStartExternalTool,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -911,7 +911,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessStartExternalTool(LoggingContext context, long pipSemiStableHash, string pipDescription, string tool);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFinishedExternalTool,
+            (int)LogEventId.PipProcessFinishedExternalTool,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -920,7 +920,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessFinishedExternalTool(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessStartExternalVm,
+            (int)LogEventId.PipProcessStartExternalVm,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -929,7 +929,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessStartExternalVm(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFinishedExternalVm,
+            (int)LogEventId.PipProcessFinishedExternalVm,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -938,7 +938,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessFinishedExternalVm(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessExternalExecution,
+            (int)LogEventId.PipProcessExternalExecution,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -947,7 +947,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessExternalExecution(LoggingContext context, long pipSemiStableHash, string pipDescription, string message);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessNeedsExecuteExternalButExecuteInternal,
+            (int)LogEventId.PipProcessNeedsExecuteExternalButExecuteInternal,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,

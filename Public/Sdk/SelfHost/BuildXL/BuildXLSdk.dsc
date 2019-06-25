@@ -519,9 +519,6 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").pkg.compile
                 ),
                 ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),
-
-                // TODO More types needed from utilities into BuildXL.Utilities.Instrumentation.Common.
-                importFrom("BuildXL.Utilities").dll.compile,
             ];
         
         let sources = args.generateLogsLite === false

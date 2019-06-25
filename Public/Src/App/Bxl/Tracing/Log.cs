@@ -368,7 +368,7 @@ namespace BuildXL.App.Tracing
             string lastInternalError);
 
         [GeneratedEvent(
-            (ushort)EventId.DominoMacOSCrashReport,
+            (ushort)LogEventId.DominoMacOSCrashReport,
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Critical,
             Message = "Telemetry Only")]

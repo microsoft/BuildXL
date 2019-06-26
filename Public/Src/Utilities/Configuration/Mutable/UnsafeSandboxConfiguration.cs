@@ -26,6 +26,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreGetFinalPathNameByHandle = false;
             MonitorZwCreateOpenQueryFile = true;
             IgnoreDynamicWritesOnAbsentProbes = false;
+            IgnoreUndeclaredAccessesUnderSharedOpaques = true;
             // Make sure to update SafeOptions below if necessary when new flags are added
         }
 
@@ -36,6 +37,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public static readonly IUnsafeSandboxConfiguration SafeOptions = new UnsafeSandboxConfiguration()
         {
             IgnorePreloadedDlls = false,
+            IgnoreUndeclaredAccessesUnderSharedOpaques = false,
         };
 
         /// <nodoc />
@@ -57,6 +59,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreGetFinalPathNameByHandle = template.IgnoreGetFinalPathNameByHandle;
             IgnoreDynamicWritesOnAbsentProbes = template.IgnoreDynamicWritesOnAbsentProbes;
             DoubleWritePolicy = template.DoubleWritePolicy;
+            IgnoreUndeclaredAccessesUnderSharedOpaques = template.IgnoreUndeclaredAccessesUnderSharedOpaques;
         }
 
         /// <inheritdoc />
@@ -106,5 +109,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public DoubleWritePolicy? DoubleWritePolicy { get; set; }
+
+        /// <inheritdoc />
+        public bool IgnoreUndeclaredAccessesUnderSharedOpaques { get; set; }
     }
 }

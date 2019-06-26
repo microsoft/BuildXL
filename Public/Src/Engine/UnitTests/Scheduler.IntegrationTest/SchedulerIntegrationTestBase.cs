@@ -487,22 +487,52 @@ namespace Test.BuildXL.Scheduler
             string sharedOpaqueDir,
             params FileArtifact[] filesToProduce)
         {
-            return CreateAndScheduleSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically: FileArtifact.Invalid, sourceFileToRead: FileArtifact.Invalid, filesToProduce);
+            return CreateAndScheduleSharedOpaqueProducer(
+                sharedOpaqueDir, 
+                fileToProduceStatically: FileArtifact.Invalid, 
+                sourceFileToRead: FileArtifact.Invalid, 
+                filesToProduce.Select(f => new KeyValuePair<FileArtifact, string>(f, null)).ToArray());
         }
 
-        protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(string sharedOpaqueDir, FileArtifact fileToProduceStatically, FileArtifact sourceFileToRead, params FileArtifact[] filesToProduceDynamically)
+        protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(
+            string sharedOpaqueDir,
+            FileArtifact fileToProduceStatically,
+            FileArtifact sourceFileToRead,
+            params FileArtifact[] filesToProduceDynamically)
         {
-            var filesAndContent = new KeyValuePair<FileArtifact, string>[filesToProduceDynamically.Length];
-            for (var i = 0 ; i < filesToProduceDynamically.Length; i++)
-            {
-                // null content for an output will make the builder use random content
-                filesAndContent[i] = new KeyValuePair<FileArtifact, string>(filesToProduceDynamically[i], null);
-            }
-
-            return CreateAndScheduleSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically, sourceFileToRead, filesAndContent);
+            return CreateAndScheduleSharedOpaqueProducer(
+                sharedOpaqueDir,
+                fileToProduceStatically,
+                sourceFileToRead,
+                filesToProduceDynamically.Select(f => new KeyValuePair<FileArtifact, string>(f, null)).ToArray());
         }
 
-        protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(string sharedOpaqueDir, FileArtifact fileToProduceStatically, FileArtifact sourceFileToRead, params KeyValuePair<FileArtifact, string>[] filesAndContentToProduceDynamically)
+        protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(
+            string sharedOpaqueDir,
+            FileArtifact fileToProduceStatically,
+            FileArtifact sourceFileToRead,
+            params KeyValuePair<FileArtifact, string>[] filesAndContentToProduceDynamically)
+        {
+            return CreateAndScheduleSharedOpaqueProducer(
+                sharedOpaqueDir,
+                fileToProduceStatically,
+                sourceFileToRead,
+                filesAndContentToProduceDynamically.SelectMany(
+                    fac =>
+                    {
+                        return new[]
+                        {
+                            Operation.DeleteFile(fac.Key),
+                            Operation.WriteFile(fac.Key, content: fac.Value, doNotInfer: true)
+                        };
+                    }).ToArray());
+        }
+
+        protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(
+            string sharedOpaqueDir,
+            FileArtifact fileToProduceStatically,
+            FileArtifact sourceFileToRead,
+            params Operation[] additionalOperations)
         {
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             var sharedOpaqueDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
@@ -518,13 +548,8 @@ namespace Test.BuildXL.Scheduler
             {
                 operations.Add(Operation.ReadFile(sourceFileToRead));
             }
-            
-            foreach (var fac in filesAndContentToProduceDynamically)
-            {
-                // Make sure the file is not there before writing
-                operations.Add(Operation.DeleteFile(fac.Key));
-                operations.Add(Operation.WriteFile(fac.Key, content: fac.Value, doNotInfer: true));
-            }
+
+            operations.AddRange(additionalOperations);
 
             var builder = CreatePipBuilder(operations);
             builder.AddOutputDirectory(sharedOpaqueDirectoryArtifact, SealDirectoryKind.SharedOpaque);

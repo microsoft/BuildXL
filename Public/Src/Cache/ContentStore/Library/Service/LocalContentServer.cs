@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Service
             LocalServerConfiguration localContentServerConfiguration)
         : base(logger, fileSystem, scenario, contentStoreFactory, localContentServerConfiguration)
         {
-            _grpcContentServer = new GrpcContentServer(logger, Capabilities.ContentOnly, this, StoresByName, localContentServerConfiguration.BufferSizeForGrpcCopies);
+            _grpcContentServer = new GrpcContentServer(logger, Capabilities.ContentOnly, this, StoresByName, localContentServerConfiguration);
         }
 
         /// <inheritdoc />

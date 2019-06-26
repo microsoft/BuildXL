@@ -42,9 +42,12 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(false)] bool debug,
             [DefaultValue(false), Description("Whether or not GRPC is used for file copies")] bool useDistributedGrpc,
             [DefaultValue(false), Description("Whether or not GZip is used for GRPC file copies")] bool useCompressionForCopies,
-            [DefaultValue(null), Description("Buffer size for streaming GRPC copies")] int? bufferSizeForGrpcCopies
+            [DefaultValue(null), Description("Buffer size for streaming GRPC copies")] int? bufferSizeForGrpcCopies,
+            [DefaultValue(null), Description("Files greater than this size are compressed if compression is used")] int? gzipBarrierSizeForGrpcCopies
             )
         {
+            Initialize();
+
             if (debug)
             {
                 System.Diagnostics.Debugger.Launch();
@@ -52,7 +55,6 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                Initialize();
                 Validate();
 
                 var dcs = JsonConvert.DeserializeObject<DistributedContentSettings>(File.ReadAllText(settingsPath));
@@ -84,7 +86,8 @@ namespace BuildXL.Cache.ContentStore.App
                     maxSizeQuotaMB: maxSizeQuotaMB,
                     dataRootPath: dataRootPath,
                     ct: _cancellationToken,
-                    bufferSizeForGrpcCopies: bufferSizeForGrpcCopies);
+                    bufferSizeForGrpcCopies: bufferSizeForGrpcCopies,
+                    gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies);
 
                 DistributedCacheServiceFacade.RunAsync(arguments).GetAwaiter().GetResult();
             }

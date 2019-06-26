@@ -78,6 +78,7 @@ namespace BuildXL.Cache.ContentStore.App
         private bool _enableRemoteTelemetry;
 
 
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="Application"/> class.
         /// </summary>
@@ -563,7 +564,18 @@ namespace BuildXL.Cache.ContentStore.App
         }
 
         internal DistributedCacheServiceArguments CreateDistributedCacheServiceArguments(
-            IAbsolutePathFileCopier copier, IAbsolutePathTransformer pathTransformer, DistributedContentSettings dcs, HostInfo host, string cacheName, string cacheRootPath, uint grpcPort, int maxSizeQuotaMB, string dataRootPath, CancellationToken ct, int? bufferSizeForGrpcCopies = null)
+            IAbsolutePathFileCopier copier,
+            IAbsolutePathTransformer pathTransformer,
+            DistributedContentSettings dcs,
+            HostInfo host,
+            string cacheName,
+            string cacheRootPath,
+            uint grpcPort,
+            int maxSizeQuotaMB,
+            string dataRootPath,
+            CancellationToken ct,
+            int? bufferSizeForGrpcCopies = null,
+            int? gzipBarrierSizeForGrpcCopies = null)
         {
             var distributedCacheServiceHost = new EnvironmentVariableHost();
 
@@ -574,7 +586,7 @@ namespace BuildXL.Cache.ContentStore.App
                 grpcPort: grpcPort,
                 grpcPortFileName: _scenario);
             localCasSettings.PreferredCacheDrive = Path.GetPathRoot(cacheRootPath);
-            localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies);
+            localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies, gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies);
 
             var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs);
 

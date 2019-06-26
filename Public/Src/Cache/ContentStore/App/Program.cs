@@ -30,8 +30,8 @@ namespace BuildXL.Cache.ContentStore.App
             AppDomain.CurrentDomain.ProcessExit += (sender, eventArgs) =>
             {
                 cancellationTokenSource.Cancel();
-                // we cannot cancel this event, so to prevent CoreCLR from kill this process before
-                // we are done cancelling and cleaning up we must wait here until our app is done.
+                // we cannot cancel this event, so to prevent CoreCLR from killing this process before
+                // we are done finishing up we wait here until our app task completes.
                 runAppTask.GetAwaiter().GetResult();
             };
 

@@ -75,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
         /// <param name="data">the content and placement data for the file</param>
         /// <param name="token">the cancellation token</param>
         /// <returns>a task which completes when the operation is complete or throws an exception if error is encountered during operation</returns>
-        public Task PlaceHydratedFileAsync(VirtualPath relativePath, FilePlacementData data, CancellationToken token)
+        public Task PlaceHydratedFileAsync(VirtualPath relativePath, VfsFilePlacementData data, CancellationToken token)
         {
             var context = new OperationContext(new Context(_logger), token);
             return context.PerformOperationAsync(

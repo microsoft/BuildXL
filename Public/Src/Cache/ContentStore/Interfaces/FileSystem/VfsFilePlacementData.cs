@@ -9,13 +9,25 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
     /// <summary>
     /// Defines data for placing in VFS
     /// </summary>
-    public readonly struct FilePlacementData
+    public readonly struct VfsFilePlacementData
     {
+        /// <summary>
+        /// The content hash
+        /// </summary>
         public readonly ContentHash Hash;
+
+        /// <summary>
+        /// The realization mode
+        /// </summary>
         public readonly FileRealizationMode RealizationMode;
+
+        /// <summary>
+        /// The access mode
+        /// </summary>
         public readonly FileAccessMode AccessMode;
 
-        public FilePlacementData(ContentHash hash, FileRealizationMode realizationMode, FileAccessMode accessMode)
+        /// <nodoc />
+        public VfsFilePlacementData(ContentHash hash, FileRealizationMode realizationMode, FileAccessMode accessMode)
         {
             Hash = hash;
             RealizationMode = realizationMode;

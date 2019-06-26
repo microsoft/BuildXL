@@ -359,7 +359,7 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
                     return HandleCommandAsynchronously(commandId, async token =>
                     {
                         var fileNode = (VfsFileNode)node;
-                        await ContentManager.PlaceHydratedFileAsync(relativePath, new FilePlacementData(fileNode.Hash, fileNode.RealizationMode, fileNode.AccessMode), token);
+                        await ContentManager.PlaceHydratedFileAsync(relativePath, new VfsFilePlacementData(fileNode.Hash, fileNode.RealizationMode, fileNode.AccessMode), token);
 
                         // TODO: Create hardlink / move to original location to replace symlink?
                         return HResult.Ok;

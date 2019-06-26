@@ -41,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
         /// <summary>
         /// Adds a file node (and any needed parent directory nodes) at the VFS root relative path
         /// </summary>
-        public VfsFileNode AddFileNode(string relativePath, FilePlacementData data)
+        public VfsFileNode AddFileNode(string relativePath, VfsFilePlacementData data)
         {
             var timestamp = DateTime.UtcNow;
 
@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
             }
         }
 
-        private string GetCasFilePath(FilePlacementData data)
+        private string GetCasFilePath(VfsFilePlacementData data)
         {
             return (_configuration.VfsCasRelativeRoot / Path.GetDirectoryName(VfsUtilities.CreateCasRelativePath(data, 0))).Path;
         }

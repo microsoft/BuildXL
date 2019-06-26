@@ -100,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
                 return await _innerSession.PlaceFileAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, operationContext.Token, urgencyHint);
             }
 
-            _contentManager.Tree.AddFileNode(virtualPath, new FilePlacementData(contentHash, realizationMode, accessMode));
+            _contentManager.Tree.AddFileNode(virtualPath, new VfsFilePlacementData(contentHash, realizationMode, accessMode));
             return new PlaceFileResult(GetPlaceResultCode(realizationMode, accessMode), fileSize: -1 /* Unknown */);
         }
 

@@ -26,7 +26,7 @@ namespace BuildXL.Native.Tracing
         public static Logger Log { get { return m_log; } }
 
         [GeneratedEvent(
-            (int)EventId.FileUtilitiesDirectoryDeleteFailed,
+            (int)LogEventId.FileUtilitiesDirectoryDeleteFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Storage,
@@ -35,7 +35,7 @@ namespace BuildXL.Native.Tracing
         public abstract void FileUtilitiesDirectoryDeleteFailed(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.FileUtilitiesDiagnostic,
+            (int)LogEventId.FileUtilitiesDiagnostic,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Storage,
@@ -44,7 +44,7 @@ namespace BuildXL.Native.Tracing
         public abstract void FileUtilitiesDiagnostic(LoggingContext context, string path, string description);
 
         [GeneratedEvent(
-            (int)EventId.RetryOnFailureException,
+            (int)LogEventId.RetryOnFailureException,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Storage,
@@ -55,7 +55,7 @@ namespace BuildXL.Native.Tracing
         public abstract void RetryOnFailureException(LoggingContext context, string exception);
 
         [GeneratedEvent(
-            (int)EventId.SettingOwnershipAndAcl,
+            (int)LogEventId.SettingOwnershipAndAcl,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Storage,
@@ -64,7 +64,7 @@ namespace BuildXL.Native.Tracing
         public abstract void SettingOwnershipAndAcl(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.SettingOwnershipAndAclFailed,
+            (int)LogEventId.SettingOwnershipAndAclFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Storage,
@@ -73,7 +73,7 @@ namespace BuildXL.Native.Tracing
         public abstract void SettingOwnershipAndAclFailed(LoggingContext context, string path, string filename, string arguments, string reason);
 
         [GeneratedEvent(
-            (int)EventId.StorageReadUsn,
+            (int)LogEventId.StorageReadUsn,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -82,7 +82,7 @@ namespace BuildXL.Native.Tracing
         public abstract void StorageReadUsn(LoggingContext context, ulong idHigh, ulong idLow, ulong usn);
 
         [GeneratedEvent(
-            (int)EventId.StorageCheckpointUsn,
+            (int)LogEventId.StorageCheckpointUsn,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -91,7 +91,7 @@ namespace BuildXL.Native.Tracing
         public abstract void StorageCheckpointUsn(LoggingContext context, ulong newUsn);
 
         [GeneratedEvent(
-            (int)EventId.StorageTryOpenOrCreateFileFailure,
+            (int)LogEventId.StorageTryOpenOrCreateFileFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -100,7 +100,7 @@ namespace BuildXL.Native.Tracing
         public abstract void StorageTryOpenOrCreateFileFailure(LoggingContext context, string path, int creationDisposition, int hresult);
 
         [GeneratedEvent(
-            (int)EventId.StorageTryOpenDirectoryFailure,
+            (int)LogEventId.StorageTryOpenDirectoryFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -109,7 +109,7 @@ namespace BuildXL.Native.Tracing
         public abstract void StorageTryOpenDirectoryFailure(LoggingContext context, string path, int hresult);
 
         [GeneratedEvent(
-            (int)EventId.StorageFoundVolume,
+            (int)LogEventId.StorageFoundVolume,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -118,7 +118,7 @@ namespace BuildXL.Native.Tracing
         public abstract void StorageFoundVolume(LoggingContext context, string volumeGuidPath, ulong serial);
 
         [GeneratedEvent(
-            (int)EventId.StorageTryOpenFileByIdFailure,
+            (int)LogEventId.StorageTryOpenFileByIdFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,

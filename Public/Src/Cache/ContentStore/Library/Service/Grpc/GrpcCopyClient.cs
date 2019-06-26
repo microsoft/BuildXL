@@ -27,6 +27,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     {
         private readonly Channel _channel;
         private readonly ContentServer.ContentServerClient _client;
+        private readonly int _bufferSize;
 
         /// <inheritdoc />
         public bool ShutdownCompleted { get; private set; }
@@ -39,11 +40,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
-        internal GrpcCopyClient(GrpcCopyClientKey key)
+        internal GrpcCopyClient(GrpcCopyClientKey key, int? clientBufferSize = null)
         {
             GrpcEnvironment.InitializeIfNeeded();
             _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _client = new ContentServer.ContentServerClient(_channel);
+            _bufferSize = clientBufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
             Key = key;
         }
 
@@ -103,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public Task<CopyFileResult> CopyFileAsync(Context context, ContentHash hash, AbsolutePath destinationPath, CancellationToken ct = default(CancellationToken))
         {
-            Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, ContentStore.Grpc.CopyConstants.DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, _bufferSize, FileOptions.SequentialScan);
             return CopyToAsync(context, hash, streamFactory, ct);        
         }
         
@@ -254,7 +256,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 using (Stream decompressedStream = new GZipStream(grpcStream, CompressionMode.Decompress, true))
                 {
-                    await decompressedStream.CopyToAsync(targetStream, ContentStore.Grpc.CopyConstants.DefaultBufferSize, ct).ConfigureAwait(false);
+                    await decompressedStream.CopyToAsync(targetStream, _bufferSize, ct).ConfigureAwait(false);
                 }
             }
 

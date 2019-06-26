@@ -72,7 +72,8 @@ namespace BuildXL.Cache.ContentStore.App
                             maxGrpcClientCount: dcs.MaxGrpcClientCount,
                             maxGrpcClientAgeMinutes: dcs.MaxGrpcClientAgeMinutes,
                             grpcClientCleanupDelayMinutes: dcs.GrpcClientCleanupDelayMinutes,
-                            useCompression: useCompressionForCopies)
+                            useCompression: useCompressionForCopies,
+                            bufferSize: bufferSizeForGrpcCopies)
                         : (IAbsolutePathFileCopier)new DistributedCopier(),
                     pathTransformer: useDistributedGrpc ? new GrpcDistributedPathTransformer() : (IAbsolutePathTransformer)new DistributedPathTransformer(),
                     dcs: dcs,

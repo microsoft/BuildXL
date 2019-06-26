@@ -14,7 +14,6 @@ namespace Cache {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Engine.Cache",
         generateLogs: true,
-        generateLogsLite: false,
         sources: [
             ...globR(d`.`, "*.cs"),
             openBondCacheDescriptorOutput.csharpResult.typesFile,

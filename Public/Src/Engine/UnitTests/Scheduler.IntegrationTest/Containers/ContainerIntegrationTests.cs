@@ -19,6 +19,8 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+
 namespace IntegrationTest.BuildXL.Scheduler.Containers
 {
     [Trait("Category", "WindowsOSOnly")]
@@ -85,7 +87,7 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
             if (expectViolationIsError)
             {
                 AssertErrorEventLogged(EventId.FileMonitoringError);
-                AssertErrorEventLogged(EventId.DisallowedDoubleWriteOnMerge);
+                AssertErrorEventLogged(ProcessesLogEventId.DisallowedDoubleWriteOnMerge);
             }
             else
             {

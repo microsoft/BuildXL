@@ -275,9 +275,12 @@ namespace Test.BuildXL.FrontEnd.Sdk
             {
                 var location = LocationData.Create(AbsolutePath.Create(context.PathTable, m_path), 10, 10);
                 Logger.Log.ErrorUnsupportedQualifierValue(
-                context.LoggingContext,
-                location.ToLogLocation(context.PathTable),
-                error);
+                    context.LoggingContext,
+                    location.ToLogLocation(context.PathTable),
+                    error.QualifierKey,
+                    error.InvalidValue,
+                    error.LegalValues
+                );
             }
         }
 

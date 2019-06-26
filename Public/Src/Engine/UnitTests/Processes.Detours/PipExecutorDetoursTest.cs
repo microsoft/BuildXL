@@ -25,6 +25,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
+using ProcessLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
 
@@ -218,7 +219,7 @@ namespace Test.BuildXL.Processes.Detours
             }
 
             // The \\?\ escaped path should not have failed parsing.
-            AssertWarningEventLogged(EventId.PipProcessFailedToParsePathOfFileAccess, count: 0);
+            AssertWarningEventLogged(ProcessLogEventId.PipProcessFailedToParsePathOfFileAccess, count: 0);
         }
 
         [Flags]

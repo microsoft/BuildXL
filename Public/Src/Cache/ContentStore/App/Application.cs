@@ -39,6 +39,8 @@ namespace BuildXL.Cache.ContentStore.App
     internal sealed partial class Application : IDisposable
     {
         private const string HashTypeDescription = "Content hash type (SHA1/SHA256/MD5/Vso0/DedupChunk/DedupNode)";
+
+        private readonly CancellationToken _cancellationToken;
         private readonly IAbsFileSystem _fileSystem;
         private readonly ConsoleLog _consoleLog;
         private readonly Logger _logger;
@@ -56,11 +58,13 @@ namespace BuildXL.Cache.ContentStore.App
         private uint _retryIntervalSeconds;
         private uint _retryCount;
 
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="Application"/> class.
         /// </summary>
-        public Application()
+        public Application(CancellationToken cancellationToken)
         {
+            _cancellationToken = cancellationToken;
             _consoleLog = new ConsoleLog(Severity.Warning);
             _logger = new Logger(true, _consoleLog);
             _fileSystem = new PassThroughFileSystem(_logger);

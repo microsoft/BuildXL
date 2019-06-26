@@ -55,6 +55,7 @@ namespace BuildXL.Cache.ContentStore.App
             CsvFileLog.ColumnType.Message,
         };
 
+        private readonly CancellationToken _cancellationToken;
         private readonly IAbsFileSystem _fileSystem;
         private readonly ConsoleLog _consoleLog;
         private readonly Logger _logger;
@@ -76,11 +77,13 @@ namespace BuildXL.Cache.ContentStore.App
         private uint _retryCount;
         private bool _enableRemoteTelemetry;
 
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="Application"/> class.
         /// </summary>
-        public Application()
+        public Application(CancellationToken cancellationToken)
         {
+            _cancellationToken = cancellationToken;
             _consoleLog = new ConsoleLog(Severity.Warning);
             _logger = new Logger(true, _consoleLog);
             _fileSystem = new PassThroughFileSystem(_logger);

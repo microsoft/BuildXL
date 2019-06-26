@@ -91,6 +91,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             serviceConfiguration.GrpcPort = localCasServiceSettings.GrpcPort;
             serviceConfiguration.BufferSizeForGrpcCopies = localCasServiceSettings.BufferSizeForGrpcCopies;
+            serviceConfiguration.GzipBarrierSizeForGrpcCopies = localCasServiceSettings.GzipBarrierSizeForGrpcCopies;
 
             var localContentServerConfiguration = new LocalServerConfiguration(serviceConfiguration);
 
@@ -141,7 +142,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 localCasSettings.ServiceSettings.GracefulShutdownSeconds,
                 (int)localCasSettings.ServiceSettings.GrpcPort,
                 grpcPortFileName: localCasSettings.ServiceSettings.GrpcPortFileName,
-                bufferSizeForGrpcCopies: localCasSettings.ServiceSettings.BufferSizeForGrpcCopies);
+                bufferSizeForGrpcCopies: localCasSettings.ServiceSettings.BufferSizeForGrpcCopies,
+                gzipBarrierSizeForGrpcCopies: localCasSettings.ServiceSettings.GzipBarrierSizeForGrpcCopies);
         }
 
         private static void WriteContentStoreConfigFile(string cacheSizeQuotaString, AbsolutePath rootPath, IAbsFileSystem fileSystem)

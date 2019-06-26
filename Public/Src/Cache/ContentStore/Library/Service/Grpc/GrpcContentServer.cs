@@ -47,16 +47,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Capabilities serviceCapabilities,
             ISessionHandler<IContentSession> sessionHandler,
             Dictionary<string, IContentStore> storesByName,
-            int? bufferSize = null,
-            int? gzipSizeBarrier = null)
+            LocalServerConfiguration localServerConfiguration = null)
         {
             _logger = logger;
             _serviceCapabilities = serviceCapabilities;
             _sessionHandler = sessionHandler;
             _adapter = new ContentServerAdapter(this);
             _contentStoreByCacheName = storesByName;
-            _bufferSize = bufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
-            _gzipSizeBarrier = gzipSizeBarrier ?? _bufferSize * 8;
+            _bufferSize = localServerConfiguration?.BufferSizeForGrpcCopies ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
+            _gzipSizeBarrier = localServerConfiguration?.GzipBarrierSizeForGrpcCopies ?? _bufferSize * 8;
             _pool = new ByteArrayPool(_bufferSize);
         }
 

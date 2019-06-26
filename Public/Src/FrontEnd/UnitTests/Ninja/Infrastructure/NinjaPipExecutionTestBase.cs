@@ -125,14 +125,14 @@ build all: phony {secondOutput}
             return new NinjaSpec(content, new[] { "all" });
         }
 
-        protected NinjaSpec CreateProjectWithOrderOnlyDependencies(string firstOutput, string undeclaredOutput, string secondOutput)
+        protected NinjaSpec CreateProjectWithOrderOnlyDependencies(string firstOutput, string secondOutput)
         {
             var content =
                 $@"rule ruleA
-    command = cmd /C ""echo hola > {firstOutput} && echo r > {undeclaredOutput}""
+    command = cmd /C ""echo hola > {firstOutput}""
 
 rule ruleB
-    command = cmd /C ""COPY {undeclaredOutput} $out""
+    command = cmd /C ""COPY {firstOutput} $out""
 
 build {firstOutput}: ruleA
 build {secondOutput} : ruleB || {firstOutput}

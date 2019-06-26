@@ -568,6 +568,7 @@ namespace BuildXL.Utilities.Tracing
         ConfigUnsafeExistingDirectoryProbesAsEnumerations = 927,
         ConfigUnsafeAllowMissingOutput = 928,
         ConfigIgnoreValidateExistingFileAccessesForOutputs = 929,
+        ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques = 930,
 
         // Elsewhere  = 932,
 

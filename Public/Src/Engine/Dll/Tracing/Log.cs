@@ -1086,6 +1086,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeUnexpectedFileAccessesAsWarnings(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)EventId.ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques enabled: Undeclared accesses under shared opaques will not be reported. This is an unsafe configuration since it removes all guarantees of build correctness.")]
+        public abstract void ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)EventId.ConfigUnsafeLazySymlinkCreation,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

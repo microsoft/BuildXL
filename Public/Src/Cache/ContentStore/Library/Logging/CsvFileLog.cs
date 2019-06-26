@@ -35,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.Logging
             /// <summary>
             ///     Name of the host machine
             /// </summary>
-            HostName,
+            Machine,
 
             /// <summary>
             ///     Timestamp of the message
@@ -138,7 +138,7 @@ namespace BuildXL.Cache.ContentStore.Logging
             {
                 case ColumnType.EmptyString: return string.Empty;
                 case ColumnType.SessionId:   return Guid.ToString();
-                case ColumnType.HostName:    return _host;
+                case ColumnType.Machine:     return _host;
                 case ColumnType.Timestamp:   return string.Format(CultureInfo.InvariantCulture, "{0:yyyy-MM-dd HH:mm:ss.fff}", dateTime);
                 case ColumnType.ThreadId:    return threadId.ToString();
                 case ColumnType.Severity:    return SeverityNames[(int)severity];

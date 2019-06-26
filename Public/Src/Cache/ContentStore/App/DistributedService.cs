@@ -45,8 +45,6 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(null), Description("Buffer size for streaming GRPC copies")] int? bufferSizeForGrpcCopies
             )
         {
-            Initialize();
-
             if (debug)
             {
                 System.Diagnostics.Debugger.Launch();
@@ -54,6 +52,9 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
+                Initialize();
+                Validate();
+
                 var dcs = JsonConvert.DeserializeObject<DistributedContentSettings>(File.ReadAllText(settingsPath));
 
                 var host = new HostInfo(stampId, ringId, new List<string>());

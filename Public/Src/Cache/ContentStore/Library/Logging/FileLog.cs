@@ -289,7 +289,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// <param name="logFileBaseName">Base name of the log file.  May be null in which case the name of the executing assembly is used.</param>
         /// <param name="dateInFileName">Whether the file name should include the current date.</param>
         /// <param name="processIdInFileName">Whether the file name should include the current process id.</param>
-        /// <returns></returns>
+        /// <returns>Full path to the computed log file.</returns>
         public static string GetLogFilePath(string logDirectoryPath, string logFileBaseName, bool dateInFileName, bool processIdInFileName)
         {
             // Build log filename and path to log directory, making sure it exists.

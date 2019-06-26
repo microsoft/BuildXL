@@ -157,12 +157,20 @@ function runBuildXL {
     popd > /dev/null
 }
 
-function validateAndInit {
-    if [[ -z $BUILDXL_BIN ]]; then
-        print_error "BUILDXL_BIN is not defined"
+function checkEnvVarExists { # (varName)
+    local varName="$1"
+    print_info "Checking env var '${varName}'"
+    if [[ -z ${!varName} ]]; then
+        print_error "Env var '${varName}' not defined"
         return 1
     fi
-    
+}
+
+function validateAndInit {
+    checkEnvVarExists "CloudStoreRedisConnectionString"
+    checkEnvVarExists "VSTSPERSONALACCESSTOKEN"
+    checkEnvVarExists "BUILDXL_BIN"
+
     if [[ ! -f $BUILDXL_BIN/ContentStoreApp ]]; then
         print_error "$BUILDXL_BIN/ContentStoreApp not found"
         return 1
@@ -173,10 +181,10 @@ function validateAndInit {
     fi
 }
 
+validateAndInit
+
 set -o nounset 
 set -o errexit
-
-validateAndInit
 
 # kill any currently running ContentStoreApp proces
 killRunningContentStoreApp
@@ -199,11 +207,11 @@ fi
 # run the build
 runBuildXL "$@" || print_error "Build failed."
 
-# in any case, send SIGTERM to ContentAppStore
-print_info "Shutting down ContentAppStore..."
+# in any case, send SIGTERM to ContentStoreApp
+print_info "Shutting down ContentStoreApp..."
 kill -s TERM $casaasPid
 
-# wait for a while until ContentAppStore exits
+# wait for a while until ContentStoreApp exits
 for i in `seq 1 20`; do
     if [[ -z $(printRunningCasaasPid) ]]; then 
         print_info "Successfully shut down ContentStoreApp.  ContentStoreApp stdout: "

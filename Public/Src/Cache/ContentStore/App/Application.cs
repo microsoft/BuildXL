@@ -49,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.App
         {
             CsvFileLog.ColumnType.Timestamp,
             CsvFileLog.ColumnType.SessionId,
-            CsvFileLog.ColumnType.HostName,
+            CsvFileLog.ColumnType.Machine,
             CsvFileLog.ColumnType.Severity,
             CsvFileLog.ColumnType.ThreadId,
             CsvFileLog.ColumnType.Message,
@@ -357,6 +357,14 @@ namespace BuildXL.Cache.ContentStore.App
             EnableRemoteTelemetryIfNeeded(logFilePath);
         }
 
+        private void Validate()
+        {
+            if (_enableRemoteTelemetry && _kustoUploader == null)
+            {
+                throw new CacheException("Remote telemetry is enabled but Kusto uploader was not created");
+            }
+        }
+
         private void EnableRemoteTelemetryIfNeeded(string logFilePath)
         {
             if (!_enableRemoteTelemetry)
@@ -400,6 +408,7 @@ namespace BuildXL.Cache.ContentStore.App
             try
             {
                 var context = new Context(_logger);
+                Validate();
 
                 using (var store = CreateInternal(rootPath))
                 {
@@ -479,6 +488,8 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
+                Validate();
+
                 using (var store = createStoreFunc())
                 {
                     try

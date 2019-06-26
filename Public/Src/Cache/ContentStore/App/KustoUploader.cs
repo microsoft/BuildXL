@@ -5,8 +5,8 @@ using System;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks.Dataflow;
-using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Logging;
 using Kusto.Ingest;
 
 namespace BuildXL.Cache.ContentStore.App
@@ -71,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.App
                         var result = _client.IngestFromSingleFile(fileDesc, _deleteFilesOnSuccess, _ingestionProperties);
                         var duration = DateTime.UtcNow.Subtract(start);
 
-                        Info("Ingesting file '{0}' took {1}", fileDesc.FilePath, duration);
+                        Info("Ingesting file '{0}' took {1} ms", fileDesc.FilePath, duration.TotalMilliseconds);
                     },
                     new ExecutionDataflowBlockOptions()
                     {
@@ -110,7 +110,7 @@ namespace BuildXL.Cache.ContentStore.App
             var start = DateTime.UtcNow;
             _block.Completion.GetAwaiter().GetResult();
             var duration = DateTime.UtcNow.Subtract(start);
-            Info("Waited {0} for queued ingestion tasks to complete", duration);
+            Info("Waited {0} ms for queued ingestion tasks to complete", duration.TotalMilliseconds);
 
             return CheckForIngestionFailuresIfNeeded();
         }
@@ -134,7 +134,7 @@ namespace BuildXL.Cache.ContentStore.App
             var start = DateTime.UtcNow;
             var ingestionFailures = _client.GetAndDiscardTopIngestionFailures().GetAwaiter().GetResult().ToList();
             var duration = DateTime.UtcNow.Subtract(start);
-            Info("Checking for ingestion failures took {0}", duration);
+            Info("Checking for ingestion failures took {0} ms", duration.TotalMilliseconds);
 
             if (ingestionFailures.Any() && _log != null)
             {

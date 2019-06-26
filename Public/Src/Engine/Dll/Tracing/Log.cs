@@ -1089,8 +1089,8 @@ namespace BuildXL.Engine.Tracing
             (ushort)EventId.ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.Engine,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
             Message = "/unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques enabled: Undeclared accesses under shared opaques will not be reported. This is an unsafe configuration since it removes all guarantees of build correctness.")]
         public abstract void ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques(LoggingContext context);
 

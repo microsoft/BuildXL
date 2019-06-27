@@ -35,6 +35,8 @@ namespace BuildXL.Cache.ContentStore.App
         private readonly KustoQueuedIngestionProperties _ingestionProperties;
         private readonly ActionBlock<FileDescription> _block;
 
+        private bool _hasUploadErrors = false;
+
         /// <summary>
         ///     Constructor.  Initializes this object and does nothing else.
         /// </summary>
@@ -58,6 +60,7 @@ namespace BuildXL.Cache.ContentStore.App
             _deleteFilesOnSuccess = deleteFilesOnSuccess;
             _checkForIngestionErrors = checkForIngestionErrors;
             _client = KustoIngestFactory.CreateQueuedIngestClient(connectionString);
+            _hasUploadErrors = false;
             _ingestionProperties = new KustoQueuedIngestionProperties(database, table)
             {
                 ReportLevel = IngestionReportLevel.FailuresOnly,
@@ -65,14 +68,7 @@ namespace BuildXL.Cache.ContentStore.App
             };
             _block = new ActionBlock<FileDescription>
                 (
-                    (fileDesc) =>
-                    {
-                        var start = DateTime.UtcNow;
-                        var result = _client.IngestFromSingleFile(fileDesc, _deleteFilesOnSuccess, _ingestionProperties);
-                        var duration = DateTime.UtcNow.Subtract(start);
-
-                        Info("Ingesting file '{0}' took {1} ms", fileDesc.FilePath, duration.TotalMilliseconds);
-                    },
+                    UploadSingleCsvFile,
                     new ExecutionDataflowBlockOptions()
                     {
                         MaxDegreeOfParallelism = 1,
@@ -97,7 +93,7 @@ namespace BuildXL.Cache.ContentStore.App
         /// <summary>
         ///     Synchronously waits until all posted files for ingestion complete.
         /// </summary>
-        /// <returns>Whether any ingestion failures were encountered.</returns>
+        /// <returns>Whether any failures were encountered.  All encountered failures are logged by this class.</returns>
         public bool CompleteAndWaitForPendingIngestionsToFinish()
         {
             if (_block.Completion.IsCompleted)
@@ -112,7 +108,7 @@ namespace BuildXL.Cache.ContentStore.App
             var duration = DateTime.UtcNow.Subtract(start);
             Info("Waited {0} ms for queued ingestion tasks to complete", duration.TotalMilliseconds);
 
-            return CheckForIngestionFailuresIfNeeded();
+            return CheckForFailures();
         }
 
         /// <summary>
@@ -124,15 +120,32 @@ namespace BuildXL.Cache.ContentStore.App
             _client.Dispose();
         }
 
-        private bool CheckForIngestionFailuresIfNeeded()
+        private void UploadSingleCsvFile(FileDescription fileDesc)
+        {
+            try
+            {
+                var start = DateTime.UtcNow;
+                var result = _client.IngestFromSingleFile(fileDesc, _deleteFilesOnSuccess, _ingestionProperties);
+                var duration = DateTime.UtcNow.Subtract(start);
+
+                Info("Ingesting file '{0}' took {1} ms", fileDesc.FilePath, duration.TotalMilliseconds);
+            }
+            catch (Exception e)
+            {
+                Error("Failed to ingest file '{0}': {1}", fileDesc.FilePath, e);
+                _hasUploadErrors = true;
+            }
+        }
+
+        private bool CheckForFailures()
         {
             if (!_checkForIngestionErrors)
             {
-                return true;
+                return !_hasUploadErrors;
             }
 
             var start = DateTime.UtcNow;
-            var ingestionFailures = _client.GetAndDiscardTopIngestionFailures().GetAwaiter().GetResult().ToList();
+            var ingestionFailures = _client.PeekTopIngestionFailures().GetAwaiter().GetResult().ToList();
             var duration = DateTime.UtcNow.Subtract(start);
             Info("Checking for ingestion failures took {0} ms", duration.TotalMilliseconds);
 
@@ -142,7 +155,7 @@ namespace BuildXL.Cache.ContentStore.App
                 Error("The following ingestions failed:{0}", string.Join(string.Empty, failures));
             }
 
-            return ingestionFailures.Count == 0;
+            return !_hasUploadErrors && ingestionFailures.Count == 0;
         }
 
         private string RenderIngestionFailure(IngestionFailure f)

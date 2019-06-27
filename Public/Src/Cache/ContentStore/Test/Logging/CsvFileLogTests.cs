@@ -2,14 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Logging;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using ContentStoreTest.Test;
 using FluentAssertions;
@@ -39,7 +35,7 @@ namespace ContentStoreTest.Logging
         public void TestRenderMessageColumn(string message, string expected)
         {
             string logFile = Path.Combine(Path.GetTempPath(), GetRandomFileName());
-            using (var log = new CsvFileLog(logFile, new[] { CsvFileLog.ColumnType.Message }))
+            using (var log = new CsvFileLog(logFile, new[] { CsvFileLog.ColumnKind.Message }))
             {
                 var actual = RenderMessage(log, message);
                 actual.Should().BeEquivalentTo(expected);
@@ -48,7 +44,7 @@ namespace ContentStoreTest.Logging
 
         [Theory]
         [MemberData(nameof(TestRenderSchemaData), 3)]
-        public void TestRenderSchema(CsvFileLog.ColumnType column, int columnIndex, int columnCount)
+        public void TestRenderSchema(CsvFileLog.ColumnKind column, int columnIndex, int columnCount)
         {
             string logFile = Path.Combine(Path.GetTempPath(), GetRandomFileName());
 
@@ -58,11 +54,11 @@ namespace ContentStoreTest.Logging
             //   - <column> is at position 'columnIndex'
             //   - total number of columns is 'columnCount'
             var schema =
-                Repeat(CsvFileLog.ColumnType.EmptyString, columnIndex - 1)
+                Repeat(CsvFileLog.ColumnKind.Empty, columnIndex - 1)
                 .Concat(new[] { column })
-                .Concat(Repeat(CsvFileLog.ColumnType.EmptyString, columnCount - columnIndex - 1));
+                .Concat(Repeat(CsvFileLog.ColumnKind.Empty, columnCount - columnIndex - 1));
 
-            using (var log = new CsvFileLog(logFile, schema))
+            using (var log = new CsvFileLog(logFile, schema, serviceName: "CsvFileLogTests"))
             {
                 var actual = RenderMessage(log, TestMessage);
                 var expected = string.Join(",", schema
@@ -71,9 +67,23 @@ namespace ContentStoreTest.Logging
                 actual.Should().BeEquivalentTo(expected);
             }
 
-            IEnumerable<CsvFileLog.ColumnType> Repeat(CsvFileLog.ColumnType col, int count)
+            IEnumerable<CsvFileLog.ColumnKind> Repeat(CsvFileLog.ColumnKind col, int count)
             {
                 return Enumerable.Range(0, Math.Max(0, count)).Select(_ => col);
+            }
+        }
+
+        public static IEnumerable<object[]> TestRenderSchemaData(int maxNumberOfColumns)
+        {
+            foreach (int colCount in Enumerable.Range(1, maxNumberOfColumns))
+            {
+                foreach (int colIndex in Enumerable.Range(0, colCount))
+                {
+                    foreach (var colType in typeof(CsvFileLog.ColumnKind).GetEnumValues())
+                    {
+                        yield return new object[] { (CsvFileLog.ColumnKind)colType, colIndex, colCount };
+                    }
+                }
             }
         }
 
@@ -84,7 +94,7 @@ namespace ContentStoreTest.Logging
             int maxFileSize = 1;  // max file size of 1 means every line will go to a new file
             int messageCount = 5; // number of messages to log
             var reportedLogFiles = new List<string>();
-            using (var log = new CsvFileLog(logFile, new[] { CsvFileLog.ColumnType.Message }, maxFileSize: maxFileSize))
+            using (var log = new CsvFileLog(logFile, new[] { CsvFileLog.ColumnKind.Message }, maxFileSize: maxFileSize))
             {
                 log.OnLogFileProduced += (path) => reportedLogFiles.Add(path);
                 for (int i = 0; i < messageCount; i++)
@@ -104,17 +114,65 @@ namespace ContentStoreTest.Logging
             }
         }
 
-        public static IEnumerable<object[]> TestRenderSchemaData(int maxNumberOfColumns)
+        [Theory]
+        [MemberData(nameof(TestParseTableSchemaData))]
+        public void TestParseTableSchema(string schema, CsvFileLog.ColumnKind[] expected)
         {
-            foreach (int colCount in Enumerable.Range(1, maxNumberOfColumns))
+            var actual = CsvFileLog.ParseTableSchema(schema);
+            actual.Should().BeEquivalentTo(expected);
+        }
+
+        public static IEnumerable<object[]> TestParseTableSchemaData()
+        {
+            // some manual tests
+
+            yield return new object[] { "",                   new CsvFileLog.ColumnKind[0] };
+            yield return new object[] { "BuildId",            new[] { CsvFileLog.ColumnKind.BuildId } };
+            yield return new object[] { "BuildId:string",     new[] { CsvFileLog.ColumnKind.BuildId } };
+            yield return new object[] { "buildid:bogus_type", new[] { CsvFileLog.ColumnKind.BuildId } };
+            yield return new object[] { "BOGUS",              new[] { CsvFileLog.ColumnKind.Empty } };
+            yield return new object[] { "BOGUS: type1:type2", new[] { CsvFileLog.ColumnKind.Empty } };
+
+            yield return new object[] { "env_os,env_osVer",             new[] { CsvFileLog.ColumnKind.env_os, CsvFileLog.ColumnKind.env_osVer } };
+            yield return new object[] { "Env_OS, ENV_OsVer",            new[] { CsvFileLog.ColumnKind.env_os, CsvFileLog.ColumnKind.env_osVer } };
+            yield return new object[] { "env_os:t1:t2, env_osVer : t1", new[] { CsvFileLog.ColumnKind.env_os, CsvFileLog.ColumnKind.env_osVer } };
+            yield return new object[] { "env_os:t1:t2, BOGUS : t1",     new[] { CsvFileLog.ColumnKind.env_os, CsvFileLog.ColumnKind.Empty } };
+
+            // some systematic tests
+
+            var colNames = Enum.GetNames(typeof(CsvFileLog.ColumnKind));
+            foreach (var colName in colNames)
             {
-                foreach (int colIndex in Enumerable.Range(0, colCount))
-                {
-                    foreach (var colType in typeof(CsvFileLog.ColumnType).GetEnumValues())
-                    {
-                        yield return new object[] { (CsvFileLog.ColumnType)colType, colIndex, colCount };
-                    }
-                }
+                var colKind = ToColumnKind(colName);
+
+                // one column
+                yield return new object[] { $"{colName}", new[] { colKind } };
+
+                // one column with type
+                yield return new object[] { $"{colName}:str", new[] { colKind } };
+
+                // two columns
+                yield return new object[] { $"{colName},{colName}", new[] { colKind, colKind } };
+                yield return new object[] { $" {colName} , {colName}", new[] { colKind, colKind } };
+
+                // two columns with type(s)
+                yield return new object[] { $"{colName}:t1,{colName}:t1:t2", new[] { colKind, colKind } };
+                yield return new object[] { $" {colName} : t1, {colName} : t1 : t2 ", new[] { colKind, colKind } };
+
+                // with non-existent columns
+                yield return new object[] { $"{colName},BOGUS", new[] { colKind, CsvFileLog.ColumnKind.Empty } };
+                yield return new object[] { $"BOGUS,{colName}", new[] { CsvFileLog.ColumnKind.Empty, colKind } };
+                yield return new object[] { $"BOGUS,{colName},BOGUS", new[] { CsvFileLog.ColumnKind.Empty, colKind, CsvFileLog.ColumnKind.Empty } };
+            }
+
+            // all columns joined
+            var allColumnKinds = colNames.Select(ToColumnKind).Cast<object>().ToArray();
+            yield return new object[] { string.Join(",", colNames), allColumnKinds };
+            yield return new object[] { string.Join(", ", colNames.Select(cn => $"{cn}:string")), allColumnKinds };
+
+            CsvFileLog.ColumnKind ToColumnKind(string name)
+            {
+                return (CsvFileLog.ColumnKind)Enum.Parse(typeof(CsvFileLog.ColumnKind), name);
             }
         }
 
@@ -125,7 +183,7 @@ namespace ContentStoreTest.Logging
             return sb.ToString();
         }
 
-        private string RenderColumn(CsvFileLog log, CsvFileLog.ColumnType col, string message)
+        private string RenderColumn(CsvFileLog log, CsvFileLog.ColumnKind col, string message)
         {
             return log.RenderColumn(col, TestTimestamp, TestThreadId, TestSeverity, message);
         }

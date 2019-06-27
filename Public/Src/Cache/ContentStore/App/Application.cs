@@ -8,7 +8,6 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Redis.Credentials;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -40,20 +39,18 @@ namespace BuildXL.Cache.ContentStore.App
     {
         private const string HashTypeDescription = "Content hash type (SHA1/SHA256/MD5/Vso0/DedupChunk/DedupNode)";
 
+        private const string ServiceName = "ContentAddressableStoreService";
+
         private const string CsvLogFileExt = ".csv";
         private const string TmpCsvLogFileExt = ".csvtmp";
         private const string KustoConnectionStringEnvVarName = "KustoConnectionString";
         private const string KustoDatabase = "CloudBuildCBTest";
-        private const string KustoTable = "ContentStoreAppMessage";
-        private static readonly CsvFileLog.ColumnType[] KustoTableSchema = new[]
-        {
-            CsvFileLog.ColumnType.Timestamp,
-            CsvFileLog.ColumnType.SessionId,
-            CsvFileLog.ColumnType.Machine,
-            CsvFileLog.ColumnType.Severity,
-            CsvFileLog.ColumnType.ThreadId,
-            CsvFileLog.ColumnType.Message,
-        };
+        private const string KustoTable = "CloudBuildLogEvent";
+
+        // This is automatically exported schema directly from Kusto 
+        private const string KustoTableSchema = "env_ver:string, env_name:string, env_time:datetime, env_epoch:string, env_seqNum:long, env_popSample:real, env_iKey:string, env_flags:long, env_cv:string, env_os:string, env_osVer:string, env_appId:string, env_appVer:string, env_cloud_ver:string, env_cloud_name:string, env_cloud_role:string, env_cloud_roleVer:string, env_cloud_roleInstance:string, env_cloud_environment:string, env_cloud_location:string, env_cloud_deploymentUnit:string, Stamp:string, Ring:string, BuildId:string, CorrelationId:string, ParentCorrelationId:string, Exception:string, Message:string, LogLevel:long, LogLevelFriendly:string, LoggingType:string, LoggingMethod:string, LoggingLineNumber:long, PreciseTimeStamp:datetime, LocalPreciseTimeStamp:datetime, ThreadId:long, ThreadPrincipal:string, Cluster:string, Environment:string, MachineFunction:string, Machine:string, Service:string, ServiceVersion:string, SourceNamespace:string, SourceMoniker:string, SourceVersion:string, ProcessId:long, BuildQueue:string";
+
+        private static readonly CsvFileLog.ColumnKind[] KustoTableCsvSchema = CsvFileLog.ParseTableSchema(KustoTableSchema);      
 
         private readonly CancellationToken _cancellationToken;
         private readonly IAbsFileSystem _fileSystem;
@@ -385,8 +382,9 @@ namespace BuildXL.Cache.ContentStore.App
 
             _csvFileLog = new CsvFileLog
                 (
-                logFilePath: logFilePath + TmpCsvLogFileExt, 
-                schema: KustoTableSchema,
+                logFilePath: logFilePath + TmpCsvLogFileExt,
+                serviceName: ServiceName,
+                schema: KustoTableCsvSchema,
                 severity: _fileLogSeverity,
                 maxFileSize: _csvLogMaxFileSize
                 );
@@ -395,7 +393,7 @@ namespace BuildXL.Cache.ContentStore.App
             {
                 string newPath = Path.ChangeExtension(path, CsvLogFileExt);
                 File.Move(path, newPath);
-                _kustoUploader.PostFileForIngestion(newPath, _csvFileLog.Guid);
+                _kustoUploader.PostFileForIngestion(newPath, _csvFileLog.BuildId);
             };
 
             _logger.AddLog(_csvFileLog);

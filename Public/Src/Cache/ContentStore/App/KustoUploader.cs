@@ -174,7 +174,7 @@ namespace BuildXL.Cache.ContentStore.App
             }
 
             var message = string.Format(CultureInfo.InvariantCulture, format, args);
-            _log.Write(DateTime.UtcNow, Environment.CurrentManagedThreadId, severity, message);
+            _log.Write(DateTime.Now, Environment.CurrentManagedThreadId, severity, message);
         }
     }
 }

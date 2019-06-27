@@ -260,7 +260,7 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
         wstring command;
         wstring commandArgs;
         FindApplicationNameFromCommandLine(cmdLine, command, commandArgs);
-        Dbg(L"Shim: Found command='%s', args='%s' from lpApplicationName='%s', lpCommandLine='%s'", command.c_str(), commandArgs.c_str(), lpCommandLine);
+        Dbg(L"Shim: Found command='%s', args='%s' from lpApplicationName='%s', lpCommandLine='%s'", command.c_str(), commandArgs.c_str(), lpApplicationName, lpCommandLine);
 
         if (ShouldSubstituteShim(command, commandArgs.c_str()))
         {

@@ -26,6 +26,7 @@ using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.ItemStore.Common;
 using Newtonsoft.Json;
 using static BuildXL.Utilities.FormattableStringEx;
+using Tool.ServicePipDaemon;
 
 namespace Tool.DropDaemon
 {
@@ -362,7 +363,7 @@ namespace Tool.DropDaemon
             var notFoundMissingHashes = associateStatus.Missing.Where(b => !providedHashes.Contains(b)).ToList();
             if (notFoundMissingHashes.Any())
             {
-                throw new DropDaemonException("This many hashes not found in blobs to upload: " + notFoundMissingHashes.Count());
+                throw new DaemonException("This many hashes not found in blobs to upload: " + notFoundMissingHashes.Count());
             }
 #endif
 
@@ -482,7 +483,7 @@ namespace Tool.DropDaemon
                     if (m_fileBlobDescriptorForAssociate != null &&
                         !m_fileBlobDescriptorForAssociate.BlobIdentifier.Equals(m_fileBlobDescriptorForUpload.BlobIdentifier))
                     {
-                        throw new DropDaemonException(I($"Blob identifier for file '{m_fileBlobDescriptorForUpload.AbsolutePath}' returned for 'UploadAndAssociate' ({m_fileBlobDescriptorForUpload.BlobIdentifier}) is different from the one returned for 'Associate' ({m_fileBlobDescriptorForAssociate.BlobIdentifier})."));
+                        throw new DaemonException(I($"Blob identifier for file '{m_fileBlobDescriptorForUpload.AbsolutePath}' returned for 'UploadAndAssociate' ({m_fileBlobDescriptorForUpload.BlobIdentifier}) is different from the one returned for 'Associate' ({m_fileBlobDescriptorForAssociate.BlobIdentifier})."));
                     }
                 }
 

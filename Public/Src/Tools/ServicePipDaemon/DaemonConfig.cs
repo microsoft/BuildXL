@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Ipc.Interfaces;
 
-namespace Tool.DropDaemon
+namespace Tool.ServicePipDaemon
 {
     /// <summary>
     ///     Daemon configuration.
@@ -13,7 +13,7 @@ namespace Tool.DropDaemon
     public sealed class DaemonConfig : IServerConfig, IClientConfig
     {
         // <nodoc />
-        internal ILogger Logger { get; }
+        public ILogger Logger { get; }
 
         ILogger IServerConfig.Logger => Logger;
 

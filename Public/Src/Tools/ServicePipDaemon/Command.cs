@@ -10,11 +10,11 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.CLI;
 
-namespace Tool.DropDaemon
+namespace Tool.ServicePipDaemon
 {
-    internal delegate int ClientAction(ConfiguredCommand conf, IClient rpc);
+    public delegate int ClientAction(ConfiguredCommand conf, IClient rpc);
 
-    internal delegate Task<IIpcResult> ServerAction(ConfiguredCommand conf, Daemon daemon);
+    public delegate Task<IIpcResult> ServerAction(ConfiguredCommand conf, ServicePipDaemon daemon);
 
     /// <summary>
     ///     A command has a name, description, a list of options it supports, and  two actions:
@@ -33,28 +33,28 @@ namespace Tool.DropDaemon
     /// <remarks>
     ///     Immutable.
     /// </remarks>
-    internal sealed class Command
+    public sealed class Command
     {
         /// <summary>A unique command name.</summary>
-        internal string Name { get; }
+        public string Name { get; }
 
         /// <summary>Arbitrary description.</summary>
-        internal string Description { get; }
+        public string Description { get; }
 
         /// <summary>Options that may/must be passed to this command.</summary>
-        internal IReadOnlyCollection<Option> Options { get; }
+        public IReadOnlyCollection<Option> Options { get; }
 
         /// <summary>Action to be executed when this command is received via the command line.</summary>
-        internal ClientAction ClientAction { get; }
+        public ClientAction ClientAction { get; }
 
         /// <summary>Action to be executed when this command is received via an RPC call.</summary>
-        internal ServerAction ServerAction { get; }
+        public ServerAction ServerAction { get; }
 
         /// <summary>Whether this command requires an IpcClient; defaults to true.</summary>
-        internal bool NeedsIpcClient { get; }
+        public bool NeedsIpcClient { get; }
 
         /// <nodoc />
-        internal Command(
+        public Command(
             string name,
             IEnumerable<Option> options = null,
             ServerAction serverAction = null,
@@ -76,7 +76,7 @@ namespace Tool.DropDaemon
         ///     Performs a functional composition of a number of <see cref="ServerAction"/> functions,
         ///     where the results are merged by calling <see cref="IpcResult.Merge(IIpcResult, IIpcResult)"/>.
         /// </summary>
-        internal static ServerAction Compose(params ServerAction[] actions)
+        public static ServerAction Compose(params ServerAction[] actions)
         {
             Contract.Requires(actions != null);
             Contract.Requires(actions.Length > 0);
@@ -90,7 +90,7 @@ namespace Tool.DropDaemon
             }));
         }
 
-        internal string Usage(IParser parser)
+        public string Usage(IParser parser)
         {
             var result = new StringBuilder();
             var tab = "    ";
@@ -111,21 +111,21 @@ namespace Tool.DropDaemon
     ///     Simple wrapper class that holds a <see cref="Command"/> and a <see cref="Config"/>
     ///     containing actual values for the command's <see cref="Command.Options"/>.
     /// </summary>
-    internal sealed class ConfiguredCommand
+    public sealed class ConfiguredCommand
     {
-        internal Command Command { get; }
+        public Command Command { get; }
 
-        internal Config Config { get; }
+        public Config Config { get; }
 
-        internal ILogger Logger { get; }
+        public ILogger Logger { get; }
 
-        internal ConfiguredCommand(Command command, Config config, ILogger logger)
+        public ConfiguredCommand(Command command, Config config, ILogger logger)
         {
             Command = command;
             Config = config;
             Logger = logger;
         }
 
-        internal T Get<T>(Option<T> option) => option.GetValue(Config);
+        public T Get<T>(Option<T> option) => option.GetValue(Config);
     }
 }

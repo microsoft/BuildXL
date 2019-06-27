@@ -8,7 +8,7 @@ using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Diagnostics.Tracing;
 
-namespace Tool.DropDaemon
+namespace Tool.ServicePipDaemon
 {
     /// <summary>
     ///     Implementation of <see cref="ICloudBuildLogger"/> that uses BuildXL's LoggingContext/>.

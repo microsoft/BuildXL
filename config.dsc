@@ -181,7 +181,7 @@ config({
                 { id: "xunit.runner.utility", version: "2.4.1" },
                 { id: "xunit.runner.visualstudio", version: "2.4.1" },
 
-                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "5.1.0" },
+                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "4.5.1" },
 
                 // CloudStore dependencies
                 { id: "Microsoft.Bcl", version: "1.1.10" },

@@ -1876,6 +1876,88 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task ProcessGlobalUntrackedScope(bool translate)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var symbolTable = context.SymbolTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                string executable = CmdHelper.CmdX64;
+                FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, executable));
+
+                string workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, workingDirectory);
+
+                string targetDir = tempFiles.GetDirectory("targetDir");
+                string sourceDir = tempFiles.GetDirectory("sourceDir");
+
+                string undeclaredFileName = tempFiles.GetFileName(sourceDir, "dump.txt");
+                AbsolutePath undeclaredFilePath = AbsolutePath.Create(context.PathTable, undeclaredFileName);
+                var arguments = new PipDataBuilder(context.PathTable.StringTable);
+                arguments.Add("/d");
+                arguments.Add("/c");
+                using (arguments.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
+                {
+                    arguments.Add("echo");
+                    arguments.Add("foo");
+                    arguments.Add(">");
+                    arguments.Add(undeclaredFileName);
+                }
+
+                DirectoryTranslator directoryTranslator = null;
+                var sandboxConfiguration = new SandboxConfiguration();
+
+                if (translate)
+                {
+                    directoryTranslator = new DirectoryTranslator();
+                    directoryTranslator.AddTranslation(targetDir, sourceDir);
+                    directoryTranslator.Seal();
+                    sandboxConfiguration.GlobalUnsafeUntrackedScopes.Add(AbsolutePath.Create(context.PathTable, targetDir));
+                }
+                else
+                {
+                    sandboxConfiguration.GlobalUnsafeUntrackedScopes.Add(AbsolutePath.Create(context.PathTable, sourceDir));
+                }
+
+                var pip = new Process(
+                    executableFileArtifact,
+                    workingDirectoryAbsolutePath,
+                    arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
+                    FileArtifact.Invalid,
+                    PipData.Invalid,
+                    ReadOnlyArray<EnvironmentVariable>.Empty,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    tempFiles.GetUniqueDirectory(context.PathTable),
+                    null,
+                    null,
+                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(executableFileArtifact),
+                    ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    ReadOnlyArray<DirectoryArtifact>.Empty,
+                    ReadOnlyArray<DirectoryArtifact>.Empty,
+                    ReadOnlyArray<PipId>.Empty,
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(context.PathTable)),
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencyScopes(context.PathTable)),
+                    ReadOnlyArray<StringId>.Empty,
+                    ReadOnlyArray<int>.Empty,
+                    ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
+                    PipProvenance.CreateDummy(context),
+                    StringId.Invalid,
+                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
+
+                await AssertProcessSucceedsAsync(
+                    context,
+                    sandboxConfiguration,
+                    pip,
+                    directoryTranslator: directoryTranslator);
+            }
+        }
+
         private class TestSemanticPathExpander : SemanticPathExpander
         {
             private readonly IEnumerable<AbsolutePath> m_writableRoots;
@@ -1925,9 +2007,10 @@ namespace Test.BuildXL.Processes.Detours
             ISandboxConfiguration config,
             Process process,
             FileAccessWhitelist fileAccessWhitelist = null,
-            IDirectoryArtifactContext directoryArtifactContext = null)
+            IDirectoryArtifactContext directoryArtifactContext = null,
+            DirectoryTranslator directoryTranslator = null)
         {
-            return AssertProcessCompletesWithStatus(SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessWhitelist, directoryArtifactContext: directoryArtifactContext);
+            return AssertProcessCompletesWithStatus(SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessWhitelist, directoryArtifactContext: directoryArtifactContext, directoryTranslator: directoryTranslator);
         }
 
         private static async Task AssertProcessCompletesWithStatus(
@@ -1937,9 +2020,10 @@ namespace Test.BuildXL.Processes.Detours
             Process process,
             FileAccessWhitelist fileAccessWhitelist,
             SandboxedProcessPipExecutionResultWrapper resultWrapper = null,
-            IDirectoryArtifactContext directoryArtifactContext = null)
+            IDirectoryArtifactContext directoryArtifactContext = null,
+            DirectoryTranslator directoryTranslator = null)
         {
-            SandboxedProcessPipExecutionResult result = await RunProcess(context, config, process, fileAccessWhitelist, new Dictionary<string, string>(), SemanticPathExpander.Default, directoryArtifactContext);
+            SandboxedProcessPipExecutionResult result = await RunProcess(context, config, process, fileAccessWhitelist, new Dictionary<string, string>(), SemanticPathExpander.Default, directoryArtifactContext, directoryTranslator);
 
             if (resultWrapper != null)
             {
@@ -1975,7 +2059,8 @@ namespace Test.BuildXL.Processes.Detours
             FileAccessWhitelist fileAccessWhitelist,
             IReadOnlyDictionary<string, string> rootMap,
             SemanticPathExpander expander,
-            IDirectoryArtifactContext directoryArtifactContext = null)
+            IDirectoryArtifactContext directoryArtifactContext = null,
+            DirectoryTranslator directoryTranslator = null)
         {
             Func<string, Task<bool>> dummyMakeOutputPrivate = pathStr => Task.FromResult(true);
             var loggingContext = CreateLoggingContextForTest();
@@ -1996,7 +2081,8 @@ namespace Test.BuildXL.Processes.Detours
                 false,
                 new PipEnvironment(),
                 validateDistribution: false,
-                directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty).RunAsync(sandboxedKextConnection: GetSandboxedKextConnection());
+                directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty,
+                directoryTranslator: directoryTranslator).RunAsync(sandboxedKextConnection: GetSandboxedKextConnection());
         }
 
         private static void VerifyExitCode(BuildXLContext context, SandboxedProcessPipExecutionResult result, int expectedExitCode)

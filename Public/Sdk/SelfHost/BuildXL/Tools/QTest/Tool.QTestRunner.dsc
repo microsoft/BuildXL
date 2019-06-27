@@ -167,7 +167,7 @@ export function runQTest(args: QTestArguments): Result {
         ),
         Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType),
         Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
-        Cmd.flag("--enableVsJitDebugger", Environment.hasVariable("[Sdk.BuildXL]enableVsJitDebugger")),
+        Cmd.flag("--debug", Environment.hasVariable("[Sdk.BuildXL]debugQTest")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
         Cmd.option("--qTestContextInfo ", qTestContextInfoPath),

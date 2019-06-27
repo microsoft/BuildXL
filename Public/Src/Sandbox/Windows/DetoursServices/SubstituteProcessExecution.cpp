@@ -238,6 +238,7 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
 }
 
 BOOL WINAPI MaybeInjectSubstituteProcessShim(
+    _In_opt_    LPCWSTR               lpApplicationName,
     _In_opt_    LPCWSTR               lpCommandLine,
     _In_opt_    LPSECURITY_ATTRIBUTES lpProcessAttributes,
     _In_opt_    LPSECURITY_ATTRIBUTES lpThreadAttributes,
@@ -251,12 +252,15 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
 {
     if (g_substituteProcessExecutionShimPath != nullptr)
     {
-        // lpCommandLine contains the command, possibly with quotes containing spaces,
-        // as the first whitespace-delimited token. We can ignore lpApplicationName
-        // and just always parse that command line. 
+        // when lpCommandLine is null we just use lpApplicationName as the command line to parse.
+        // When lpCommandLine is not null, it contains the command, possibly with quotes containing spaces,
+        // as the first whitespace-delimited token; we can ignore lpApplicationName in this case.
+        Dbg(L"Shim: Finding command and args from lpApplicationName='%s', lpCommandLine='%s'", lpApplicationName, lpCommandLine);
+        LPCWSTR cmdLine = lpCommandLine == nullptr ? lpApplicationName : lpCommandLine;
         wstring command;
         wstring commandArgs;
-        FindApplicationNameFromCommandLine(lpCommandLine, command, commandArgs);
+        FindApplicationNameFromCommandLine(cmdLine, command, commandArgs);
+        Dbg(L"Shim: Found command='%s', args='%s' from lpApplicationName='%s', lpCommandLine='%s'", command.c_str(), commandArgs.c_str(), lpCommandLine);
 
         if (ShouldSubstituteShim(command, commandArgs.c_str()))
         {

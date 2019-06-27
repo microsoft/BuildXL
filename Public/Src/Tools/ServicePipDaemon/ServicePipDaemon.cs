@@ -17,6 +17,7 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
 using Microsoft.Diagnostics.Tracing;
@@ -503,7 +504,7 @@ namespace Tool.ServicePipDaemon
                 // stop (and thus the OS object will die) when the TraceEventSession dies.   Because we used a 'using'
                 // statement, this means that any exception in the code below will clean up the OS object.
                 traceEventSession.StopOnDispose = true;
-                traceEventSession.EnableProvider(guid, matchAnyKeywords: (ulong)Events.Keywords.CloudBuild);
+                traceEventSession.EnableProvider(guid, matchAnyKeywords: (ulong)Keywords.CloudBuild);
 
                 // Prepare to read from the session, connect the ETWTraceEventSource to the session
                 using (ETWTraceEventSource etwTraceEventSource = new ETWTraceEventSource(

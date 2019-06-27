@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using BuildXL.Utilities.Instrumentation.Common;
+
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
@@ -17,6 +18,9 @@ using System.Diagnostics.Tracing;
 
 namespace BuildXL.Utilities.Tracing
 {
+    // Using has to be inside namespace due to BuildXL.Utilities.Tasks;
+    using Tasks = BuildXL.Utilities.Instrumentation.Common.Tasks;
+
     /// <summary>
     /// The BuildXL event source
     /// </summary>
@@ -87,221 +91,11 @@ namespace BuildXL.Utilities.Tracing
         //   when looking at traces.
 
         /// <summary>
-        /// Prefix used to indicate the provenance of an error for the user's benefit.
-        /// </summary>
-        /// <remarks>
-        /// Please realize that changing this affects a lot of methods in this class. If you have to, please validate all consumers
-        /// in this class.
-        /// </remarks>
-        public const string ProvenancePrefix = "{0}({1},{2}): ";
-
-        /// <summary>
-        /// Prefix used to indicate the provenance of an error for the user's benefit using named arguments rather than positional.
-        /// </summary>
-        /// <remarks>
-        /// Must add <pre>Location location</pre> argument to the logger to use this.
-        /// </remarks>
-        public const string LabeledProvenancePrefix = "{location.File}({location.Line},{location.Position}): ";
-
-        /// <summary>
-        /// Prefix used to indicate a pip.
-        /// </summary>
-        /// <remarks>
-        /// Please realize that changing this affects a lot of methods in this class. If you have to, please validate all consumers
-        /// in this class.
-        /// </remarks>
-        public const string PipPrefix = "[{1}] ";
-
-        /// <summary>
-        /// Prefix used to indicate dependency analysis results specific to a pip.
-        /// </summary>
-        /// <remarks>
-        /// Why this extra prefix? Text filtering. There's a corresponding ETW keyword, but today people lean mostly on the text logs.
-        /// </remarks>
-        public const string PipDependencyAnalysisPrefix = "Detected dependency violation: [{1}] ";
-
-        /// <summary>
-        /// Prefix used to indicate a pip, the spec file that generated it, and the working directory
-        /// </summary>
-        /// <remarks>
-        /// Please realize that changing this affects a lot of methods in this class. If you have to, please validate all consumers
-        /// in this class.
-        /// </remarks>
-        public const string PipSpecPrefix = "[{1}, {2}, {3}]";
-
-        /// <summary>
-        /// Prefix used to indicate dependency analysis results specific to a pip, the spec file that generated it, and the working directory
-        /// </summary>
-        /// <remarks>
-        /// Why this extra prefix? Text filtering. There's a corresponding ETW keyword, but today people lean mostly on the text logs.
-        /// </remarks>
-        public const string PipSpecDependencyAnalysisPrefix = "Detected dependency violation: [{1}, {2}, {3}] ";
-
-        /// <summary>
-        /// Prefix used to indicate phases.
-        /// </summary>
-        public const string PhasePrefix = "-- ";
-
-        /// <summary>
-        /// Prefix used to indicate that artifacts (files or directories) or pips have changed (or have become dirty).
-        /// </summary>
-        /// <remarks>
-        /// This prefix is used mostly for incremental scheduling logs.
-        /// </remarks>
-        public const string ArtifactOrPipChangePrefix = ">>> ";
-
-        /// <summary>
-        /// Suffix added to the PipProcessError log when the process finished successfully but did not produced all required outputs.
-        /// </summary>
-        public const string PipProcessErrorMissingOutputsSuffix = "; required output is missing";
-
-        // disable warning regarding 'missing XML comments on public API'. We don't need docs for these methods
-#pragma warning disable 1591
-
-        /// <summary>
-        /// Major groupings of events used for filtering.
-        /// </summary>
-        [SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible", Justification = "Needed by event infrastructure.")]
-        public static class Keywords
-        {
-            /// <summary>
-            /// Added to events that log performance data (GC stats, parsing stats, object sizes)
-            /// </summary>
-            public const EventKeywords Performance = (EventKeywords)(1 << 29);
-
-            /// <summary>
-            /// Added to Level=Verbose events that may need to be optionally enabled for additional diagnostics but are
-            /// generally disabled. The BuildXL host application has command lines to optionally enable events with this
-            /// keyword on a per task basis
-            /// </summary>
-            public const EventKeywords Diagnostics = (EventKeywords)(1 << 28);
-
-            /// <summary>
-            /// Events that are sent to CloudBuild listener
-            /// </summary>
-            public const EventKeywords CloudBuild = (EventKeywords)(1 << 27);
-
-            /// <summary>
-            /// Indicates an event that will be interpreted by the BuildXL listeners.
-            /// </summary>
-            public const EventKeywords UserMessage = (EventKeywords)(1 << 0);
-
-            /// <summary>
-            /// This the events relevant to progress indication.
-            /// </summary>
-            public const EventKeywords Progress = (EventKeywords)(1 << 1);
-
-            /// <summary>
-            /// Events related to analysis of file monitoring violations.
-            /// </summary>
-            public const EventKeywords DependencyAnalysis = (EventKeywords)(1 << 2);
-
-            /// <summary>
-            /// Events that are only shown as temporary status on the console. They may be overwritten by future events
-            /// if supported by the console
-            /// </summary>
-            public const EventKeywords Overwritable = (EventKeywords)(1 << 3);
-
-            /// <summary>
-            /// Events that are only shown as temporary status on the console and are printed if the console supports overwritting.
-            /// They will be overwritten by future events.
-            /// <remarks>Events flagged with this keyword will never go to the text log (as opposed to events flagged with 'Overwritable')</remarks>
-            /// </summary>
-            public const EventKeywords OverwritableOnly = (EventKeywords)(1 << 4);
-
-            /// <summary>
-            /// Events sent to external ETW listeners only
-            /// </summary>
-            public const EventKeywords ExternalEtwOnly = (EventKeywords)(1 << 5);
-
-            /// <summary>
-            /// Error events that are flagged as infrastructure issues
-            /// </summary>
-            public const EventKeywords InfrastructureError = (EventKeywords)(1 << 6);
-
-            /// <summary>
-            /// Error events that are flagged as User Errors
-            /// </summary>
-            public const EventKeywords UserError = (EventKeywords)(1 << 7);
-
-            /// <summary>
-            /// Events that should not be forwarded to the master
-            /// </summary>
-            public const EventKeywords NotForwardedToMaster = (EventKeywords)(1 << 8);
-
-            /// <summary>
-            /// Events that should be in included only custom logs which selectively enable the event
-            /// </summary>
-            public const EventKeywords SelectivelyEnabled = (EventKeywords)(1 << 9);
-        }
-
-        /// <summary>
         /// DO NOT USE!! DO NOT CONSUME IN NEW LOG MESSAGES!!!!
         /// Only for use while transitioning our logging. Telemetry will cry if it sees any of these
         /// </summary>
         [SuppressMessage("Microsoft.Usage", "CA2211:NonConstantFieldsShouldNotBeVisible", Justification = "Needed until we convert everything to pass logging contexts.")]
         public static LoggingContext StaticContext = new LoggingContext("DummyStatic");
-
-        /// <summary>
-        /// Major functional areas of the entire product.
-        /// </summary>
-        [SuppressMessage("Microsoft.Naming", "CA1724:TypeNamesShouldNotMatchNamespaces")]
-        [SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible", Justification = "Needed by event infrastructure.")]
-        public static class Tasks
-        {
-            // Do not use Task == 0. This results in EventSource auto-assigning a task number (to ensure inner despair).
-            public const EventTask Scheduler = (EventTask)1;
-
-            public const EventTask Parser = (EventTask)2;
-
-            public const EventTask Storage = (EventTask)3;
-
-            public const EventTask UnitTest = (EventTask)4;
-
-            public const EventTask SandboxedProcessExecutor = (EventTask)5;
-
-            public const EventTask Engine = (EventTask)6;
-
-            public const EventTask Viewer = (EventTask)7;
-
-            public const EventTask UnitTest2 = (EventTask)8;
-
-            public const EventTask PipExecutor = (EventTask)9;
-
-            public const EventTask ChangeJournalService = (EventTask)10;
-
-            public const EventTask HostApplication = (EventTask)11;
-
-            public const EventTask CommonInfrastructure = (EventTask)12;
-
-            public const EventTask CacheInteraction = (EventTask)13;
-
-            public const EventTask Debugger = (EventTask)14;
-
-            public const EventTask Analyzers = (EventTask)15;
-
-            public const EventTask PipInputAssertions = (EventTask)16;
-
-            public const EventTask Distribution = (EventTask)17;
-
-            public const EventTask CriticalPaths = (EventTask)18;
-
-            public const EventTask ChangeDetection = (EventTask)19;
-
-            public const EventTask Unclassified = (EventTask)20;
-
-            public const EventTask LanguageServer = (EventTask)21;
-
-            public const EventTask ExecutionAnalyzers = (EventTask)22;
-
-            /// <summary>
-            /// Highest-ordinal task.
-            /// </summary>
-            /// <remarks>
-            /// This must be updated when a task is added.
-            /// </remarks>
-            public const EventTask Max = ExecutionAnalyzers;
-        }
 
         private static readonly Events s_log = new Events();
 
@@ -476,6 +270,9 @@ namespace BuildXL.Utilities.Tracing
             eventAction(loggingContext, token.Path.ToString(pathTable), token.Line, token.Position, arg0, arg1, arg2);
         }
 
+// disable warning regarding 'missing XML comments on public API'. We don't need docs for these methods
+#pragma warning disable 1591
+
         public static void LogRelatedLocation(
             LoggingContext loggingContext,
             Action<LoggingContext, string, int, int, string, int, int> eventAction,
@@ -528,7 +325,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.VerboseEvent,
             Level = EventLevel.Verbose,
-            Task = Tasks.UnitTest,
+            Task= Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = "{0}")]
         public void VerboseEvent(string message)
@@ -539,7 +336,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.DiagnosticEvent,
             Level = EventLevel.Verbose,
-            Task = Tasks.UnitTest,
+            Task= Tasks.UnitTest,
             Keywords = Keywords.Diagnostics,
             Message = "{0}")]
         public void DiagnosticEvent(string message)
@@ -550,7 +347,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.DiagnosticEventInOtherTask,
             Level = EventLevel.Verbose,
-            Task = Tasks.UnitTest2,
+            Task= Tasks.UnitTest2,
             Keywords = Keywords.Diagnostics,
             Message = "{0}")]
         public void DiagnosticEventInOtherTask(string message)
@@ -561,7 +358,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.InfoEvent,
             Level = EventLevel.Informational,
-            Task = Tasks.UnitTest,
+            Task= Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = "{0}")]
         public void InfoEvent(string message)
@@ -572,7 +369,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.WarningEvent,
             Level = EventLevel.Warning,
-            Task = Tasks.UnitTest,
+            Task= Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = "{0}")]
         public void WarningEvent(string message)
@@ -583,7 +380,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.ErrorEvent,
             Level = EventLevel.Error,
-            Task = Tasks.UnitTest,
+            Task= Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = "{0}")]
         public void ErrorEvent(string message)
@@ -594,7 +391,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.InfrastructureErrorEvent,
             Level = EventLevel.Error,
-            Task = Tasks.UnitTest,
+            Task= Tasks.UnitTest,
             Keywords = Keywords.UserMessage | Keywords.InfrastructureError,
             Message = "{0}")]
         public void InfrastructureErrorEvent(string message)
@@ -605,7 +402,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.UserErrorEvent,
             Level = EventLevel.Error,
-            Task = Tasks.UnitTest,
+            Task= Tasks.UnitTest,
             Keywords = Keywords.UserMessage | Keywords.UserError,
             Message = "{0}")]
         public void UserErrorEvent(string message)
@@ -616,7 +413,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.CriticalEvent,
             Level = EventLevel.Critical,
-            Task = Tasks.UnitTest,
+            Task= Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = "{0}")]
         public void CriticalEvent(string message)
@@ -627,7 +424,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.AlwaysEvent,
             Level = EventLevel.LogAlways,
-            Task = Tasks.UnitTest,
+            Task= Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = "{0}")]
         public void AlwaysEvent(string message)
@@ -638,9 +435,9 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.VerboseEventWithProvenance,
             Level = EventLevel.Verbose,
-            Task = Tasks.UnitTest,
+            Task= Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
-            Message = ProvenancePrefix + "{3}")]
+            Message = EventConstants.ProvenancePrefix + "{3}")]
         public void VerboseEventWithProvenance(string file, int line, int column, string message)
         {
             WriteEvent((int)EventId.VerboseEventWithProvenance, file, line, column, message);
@@ -652,8 +449,8 @@ namespace BuildXL.Utilities.Tracing
             (int)EventId.StartViewer,
             Level = EventLevel.Informational,
             Keywords = Keywords.Performance | Keywords.UserMessage,
-            Task = Tasks.Viewer,
-            Message = PhasePrefix + "Starting viewer @ {0} (async)")]
+            Task= Tasks.Viewer,
+            Message = EventConstants.PhasePrefix + "Starting viewer @ {0} (async)")]
         public void StartViewer(string address)
         {
             WriteEvent(

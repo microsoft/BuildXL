@@ -3,9 +3,8 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using BuildXL.Cache.ContentStore.Hashing;
 
-namespace BuildXL.Cache.ContentStore.Distributed.NuCache
+namespace BuildXL.Cache.ContentStore.Hashing
 {
     /// <summary>
     /// An abridged representation of a <see cref="ContentHash"/>.
@@ -79,7 +78,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var hashBytes = hash.ToFixedBytes();
             var result = new FixedBytes();
 
-            unchecked {
+            unchecked
+            {
                 result[0] = (byte)hash.HashType;
             }
             
@@ -94,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"{HashType.Serialize()}:{Value.ToHex(1, HashLength)}";
+            return $"{HashType.Serialize()}{ContentHash.SerializedDelimiter.ToString()}{Value.ToHex(1, HashLength)}";
         }
 
         /// <inheritdoc />

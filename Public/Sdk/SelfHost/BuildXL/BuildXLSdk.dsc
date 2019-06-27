@@ -61,6 +61,9 @@ export interface Arguments extends Managed.Arguments {
 
     /** Whether to run LogGen. */
     generateLogs?: boolean;
+    
+    /** Whether we can use the fast lite version of loggen. Defaults to true. */
+    generateLogsLite?: boolean;
 
     /** Disables assembly signing with the BuildXL key. */
     skipAssemblySigning?: boolean;
@@ -89,6 +92,7 @@ export interface TestArguments extends Arguments, Managed.TestArguments {
 
 @@public
 export interface TestResult extends Managed.TestResult {
+    adminTestResults?: TestResult;
 }
 
 /**
@@ -145,6 +149,12 @@ namespace Flags {
      */
     @@public
     export const excludeBuildXLExplorer = Environment.getFlag("[Sdk.BuildXL]ExcludeBuildXLExplorer");
+
+    /**
+     * Build tests that require admin privilege in VM.
+     */
+    @@public
+    export const buildRequiredAdminPrivilegeTestInVm = Environment.getFlag("[Sdk.BuildXL]BuildRequiredAdminPrivilegeTestInVm");
 }
 
 @@public
@@ -305,7 +315,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Managed.
 @@public
 export function test(args: TestArguments) : TestResult {
     args = processTestArguments(args);
-    const result = Managed.test(args);
+    let result = Managed.test(args);
 
     if (!args.skipTestRun) {
         StandaloneTest.deploy(
@@ -317,6 +327,29 @@ export function test(args: TestArguments) : TestResult {
             /* limitCategories:      */ args.runTestArgs && args.runTestArgs.limitGroups,
             /* skipCategories:       */ args.runTestArgs && args.runTestArgs.skipGroups,
             /* untrackTestDirectory: */ args.runTestArgs && args.runTestArgs.untrackTestDirectory);
+
+        if (Flags.buildRequiredAdminPrivilegeTestInVm) {
+            // QTest doesn't really work when the limit categories filter out all the tests.
+            // Basically, the logic below follows standalone test runner.
+            const untrackedFramework = importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework;
+            const trackedFramework = importFrom("Sdk.Managed.Testing.XUnit").framework;
+            const untracked = args.testFramework && args.testFramework.name.endsWith(untrackedFramework.name);
+            const framework = untracked ? untrackedFramework : trackedFramework;
+            args = args.merge({
+                testFramework: framework,
+                runTestArgs: {
+                    privilegeLevel: <"standard"|"admin">"admin",
+                    limitGroups: ["RequiresAdmin"],
+                    parallelGroups: undefined,
+                    tags: ["RequiresAdminTest"],
+                }
+            });
+            const adminResult = Managed.runTestOnly(
+                args, 
+                /* compileArguments: */ true,
+                /* testDeployment:   */ result.testDeployment);
+            result = result.override<TestResult>({ adminTestResults: adminResult });
+        }
     }
 
     return result;
@@ -476,30 +509,40 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
         });
     }
 
-    // run the LogGenerator (if requested) and add generated log.g.cs file to `sources`
     if (args.generateLogs) {
-        let compileClosure = Managed.Helpers.computeCompileClosure(framework, args.references);
+        let compileClosure = args.generateLogsLite === false
+            ? Managed.Helpers.computeCompileClosure(framework, args.references)
+            : [
+                importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll.compile,
+                importFrom("BuildXL.Utilities.Instrumentation").Common.dll.compile,
+                ...(isDotNetCoreBuild ? [] : 
+                    importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").pkg.compile
+                ),
+                ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),
+            ];
+        
+        let sources = args.generateLogsLite === false
+            ? args.sources
+            : args.sources.filter(f => f.parent.name === a`Tracing`);
 
-        let extraSourceFile = LogGenerator.generate(
-            {
-                references: compileClosure,
-                sources: args.sources,
-                outputFile: "log.g.cs",
-                generationNamespace: rootNamespace,
-                defines: args.defineConstants,
-                aliases: brandingDefines,
-                targetFramework: qualifier.targetFramework,
-                targetRuntime: qualifier.targetRuntime,
-            }
-        );
-
+        let extraSourceFile = LogGenerator.generate({
+            references: compileClosure,
+            sources: sources,
+            outputFile: "log.g.cs",
+            generationNamespace: rootNamespace,
+            defines: args.defineConstants,
+            aliases: brandingDefines,
+            targetFramework: qualifier.targetFramework,
+            targetRuntime: qualifier.targetRuntime,
+        });
+        
         args = args.merge({
             sources: [
                 extraSourceFile
             ],
         });
     }
-
+    
     // Handle internalsVisibleTo
     if (args.internalsVisibleTo) {
         const internalsVisibleToFile = Transformer.writeAllLines({

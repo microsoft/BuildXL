@@ -21,6 +21,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using BuildXL.Native.IO;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
 
@@ -1026,9 +1027,8 @@ namespace Test.BuildXL.Processes.Detours
 
                 XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Succeeded, result.Status);
 
-                // There should be a single reported file access: The attempt to read 'input/in.txt'. The accesses related to outputs (creating the nested output
-                // directory and writing the file) should not be reported here
-                ObservedFileAccess access = result.ObservedFileAccesses.Single();
+                // There should be a single reported file access that is not related to creating directories: The attempt to read 'input/in.txt'. The accesses related to writing the file should not be reported here.
+                ObservedFileAccess access = result.ObservedFileAccesses.Single(fa => !fa.Accesses.All(a => a.Operation == ReportedFileOperation.CreateDirectory));
                 XAssert.AreEqual(AbsolutePath.Create(context.PathTable, inputUndersharedOpaqueRoot), access.Path);
             }
         }
@@ -1516,7 +1516,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 // Very occasionally the child dump fails to be collected due to ERROR_PARTIAL_COPY (0x12B) or ERROR_BAD_LENGTH 
                 // Check for the masked version of this in the native error code of the process dump message and ignore when it is hit
-                if (EventListener.GetEventCount(EventId.PipFailedToCreateDumpFile) == 1 &&
+                if (EventListener.GetEventCount((int)ProcessesLogEventId.PipFailedToCreateDumpFile) == 1 &&
                     (EventListener.GetLog().Contains("-2147024597")) // -2147024597 && 0x0FFF == 0x12B (ERROR_PARTIAL_COPY)
                     || EventListener.GetLog().Contains("80070018")) // win32 error code 18 is (ERROR_BAD_LENGTH)
                 {

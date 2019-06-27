@@ -38,6 +38,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly ISessionHandler<IContentSession> _sessionHandler;
         private readonly ContentServerAdapter _adapter;
         private readonly int _bufferSize;
+        private readonly int _gzipSizeBarrier;
         private readonly ByteArrayPool _pool;
 
         /// <nodoc />
@@ -46,14 +47,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Capabilities serviceCapabilities,
             ISessionHandler<IContentSession> sessionHandler,
             Dictionary<string, IContentStore> storesByName,
-            int? bufferSize = null)
+            LocalServerConfiguration localServerConfiguration = null)
         {
             _logger = logger;
             _serviceCapabilities = serviceCapabilities;
             _sessionHandler = sessionHandler;
             _adapter = new ContentServerAdapter(this);
             _contentStoreByCacheName = storesByName;
-            _bufferSize = bufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
+            _bufferSize = localServerConfiguration?.BufferSizeForGrpcCopies ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
+            _gzipSizeBarrier = localServerConfiguration?.GzipBarrierSizeForGrpcCopies ?? _bufferSize * 8;
             _pool = new ByteArrayPool(_bufferSize);
         }
 
@@ -65,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public async Task<CreateSessionResponse> CreateSessionAsync(CreateSessionRequest request, CancellationToken token)
         {
-            LogRequestHandling();
+            OperationStarted();
 
             var cacheContext = new Context(new Guid(request.TraceId), _logger);
             var sessionCreationResult = await _sessionHandler.CreateSessionAsync(
@@ -104,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         private Task<HelloResponse> HelloAsync(HelloRequest request, CancellationToken token)
         {
-            LogRequestHandling();
+            OperationStarted();
 
             return Task.FromResult(
                 new HelloResponse
@@ -135,7 +137,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             RemoveFromTrackerRequest request,
             CancellationToken token)
         {
-            LogRequestHandling();
+            OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
             var cacheContext = new Context(new Guid(request.TraceId), _logger);
@@ -185,7 +187,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private async Task<ExistenceResponse> CheckFileExistsAsync(ExistenceRequest request, CancellationToken token)
         {
-            LogRequestHandling();
+            OperationStarted();
 
             Debug.Assert(_contentStoreByCacheName != null);
 
@@ -222,7 +224,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             try
             {
-                LogRequestHandling();
+                OperationStarted();
 
                 // Get the content stream.
                 Context cacheContext = new Context(new Guid(request.TraceId), _logger);
@@ -250,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             Debug.Assert(result.Stream != null);
                             long size = result.Stream.Length;
                             headers.Add("FileSize", size.ToString());
-                            if ((request.Compression == CopyCompression.Gzip) && (size > _bufferSize))
+                            if ((request.Compression == CopyCompression.Gzip) && (size > _gzipSizeBarrier))
                             {
                                 compression = CopyCompression.Gzip;
                             }
@@ -343,7 +345,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     chunks++;
                 }
             ))
-
             {
                 using (Stream compressionStream = new GZipStream(grpcStream, System.IO.Compression.CompressionLevel.Fastest, true))
                 {
@@ -363,7 +364,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         private async Task<PinResponse> PinAsync(PinRequest request, CancellationToken token)
         {
-            LogRequestHandling();
+            OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
             var cacheContext = new Context(new Guid(request.Header.TraceId), _logger);
@@ -390,7 +391,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         private async Task<PinBulkResponse> PinBulkAsync(PinBulkRequest request, CancellationToken token)
         {
-            LogRequestHandling();
+            OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
             var cacheContext = new Context(new Guid(request.Header.TraceId), _logger);
@@ -450,7 +451,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         private async Task<PlaceFileResponse> PlaceFileAsync(PlaceFileRequest request, CancellationToken token)
         {
-            LogRequestHandling();
+            OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
             var cacheContext = new Context(new Guid(request.Header.TraceId), _logger);
@@ -489,7 +490,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         private async Task<PutFileResponse> PutFileAsync(PutFileRequest request, CancellationToken token)
         {
-            LogRequestHandling();
+            OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
             var cacheContext = new Context(new Guid(request.Header.TraceId), _logger);
@@ -539,7 +540,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         private Task<HeartbeatResponse> HeartbeatAsync(HeartbeatRequest request, CancellationToken token)
         {
-            LogRequestHandling();
+            OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
             return RunFuncAndReportAsync(
@@ -548,9 +549,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 errorMessage => new HeartbeatResponse { Header = ResponseHeader.Failure(startTime, errorMessage) });
         }
 
-        private void LogRequestHandling([CallerMemberName]string requestType = "Unknown")
+        private void OperationStarted([CallerMemberName]string requestType = "Unknown")
         {
-            _logger.Debug($"{requestType} request handled by GRPC server.");
+            // TODO: Add counter, but don't trace
         }
 
         private async Task<T> RunFuncAndReportAsync<T>(

@@ -130,7 +130,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private async Task<bool> CreateCheckpointIncrementalAsync(OperationContext context, EventSequencePoint sequencePoint, bool successfullyUpdatedIncrementalState)
         {
-            InitializeIncrementalCheckpointIfNeeded();
+            InitializeIncrementalCheckpointIfNeeded(restoring: false);
 
             BoolResult result = BoolResult.Success;
             var incrementalCheckpointsPrefix = $"incrementalCheckpoints/{sequencePoint.SequenceNumber}.{Guid.NewGuid()}.";
@@ -187,7 +187,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                                 .Select(entry => entry.Split('=')).ToDictionary(entry => entry[0], entry => entry[1], StringComparer.OrdinalIgnoreCase);
         }
 
-        private void InitializeIncrementalCheckpointIfNeeded()
+        private void InitializeIncrementalCheckpointIfNeeded(bool restoring)
         {
             // If incremental checkpoint info is not initialized. Clean up incremental checkpoint directory
             // before proceeding
@@ -198,10 +198,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     _fileSystem.CreateDirectory(_incrementalCheckpointDirectory);
 
-                    if (_fileSystem.FileExists(_incrementalCheckpointInfoFile))
+                    if (restoring)
                     {
-                        // An incremental checkpoint exists. Make sure that it is loaded
-                        _incrementalCheckpointInfo = ParseCheckpointInfo(_incrementalCheckpointInfoFile);
+                        // Only RestoreCheckpoint should read the incremental checkpoint file
+                        // Thereby, when CreateCheckpoint is not preceded by a RestoreCheckpoint
+                        // (i.e. creating checkpoint for new epoch), it will not reuse files
+
+                        if (_fileSystem.FileExists(_incrementalCheckpointInfoFile))
+                        {
+                            // An incremental checkpoint exists. Make sure that it is loaded
+                            _incrementalCheckpointInfo = ParseCheckpointInfo(_incrementalCheckpointInfoFile);
+                        }
                     }
                 }
 
@@ -322,7 +329,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private async Task<bool> RestoreCheckpointIncrementalAsync(OperationContext context, AbsolutePath checkpointFile, AbsolutePath checkpointTargetDirectory)
         {
-            InitializeIncrementalCheckpointIfNeeded();
+            InitializeIncrementalCheckpointIfNeeded(restoring: true);
 
             // Parse the checkpoint info for the checkpoint being restored
             var newCheckpointInfo = ParseCheckpointInfo(checkpointFile);

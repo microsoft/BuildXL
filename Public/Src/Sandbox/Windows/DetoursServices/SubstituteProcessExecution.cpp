@@ -95,8 +95,7 @@ static inline void trim_inplace(std::wstring& str)
         trim_end(str.c_str() + str.length()));
 }
 
-// Returns in 'command' a new value for lpCommandLine pointing to the remainder of the string
-// to use as the command line parameters.
+// Returns in 'command' the command from lpCommandLine without quotes, and in commandArgs the arguments from the remainder of the string.
 static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLine, _Out_ wstring &command, _Out_ wstring &commandArgs)
 {
     wstring fullCommandLine(lpCommandLine);
@@ -112,7 +111,14 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
         // Find the close quote. Might not be present which means the command
         // is the full command line minus the initial quote.
         size_t closeQuoteIndex = fullCommandLine.find('"', 1);
-        if (closeQuoteIndex >= 1)
+        if (closeQuoteIndex == wstring::npos)
+        {
+            // No close quote. Take everything through the end of the command line as the command.
+            command = fullCommandLine.substr(1);
+            trim_inplace(command);
+            commandArgs = wstring();
+        }
+        else
         {
             if (closeQuoteIndex == fullCommandLine.length() - 1)
             {
@@ -126,7 +132,7 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
                 wstring noQuoteCommand = fullCommandLine.substr(1, closeQuoteIndex - 1);
 
                 // Find the next delimiting space after the close double-quote.
-                // For example a command line like "c:\program files"\foo we need to
+                // For example a command like "c:\program files"\foo we need to
                 // keep \foo and cut the quotes to produce c:\program files\foo
                 size_t spaceDelimiterIndex = fullCommandLine.find(L' ', closeQuoteIndex + 1);
                 if (spaceDelimiterIndex == wstring::npos)
@@ -136,17 +142,11 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
                 }
 
                 command = (noQuoteCommand +
-                    fullCommandLine.substr(closeQuoteIndex + 1, spaceDelimiterIndex - closeQuoteIndex));
+                    fullCommandLine.substr(closeQuoteIndex + 1, spaceDelimiterIndex - closeQuoteIndex - 1));
                 trim_inplace(command);
                 commandArgs = fullCommandLine.substr(spaceDelimiterIndex + 1);
                 trim_inplace(commandArgs);
             }
-        }
-        else
-        {
-            // No close quote. Take everything through the end of the command line as the command.
-            command = fullCommandLine.substr(1);
-            commandArgs = wstring();
         }
     }
     else

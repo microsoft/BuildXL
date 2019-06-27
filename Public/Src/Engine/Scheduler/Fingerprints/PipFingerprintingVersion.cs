@@ -32,7 +32,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 56: Added NeedsToRunInContainer, ContainerIsolationLevel and DoubleWritePolicy
         /// 57: Fixed enumeration in StoreContentForProcessAndCreateCacheEntryAsync
         /// 58: Added RequiresAdmin field into the process pip.
+        /// 59: Report all accesses under shared opaque fix
         /// </remarks>
-        TwoPhaseV2 = 58,
+        TwoPhaseV2 = 59,
     }
 }

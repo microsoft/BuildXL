@@ -94,7 +94,7 @@ namespace BuildXL.Native.Tracing
             (int)LogEventId.StorageTryOpenOrCreateFileFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Storage,
             Message = "Creating a file handle for path {0} (disposition 0x{1:X8}) failed with HRESULT 0x{2:X8}")]
         public abstract void StorageTryOpenOrCreateFileFailure(LoggingContext context, string path, int creationDisposition, int hresult);

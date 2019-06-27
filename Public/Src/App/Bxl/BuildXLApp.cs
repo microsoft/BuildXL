@@ -26,7 +26,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Scheduler.Tracing;
+using SchedulerEventId = BuildXL.Scheduler.Tracing.LogEventId;
 using Logger = BuildXL.App.Tracing.Logger;
 using ProcessNativeMethods = BuildXL.Native.Processes.ProcessUtilities;
 using Strings = bxl.Strings;
@@ -286,14 +286,14 @@ namespace BuildXL
                         (int)EventId.DominoPerformanceSummary,
                         (int)EventId.DominoCatastrophicFailure,
                         (int)EventId.UnexpectedCondition,
-                        (int)LogEventId.CriticalPathPipRecord,
-                        (int)LogEventId.CriticalPathChain,
+                        (int)SchedulerEventId.CriticalPathPipRecord,
+                        (int)SchedulerEventId.CriticalPathChain,
                         (int)EventId.HistoricMetadataCacheLoaded,
                         (int)EventId.HistoricMetadataCacheSaved,
                         (int)EventId.RunningTimesLoaded,
                         (int)EventId.RunningTimesSaved,
-                        (int)LogEventId.CreateSymlinkFromSymlinkMap,
-                        (int)LogEventId.SymlinkFileTraceMessage,
+                        (int)SchedulerEventId.CreateSymlinkFromSymlinkMap,
+                        (int)SchedulerEventId.SymlinkFileTraceMessage,
                         (int)EventId.StartEngineRun,
                         (int)Engine.Tracing.LogEventId.StartCheckingForPipGraphReuse,
                         (int)Engine.Tracing.LogEventId.EndCheckingForPipGraphReuse,
@@ -1124,7 +1124,7 @@ namespace BuildXL
         /// </summary>
         private static void EnableTaskDiagnostics(ILoggingConfiguration configuration, BaseEventListener listener)
         {
-            for (int i = 1; i <= (int)Events.Tasks.Max; i++)
+            for (int i = 1; i <= (int)Tasks.Max; i++)
             {
                 if ((configuration.Diagnostic & (DiagnosticLevels)(1 << i)) != 0)
                 {
@@ -1376,7 +1376,7 @@ namespace BuildXL
                             writer,
                             loggingContext,
                             onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure);
-                        m_statisticsEventListener.EnableTaskDiagnostics(Events.Tasks.CommonInfrastructure);
+                        m_statisticsEventListener.EnableTaskDiagnostics(Tasks.CommonInfrastructure);
                         return m_statisticsEventListener;
                     });
             }
@@ -1392,7 +1392,7 @@ namespace BuildXL
                             writer,
                             m_baseTime,
                             onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure);
-                        listener.EnableTaskDiagnostics(Events.Tasks.CommonInfrastructure);
+                        listener.EnableTaskDiagnostics(Tasks.CommonInfrastructure);
                         return listener;
                     });
             }

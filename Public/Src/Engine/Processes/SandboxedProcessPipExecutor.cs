@@ -1637,7 +1637,7 @@ namespace BuildXL.Processes
                 if (reverseTranslator != null)
                 {
                     var pathString = path.ToString(m_pathTable);
-                    var translatedPathString = reverseTranslator.Translate(pathString);
+                    var translatedPathString = m_fileAccessManifest.DirectoryTranslator.Translate(pathString);
                     var translatedPath = AbsolutePath.Create(m_pathTable, translatedPathString);
 
                     Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString, translatedPathString);
@@ -2943,14 +2943,19 @@ namespace BuildXL.Processes
                             continue;
                         }
 
-                        // If the access occurred under any of the pip shared opaque outputs, and the access is not happening on any known input paths (neither dynamic nor static)
-                        // then we just skip reporting the access. Together with the above step, this means that no accesses under shared opaques that represent outputs are actually
-                        // reported as observed accesses. This matches the same behavior that occurs on static outputs.
-                        if (!allInputPathsUnderSharedOpaques.Contains(entry.Key) && IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out _))
+                        // The following two lines need to be removed in order to report file accesses for
+                        // undeclared files and sealed directories. But since this is a breaking change, we do
+                        // it under an unsafe flag.
+                        if (m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques)
                         {
-                            continue;
+                            // If the access occurred under any of the pip shared opaque outputs, and the access is not happening on any known input paths (neither dynamic nor static)
+                            // then we just skip reporting the access. Together with the above step, this means that no accesses under shared opaques that represent outputs are actually
+                            // reported as observed accesses. This matches the same behavior that occurs on static outputs.
+                            if (!allInputPathsUnderSharedOpaques.Contains(entry.Key) && IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out _))
+                            {
+                                continue;
+                            }
                         }
-
                         ObservationFlags observationFlags = ObservationFlags.None;
 
                         if (isProbe)
@@ -3575,7 +3580,7 @@ namespace BuildXL.Processes
                 AddTrailingNewLineIfNeeded(outputPathsToLog),
                 result.ExitCode,
                 // if the process finished successfully (exit code 0) and we entered this method --> some outputs are missing
-                exitedWithSuccessExitCode ? BuildXL.Utilities.Tracing.Events.PipProcessErrorMissingOutputsSuffix : string.Empty);
+                exitedWithSuccessExitCode ? EventConstants.PipProcessErrorMissingOutputsSuffix : string.Empty);
         }
 
         private void HandleErrorsFromTool(string error)

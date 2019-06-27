@@ -245,7 +245,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                                 ExceptionUtilities.HandleRecoverableIOException(
                                     () =>
                                     {
-                                        Directory.CreateDirectory(Path.GetDirectoryName(expandedPath));
+                                        FileUtilities.CreateDirectory(Path.GetDirectoryName(expandedPath));
                                         File.WriteAllBytes(expandedPath, entry.Content);
                                     },
                                     ex => { throw new BuildXLException("Failed to materialize content (content found, but couldn't write it)", ex); });

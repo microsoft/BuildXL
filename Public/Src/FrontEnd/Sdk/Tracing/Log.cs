@@ -12,8 +12,8 @@ namespace BuildXL.FrontEnd.Sdk.Tracing
     /// <summary>
     /// Logging
     /// </summary>
-    [EventKeywordsType(typeof(Events.Keywords))]
-    [EventTasksType(typeof(Events.Tasks))]
+    [EventKeywordsType(typeof(Keywords))]
+    [EventTasksType(typeof(Tasks))]
     public abstract partial class Logger
     {
         /// <summary>
@@ -25,27 +25,27 @@ namespace BuildXL.FrontEnd.Sdk.Tracing
             2809,
             EventGenerators = Generators.ManifestedEventSource,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
-            Message = Events.LabeledProvenancePrefix + "Unsupported Qualifier Value. The reference passes a qualifier key '{unsupportedQualifierValue.QualifierKey}' with value '{unsupportedQualifierValue.InvalidValue}'. Legal values are: '{unsupportedQualifierValue.LegalValues}'. Please update the import statement to override the key with a legal value.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Diagnostics | Events.Keywords.UserError))]
-        public abstract void ErrorUnsupportedQualifierValue(LoggingContext context, Location location, UnsupportedQualifierValue unsupportedQualifierValue);
+            EventTask = (ushort)Tasks.Parser,
+            Message = EventConstants.LabeledProvenancePrefix + "Unsupported Qualifier Value. The reference passes a qualifier key '{qualifierKey}' with value '{invalidValue}'. Legal values are: '{legalValues}'. Please update the import statement to override the key with a legal value.",
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.UserError))]
+        public abstract void ErrorUnsupportedQualifierValue(LoggingContext context, Location location, string qualifierKey, string invalidValue, string legalValues);
 
         [GeneratedEvent(
             2810,
             EventGenerators = Generators.ManifestedEventSource,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Duplicate frontend registration. FrontEnd '{frontEndType}' is registered twice.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Diagnostics | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.UserError))]
         public abstract void DuplicateFrontEndRegistration(LoggingContext context, string frontEndType);
 
         [GeneratedEvent(
             2811,
             EventGenerators = Generators.ManifestedEventSource,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Duplicate resolver registration. Resolver '{resolverKind}' is registered by both frontEnd '{frontEndTypeFirst}' and frontend '{frontEndTypeSecond}'. Only one is allowed.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Diagnostics | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.UserError))]
         public abstract void DuplicateResolverRegistration(LoggingContext context, string resolverKind, string frontEndTypeFirst, string frontEndTypeSecond);
     }
 }

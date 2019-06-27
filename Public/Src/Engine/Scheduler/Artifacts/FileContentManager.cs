@@ -2951,7 +2951,7 @@ namespace BuildXL.Scheduler.Artifacts
                     fileTrackedHash = TrackedFileContentInfo.CreateUntrackedWithUnknownLength(WellKnownContentHashes.AbsentFile, possibleProbeResult.Result);
                 }
 
-                if (BuildXL.Scheduler.ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Events.Keywords.Diagnostics))
+                if (BuildXL.Scheduler.ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
                 {
                     if (fileArtifact.IsSourceFile)
                     {

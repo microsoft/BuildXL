@@ -68,10 +68,6 @@ export function isDefFile(source: Shared.SourceFileArtifact): boolean {
     return typeof source === "File" && (source as File).extension === a`.def`;
 }
 
-export function defaultTool(): Transformer.ToolDefinition {
-    return importFrom("VisualCpp").clDeployment;
-}
-
 @@Tool.runner("cl -p")
 @@public
 export function evaluate(args: Arguments): File {
@@ -101,7 +97,7 @@ export function evaluate(args: Arguments): File {
     ];
 
     let outputs = Transformer.execute({
-        tool: args.tool || defaultTool(),
+        tool: args.tool || importFrom("VisualCpp").clTool,
         tags: args.tags,
         workingDirectory: Context.getSpecFileDirectory(),
         dependencies: includes,

@@ -42,7 +42,8 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(false)] bool debug,
             [DefaultValue(false), Description("Whether or not GRPC is used for file copies")] bool useDistributedGrpc,
             [DefaultValue(false), Description("Whether or not GZip is used for GRPC file copies")] bool useCompressionForCopies,
-            [DefaultValue(null), Description("Buffer size for streaming GRPC copies")] int? bufferSizeForGrpcCopies
+            [DefaultValue(null), Description("Buffer size for streaming GRPC copies")] int? bufferSizeForGrpcCopies,
+            [DefaultValue(null), Description("Files greater than this size are compressed if compression is used")] int? gzipBarrierSizeForGrpcCopies
             )
         {
             Initialize();
@@ -54,12 +55,6 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                var cancellationTokenSource = new CancellationTokenSource();
-                Console.CancelKeyPress += (sender, args) =>
-                {
-                    cancellationTokenSource.Cancel();
-                };
-
                 var dcs = JsonConvert.DeserializeObject<DistributedContentSettings>(File.ReadAllText(settingsPath));
 
                 var host = new HostInfo(stampId, ringId, new List<string>());
@@ -77,7 +72,8 @@ namespace BuildXL.Cache.ContentStore.App
                             maxGrpcClientCount: dcs.MaxGrpcClientCount,
                             maxGrpcClientAgeMinutes: dcs.MaxGrpcClientAgeMinutes,
                             grpcClientCleanupDelayMinutes: dcs.GrpcClientCleanupDelayMinutes,
-                            useCompression: useCompressionForCopies)
+                            useCompression: useCompressionForCopies,
+                            bufferSize: bufferSizeForGrpcCopies)
                         : (IAbsolutePathFileCopier)new DistributedCopier(),
                     pathTransformer: useDistributedGrpc ? new GrpcDistributedPathTransformer() : (IAbsolutePathTransformer)new DistributedPathTransformer(),
                     dcs: dcs,
@@ -87,8 +83,9 @@ namespace BuildXL.Cache.ContentStore.App
                     grpcPort: (uint)grpcPort,
                     maxSizeQuotaMB: maxSizeQuotaMB,
                     dataRootPath: dataRootPath,
-                    ct: cancellationTokenSource.Token,
-                    bufferSizeForGrpcCopies: bufferSizeForGrpcCopies);
+                    ct: _cancellationToken,
+                    bufferSizeForGrpcCopies: bufferSizeForGrpcCopies,
+                    gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies);
 
                 DistributedCacheServiceFacade.RunAsync(arguments).GetAwaiter().GetResult();
             }

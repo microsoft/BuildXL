@@ -115,9 +115,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public MachineReputationTrackerConfiguration ReputationTrackerConfiguration { get; set; } = new MachineReputationTrackerConfiguration();
 
         /// <summary>
-        /// Amount of time added per additional replica to effective last access time computed for distributed eviction.
+        /// Estimated decay time for content re-use.
         /// </summary>
-        public int ReplicaPenaltyInMinutes { get; set; } = 10;
+        /// <remarks><para>This is used in the opitmal distributed eviction algorithm.</para></remarks>
+        public TimeSpan ContentLifetime { get; set; } = TimeSpan.FromDays(0.5);
+
+        /// <summary>
+        /// Estimated chance of a content not being available on a machine in the distributed pool.
+        /// </summary>
+        /// <remarks><para>This is used in the opitmal distributed eviction algorithm.</para></remarks>
+        public double MachineRisk { get; set; } = 0.1;
 
         /// <summary>
         /// The minimum age of content before it is eagerly touched.

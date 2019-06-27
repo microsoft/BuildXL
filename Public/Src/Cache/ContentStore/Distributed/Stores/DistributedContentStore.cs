@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// A store that is based on content locations for opaque file locations.
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class DistributedContentStore<T> : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore, IStreamStore
+    public class DistributedContentStore<T> : StartupShutdownBase, IContentStoreWithPostInitialization, IRepairStore, IDistributedLocationStore, IStreamStore
         where T : PathBase
     {
         private readonly byte[] _localMachineLocation;
@@ -62,7 +62,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private readonly DistributedContentStoreSettings _settings;
 
-        private readonly TaskSourceSlim<BoolResult> _startupCompletion = TaskSourceSlim.Create<BoolResult>();
+        /// <summary>
+        /// If true, _postInitializationCompletion task is set to completion when StartupAsync is done.
+        /// </summary>
+        private readonly bool _setPostInitializationCompletionAfterStartup;
+
+        /// <summary>
+        /// Task source that is set to completion state when the system is fully initialized.
+        /// The main goal of this field is to avoid the race condition when eviction is triggered during startup
+        /// when hibernated sessions are not fully reloaded.
+        /// </summary>
+        private readonly TaskSourceSlim<BoolResult> _postInitializationCompletion = TaskSourceSlim.Create<BoolResult>();
 
         private DistributedContentCopier<T> _distributedCopier;
         private readonly Func<IContentLocationStore, DistributedContentCopier<T>> _distributedCopierFactory;
@@ -116,6 +126,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                   contentHashBumpTime,
                   contentStoreSettings)
         {
+            // This constructor is used from tests,
+            // so we need to complete _postInitializationCompletion when startup is done.
+            _setPostInitializationCompletionAfterStartup = true;
         }
 
         /// <nodoc />
@@ -189,8 +202,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public override Task<BoolResult> StartupAsync(Context context)
         {
             var startupTask = base.StartupAsync(context);
-            _startupCompletion.LinkToTask(startupTask);
+
+            if (_setPostInitializationCompletionAfterStartup)
+            {
+                context.Debug("Linking post-initialization completion task with the result of StartupAsync.");
+                _postInitializationCompletion.LinkToTask(startupTask);
+            }
+
             return startupTask;
+        }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result)
+        {
+            context.Debug($"Setting result for post-initialization completion task to '{result}'.");
+            _postInitializationCompletion.TrySetResult(result);
         }
 
         /// <inheritdoc />
@@ -253,8 +279,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _evictionNagleQueue?.Dispose();
             _touchNagleQueue?.Dispose();
 
-            var locationStoreResult = await _contentLocationStore.ShutdownAsync(context);
-            results.Add(Tuple.Create(nameof(_contentLocationStore), locationStoreResult));
+            if (_contentLocationStore != null)
+            {
+                var locationStoreResult = await _contentLocationStore.ShutdownAsync(context);
+                results.Add(Tuple.Create(nameof(_contentLocationStore), locationStoreResult));
+            }
 
             var factoryResult = await _contentLocationStoreFactory.ShutdownAsync(context);
             results.Add(Tuple.Create(nameof(_contentLocationStoreFactory), factoryResult));
@@ -485,7 +514,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             // This logic is important to avoid runtime errors when, for instance, QuotaKeeper tries
             // to evict content right after startup and calls GetLruPages.
             Contract.Assert(StartupStarted);
-            _startupCompletion.Task.GetAwaiter().GetResult().ThrowIfFailure();
+            WaitForPostInitializationCompletionIfNeeded(context);
 
             Contract.Assert(_contentLocationStore is IDistributedLocationStore);
             if (_contentLocationStore is IDistributedLocationStore distributedStore)
@@ -495,6 +524,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             else
             {
                 throw Contract.AssertFailure($"Cannot call GetLruPages when CanComputeLru returns false");
+            }
+        }
+
+        private void WaitForPostInitializationCompletionIfNeeded(Context context)
+        {
+            var task = _postInitializationCompletion.Task;
+            if (!task.IsCompleted)
+            {
+                var operationContext = new OperationContext(context);
+                operationContext.PerformOperation(Tracer, () => waitForCompletion(), traceOperationStarted: false).ThrowIfFailure();
+            }
+
+            BoolResult waitForCompletion()
+            {
+                context.Debug($"Post-initialization is not done. Waiting for it to finish...");
+                return task.GetAwaiter().GetResult();
             }
         }
 

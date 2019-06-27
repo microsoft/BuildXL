@@ -8,6 +8,7 @@ namespace Scheduler {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Scheduler",
         generateLogs: true,
+        generateLogsLite: false,
         sources: globR(d`.`, "*.cs"),
         references: [
             ...addIf(BuildXLSdk.isFullFramework,

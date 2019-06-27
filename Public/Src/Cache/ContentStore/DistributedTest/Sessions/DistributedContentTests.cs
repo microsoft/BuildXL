@@ -61,15 +61,16 @@ namespace ContentStoreTest.Distributed.Sessions
             public readonly IList<DisposableDirectory> Directories;
             public readonly IList<IContentSession> Sessions;
             public readonly IList<IContentStore> Stores;
+            public readonly int Iteration;
 
-
-            public TestContext(Context context, TestFileCopier fileCopier, IList<DisposableDirectory> directories, IList<IContentSession> sessions, IList<IContentStore> stores)
+            public TestContext(Context context, TestFileCopier fileCopier, IList<DisposableDirectory> directories, IList<IContentSession> sessions, IList<IContentStore> stores, int iteration)
             {
                 Context = context;
                 FileCopier = fileCopier;
                 Directories = directories;
                 Sessions = sessions;
                 Stores = stores;
+                Iteration = iteration;
             }
 
             public static implicit operator Context(TestContext context) => context.Context;
@@ -924,49 +925,54 @@ namespace ContentStoreTest.Distributed.Sessions
             bool enableDistributedEviction = false,
             int? replicaCreditInMinutes = null,
             bool enableRepairHandling = false,
-            bool emptyFileHashShortcutEnabled = false)
+            bool emptyFileHashShortcutEnabled = false,
+            int iterations = 1)
         {
             var indexedDirectories = Enumerable.Range(0, storeCount)
                 .Select(i => new { Index = i, Directory = new DisposableDirectory(FileSystem, TestRootDirectoryPath / i.ToString()) })
                 .ToList();
             var testFileCopier = new TestFileCopier();
-            var stores = indexedDirectories.Select(
-                directory =>
-                    CreateStore(
-                        context,
-                        testFileCopier,
-                        directory.Directory,
-                        directory.Index,
-                        enableDistributedEviction,
-                        replicaCreditInMinutes,
-                        enableRepairHandling,
-                        emptyFileHashShortcutEnabled)).ToList();
+            for (int iteration = 0; iteration < iterations; iteration++)
+            {
+                var stores = indexedDirectories.Select(
+                    directory =>
+                        CreateStore(
+                            context,
+                            testFileCopier,
+                            directory.Directory,
+                            directory.Index,
+                            enableDistributedEviction,
+                            replicaCreditInMinutes,
+                            enableRepairHandling,
+                            emptyFileHashShortcutEnabled)).ToList();
 
-            var startupResults = await TaskSafetyHelpers.WhenAll(stores.Select(async store => await store.StartupAsync(context)));
+                var startupResults = await TaskSafetyHelpers.WhenAll(stores.Select(async store => await store.StartupAsync(context)));
 
-            Assert.True(startupResults.All(x => x.Succeeded), $"Failed to startup: {string.Join(Environment.NewLine, startupResults.Where(s => !s))}");
+                Assert.True(startupResults.All(x => x.Succeeded), $"Failed to startup: {string.Join(Environment.NewLine, startupResults.Where(s => !s))}");
 
-            var id = 0;
-            var sessions = stores.Select(store => store.CreateSession(context, "store" + id++, implicitPin).Session).ToList();
-            await TaskSafetyHelpers.WhenAll(sessions.Select(async session => await session.StartupAsync(context)));
+                var id = 0;
+                var sessions = stores.Select(store => store.CreateSession(context, "store" + id++, implicitPin).Session).ToList();
+                await TaskSafetyHelpers.WhenAll(sessions.Select(async session => await session.StartupAsync(context)));
 
-            var testContext = new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), sessions, stores);
-            await testFunc(testContext);
+                var testContext = new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), sessions, stores, iteration);
+                await testFunc(testContext);
 
-            await TaskSafetyHelpers.WhenAll(
-                sessions.Select(async session =>
-                 {
-                     if (!session.ShutdownCompleted)
+                await TaskSafetyHelpers.WhenAll(
+                    sessions.Select(async session =>
                      {
-                         await session.ShutdownAsync(context).ThrowIfFailure();
-                     }
-                 }));
-            sessions.ForEach(session => session.Dispose());
+                         if (!session.ShutdownCompleted)
+                         {
+                             await session.ShutdownAsync(context).ThrowIfFailure();
+                         }
+                     }));
+                sessions.ForEach(session => session.Dispose());
 
-            await TaskSafetyHelpers.WhenAll(Enumerable.Range(0, storeCount).Select(storeId => LogStats(testContext, storeId)));
+                await TaskSafetyHelpers.WhenAll(Enumerable.Range(0, storeCount).Select(storeId => LogStats(testContext, storeId)));
 
-            await TaskSafetyHelpers.WhenAll(stores.Select(async store => await store.ShutdownAsync(context)));
-            stores.ForEach(store => store.Dispose());
+                await TaskSafetyHelpers.WhenAll(stores.Select(async store => await store.ShutdownAsync(context)));
+                stores.ForEach(store => store.Dispose());
+            }
+
             indexedDirectories.ForEach(directory => directory.Directory.Dispose());
         }
 

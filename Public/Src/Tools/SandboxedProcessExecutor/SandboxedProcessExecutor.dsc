@@ -11,10 +11,10 @@ namespace SandboxedProcessExecutor {
 
     @@public
     export const exe = BuildXLSdk.executable({
-        generateLogs: true,
-        allowUnsafeBlocks: true,
         assemblyName: "SandboxedProcessExecutor",
         rootNamespace: "BuildXL.SandboxedProcessExecutor",
+        generateLogs: true,
+        allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Utilities").dll,

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
+using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 
@@ -471,7 +472,7 @@ namespace BuildXL.Cache.BasicFilesystem
 
                     try
                     {
-                        Directory.CreateDirectory(Path.GetDirectoryName(filename));
+                        FileUtilities.CreateDirectory(Path.GetDirectoryName(filename));
                         await m_cache.CopyFromCasAsync(hash, filename);
                         counter.FileSize(new FileInfo(filename).Length);
                     }

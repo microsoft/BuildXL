@@ -937,7 +937,6 @@ namespace BuildXL.Processes
             {
                 m_fileAccessManifest.DirectoryTranslator = new DirectoryTranslator();
                 Tracing.Logger.Log.TranslatorInfo(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.TargetPath)), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.SourcePath)), "new created translator: ");
-
             }
             else
             {
@@ -1638,12 +1637,12 @@ namespace BuildXL.Processes
                 if (reverseTranslator != null)
                 {
                     var pathString = path.ToString(m_pathTable);
-                    var translatedPathString = reverseTranslator?.Translate(pathString);
+                    var translatedPathString = reverseTranslator.Translate(pathString);
                     var translatedPath = AbsolutePath.Create(m_pathTable, translatedPathString);
 
                     Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString, translatedPathString);
 
-                    if (pathString != translatedPathString)
+                    if (!path.Equals(translatedPath))
                     {
                         m_fileAccessManifest.AddScope(translatedPath, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
                         Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString, translatedPathString);

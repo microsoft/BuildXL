@@ -41,11 +41,6 @@ namespace BuildXL.Cache.ContentStore.Vfs
 
         private readonly Tracer _tracer = new Tracer(nameof(VfsContentManager));
 
-        /// <summary>
-        /// Unique integral id for files under vfs cas root
-        /// </summary>
-        private int _nextVfsCasTargetFileUniqueId;
-
         private readonly IContentSession _contentSession;
         private readonly DisposableDirectory _tempDirectory;
         private readonly PassThroughFileSystem _fileSystem;

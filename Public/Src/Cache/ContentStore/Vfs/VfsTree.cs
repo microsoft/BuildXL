@@ -63,11 +63,6 @@ namespace BuildXL.Cache.ContentStore.Vfs
             }
         }
 
-        private string GetCasFilePath(VfsFilePlacementData data)
-        {
-            return (_configuration.VfsCasRelativeRoot / Path.GetDirectoryName(VfsUtilities.CreateCasRelativePath(data, 0))).Path;
-        }
-
         public VfsDirectoryNode GetOrAddDirectoryNode(string relativePath, bool allowAdd = true)
         {
             if (string.IsNullOrEmpty(relativePath))

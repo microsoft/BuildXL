@@ -931,30 +931,6 @@ namespace BuildXL.Processes
             info.FileAccessManifest.DirectoryTranslator = newTranslator;
         }
 
-        private DirectoryTranslator GetReverseTranslator()
-        {
-            if (m_fileAccessManifest.DirectoryTranslator is null)
-            {
-                m_fileAccessManifest.DirectoryTranslator = new DirectoryTranslator();
-                Tracing.Logger.Log.TranslatorInfo(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.TargetPath)), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.SourcePath)), "new created translator: ");
-            }
-            else
-            {
-                Tracing.Logger.Log.TranslatorInfo(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.TargetPath)), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.SourcePath)), "Translator: ");
-            }
-
-            if (m_fileAccessManifest.DirectoryTranslator.Translations.Count() == 0)
-            {
-                m_fileAccessManifest.DirectoryTranslator.AddTranslation(m_loggingConfiguration.SubstTarget.ToString(m_pathTable), m_loggingConfiguration.SubstSource.ToString(m_pathTable));
-                Tracing.Logger.Log.TranslatorInfo(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.TargetPath)), string.Join(";", m_fileAccessManifest.DirectoryTranslator.Translations.Select(t => t.SourcePath)), "new added translator: ");
-            }
-
-            var reverseTranslator = m_fileAccessManifest.DirectoryTranslator.GetReverseTranslator();
-            Tracing.Logger.Log.TranslatorInfo(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), string.Join(";", reverseTranslator.Translations.Select(t => t.TargetPath)), string.Join(";", reverseTranslator.Translations.Select(t => t.SourcePath)), "reverseTranslator: ");
-
-            return reverseTranslator;
-        }
-
         private async Task<SandboxedProcessPipExecutionResult> GetAndProcessResultAsync(
             ISandboxedProcess process,
             HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
@@ -1630,26 +1606,23 @@ namespace BuildXL.Processes
             }
 
             // Untrack the globally untracked paths specified in the configuration 
-            var reverseTranslator = GetReverseTranslator();           
-            foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
-            {
-                // translate the path and untrack the translated one
-                if (reverseTranslator != null)
+            if (m_fileAccessManifest.DirectoryTranslator != null) 
+            {               
+                foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
                 {
                     var pathString = path.ToString(m_pathTable);
                     var translatedPathString = m_fileAccessManifest.DirectoryTranslator.Translate(pathString);
                     var translatedPath = AbsolutePath.Create(m_pathTable, translatedPathString);
 
-                    Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString, translatedPathString);
-
                     if (!path.Equals(translatedPath))
                     {
+                        //untrack the translated path
                         m_fileAccessManifest.AddScope(translatedPath, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
-                        Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString, translatedPathString);
+                        Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString);
                     }
-                }
-                
-                m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                    //untrack the original path
+                    m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                }                              
             }
 
             // For some static system mounts (currently only for AppData\Roaming) we allow CreateDirectory requests for all processes.

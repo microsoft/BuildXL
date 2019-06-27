@@ -969,27 +969,11 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "{path} in GlobalUnsafeUntrackedScopes get translated to {translatedPath}")]
+            Message = EventConstants.PipPrefix + "{path} in GlobalUnsafeUntrackedScopes get translated")]
         public abstract void TranslatePathInGlobalUnsafeUntrackedScopes(
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,
-            string path,
-            string translatedPath);
-
-        [GeneratedEvent(
-            (int)LogEventId.TranslatorInfo,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "{translator}: Target is {target} and source is {source}")]
-        public abstract void TranslatorInfo(
-            LoggingContext context,
-            long pipSemiStableHash,
-            string pipDescription,
-            string target,
-            string source,
-            string translator);
+            string path);
     }
 }

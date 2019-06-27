@@ -250,9 +250,9 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
     _Out_       LPPROCESS_INFORMATION lpProcessInformation,
     _Out_       bool&                 injectedShim)
 {
-    if (g_substituteProcessExecutionShimPath != nullptr)
+    if (g_substituteProcessExecutionShimPath != nullptr && (lpCommandLine != nullptr || lpApplicationName != nullptr))
     {
-        // when lpCommandLine is null we just use lpApplicationName as the command line to parse.
+        // When lpCommandLine is null we just use lpApplicationName as the command line to parse.
         // When lpCommandLine is not null, it contains the command, possibly with quotes containing spaces,
         // as the first whitespace-delimited token; we can ignore lpApplicationName in this case.
         Dbg(L"Shim: Finding command and args from lpApplicationName='%s', lpCommandLine='%s'", lpApplicationName, lpCommandLine);

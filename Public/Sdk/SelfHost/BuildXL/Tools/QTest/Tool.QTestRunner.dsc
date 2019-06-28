@@ -214,7 +214,8 @@ export function runQTest(args: QTestArguments): Result {
             ) : []),
             ...(args.qTestRuntimeDependencies || []),
         ],
-        unsafe: unsafeOptions
+        unsafe: unsafeOptions,
+        retryExitCodes: [2]
     });
 
     const qTestLogsDir: StaticDirectory = result.getOutputDirectory(logDir);
@@ -244,7 +245,8 @@ export function runQTest(args: QTestArguments): Result {
             workingDirectory: qtestCodeCovUploadTempDirectory,
             disableCacheLookup: true,
             privilegeLevel: args.privilegeLevel,
-            unsafe: unsafeOptions
+            unsafe: unsafeOptions,
+            retryExitCodes: [2]
         });
     }
 

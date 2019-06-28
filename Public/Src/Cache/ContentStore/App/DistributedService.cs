@@ -55,6 +55,8 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
+                Validate();
+
                 var dcs = JsonConvert.DeserializeObject<DistributedContentSettings>(File.ReadAllText(settingsPath));
 
                 var host = new HostInfo(stampId, ringId, new List<string>());

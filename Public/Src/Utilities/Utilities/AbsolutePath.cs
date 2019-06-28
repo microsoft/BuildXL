@@ -195,7 +195,7 @@ namespace BuildXL.Utilities
                     CharSpan.Skip(absolutePath, OperatingSystemHelper.IsUnixOS ? prefixLength : 3),
                     out RelativePath relPath,
                     out characterWithError,
-                    isAbsolute: true);
+                    fromAbsolutePath: true);
                 if (parseResult == RelativePath.ParseResult.Success)
                 {
                     components = new StringId[1 + relPath.Components.Length];
@@ -223,7 +223,7 @@ namespace BuildXL.Utilities
             if (pathType == AbsolutePathType.UNC)
             {
                 // here we handle UNC paths like \\srv\share\foo.txt
-                RelativePath.ParseResult parseResult = RelativePath.TryCreate(table.StringTable, CharSpan.Skip(absolutePath, 2), out RelativePath relPath, out characterWithError, isAbsolute: true);
+                RelativePath.ParseResult parseResult = RelativePath.TryCreate(table.StringTable, CharSpan.Skip(absolutePath, 2), out RelativePath relPath, out characterWithError, fromAbsolutePath: true);
                 if (parseResult == RelativePath.ParseResult.Success)
                 {
                     if (relPath.IsEmpty)

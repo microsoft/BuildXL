@@ -40,10 +40,10 @@ namespace Test.BuildXL.Utilities
             XAssert.IsTrue(RelativePath.TryCreate(st, @"AAA\CCC", out p));
             XAssert.AreEqual(@"AAA\CCC", p.ToString(st));
 
-            XAssert.IsFalse(RelativePath.TryCreate(st, @"..", out p));
             XAssert.IsFalse(RelativePath.TryCreate(st, @"C\:AAA", out p));
             XAssert.IsFalse(RelativePath.TryCreate(st, @"AAA:", out p));
             XAssert.IsFalse(RelativePath.TryCreate(st, @":AAA", out p));
+            XAssert.IsFalse(RelativePath.TryCreate(st, @"..", out p));
 
             p = RelativePath.Create(st, ".");
             XAssert.AreEqual(string.Empty, p.ToString(st));

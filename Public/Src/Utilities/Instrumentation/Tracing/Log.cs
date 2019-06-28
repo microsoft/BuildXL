@@ -33,7 +33,7 @@ namespace BuildXL.Tracing
         /// <summary>
         /// CAUTION!!
         ///
-        /// WDG has Asimov telemetry listening to this event. Any change will require a breaking change announcement
+        /// WDG has Asimov telemetry listening to this event. Any change to an existing field will require a breaking change announcement
         /// </summary>
         [GeneratedEvent(
             (ushort)EventId.Statistic,

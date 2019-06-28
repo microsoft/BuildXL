@@ -94,25 +94,27 @@ namespace BuildXL
         public readonly ExitKind CloudBuildExitKind;
         public readonly EngineState EngineState;
         public readonly string ErrorBucket;
+        public readonly string BucketMessage;
         public readonly bool KillServer;
 
-        private AppResult(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, bool killServer)
+        private AppResult(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage, bool killServer)
         {
             ExitKind = exitKind;
             CloudBuildExitKind = cloudBuildExitKind;
             EngineState = engineState;
             ErrorBucket = errorBucket;
+            BucketMessage = bucketMessage;
             KillServer = killServer;
         }
 
-        public static AppResult Create(ExitKind exitKind, EngineState engineState, string errorBucket, bool killServer = false)
+        public static AppResult Create(ExitKind exitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool killServer = false)
         {
-            return new AppResult(exitKind, exitKind, engineState, errorBucket, killServer);
+            return new AppResult(exitKind, exitKind, engineState, errorBucket, bucketMessage, killServer);
         }
 
-        public static AppResult Create(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, bool killServer = false)
+        public static AppResult Create(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool killServer = false)
         {
-            return new AppResult(exitKind, cloudBuildExitKind, engineState, errorBucket, killServer);
+            return new AppResult(exitKind, cloudBuildExitKind, engineState, errorBucket, bucketMessage, killServer);
         }
     }
 
@@ -634,7 +636,7 @@ namespace BuildXL
 
                             var classification = ClassifyFailureFromLoggedEvents(appLoggers.TrackingEventListener);
                             var cbClassification = GetExitKindForCloudBuild(appLoggers.TrackingEventListener);
-                            return AppResult.Create(classification.Key, cbClassification, newEngineState, classification.Value);
+                            return AppResult.Create(classification.ExitKind, cbClassification, newEngineState, classification.ErrorBucket, bucketMessage: classification.BucketMessage);
                         }
 
                         WriteToConsole(Strings.App_Main_BuildSucceeded);
@@ -748,19 +750,25 @@ namespace BuildXL
                     out visualizationInformation);
         }
 
-        internal static KeyValuePair<ExitKind, string> ClassifyFailureFromLoggedEvents(TrackingEventListener listener)
+        internal static (ExitKind ExitKind, string ErrorBucket, string BucketMessage) ClassifyFailureFromLoggedEvents(TrackingEventListener listener)
         {
-            if (listener.InternalErrorCount > 0)
+            // The loss of connectivity to other machines during a distributed build is generally the true cause of the
+            // failure even though it may manifest itself as a different failure first (like failure to materialize)
+            if (listener.CountsPerEventId((EventId)BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure) >= 1)
             {
-                return new KeyValuePair<ExitKind, string>(ExitKind.InternalError, listener.FirstInternalErrorName);
+                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), BucketMessage: string.Empty);
             }
-            else if (listener.InfrastructureErrorCount > 0)
+            else if (listener.InternalErrorDetails.Count > 0)
             {
-                return new KeyValuePair<ExitKind, string>(ExitKind.InfrastructureError, listener.FirstInfrastructureErrorName);
+                return (ExitKind: ExitKind.InternalError, ErrorBucket: listener.InternalErrorDetails.FirstErrorName, BucketMessage: listener.InternalErrorDetails.FirstErrorMessage);
+            }
+            else if (listener.InfrastructureErrorDetails.Count > 0)
+            {
+                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: listener.InfrastructureErrorDetails.FirstErrorName, BucketMessage: listener.InfrastructureErrorDetails.FirstErrorMessage);
             }
             else
             {
-                return new KeyValuePair<ExitKind, string>(ExitKind.UserError, listener.FirstUserErrorName);
+                return (ExitKind: ExitKind.UserError, ErrorBucket: listener.UserErrorDetails.FirstErrorName, BucketMessage: listener.UserErrorDetails.FirstErrorMessage);
             }
         }
 
@@ -927,6 +935,7 @@ namespace BuildXL
                         exitKind,
                         result.CloudBuildExitKind,
                         result.ErrorBucket,
+                        result.BucketMessage,
                         Convert.ToInt32(utcNow.Subtract(m_startTimeUtc).TotalMilliseconds),
                         utcNow.Ticks,
                         m_configuration.InCloudBuild());
@@ -1327,7 +1336,7 @@ namespace BuildXL
             [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
             private void ConfigureTrackingListener()
             {
-                var trackingEventListener = new TrackingEventListener(Events.Log, m_warningManager.GetState);
+                var trackingEventListener = new TrackingEventListener(Events.Log, m_baseTime, m_warningManager.GetState);
                 AddListener(trackingEventListener);
                 TrackingEventListener = trackingEventListener;
             }
@@ -1746,12 +1755,12 @@ namespace BuildXL
                 AppServer hostServer = m_appHost as AppServer;
                 Logger.Log.DominoCatastrophicFailure(pm.LoggingContext, failureMessage, s_buildInfo, rootCause,
                     wasServer: hostServer != null,
-                    firstUserError: loggers.TrackingEventListener.FirstUserErrorName,
-                    lastUserError: loggers.TrackingEventListener.LastUserErrorName,
-                    firstInsfrastructureError: loggers.TrackingEventListener.FirstInfrastructureErrorName,
-                    lastInfrastructureError: loggers.TrackingEventListener.LastInfrastructureErrorName,
-                    firstInternalError: loggers.TrackingEventListener.FirstInternalErrorName,
-                    lastInternalError: loggers.TrackingEventListener.LastInternalErrorName);
+                    firstUserError: loggers.TrackingEventListener.UserErrorDetails.FirstErrorName,
+                    lastUserError: loggers.TrackingEventListener.UserErrorDetails.LastErrorName,
+                    firstInsfrastructureError: loggers.TrackingEventListener.InfrastructureErrorDetails.FirstErrorName,
+                    lastInfrastructureError: loggers.TrackingEventListener.InfrastructureErrorDetails.LastErrorName,
+                    firstInternalError: loggers.TrackingEventListener.InternalErrorDetails.FirstErrorName,
+                    lastInternalError: loggers.TrackingEventListener.InternalErrorDetails.LastErrorName);
 
                 loggers.LogEventSummary(pm.LoggingContext);
 

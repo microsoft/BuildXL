@@ -227,13 +227,16 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         {
             // parent folder count is a number of ../ expression in the original path literal
             var folder = currentFolder;
+            // If we go beyond the root directory, stay at the root directory. Ie C:/AAA/BBB/../../../../.. should be C:/
+            var tempFolder = currentFolder;
             for (int i = 0; i < parentFolderCount; i++)
             {
-                folder = folder.GetParent(Context.PathTable);
-                if (!folder.IsValid)
+                tempFolder = tempFolder.GetParent(Context.PathTable);
+                if (!tempFolder.IsValid)
                 {
                     break;
                 }
+                folder = tempFolder;
             }
 
             if (!folder.IsValid)

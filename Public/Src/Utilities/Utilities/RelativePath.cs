@@ -96,7 +96,7 @@ namespace BuildXL.Utilities
         /// Try to create a RelativePath from a string.
         /// </summary>
         /// <returns>Return the parser result indicating success, or what was wrong with the parsing.</returns>
-        public static ParseResult TryCreate<T>(StringTable table, T relativePath, out RelativePath result, out int characterWithError)
+        public static ParseResult TryCreate<T>(StringTable table, T relativePath, out RelativePath result, out int characterWithError, bool isAbsolute = false)
             where T : struct, ICharSpan<T>
         {
             Contract.Requires(table != null);
@@ -169,14 +169,17 @@ namespace BuildXL.Utilities
                                 || (relativePath[index + 2] == '/'))
                             {
                                 // component is a sole .. so try to go up
-                                if (components.Count == 0)
+                                if (components.Count == 0 && !isAbsolute)
                                 {
                                     characterWithError = index;
                                     result = Invalid;
                                     return ParseResult.FailureDueToDotDotOutOfScope;
                                 }
 
-                                components.RemoveAt(components.Count - 1);
+                                if (components.Count != 0)
+                                {
+                                    components.RemoveAt(components.Count - 1);
+                                }
 
                                 index += 3;
                                 start = index;

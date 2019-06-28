@@ -158,10 +158,11 @@ public:
     CanonicalizedPathType const& GetCanonicalizedPath() const { return m_canonicalizedPath; }
     bool AllowRead() const { return (m_policy & FileAccessPolicy_AllowRead) != 0; }
     bool AllowReadIfNonexistent() const { return (m_policy & FileAccessPolicy_AllowReadIfNonExistent) != 0; }
-    bool AllowWrite() const { return (m_policy & FileAccessPolicy_AllowWrite) != 0; }
+    bool AllowWrite() const;
     bool AllowSymlinkCreation() const { return (m_policy & FileAccessPolicy_AllowSymlinkCreation) != 0; }
     bool AllowCreateDirectory() const { return (m_policy & FileAccessPolicy_AllowCreateDirectory) != 0; }
 	bool AllowRealInputTimestamps() const { return (m_policy & FileAccessPolicy_AllowRealInputTimestamps) != 0; }
+    bool OverrideAllowWriteForExistingFiles() const { return (m_policy & FileAccessPolicy_OverrideAllowWriteForExistingFiles) != 0; }
     bool ReportUsnAfterOpen() const { return (m_policy & FileAccessPolicy_ReportUsnAfterOpen) != 0; }
     bool ReportDirectoryEnumeration() const { return (m_policy & FileAccessPolicy_ReportDirectoryEnumerationAccess) != 0; }
     bool IndicateUntracked() const { return ((m_policy & FileAccessPolicy_AllowAll) == FileAccessPolicy_AllowAll) && ((m_policy & FileAccessPolicy_ReportAccess) == 0); }
@@ -183,7 +184,7 @@ public:
     bool ShouldOverrideTimestamps(AccessCheckResult const& accessCheck) const {
         return (accessCheck.ResultAction == ResultAction::Allow || accessCheck.ResultAction == ResultAction::Warn) && !AllowRealInputTimestamps();
     }
-
+    
 private:
     /// Performs common work when checking for writable access
     AccessCheckResult CreateAccessCheckResult(ResultAction result, ReportLevel reportLevel) const;

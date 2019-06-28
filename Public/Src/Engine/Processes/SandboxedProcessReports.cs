@@ -35,6 +35,7 @@ namespace BuildXL.Processes
         private readonly ConcurrentDictionary<uint, ReportedProcess> m_processesExits = new ConcurrentDictionary<uint, ReportedProcess>();
 
         private readonly Dictionary<string, string> m_pathCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, bool> m_overrideAllowedWritePaths = new Dictionary<string, bool>();
         private readonly IDetoursEventListener m_detoursEventListener;
 
         public readonly List<ReportedProcess> Processes = new List<ReportedProcess>();
@@ -647,6 +648,44 @@ namespace BuildXL.Processes
                 }
             }
 
+            if (operation == ReportedFileOperation.FirstAllowWriteCheckInProcess)
+            {
+                // This operation represents that a given path was checked for write access for the first time
+                // within the scope of a process. The status of the operation represents whether that access should
+                // have been allowed/denied, based on the existence of the file.
+                // However, we need to determine whether to deny the access based on the first time the path was
+                // checked for writes across the whole process tree. This means checking the first time this operation 
+                // is reported for a given path, and ignore subsequent reports.
+                // Races are ignored: a race means two child processes are racing to create or delete the same file
+                // - something that is not a good build behavior anyway - and the outcome will be that we will 
+                // non -deterministically deny the access
+                if (path != null && !m_overrideAllowedWritePaths.ContainsKey(path))
+                {
+                    // We should override write allowed accesses for this path if the status of the special operation was 'denied'
+                    m_overrideAllowedWritePaths[path] = (status == FileAccessStatus.Denied);
+                }
+
+                return true;
+            }
+
+            FileAccessStatusMethod method;
+
+            // If we are processing an allowed write, but this should be overridden based on file existence, 
+            // we change the status here
+            if (path != null &&
+                (requestedAccess & RequestedAccess.Write) != 0 &&
+                status == FileAccessStatus.Allowed &&
+                m_overrideAllowedWritePaths.TryGetValue(path, out bool shouldOverrideAllowedAccess) &&
+                shouldOverrideAllowedAccess)
+            {
+                status = FileAccessStatus.Denied;
+                method = FileAccessStatusMethod.FileExistenceBased;
+            }
+            else
+            {
+                method = FileAccessStatusMethod.PolicyBased;
+            }
+
             var reportedAccess =
                 new ReportedFileAccess(
                     operation,
@@ -662,7 +701,8 @@ namespace BuildXL.Processes
                     flagsAndAttributes,
                     manifestPath,
                     path,
-                    enumeratePattern);
+                    enumeratePattern,
+                    method);
 
             HandleReportedAccess(reportedAccess);
             return true;
@@ -848,6 +888,7 @@ namespace BuildXL.Processes
                     { "CreateSymbolicLink_Source", ReportedFileOperation.CreateSymbolicLinkSource },
                     { "ReparsePointTarget", ReportedFileOperation.ReparsePointTarget },
                     { "ChangedReadWriteToReadAccess", ReportedFileOperation.ChangedReadWriteToReadAccess },
+                    { "FirstAllowWriteCheckInProcess", ReportedFileOperation.FirstAllowWriteCheckInProcess },
                     { "MoveFileWithProgress_Source", ReportedFileOperation.MoveFileWithProgressSource },
                     { "MoveFileWithProgress_Dest", ReportedFileOperation.MoveFileWithProgressDest },
                     { "MultipleOperations", ReportedFileOperation.MultipleOperations },

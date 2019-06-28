@@ -122,6 +122,8 @@ bool EnumerateDirectory(
     bool treatReparsePointAsFile,
     _Inout_ std::vector<std::pair<std::wstring, DWORD>>& filesAndDirectories);
 
+bool ExistsAsFile(const wchar_t* path);
+
 class ReportData
 {
 private:

@@ -1025,3 +1025,11 @@ bool EnumerateDirectory(
 
     return true;
 }
+
+bool ExistsAsFile(const wchar_t* path)
+{
+    DWORD dwAttrib = Real_GetFileAttributesW(path);
+
+    return (dwAttrib != INVALID_FILE_ATTRIBUTES &&
+        !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+}

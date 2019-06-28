@@ -173,6 +173,13 @@ namespace BuildXL.Processes
         ChangedReadWriteToReadAccess,
 
         /// <summary>
+        /// This is a quazy operation. We issue this only when <see cref="FileAccessPolicy.OverrideAllowWriteForExistingFiles"/> is set, representing
+        /// that an allow for write check was performed for a given path for the first time (in the scope of a process, another process in the same process 
+        /// tree may also report this for the same path)
+        /// </summary>
+        FirstAllowWriteCheckInProcess,
+
+        /// <summary>
         /// Access of reparse point target.
         /// </summary>
         ReparsePointTarget,

@@ -1798,7 +1798,13 @@ namespace BuildXL.Processes
                             FileAccessPolicy.AllowAll | // Symlink creation is allowed under opaques.
                             FileAccessPolicy.AllowRealInputTimestamps |
                             // For shared opaques, we need to know the (write) accesses that occurred, since we determine file ownership based on that.
-                            (directory.IsSharedOpaque? FileAccessPolicy.ReportAccess : FileAccessPolicy.Deny);
+                            (directory.IsSharedOpaque? FileAccessPolicy.ReportAccess : FileAccessPolicy.Deny) |
+                            // For shared opaques and if allowed undeclared source reads is enabled, make sure that any file used as an undeclared input under the 
+                            // shared opaque gets deny write access. Observe that with exclusive opaques they are wiped out before the pip runs, so it is moot to check for inputs
+                            // TODO: considering configuring this policy for all shared opaques, and not only when AllowedUndeclaredSourceReads is set. The case of a write on an undeclared
+                            // input is more likely to happen when undeclared sources are allowed, but also possible otherwide. For now, this is just a conservative way to try this feature
+                            // out for a subset of our scenarios.
+                            (m_pip.AllowUndeclaredSourceReads && directory.IsSharedOpaque ? FileAccessPolicy.OverrideAllowWriteForExistingFiles : FileAccessPolicy.Deny);
 
                         // For exclusive opaques, we don't need reporting back and the content is discovered by enumerating the disk
                         var mask = directory.IsSharedOpaque ? FileAccessPolicy.MaskNothing : m_excludeReportAccessMask;

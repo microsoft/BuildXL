@@ -117,6 +117,7 @@ namespace BuildXL.Scheduler.Tracing
         FingerprintStoreGarbageCollectCanceled = 5024,
 
         DependencyViolationWriteInUndeclaredSourceRead = 5025,
+        DependencyViolationWriteOnExistingFile = 5047,
         DependencyViolationWriteOnAbsentPathProbe = 5026,
         DependencyViolationAbsentPathProbeInsideUndeclaredOpaqueDirectory = 5027,
         RocksDbException = 5028,

@@ -128,6 +128,13 @@ enum FileAccessPolicy
     // this flag is specified
     FileAccessPolicy_AllowRealInputTimestamps = 0x200,
 
+    // Override writes allowed by policy based on file existence checks. 
+    // Used mainly in the context of shared opaques, where the whole cone under the opaque root is write-allowed by policy (except known inputs).
+    // This policy makes sure that writes on undeclared inputs that fall under the write-allowed cone are flagged as DFAs.
+    // The way to dermine undeclared inputs is based on file existence: if a pip tries to write into a file - allowed by policy - but
+    // that was not created by the pip (i.e. the file was there before the first write), then it is a write on an undeclared input
+    FileAccessPolicy_OverrideAllowWriteForExistingFiles = 0x400,
+
     // If set, then we will report all attempts to access files under this scope (whether existent or not).
     // BuildXL uses this information to discover dynamic dependencies, such as #include-ed files.
     FileAccessPolicy_ReportAccess = FileAccessPolicy_ReportAccessIfNonExistent | FileAccessPolicy_ReportAccessIfExistent,

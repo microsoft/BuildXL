@@ -86,7 +86,7 @@ export function runQTest(args: QTestArguments): Result {
     let tags = Object.merge<string[]>(args.tags, defaultArgs.tags);
     let logDir = args.qTestLogs || Context.getNewOutputDirectory("qtestlogs");
     let consolePath = p`${logDir}/qtest.stdout`;
-    let tempDirectory = Context.getTempDirectory("temp");
+    let qtestRunTempDirectory = Context.getTempDirectory("qtestRunTemp");
     // When invoked to run multiple attempts, QTest makes copies of sandbox
     // for each run. To ensure the sandbox does not throw access violations, 
     // actual sandbox is designed to be a folder inside sandboxDir
@@ -167,11 +167,12 @@ export function runQTest(args: QTestArguments): Result {
         ),
         Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType),
         Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
-        Cmd.flag("--enableVsJitDebugger", Environment.hasVariable("[Sdk.BuildXL]enableVsJitDebugger")),
+        Cmd.flag("--debug", Environment.hasVariable("[Sdk.BuildXL]debugQTest")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
         Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
-        Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset")
+        Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset"),
+        Cmd.option("--testSourceDir ", args.testSourceDir)
     ];          
 
     let unsafeOptions = {
@@ -181,6 +182,9 @@ export function runQTest(args: QTestArguments): Result {
         untrackedScopes: [
             d`d:/data`,
             d`d:/app`,
+            // Untracking Recyclebin here to primarily unblock user scenarios that
+            // deal with soft-delete and restoration of files from recycle bin.
+            d`${sandboxDir.pathRoot}/$Recycle.Bin`,
             ...addIf(Environment.hasVariable("QAUTHMATERIALROOT"), Environment.getDirectoryValue("QAUTHMATERIALROOT")),
         ]
     };
@@ -192,7 +196,7 @@ export function runQTest(args: QTestArguments): Result {
         arguments: commandLineArgs,
         consoleOutput: consolePath,
         workingDirectory: sandboxDir,
-        tempDirectory: tempDirectory,
+        tempDirectory: qtestRunTempDirectory,
         weight: args.weight,
         environmentVariables: [
             { name: "[Sdk.BuildXL]qCodeCoverageEnumType", value: qCodeCoverageEnumType },
@@ -221,6 +225,7 @@ export function runQTest(args: QTestArguments): Result {
         const leafDir = d`${logDir}`.nameWithoutExtension;
         const coverageLogDir = d`${parentDir}/CoverageLogs/${leafDir}`;
         const coverageConsolePath = p`${coverageLogDir}/coverageUpload.stdout`;
+        let qtestCodeCovUploadTempDirectory = Context.getTempDirectory("qtestCodeCovUpload");
 
         const commandLineArgsForUploadPip: Argument[] = [
             Cmd.option("--qTestLogsDir ", Artifact.output(coverageLogDir)),
@@ -236,7 +241,7 @@ export function runQTest(args: QTestArguments): Result {
             description: "QTest Coverage Upload",
             arguments: commandLineArgsForUploadPip,
             consoleOutput: coverageConsolePath,
-            workingDirectory: tempDirectory,
+            workingDirectory: qtestCodeCovUploadTempDirectory,
             disableCacheLookup: true,
             privilegeLevel: args.privilegeLevel,
             unsafe: unsafeOptions
@@ -334,6 +339,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestBuildType?: string;
     /** Specifies the environment variables to forward to qtest */
     qTestEnvironmentVariables?: Transformer.EnvironmentVariable[];
+    /** Specify the path relative to enlistment root of the sources from which the test target is built */
+    testSourceDir?: RelativePath;
 }
 /**
  * Test results from a vstest.console.exe run

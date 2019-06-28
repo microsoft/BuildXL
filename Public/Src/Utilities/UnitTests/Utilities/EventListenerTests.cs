@@ -8,6 +8,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 #if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
@@ -55,7 +56,7 @@ namespace Test.BuildXL.Utilities
                 XAssert.AreEqual(0, listener.GetEventCount(EventId.DiagnosticEventInOtherTask));
 
                 // We can enable messages from one task, but leave those in another disabled.
-                listener.EnableTaskDiagnostics(Events.Tasks.UnitTest);
+                listener.EnableTaskDiagnostics(Tasks.UnitTest);
 
                 Events.Log.DiagnosticEvent("Super low level");
                 Events.Log.DiagnosticEventInOtherTask("Also super low level");

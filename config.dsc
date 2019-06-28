@@ -525,6 +525,14 @@ config({
                     hash: "VSO0:9DE138F52CCCE4B89747BFDEC5D3A0DDBB23BF80BB2A45AE0218D852845AB13C00",
                     archiveType: "tgz",
                 },
+
+                // Electron
+                {
+                    moduleName: "Electron.win-x64",
+                    url: "https://github.com/electron/electron/releases/download/v2.0.10/electron-v2.0.10-win32-x64.zip",
+                    hash: "VSO0:F836344F3D3FEBCD50976B5F33FC2DA64D0753C242C68F61B5908F59CD49B0AB00",
+                    archiveType: "zip",
+                }
             ],
         },
     ],

@@ -25,11 +25,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
     /// <summary>
     /// Logging
     /// </summary>
-    [EventKeywordsType(typeof(Events.Keywords))]
-    [EventTasksType(typeof(Events.Tasks))]
+    [EventKeywordsType(typeof(Keywords))]
+    [EventTasksType(typeof(Tasks))]
     public abstract partial class Logger : LoggerBase
     {
-        private const int DefaultKeywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Diagnostics);
+        private const int DefaultKeywords = (int)(Keywords.UserMessage | Keywords.Diagnostics);
 
         private bool m_preserveLogEvents;
         private int m_errorCount;
@@ -136,8 +136,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             (ushort)LogEventId.ErrorParsingFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Analyzers,
-            Message = Events.LabeledProvenancePrefix + "Error loading configuration.",
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = EventConstants.LabeledProvenancePrefix + "Error loading configuration.",
             Keywords = DefaultKeywords)]
         public abstract void ErrorParsingFile(LoggingContext context, Location location);
 
@@ -145,34 +145,34 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             (ushort)LogEventId.ErrorParsingFilter,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Analyzers,
+            EventTask = (ushort)Tasks.Analyzers,
             Message = "Error at position {position} of command line pip filter {filter}. {message} {positionMarker}",
-            Keywords = DefaultKeywords | (int)Events.Keywords.UserError)]
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void ErrorParsingFilter(LoggingContext context, string filter, int position, string message, string positionMarker);
 
         [GeneratedEvent(
             (ushort)LogEventId.ErrorFilterHasNoMatchingSpecs,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Analyzers,
+            EventTask = (ushort)Tasks.Analyzers,
             Message = "Filter: {filter} resulted in no specs being selected to be fixed.",
-            Keywords = DefaultKeywords | (int)Events.Keywords.UserError)]
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void ErrorFilterHasNoMatchingSpecs(LoggingContext context, string filter);
 
         [GeneratedEvent(
             (ushort)LogEventId.FixRequiresPrettyPrint,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            EventTask = (ushort)Events.Tasks.Analyzers,
+            EventTask = (ushort)Tasks.Analyzers,
             Message = "When you pass '/Fix' you should add the PrettyPrint analyzer using '/a:PrettyPrint' as the last argument to ensure the fixes are written to disk.",
-            Keywords = DefaultKeywords | (int)Events.Keywords.UserError)]
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void FixRequiresPrettyPrint(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.AnalysisErrorSummary,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            EventTask = (ushort)Events.Tasks.Analyzers,
+            EventTask = (ushort)Tasks.Analyzers,
             Message = "Encountered {nrOfErrors} errors using {nrOfAnalyzers}. Pass '/Fix' to automatically apply the fixes.",
             Keywords = DefaultKeywords)]
         public abstract void AnalysisErrorSummary(LoggingContext context, int nrOfErrors, int nrOfAnalyzers);
@@ -183,8 +183,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             (ushort)LogEventId.PrettyPrintErrorWritingSpecFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Analyzers,
-            Message = Events.LabeledProvenancePrefix + "Failed to write updates back to the file: {message}.",
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = EventConstants.LabeledProvenancePrefix + "Failed to write updates back to the file: {message}.",
             Keywords = DefaultKeywords)]
         public abstract void PrettyPrintErrorWritingSpecFile(LoggingContext context, Location location, string message);
 
@@ -192,27 +192,27 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             (ushort)LogEventId.PrettyPrintUnexpectedChar,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Analyzers,
-            Message = Events.LabeledProvenancePrefix + "Non-standard formatting encountered. Encountered: '{encounteredToken}' expected: '{expectedToken}' in line:\r\n{encounteredLine}\r\n{positionMarker}",
-            Keywords = DefaultKeywords | (int)Events.Keywords.UserError)]
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = EventConstants.LabeledProvenancePrefix + "Non-standard formatting encountered. Encountered: '{encounteredToken}' expected: '{expectedToken}' in line:\r\n{encounteredLine}\r\n{positionMarker}",
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void PrettyPrintUnexpectedChar(LoggingContext context, Location location, string expectedToken, string encounteredToken, string encounteredLine, string positionMarker);
 
         [GeneratedEvent(
             (ushort)LogEventId.PrettyPrintExtraTargetLines,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Analyzers,
-            Message = Events.LabeledProvenancePrefix + "Non-standard formatting encountered. Encountered a missing line. Expected line:\r\n{expectedLine}",
-            Keywords = DefaultKeywords | (int)Events.Keywords.UserError)]
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = EventConstants.LabeledProvenancePrefix + "Non-standard formatting encountered. Encountered a missing line. Expected line:\r\n{expectedLine}",
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void PrettyPrintExtraTargetLines(LoggingContext context, Location location, string expectedLine);
 
         [GeneratedEvent(
             (ushort)LogEventId.PrettyPrintExtraSourceLines,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Analyzers,
-            Message = Events.LabeledProvenancePrefix + "Non-standard formatting encountered. Encountered an extra line:\r\n{encountered}",
-            Keywords = DefaultKeywords | (int)Events.Keywords.UserError)]
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = EventConstants.LabeledProvenancePrefix + "Non-standard formatting encountered. Encountered an extra line:\r\n{encountered}",
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void PrettyPrintExtraSourceLines(LoggingContext context, Location location, string encountered);
 
         #endregion
@@ -223,9 +223,9 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             (ushort)LogEventId.LegacyLiteralFix,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Analyzers,
-            Message = Events.LabeledProvenancePrefix + "Use {fixExpression} rather than {existingExpression}",
-            Keywords = DefaultKeywords | (int)Events.Keywords.UserError)]
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = EventConstants.LabeledProvenancePrefix + "Use {fixExpression} rather than {existingExpression}",
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void LegacyLiteralFix(LoggingContext context, Location location, string fixExpression, string existingExpression);
 
         #endregion
@@ -236,18 +236,18 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             (ushort)LogEventId.PathFixerIllegalPathSeparator,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Analyzers,
-            Message = Events.LabeledProvenancePrefix + "Use path separator '{expectedSeparator}' rather than '{illegalSeparator}' in '{pathFragment}'",
-            Keywords = DefaultKeywords | (int)Events.Keywords.UserError)]
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = EventConstants.LabeledProvenancePrefix + "Use path separator '{expectedSeparator}' rather than '{illegalSeparator}' in '{pathFragment}'",
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void PathFixerIllegalPathSeparator(LoggingContext context, Location location, string pathFragment, char expectedSeparator, char illegalSeparator);
 
         [GeneratedEvent(
             (ushort)LogEventId.PathFixerIllegalCasing,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Analyzers,
-            Message = Events.LabeledProvenancePrefix + "Use lowercase for all directory parts. Use '{expectedLoweredFragment}' rather than '{encounteredFragment}' in '{pathFragment}'.",
-            Keywords = DefaultKeywords | (int)Events.Keywords.UserError)]
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = EventConstants.LabeledProvenancePrefix + "Use lowercase for all directory parts. Use '{expectedLoweredFragment}' rather than '{encounteredFragment}' in '{pathFragment}'.",
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void PathFixerIllegalCasing(LoggingContext context, Location location, string pathFragment, string encounteredFragment, string expectedLoweredFragment);
 
         #endregion
@@ -258,16 +258,16 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             (ushort)LogEventId.DocumentationMissingOutputFolder,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Analyzers,
+            EventTask = (ushort)Tasks.Analyzers,
             Message = "The Documentation Analyzer requires the parameter '{parameter}'. None was given.",
-            Keywords = DefaultKeywords | (int)Events.Keywords.UserError)]
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void DocumentationMissingOutputFolder(LoggingContext context, string parameter);
 
         [GeneratedEvent(
             (ushort)LogEventId.DocumentationErrorCleaningFolder,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Analyzers,
+            EventTask = (ushort)Tasks.Analyzers,
             Message = "Error cleaning output folder '{outputFolder}': {message}",
             Keywords = DefaultKeywords)]
         public abstract void DocumentationErrorCleaningFolder(LoggingContext context, string outputFolder, string message);
@@ -276,7 +276,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             (ushort)LogEventId.DocumentationErrorCreatingOutputFolder,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Analyzers,
+            EventTask = (ushort)Tasks.Analyzers,
             Message = "Error creating output folder '{outputFolder}': {message}",
             Keywords = DefaultKeywords)]
         public abstract void DocumentationErrorCreatingOutputFolder(LoggingContext context, string outputFolder, string message);
@@ -285,7 +285,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             (ushort)LogEventId.DocumentationSkippingV1Module,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            EventTask = (ushort)Events.Tasks.Analyzers,
+            EventTask = (ushort)Tasks.Analyzers,
             Message = "Skipping module '{moduleName}' because it is not a v2 module.",
             Keywords = DefaultKeywords)]
         public abstract void DocumentationSkippingV1Module(LoggingContext context, string moduleName);

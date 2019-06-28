@@ -66,7 +66,9 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// Recursively goes down each directory and collects project files. The search stops in directories that contain
         /// a project configuration or a configuration file.
         /// </summary>
-        private static void CollectAllPathsToProjectsRecursively(IFileSystem fileSystem, AbsolutePath pathToPackageDirectory,
+        private static void CollectAllPathsToProjectsRecursively(
+            IFileSystem fileSystem, 
+            AbsolutePath pathToPackageDirectory,
             List<AbsolutePath> projects)
         {
             var pathTable = fileSystem.GetPathTable();

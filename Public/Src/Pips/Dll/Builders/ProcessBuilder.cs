@@ -447,7 +447,6 @@ namespace BuildXL.Pips.Builders
             m_environmentVariables[key] = PipData.Invalid;
         }
 
-
         /// <summary>
         /// Set GlobalUnsafePassthroughEnvironmentVariables for each pip.
         /// The passthrough environment varibles will not be computed in pip fingerprint.

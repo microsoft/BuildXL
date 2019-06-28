@@ -89,12 +89,12 @@ namespace Test.BuildXL.TestUtilities
         /// Name of the owning test. Used for diagnostics when these listeners leak (not disposed after a test execution).
         /// </param>
         /// <param name="captureAllDiagnosticMessages">
-        /// If true, all messages tagged with <see cref="Events.Keywords.Diagnostics" /> are captured (rather than needing to be enabled per-task).
+        /// If true, all messages tagged with Diagnostics are captured (rather than needing to be enabled per-task).
         /// </param>
         /// <param name="logAction">
         /// Action to perform when logging a string. This allows test frameworks to hook into their own logging.
         /// Writes to the console if unspecified
-        /// </param>
+        /// </param> 
         protected TestEventListenerBase(Events eventSource, string fullyQualifiedTestName, bool captureAllDiagnosticMessages = true, Action<string> logAction = null)
             : base(eventSource, null, EventLevel.Verbose, captureAllDiagnosticMessages: captureAllDiagnosticMessages, listenDiagnosticMessages: true)
         {

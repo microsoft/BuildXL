@@ -19,6 +19,7 @@ using BuildXL.Cache.Interfaces;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using Newtonsoft.Json;
+using BuildXL.Native.IO;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
@@ -234,17 +235,17 @@ namespace BuildXL.Cache.BasicFilesystem
                 // Obviously, the directories either need to be created
                 // if they are not there but this will fail if we are
                 // read-only and they are not there.  (We want that)
-                Directory.CreateDirectory(m_cacheRoot);
-                Directory.CreateDirectory(m_sessionRoot);
+                FileUtilities.CreateDirectory(m_cacheRoot);
+                FileUtilities.CreateDirectory(m_sessionRoot);
 
                 foreach (string casRoot in m_casShardRoots.Distinct())
                 {
-                    Directory.CreateDirectory(casRoot);
+                    FileUtilities.CreateDirectory(casRoot);
                 }
 
                 foreach (string wfpRoot in m_weakFingerprintShardRoots.Distinct())
                 {
-                    Directory.CreateDirectory(wfpRoot);
+                    FileUtilities.CreateDirectory(wfpRoot);
                 }
 
                 try
@@ -642,7 +643,7 @@ namespace BuildXL.Cache.BasicFilesystem
                     // Note that this can fail due to high-load-races so...
                     try
                     {
-                        Directory.CreateDirectory(Path.GetDirectoryName(path));
+                        FileUtilities.CreateDirectory(Path.GetDirectoryName(path));
                     }
 #pragma warning disable ERP022 // TODO: This should really handle specific errors
                     catch
@@ -851,7 +852,7 @@ namespace BuildXL.Cache.BasicFilesystem
                 // Make sure the CAS shared directory exists - if this fails, we fail to
                 // add to the CAS
                 string directory = Path.GetDirectoryName(path);
-                Directory.CreateDirectory(directory);
+                FileUtilities.CreateDirectory(directory);
 
                 // This name is a unique name for a given attempt at a CAS entry.
                 // We depend on uniqueness here to allow multiple uploads at the

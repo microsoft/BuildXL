@@ -147,6 +147,21 @@ namespace Sdk.Tests {
         });
     }
 
+    export function reduceFolder() {
+        const input = Transformer.sealDirectory({
+            root: d`src`,
+            files: [f`src/file1`, f`src/file2`, f`src2/src3/file3`, f`src2/src3/file4`],
+            scrub: true,
+        });
+        const filtered = input.ensureContents({subFolder: r`src2/src3`});
+        Assert.areEqual(2, filtered.contents.length, "Expect 2 files in the filtered sealed directory");
+        Assert.areEqual(f`src2/src3/file3`, filtered.contents[0], "Expect file3 as the first file");
+        Assert.areEqual(f`src2/src3/file3`, filtered.getFile(r`file3`), "Expect file3 as the first file");
+        
+        Assert.areEqual(f`src2/src3/file4`, filtered.contents[1], "Expect file4 as the second file");
+        Assert.areEqual(f`src2/src3/file4`, filtered.getFile(r`file4`), "Expect file3 as the first file");
+    }
+
     @@Testing.unitTest()
     export function inspectingSealDirectoryKindIsAllowed() {
         // Any type of static directory will do, we are not checking the kind matches the operation, which is already

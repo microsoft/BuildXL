@@ -72,7 +72,7 @@ namespace Test.BuildXL
                 {
                     EventId = 100,
                     EventName = ErrorName,
-                    EventKeywords = isUserError ? (int)global::BuildXL.Utilities.Tracing.Events.Keywords.UserError : 0,
+                    EventKeywords = isUserError ? (int)global::BuildXL.Utilities.Instrumentation.Common.Keywords.UserError : 0,
                     Text = ErrorText,
                 });
 

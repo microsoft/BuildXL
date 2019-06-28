@@ -2,10 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
@@ -50,9 +50,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // acquired. However, this isn't required by our code right now; although it is a simple change.
                     _cache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
                 }
-
-                // There should be no flushes ongoing, or we wouldn't have acquired the lock.
-                Contract.Assert(_flushingCache.Count == 0);
             }
         }
 
@@ -111,8 +108,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             using (_database.Counters[ContentLocationDatabaseCounters.CacheFlush].Start())
             {
-                Contract.Assert(_flushingCache.Count == 0);
-
                 using (_exchangeLock.AcquireWriteLock())
                 {
                     _flushingCache = _cache;

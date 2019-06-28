@@ -109,8 +109,6 @@ namespace Tool.DropDaemon
             new ArtifactHttpClientFactory(
                 credentials: GetCredentials(),
                 httpSendTimeout: m_config.HttpSendTimeout,
-                retryOptions: new VssHttpRetryOptions(),
-                retryTimeouts: true,
                 tracer: Tracer,
                 verifyConnectionCancellationToken: Token);
 

@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Threading;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Instrumentation.Common;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
@@ -238,11 +239,11 @@ namespace BuildXL.Utilities.Tracing
 
         private void BucketError(long keywords, string eventName, string errorMessage)
         {
-            if ((keywords & (long)Events.Keywords.UserError) > 0)
+            if ((keywords & (long)Keywords.UserError) > 0)
             {
                 UserErrorDetails.RegisterError(eventName, errorMessage);
             }
-            else if ((keywords & (long)Events.Keywords.InfrastructureError) > 0)
+            else if ((keywords & (long)Keywords.InfrastructureError) > 0)
             {
                 InfrastructureErrorDetails.RegisterError(eventName, errorMessage);
             }

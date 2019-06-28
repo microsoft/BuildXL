@@ -124,6 +124,14 @@ namespace BuildXL.FrontEnd.Nuget
             var valid = analyzedPackage.TargetFrameworks.Exists(moniker => m_nugetFrameworkMonikers.FullFrameworkVersionHistory.Contains(moniker) || m_nugetFrameworkMonikers.NetCoreVersionHistory.Contains(moniker));
             Contract.Assert(valid, "Target framework monikers must exsist and be registered with internal target framework version helpers.");
 
+            var allFullFrameworkDeps = m_nugetFrameworkMonikers.FullFrameworkVersionHistory
+                .SelectMany(m =>
+                    analyzedPackage.DependenciesPerFramework.TryGetValue(m, out IReadOnlyList<INugetPackage> dependencySpecificFrameworks)
+                        ? dependencySpecificFrameworks
+                        : new List<INugetPackage>())
+                .GroupBy(pkg => pkg.Id)
+                .Select(grp => grp.OrderBy(pkg => pkg.Version).Last());
+
             foreach (var versionHistory in new List<PathAtom>[] { m_nugetFrameworkMonikers.FullFrameworkVersionHistory, m_nugetFrameworkMonikers.NetCoreVersionHistory })
             {
                 FindAllCompatibleFrameworkMonikers(analyzedPackage, (List<PathAtom> monikers) =>
@@ -131,6 +139,11 @@ namespace BuildXL.FrontEnd.Nuget
                     if (monikers.Count == 0)
                     {
                         return;
+                    }
+
+                    if (analyzedPackage.IsNetStandardPackageOnly)
+                    {
+                        cases.AddRange(m_nugetFrameworkMonikers.NetStandardToFullFrameworkCompatibility.Select(m => new CaseClause(new LiteralExpression(m.ToString(m_pathTable.StringTable)))));
                     }
 
                     cases.AddRange(monikers.Take(monikers.Count - 1).Select(m => new CaseClause(new LiteralExpression(m.ToString(m_pathTable.StringTable)))));
@@ -142,27 +155,26 @@ namespace BuildXL.FrontEnd.Nuget
                     // Compile items
                     if (TryGetValueForFrameworkAndFallbacks(analyzedPackage.References, new NugetTargetFramework(monikers.First()), out IReadOnlyList<RelativePath> refAssemblies))
                     {
-                        foreach (var assembly in refAssemblies)
-                        {
-                            compile.Add(CreateSimpleBinary(assembly));
-                        }
+                        compile.AddRange(refAssemblies.Select(r => CreateSimpleBinary(r)));
                     }
 
                     // Runtime items
                     if (TryGetValueForFrameworkAndFallbacks(analyzedPackage.Libraries, new NugetTargetFramework(monikers.First()), out IReadOnlyList<RelativePath> libAssemblies))
                     {
-                        foreach (var assembly in libAssemblies)
-                        {
-                            runtime.Add(CreateSimpleBinary(assembly));
-                        }
+                        runtime.AddRange(libAssemblies.Select(l => CreateSimpleBinary(l)));
                     }
 
-                    // Dependency items
-                    if (analyzedPackage.DependenciesPerFramework.TryGetValue(monikers.First(), out IReadOnlyList<INugetPackage> dependencySpecificFrameworks))
+                    // For full framework dependencies we unconditionally include all the distinct dependencies from the nuspec file,
+                    // .NETStandard dependencies are only included if the moniker and the parsed target framework match!
+                    if (m_nugetFrameworkMonikers.IsFullFrameworkMoniker(monikers.First()))
                     {
-                        foreach (var dependencySpecificFramework in dependencySpecificFrameworks)
+                        dependencies.AddRange(allFullFrameworkDeps.Select(dep => CreateImportFromForDependency(dep)));
+                    }
+                    else
+                    {
+                        if (analyzedPackage.DependenciesPerFramework.TryGetValue(monikers.First(), out IReadOnlyList<INugetPackage> dependencySpecificFrameworks))
                         {
-                            dependencies.Add(CreateImportFromForDependency(dependencySpecificFramework));
+                            dependencies.AddRange(dependencySpecificFrameworks.Select(dep => CreateImportFromForDependency(dep)));
                         }
                     }
 
@@ -177,17 +189,19 @@ namespace BuildXL.FrontEnd.Nuget
                                     PropertyAccess("Contents", "all"),
                                     Array(compile),
                                     Array(runtime),
-                                    Array(new CallExpression(new Identifier("...addIfLazy"),
-                                        new BinaryExpression(
-                                            new PropertyAccessExpression("qualifier", "targetFramework"),
-                                            SyntaxKind.EqualsEqualsEqualsToken,
-                                            new LiteralExpression(monikers.First().ToString(m_pathTable.StringTable))
-                                        ),
-                                        new ArrowFunction(
-                                            CollectionUtilities.EmptyArray<IParameterDeclaration>(),
-                                            Array(dependencies)
-                                        )
-                                    ))
+                                    m_nugetFrameworkMonikers.IsFullFrameworkMoniker(monikers.Last())
+                                        ? Array(dependencies)
+                                        : Array(new CallExpression(new Identifier("...addIfLazy"),
+                                            new BinaryExpression(
+                                                new PropertyAccessExpression("qualifier", "targetFramework"),
+                                                SyntaxKind.EqualsEqualsEqualsToken,
+                                                new LiteralExpression(monikers.First().ToString(m_pathTable.StringTable))
+                                            ),
+                                            new ArrowFunction(
+                                                CollectionUtilities.EmptyArray<IParameterDeclaration>(),
+                                                Array(dependencies)
+                                            )
+                                        ))
                                 )
                             )
                         )
@@ -314,6 +328,11 @@ namespace BuildXL.FrontEnd.Nuget
         private bool TryCreateQualifier(NugetAnalyzedPackage analyzedPackage, out IStatement statement)
         {
             List<PathAtom> compatibleTfms = new List<PathAtom>();
+
+            if (analyzedPackage.IsNetStandardPackageOnly)
+            {
+                compatibleTfms.AddRange(m_nugetFrameworkMonikers.NetStandardToFullFrameworkCompatibility);
+            }
 
             FindAllCompatibleFrameworkMonikers(analyzedPackage,
                 (List<PathAtom> monikers) => compatibleTfms.AddRange(monikers),

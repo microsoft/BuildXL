@@ -1424,7 +1424,7 @@ namespace BuildXL.Engine
         {
 #pragma warning disable SA1114 // Parameter list must follow declaration
 
-            if (BuildXL.Engine.ETWLogger.Log.IsEnabled(Diagnostics.EventLevel.Verbose, Events.Keywords.Diagnostics))
+            if (BuildXL.Engine.ETWLogger.Log.IsEnabled(Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
             {
                 Logger.Log.PipTableStats(
                     loggingContext,
@@ -1660,7 +1660,7 @@ namespace BuildXL.Engine
                         symlinkDefinitions: await symlinkDefinitionsTask,
                         buildEngineFingerprint: buildEngineFingerprint,
                         vmInitializer: VmInitializer.CreateFromEngine(
-                            configuration.Layout.BuildEngineDirectory.ToString(pathTable),
+                            newConfiguration.Layout.BuildEngineDirectory.ToString(newContext.PathTable),
                             message => Logger.Log.StartInitializingVm(loggingContext, message),
                             message => Logger.Log.EndInitializingVm(loggingContext, message),
                             message => Logger.Log.InitializingVm(loggingContext, message)));

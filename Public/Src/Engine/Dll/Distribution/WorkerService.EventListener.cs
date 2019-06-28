@@ -8,6 +8,7 @@ using System.Threading;
 using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
@@ -54,7 +55,7 @@ namespace BuildXL.Engine.Distribution
                     return;
                 }
 
-                if (((long)eventKeywords & (long)Events.Keywords.NotForwardedToMaster) > 0)
+                if (((long)eventKeywords & (long)Keywords.NotForwardedToMaster) > 0)
                 { 
                     return;
                 }

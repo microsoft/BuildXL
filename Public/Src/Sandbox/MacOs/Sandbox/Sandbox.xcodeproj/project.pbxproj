@@ -919,7 +919,7 @@
 		3CCA66BC20D15BBD0051F984 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0940;
+				LastUpgradeCheck = 1020;
 				ORGANIZATIONNAME = Microsoft;
 				TargetAttributes = {
 					3CCA66C420D15BBD0051F984 = {
@@ -1077,7 +1077,7 @@
 /* Begin XCBuildConfiguration section */
 		3CCA66CD20D15BBD0051F984 /* debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F598838D22527E7400A7A2D9 /* BundleInfo.xcconfig */;
+			baseConfigurationReference = F598838C22527E7400A7A2D9 /* BundleInfoDebug.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -1121,8 +1121,8 @@
 					"DEBUG=1",
 					"_DEBUG=1",
 					"MACH_ASSERT=1",
-                    "BUILDXL_BUNDLE_IDENTIFIER=$(BUILDXL_BUNDLE_IDENTIFIER)",
-                    "BUILDXL_CLASS_PREFIX=$(BUILDXL_CLASS_PREFIX)",
+					"BUILDXL_BUNDLE_IDENTIFIER=$(BUILDXL_BUNDLE_IDENTIFIER)",
+					"BUILDXL_CLASS_PREFIX=$(BUILDXL_CLASS_PREFIX)",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -1180,8 +1180,8 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"RELEASE=1",
 					"NDEBUG=1",
-                    "BUILDXL_BUNDLE_IDENTIFIER=$(BUILDXL_BUNDLE_IDENTIFIER)",
-                    "BUILDXL_CLASS_PREFIX=$(BUILDXL_CLASS_PREFIX)",
+					"BUILDXL_BUNDLE_IDENTIFIER=$(BUILDXL_BUNDLE_IDENTIFIER)",
+					"BUILDXL_CLASS_PREFIX=$(BUILDXL_CLASS_PREFIX)",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -1208,6 +1208,7 @@
 				INFOPLIST_FILE = Src/Resources/Info.plist;
 				MODULE_NAME = com.microsoft.buildxl.sandbox;
 				MODULE_VERSION = 1.0.0d1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUILDXL_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = "../../Windows/DetoursServices/**";
 				WRAPPER_EXTENSION = kext;
@@ -1227,6 +1228,7 @@
 				INFOPLIST_FILE = Src/Resources/Info.plist;
 				MODULE_NAME = com.microsoft.buildxl.sandbox;
 				MODULE_VERSION = 1.0.0d1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUILDXL_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = "../../Windows/DetoursServices/**";
 				WRAPPER_EXTENSION = kext;
@@ -1258,7 +1260,7 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-                    "$(inherited)",
+					"$(inherited)",
 					"MAC_OS_LIBRARY=1",
 				);
 				HEADER_SEARCH_PATHS = "$(SOURCE_ROOT)/../Interop/Sandbox";

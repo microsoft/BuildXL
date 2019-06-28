@@ -1033,7 +1033,11 @@ namespace BuildXL
                                 }
                             },
                             isUnsafe: true),
-
+                        OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques",
+                            sign =>
+                            sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreUndeclaredAccessesUnderSharedOpaques = sign,
+                            isUnsafe: true),
                         // </ end unsafe options>
                          OptionHandlerFactory.CreateBoolOption(
                             "useCustomPipDescriptionOnConsole",

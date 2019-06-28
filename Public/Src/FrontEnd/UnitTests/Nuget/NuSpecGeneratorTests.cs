@@ -21,12 +21,14 @@ namespace Test.BuildXL.FrontEnd.Nuget
         private static readonly INugetPackage s_myPackage = new NugetPackage() { Id = "MyPkg", Version = "1.99" };
         private static readonly INugetPackage s_systemCollections = new NugetPackage() { Id = "System.Collections", Version = "4.0.11" };
         private static readonly INugetPackage s_systemCollectionsConcurrent = new NugetPackage() { Id = "System.Collections.Concurrent", Version = "4.0.12" };
+        private static readonly INugetPackage s_newtonsoftJson = new NugetPackage() { Id = "Newtonsoft.Json", Version = "10.0.0" };
 
         private static readonly Dictionary<string, INugetPackage> s_packagesOnConfig = new Dictionary<string, INugetPackage>
         {
             [s_myPackage.Id] = s_myPackage,
             [s_systemCollections.Id] = s_systemCollections,
-            [s_systemCollectionsConcurrent.Id] = s_systemCollectionsConcurrent
+            [s_systemCollectionsConcurrent.Id] = s_systemCollectionsConcurrent,
+            [s_newtonsoftJson.Id] = s_newtonsoftJson
         };
 
         public NuSpecGeneratorTests(ITestOutputHelper output)
@@ -58,10 +60,13 @@ namespace Test.BuildXL.FrontEnd.Nuget
         <dependency id='System.Collections' version='4.0.11' />
         <dependency id='System.Collections.Concurrent' version='4.0.12' />
       </group>
+      <group targetFramework='.NETStandard2.0'>
+        <dependency id='Newtonsoft.Json' version='10.0.0' exclude='Build,Analyzers' />
+      </group>
     </dependencies>
   </metadata>
 </package>",
-                s_packagesOnConfig, new string[] { "lib/net45/my.dll", "lib/net451/my.dll"});
+                s_packagesOnConfig, new string[] { "lib/net45/my.dll", "lib/net451/my.dll",  "lib/netstandard2.0/my.dll"});
 
             var spec = new NugetSpecGenerator(m_context.PathTable, pkg).CreateScriptSourceFile(pkg);
             var text = spec.ToDisplayStringV2();
@@ -70,7 +75,9 @@ namespace Test.BuildXL.FrontEnd.Nuget
             string expectedSpec = string.Format(@"import {{Transformer}} from ""Sdk.Transformers"";
 import * as Managed from ""Sdk.Managed"";
 
-export declare const qualifier: {{targetFramework: ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472""}};
+export declare const qualifier: {{
+    targetFramework: ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netcoreapp3.0"" | ""netstandard2.1"",
+}};
 
 const packageRoot = Contents.packageRoot;
 
@@ -81,7 +88,12 @@ namespace Contents {{
     @@public
     export const all: StaticDirectory = Transformer.sealDirectory(
         packageRoot,
-        [f`${{packageRoot}}/lib/net45/my.dll`, f`${{packageRoot}}/lib/net451/my.dll`, f`${{packageRoot}}/TestPkg.nuspec`]
+        [
+            f`${{packageRoot}}/lib/net45/my.dll`,
+            f`${{packageRoot}}/lib/net451/my.dll`,
+            f`${{packageRoot}}/lib/netstandard2.0/my.dll`,
+            f`${{packageRoot}}/TestPkg.nuspec`,
+        ]
     );
 }}
 
@@ -95,9 +107,7 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
                 Contents.all,
                 [Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/net45/my.dll`)],
                 [Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/net45/my.dll`)],
-                [
-                    ...addIfLazy(qualifier.targetFramework === ""net45"", () => [importFrom(""System.Collections"").pkg, importFrom(""System.Collections.Concurrent"").pkg]),
-                ]
+                [importFrom(""System.Collections"").pkg, importFrom(""System.Collections.Concurrent"").pkg]
             );
         case ""net451"":
         case ""net452"":
@@ -111,9 +121,23 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
                 Contents.all,
                 [Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/net451/my.dll`)],
                 [Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/net451/my.dll`)],
+                [importFrom(""System.Collections"").pkg, importFrom(""System.Collections.Concurrent"").pkg]
+            );
+        case ""netstandard2.0"":
+        case ""netcoreapp2.0"":
+        case ""netcoreapp2.1"":
+        case ""netcoreapp2.2"":
+        case ""netcoreapp3.0"":
+        case ""netstandard2.1"":
+            return Managed.Factory.createNugetPackage(
+                ""TestPkg"",
+                ""1.999"",
+                Contents.all,
+                [Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/netstandard2.0/my.dll`)],
                 [
-                    ...addIfLazy(qualifier.targetFramework === ""net451"", () => [importFrom(""System.Collections"").pkg, importFrom(""System.Collections.Concurrent"").pkg]),
-                ]
+                    Managed.Factory.createBinaryFromFiles(f`${{packageRoot}}/lib/netstandard2.0/my.dll`),
+                ],
+                [...addIfLazy(qualifier.targetFramework === ""netstandard2.0"", () => [importFrom(""Newtonsoft.Json"").pkg])]
             );
         default:
             Contract.fail(""Unsupported target framework"");

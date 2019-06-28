@@ -1794,6 +1794,7 @@ BOOL WINAPI Detoured_CreateProcessW(
 {
     bool injectedShim = false;
     BOOL ret = MaybeInjectSubstituteProcessShim(
+        lpApplicationName,
         lpCommandLine,
         lpProcessAttributes,
         lpThreadAttributes,
@@ -1806,6 +1807,7 @@ BOOL WINAPI Detoured_CreateProcessW(
         injectedShim);
     if (injectedShim)
     {
+        Dbg(L"Injected shim for lpCommandLine='%s', returning 0x%08X from CreateProcessW", lpCommandLine, ret);
         return ret;
     }
 

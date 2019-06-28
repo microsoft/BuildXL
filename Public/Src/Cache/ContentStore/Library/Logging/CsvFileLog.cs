@@ -88,6 +88,7 @@ namespace BuildXL.Cache.ContentStore.Logging
             env_osVer
         }
 
+        // case-insensitive mapping of ColumKind enum name to enum value
         private static Dictionary<string, ColumnKind> ColumnName2ValueMap = typeof(ColumnKind)
             .GetEnumNames()
             .ToDictionary
@@ -121,7 +122,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         ///
         ///         ColName[:ColType](, ColName[:ColType])*
         ///
-        ///     Both ColName is a string identifier, i.e., any string that doesn't contain either ',' or ':'.
+        ///     ColName is a string identifier, i.e., any string that doesn't contain either ',' or ':'.
         ///
         ///     ColType is ignored.
         ///
@@ -142,7 +143,6 @@ namespace BuildXL.Cache.ContentStore.Logging
                 .Select(col => col.Split(':').First().Trim())
                 .Select(colName => GetValueOrDefault(ColumnName2ValueMap, colName, ColumnKind.Empty))
                 .ToArray();
-
         }
 
         private static TV GetValueOrDefault<TK, TV>(Dictionary<TK, TV> dict, TK key, TV defaultValue)

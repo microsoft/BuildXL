@@ -14,17 +14,21 @@ namespace BuildXL.Cache.ContentStore.App
     /// <summary>
     ///     Responsible for pumping provided log files to Kusto.
     ///
-    ///     To post a log file for ingestion, call <see cref="PostFileForIngestion(string, Guid)"/>.
+    ///     To post a log file for upload, call <see cref="PostFileForUpload(string, Guid)"/>.
     ///     This method is asynchronous and thread-safe, meaning:
-    ///       (1) it only queues a request for ingestion and doesn't wait for it to complete before it returns, and
+    ///       (1) it only enqueues a request for upload and doesn't wait for it to complete before it returns, and
     ///       (2) posting multiple files from concurrent threads is ok.
     ///
-    ///     To complete ingestion and wait for all pending ingestion tasks to finish, call
-    ///     <see cref="CompleteAndWaitForPendingIngestionsToFinish"/>.  After this method has been
-    ///     called, <see cref="PostFileForIngestion(string, Guid)"/> does not accept any new requests.
+    ///     To complete this process and wait for all pending uploads to finish, call
+    ///     <see cref="CompleteAndWaitForPendingUploadsToFinish"/>.  After this method has been
+    ///     called, <see cref="PostFileForUpload(string, Guid)"/> does not accept any new requests.
     ///
     ///     The <see cref="Dispose"/> method of this class implicitly waits for pending ingestions
-    ///     to finish (by calling <see cref="CompleteAndWaitForPendingIngestionsToFinish"/>.
+    ///     to finish (by calling <see cref="CompleteAndWaitForPendingUploadsToFinish"/>.
+    ///
+    ///     Note that this class only uploads log files to a blob storage.  From there, the logs are
+    ///     asynchronously ingested to Kusto by a different service and so it may take minutes
+    ///     after a log file is uploaded by this class before its content becomes available in Kusto.
     /// </summary>
     public sealed class KustoUploader : IDisposable
     {
@@ -43,8 +47,12 @@ namespace BuildXL.Cache.ContentStore.App
         /// <param name="connectionString">Kusto connection string.</param>
         /// <param name="database">Database into which to ingest.</param>
         /// <param name="table">Table into which to ingest.</param>
-        /// <param name="deleteFilesOnSuccess">Whether to delete files upon successful ingestion.</param>
-        /// <param name="checkForIngestionErrors">Whether to check for ingestion errors before disposing this object.</param>
+        /// <param name="deleteFilesOnSuccess">Whether to delete files upon successful upload.</param>
+        /// <param name="checkForIngestionErrors">
+        ///     Whether to check for ingestion errors before disposing this object.
+        ///     Note that at this time not all uploaded files have necessarily been ingested; this class
+        ///     does not wait for ingestions to complete, it only checks for failures of those that have completed.
+        /// </param>
         /// <param name="log">Optional log to which to write some debug information.</param>
         public KustoUploader
             (
@@ -78,11 +86,11 @@ namespace BuildXL.Cache.ContentStore.App
         }
 
         /// <summary>
-        ///     Posts <paramref name="filePath"/> for ingestion and returns immediately.
+        ///     Posts <paramref name="filePath"/> for upload and returns immediately.
         /// </summary>
-        public void PostFileForIngestion(string filePath, Guid sourceId)
+        public void PostFileForUpload(string filePath, Guid sourceId)
         {
-            Info("Posting file '{0}' for ingestion", filePath);
+            Always("Posting file '{0}' for upload", filePath);
             _block.Post(new FileDescription
             {
                 FilePath = filePath,
@@ -91,10 +99,12 @@ namespace BuildXL.Cache.ContentStore.App
         }
 
         /// <summary>
-        ///     Synchronously waits until all posted files for ingestion complete.
+        ///     Synchronously waits until all posted files have been uploaded.
         /// </summary>
-        /// <returns>Whether any failures were encountered.  All encountered failures are logged by this class.</returns>
-        public bool CompleteAndWaitForPendingIngestionsToFinish()
+        /// <returns>
+        ///     Whether any failures were encountered.  All encountered failures are logged by this class.
+        /// </returns>
+        public bool CompleteAndWaitForPendingUploadsToFinish()
         {
             if (_block.Completion.IsCompleted)
             {
@@ -106,17 +116,17 @@ namespace BuildXL.Cache.ContentStore.App
             var start = DateTime.UtcNow;
             _block.Completion.GetAwaiter().GetResult();
             var duration = DateTime.UtcNow.Subtract(start);
-            Info("Waited {0} ms for queued ingestion tasks to complete", duration.TotalMilliseconds);
+            Always("Waited {0} ms for queued upload tasks to complete", duration.TotalMilliseconds);
 
             return CheckForFailures();
         }
 
         /// <summary>
-        ///     Synchronously waits until all posted files for ingestion complete, then disposes the internal Kusto client.
+        ///     Synchronously waits until all posted files have been uploaded, then disposes the internal Kusto client.
         /// </summary>
         public void Dispose()
         {
-            CompleteAndWaitForPendingIngestionsToFinish();
+            CompleteAndWaitForPendingUploadsToFinish();
             _client.Dispose();
         }
 
@@ -128,11 +138,11 @@ namespace BuildXL.Cache.ContentStore.App
                 var result = _client.IngestFromSingleFile(fileDesc, _deleteFilesOnSuccess, _ingestionProperties);
                 var duration = DateTime.UtcNow.Subtract(start);
 
-                Info("Ingesting file '{0}' took {1} ms", fileDesc.FilePath, duration.TotalMilliseconds);
+                Always("Uploading file '{0}' took {1} ms", fileDesc.FilePath, duration.TotalMilliseconds);
             }
             catch (Exception e)
             {
-                Error("Failed to ingest file '{0}': {1}", fileDesc.FilePath, e);
+                Error("Failed to upload file '{0}': {1}", fileDesc.FilePath, e);
                 _hasUploadErrors = true;
             }
         }
@@ -147,7 +157,7 @@ namespace BuildXL.Cache.ContentStore.App
             var start = DateTime.UtcNow;
             var ingestionFailures = _client.PeekTopIngestionFailures().GetAwaiter().GetResult().ToList();
             var duration = DateTime.UtcNow.Subtract(start);
-            Info("Checking for ingestion failures took {0} ms", duration.TotalMilliseconds);
+            Always("Checking for ingestion failures took {0} ms", duration.TotalMilliseconds);
 
             if (ingestionFailures.Any() && _log != null)
             {
@@ -163,7 +173,7 @@ namespace BuildXL.Cache.ContentStore.App
             return $"File: {f.Info.IngestionSourcePath}, Status: {f.Info.FailureStatus}, Error code: {f.Info.ErrorCode}, Details: {f.Info.Details}";
         }
 
-        private void Info(string format, params object[] args) => Log(Severity.Always, format, args);
+        private void Always(string format, params object[] args) => Log(Severity.Always, format, args);
         private void Error(string format, params object[] args) => Log(Severity.Error, format, args);
 
         private void Log(Severity severity, string format, params object[] args)

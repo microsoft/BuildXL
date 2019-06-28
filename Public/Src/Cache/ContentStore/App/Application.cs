@@ -26,7 +26,6 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
-using BuildXL.Utilities.Instrumentation.Common;
 using CLAP;
 
 // ReSharper disable UnusedMember.Global
@@ -39,17 +38,41 @@ namespace BuildXL.Cache.ContentStore.App
     {
         private const string HashTypeDescription = "Content hash type (SHA1/SHA256/MD5/Vso0/DedupChunk/DedupNode)";
 
+        /// <summary>
+        ///     The name of this service (sent to Kusto as the value of the 
+        ///     <see cref="CsvFileLog.ColumnKind.Service"/> column)
+        /// </summary>
         private const string ServiceName = "ContentAddressableStoreService";
 
         private const string CsvLogFileExt = ".csv";
         private const string TmpCsvLogFileExt = ".csvtmp";
+
+        /// <summary>
+        ///     Name of the environment variable in which to look for a Kusto connection string.
+        /// </summary>
         private const string KustoConnectionStringEnvVarName = "KustoConnectionString";
+
+        /// <summary>
+        ///     Target Kusto database for remote telemetry
+        /// </summary>
         private const string KustoDatabase = "CloudBuildCBTest";
+
+        /// <summary>
+        ///     Target Kusto table for remote telemetry
+        /// </summary>
         private const string KustoTable = "CloudBuildLogEvent";
 
-        // This is automatically exported schema directly from Kusto 
+        /// <summary>
+        ///     The Kusto schema of the target table (<see cref="KustoTable"/>).
+        ///
+        ///     The schema for the target table can be automatically exported from the Kusto Explorer.
+        /// </summary>
         private const string KustoTableSchema = "env_ver:string, env_name:string, env_time:datetime, env_epoch:string, env_seqNum:long, env_popSample:real, env_iKey:string, env_flags:long, env_cv:string, env_os:string, env_osVer:string, env_appId:string, env_appVer:string, env_cloud_ver:string, env_cloud_name:string, env_cloud_role:string, env_cloud_roleVer:string, env_cloud_roleInstance:string, env_cloud_environment:string, env_cloud_location:string, env_cloud_deploymentUnit:string, Stamp:string, Ring:string, BuildId:string, CorrelationId:string, ParentCorrelationId:string, Exception:string, Message:string, LogLevel:long, LogLevelFriendly:string, LoggingType:string, LoggingMethod:string, LoggingLineNumber:long, PreciseTimeStamp:datetime, LocalPreciseTimeStamp:datetime, ThreadId:long, ThreadPrincipal:string, Cluster:string, Environment:string, MachineFunction:string, Machine:string, Service:string, ServiceVersion:string, SourceNamespace:string, SourceMoniker:string, SourceVersion:string, ProcessId:long, BuildQueue:string";
 
+        /// <summary>
+        ///     CSV file schema to be passed to <see cref="CsvFileLog"/>.
+        ///     This schema is automatically generated from <see cref="KustoTableSchema"/>
+        /// </summary>
         private static readonly CsvFileLog.ColumnKind[] KustoTableCsvSchema = CsvFileLog.ParseTableSchema(KustoTableSchema);      
 
         private readonly CancellationToken _cancellationToken;
@@ -73,8 +96,6 @@ namespace BuildXL.Cache.ContentStore.App
         private uint _retryIntervalSeconds;
         private uint _retryCount;
         private bool _enableRemoteTelemetry;
-
-
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Application"/> class.
@@ -389,11 +410,14 @@ namespace BuildXL.Cache.ContentStore.App
                 maxFileSize: _csvLogMaxFileSize
                 );
 
+            // Every time a log file written to disk and closed, we rename it and upload it to Kusto.
+            // The last log file will be produced when _csvFileLog is disposed, so _kustUploader better
+            // not be disposed before _csvFileLog.
             _csvFileLog.OnLogFileProduced += (path) =>
             {
                 string newPath = Path.ChangeExtension(path, CsvLogFileExt);
                 File.Move(path, newPath);
-                _kustoUploader.PostFileForIngestion(newPath, _csvFileLog.BuildId);
+                _kustoUploader.PostFileForUpload(newPath, _csvFileLog.BuildId);
             };
 
             _logger.AddLog(_csvFileLog);

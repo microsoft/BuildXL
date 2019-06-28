@@ -95,11 +95,7 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Try to create a RelativePath from a string.
         /// </summary>
-        /// <param name="table">StringTable instance</param>
-        /// <param name="relativePath">Relative path to pass in</param>
-        /// <param name="result">Output relative path after parsing</param>
-        /// <param name="characterWithError">Output the character that had the error</param>
-        /// <param name="fromAbsolutePath">Boolean if this function was called from AbsolutePath.cs. Defaults to false</param>
+        /// <param name="fromAbsolutePath">Whether this function was called from AbsolutePath.</param>
         /// <returns>Return the parser result indicating success, or what was wrong with the parsing.</returns>
         public static ParseResult TryCreate<T>(StringTable table, T relativePath, out RelativePath result, out int characterWithError, bool fromAbsolutePath = false)
             where T : struct, ICharSpan<T>

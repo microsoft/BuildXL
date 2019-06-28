@@ -79,7 +79,8 @@ namespace Test.BuildXL.Processes.Detours
             string childArgs = $"{childExecutable} /D /C @echo {childOutput}";
 
             // Detours logic should wrap the initial cmd in quotes for easier parsing by shim logic.
-            string childShimArgs = $"{quotedExecutable} /D /C @echo {childOutput}";
+            // However, since we're indirecting through a cmd.exe command line it gets dropped along the way.
+            string childShimArgs = $"/D /C @echo {childOutput}";
 
             string args = "/D /C echo Top-level cmd. Running child process && " + childArgs;
 
@@ -114,20 +115,105 @@ namespace Test.BuildXL.Processes.Detours
                     .ConfigureAwait(false);
             SandboxedProcessResult result = await sandboxedProcess.GetResultAsync().ConfigureAwait(false);
 
+            string stdout = stdoutSb.ToString();
+            m_output.WriteLine($"stdout: {stdout}");
+
+            string stderr = stderrSb.ToString();
+            m_output.WriteLine($"stderr: {stderr}");
+
             Assert.Equal(0, result.ExitCode);
+            Assert.Equal(0, stderr.Length);
+
+            // The shim is an exe on netframework, dll in a temp dir on netcore, so don't try to match it.
+            const string shimOutput = "TestShim: Entered with command line: ";
+            int indexOfShim = stdout.IndexOf(shimOutput, StringComparison.Ordinal);
+            Assert.True(indexOfShim > 0, shimOutput);
+
+            m_output.WriteLine($"Expecting shim args: {childShimArgs}");
+            int indexOfShimArgs = stdout.LastIndexOf(childShimArgs);
+            Assert.True(indexOfShimArgs > indexOfShim);
+        }
+
+        /// <summary>
+        /// Execute a test that shims all top-level processes of cmd.exe, calling a test shim executable and verifying it was called correctly.
+        /// The child process is passed to Detours via the lpApplicationName of CreateProcess(), and is unquoted.
+        /// </summary>
+        [Fact]
+        public async Task CmdWithStartQuoteOnlyFailsToRunFullCommandLine()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+
+            string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
+            Contract.Assume(currentCodeFolder != null);
+
+            string shimProgram = Path.Combine(currentCodeFolder, "TestSubstituteProcessExecutionShim.exe");
+            Assert.True(File.Exists(shimProgram), $"Shim test program not found at {shimProgram}");
+            var shimProgramPath = AbsolutePath.Create(context.PathTable, shimProgram);
+            
+            var fam =
+                new FileAccessManifest(context.PathTable)
+                {
+                    FailUnexpectedFileAccesses = false,
+                    IgnoreCodeCoverage = false,
+                    ReportFileAccesses = false,
+                    ReportUnexpectedFileAccesses = false,
+                    MonitorChildProcesses = false,
+                    SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
+                        shimProgramPath,
+                        shimAllProcesses: true,
+                        new ShimProcessMatch[0])
+                };
+
+            Guid sessionId = Guid.NewGuid();
+            string sessionIdStr = sessionId.ToString("N");
+            var loggingContext = new LoggingContext(sessionId, "TestSession", new LoggingContext.SessionInfo(sessionIdStr, "env", sessionId));
+
+            string executable = CmdHelper.CmdX64;
+            string childExecutable = '"' + executable;  // Only an open quote
+            string childOutput = "Child cmd that should be shimmed";
+            string childArgs = $"{childExecutable} /D /C @echo {childOutput}";
+
+            string args = "/D /C echo Top-level cmd. Running child process && " + childArgs;
+
+            var stdoutSb = new StringBuilder(128);
+            var stderrSb = new StringBuilder();
+
+            var sandboxedProcessInfo = new SandboxedProcessInfo(
+                context.PathTable,
+                new LocalSandboxedFileStorage(),
+                executable,
+                disableConHostSharing: true,
+                loggingContext: loggingContext,
+                fileAccessManifest: fam)
+            {
+                PipDescription = executable,
+                Arguments = args,
+                WorkingDirectory = Environment.CurrentDirectory,
+
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardOutputObserver = stdoutStr => stdoutSb.AppendLine(stdoutStr),
+
+                StandardErrorEncoding = Encoding.UTF8,
+                StandardErrorObserver = stderrStr => stderrSb.AppendLine(stderrStr),
+
+                EnvironmentVariables = BuildParameters.GetFactory().PopulateFromEnvironment(),
+
+                Timeout = TimeSpan.FromMinutes(1),
+            };
+
+            ISandboxedProcess sandboxedProcess =
+                await SandboxedProcessFactory.StartAsync(sandboxedProcessInfo, forceSandboxing: true)
+                    .ConfigureAwait(false);
+            SandboxedProcessResult result = await sandboxedProcess.GetResultAsync().ConfigureAwait(false);
 
             string stdout = stdoutSb.ToString();
             m_output.WriteLine($"stdout: {stdout}");
 
             string stderr = stderrSb.ToString();
             m_output.WriteLine($"stderr: {stderr}");
-            Assert.Equal(0, stderr.Length);
 
-            // Not worth trying to match on the expected tool command line,
-            // the test shim on netcore appears as a .dll instead of a .exe.
-            string shimOutput = "TestShim: Entered with command line: ";
-            int indexOfShim = stdout.IndexOf(shimOutput, StringComparison.Ordinal);
-            Assert.True(indexOfShim > 0, shimOutput);
+            Assert.Equal(1, result.ExitCode);
+            Assert.Equal("The system cannot find the path specified.\r\n", stderr);
         }
 
         /// <summary>

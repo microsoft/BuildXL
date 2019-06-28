@@ -5,17 +5,14 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using BuildXL.Pips;
+//using BuildXL.Pips;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
 using System.Diagnostics.Tracing;
 #endif
-
-using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
@@ -26,8 +23,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
     /// <summary>
     /// Logging
     /// </summary>
-    [EventKeywordsType(typeof(Events.Keywords))]
-    [EventTasksType(typeof(Events.Tasks))]
+    [EventKeywordsType(typeof(Keywords))]
+    [EventTasksType(typeof(Tasks))]
     public abstract partial class Logger : LoggerBase
     {
         private bool m_preserveLogEvents;
@@ -67,215 +64,215 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.FrontEndLoadConfigPhaseStart,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Message = Events.PhasePrefix + "Loading configuration",
-            EventTask = (ushort)Events.Tasks.Engine,
+            Message = EventConstants.PhasePrefix + "Loading configuration",
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void FrontEndLoadConfigPhaseStart(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndLoadConfigPhaseComplete,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             Message =
-                Events.PhasePrefix +
+                EventConstants.PhasePrefix +
                 "Done loading {statistics.FileCount} config files. Loaded in {statistics.ElapsedMilliseconds} ms. Parsed in {statistics.ElapsedMillisecondsParse} ms. Converted in {statistics.ElapsedMillisecondsConvertion} ms.",
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.Engine,
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Performance | Events.Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
         public abstract void FrontEndLoadConfigPhaseComplete(LoggingContext context, LoadConfigurationStatistics statistics);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndInitializeResolversPhaseStart,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Message = Events.PhasePrefix + "Initializing resolvers",
-            EventTask = (ushort)Events.Tasks.Engine,
+            Message = EventConstants.PhasePrefix + "Initializing resolvers",
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
         public abstract void FrontEndInitializeResolversPhaseStart(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndInitializeResolversPhaseComplete,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             Message =
-                Events.PhasePrefix + "Done initializing {statistics.ResolverCount} resolvers in {statistics.ElapsedMilliseconds} ms.",
+                EventConstants.PhasePrefix + "Done initializing {statistics.ResolverCount} resolvers in {statistics.ElapsedMilliseconds} ms.",
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.Engine,
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Performance | Events.Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
         public abstract void FrontEndInitializeResolversPhaseComplete(LoggingContext context, InitializeResolversStatistics statistics);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndBuildWorkspacePhaseStart,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Message = Events.PhasePrefix + "Building workspace...",
-            EventTask = (ushort)Events.Tasks.Engine,
+            Message = EventConstants.PhasePrefix + "Building workspace...",
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void FrontEndBuildWorkspacePhaseStart(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndBuildWorkspacePhaseProgress,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Message = Events.PhasePrefix + "Building workspace progress :: Parsing: {numParseDone}/{numParseTotal}",
-            EventTask = (ushort)Events.Tasks.Engine,
+            Message = EventConstants.PhasePrefix + "Building workspace progress :: Parsing: {numParseDone}/{numParseTotal}",
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void FrontEndWorkspacePhaseProgress(LoggingContext context, int numParseDone, string numParseTotal);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndBuildWorkspacePhaseComplete,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             Message =
-                Events.PhasePrefix + "Done building workspace in {statistics.ElapsedMilliseconds} ms. Projects: {statistics.ProjectCount}, modules: {statistics.ModuleCount}.",
+                EventConstants.PhasePrefix + "Done building workspace in {statistics.ElapsedMilliseconds} ms. Projects: {statistics.ProjectCount}, modules: {statistics.ModuleCount}.",
             EventLevel = Level.Informational,
-            EventTask = (ushort)Events.Tasks.Engine,
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable))]
         public abstract void FrontEndBuildWorkspacePhaseComplete(LoggingContext context, WorkspaceStatistics statistics);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndEndEvaluateValues,
             EventGenerators = EventGenerators.LocalAndTelemetry,
-            Message = Events.PhasePrefix + "Done evaluating values in {statistics.ElapsedMilliseconds} ms.",
+            Message = EventConstants.PhasePrefix + "Done evaluating values in {statistics.ElapsedMilliseconds} ms.",
             EventLevel = Level.Informational,
-            EventTask = (ushort)Events.Tasks.Engine,
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable))]
         public abstract void FrontEndEvaluatePhaseComplete(LoggingContext context, EvaluateStatistics statistics);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndBuildWorkspacePhaseCanceled,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = Events.PhasePrefix + "Building workspace canceled.",
+            Message = EventConstants.PhasePrefix + "Building workspace canceled.",
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Engine,
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void FrontEndBuildWorkspacePhaseCanceled(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndWorkspaceAnalysisPhaseStart,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Message = Events.PhasePrefix + "Type checking workspace...",
-            EventTask = (ushort)Events.Tasks.Engine,
+            Message = EventConstants.PhasePrefix + "Type checking workspace...",
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void FrontEndWorkspaceAnalysisPhaseStart(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndWorkspaceAnalysisPhaseProgress,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Message = Events.PhasePrefix + "Analyzing workspace progress :: Type Checking {numTypeCheckDone}/{numTypeCheckTotal}",
-            EventTask = (ushort)Events.Tasks.Engine,
+            Message = EventConstants.PhasePrefix + "Analyzing workspace progress :: Type Checking {numTypeCheckDone}/{numTypeCheckTotal}",
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void FrontEndWorkspaceAnalysisPhaseProgress(LoggingContext context, int numTypeCheckDone, int numTypeCheckTotal);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndWorkspaceAnalysisPhaseComplete,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             Message =
-                Events.PhasePrefix + "Done type checking workspace in {statistics.ElapsedMilliseconds} ms. Projects: {statistics.ProjectCount}, modules: {statistics.ModuleCount}.",
+                EventConstants.PhasePrefix + "Done type checking workspace in {statistics.ElapsedMilliseconds} ms. Projects: {statistics.ProjectCount}, modules: {statistics.ModuleCount}.",
             EventLevel = Level.Informational,
-            EventTask = (ushort)Events.Tasks.Engine,
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable))]
         public abstract void FrontEndWorkspaceAnalysisPhaseComplete(LoggingContext context, WorkspaceStatistics statistics);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndWorkspaceAnalysisPhaseCanceled,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = Events.PhasePrefix + "Analyzing workspace canceled.",
+            Message = EventConstants.PhasePrefix + "Analyzing workspace canceled.",
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Engine,
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void FrontEndWorkspaceAnalysisPhaseCanceled(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndParsePhaseStart,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Message = Events.PhasePrefix + "Creating evaluation model...",
-            EventTask = (ushort)Events.Tasks.Engine,
+            Message = EventConstants.PhasePrefix + "Creating evaluation model...",
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void FrontEndParsePhaseStart(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndParsePhaseComplete,
             EventGenerators = EventGenerators.LocalAndTelemetry,
-            Message = Events.PhasePrefix + "Done creating evaluation model. {statistics.FileCount} files in {statistics.ElapsedMilliseconds} ms.",
+            Message = EventConstants.PhasePrefix + "Done creating evaluation model. {statistics.FileCount} files in {statistics.ElapsedMilliseconds} ms.",
             EventLevel = Level.Informational,
-            EventTask = (ushort)Events.Tasks.Engine,
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable))]
         public abstract void FrontEndParsePhaseComplete(LoggingContext context, ParseStatistics statistics);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndConvertPhaseStart,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Message = Events.PhasePrefix + "Creating evaluation model...",
-            EventTask = (ushort)Events.Tasks.Engine,
+            Message = EventConstants.PhasePrefix + "Creating evaluation model...",
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void FrontEndConvertPhaseStart(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndConvertPhaseComplete,
             EventGenerators = EventGenerators.LocalAndTelemetry,
-            Message = Events.PhasePrefix + "Done creating evaluation model in {statistics.ElapsedMilliseconds} ms. Projects: {statistics.FileCount}, modules: {statistics.ModuleCount}.",
+            Message = EventConstants.PhasePrefix + "Done creating evaluation model in {statistics.ElapsedMilliseconds} ms. Projects: {statistics.FileCount}, modules: {statistics.ModuleCount}.",
             EventLevel = Level.Informational,
-            EventTask = (ushort)Events.Tasks.Engine,
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable))]
         public abstract void FrontEndConvertPhaseComplete(LoggingContext context, ParseStatistics statistics);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndConvertPhaseCanceled,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = Events.PhasePrefix + "Conversion canceled.",
+            Message = EventConstants.PhasePrefix + "Conversion canceled.",
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Engine,
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void FrontEndConvertPhaseCanceled(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndEvaluatePhaseCanceled,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = Events.PhasePrefix + "Evaluation canceled.",
+            Message = EventConstants.PhasePrefix + "Evaluation canceled.",
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Engine,
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void FrontEndEvaluatePhaseCanceled(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndConvertPhaseProgress,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Message = Events.PhasePrefix + "Conversion progress :: Specs: {numSpecsDone}/{numSpecsTotal}.",
-            EventTask = (ushort)Events.Tasks.Engine,
+            Message = EventConstants.PhasePrefix + "Conversion progress :: Specs: {numSpecsDone}/{numSpecsTotal}.",
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void FrontEndConvertPhaseProgress(LoggingContext context, int numSpecsDone, int numSpecsTotal);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndEvaluateValuesProgress,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Message = Events.PhasePrefix + "Evaluation progress :: Modules: {numModulesDone}/{numModulesTotal} :: Specs: {numSpecsDone}/{numSpecsTotal} :: Remaining modules: {remaining}",
-            EventTask = (ushort)Events.Tasks.Engine,
+            Message = EventConstants.PhasePrefix + "Evaluation progress :: Modules: {numModulesDone}/{numModulesTotal} :: Specs: {numSpecsDone}/{numSpecsTotal} :: Remaining modules: {remaining}",
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void FrontEndEvaluatePhaseProgress(LoggingContext context, int numModulesDone, int numModulesTotal, int numSpecsDone, int numSpecsTotal, string remaining);
 
         [GeneratedEvent(
@@ -292,176 +289,176 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.FrontEndStartEvaluateValues,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Message = Events.PhasePrefix + "Evaluating values...",
-            EventTask = (ushort)Events.Tasks.Engine,
+            Message = EventConstants.PhasePrefix + "Evaluating values...",
+            EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress | Events.Keywords.Overwritable))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void FrontEndEvaluatePhaseStart(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.ErrorNotFoundNamedQualifier,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Qualifier '{notFoundNamedQualifier.RequestedNamedQualifier}' does not exist. Available named qualifiers are '{notFoundNamedQualifier.AvailableNamedQualifiers}'.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ErrorNotFoundNamedQualifier(LoggingContext context, NotFoundNamedQualifier notFoundNamedQualifier);
 
         [GeneratedEvent(
             (ushort)LogEventId.ErrorNonExistenceNamedQualifier,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Unable to build with qualifier '{nonExistenceNamedQualifier.RequestedNamedQualifier}' because no named qualifiers exist in the configuration.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ErrorNonExistenceNamedQualifier(LoggingContext context, NonExistenceNamedQualifier nonExistenceNamedQualifier);
 
         [GeneratedEvent(
             (ushort)LogEventId.ErrorIllFormedQualfierExpresion,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Unable to build with qualifier '{requestedQualifierExpression}', the part '{requestedQualifierPart}' is ill-formed. The format is either /q:qualifierName where qualifierName must be in the main BuildXL configuraiton file, or /q:name1=value1;name2=value2",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ErrorIllFormedQualfierExpresion(LoggingContext context, string requestedQualifierExpression, string requestedQualifierPart);
 
         [GeneratedEvent(
             (ushort)LogEventId.ErrorNoQualifierValues,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Unable to build with qualifier '{requestedQualifierExpression}'. After combining all values, the qualifier has no values in it.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ErrorNoQualifierValues(LoggingContext context, string requestedQualifierExpression);
 
         [GeneratedEvent(
             (ushort)LogEventId.ErrorNamedQualifierNoValues,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Invalid configuration. Named qualifier '{name}' has no fields defined.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ErrorNamedQualifierNoValues(LoggingContext context, string name);
 
         [GeneratedEvent(
             (ushort)LogEventId.ErrorNamedQualifierInvalidKey,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Invalid configuration. Named qualifier '{name}' has an invalid key '{key}' with value '{value}'. The key must be a valid {ShortScriptName} identifier.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ErrorNamedQualifierInvalidKey(LoggingContext context, string name, string key, string value);
 
         [GeneratedEvent(
             (ushort)LogEventId.ErrorNamedQualifierInvalidValue,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Invalid configuration. Named qualifier '{name}' has an invalid value '{value}' for key '{key}'. The value may not contain ';' or '='.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ErrorNamedQualifierInvalidValue(LoggingContext context, string name, string key, string value);
 
         [GeneratedEvent(
             (ushort)LogEventId.ErrorDefaultQualiferInvalidKey,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Invalid configuration. The default qualifier has an invalid key '{key}' with value '{value}'. The key must be a valid {ShortScriptName} identifier.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ErrorDefaultQualiferInvalidKey(LoggingContext context, string key, string value);
 
         [GeneratedEvent(
             (ushort)LogEventId.ErrorDefaultQualifierInvalidValue,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Invalid configuration. The DefaultQualifier has an invalid value '{value}' for key '{key}'. The value may not contain ';' or '='.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ErrorDefaultQualifierInvalidValue(LoggingContext context, string key, string value);
 
     [GeneratedEvent(
             (ushort)LogEventId.ErrorEmptyQualfierExpresion,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Unable to build with qualifier '{requestedQualifierExpression}', it contains an empty key value pair. The format is either /q:qualifierName where qualifierName must be in the main BuildXL configuraiton file, or /q:name1=value1;name2=value2",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ErrorEmptyQualfierExpresion(LoggingContext context, string requestedQualifierExpression);
 
         [GeneratedEvent(
             (ushort)LogEventId.UnregisteredResolverKind,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Resolver kind '{frontEndKind}' is not registered; registered resolvers are {registeredResolvers}.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void UnregisteredResolverKind(LoggingContext context, string frontEndKind, string registeredResolvers);
 
         [GeneratedEvent(
             (ushort)LogEventId.UnableToFindFrontEndToParse,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Unable to find a front-end to parse '{path}'; the file may not be owned by any package or the specified resolvers in the configuration file cannot find the package owning the file.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void UnableToFindFrontEndToParse(LoggingContext context, string path);
 
         [GeneratedEvent(
             (ushort)LogEventId.UnableToFindFrontEndToEvaluate,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Unable to find a front-end to evaluate '{path}'; the file may not be owned by any package or the specified resolvers in the configuration file cannot find the package owning the file.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void UnableToFindFrontEndToEvaluate(LoggingContext context, string path);
 
         [GeneratedEvent(
             (ushort)LogEventId.UnableToFindFrontEndToAnalyze,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Unable to find a front-end to analyze '{path}'; the file may not be owned by any package or the specified resolvers in the configuration file cannot find the package owning the file.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void UnableToFindFrontEndToAnalyze(LoggingContext context, string path);
 
         [GeneratedEvent(
             (ushort)LogEventId.FailedToConvertModuleToEvaluationModel,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Unable to convert module '{moduleName}': {fullError}",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void FailedToConvertModuleToEvaluationModel(LoggingContext context, string moduleName, string fullError);
 
         [GeneratedEvent(
             (ushort)LogEventId.PrimaryConfigFileNotFound,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Primary configuration file 'config.dsc' is not found. The configuration file passed as the value for /c or /config options must be 'config.dsc'.",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void PrimaryConfigFileNotFound(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.StartDownloadingTool,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             EventOpcode = (byte)EventOpcode.Start,
             Message = "-- Downloading tool '{toolName}' from '{url}' to '{targetLocation}'")]
         internal abstract void StartDownloadingTool(LoggingContext loggingContext, string toolName, string url, string targetLocation);
@@ -470,8 +467,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.EndDownloadingTool,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Performance),
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
+            EventTask = (ushort)Tasks.Parser,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = "-- Done downloading tool '{toolName}'.")]
         internal abstract void EndDownloadingTool(LoggingContext loggingContext, string toolName);
@@ -480,8 +477,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolFailedToHashExisting,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Tool '{toolName}' will be downloaded again because there was a failure computing the hash of file '{targetFilePath}' to validate if we need to download again: {message}")]
         public abstract void DownloadToolFailedToHashExisting(LoggingContext loggingContext, string toolName, string targetFilePath, string message);
@@ -490,8 +487,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolErrorInvalidUri,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (ushort)Tasks.Parser,
             Message = "Tool '{toolName}' failed to download because '{url}' is not a valid uri")]
         public abstract void DownloadToolErrorInvalidUri(LoggingContext loggingContext, string toolName, string url);
 
@@ -499,8 +496,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolErrorCopyFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.InfrastructureError),
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            EventTask = (ushort)Tasks.Parser,
             Message = "Tool '{toolName}' failed to download because an error occurred copying from '{url}' to '{targetFilePath}': {message}")]
         public abstract void DownloadToolErrorCopyFile(
             LoggingContext loggingContext,
@@ -513,8 +510,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolFailedDueToCacheError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Tool '{toolName}' will be downloaded again because there was a failure initializing the cache: {message}")]
         public abstract void DownloadToolFailedDueToCacheError(LoggingContext loggingContext, string toolName, string message);
 
@@ -522,8 +519,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolIsUpToDate,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Tool '{toolName}' is up to date and will not be downloaded because file '{targetFilePath}' has the expected hash '{hash}'.")]
         public abstract void DownloadToolIsUpToDate(LoggingContext loggingContext, string toolName, string targetFilePath, string hash);
 
@@ -531,8 +528,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolIsRetrievedFromCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Tool '{toolName}' is restored from cache and will not be downloaded because file '{targetFilePath}' has the expected hash '{hash}'.")
         ]
@@ -542,8 +539,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolErrorDownloading,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.InfrastructureError),
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            EventTask = (ushort)Tasks.Parser,
             Message = "Tool '{toolName}' failed to download from url: '{url}' to target location '{targetFilePath}' with error: {message}")]
         public abstract void DownloadToolErrorDownloading(
             LoggingContext loggingContext,
@@ -556,8 +553,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolErrorFileNotDownloaded,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.InfrastructureError),
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            EventTask = (ushort)Tasks.Parser,
             Message = "Tool '{toolName}' failed to download. No file was produced at target location '{targetFilePath}'")]
         public abstract void DownloadToolErrorFileNotDownloaded(LoggingContext loggingContext, string toolName, string targetFilePath);
 
@@ -565,8 +562,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolErrorDownloadedToolWrongHash,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.InfrastructureError),
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Tool '{toolName}' failed to validate. The configuration specified required hash '{expectedHash}', but the file '{targetFilePath}' downloaded from '{url}' has hash '{actualHash}'. For safety reasons we will not continue the build. You must update the config and/or validate the that the server providing the file is not compromised.")]
         public abstract void DownloadToolErrorDownloadedToolWrongHash(
@@ -581,8 +578,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolCannotCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Tool '{toolName}' failed to store file '{targetFilePath}' successfully in the cache with has '{contentHash}': {message}")]
         public abstract void DownloadToolCannotCache(
             LoggingContext loggingContext,
@@ -596,8 +593,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadToolWarnCouldntHashDownloadedFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Tool '{toolName}' will be downloaded again in a future because there was an error hasing file '{targetFilePath}': {message}")]
         public abstract void DownloadToolWarnCouldntHashDownloadedFile(
             LoggingContext loggingContext,
@@ -609,8 +606,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.StartRetrievingPackage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Events.Keywords.Diagnostics | Events.Keywords.Performance),
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
+            EventTask = (ushort)Tasks.Parser,
             EventOpcode = (byte)EventOpcode.Start,
             Message = "-- Checking if package '{friendlyPackageName}' is cached or needs to be downloaded from '{targetLocation}'")]
         internal abstract void StartRetrievingPackage(LoggingContext loggingContext, string friendlyPackageName, string targetLocation);
@@ -619,8 +616,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.EndRetrievingPackage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Events.Keywords.Diagnostics | Events.Keywords.Performance),
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
+            EventTask = (ushort)Tasks.Parser,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = "-- Done retrieving package {friendlyPackageName}.")]
         internal abstract void EndRetrievingPackage(LoggingContext loggingContext, string friendlyPackageName);
@@ -629,8 +626,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadPackageFailedDueToCacheError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Package '{friendlyPackageName}' will be downloaded again because there was a failure initializing the cache: {message}")]
         public abstract void DownloadPackageFailedDueToCacheError(LoggingContext loggingContext, string friendlyPackageName, string message);
 
@@ -638,8 +635,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.CanNotRestorePackagesDueToCacheError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.InfrastructureError),
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            EventTask = (ushort)Tasks.Parser,
             Message = "Can't restore NuGet packages because there was a failure initializing the cache: {message}")]
         public abstract void CanNotRestorePackagesDueToCacheError(LoggingContext loggingContext, string message);
 
@@ -647,8 +644,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadPackageFailedDueToInvalidCacheContents,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Package '{friendlyPackageName}' will be downloaded again because there was an invalid entry in the cache.{additionalInfo}")]
         public abstract void DownloadPackageFailedDueToInvalidCacheContents(LoggingContext loggingContext, string friendlyPackageName, string additionalInfo = null);
 
@@ -656,8 +653,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadPackageCannotCacheError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Package '{friendlyPackageName}' failed to store file '{targetLocation}' successfully in the cache with hash '{contentHash}': {message}. This is an error when /forcePopulatePackageCache is enabled.")]
         public abstract void DownloadPackageCannotCacheError(
@@ -671,8 +668,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadPackageCannotCacheWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message =
                 "Package '{friendlyPackageName}' failed to store file '{targetLocation}' successfully in the cache with hash '{contentHash}': {message}")]
         public abstract void DownloadPackageCannotCacheWarning(
@@ -686,8 +683,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.DownloadPackageCouldntHashPackageFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Package '{friendlyPackageName}' failed to be stored in the cache because file '{targetLocation}' couldn't be hashed: {message}")]
         public abstract void DownloadPackageCouldntHashPackageFile(
             LoggingContext loggingContext,
@@ -699,8 +696,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.PackageRestoredFromCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Package {package} has been restored from the cache.")]
         public abstract void PackageRestoredFromCache(LoggingContext context, string package);
 
@@ -708,8 +705,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.PackagePresumedUpToDate,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Package {package} was presumed up to date on disk because of fingerprints match.")]
         public abstract void PackagePresumedUpToDate(LoggingContext context, string package);
 
@@ -717,8 +714,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.PackagePresumedUpToDateWithoutHashComparison,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Package {package} was presumed up to date on disk without comparing the fingerprints.")]
         public abstract void PackagePresumedUpToDateWithoutHashComparison(LoggingContext context, string package);
 
@@ -726,8 +723,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.CanNotReusePackageHashFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Package hash file '{file}' can't be reused. {message}")]
         public abstract void CanNotReusePackageHashFile(LoggingContext context, string file, string message);
 
@@ -735,8 +732,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.CanNotUpdatePackageHashFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Failed to update a package hash file '{file}'. {message}")]
         public abstract void CanNotUpdatePackageHashFile(LoggingContext context, string file, string message);
 
@@ -744,8 +741,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.PackageNotFoundInCacheAndStartedDownloading,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Package nuget://{id}/{version} was not found in the cache and started downloading.")]
         public abstract void PackageNotFoundInCacheAndStartedDownloading(LoggingContext context, string id, string version);
 
@@ -753,8 +750,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.PackageNotFoundInCacheAndDownloaded,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Package nuget://{id}/{version} finished downloading. \r\n{packageHash}\r\n{packageFingerprint}")]
         public abstract void PackageNotFoundInCacheAndDownloaded(LoggingContext context, string id, string version, string packageHash, string packageFingerprint);
 
@@ -762,8 +759,8 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.PackageCacheMissInformation,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Package nuget://{id}/{version} was not the same as the previous version: \r\nOriginal\r\n{originalFingerprint}\r\nNew\r\n{newFingerprint}")]
         public abstract void PackageCacheMissInformation(LoggingContext context, string id, string version, string originalFingerprint, string newFingerprint);
 
@@ -771,26 +768,26 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.CannotBuildWorkspace,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message = "{message}",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void CannotBuildWorkspace(LoggingContext context, string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.CheckerError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
-            Message = Events.LabeledProvenancePrefix + "{error}")]
+            EventTask = (ushort)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            Message = EventConstants.LabeledProvenancePrefix + "{error}")]
         public abstract void CheckerError(LoggingContext context, Location location, string error);
 
         [GeneratedEvent(
             (ushort)LogEventId.CheckerGlobalError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
-            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
             Message = "{error}")]
         public abstract void CheckerGlobalError(LoggingContext context, string error);
 
@@ -798,17 +795,17 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.CheckerWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            EventTask = (ushort)Events.Tasks.Parser,
-            Keywords = (int)Events.Keywords.UserMessage,
-            Message = Events.LabeledProvenancePrefix + "{message}")]
+            EventTask = (ushort)Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
+            Message = EventConstants.LabeledProvenancePrefix + "{message}")]
         public abstract void CheckerWarning(LoggingContext context, Location location, string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.CheckerGlobalWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            EventTask = (ushort)Events.Tasks.Parser,
-            Keywords = (int)Events.Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
+            Keywords = (int)Keywords.UserMessage,
             Message = "{message}")]
         public abstract void CheckerGlobalWarning(LoggingContext context, string message);
 
@@ -819,210 +816,198 @@ namespace BuildXL.FrontEnd.Core.Tracing
             (ushort)LogEventId.TypeScriptSyntaxError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
-            Message = Events.LabeledProvenancePrefix + "{message}",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            EventTask = (ushort)Tasks.Parser,
+            Message = EventConstants.LabeledProvenancePrefix + "{message}",
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void SyntaxError(LoggingContext context, Location location, string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.TypeScriptLocalBindingError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
-            Message = Events.LabeledProvenancePrefix + "{message}",
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError))]
+            EventTask = (ushort)Tasks.Parser,
+            Message = EventConstants.LabeledProvenancePrefix + "{message}",
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void LocalBindingError(LoggingContext context, Location location, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.MaterializingFileToFileDepdencyMap,
+            (ushort)LogEventId.MaterializingFileToFileDepdencyMap,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.LogAlways,
-            EventTask = (ushort)Events.Tasks.HostApplication,
-            Message = Events.PhasePrefix + "Writing spec-to-spec dependency map to '{destination}'.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            EventTask = (ushort)Tasks.HostApplication,
+            Message = EventConstants.PhasePrefix + "Writing spec-to-spec dependency map to '{destination}'.",
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void MaterializingFileToFileDepdencyMap(LoggingContext context, string destination);
 
         [GeneratedEvent(
-            (ushort)EventId.ErrorMaterializingFileToFileDepdencyMap,
+            (ushort)LogEventId.ErrorMaterializingFileToFileDepdencyMap,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.LogAlways,
-            EventTask = (ushort)Events.Tasks.HostApplication,
-            Message = Events.PhasePrefix + "Spec-to-spec dependency map could not be written. Error code {errorCode:X8}: {message}.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            EventTask = (ushort)Tasks.HostApplication,
+            Message = EventConstants.PhasePrefix + "Spec-to-spec dependency map could not be written. Error code {errorCode:X8}: {message}.",
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void ErrorMaterializingFileToFileDepdencyMap(LoggingContext context, int errorCode, string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.GraphPartiallyReloaded,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            EventTask = (ushort)Events.Tasks.Parser,
-            Message = "Pip graph partially reloaded in {elapsedMillis}ms: #affected/total specs = {numAffectedSpecs}/{numTotalSpecs}, #reloaded pips = {numReloaded}, #skipped pips = {numSkipped}.",
-            Keywords = (int)Events.Keywords.UserMessage)]
-        public abstract void GraphPartiallyReloaded(LoggingContext context, int numAffectedSpecs, int numTotalSpecs, int elapsedMillis, string numReloaded, string numSkipped);
-
-        public void GraphPartiallyReloaded(LoggingContext context, GraphPatchingStatistics stats, int numUnaffectedSpecs)
-        {
-            var numAffectedSpecs = stats.AffectedSpecs.Count();
-            GraphPartiallyReloaded(
-                context,
-                numAffectedSpecs,
-                numAffectedSpecs + numUnaffectedSpecs,
-                stats.ElapsedMilliseconds,
-                I($"{stats.NumPipsReloaded} + {stats.NumPipsAutomaticallyAdded}"),
-                I($"{stats.NumPipsSkipped} + {stats.NumPipsNotReloadable}"));
-        }
+            EventTask = (ushort)Tasks.Parser,
+            Message = "Pip graph partially reloaded in {elapsedMillis}ms: #affected/total specs = {numAffectedSpecs}/{numTotalSpecs}, #reloaded pips = {numReloaded} + {numAutoAdded}, #skipped pips = {numSkipped} + {numNotReloadable}.",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void GraphPartiallyReloaded(LoggingContext context, int numAffectedSpecs, int numTotalSpecs, int elapsedMillis, int numReloaded, int numAutoAdded, int numSkipped, int numNotReloadable);
 
         [GeneratedEvent(
             (ushort)LogEventId.GraphPatchingDetails,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Graph patching details: {details}",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void GraphPatchingDetails(LoggingContext context, string details);
 
         [GeneratedEvent(
             (ushort)LogEventId.SaveFrontEndSnapshot,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "FrontEnd snapshot was saved to {path} in {duration}ms.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void SaveFrontEndSnapshot(LoggingContext context, string path, int duration);
 
         [GeneratedEvent(
             (ushort)LogEventId.LoadFrontEndSnapshot,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Loaded the front end snapshot for {specCount} specs in {duration}ms.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void LoadFrontEndSnapshot(LoggingContext context, int specCount, int duration);
 
         [GeneratedEvent(
             (ushort)LogEventId.SaveFrontEndSnapshotError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "FrontEnd snapshot could not be written to {path}: {message}.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void SaveFrontEndSnapshotError(LoggingContext context, string path, string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.FailToReuseFrontEndSnapshot,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Failed to reuse front end cache: {reason}.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void FailToReuseFrontEndSnapshot(LoggingContext context, string reason);
 
         [GeneratedEvent(
             (ushort)LogEventId.FailedToFilterWorkspaceDefinition,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Failed to filter workspace definition: {reason}.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void FailedToFilterWorkspaceDefinition(LoggingContext context, string reason);
 
         [GeneratedEvent(
             (ushort)LogEventId.TryingToReuseFrontEndSnapshot,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Trying to reuse a front-end snapshot...",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void TryingToReuseFrontEndSnapshot(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.BuildingFullWorkspace,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Building the full workspace...",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void BuildingFullWorkspace(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.WorkspaceDefinitionCreated,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Built workspace definition with {moduleCount} modules, {specCount} specs and {configSpecCount} configuration specs in {duration}ms.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void WorkspaceDefinitionCreated(LoggingContext context, int moduleCount, int specCount, int configSpecCount, int duration);
 
         [GeneratedEvent(
             (ushort)LogEventId.WorkspaceDefinitionFiltered,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Applied user-defined filter based on reused spec-2-spec information in {duration}ms. Remaining spec count: {filteredCount}. Original spec count: {originalCount}.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void WorkspaceDefinitionFiltered(LoggingContext context, int filteredCount, int originalCount, int duration);
 
         [GeneratedEvent(
             (ushort)LogEventId.WorkspaceDefinitionFilteredBasedOnModuleFilter,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Applied user-defined module filter in {duration}ms. Filtered out {moduleCount} modules with {specCount} specs. Original module count: {originalCount}. Final module count: {filteredCount}.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void WorkspaceDefinitionFilteredBasedOnModuleFilter(LoggingContext context, int moduleCount, int specCount, int originalCount, int filteredCount, int duration);
 
         [GeneratedEvent(
             (ushort)LogEventId.WorkspaceFiltered,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Applied user-defined filter based on spec-2-spec information in {duration}ms. Remaining spec count: {filteredCount}. Original spec count: {originalCount}.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void WorkspaceFiltered(LoggingContext context, int filteredCount, int originalCount, int duration);
 
         [GeneratedEvent(
             (ushort)LogEventId.CycleDetectionStatistics,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message = "  cycle detection: {0} threads created, {1} chains added, {2} removed before processing, {3} abandoned while processing, {4} removed after processing.",
-            Keywords = (int)Events.Keywords.Performance | (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage)]
         public abstract void CycleDetectionStatistics(LoggingContext context, long threadsCreated, long chainsAdded, long chainsRemovedBeforeProcessing, long chainsAbandonedWhileProcessing, long chainsRemovedAfterProcessing);
 
         [GeneratedEvent(
             (ushort)LogEventId.SlowestScriptElements,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Slowest {ShortScriptName} elements by phase:\r\n    Parse:{parse}\r\n    Bind:{bind}\r\n    Type check:{typeCheck}\r\n    AST Conversion:{astConversion}\r\n    Facade computation:{facadeComputation}\r\n    Compute Fingerprint:{computeFingerprint}\r\n    Evaluation:{evaluation}\r\n    Prelude Processing:{preludeProcessing}",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void SlowestScriptElements(LoggingContext context, string parse, string bind, string typeCheck, string astConversion, string facadeComputation, string computeFingerprint, string evaluation, string preludeProcessing);
 
         [GeneratedEvent(
             (ushort)LogEventId.LargestScriptFiles,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Largest {ShortScriptName} files:\r\n    By #identifiers:{byIdentifierCount}\r\n    By #lines:{byLineCount}\r\n    By #chars:{byCharCount}\r\n    By #nodes:{byNodeCount}\r\n    By #symbols:{bySymbolCount}",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void LargestScriptFiles(LoggingContext context, string byIdentifierCount, string byLineCount, string byCharCount, string byNodeCount, string bySymbolCount);
 
         [GeneratedEvent(
             (ushort)LogEventId.ScriptFilesReloadedWithNoWarningsOrErrors,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Error,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message = "{reloadedSpecCount} spec(s) were reloaded during {ShortProductName} invocation but no error or warning was logged. This behavior could drasitcally compromise system's performance and should be fixed. Stack trace that triggered file reloading: \r\n{stackTrace}",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void ScriptFilesReloadedWithNoWarningsOrErrors(LoggingContext context, int reloadedSpecCount, string stackTrace);
 
         [GeneratedEvent(
             (ushort)LogEventId.ReportDestructionCone,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.Parser,
+            EventTask = (ushort)Tasks.Parser,
             Message = "Destruction cone (changed/affected/required/all specs): {numChanged}/{numAffected}/{numRequired}/{numAll}",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void ReportDestructionCone(LoggingContext context, int numChanged, int numAffected, int numRequired, int numAll);
     }
 

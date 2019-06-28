@@ -20,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         public readonly ContentHash ContentHash;
 
         /// <summary>
-        /// Last-access time.
+        /// The original last-access time.
         /// </summary>
         public readonly DateTime LastAccessTime;
 
@@ -35,26 +35,26 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         public readonly bool SafeToEvict;
 
         /// <summary>
-        /// The original last access time of the content
+        /// The effective last access time of the content
         /// </summary>
-        public readonly DateTime OriginalLastAccessTime;
+        public readonly DateTime? EffectiveLastAccessTime;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ContentHashWithLastAccessTimeAndReplicaCount"/> struct.
         /// </summary>
-        public ContentHashWithLastAccessTimeAndReplicaCount(ContentHash contentHash, DateTime lastAccessTime, long replicaCount = 1, bool safeToEvict = false, DateTime? originalLastAccessTime = null)
+        public ContentHashWithLastAccessTimeAndReplicaCount(ContentHash contentHash, DateTime lastAccessTime, long replicaCount = 1, bool safeToEvict = false, DateTime? effectiveLastAccessTime = null)
         {
             ContentHash = contentHash;
             LastAccessTime = lastAccessTime;
             ReplicaCount = replicaCount;
             SafeToEvict = safeToEvict;
-            OriginalLastAccessTime = originalLastAccessTime ?? lastAccessTime;
+            EffectiveLastAccessTime = effectiveLastAccessTime;
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"[ContentHash={ContentHash} LastAccessTime={LastAccessTime} OriginalLastAccessTime={OriginalLastAccessTime} ReplicaCount={ReplicaCount}]";
+            return $"[ContentHash={ContentHash} LastAccessTime={LastAccessTime} EffectiveLastAccessTime={EffectiveLastAccessTime} ReplicaCount={ReplicaCount}]";
         }
 
         /// <summary>
@@ -77,6 +77,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
             /// </summary>
             public DateTime GetEffectiveLastAccessTime(ContentHashWithLastAccessTimeAndReplicaCount hashInfo)
             {
+                if (hashInfo.EffectiveLastAccessTime != null)
+                {
+                    return hashInfo.EffectiveLastAccessTime.Value;
+                }
+
                 if (hashInfo.ReplicaCount <= 0)
                 {
                     return DateTime.MinValue;

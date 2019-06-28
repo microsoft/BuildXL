@@ -98,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             {
                 foreach (var page in group.GetPages(ShortHashTracingDefaultBatchSize))
                 {
-                    var results = string.Join(", ", page.GroupBy(t => t.hash).Select(g => $"{g.Key}={g.Sum(o => o.modificationCount)}"));
+                    var results = string.Join(", ", page.GroupBy(t => t.hash).Select(g => $"{g.Key.ToString()}={g.Sum(o => o.modificationCount)}"));
                     context.TraceDebug($"{tracerName}: Handling operation {PrintOperation(group.Key)}({page.Count()}): [{results}]");
                 }
             }
@@ -143,7 +143,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             RedisContentLocationStoreConfiguration configuration)
         {
             string blobStoreConfigurationAsText = configuration.CentralStore is BlobCentralStoreConfiguration blobStoreConfiguration
-                ? $"BlobCentralStore=True, #Shards={blobStoreConfiguration.ConnectionStrings.Count}, "
+                ? $"BlobCentralStore=True, #Shards={blobStoreConfiguration.Credentials.Count}, "
                 : "BlobCentralStore=False, ";
 
             var message = $"{tracer.Name}: Starting content location store. "

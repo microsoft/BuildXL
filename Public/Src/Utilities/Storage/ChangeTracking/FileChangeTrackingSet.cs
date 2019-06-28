@@ -205,6 +205,11 @@ namespace BuildXL.Storage.ChangeTracking
         public IEnumerable<ulong> TrackedVolumes => m_perVolumeChangeTrackingSets.Keys;
 
         /// <summary>
+        /// Checks if a volume is being tracked.
+        /// </summary>
+        public bool IsTrackedVolume(ulong volumeSerial) => m_perVolumeChangeTrackingSets.ContainsKey(volumeSerial);
+
+        /// <summary>
         /// Creates an empty change tracking set with an initial checkpoint at the current state of each capable volume.
         /// A volume is capable if it is successfully opened (media present etc.), its filesystem supports change journaling,
         /// and the volume change journal is enabled. Attempts to track files on incapable volumes will fail.
@@ -2644,7 +2649,7 @@ namespace BuildXL.Storage.ChangeTracking
                     currentPathHierarchicalNameId = containerOfCurrentPathAndFlagsOfCurrentPath.nameId;
                 }
 
-                if (added && ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Events.Keywords.Diagnostics))
+                if (added && ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
                 {
                     Logger.Log.TrackChangesToFileDiagnostic(
                         m_loggingContext,

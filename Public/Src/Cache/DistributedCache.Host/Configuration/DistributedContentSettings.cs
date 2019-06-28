@@ -17,6 +17,8 @@ namespace BuildXL.Cache.Host.Configuration
     [DataContract]
     public class DistributedContentSettings
     {
+        private const int DefaultMaxConcurrentCopyOperations = 512;
+
         [JsonConstructor]
         private DistributedContentSettings()
         {
@@ -178,6 +180,24 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public bool UseCompressionForCopies { get; set; } = false;
+
+        /// <summary>
+        /// Upper bound on number of cached GRPC clients.
+        /// </summary>
+        [DataMember]
+        public int MaxGrpcClientCount { get; set; } = DefaultMaxConcurrentCopyOperations;
+
+        /// <summary>
+        /// Maximum cached age for GRPC clients.
+        /// </summary>
+        [DataMember]
+        public int MaxGrpcClientAgeMinutes { get; set; } = 55;
+
+        /// <summary>
+        /// Time between GRPC cache cleanups.
+        /// </summary>
+        [DataMember]
+        public int GrpcClientCleanupDelayMinutes { get; set; } = 17;
         #endregion
 
         #region Distributed Eviction
@@ -289,6 +309,24 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int? ContentLocationDatabaseEntryTimeToLiveMinutes { get; set; }
 
+        [DataMember]
+        public bool? ContentLocationDatabaseCacheEnabled { get; set; }
+
+        [DataMember]
+        public int? ContentLocationDatabaseFlushDegreeOfParallelism { get; set; }
+
+        [DataMember]
+        public bool? ContentLocationDatabaseFlushSingleTransaction { get; set; }
+
+        [DataMember]
+        public double? ContentLocationDatabaseFlushPreservePercentInMemory { get; set; }
+
+        [DataMember]
+        public int? ContentLocationDatabaseCacheMaximumUpdatesPerFlush { get; set; }
+
+        [DataMember]
+        public TimeSpan? ContentLocationDatabaseCacheFlushingMaximumInterval { get; set; }
+
         // Key Vault Settings
         [DataMember]
         public string KeyVaultSettingsString { get; set; }
@@ -385,12 +423,18 @@ namespace BuildXL.Cache.Host.Configuration
         public bool EmptyFileHashShortcutEnabled { get; set; } = false;
 
         [DataMember]
-        public int MaxConcurrentCopyOperations { get; set; } = 512;
+        public int MaxConcurrentCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
+
+        /// <summary>
+        /// Gets or sets whether to override Unix file access modes.
+        /// </summary>
+        [DataMember]
+        public bool OverrideUnixFileAccessMode { get; set; } = false;
 
         #endregion
 
         /// <summary>
-        /// Gets the secret name to connect to redis for a particular CloudBuild stamp.
+        /// Gets the secret name to connect to Redis for a particular CloudBuild stamp.
         /// </summary>
         /// <param name="stampId">The ID of the stamp.</param>
         /// <returns>The secret name in the AP secret store.</returns>

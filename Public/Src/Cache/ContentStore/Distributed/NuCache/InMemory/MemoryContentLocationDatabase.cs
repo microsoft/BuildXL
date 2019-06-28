@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -35,33 +36,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         }
 
         /// <inheritdoc />
-        protected override bool TryGetEntryCore(OperationContext context, ShortHash hash, out ContentLocationEntry entry)
+        protected override bool TryGetEntryCoreFromStorage(OperationContext context, ShortHash hash, out ContentLocationEntry entry)
         {
             entry = GetContentLocationEntry(hash);
-            return !entry.IsMissing;
+            return entry != null && !entry.IsMissing;
         }
 
         /// <inheritdoc />
-        protected override void Store(OperationContext context, ShortHash hash, ContentLocationEntry entry)
+        internal override void Persist(OperationContext context, ShortHash hash, ContentLocationEntry entry)
         {
             // consider merging the values. Right now we always reconstruct the entry.
             _map.AddOrUpdate(hash, key => entry, (key, old) => entry);
         }
 
         /// <inheritdoc />
-        protected override void Delete(OperationContext context, ShortHash hash)
-        {
-            _map.TryRemove(hash, out _);
-        }
-
-        /// <inheritdoc />
-        public override IEnumerable<ShortHash> EnumerateSortedKeys(CancellationToken token)
+        protected override IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(CancellationToken token)
         {
             return _map.Keys.OrderBy(h => h);
         }
 
         /// <inheritdoc />
-        public override IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeys(
+        protected override IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeysFromStorage(
             CancellationToken token,
             EnumerationFilter filter = null)
         {

@@ -7,18 +7,6 @@ import {Shared, PlatformDependentQualifier} from "Sdk.Native.Shared";
 
 export declare const qualifier: PlatformDependentQualifier;
 
-//-----------------------------------------------------------------------------
-//
-//                               EXPORTS
-//
-//-----------------------------------------------------------------------------
-//
-/** Default cl.exe tool */
-@@public
-export function defaultTool(): Transformer.ToolDefinition {
-    return importFrom("VisualCpp").clDeployment;
-}
-
 /** Default cl runner arguments */
 export const defaultClArguments: Arguments = {
     suppressStartupBanner: true,
@@ -266,7 +254,7 @@ function evaluateOneSourceFile(
     ];
 
     let result = Transformer.execute({
-        tool: args.tool || defaultTool(),
+        tool: args.tool || importFrom("VisualCpp").clTool,
         workingDirectory: outDir,
         arguments: cmdArgs,
         dependencies: [...includes, ...implicitInputs],

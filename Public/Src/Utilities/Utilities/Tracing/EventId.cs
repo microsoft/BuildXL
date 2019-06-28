@@ -309,7 +309,7 @@ namespace BuildXL.Utilities.Tracing
         CacheMissAnalysisException = 315,
         PipStandardIOFailed = 316,
 
-        // Free slot 317,
+        PipRetryDueToExitedWithAzureWatsonExitCode = 317,
         // Reserved = 318,
 
         // Free slot 319,
@@ -395,15 +395,15 @@ namespace BuildXL.Utilities.Tracing
         DominoInvocationForLocalLog = 409,
         // DEPRECATED = 410,
         // DEPRECATED = 411,
-        DominoMacOSCrashReport = 412,
-        SandboxExecMacOSCrashReport = 413,
+        // Elsewhere = 412,
+        // Elsewhere = 413,
 
         // Tracing
         TextLogEtwOnly = 450,
         CacheFileLog = 451,
 
         EventWriteFailuresOccurred = 452,
-        FailedToFetchPerformanceCounter = 453,
+        // Elsewhere = 453,
         FailedToEnumerateLogDirsForCleanup = 454,
         FailedToCleanupLogDir = 455,
         WaitingCleanupLogDir = 456,
@@ -440,20 +440,20 @@ namespace BuildXL.Utilities.Tracing
         ScanningJournal = 682, // was EndSavingChangeTracker = 682,
         // was ChangeTrackerNotLoaded = 683,
         // was ScanningJournalError = 684,
-        EndLoadingChangeTracker = 685,
+        // Elsewhere  = 685,
         EndScanningJournal = 686,
-        LoadingChangeTracker = 687,
+        // Elsewhere  = 687,
         DisableChangeTracker = 688,
 
         // Storage
-        FileUtilitiesDirectoryDeleteFailed = 698,
-        FileUtilitiesDiagnostic = 699,
-        StorageFileContentTableIgnoringFileSinceVersionedFileIdentityIsNotSupported = 700, // was StorageFileContentTableIgnoringFileSinceUsnJournalDisabled
-        StorageLoadFileContentTable = 701,
+        // Elsewhere  = 698,
+        // Elsewhere  = 699,
+        // Elsewhere  = 700, // was StorageFileContentTableIgnoringFileSinceUsnJournalDisabled
+        // Elsewhere  = 701,
         StorageHashedSourceFile = 702,
         StorageUsingKnownHashForSourceFile = 703,
-        SettingOwnershipAndAcl = 704,
-        SettingOwnershipAndAclFailed = 705,
+        // Elsewhere  = 704,
+        // Elsewhere  = 705,
         StorageCacheCopyLocalError = 706,
         // Reserved = 707,
         StorageCacheGetContentError = 708,
@@ -463,57 +463,57 @@ namespace BuildXL.Utilities.Tracing
         StorageCacheStartupError = 712,
 
         // USNs
-        StorageReadUsn = 713,
-        StorageKnownUsnHit = 714,
-        StorageUnknownUsnMiss = 715,
-        StorageCheckpointUsn = 716,
-        StorageRecordNewKnownUsn = 717,
-        StorageUnknownFileMiss = 718,
-        StorageVersionedFileIdentityNotSupportedMiss = 719, // StorageJournalDisabledMiss
+        // Elsewhere  = 713,
+        // Elsewhere  = 714,
+        // Elsewhere  = 715,
+        // Elsewhere  = 716,
+        // Elsewhere  = 717,
+        // Elsewhere  = 718,
+        // Elsewhere  = 719, // StorageJournalDisabledMiss
 
-        StorageTryOpenDirectoryFailure = 720,
-        StorageFoundVolume = 721,
-        StorageTryOpenFileByIdFailure = 722,
-        StorageVolumeCollision = 723,
-        StorageTryOpenOrCreateFileFailure = 724,
+        // Elsewhere  = 720,
+        // Elsewhere  = 721,
+        // Elsewhere  = 722,
+        // Elsewhere  = 723,
+        // Elsewhere  = 724,
 
-        StorageCacheContentPinned = 725,
+        // Elsewhere  = 725,
         StorageCacheIngressFallbackContentToMakePrivateError = 726,
         StorageCacheGetContentUsingFallback = 727,
 
         StorageBringProcessContentLocalWarning = 728,
 
-        StorageFailureToOpenFileForFlushOnIngress = 729,
+        // Elsewhere  = 729,
 
         StorageCatastrophicFailureDriveError = 730,
         CatastrophicFailureMissingRuntimeDependency = 731,
-        FailedOpenHandleToGetKnownHashDuringMaterialization = 732,
-        HashedSymlinkAsTargetPath = 733,
-        StorageFailureToFlushFileOnIngress = 734,
-        ClosingFileStreamAfterHashingFailed = 735,
-        StorageFailureToFlushFileOnDisk = 736,
+        // Elsewhere  = 732,
+        // Elsewhere  = 733,
+        // Elsewhere  = 734,
+        // Elsewhere  = 735,
+        // Elsewhere  = 736,
         StorageCacheGetContentWarning = 737,
         FailedToMaterializeFileWarning = 738,
         MaterializeFilePipProducerNotFound = 739,
 
-        StoreSymlinkWarning = 740,
-        FileMaterializationMismatchFileExistenceResult = 741,
+        // Elsewhere  = 740,
+        // Elsewhere  = 741,
 
-        SerializingToPipFingerprintEntryResultInCorruptedData = 742,
-        DeserializingCorruptedPipFingerprintEntry = 743,
+        // Elsewhere  = 742,
+        // Elsewhere  = 743,
 
         RetryOnFailureException = 744,
 
         StorageTrackOutputFailed = 745,
 
-        RetryOnLoadingAndDeserializingMetadata = 746,
+        // Elsewhere  = 746,
         // was IncorrectExistsAsFileThroughPathMappings = 747,
-        TimeoutOpeningFileForHashing = 748,
+        // Elsewhere  = 748,
 
         // Additional Process Isolation
-        PipProcessIgnoringPathWithWildcardsFileAccess = 800,
-        PipProcessIgnoringPathOfSpecialDeviceFileAccess = 801,
-        PipProcessFailedToParsePathOfFileAccess = 802,
+        // Elsewhere  = 800,
+        // Elsewhere  = 801,
+        // Elsewhere  = 802,
         Process = 803,
 
         // Scrubbing/Cleaning
@@ -542,7 +542,7 @@ namespace BuildXL.Utilities.Tracing
         ConfigUnsafeIgnoringChangeJournal = 901,
         ConfigUnsafeUnexpectedFileAccessesAsWarnings = 902,
         ConfigUnsafeMonitorNtCreateFileOff = 903,
-        ConfigErrorMissingAliasDefinition = 904,
+        // Elsewhere  = 904,
         ConfigIgnoreReparsePoints = 905,
         JournalRequiredOnVolumeError = 906,
         ConfigFailedParsingCommandLinePipFilter = 907,
@@ -553,7 +553,7 @@ namespace BuildXL.Utilities.Tracing
         ConfigExportGraphRequiresScheduling = 912,
         ConfigUsingPipFilter = 913,
         ConfigFilterAndPathImplicitNotSupported = 914,
-        ConfigExportFingerprintsRequiresScheduling = 915,
+        // Elsewhere  = 915,
         ConfigIgnoreDynamicWritesOnAbsentProbes = 916,
         ConfigIgnoreSetFileInformationByHandle = 917,
         ConfigPreserveOutputs = 918,
@@ -568,8 +568,9 @@ namespace BuildXL.Utilities.Tracing
         ConfigUnsafeExistingDirectoryProbesAsEnumerations = 927,
         ConfigUnsafeAllowMissingOutput = 928,
         ConfigIgnoreValidateExistingFileAccessesForOutputs = 929,
+        ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques = 930,
 
-        StorageUsnMismatchButContentMatch = 932,
+        // Elsewhere  = 932,
 
         ConfigIncompatibleIncrementalSchedulingDisabled = 933,
         ConfigIncompatibleOptionWithDistributedBuildError = 934,
@@ -619,29 +620,29 @@ namespace BuildXL.Utilities.Tracing
         PipMaterializeDependenciesFailureUnrelatedToCache = 2102,
 
         FileCombinerVersionIncremented = 2103,
-        FileCombinerFailedToInitialize = 2104,
+        // Elsewhere  = 2104,
         SpecCacheDisabledForNoSeekPenalty = 2105,
-        FileCombinerFailedToCreate = 2106,
+        // Elsewhere  = 2106,
         SpecCache = 2107,
-        IncrementalFrontendCache = 2108,
+        // Elsewhere  = 2108,
 
         // Temp files/directory cleanup
         PipFailedTempDirectoryCleanup = 2200,
-        PipTempDirectoryCleanupError = 2201,
+        // Elsewhere  = 2201,
         PipTempCleanerThreadSummary = 2202,
-        PipTempDirectorySetupError = 2203,
+        // Elsewhere  = 2203,
         PipFailedTempFileCleanup = 2204,
-        PipTempSymlinkRedirectionError = 2205,
-        PipTempSymlinkRedirection = 2206,
+        // Elsewhere  = 2205,
+        // Elsewhere  = 2206,
 
-        PipFailedToCreateDumpFile = 2210,
+        // Elsewhere  = 2210,
 
         // Engine Errors
         // was: EngineRunErrorDuplicateMountPaths = 2500,
         ErrorSavingSnapshot = 2501,
         // Reserved = 2502,
         EngineErrorSavingFileContentTable = 2503,
-        EngineFailedToConnectToChangeJournalService = 2504,
+        // Elsewhere  = 2504,
         // was: EngineRunErrorDuplicateMountNames = 2506,
         GenericSnapshotError = 2507,
         ErrorCaseSensitiveFileSystemDetected = 2508,
@@ -650,7 +651,7 @@ namespace BuildXL.Utilities.Tracing
         PathHashed = 2600,
         // was: PipProcessTempDirectoryTooLong = 2601,
         FailPipOutputWithNoAccessed = 2602,
-        PipOutputNotAccessed = 2603,
+        // Elsewhere  = 2603,
         PipWillBeRetriedDueToExitCode = 2604,
 
         // MLAM
@@ -689,27 +690,27 @@ namespace BuildXL.Utilities.Tracing
         TwoPhaseCacheEntryPublished = 2730,
         ConvertToRunnableFromCacheFailed = 2731,
         TwoPhasePublishingCacheEntryFailedError = 2732,
-        TemporalCacheEntryTrace = 2733,
+        // Elsewhere  = 2733,
 
         // RESERVED TO [2800, 2899] (BuildXL.Engine.dll)
 
         // RESERVED TO [2900, 2999] (BuildXL.Engine.dll)
 
         // Engine phase markers for journal service init
-        StartConnectToJournalService = 2900,
-        EndConnectToJournalService = 2901,
+        // Elsewhere  = 2900,
+        // Elsewhere  = 2901,
         JournalServiceNotInstalled = 2902,
-        FailedToInstallJournalService = 2903,
-        JournalServiceNotRunning = 2904,
-        FailedToRunJournalService = 2905,
-        IncompatibleJournalService = 2906,
-        FailedToUpgradeJournalService = 2907,
+        // Elsewhere  = 2903,
+        // Elsewhere  = 2904,
+        // Elsewhere  = 2905,
+        // Elsewhere  = 2906,
+        // Elsewhere  = 2907,
         UserRefusedElevation = 2908,
-        FailedCheckingDirectJournalAccess = 2909,
-        RunDominoWithSetupJournal = 2910,
-        EndInstallJournalService = 2911,
-        EndRunJournalService = 2912,
-        EndUpgradeJournalService = 2913,
+        // was FailedCheckingDirectJournalAccess = 2909,
+        // Elsewhere  = 2910,
+        // Elsewhere  = 2911,
+        // Elsewhere  = 2912,
+        // Elsewhere  = 2913,
         ChangeJournalServiceReady = 2914,
         MaterializingProfilerReport = 2915,
         ErrorMaterializingProfilerReport = 2916,
@@ -717,16 +718,16 @@ namespace BuildXL.Utilities.Tracing
         MaterializingFileToFileDepdencyMap = 2917,
         ErrorMaterializingFileToFileDepdencyMap = 2918,
 
-        LogInternalDetoursErrorFileNotEmpty = 2919,
-        LogGettingInternalDetoursErrorFile = 2920,
+        // Elsewhere  = 2919,
+        // Elsewhere  = 2920,
 
         LogMismatchedDetoursErrorCount = 2922,
-        LogMessageCountSemaphoreExists = 2923,
-        // RESERVED 2924
-        LogFailedToCreateDirectoryForInternalDetoursFailureFile = 2925,
+        // Elsewhere  = 2923,
+        PipExitedWithAzureWatsonExitCode = 2924,
+        // Elsewhere  = 2925,
         // RESERVED 2926
-        LogMismatchedDetoursVerboseCount = 2927,
-        LogDetoursMaxHeapSize = 2928,
+        // Elsewhere  = 2927,
+        // Elsewhere  = 2928,
         OutputFileHashingStats = 2929,
 
         FailedToResolveHistoricMetadataCacheFileName = 2940,
@@ -734,9 +735,9 @@ namespace BuildXL.Utilities.Tracing
         SavingHistoricMetadataCacheFailed = 2942,
         HistoricMetadataCacheLoaded = 2943,
         HistoricMetadataCacheSaved = 2944,
-        HistoricMetadataCacheStats = 2945,
-        HistoricMetadataCacheAdded = 2946,
-        HistoricMetadataCacheUpdated = 2947,
+        // Elsewhere  = 2945,
+        // Elsewhere  = 2946,
+        // Elsewhere  = 2947,
 
         // Free: 3000..3053
 
@@ -773,10 +774,10 @@ namespace BuildXL.Utilities.Tracing
         ErrorUnableToCacheGraphDistributedBuild = DominoEngineStart, // 3200
         ErrorCacheDisabledDistributedBuild = 3201,
         // Was ErrorUsingCacheServiceDistributedBuild = 3202,
-        ErrorWorkerForwardedError = 3203,
+        // Elsewhere  = 3203,
         NonDeterministicPipOutput = 3204,
         NonDeterministicPipResult = 3205,
-        ErrorVerifyDeterminismWorkerAttachTimeOut = 3206,
+        // Elsewhere  = 3206,
         EnvironmentVariablesImpactingBuild = 3207,
         // Reserved = 3208,
         // Reserved = 3209,
@@ -792,21 +793,21 @@ namespace BuildXL.Utilities.Tracing
 
         #region ASSEMBLY RESERVED (3600-3999): BuildXL.Scheduler.dll
 
-        DominoSchedulerStart = 3600,
-        DominoSchedulerEnd = 3999,
+        // Elsewhere  = 3600,
+        // Elsewhere  = 3999,
 
         #endregion ASSEMBLY RESERVED (3600-3999): BuildXL.Scheduler.dll
 
         // Change journal service
-        ChangeJournalServiceRequestStart = 4000,
-        ChangeJournalServiceRequestStop = 4001,
-        ChangeJournalPipeServerInstanceThreadCrash = 4002,
-        ChangeJournalServiceRequestIOError = 4003,
-        ChangeJournalServiceProtocolError = 4004,
-        ChangeJournalServiceReadJournalRequest = 4005,
-        ChangeJournalServiceQueryJournalRequest = 4006,
-        ChangeJournalServiceQueryServiceVersionRequest = 4007,
-        ChangeJournalServiceUnsupportedProtocolVersion = 4008,
+        // Elsewhere  = 4000,
+        // Elsewhere  = 4001,
+        // Elsewhere  = 4002,
+        // Elsewhere  = 4003,
+        // Elsewhere  = 4004,
+        // Elsewhere  = 4005,
+        // Elsewhere  = 4006,
+        // Elsewhere  = 4007,
+        // Elsewhere  = 4008,
 
         #region Assembly-level reserved ranges (4100-5000)
 
@@ -889,45 +890,45 @@ namespace BuildXL.Utilities.Tracing
         #endregion
 
         // Change detection (FileChangeTrackingSet)
-        ChangeDetectionGeneralVerbose = 8001,
-        ChangeDetectionProbeSnapshotInconsistent = 8002,
-        ChangeDetectionComputedDirectoryMembershipTrackingFingerprint = 8003,
-        ChangeDetectionDueToPerpetualDirtyNode = 8004,
+        // Elsewhere  = 8001,
+        // Elsewhere  = 8002,
+        // Elsewhere  = 8003,
+        // Elsewhere  = 8004,
         // was ChangeDetectionSaveTrackingSet = 8005,
 
-        ChangeDetectionFailCreateTrackingSetDueToJournalQueryError = 8006,
+        // Elsewhere  = 8006,
         ChangeDetectionCreateResult = 8007,
 
-        ChangeDetectionSingleVolumeScanJournalResult = 8008,
-        ChangeDetectionScanJournalFailedSinceJournalGotOverwritten = 8009,
-        ChangeDetectionScanJournalFailedSinceTimeout = 8010,
+        // Elsewhere  = 8008,
+        // Elsewhere  = 8009,
+        // Elsewhere  = 8010,
 
-        AntiDependencyValidationPotentiallyAddedButVerifiedAbsent = 8011,
-        AntiDependencyValidationFailedRetrackPathAsNonExistent = 8012,
-        AntiDependencyValidationFailedProbePathToVerifyNonExistent = 8013,
-        AntiDependencyValidationStats = 8014,
+        // Elsewhere  = 8011,
+        // Elsewhere  = 8012,
+        // Elsewhere  = 8013,
+        // Elsewhere  = 8014,
 
-        EnumerationDependencyValidationPotentiallyAddedOrRemovedDirectChildrenButVerifiedUnchanged = 8015,
-        EnumerationDependencyValidationFailedRetrackUnchangedDirectoryForMembershipChanges = 8016,
-        EnumerationDependencyValidationFailedToOpenOrEnumerateDirectoryForMembershipChanges = 8017,
-        EnumerationDependencyValidationStats = 8018,
+        // Elsewhere  = 8015,
+        // Elsewhere  = 8016,
+        // Elsewhere  = 8017,
+        // Elsewhere  = 8018,
 
-        HardLinkValidationPotentiallyChangedButVerifiedUnchanged = 8019,
-        HardLinkValidationHardLinkChangedBecauseFileIdChanged = 8020,
-        HardLinkValidationFailedRetrackUnchangedHardLink = 8021,
-        HardLinkValidationFailedToOpenHardLinkDueToNonExistent = 8022,
-        HardLinkValidationFailedToOpenOrTrackHardLink = 8023,
-        HardLinkValidationStats = 8024,
+        // Elsewhere  = 8019,
+        // Elsewhere  = 8020,
+        // Elsewhere  = 8021,
+        // Elsewhere  = 8022,
+        // Elsewhere  = 8023,
+        // Elsewhere  = 8024,
 
-        ChangeDetectionSingleVolumeScanJournalResultTelemetry = 8025,
-        ChangedPathsDetectedByJournalScanning = 8026,
-        ChangeDetectionParentPathIsUntrackedOnTrackingAbsentRelativePath = 8027,
-        IgnoredRecordsDueToUnchangedJunctionRootCount = 8028,
-        TrackChangesToFileDiagnostic = 8029,
+        // Elsewhere  = 8025,
+        // Elsewhere  = 8026,
+        // Elsewhere  = 8027,
+        // Elsewhere  = 8028,
+        // Elsewhere  = 8029,
 
-        StartSavingChangeTracker = 8030,
-        EndSavingChangeTracker = 8031,
-        SavingChangeTracker = 8032,
+        // Elsewhere  = 8030,
+        // Elsewhere  = 8031,
+        // Elsewhere  = 8032,
 
         // Incremental scheduling
         JournalProcessingStatisticsForScheduler = 8050,
@@ -1001,9 +1002,9 @@ namespace BuildXL.Utilities.Tracing
         LogAndRemoveEngineStateOnBuildFailure = 10011,
 
         // Detours
-        BrokeredDetoursInjectionFailed = 10100,
-        LogDetoursDebugMessage = 10101,
-        LogAppleSandboxPolicyGenerated = 10102,
+        // Elsewhere  = 10100,
+        // Elsewhere  = 10101,
+        // Elsewhere  = 10102,
         LogMacKextFailure = 10103,
 
         // reserved 11200 .. 11300 for the FrontEndHost
@@ -1043,16 +1044,16 @@ namespace BuildXL.Utilities.Tracing
         PipCopyFileSourceFileDoesNotExist = 12201,
 
         // Container related errors
-        FailedToMergeOutputsToOriginalLocation = 12202,
-        FailedToCleanUpContainer = 12203,
-        WarningSettingUpContainer = 12204,
+        // Elsewhere  = 12202,
+        // Elsewhere  = 12203,
+        // Elsewhere  = 12204,
         VirtualizationFilterDetachError = 12205,
         PipInContainerStarted = 12206,
         PipInContainerStarting = 12207,
         PipSpecifiedToRunInContainerButIsolationIsNotSupported = 12208,
-        FailedToCreateHardlinkOnMerge = 12209,
-        DoubleWriteAllowedDueToPolicy = 12210,
-        DisallowedDoubleWriteOnMerge = 12211,
+        // Elsewhere  = 12209,
+        // Elsewhere  = 12210,
+        // Elsewhere  = 12211,
         AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs = 12212,
 
         // Status logging
@@ -1093,8 +1094,8 @@ namespace BuildXL.Utilities.Tracing
         GraphCacheCheckJournalDisabled = 14005,
         SlowCacheInitialization = 14006,
         LowMemory = 14007,
-        ExportFingerprintsEnabled = 14008,
-        ExportGraphEnabled = 14009,
+        // Elsewhere  = 14008,
+        // Elsewhere  = 14009,
         BuildHasPerfSmells = 14010,
         LogProcessesEnabled = 14011,
         FrontendIOSlow = 14012,
@@ -1128,7 +1129,7 @@ namespace BuildXL.Utilities.Tracing
         BuildSetCalculatorScheduleDependenciesUntilCleanAndMaterializedStats = 14212,
 
         // Special tool errors
-        PipProcessToolErrorDueToHandleToFileBeingUsed = 14300,
+        // Elsewhere  = 14300,
 
         FailedToDuplicateSchedulerFile = 14400,
 

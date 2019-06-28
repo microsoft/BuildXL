@@ -324,8 +324,6 @@ namespace BuildXL.FrontEnd.Script.Tracing
         DuplicateAllowedModuleDependencies = 9398,
         DuplicateCyclicalFriendModules = 9399,
 
-        PropertyAccessOnValueWithTypeAny = 9404,
-
         // 4. Statistics
         ArrayEvaluationStatistics = 9400,
         /*Was ThunkEvaluationStatistics. Now: reserved.*/
@@ -333,6 +331,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
         GlobStatistics = 9401,
         ContextStatistics = 9402,
         MethodInvocationCountStatistics = 9403,
+        PropertyAccessOnValueWithTypeAny = 9404,
         InvalidRadix = 9405,
         InvalidPathOperation = 9406,
         EvaluationCanceled = 9407,
@@ -342,6 +341,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
         ReportXmlReadError = 9411,
         ReportXmlUnsuportedTypeForSerialization = 9412,
         ReportUnsupportedTypeValueObjectException = 9413,
+        DirectoryNotSupportedException = 9414,
         // Obsolete syntax rules (starting from 9500)
 
         // Don't go beyond 9899

@@ -40,7 +40,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                             return ps.BindDiagnostics.Count == 0 ? new Possible<ISourceFile>(ps) : new BindingFailure(spec.OwningModule.Descriptor, ps);
                         });
                 },
-                DegreeOfParallelism);
+                DegreeOfParallelism,
+                CancellationToken);
 
             return result.ToArray();
         }

@@ -8,6 +8,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 #if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
@@ -55,7 +56,7 @@ namespace Test.BuildXL.Utilities
                 XAssert.AreEqual(0, listener.GetEventCount(EventId.DiagnosticEventInOtherTask));
 
                 // We can enable messages from one task, but leave those in another disabled.
-                listener.EnableTaskDiagnostics(Events.Tasks.UnitTest);
+                listener.EnableTaskDiagnostics(Tasks.UnitTest);
 
                 Events.Log.DiagnosticEvent("Super low level");
                 Events.Log.DiagnosticEventInOtherTask("Also super low level");
@@ -71,7 +72,7 @@ namespace Test.BuildXL.Utilities
 
             var wm = new WarningManager();
 
-            using (var listener = new TrackingEventListener(Events.Log, wm.GetState))
+            using (var listener = new TrackingEventListener(Events.Log, warningMapper: wm.GetState))
             {
                 // should log as a warning
                 XAssert.AreEqual(0, listener.WarningCount);
@@ -94,7 +95,7 @@ namespace Test.BuildXL.Utilities
                 XAssert.AreEqual(1, listener.TotalErrorCount);
             }
 
-            using (var listener = new TrackingEventListener(Events.Log, wm.GetState))
+            using (var listener = new TrackingEventListener(Events.Log, warningMapper: wm.GetState))
             {
                 // should log as a info
                 XAssert.AreEqual(0, listener.InformationalCount);
@@ -398,32 +399,34 @@ namespace Test.BuildXL.Utilities
         {
             using (var listener = new TrackingEventListener(Events.Log))
             {
-                Events.Log.UserErrorEvent("1");
+                string testMessage = "Message from test event";
+                Events.Log.UserErrorEvent(testMessage);
                 XAssert.IsTrue(listener.HasFailures);
-                XAssert.AreEqual(1, listener.UserErrorCount);
-                XAssert.AreEqual(0, listener.InfrastructureErrorCount);
-                XAssert.AreEqual(0, listener.InternalErrorCount);
-                XAssert.AreEqual("UserErrorEvent", listener.FirstUserErrorName);
+                XAssert.AreEqual(1, listener.UserErrorDetails.Count);
+                XAssert.AreEqual(0, listener.InfrastructureErrorDetails.Count);
+                XAssert.AreEqual(0, listener.InternalErrorDetails.Count);
+                XAssert.AreEqual("UserErrorEvent", listener.UserErrorDetails.FirstErrorName);
+                XAssert.IsTrue(listener.UserErrorDetails.FirstErrorMessage.Contains(testMessage));
             }
 
             using (var listener = new TrackingEventListener(Events.Log))
             {
                 Events.Log.InfrastructureErrorEvent("1");
                 XAssert.IsTrue(listener.HasFailures);
-                XAssert.AreEqual(0, listener.UserErrorCount);
-                XAssert.AreEqual(1, listener.InfrastructureErrorCount);
-                XAssert.AreEqual(0, listener.InternalErrorCount);
-                XAssert.AreEqual("InfrastructureErrorEvent", listener.FirstInfrastructureErrorName);
+                XAssert.AreEqual(0, listener.UserErrorDetails.Count);
+                XAssert.AreEqual(1, listener.InfrastructureErrorDetails.Count);
+                XAssert.AreEqual(0, listener.InternalErrorDetails.Count);
+                XAssert.AreEqual("InfrastructureErrorEvent", listener.InfrastructureErrorDetails.FirstErrorName);
             }
 
             using (var listener = new TrackingEventListener(Events.Log))
             {
                 Events.Log.ErrorEvent("1");
                 XAssert.IsTrue(listener.HasFailures);
-                XAssert.AreEqual(0, listener.UserErrorCount);
-                XAssert.AreEqual(0, listener.InfrastructureErrorCount);
-                XAssert.AreEqual(1, listener.InternalErrorCount);
-                XAssert.AreEqual("ErrorEvent", listener.FirstInternalErrorName);
+                XAssert.AreEqual(0, listener.UserErrorDetails.Count);
+                XAssert.AreEqual(0, listener.InfrastructureErrorDetails.Count);
+                XAssert.AreEqual(1, listener.InternalErrorDetails.Count);
+                XAssert.AreEqual("ErrorEvent", listener.InternalErrorDetails.FirstErrorName);
             }
         }
 

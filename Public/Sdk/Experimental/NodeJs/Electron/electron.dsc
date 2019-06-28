@@ -64,20 +64,10 @@ export function publish(args: Arguments) : Result {
         name: "app.asar",
     });
 
-    // download electron from web:
-    const downloadedElectron = PowerShell.downloadFile({
-        url: "https://github.com/electron/electron/releases/download/v2.0.10/electron-v2.0.10-win32-x64.zip",
-        fileName: "electron.zip",
-        sha256Hash: "5A54965DD5001AFC248E37CFD4AF9520AAF189A559FA91EA8A96B79EC882BE53"
-    });
-
-    // Extract electron bits
-    const extractedElectron = PowerShell.unZip({
-        zipFile: downloadedElectron.file,
-    });
+    const extractedElectron : StaticDirectory = importFrom("Electron.win-x64").extracted;
 
     // Ensure the executable is branded
-    const electronExe = PowerShell.extractFileFromOpaque(extractedElectron.directory, r`electron.exe`);
+    const electronExe = extractedElectron.getFile(r`electron.exe`);
     const renamedExe = Transformer.copyFile(electronExe, p`${Context.getNewOutputDirectory("electron-branding")}/${args.name + ".exe"}`);
     // RcEdit only runs on win32 systems for win32.
     const brandedExe = args.winIcon && qualifier.targetRuntime === "win-x64" && Context.getCurrentHost().os === "win"
@@ -102,13 +92,13 @@ export function publish(args: Arguments) : Result {
         "Copy-Item -Path $Env:Param_appAsar -Destination $resourceFolder",
     ], {
         environmentVariables: [
-            {name: "Param_inElectron", value: extractedElectron.directory },
+            {name: "Param_inElectron", value: extractedElectron },
             {name: "Param_inBrandedExe", value: brandedExe },
             {name: "Param_appAsar", value: appAsar.packFile },
             {name: "Param_output", value: finalOutput },
         ],
         dependencies: [
-            extractedElectron.directory,
+            extractedElectron,
             brandedExe,
             appAsar.packFile,
         ],

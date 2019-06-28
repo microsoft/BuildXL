@@ -7,6 +7,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -26,9 +27,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     {
         private readonly Channel _channel;
         private readonly ContentServer.ContentServerClient _client;
-        private readonly string _host;
-        private readonly int _grpcPort;
-        private bool _useCompression;
+        private readonly int _bufferSize;
 
         /// <inheritdoc />
         public bool ShutdownCompleted { get; private set; }
@@ -36,40 +35,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         public bool ShutdownStarted { get; private set; }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
-        /// </summary>
-        private GrpcCopyClient(Channel channel, bool useCompression)
-        {
-            GrpcEnvironment.InitializeIfNeeded();
-            _client = new ContentServer.ContentServerClient(channel);
-            _useCompression = useCompression;
-        }
+        internal GrpcCopyClientKey Key { get; private set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
-        private GrpcCopyClient(string host, int grpcPort, bool useCompression)
+        internal GrpcCopyClient(GrpcCopyClientKey key, int? clientBufferSize = null)
         {
             GrpcEnvironment.InitializeIfNeeded();
-            _channel = new Channel(host, grpcPort, ChannelCredentials.Insecure);
+            _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _client = new ContentServer.ContentServerClient(_channel);
-            _host = host;
-            _grpcPort = grpcPort;
-            _useCompression = useCompression;
-        }
-
-        /// <summary>
-        /// Use an existing GRPC client if possible, else create a new one.
-        /// </summary>
-        /// <param name="host">Name of the host for the server (e.g. 'localhost').</param>
-        /// <param name="grpcPort">GRPC port on the server.</param>
-        /// <param name="useCompression">Whether or not GZip is enabled for copies.</param>
-        public static GrpcCopyClient Create(string host, int grpcPort, bool useCompression = false)
-        {
-            // TODO: Add caching of GrpcCopyClient objects
-            // TODO: Add case where _clientPool has exceeded some maximum count
-            return new GrpcCopyClient(host, grpcPort, useCompression);
+            _bufferSize = clientBufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
+            Key = key;
         }
 
         /// <inheritdoc />
@@ -128,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public Task<CopyFileResult> CopyFileAsync(Context context, ContentHash hash, AbsolutePath destinationPath, CancellationToken ct = default(CancellationToken))
         {
-            Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, ContentStore.Grpc.CopyConstants.DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, _bufferSize, FileOptions.SequentialScan);
             return CopyToAsync(context, hash, streamFactory, ct);        
         }
         
@@ -153,7 +130,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     HashType = (int)hash.HashType,
                     ContentHash = hash.ToByteString(),
                     Offset = 0,
-                    Compression = _useCompression ? CopyCompression.Gzip : CopyCompression.None
+                    Compression = Key.UseCompression ? CopyCompression.Gzip : CopyCompression.None
                 };
 
                 AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request);
@@ -166,7 +143,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 // stream. To avoid that, exit early instead.
                 if (headers.Count == 0)
                 {
-                    return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Failed to connect to copy server {_host} at port {_grpcPort}.");
+                    return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Failed to connect to copy server {Key.Host} at port {Key.GrpcPort}.");
                 }
 
                 // Parse header collection.
@@ -240,7 +217,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     return new CopyFileResult(CopyFileResult.ResultCode.Unknown, r);
                 }
             }
-
         }
 
         private async Task<(long Chunks, long Bytes)> StreamContentAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CancellationToken ct = default(CancellationToken))
@@ -280,7 +256,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 using (Stream decompressedStream = new GZipStream(grpcStream, CompressionMode.Decompress, true))
                 {
-                    await decompressedStream.CopyToAsync(targetStream, ContentStore.Grpc.CopyConstants.DefaultBufferSize, ct).ConfigureAwait(false);
+                    await decompressedStream.CopyToAsync(targetStream, _bufferSize, ct).ConfigureAwait(false);
                 }
             }
 
@@ -307,21 +283,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         public void Dispose()
         {
-            // noop for now
-        }
-
-        /// <inheritdoc />
-        public override bool Equals(object obj)
-        {
-            return obj is GrpcCopyClient client
-                && _host == client._host
-                && _grpcPort == client._grpcPort;
-        }
-
-        /// <inheritdoc />
-        public override int GetHashCode()
-        {
-            return BuildXL.Utilities.HashCodeHelper.Combine(_host.GetHashCode(), _grpcPort);
+            if (ShutdownStarted && !ShutdownCompleted)
+            {
+                throw new CacheException($"{nameof(GrpcCopyClient)} must be shutdown before disposing.");
+            }
         }
     }
 }

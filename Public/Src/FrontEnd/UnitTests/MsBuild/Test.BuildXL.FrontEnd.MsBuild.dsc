@@ -39,8 +39,6 @@ namespace Test.MsBuild {
             ...BuildXLSdk.tplPackages,
         ],
         runtimeContent: [
-            importFrom("BuildXL.Sandbox.Windows").Deployment.definition,
-            
             ...MSBuild.msbuildRuntimeContent,
             ...MSBuild.msbuildReferences,
             {

@@ -58,7 +58,7 @@ namespace Test.BuildXL.Processes.Detours
                 Arguments = @"/arg1:val1 /arg2:val2",
                 WorkingDirectory = A("C", "Source"),
                 EnvironmentVariables = buildParameters,
-                Timeout = TimeSpan.FromMinutes(10),
+                Timeout = TimeSpan.FromMinutes(15),
                 PipSemiStableHash = 0x12345678,
                 PipDescription = nameof(SerializeSandboxedProcessInfo),
                 ProcessIdListener = null,

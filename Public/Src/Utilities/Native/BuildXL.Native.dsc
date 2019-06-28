@@ -45,10 +45,13 @@ namespace Native {
             Configuration.dll,
         ],
         runtimeContent: [
-            ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none"  && qualifier.targetRuntime === "osx-x64", () => [
+            ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
                 MacServices.Deployment.sandboxMonitor,
                 MacServices.Deployment.ariaLibrary,
                 MacServices.Deployment.interopLibrary
+            ]),
+            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
+                importFrom("BuildXL.Sandbox.Windows").Deployment.natives,
             ]),
         ]
     });

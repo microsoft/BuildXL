@@ -367,7 +367,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                         }
 
                                         return set;
-                                    }).Forget();
+                                    }).FireAndForget(context);
                                 }
 
                                 var result = await redisDb.ExecuteBatchOperationAsync(context, redisBatch, context.Token);
@@ -408,7 +408,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return BoolResult.Success;
                 },
                 Counters[GlobalStoreCounters.RegisterLocalLocation],
-                caller: caller);
+                caller: caller,
+                traceOperationStarted: false);
         }
 
         private async Task<Unit> SetLocationBitAndExpireAsync(OperationContext context, IBatch batch, RedisKey key, ContentHashWithSize hash, MachineId machineId)

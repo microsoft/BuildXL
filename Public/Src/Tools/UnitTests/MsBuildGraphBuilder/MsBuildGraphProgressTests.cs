@@ -70,7 +70,6 @@ namespace Test.ProjectGraphBuilder
         {
             string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
             var arguments = new MSBuildGraphBuilderArguments(
-                TestOutputDirectory,
                 new[] { m_entryPoint },
                 outputFile,
                 globalProperties: GlobalProperties.Empty,

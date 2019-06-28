@@ -52,7 +52,7 @@ function runSingleXunitInstance(args: Arguments): DerivedFile[] {
         (args.traits || []).length > 0 ? "Traits-" + args.traits.map(t => t.value).join("_") :
         (args.noTraits || []).length > 0 ? "Rest" : "ALL";
 
-    args = args.merge<Arguments>({noTraits: ["WindowsOSOnly", "QTestSkip", "Performance", ...args.noTraits].map(categoryToTrait)});
+    args = args.merge<Arguments>({noTraits: ["WindowsOSOnly", "QTestSkip", "Performance", "SkipDotNetCore", ...args.noTraits].map(categoryToTrait)});
 
     const outDir = Context.getNewOutputDirectory("xunit");
     const finalXunitArgs = getDefaultXunitArgs(args.testAssembly, outDir).override<XUnit.Arguments>(args);

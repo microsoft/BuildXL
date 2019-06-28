@@ -1794,6 +1794,7 @@ BOOL WINAPI Detoured_CreateProcessW(
 {
     bool injectedShim = false;
     BOOL ret = MaybeInjectSubstituteProcessShim(
+        lpApplicationName,
         lpCommandLine,
         lpProcessAttributes,
         lpThreadAttributes,
@@ -1806,6 +1807,7 @@ BOOL WINAPI Detoured_CreateProcessW(
         injectedShim);
     if (injectedShim)
     {
+        Dbg(L"Injected shim for lpCommandLine='%s', returning 0x%08X from CreateProcessW", lpCommandLine, ret);
         return ret;
     }
 
@@ -2085,10 +2087,11 @@ HANDLE WINAPI Detoured_CreateFileW(
     // read request which may or may not have been approved (due to special exceptions for directories and non-existent files).
     // It is safe to go ahead and perform the real CreateFile() call, and then to reason about the results after the fact.
 
-    // Note that we can add FILE_SHARE_DELETE to dwShareMode. I.e., in order to leverage NTFS hardlinks to avoid copying cache
-    // content, we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
+    // Note that we need to add FILE_SHARE_DELETE to dwShareMode to leverage NTFS hardlinks to avoid copying cache
+    // content, i.e., we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
     // rather than per-link, so in order to keep unused links delete-able, we should ensure in-use links are delete-able as well.
-    // However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation.
+    // However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation. Thus,
+    // we only add FILE_SHARE_DELETE if the file is tracked.
     
     // We also add FILE_SHARE_READ when it is safe to do so, since some tools accidentally ask for exclusive access on their inputs.
 
@@ -2099,7 +2102,7 @@ HANDLE WINAPI Detoured_CreateFileW(
     {
         DWORD readSharingIfNeeded = policyResult.ShouldForceReadSharing(accessCheck) ? FILE_SHARE_READ : 0UL;
         desiredAccess = !forceReadOnlyForRequestedRWAccess ? desiredAccess : (desiredAccess & FILE_GENERIC_READ);
-        sharedAccess = sharedAccess | readSharingIfNeeded;
+        sharedAccess = sharedAccess | readSharingIfNeeded | FILE_SHARE_DELETE;
     }
 
     error = ERROR_SUCCESS;
@@ -5152,10 +5155,11 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
     // read request which may or may not have been approved (due to special exceptions for directories and non-existent files).
     // It is safe to go ahead and perform the real NtCreateFile() call, and then to reason about the results after the fact.
 
-    // Note that we can add FILE_SHARE_DELETE to dwShareMode. I.e., in order to leverage NTFS hardlinks to avoid copying cache
-    // content, we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
+    // Note that we need to add FILE_SHARE_DELETE to dwShareMode to leverage NTFS hardlinks to avoid copying cache
+    // content, i.e., we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
     // rather than per-link, so in order to keep unused links delete-able, we should ensure in-use links are delete-able as well.
-    // However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation.
+    // However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation. Thus,
+    // we only add FILE_SHARE_DELETE if the file is tracked.
 
     // We also add FILE_SHARE_READ when it is safe to do so, since some tools accidentally ask for exclusive access on their inputs.
 
@@ -5166,7 +5170,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
     {
         DWORD readSharingIfNeeded = policyResult.ShouldForceReadSharing(accessCheck) ? FILE_SHARE_READ : 0UL;
         desiredAccess = !forceReadOnlyForRequestedRWAccess ? desiredAccess : (desiredAccess & FILE_GENERIC_READ);
-        sharedAccess = sharedAccess | readSharingIfNeeded;
+        sharedAccess = sharedAccess | readSharingIfNeeded | FILE_SHARE_DELETE;
     }
     
     error = ERROR_SUCCESS;
@@ -5446,10 +5450,11 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
     // read request which may or may not have been approved (due to special exceptions for directories and non-existent files).
     // It is safe to go ahead and perform the real NtCreateFile() call, and then to reason about the results after the fact.
 
-    // Note that we can add FILE_SHARE_DELETE to dwShareMode. I.e., in order to leverage NTFS hardlinks to avoid copying cache
-    // content, we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
+    // Note that we need to add FILE_SHARE_DELETE to dwShareMode to leverage NTFS hardlinks to avoid copying cache
+    // content, i.e., we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
     // rather than per-link, so in order to keep unused links delete-able, we should ensure in-use links are delete-able as well.
-    // However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation.
+    // However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation. Thus,
+    // we only add FILE_SHARE_DELETE if the file is tracked.
 
     // We also add FILE_SHARE_READ when it is safe to do so, since some tools accidentally ask for exclusive access on their inputs.
 
@@ -5460,7 +5465,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
     {
         DWORD readSharingIfNeeded = policyResult.ShouldForceReadSharing(accessCheck) ? FILE_SHARE_READ : 0UL;
         desiredAccess = !forceReadOnlyForRequestedRWAccess ? desiredAccess : (desiredAccess & FILE_GENERIC_READ);
-        sharedAccess = sharedAccess | readSharingIfNeeded;
+        sharedAccess = sharedAccess | readSharingIfNeeded | FILE_SHARE_DELETE;
     }
     
     error = ERROR_SUCCESS;
@@ -5721,10 +5726,11 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
     // read request which may or may not have been approved (due to special exceptions for directories and non-existent files).
     // It is safe to go ahead and perform the real NtCreateFile() call, and then to reason about the results after the fact.
 
-    // Note that we can add FILE_SHARE_DELETE to dwShareMode. I.e., in order to leverage NTFS hardlinks to avoid copying cache
-    // content, we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
+    // Note that we need to add FILE_SHARE_DELETE to dwShareMode to leverage NTFS hardlinks to avoid copying cache
+    // content, i.e., we need to be able to delete one of many links to a file. Unfortunately, share-mode is aggregated only per file
     // rather than per-link, so in order to keep unused links delete-able, we should ensure in-use links are delete-able as well.
-    // However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation.
+    // However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation. Thus,
+    // we only add FILE_SHARE_DELETE if the file is tracked.
 
     // We also add FILE_SHARE_READ when it is safe to do so, since some tools accidentally ask for exclusive access on their inputs.
 
@@ -5735,7 +5741,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
     {
         DWORD readSharingIfNeeded = policyResult.ShouldForceReadSharing(accessCheck) ? FILE_SHARE_READ : 0UL;
         desiredAccess = !forceReadOnlyForRequestedRWAccess ? desiredAccess : (desiredAccess & FILE_GENERIC_READ);
-        sharedAccess = sharedAccess | readSharingIfNeeded;
+        sharedAccess = sharedAccess | readSharingIfNeeded | FILE_SHARE_DELETE;
     }
 
     DWORD error = ERROR_SUCCESS;

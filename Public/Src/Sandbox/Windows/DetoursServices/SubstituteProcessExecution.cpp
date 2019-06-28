@@ -95,8 +95,7 @@ static inline void trim_inplace(std::wstring& str)
         trim_end(str.c_str() + str.length()));
 }
 
-// Returns in 'command' a new value for lpCommandLine pointing to the remainder of the string
-// to use as the command line parameters.
+// Returns in 'command' the command from lpCommandLine without quotes, and in commandArgs the arguments from the remainder of the string.
 static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLine, _Out_ wstring &command, _Out_ wstring &commandArgs)
 {
     wstring fullCommandLine(lpCommandLine);
@@ -112,7 +111,14 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
         // Find the close quote. Might not be present which means the command
         // is the full command line minus the initial quote.
         size_t closeQuoteIndex = fullCommandLine.find('"', 1);
-        if (closeQuoteIndex >= 1)
+        if (closeQuoteIndex == wstring::npos)
+        {
+            // No close quote. Take everything through the end of the command line as the command.
+            command = fullCommandLine.substr(1);
+            trim_inplace(command);
+            commandArgs = wstring();
+        }
+        else
         {
             if (closeQuoteIndex == fullCommandLine.length() - 1)
             {
@@ -126,7 +132,7 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
                 wstring noQuoteCommand = fullCommandLine.substr(1, closeQuoteIndex - 1);
 
                 // Find the next delimiting space after the close double-quote.
-                // For example a command line like "c:\program files"\foo we need to
+                // For example a command like "c:\program files"\foo we need to
                 // keep \foo and cut the quotes to produce c:\program files\foo
                 size_t spaceDelimiterIndex = fullCommandLine.find(L' ', closeQuoteIndex + 1);
                 if (spaceDelimiterIndex == wstring::npos)
@@ -136,17 +142,11 @@ static const void FindApplicationNameFromCommandLine(const wchar_t *lpCommandLin
                 }
 
                 command = (noQuoteCommand +
-                    fullCommandLine.substr(closeQuoteIndex + 1, spaceDelimiterIndex - closeQuoteIndex));
+                    fullCommandLine.substr(closeQuoteIndex + 1, spaceDelimiterIndex - closeQuoteIndex - 1));
                 trim_inplace(command);
                 commandArgs = fullCommandLine.substr(spaceDelimiterIndex + 1);
                 trim_inplace(commandArgs);
             }
-        }
-        else
-        {
-            // No close quote. Take everything through the end of the command line as the command.
-            command = fullCommandLine.substr(1);
-            commandArgs = wstring();
         }
     }
     else
@@ -238,6 +238,7 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
 }
 
 BOOL WINAPI MaybeInjectSubstituteProcessShim(
+    _In_opt_    LPCWSTR               lpApplicationName,
     _In_opt_    LPCWSTR               lpCommandLine,
     _In_opt_    LPSECURITY_ATTRIBUTES lpProcessAttributes,
     _In_opt_    LPSECURITY_ATTRIBUTES lpThreadAttributes,
@@ -249,14 +250,17 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
     _Out_       LPPROCESS_INFORMATION lpProcessInformation,
     _Out_       bool&                 injectedShim)
 {
-    if (g_substituteProcessExecutionShimPath != nullptr)
+    if (g_substituteProcessExecutionShimPath != nullptr && (lpCommandLine != nullptr || lpApplicationName != nullptr))
     {
-        // lpCommandLine contains the command, possibly with quotes containing spaces,
-        // as the first whitespace-delimited token. We can ignore lpApplicationName
-        // and just always parse that command line. 
+        // When lpCommandLine is null we just use lpApplicationName as the command line to parse.
+        // When lpCommandLine is not null, it contains the command, possibly with quotes containing spaces,
+        // as the first whitespace-delimited token; we can ignore lpApplicationName in this case.
+        Dbg(L"Shim: Finding command and args from lpApplicationName='%s', lpCommandLine='%s'", lpApplicationName, lpCommandLine);
+        LPCWSTR cmdLine = lpCommandLine == nullptr ? lpApplicationName : lpCommandLine;
         wstring command;
         wstring commandArgs;
-        FindApplicationNameFromCommandLine(lpCommandLine, command, commandArgs);
+        FindApplicationNameFromCommandLine(cmdLine, command, commandArgs);
+        Dbg(L"Shim: Found command='%s', args='%s' from lpApplicationName='%s', lpCommandLine='%s'", command.c_str(), commandArgs.c_str(), lpApplicationName, lpCommandLine);
 
         if (ShouldSubstituteShim(command, commandArgs.c_str()))
         {

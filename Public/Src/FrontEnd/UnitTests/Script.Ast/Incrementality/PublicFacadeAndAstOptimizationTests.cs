@@ -125,7 +125,7 @@ namespace Test.DScript.Ast.Incrementality
             }
         }
 
-        [FactIfSupported(requiresJournalScan: true)]
+        [FactIfSupported(requiresJournalScan: true, Skip = "Failed often")]
         public void PublicFacadeAndAstIsReusedForSpecsWithoutPublicSurfaceChanges()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory))

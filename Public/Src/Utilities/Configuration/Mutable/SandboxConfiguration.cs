@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Utilities.Configuration.Mutable
@@ -8,6 +9,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
     /// <nodoc />
     public sealed class SandboxConfiguration : ISandboxConfiguration
     {
+        /// <nodoc />
+        public static readonly uint DefaultProcessTimeoutInMinutes = 10;
+
         private IUnsafeSandboxConfiguration m_unsafeSandboxConfig;
 
         /// <nodoc />
@@ -16,7 +20,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             m_unsafeSandboxConfig = new UnsafeSandboxConfiguration();
 
             FailUnexpectedFileAccesses = true;
-            DefaultTimeout = 10 * 60 * 1000;
+            DefaultTimeout = ((int)DefaultProcessTimeoutInMinutes) * 60 * 1000;
             DefaultWarningTimeout = (int)(.85 * DefaultTimeout);
             TimeoutMultiplier = 1;
             WarningTimeoutMultiplier = 1;
@@ -42,6 +46,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ContainerConfiguration = new SandboxContainerConfiguration();
             AdminRequiredProcessExecutionMode = AdminRequiredProcessExecutionMode.Internal;
             RedirectedTempFolderRootForVmExecution = AbsolutePath.Invalid;
+            RetryOnAzureWatsonExitCode = false;
+            EnsureTempDirectoriesExistenceBeforePipExecution = false;
+            GlobalUnsafeUntrackedScopes = new List<AbsolutePath>();
         }
 
         /// <nodoc />
@@ -85,6 +92,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ContainerConfiguration = new SandboxContainerConfiguration(template.ContainerConfiguration);
             AdminRequiredProcessExecutionMode = template.AdminRequiredProcessExecutionMode;
             RedirectedTempFolderRootForVmExecution = pathRemapper.Remap(template.RedirectedTempFolderRootForVmExecution);
+            RetryOnAzureWatsonExitCode = template.RetryOnAzureWatsonExitCode;
+            EnsureTempDirectoriesExistenceBeforePipExecution = template.EnsureTempDirectoriesExistenceBeforePipExecution;
+            GlobalUnsafeUntrackedScopes = pathRemapper.Remap(template.GlobalUnsafeUntrackedScopes);
         }
 
         /// <inheritdoc />
@@ -222,5 +232,17 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath RedirectedTempFolderRootForVmExecution { get; set; }
+
+        /// <inheritdoc />
+        public bool RetryOnAzureWatsonExitCode { get; set; }
+
+        /// <inheritdoc />
+        public bool EnsureTempDirectoriesExistenceBeforePipExecution { get; set; }
+
+        /// <nodoc /> 
+        public List<AbsolutePath> GlobalUnsafeUntrackedScopes { get; set; }
+
+        /// <inheritdoc /> 
+        IReadOnlyList<AbsolutePath> ISandboxConfiguration.GlobalUnsafeUntrackedScopes => GlobalUnsafeUntrackedScopes;        
     }
 }

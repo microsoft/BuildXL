@@ -12,8 +12,8 @@ namespace BuildXL.Processes.Tracing
     /// <summary>
     /// Logging
     /// </summary>
-    [EventKeywordsType(typeof(Events.Keywords))]
-    [EventTasksType(typeof(Events.Tasks))]
+    [EventKeywordsType(typeof(Keywords))]
+    [EventTasksType(typeof(Tasks))]
     internal abstract partial class Logger
     {
         /// <summary>
@@ -22,12 +22,12 @@ namespace BuildXL.Processes.Tracing
         public static Logger Log => m_log;
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFileAccess,
+            (int)LogEventId.PipProcessFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "File access on '{3}' with {2}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "File access on '{3}' with {2}")]
         public abstract void PipProcessFileAccess(
             LoggingContext context,
             long pipSemiStableHash,
@@ -36,12 +36,12 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipFailSymlinkCreation,
+            (int)LogEventId.PipFailSymlinkCreation,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process created a symlink at '{2}'. Symlink outputs are not currently supported. This error was introduced by /FailSymlinkCreationflag.")]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process created a symlink at '{2}'. Symlink outputs are not currently supported. This error was introduced by /FailSymlinkCreationflag.")]
         public abstract void PipFailSymlinkCreation(
             LoggingContext context,
             long pipSemiStableHash,
@@ -49,76 +49,76 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipInvalidDetoursDebugFlag1,
+            (int)LogEventId.PipInvalidDetoursDebugFlag1,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
             Message = "A debug {ShortProductName} is using a non-debug DetoursServices.dll.")]
         public abstract void PipInvalidDetoursDebugFlag1(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.PipInvalidDetoursDebugFlag2,
+            (int)LogEventId.PipInvalidDetoursDebugFlag2,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
             Message = "A non-debug {ShortProductName} is using a debug DetoursServices.dll.")]
         public abstract void PipInvalidDetoursDebugFlag2(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessStartFailed,
+            (int)LogEventId.PipProcessStartFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process start failed with error code {2:X8}: {3}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process start failed with error code {2:X8}: {3}")]
         public abstract void PipProcessStartFailed(LoggingContext context, long pipSemiStableHash, string pipDescription, int errorCode, string message);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFinished,
+            (int)LogEventId.PipProcessFinished,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.Diagnostics,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process exited cleanly with exit code {2}")]
+            Keywords = (int)Keywords.Diagnostics,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process exited cleanly with exit code {2}")]
         public abstract void PipProcessFinished(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFinishedFailed,
+            (int)LogEventId.PipProcessFinishedFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.Diagnostics,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process failed with exit code {2}")]
+            Keywords = (int)Keywords.Diagnostics,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process failed with exit code {2}")]
         public abstract void PipProcessFinishedFailed(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessMessageParsingError,
+            (int)LogEventId.PipProcessMessageParsingError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process failed with message parsing error: {2}.")]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process failed with message parsing error: {2}.")]
         public abstract void PipProcessMessageParsingError(LoggingContext context, long pipSemiStableHash, string pipDescription, string error);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFinishedDetourFailures,
+            (int)LogEventId.PipProcessFinishedDetourFailures,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Failed to instrument one or more processes")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Failed to instrument one or more processes")]
         public abstract void PipProcessFinishedDetourFailures(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessDisallowedTempFileAccess,
+            (int)LogEventId.PipProcessDisallowedTempFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
             Message =
-                Events.PipPrefix + "Disallowed file access in temp directory was blocked on '{3}' with {2}; declare that this pip needs a temp directory.")]
+                EventConstants.PipPrefix + "Disallowed file access in temp directory was blocked on '{3}' with {2}; declare that this pip needs a temp directory.")]
         public abstract void PipProcessDisallowedTempFileAccess(
             LoggingContext context,
             long pipSemiStableHash,
@@ -127,13 +127,13 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipOutputNotAccessed,
+            (int)LogEventId.PipOutputNotAccessed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
             Message =
-                Events.PipPrefix + "No file access for output: {2}. Detours discovered inconsistency in detouring some child processes. Information about the inconsistency can be found in the BuildXL log file. Please, restart the build...")]
+                EventConstants.PipPrefix + "No file access for output: {2}. Detours discovered inconsistency in detouring some child processes. Information about the inconsistency can be found in the BuildXL log file. Please, restart the build...")]
         public abstract void PipOutputNotAccessed(
             LoggingContext context,
             long pipSemiStableHash,
@@ -141,12 +141,12 @@ namespace BuildXL.Processes.Tracing
             string outputFileName);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessDisallowedFileAccess,
+            (int)LogEventId.PipProcessDisallowedFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipSpecPrefix + " - Disallowed file access was detected on '{5}' with {4}.")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + " - Disallowed file access was detected on '{5}' with {4}.")]
         public abstract void PipProcessDisallowedFileAccess(
             LoggingContext context,
             long pipSemiStableHash,
@@ -157,12 +157,12 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessDisallowedNtCreateFileAccessWarning,
+            (int)LogEventId.PipProcessDisallowedNtCreateFileAccessWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipSpecPrefix + " - Disallowed NtCreateFile access was detected on '{5}' with {4}. " +
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + " - Disallowed NtCreateFile access was detected on '{5}' with {4}. " +
                 "This warning will become an error if the '/unsafe_ignoreNtCreateFile+' is removed.")]
         public abstract void PipProcessDisallowedNtCreateFileAccessWarning(
             LoggingContext context,
@@ -174,13 +174,13 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessTookTooLongWarning,
+            (int)LogEventId.PipProcessTookTooLongWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
             Message =
-                Events.PipPrefix + "Process ran for {2}ms, which is longer than the warning timeout of {3}ms; the process will be terminated if it ever runs longer than {4}ms")]
+                EventConstants.PipPrefix + "Process ran for {2}ms, which is longer than the warning timeout of {3}ms; the process will be terminated if it ever runs longer than {4}ms")]
         public abstract void PipProcessTookTooLongWarning(
             LoggingContext context,
             long pipSemiStableHash,
@@ -190,48 +190,48 @@ namespace BuildXL.Processes.Tracing
             long hardMax);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessTookTooLongError,
+            (int)LogEventId.PipProcessTookTooLongError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process terminated because it took too long: {2}ms; the timeout is set to {3}ms. {4}")]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process terminated because it took too long: {2}ms; the timeout is set to {3}ms. {4}")]
         public abstract void PipProcessTookTooLongError(LoggingContext context, long pipSemiStableHash, string pipDescription, long actual, long time, string dumpDetails);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessStandardOutput,
+            (int)LogEventId.PipProcessStandardOutput,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process standard output at '{2}'")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process standard output at '{2}'")]
         public abstract void PipProcessStandardOutput(LoggingContext context, long pipSemiStableHash, string pipDescription, string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessStandardError,
+            (int)LogEventId.PipProcessStandardError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process standard error at '{2}'")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process standard error at '{2}'")]
         public abstract void PipProcessStandardError(LoggingContext context, long pipSemiStableHash, string pipDescription, string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFileAccessTableEntry,
+            (int)LogEventId.PipProcessFileAccessTableEntry,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "File access table entry '{2}'")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "File access table entry '{2}'")]
         public abstract void PipProcessFileAccessTableEntry(LoggingContext context, long pipSemiStableHash, string pipDescription, string value);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFailedToParsePathOfFileAccess,
+            (int)LogEventId.PipProcessFailedToParsePathOfFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Access to the following path will be ignored, since the path could not be parsed: '{3}' (Accessed via {2})")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Access to the following path will be ignored, since the path could not be parsed: '{3}' (Accessed via {2})")]
         public abstract void PipProcessFailedToParsePathOfFileAccess(
             LoggingContext context,
             long pipSemiStableHash,
@@ -240,12 +240,12 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessIgnoringPathOfSpecialDeviceFileAccess,
+            (int)LogEventId.PipProcessIgnoringPathOfSpecialDeviceFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Access to the following path will be ignored, since the path is a path to a device: '{3}' (Accessed via {2})")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Access to the following path will be ignored, since the path is a path to a device: '{3}' (Accessed via {2})")]
         public abstract void PipProcessIgnoringPathOfSpecialDeviceFileAccess(
             LoggingContext context,
             long pipSemiStableHash,
@@ -254,12 +254,12 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessIgnoringPathWithWildcardsFileAccess,
+            (int)LogEventId.PipProcessIgnoringPathWithWildcardsFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Access to the following path will be ignored, since the path contains wildcard characters: '{3}' (Accessed via {2})")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Access to the following path will be ignored, since the path contains wildcard characters: '{3}' (Accessed via {2})")]
         public abstract void PipProcessIgnoringPathWithWildcardsFileAccess(
             LoggingContext context,
             long pipSemiStableHash,
@@ -268,13 +268,13 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable,
+            (int)LogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
             Message =
-                Events.PipPrefix +
+                EventConstants.PipPrefix +
                 "Disallowed file access (non-cacheable) was detected on '{3}' with {2}. This message will become an error if the whitelist entry (in a top-level configuration file) allowing this access is removed.")]
         public abstract void PipProcessDisallowedFileAccessWhitelistedNonCacheable(
             LoggingContext context,
@@ -284,13 +284,13 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessDisallowedFileAccessWhitelistedCacheable,
+            (int)LogEventId.PipProcessDisallowedFileAccessWhitelistedCacheable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
             Message =
-                Events.PipPrefix +
+                EventConstants.PipPrefix +
                 "Disallowed file access (cacheable) was detected on '{3}' with {2}. This message will become an error if the whitelist entry (in a top-level configuration file) allowing this access is removed.")]
         public abstract void PipProcessDisallowedFileAccessWhitelistedCacheable(
             LoggingContext context,
@@ -300,13 +300,13 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.FileAccessWhitelistFailedToParsePath,
+            (int)LogEventId.FileAccessWhitelistFailedToParsePath,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
             Message =
-                Events.PipPrefix +
+                EventConstants.PipPrefix +
                 "Tool path '{3}' failed to parse at character '{4}' could not be parsed. File access whitelist entries matching on tool paths will not be checked for this access. (Accessed via {2})")]
         public abstract void FileAccessWhitelistFailedToParsePath(
             LoggingContext context,
@@ -317,13 +317,13 @@ namespace BuildXL.Processes.Tracing
             int characterWithError);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessUncacheableWhitelistNotAllowedInDistributedBuilds,
+            (int)LogEventId.PipProcessUncacheableWhitelistNotAllowedInDistributedBuilds,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
-            EventTask = (int)Events.Tasks.PipExecutor,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
             Message =
-                Events.PipPrefix +
+                EventConstants.PipPrefix +
                 "Disallowed file access (non-cacheable) was detected on '{3}' with {2}. This message is an error because non-cacheable whitelist matches are not allowed in distributed builds.")]
         public abstract void PipProcessUncacheableWhitelistNotAllowedInDistributedBuilds(
             LoggingContext context,
@@ -333,30 +333,30 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.Process,
+            (int)LogEventId.Process,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process with id {2} at '{3}'")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process with id {2} at '{3}'")]
         public abstract void PipProcess(LoggingContext context, long pipSemiStableHash, string pipDescription, uint id, string path);
 
         [GeneratedEvent(
-            (int)EventId.BrokeredDetoursInjectionFailed,
+            (int)LogEventId.BrokeredDetoursInjectionFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
             Message = "Failed to instrument process ID {0} for file monitoring on behalf of an existing instrumented process, error: {1}. Most likely reason for this error is the run time for the process exceeded the allowed timeout for the process to complete.")]
         public abstract void BrokeredDetoursInjectionFailed(LoggingContext context, uint processId, string error);
 
         [GeneratedEvent(
-            (int)EventId.LogDetoursDebugMessage,
+            (int)LogEventId.LogDetoursDebugMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Detours Debug Message: {2}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Detours Debug Message: {2}")]
         public abstract void LogDetoursDebugMessage(
             LoggingContext context,
             long pipSemiStableHash,
@@ -364,12 +364,12 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)EventId.LogMacKextFailure,
+            (int)LogEventId.LogMacKextFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "{message}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "{message}")]
         public abstract void LogMacKextFailure(
             LoggingContext context,
             long pipSemiStableHash,
@@ -377,12 +377,12 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)EventId.LogAppleSandboxPolicyGenerated,
+            (int)LogEventId.LogAppleSandboxPolicyGenerated,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Apple sandbox-exec policy for pip generated: {policyFilePath}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Apple sandbox-exec policy for pip generated: {policyFilePath}")]
         public abstract void LogAppleSandboxPolicyGenerated(
             LoggingContext context,
             long pipSemiStableHash,
@@ -390,12 +390,12 @@ namespace BuildXL.Processes.Tracing
             string policyFilePath);
 
         [GeneratedEvent(
-            (int)EventId.LogDetoursMaxHeapSize,
+            (int)LogEventId.LogDetoursMaxHeapSize,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Diagnostics),
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Maximum detours heap size for process in the pip is {maxDetoursHeapSizeInBytes} bytes. The processName '{processName}'. The processId is: {processId}. The manifestSize in bytes is: {manifestSizeInBytes}. The finalDetoursHeapSize in bytes is: {finalDetoursHeapSizeInBytes}. The allocatedPoolEntries is: {allocatedPoolEntries}. The maxHandleMapEntries is: {maxHandleMapEntries}. The handleMapEntries is: {handleMapEntries}.")]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Maximum detours heap size for process in the pip is {maxDetoursHeapSizeInBytes} bytes. The processName '{processName}'. The processId is: {processId}. The manifestSize in bytes is: {manifestSizeInBytes}. The finalDetoursHeapSize in bytes is: {finalDetoursHeapSizeInBytes}. The allocatedPoolEntries is: {allocatedPoolEntries}. The maxHandleMapEntries is: {maxHandleMapEntries}. The handleMapEntries is: {handleMapEntries}.")]
         public abstract void LogDetoursMaxHeapSize(
             LoggingContext context,
             long pipSemiStableHash,
@@ -410,12 +410,12 @@ namespace BuildXL.Processes.Tracing
             ulong handleMapEntries);
 
         [GeneratedEvent(
-            (int)EventId.LogInternalDetoursErrorFileNotEmpty,
+            (int)LogEventId.LogInternalDetoursErrorFileNotEmpty,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Detoured process emitted failure information that could not be transmitted back to {ShortProductName}. Diagnostic file content: {2}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Detoured process emitted failure information that could not be transmitted back to {ShortProductName}. Diagnostic file content: {2}")]
         public abstract void LogInternalDetoursErrorFileNotEmpty(
             LoggingContext context,
             long pipSemiStableHash,
@@ -423,12 +423,12 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)EventId.LogFailedToCreateDirectoryForInternalDetoursFailureFile,
+            (int)LogEventId.LogFailedToCreateDirectoryForInternalDetoursFailureFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Failed to create directory for the internal Detours error file. Path: {path}. Error: {message}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Failed to create directory for the internal Detours error file. Path: {path}. Error: {message}")]
         public abstract void LogFailedToCreateDirectoryForInternalDetoursFailureFile(
             LoggingContext context,
             long pipSemiStableHash,
@@ -437,12 +437,12 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)EventId.LogGettingInternalDetoursErrorFile,
+            (int)LogEventId.LogGettingInternalDetoursErrorFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Failed checking for detours backup communication file existence. Pip will be treated as a failure. Error: {message}.")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Failed checking for detours backup communication file existence. Pip will be treated as a failure. Error: {message}.")]
         public abstract void LogGettingInternalDetoursErrorFile(
             LoggingContext context,
             long pipSemiStableHash,
@@ -450,12 +450,12 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)EventId.LogMismatchedDetoursVerboseCount,
+            (int)LogEventId.LogMismatchedDetoursVerboseCount,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "The number of messages sent by detoured processes did not match the number received by the {MainExecutableName} process. LastMessageCount:{lastMessageCount}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "The number of messages sent by detoured processes did not match the number received by the {MainExecutableName} process. LastMessageCount:{lastMessageCount}")]
         public abstract void LogMismatchedDetoursVerboseCount(
             LoggingContext context,
             long pipSemiStableHash,
@@ -463,24 +463,24 @@ namespace BuildXL.Processes.Tracing
             int lastMessageCount);
 
         [GeneratedEvent(
-            (int)EventId.LogMessageCountSemaphoreExists,
+            (int)LogEventId.LogMessageCountSemaphoreExists,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Semaphore for counting Detours messages is already opened.")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Semaphore for counting Detours messages is already opened.")]
         public abstract void LogMessageCountSemaphoreExists(
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessCommandLineTooLong,
+            (int)LogEventId.PipProcessCommandLineTooLong,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process command line is longer than {3} characters: {2}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process command line is longer than {3} characters: {2}")]
         public abstract void PipProcessCommandLineTooLong(
             LoggingContext context,
             long pipSemiStableHash,
@@ -489,66 +489,66 @@ namespace BuildXL.Processes.Tracing
             int maxLength);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessInvalidWarningRegex,
+            (int)LogEventId.PipProcessInvalidWarningRegex,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process warning regular expression is invalid, pattern is {2}, options are {3}")]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process warning regular expression is invalid, pattern is {2}, options are {3}")]
         public abstract void PipProcessInvalidWarningRegex(LoggingContext context, long pipSemiStableHash, string pipDescription, string pattern, string options);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessInvalidErrorRegex,
+            (int)LogEventId.PipProcessInvalidErrorRegex,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process error regular expression is invalid, pattern is {2}, options are {3}")]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process error regular expression is invalid, pattern is {2}, options are {3}")]
         public abstract void PipProcessInvalidErrorRegex(LoggingContext context, long pipSemiStableHash, string pipDescription, string pattern, string options);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessChildrenSurvivedError,
+            (int)LogEventId.PipProcessChildrenSurvivedError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Unexpected child processes survived: {2} process(es){3}")]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Unexpected child processes survived: {2} process(es){3}")]
         public abstract void PipProcessChildrenSurvivedError(LoggingContext context, long pipSemiStableHash, string pipDescription, int count,  string paths);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessChildrenSurvivedTooMany,
+            (int)LogEventId.PipProcessChildrenSurvivedTooMany,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Too many child processes survived: {2} process(es){3}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Too many child processes survived: {2} process(es){3}")]
         public abstract void PipProcessChildrenSurvivedTooMany(LoggingContext context, long pipSemiStableHash, string pipDescription, int count, string paths);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessChildrenSurvivedKilled,
+            (int)LogEventId.PipProcessChildrenSurvivedKilled,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process and/or job containing child processes killed")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process and/or job containing child processes killed")]
         public abstract void PipProcessChildrenSurvivedKilled(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessMissingExpectedOutputOnCleanExit,
+            (int)LogEventId.PipProcessMissingExpectedOutputOnCleanExit,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipSpecPrefix + "Process was expected to write an output file at '{4}', but that file is not present.")]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + "Process was expected to write an output file at '{4}', but that file is not present.")]
         public abstract void PipProcessMissingExpectedOutputOnCleanExit(LoggingContext context, long pipSemiStableHash, string pipDescription, string pipSpecPath, string pipWorkingDirectory, string path);
 
         [GeneratedEvent(
-          (int)EventId.PipProcessExpectedMissingOutputs,
+          (int)LogEventId.PipProcessExpectedMissingOutputs,
           EventGenerators = EventGenerators.LocalOnly,
           EventLevel = Level.Error,
-          Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
-          EventTask = (int)Events.Tasks.PipExecutor,
-          Message = Events.PipPrefix + "- Process was expected to write the following output files, but those files are not present.:\r\n{2}")]
+          Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+          EventTask = (int)Tasks.PipExecutor,
+          Message = EventConstants.PipPrefix + "- Process was expected to write the following output files, but those files are not present.:\r\n{2}")]
         public abstract void PipProcessExpectedMissingOutputs(
             LoggingContext context,
             long pipSemiStableHash,
@@ -556,12 +556,12 @@ namespace BuildXL.Processes.Tracing
             string paths);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessOutputPreparationFailed,
+            (int)LogEventId.PipProcessOutputPreparationFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.InfrastructureError),
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipSpecPrefix + "Process output directories could not be prepared, path '{2}', error code {3:X8}: {4}")]
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + "Process output directories could not be prepared, path '{2}', error code {3:X8}: {4}")]
         public abstract void PipProcessOutputPreparationFailed(
             LoggingContext context,
             long pipSemiStableHash,
@@ -572,12 +572,12 @@ namespace BuildXL.Processes.Tracing
             string exception);
 
         [GeneratedEvent(
-            (int)EventId.PipStandardIOFailed,
+            (int)LogEventId.PipStandardIOFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process standard I/O failure at path '{2}', error code {3:X8}: {4}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process standard I/O failure at path '{2}', error code {3:X8}: {4}")]
         public abstract void PipStandardIOFailed(
             LoggingContext context,
             long pipSemiStableHash,
@@ -587,12 +587,12 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (int)EventId.PipExitedUncleanly,
+            (int)LogEventId.PipExitedUncleanly,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Pip had unclean exit. Canceled: {canceled}, Error code {errorCode}, Killed: {killed}, # Surviving child errors: {numSurvivingChildErrors}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Pip had unclean exit. Canceled: {canceled}, Error code {errorCode}, Killed: {killed}, # Surviving child errors: {numSurvivingChildErrors}")]
         public abstract void PipExitedUncleanly(
             LoggingContext context,
             long pipSemiStableHash,
@@ -603,12 +603,26 @@ namespace BuildXL.Processes.Tracing
             int numSurvivingChildErrors);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessStandardInputException,
+            (int)LogEventId.PipRetryDueToExitedWithAzureWatsonExitCode,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipSpecPrefix + " Unexpected standard input exception: {4}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Pip will be retried because its reported process '{process}' with pid '{processId}' exited with Azure Watson's 0xDEAD exit code")]
+        public abstract void PipRetryDueToExitedWithAzureWatsonExitCode(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string process,
+            uint processId);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessStandardInputException,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + " Unexpected standard input exception: {4}")]
         public abstract void PipProcessStandardInputException(
             LoggingContext context,
             long pipSemiStableHash,
@@ -618,12 +632,12 @@ namespace BuildXL.Processes.Tracing
             string exceptionMessage);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessToolErrorDueToHandleToFileBeingUsed,
+            (int)LogEventId.PipProcessToolErrorDueToHandleToFileBeingUsed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipSpecPrefix + "The tool '{toolName}' cannot access the file '{file}' because it is being used by another process: \r\n{reason}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + "The tool '{toolName}' cannot access the file '{file}' because it is being used by another process: \r\n{reason}")]
         public abstract void PipProcessToolErrorDueToHandleToFileBeingUsed(
             LoggingContext context,
             long pipSemiStableHash,
@@ -635,12 +649,12 @@ namespace BuildXL.Processes.Tracing
             string reason);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessError,
+            (int)LogEventId.PipProcessError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipSpecPrefix + " - failed with exit code {7}{8}\r\n{5}\r\n{6}")]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + " - failed with exit code {7}{8}\r\n{5}\r\n{6}")]
         public abstract void PipProcessError(
             LoggingContext context,
 
@@ -658,12 +672,12 @@ namespace BuildXL.Processes.Tracing
             string optionalMessage);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessWarning,
+            (int)LogEventId.PipProcessWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipSpecPrefix + " - warnings\r\n{5}\r\n{6}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + " - warnings\r\n{5}\r\n{6}")]
         public abstract void PipProcessWarning(
             LoggingContext context,
 
@@ -679,12 +693,12 @@ namespace BuildXL.Processes.Tracing
             string pathsToLog);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessOutput,
+            (int)LogEventId.PipProcessOutput,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipSpecPrefix + "\r\n{4}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + "\r\n{4}")]
         public abstract void PipProcessOutput(
             LoggingContext context,
             long pipSemiStableHash,
@@ -694,57 +708,57 @@ namespace BuildXL.Processes.Tracing
             string outputToLog);
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempDirectoryCleanupError,
+            (ushort)LogEventId.PipTempDirectoryCleanupError,
             EventLevel = Level.Error,
             EventGenerators = EventGenerators.LocalOnly,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Failed to clean temp directory at '{directory}'. Pip will not be executed. {exceptionMessage}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Failed to clean temp directory at '{directory}'. Pip will not be executed. {exceptionMessage}")]
         public abstract void PipTempDirectoryCleanupError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempDirectorySetupError,
+            (ushort)LogEventId.PipTempDirectorySetupError,
             EventLevel = Level.Error,
             EventGenerators = EventGenerators.LocalOnly,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Failed to create temp directory at '{directory}'. {exceptionMessage}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Failed to create temp directory at '{directory}'. {exceptionMessage}")]
         public abstract void PipTempDirectorySetupError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempSymlinkRedirectionError,
+            (ushort)LogEventId.PipTempSymlinkRedirectionError,
             EventLevel = Level.Error,
             EventGenerators = EventGenerators.LocalOnly,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Failed to create directory symlink '{directorySymlink}' as a redirection for temp directory '{tempDirectory}'. {exceptionMessage}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Failed to create directory symlink '{directorySymlink}' as a redirection for temp directory '{tempDirectory}'. {exceptionMessage}")]
         public abstract void PipTempSymlinkRedirectionError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directorySymlink, string tempDirectory, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempSymlinkRedirection,
+            (ushort)LogEventId.PipTempSymlinkRedirection,
             EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Create directory symlink '{directorySymlink}' as a redirection for temp directory '{tempDirectory}'")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Create directory symlink '{directorySymlink}' as a redirection for temp directory '{tempDirectory}'")]
         public abstract void PipTempSymlinkRedirection(LoggingContext context, long pipSemiStableHash, string pipDescription, string directorySymlink, string tempDirectory);
 
         [GeneratedEvent(
-            (ushort)EventId.PipFailedToCreateDumpFile,
+            (ushort)LogEventId.PipFailedToCreateDumpFile,
             EventLevel = Level.Warning,
             EventGenerators = EventGenerators.LocalOnly,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Failed to create dump for timed out process. {exceptionMessage}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Failed to create dump for timed out process. {exceptionMessage}")]
         public abstract void PipFailedToCreateDumpFile(LoggingContext context, long pipSemiStableHash, string pipDescription, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.RetryStartPipDueToErrorPartialCopyDuringDetours,
+            (ushort)LogEventId.RetryStartPipDueToErrorPartialCopyDuringDetours,
             EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipSpecPrefix + "Retry to start pip for {retryNumber} time(s) due to the following error: {error}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + "Retry to start pip for {retryNumber} time(s) due to the following error: {error}")]
         public abstract void RetryStartPipDueToErrorPartialCopyDuringDetours(
             LoggingContext context,
             long pipSemiStableHash,
@@ -753,11 +767,11 @@ namespace BuildXL.Processes.Tracing
             int retryNumber);
 
         [GeneratedEvent(
-            (int)EventId.DuplicateWindowsEnvironmentVariableEncountered,
+            (int)LogEventId.DuplicateWindowsEnvironmentVariableEncountered,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.Engine,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
             Message = "Unexpected duplicate environment variable encountered. Variable '{0}' has already been defined with value '{1}'. The other occurrence with value '{2}' will be ignored.")]
         public abstract void DuplicateWindowsEnvironmentVariableEncountered(
             LoggingContext context,
@@ -766,12 +780,12 @@ namespace BuildXL.Processes.Tracing
             string ignoredValue);
 
         [GeneratedEvent(
-            (int)EventId.ReadWriteFileAccessConvertedToReadMessage,
+            (int)LogEventId.ReadWriteFileAccessConvertedToReadMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "File access on file '{3}' requested with Read/Write but granted for Read only by process with ID: {2}.")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "File access on file '{3}' requested with Read/Write but granted for Read only by process with ID: {2}.")]
         public abstract void ReadWriteFileAccessConvertedToReadMessage(
             LoggingContext context,
             long pipSemiStableHash,
@@ -780,24 +794,24 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)EventId.ReadWriteFileAccessConvertedToReadWarning,
+            (int)LogEventId.ReadWriteFileAccessConvertedToReadWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "This pip might have failed because of converting Read/Write file access to a Read file access. Examine the execution log for information on which files the Read/Write access request was converted to Read access request.")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "This pip might have failed because of converting Read/Write file access to a Read file access. Examine the execution log for information on which files the Read/Write access request was converted to Read access request.")]
         public abstract void ReadWriteFileAccessConvertedToReadWarning(
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessResponseFileCreationFailed,
+            (int)LogEventId.PipProcessResponseFileCreationFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipSpecPrefix + "Process response file could not be prepared, path '{2}', error code {3:X8}: {4}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + "Process response file could not be prepared, path '{2}', error code {3:X8}: {4}")]
         public abstract void PipProcessResponseFileCreationFailed(
             LoggingContext context,
             long pipSemiStableHash,
@@ -807,138 +821,138 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
-            (ushort)EventId.FailedToMergeOutputsToOriginalLocation,
+            (ushort)LogEventId.FailedToMergeOutputsToOriginalLocation,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Storage,
-            Message = Events.PipPrefix + "Pip completed successfully, but it ran in a container and its outputs could not be merged back to their original locations. {details}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = EventConstants.PipPrefix + "Pip completed successfully, but it ran in a container and its outputs could not be merged back to their original locations. {details}")]
         internal abstract void FailedToMergeOutputsToOriginalLocation(LoggingContext loggingContext, long pipSemiStableHash, string pipDescription, string details);
 
         [GeneratedEvent(
-            (ushort)EventId.FailedToCreateHardlinkOnMerge,
+            (ushort)LogEventId.FailedToCreateHardlinkOnMerge,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Storage,
-            Message = Events.PipPrefix + "Cannot create a hardlink from '{sourceFile}' to '{destinationFile}' when merging outputs to their original location: {failedStatus}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = EventConstants.PipPrefix + "Cannot create a hardlink from '{sourceFile}' to '{destinationFile}' when merging outputs to their original location: {failedStatus}")]
         internal abstract void FailedToCreateHardlinkOnMerge(LoggingContext loggingContext, long pipSemiStableHash, string pipDescription, string destinationFile, string sourceFile, string failedStatus);
 
         [GeneratedEvent(
-            (ushort)EventId.DisallowedDoubleWriteOnMerge,
+            (ushort)LogEventId.DisallowedDoubleWriteOnMerge,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Storage,
-            Message = Events.PipPrefix + "A disallowed double write was detected when merging '{sourceFile}' to '{destinationFile}'.")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = EventConstants.PipPrefix + "A disallowed double write was detected when merging '{sourceFile}' to '{destinationFile}'.")]
         internal abstract void DisallowedDoubleWriteOnMerge(LoggingContext loggingContext, long pipSemiStableHash, string pipDescription, string destinationFile, string sourceFile);
 
         [GeneratedEvent(
-            (ushort)EventId.DoubleWriteAllowedDueToPolicy,
+            (ushort)LogEventId.DoubleWriteAllowedDueToPolicy,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Storage,
-            Message = Events.PipPrefix + "Detected double write in '{destinationFile}' when merging outputs to their original location. The double write is allowed due to configured policy.")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = EventConstants.PipPrefix + "Detected double write in '{destinationFile}' when merging outputs to their original location. The double write is allowed due to configured policy.")]
         internal abstract void DoubleWriteAllowedDueToPolicy(LoggingContext loggingContext, long pipSemiStableHash, string pipDescription, string destinationFile);
 
         [GeneratedEvent(
-            (ushort)EventId.FailedToCleanUpContainer,
+            (ushort)LogEventId.FailedToCleanUpContainer,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Storage,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
             Message = "Cleaning up container for job object {jobObject} failed. {details}")]
         internal abstract void FailedToCleanUpContainer(LoggingContext loggingContext, string jobObject, string details);
 
         [GeneratedEvent(
-            (ushort)EventId.WarningSettingUpContainer,
+            (ushort)LogEventId.WarningSettingUpContainer,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Storage,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
             Message = "A warning occurred when setting up a container for job object {jobObject}: {warning}")]
         internal abstract void WarningSettingUpContainer(LoggingContext loggingContext, string jobObject, string warning);
 
         [GeneratedEvent(
-            (int)EventId.PipInContainerStarted,
+            (int)LogEventId.PipInContainerStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process started to run in a container succesfully.")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process started to run in a container succesfully.")]
         public abstract void PipInContainerStarted(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipInContainerStarting,
+            (int)LogEventId.PipInContainerStarting,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process is about to run in a container. Remapping information: \n {remappingInfo}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process is about to run in a container. Remapping information: \n {remappingInfo}")]
         public abstract void PipInContainerStarting(LoggingContext context, long pipSemiStableHash, string pipDescription, string remappingInfo);
 
         [GeneratedEvent(
-            (int)EventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported,
+            (int)LogEventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process was specified to run in a container, but this capability is not available on this machine.")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process was specified to run in a container, but this capability is not available on this machine.")]
         public abstract void PipSpecifiedToRunInContainerButIsolationIsNotSupported(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int) EventId.PipProcessStartExternalTool,
+            (int) LogEventId.PipProcessStartExternalTool,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process execution via external tool '{tool}' starts")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process execution via external tool '{tool}' starts")]
         public abstract void PipProcessStartExternalTool(LoggingContext context, long pipSemiStableHash, string pipDescription, string tool);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFinishedExternalTool,
+            (int)LogEventId.PipProcessFinishedExternalTool,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process execution via external tool finished with the tool's exit code {exitCode}:{stdOut}{stdErr}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process execution via external tool finished with the tool's exit code {exitCode}:{stdOut}{stdErr}")]
         public abstract void PipProcessFinishedExternalTool(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessStartExternalVm,
+            (int)LogEventId.PipProcessStartExternalVm,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process execution in VM starts")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process execution in VM starts")]
         public abstract void PipProcessStartExternalVm(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessFinishedExternalVm,
+            (int)LogEventId.PipProcessFinishedExternalVm,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process execution in VM finished with VM's command proxy exit code {exitCode}:{stdOut}{stdErr}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process execution in VM finished with VM's command proxy exit code {exitCode}:{stdOut}{stdErr}")]
         public abstract void PipProcessFinishedExternalVm(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, string stdOut, string stdErr);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessExternalExecution,
+            (int)LogEventId.PipProcessExternalExecution,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "External execution: {message}")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "External execution: {message}")]
         public abstract void PipProcessExternalExecution(LoggingContext context, long pipSemiStableHash, string pipDescription, string message);
 
         [GeneratedEvent(
-            (int)EventId.PipProcessNeedsExecuteExternalButExecuteInternal,
+            (int)LogEventId.PipProcessNeedsExecuteExternalButExecuteInternal,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.PipExecutor,
-            Message = Events.PipPrefix + "Process needs to be executed externally because (require admin privilege: {requiredAdminPrivilege} | execution mode: {executionMode}), but instead it executes internally because (Win OS: {isWinOS} | container enabled: {isContainerEnabled} | listener existence: {existsListener})")]
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process needs to be executed externally because (require admin privilege: {requiredAdminPrivilege} | execution mode: {executionMode}), but instead it executes internally because (Win OS: {isWinOS} | container enabled: {isContainerEnabled} | listener existence: {existsListener})")]
         public abstract void PipProcessNeedsExecuteExternalButExecuteInternal(
             LoggingContext context, 
             long pipSemiStableHash, 

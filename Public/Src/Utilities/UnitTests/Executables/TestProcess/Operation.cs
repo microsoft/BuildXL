@@ -178,6 +178,11 @@ namespace Test.BuildXL.Executables.TestProcess
             /// Launches the debugger
             /// </summary>
             LaunchDebugger,
+
+            /// <summary>
+            /// Process that fails on first invocation and then succeeds on the second invocation
+            /// </summary>
+            SucceedOnRetry,
         }
 
         /// <summary>
@@ -234,8 +239,15 @@ namespace Test.BuildXL.Executables.TestProcess
         /// </summary>
         public Type OpType { get; private set; }
 
+#if TestProcess
         /// <summary>
-        /// Path to file
+        /// Should only be used in the context of TestProcess.exe
+        /// </summary>
+        private string PathAsString { get; set; }
+#endif
+
+        /// <summary>
+        /// Path to file. NOTE: This will not be accessible within TestProcess.exe
         /// </summary>
         public FileOrDirectoryArtifact Path { get; private set; }
 
@@ -244,8 +256,15 @@ namespace Test.BuildXL.Executables.TestProcess
         /// </summary>
         public string Content { get; private set; }
 
+#if TestProcess
         /// <summary>
-        /// Path of new symlink or hardlink to create
+        /// Should only be used in the context of TestProcess.exe
+        /// </summary>
+        private string LinkPathAsString { get; set; }
+#endif
+
+        /// <summary>
+        /// Path of new symlink or hardlink to create. NOTE: This will not be accessible within TestProcess.exe
         /// </summary>
         public FileOrDirectoryArtifact LinkPath { get; private set; }
 
@@ -283,11 +302,39 @@ namespace Test.BuildXL.Executables.TestProcess
             AdditionalArgs = additionalArgs;
         }
 
+#if TestProcess
+        private static Operation FromCommandLine(Type type, string path = null, string content = null, string linkPath = null, SymbolicLinkFlag? symLinkFlag = null, string additionalArgs = null)
+        {
+            Contract.Requires(content == null || !content.Contains(Environment.NewLine));
+
+            var result = new Operation(type: type,
+                content: content,
+                symLinkFlag: symLinkFlag,
+                doNotInfer: false,
+                additionalArgs: additionalArgs);
+            result.PathAsString = path;
+            result.LinkPathAsString = linkPath;
+
+            return result;
+        }
+#endif
+
         /// <summary>
         /// Executes the associated filesystem operation
         /// </summary>
         public void Run()
         {
+            // Make sure the string version of the paths are set in case the operation is run outside of the context of
+            // TestProcess.exe
+            if (LinkPath.IsValid)
+            {
+                LinkPathAsString = LinkPath.Path.ToString(PathTable);
+            }
+            if (Path.IsValid)
+            {
+                PathAsString = Path.Path.ToString(PathTable);
+            }
+
             try
             {
                 switch (OpType)
@@ -369,6 +416,9 @@ namespace Test.BuildXL.Executables.TestProcess
                     case Type.MoveFile:
                         DoMoveFile();
                         return;
+                    case Type.SucceedOnRetry:
+                        DoSucceedOnRetry();
+                        return;
                 }
             }
             catch (Exception e)
@@ -404,9 +454,9 @@ namespace Test.BuildXL.Executables.TestProcess
         /// <summary>
         /// Creates a create directory operation (uses WinAPI)
         /// </summary>
-        public static Operation CreateDir(FileOrDirectoryArtifact path, bool doNotInfer = false)
+        public static Operation CreateDir(FileOrDirectoryArtifact path, bool doNotInfer = false, string additionalArgs = null)
         {
-            return new Operation(Type.CreateDir, path, doNotInfer: doNotInfer);
+            return new Operation(Type.CreateDir, path, doNotInfer: doNotInfer, additionalArgs: additionalArgs);
         }
 
         /// <summary>
@@ -617,6 +667,17 @@ namespace Test.BuildXL.Executables.TestProcess
         }
 
         /// <summary>
+        /// Process that fails on first invocation and succeeds on second invocation.
+        /// </summary>
+        /// <param name="untrackedStateFilePath">File used to track state. This path should be untracked when scheduling the pip</param>
+        /// <param name="firstFailExitCode">Exit code for first failed invocation</param>
+        /// <returns></returns>
+        public static Operation SucceedOnRetry(FileArtifact untrackedStateFilePath, int firstFailExitCode = -1)
+        {
+            return new Operation(Type.SucceedOnRetry, path: untrackedStateFilePath, content: firstFailExitCode.ToString());
+        }
+
+        /// <summary>
         /// Launches the debugger
         /// </summary>
         public static Operation LaunchDebugger()
@@ -628,18 +689,38 @@ namespace Test.BuildXL.Executables.TestProcess
 
         private void DoCreateDir()
         {
-            string directoryPath = FileOrDirectoryToString(Path);
+            bool failIfExists = false;
+
+            if (!string.IsNullOrEmpty(AdditionalArgs))
+            {
+                string[] args = AdditionalArgs.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var arg in args)
+                {
+                    if (string.Equals(arg, "--failIfExists", StringComparison.OrdinalIgnoreCase))
+                    {
+                        failIfExists = true;
+                    }
+                }
+            }
+
+            if (FileUtilities.DirectoryExistsNoFollow(PathAsString) || FileUtilities.FileExistsNoFollow(PathAsString))
+            {
+                if (failIfExists)
+                {
+                    throw new InvalidOperationException($"Directory creation failed because '{PathAsString}' exists");
+                }
+            }
 
             if (OperatingSystemHelper.IsUnixOS)
             {
-                Directory.CreateDirectory(directoryPath);
+                Directory.CreateDirectory(PathAsString);
             }
             else
             {
                 // .NET's Directory.CreateDirectory first checks for directory existence, so when a directory
                 // exists it does nothing; to test a specific Detours access policy, we want to issue a "create directory"
                 // operation regardless of whether the directory exists, hence p-invoking Windows native CreateDirectory.
-                if (!ExternWinCreateDirectory(directoryPath, IntPtr.Zero))
+                if (!ExternWinCreateDirectory(PathAsString, IntPtr.Zero))
                 {
                     int errorCode = Marshal.GetLastWin32Error();
 
@@ -650,19 +731,19 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     }
 
-                    throw new InvalidOperationException($"Directory creation (native) for path '{directoryPath}' failed with error {errorCode}.");
+                    throw new InvalidOperationException($"Directory creation (native) for path '{PathAsString}' failed with error {errorCode}.");
                 }
             }
         }
 
         private void DoDeleteFile()
         {
-            File.Delete(FileOrDirectoryToString(Path));
+            File.Delete(PathAsString);
         }
 
         private void DoDeleteDir()
         {
-            Directory.Delete(FileOrDirectoryToString(Path));
+            Directory.Delete(PathAsString);
         }
 
         // Writes random Content if Content not specified
@@ -676,7 +757,7 @@ namespace Test.BuildXL.Executables.TestProcess
             string content = DoReadFile();
             try
             {
-                File.WriteAllText(FileOrDirectoryToString(LinkPath), content == string.Empty ? Guid.NewGuid().ToString() : content);
+                File.WriteAllText(LinkPathAsString, content == string.Empty ? Guid.NewGuid().ToString() : content);
             }
             catch (UnauthorizedAccessException)
             {
@@ -699,7 +780,7 @@ namespace Test.BuildXL.Executables.TestProcess
 
         private void DoWriteFile(string content)
         {
-            DoWriteFile(FileOrDirectoryToString(Path), content);
+            DoWriteFile(PathAsString, content);
         }
 
         private void DoWriteFile(string file, string content)
@@ -742,7 +823,7 @@ namespace Test.BuildXL.Executables.TestProcess
         {
             try
             {
-                var content = File.ReadAllText(FileOrDirectoryToString(Path));
+                var content = File.ReadAllText(PathAsString);
                 return content;
             }
             catch (FileNotFoundException)
@@ -762,32 +843,32 @@ namespace Test.BuildXL.Executables.TestProcess
 
         private void DoReadRequiredFile()
         {
-            File.ReadAllText(FileOrDirectoryToString(Path));
+            File.ReadAllText(PathAsString);
         }
 
         private void DoCopyFile()
         {
-            File.Copy(FileOrDirectoryToString(Path), FileOrDirectoryToString(LinkPath), overwrite: true);
+            File.Copy(PathAsString, LinkPathAsString, overwrite: true);
         }
 
         private void DoMoveDir()
         {
-            if (Directory.Exists(FileOrDirectoryToString(LinkPath)))
+            if (Directory.Exists(LinkPathAsString))
             {
-                Directory.Delete(FileOrDirectoryToString(LinkPath), true);
+                Directory.Delete(LinkPathAsString, true);
             }
 
-            Directory.Move(FileOrDirectoryToString(Path), FileOrDirectoryToString(LinkPath));
+            Directory.Move(PathAsString, LinkPathAsString);
         }
 
         private void DoMoveFile()
         {
-            File.Move(FileOrDirectoryToString(Path), FileOrDirectoryToString(LinkPath));
+            File.Move(PathAsString, LinkPathAsString);
         }
 
         private void DoProbe()
         {
-            File.Exists(FileOrDirectoryToString(Path));
+            File.Exists(PathAsString);
         }
 
         private void DoEnumerateDir()
@@ -797,11 +878,11 @@ namespace Test.BuildXL.Executables.TestProcess
                 string enumeratePattern = AdditionalArgs;
                 if (enumeratePattern == null)
                 {
-                    Directory.EnumerateFileSystemEntries(FileOrDirectoryToString(Path));
+                    Directory.EnumerateFileSystemEntries(PathAsString);
                 }
                 else
                 {
-                    Directory.EnumerateFileSystemEntries(FileOrDirectoryToString(Path), enumeratePattern);
+                    Directory.EnumerateFileSystemEntries(PathAsString, enumeratePattern);
                 }
             }
             catch (DirectoryNotFoundException)
@@ -812,10 +893,10 @@ namespace Test.BuildXL.Executables.TestProcess
 
         private void DoCreateSymlink()
         {
-            string target = AdditionalArgs ?? FileOrDirectoryToString(Path);
+            string target = AdditionalArgs ?? PathAsString;
 
             // delete whatever might exist at the link location
-            var linkPath = FileOrDirectoryToString(LinkPath);
+            var linkPath = LinkPathAsString;
             FileUtilities.DeleteFile(linkPath);
             var maybeSymlink = FileUtilities.TryCreateSymbolicLink(linkPath, target, SymLinkFlag == SymbolicLinkFlag.FILE);
             if (!maybeSymlink.Succeeded)
@@ -826,11 +907,11 @@ namespace Test.BuildXL.Executables.TestProcess
 
         private void DoCreateHardlink()
         {
-            var status = FileUtilities.TryCreateHardLink(FileOrDirectoryToString(Path), FileOrDirectoryToString(LinkPath));
+            var status = FileUtilities.TryCreateHardLink(PathAsString, LinkPathAsString);
             if (status != CreateHardLinkStatus.Success)
             {
                 int error = Marshal.GetLastWin32Error();
-                throw new InvalidOperationException("Failed to create hard link at '" + Path.Path.ToString(PathTable) + "' pointing to '" + LinkPath.Path.ToString(PathTable) + "'. Error: " + error + ".");
+                throw new InvalidOperationException("Failed to create hard link at '" + PathAsString + "' pointing to '" + LinkPathAsString + "'. Error: " + error + ".");
             }
         }
 
@@ -941,13 +1022,32 @@ namespace Test.BuildXL.Executables.TestProcess
             Environment.Exit(exitCode);
         }
 
+        private void DoSucceedOnRetry()
+        {
+            // Use this state file to differentiate between the first run and the second run. The file will contain the exit code for the second run
+            if (File.Exists(PathAsString))
+            {
+                int thisRunExitCode = int.Parse(File.ReadAllText(PathAsString));
+                Environment.Exit(thisRunExitCode);
+            }
+            else
+            {
+                File.WriteAllText(PathAsString, "0");
+                Environment.Exit(int.Parse(Content));
+            }
+        }
+
         /*** COMMAND LINE PARSING FUNCTION ***/
 
         /// <summary>
         /// Converts command line arg input to process ops
         /// Input format: "OpType?Path?Content?LinkPath?SymLinkFlag"
         /// </summary>
-        public static Operation CreateFromCommandLine(PathTable pathTable, string commandLineArg)
+        /// <remarks>
+        /// This and the execution of Operations within the context of TestProcess.exe should not utilize the PathTable
+        /// since this adds an appreciable amount of JIT overhead to our test execution
+        /// </remarks>
+        public static Operation CreateFromCommandLine(string commandLineArg)
         {
             var opArgs = commandLineArg.Split(OperationArgsDelimiter);
             if (opArgs.Length != NumArgsExpected)
@@ -958,41 +1058,25 @@ namespace Test.BuildXL.Executables.TestProcess
             }
 
             Type opType;
-            AbsolutePath absolutePath = AbsolutePath.Invalid;
+            string pathAsString = "{Invalid}";
             SymbolicLinkFlag symLinkFlag;
-            AbsolutePath absoluteLinkPath = AbsolutePath.Invalid;
+            string linkPathAsString = "{Invalid}";
 
             if (!Enum.TryParse<Type>(opArgs[0], out opType))
             {
                 throw new InvalidCastException("A malformed or invalid input argument was passed for the Operation type enum.");
             }
 
-            if (opArgs[1].Length != 0 && !AbsolutePath.TryCreate(pathTable, opArgs[1], out absolutePath))
+            if (opArgs[1].Length != 0)
             {
-                throw new InvalidCastException("A malformed or invalid input argument was passed for the Operation path. Could not convert to absolute path.");
-            }
-
-            // This might be a directory, but since the running executable only cares about the string path,
-            // arbitrarily choose to store it in a FileArtifact
-            FileArtifact? path = null;
-            if (absolutePath.IsValid)
-            {
-                path = new FileArtifact(absolutePath);
+                pathAsString = opArgs[1];
             }
 
             string content = opArgs[2].Length == 0 ? null : opArgs[2];
 
-            if (opArgs[3].Length != 0 && !AbsolutePath.TryCreate(pathTable, opArgs[3], out absoluteLinkPath))
+            if (opArgs[3].Length != 0)
             {
-                throw new InvalidCastException("A malformed or invalid input argument was passed for the Operation link path. Could not convert to absolute path.");
-            }
-
-            // This might be a directory, but since the running executable only cares about the string path,
-            // arbitrarily choose to store it in a FileArtifact
-            FileArtifact? linkPath = null;
-            if (absoluteLinkPath.IsValid)
-            {
-                linkPath = new FileArtifact(absoluteLinkPath);
+                linkPathAsString = opArgs[3];
             }
 
             if (!Enum.TryParse<SymbolicLinkFlag>(opArgs[4], out symLinkFlag))
@@ -1002,12 +1086,13 @@ namespace Test.BuildXL.Executables.TestProcess
 
             string additionalArgs = opArgs[5].Length == 0 ? null : opArgs[5];
 
-            var op = new Operation(opType, path, content, linkPath, symLinkFlag)
-            {
-                PathTable = pathTable,
-                AdditionalArgs = additionalArgs
-            };
-            return op;
+            return Operation.FromCommandLine(
+                type: opType, 
+                path: pathAsString, 
+                content: content, 
+                linkPath: linkPathAsString, 
+                symLinkFlag: symLinkFlag, 
+                additionalArgs: additionalArgs);
         }
 
         /// <summary>

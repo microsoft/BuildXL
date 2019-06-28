@@ -18,8 +18,8 @@ namespace BuildXL.Execution.Analyzer.Tracing
     /// The count of local events will be captured in the final <see cref="ExecutionAnalyzerEventCount(LoggingContext, IDictionary{string,int})"/> event which will be sent to telemetry.
     /// There are no log files for execution analyzers, so messages for events with <see cref="EventGenerators.LocalOnly"/> will be lost. 
     /// </summary>
-    [EventKeywordsType(typeof(Events.Keywords))]
-    [EventTasksType(typeof(Events.Tasks))]
+    [EventKeywordsType(typeof(Keywords))]
+    [EventTasksType(typeof(Tasks))]
     public abstract partial class Logger : LoggerBase
     {
         /// <summary>
@@ -31,8 +31,8 @@ namespace BuildXL.Execution.Analyzer.Tracing
             (int)LogEventId.ExecutionAnalyzerInvoked,
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.ExecutionAnalyzers,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.ExecutionAnalyzers,
             Message = "Telemetry only")]
         public abstract void ExecutionAnalyzerInvoked(LoggingContext context, string analysisMode, long runtimeMs, string commandLine);
 
@@ -40,8 +40,8 @@ namespace BuildXL.Execution.Analyzer.Tracing
             (int)LogEventId.ExecutionAnalyzerCatastrophicFailure,
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.ExecutionAnalyzers,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.ExecutionAnalyzers,
             Message = "Telemetry only")]
         public abstract void ExecutionAnalyzerCatastrophicFailure(LoggingContext context, string analysisMode, string exception);
 

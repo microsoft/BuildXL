@@ -4,10 +4,14 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Auth;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace BuildXL.Cache.ContentStore.Distributed
 {
@@ -111,9 +115,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public MachineReputationTrackerConfiguration ReputationTrackerConfiguration { get; set; } = new MachineReputationTrackerConfiguration();
 
         /// <summary>
-        /// Amount of time added per additional replica to effective last access time computed for distributed eviction.
+        /// Estimated decay time for content re-use.
         /// </summary>
-        public int ReplicaPenaltyInMinutes { get; set; } = 10;
+        /// <remarks><para>This is used in the opitmal distributed eviction algorithm.</para></remarks>
+        public TimeSpan ContentLifetime { get; set; } = TimeSpan.FromDays(0.5);
+
+        /// <summary>
+        /// Estimated chance of a content not being available on a machine in the distributed pool.
+        /// </summary>
+        /// <remarks><para>This is used in the opitmal distributed eviction algorithm.</para></remarks>
+        public double MachineRisk { get; set; } = 0.1;
 
         /// <summary>
         /// The minimum age of content before it is eagerly touched.
@@ -204,31 +215,100 @@ namespace BuildXL.Cache.ContentStore.Distributed
     }
 
     /// <summary>
+    /// Provides Azure Storage authentication options for <see cref="BlobCentralStorage"/>
+    /// </summary>
+    public class AzureBlobStorageCredentials
+    {
+        /// <nodoc />
+        private string ConnectionString { get; }
+
+        /// <summary>
+        /// <see cref="StorageCredentials"/> can be updated from the outside, so it is a way to in fact change the way
+        /// we authenticate with Azure Blob Storage over time. Changes are accepted only within the same authentication
+        /// mode.
+        /// </summary>
+        private StorageCredentials StorageCredentials { get; }
+
+        /// <nodoc />
+        private string AccountName { get; }
+
+        /// <nodoc />
+        private string EndpointSuffix { get; }
+
+        /// <summary>
+        /// Creates a fixed credential; this is our default mode of authentication.
+        /// </summary>
+        public AzureBlobStorageCredentials(string connectionString)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(connectionString));
+            ConnectionString = connectionString;
+        }
+
+        /// <summary>
+        /// Uses Azure Blob's storage credentials. This allows us to use SAS tokens, and to update shared secrets
+        /// without restarting the service.
+        /// </summary>
+        public AzureBlobStorageCredentials(StorageCredentials storageCredentials, string accountName, string endpointSuffix = null)
+        {
+            // Unfortunately, even though you can't generate a storage credentials without an account name, it isn't
+            // stored inside object unless a shared secret is being used. Hence, we are forced to keep it here.
+            Contract.Requires(storageCredentials != null);
+            Contract.Requires(!string.IsNullOrEmpty(accountName));
+            StorageCredentials = storageCredentials;
+            AccountName = accountName;
+            EndpointSuffix = endpointSuffix;
+        }
+
+        /// <nodoc />
+        private CloudStorageAccount CreateCloudStorageAccount()
+        {
+            if (!string.IsNullOrEmpty(ConnectionString))
+            {
+                return CloudStorageAccount.Parse(ConnectionString);
+            }
+
+            if (StorageCredentials != null)
+            {
+                return new CloudStorageAccount(StorageCredentials, AccountName, EndpointSuffix, useHttps: true);
+            }
+
+            throw new ArgumentException("Invalid credentials");
+        }
+
+        /// <nodoc />
+        public CloudBlobClient CreateCloudBlobClient()
+        {
+            return CreateCloudStorageAccount().CreateCloudBlobClient();
+        }
+    }
+
+    /// <summary>
     /// Configuration of a central store backed by azure blob storage.
     /// </summary>
     public class BlobCentralStoreConfiguration : CentralStoreConfiguration
     {
         /// <nodoc />
-        public BlobCentralStoreConfiguration(IReadOnlyList<string> connectionStrings, string containerName, string checkpointsKey)
+        public BlobCentralStoreConfiguration(IReadOnlyList<AzureBlobStorageCredentials> credentials, string containerName, string checkpointsKey)
             : base(checkpointsKey)
         {
-            Contract.Requires(connectionStrings != null && connectionStrings.Count != 0);
+            Contract.Requires(!string.IsNullOrEmpty(containerName));
+            Contract.Requires(!string.IsNullOrEmpty(checkpointsKey));
+            Contract.Requires(credentials != null && credentials.Count > 0, "BlobCentralStorage must have at least one set of credentials in its configuration.");
 
             ContainerName = containerName;
-
-            ConnectionStrings = connectionStrings;
+            Credentials = credentials;
         }
 
         /// <nodoc />
-        public BlobCentralStoreConfiguration(string connectionString, string containerName, string checkpointsKey)
-            : this(new[] {connectionString}, containerName, checkpointsKey)
+        public BlobCentralStoreConfiguration(AzureBlobStorageCredentials credentials, string containerName, string checkpointsKey)
+            : this(new[] { credentials }, containerName, checkpointsKey)
         {
         }
 
         /// <summary>
         /// List of connection strings.
         /// </summary>
-        public IReadOnlyList<string> ConnectionStrings { get; }
+        public IReadOnlyList<AzureBlobStorageCredentials> Credentials { get; }
 
         /// <summary>
         /// The blob container name used to store checkpoints.

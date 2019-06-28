@@ -54,6 +54,8 @@ namespace BuildXL.Scheduler.Fingerprints
         private readonly PipDataLookup m_pipDataLookup;
         private ExtraFingerprintSalts m_extraFingerprintSalts;
         private readonly ExpandedPathFileArtifactComparer m_expandedPathFileArtifactComparer;
+        private readonly Comparer<DirectoryArtifact> m_directoryComparer;
+        private readonly Comparer<FileArtifactWithAttributes> m_expandedPathFileArtifactWithAttributesComparer;
 
         /// <summary>
         /// The tokenizer used to handle path roots
@@ -100,6 +102,8 @@ namespace BuildXL.Scheduler.Fingerprints
             m_pipDataLookup = pipDataLookup ?? new PipDataLookup(file => PipData.Invalid);
             PathExpander = pathExpander ?? PathExpander.Default;
             m_expandedPathFileArtifactComparer = new ExpandedPathFileArtifactComparer(m_pathTable.ExpandedPathComparer, pathOnly: false);
+            m_directoryComparer = Comparer<DirectoryArtifact>.Create((d1, d2) => m_pathTable.ExpandedPathComparer.Compare(d1.Path, d2.Path));
+            m_expandedPathFileArtifactWithAttributesComparer = Comparer<FileArtifactWithAttributes>.Create((f1, f2) => m_pathTable.ExpandedPathComparer.Compare(f1.Path, f2.Path));
         }
 
         /// <summary>
@@ -224,7 +228,7 @@ namespace BuildXL.Scheduler.Fingerprints
             fingerprinter.Add("Kind", sealDirectory.Kind.ToString());
             fingerprinter.Add("Scrub", sealDirectory.Scrub.ToString());
 
-            // Sort the contents based on their members' expandend paths so that they are stable accross different path tables.
+            // Sort the contents based on their members' expanded paths so that they are stable across different path tables.
             var sortedContents = SortedReadOnlyArray<FileArtifact, ExpandedPathFileArtifactComparer>.CloneAndSort(sealDirectory.Contents, m_expandedPathFileArtifactComparer);
 
             fingerprinter.AddCollection<FileArtifact, ReadOnlyArray<FileArtifact>>("Contents", sortedContents, (fp, f) => AddFileDependency(fp, f));
@@ -250,16 +254,16 @@ namespace BuildXL.Scheduler.Fingerprints
             AddFileOutput(fingerprinter, "StandardError", process.StandardError);
             AddFileOutput(fingerprinter, "StandardOutput", process.StandardOutput);
 
-            fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>("Dependencies", process.Dependencies, (fp, f) => AddFileDependency(fp, f));
-            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryDependencies", process.DirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d));
+            fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>("Dependencies", process.Dependencies, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);            
+            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryDependencies", process.DirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d), m_directoryComparer);
+                        
+            fingerprinter.AddOrderIndependentCollection<FileArtifactWithAttributes, ReadOnlyArray<FileArtifactWithAttributes>>("Outputs", process.FileOutputs, (fp, f) => AddFileOutput(fp, f), m_expandedPathFileArtifactWithAttributesComparer);
+            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryOutputs", process.DirectoryOutputs, (h, p) => h.Add(p.Path), m_directoryComparer);
 
-            fingerprinter.AddOrderIndependentCollection<FileArtifactWithAttributes, ReadOnlyArray<FileArtifactWithAttributes>>("Outputs", process.FileOutputs, (fp, f) => AddFileOutput(fp, f));
-            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryOutputs", process.DirectoryOutputs, (h, p) => h.Add(p.Path));
+            fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("UntrackedPaths", process.UntrackedPaths, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
+            fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("UntrackedScopes", process.UntrackedScopes, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
 
-            fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("UntrackedPaths", process.UntrackedPaths, (h, p) => h.Add(p));
-            fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("UntrackedScopes", process.UntrackedScopes, (h, p) => h.Add(p));
-
-            fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("PreserveOutputWhitelist", process.PreserveOutputWhitelist, (h, p) => h.Add(p));
+            fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("PreserveOutputWhitelist", process.PreserveOutputWhitelist, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
 
             fingerprinter.Add("HasUntrackedChildProcesses", process.HasUntrackedChildProcesses ? 1 : 0);
             fingerprinter.Add("AllowUndeclaredSourceReads", process.AllowUndeclaredSourceReads ? 1 : 0);

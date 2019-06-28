@@ -24,6 +24,12 @@ namespace PrivatePackages {
             contents: [
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Engine").withQualifier(net472Qualifier).Processes.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Pips").withQualifier(net472Qualifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472Qualifier).InMemory.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472Qualifier).Interfaces.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472Qualifier).BasicFilesystem.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472Qualifier).BuildCacheAdapter.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472Qualifier).MemoizationStoreAdapter.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472Qualifier).VerticalAggregator.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities.Instrumentation").withQualifier(net472Qualifier).Common.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities.Instrumentation").withQualifier(net472Qualifier).Tracing.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Collections.dll),
@@ -41,14 +47,16 @@ namespace PrivatePackages {
                 {
                     subfolder: r`content`,
                     contents: [
-                        DetoursServices.Deployment.definition,
+                        DetoursServices.Deployment.detours,
+                        DetoursServices.Deployment.natives,
                         importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Branding.brandingManifest
                     ]
                 },
                 {
                     subfolder: r`contentFiles/any/any`,
                     contents: [
-                        DetoursServices.Deployment.definition,
+                        DetoursServices.Deployment.detours,
+                        DetoursServices.Deployment.natives,
                         importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Branding.brandingManifest
                     ]
                 }
@@ -79,7 +87,8 @@ namespace PrivatePackages {
                 {
                     subfolder: r`content`,
                     contents: [
-                        DetoursServices.Deployment.definition
+                        DetoursServices.Deployment.detours,
+                        DetoursServices.Deployment.natives
                     ]
                 }
             ]

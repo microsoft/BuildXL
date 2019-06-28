@@ -32,7 +32,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         public SharedOpaqueDirectoryTests(ITestOutputHelper output) : base(output)
         {
             // TODO: remove when the default changes
-            ((UnsafeSandboxConfiguration)(Configuration.Sandbox.UnsafeSandboxConfiguration)).IgnoreDynamicWritesOnAbsentProbes = false;
+            ((UnsafeSandboxConfiguration)(Configuration.Sandbox.UnsafeSandboxConfiguration)).IgnoreUndeclaredAccessesUnderSharedOpaques = false;
         }
 
         /// <summary>
@@ -281,6 +281,38 @@ namespace IntegrationTest.BuildXL.Scheduler
                                                    });
             builderD.AddInputDirectory(pipB.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath));
             SchedulePipBuilder(builderD);
+
+            IgnoreWarnings();
+            RunScheduler().AssertFailure();
+
+            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
+            AssertErrorEventLogged(EventId.FileMonitoringError);
+        }
+
+        /// <summary>
+        /// Consumers which produce to a shared opaque can only read files in that opaque directory which were produced by its declared producers
+        /// </summary>
+        [Fact]
+        public void ConsumerProducersCanOnlyReadFromProducersInSharedOpaqueWithSameRoot()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            // PipA produces outputArtifactA in a shared opaque directory
+            FileArtifact outputArtifactA = CreateOutputFileArtifact(sharedOpaqueDir);
+            // Dummy output, just to force an order between pips and avoid races
+            FileArtifact dummyOutputA = CreateOutputFileArtifact();
+            var pipA = CreateAndScheduleSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically: dummyOutputA, CreateSourceFile(), new KeyValuePair<FileArtifact, string>(outputArtifactA, null));
+
+            // PipB produces outputArtifactB in the same shared opaque directory root, but reads from A without
+            // declaring any dependency on it
+            FileArtifact outputArtifactB = CreateOutputFileArtifact(sharedOpaqueDir);
+            var pipB = CreateAndScheduleSharedOpaqueProducer(
+                sharedOpaqueDir,
+                fileToProduceStatically: FileArtifact.Invalid,
+                sourceFileToRead: dummyOutputA,
+                Operation.WriteFile(outputArtifactB),
+                Operation.ReadFile(outputArtifactA, doNotInfer: true));
 
             IgnoreWarnings();
             RunScheduler().AssertFailure();

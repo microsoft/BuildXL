@@ -19,6 +19,7 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.TextManager.Interop;
 using VSLangProj;
+using System.Threading;
 
 namespace BuildXL.VsPackage
 {
@@ -39,14 +40,14 @@ namespace BuildXL.VsPackage
     // This attribute is used to register the information needed to show this package
     // in the Help/About dialog of Visual Studio.
     [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)]
-    [ProvideAutoLoad(UIContextGuids.NoSolution)] // Need to do this so that we can register a project added handler on the global project collection.
-    [ProvideAutoLoad(UIContextGuids.SolutionExists)]
-    [ProvideAutoLoad(UIContextGuids.EmptySolution)]
-    [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExistsAndFullyLoaded_string)]
+    [ProvideAutoLoad(UIContextGuids.NoSolution, PackageAutoLoadFlags.BackgroundLoad)] // Need to do this so that we can register a project added handler on the global project collection.
+    [ProvideAutoLoad(UIContextGuids.SolutionExists, PackageAutoLoadFlags.BackgroundLoad)]
+    [ProvideAutoLoad(UIContextGuids.EmptySolution, PackageAutoLoadFlags.BackgroundLoad)]
+    [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExistsAndFullyLoaded_string, PackageAutoLoadFlags.BackgroundLoad)]
     [ProvideProjectFactory(typeof(ProjectFlavorFactory), "BuildXL Project", null, null, null, projectTemplatesDirectory: null)]
     [Guid(GuidList.GuidDominoVsPackagePkgString)]
     public sealed class BuildXLVsPackage :
-        Package,
+        AsyncPackage,
         IVsSolutionEvents, IVsUpdateSolutionEvents3, IVsSolutionLoadEvents, // Used to hook the solution and project events
         IDisposable
     {
@@ -118,7 +119,7 @@ namespace BuildXL.VsPackage
         /// Initialization of the package; this method is called right after the package is sited, so this is the place
         /// where you can put all the initialization code that rely on services provided by VisualStudio.
         /// </summary>
-        protected override void Initialize()
+        protected override async System.Threading.Tasks.Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
         {
 #if DEBUG
             if (Environment.GetEnvironmentVariable("DominoDebugVsPackageOnStart") == "1")
@@ -128,7 +129,10 @@ namespace BuildXL.VsPackage
 #endif
 
             Debug.WriteLine(string.Format(CultureInfo.CurrentCulture, "Entering Initialize() of: {0}", ToString()));
-            base.Initialize();
+            await base.InitializeAsync(cancellationToken, progress);
+
+            // do the rest on the UI thread
+            await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
             // Create and register our factory
             RegisterProjectFactory(new ProjectFlavorFactory(this));
@@ -149,7 +153,7 @@ namespace BuildXL.VsPackage
             try
             {
                 // Modifying events to listen to Add/Remove/Rename items
-                m_dte = (DTE)GetService(typeof(DTE));
+                m_dte = await GetServiceAsync(typeof(DTE)) as DTE;
 
                 // Setup output pane
                 var buildOutputPaneGuid = VSConstants.GUID_BuildOutputWindowPane;
@@ -157,7 +161,7 @@ namespace BuildXL.VsPackage
 
                 // Register solution events (required especially when projects are loaded and unloaded)
                 m_vsSolutionEvents = new SolutionEventsHandler(this);
-                m_vsSolution = (IVsSolution)GetService(typeof(SVsSolution));
+                m_vsSolution = await GetServiceAsync(typeof(SVsSolution)) as IVsSolution;
                 ErrorHandler.ThrowOnFailure(m_vsSolution.AdviseSolutionEvents(m_vsSolutionEvents, out m_solutionEventsCookie));
                 ErrorHandler.ThrowOnFailure(m_vsSolution.AdviseSolutionEvents(this, out m_solutionEventsCookie));
 

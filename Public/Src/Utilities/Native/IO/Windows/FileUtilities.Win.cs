@@ -1528,7 +1528,6 @@ namespace BuildXL.Native.IO.Windows
         /// <inheritdoc />
         public void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow)
         {
-#if !FEATURE_CORECLR
             path = FileSystemWin.ToLongPathIfExceedMaxPath(path);
             var denyWriteRule = new FileSystemAccessRule(
                 FileUtilitiesWin.s_worldSid,
@@ -1560,7 +1559,6 @@ namespace BuildXL.Native.IO.Windows
                 // add more data to the exception so we could find some pattern if any
                 throw new ArgumentException(I($"SetFileAccessControl arguments -- path: '{path}', FileSystemRights: {fileSystemRights}, allow: {allow}"), e);
             }
-#endif
         }
     }
 }

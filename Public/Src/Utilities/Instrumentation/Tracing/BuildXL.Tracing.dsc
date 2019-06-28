@@ -7,6 +7,7 @@ namespace Tracing {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Tracing",
         generateLogs: true,
+        generateLogsLite: false,
         sources: [
             ...globR(d`.`, "*.cs"),
             importFrom("BuildXL.Tracing.AriaTenantToken").Contents.all.getFile(r`AriaTenantToken.cs`),

@@ -489,21 +489,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
         }
 
-        public void HashContentFileStart(Context context, AbsolutePath path)
-        {
-            if (context.IsEnabled)
-            {
-                Debug(context, $"{Name}.{HashContentFileCallName}({path}) start");
-            }
-
-            _hashContentFileCallCounter.Started();
-        }
-
         public void HashContentFileStop(Context context, AbsolutePath path, TimeSpan duration)
         {
             if (context.IsEnabled)
             {
-                Debug(context, $"{Name}.{HashContentFileCallName}({path}) stop {duration.TotalMilliseconds}ms");
+                Debug(context, $"{Name}.{HashContentFileCallName}({path}) {duration.TotalMilliseconds}ms");
             }
 
             _hashContentFileCallCounter.Completed(duration.Ticks);

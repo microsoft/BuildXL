@@ -21,20 +21,39 @@ namespace Test.BuildXL
             {
                 Events.Log.UserErrorEvent("1");
                 var userErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(listener);
-                XAssert.AreEqual(ExitKind.UserError, userErrorClassification.Key);
-                XAssert.AreEqual("UserErrorEvent", userErrorClassification.Value);
+                XAssert.AreEqual(ExitKind.UserError, userErrorClassification.ExitKind);
+                XAssert.AreEqual("UserErrorEvent", userErrorClassification.ErrorBucket);
 
                 // Now add an infrasctructure error. This should take prescedence
                 Events.Log.InfrastructureErrorEvent("1");
                 var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(listener);
-                XAssert.AreEqual(ExitKind.InfrastructureError, infrastructureErrorClassification.Key);
-                XAssert.AreEqual("InfrastructureErrorEvent", infrastructureErrorClassification.Value);
+                XAssert.AreEqual(ExitKind.InfrastructureError, infrastructureErrorClassification.ExitKind);
+                XAssert.AreEqual("InfrastructureErrorEvent", infrastructureErrorClassification.ErrorBucket);
 
                 // Finally add an internal error. Again, this takes highest prescedence
                 Events.Log.ErrorEvent("1");
                 var internalErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(listener);
-                XAssert.AreEqual(ExitKind.InternalError, internalErrorClassification.Key);
-                XAssert.AreEqual("ErrorEvent", internalErrorClassification.Value);
+                XAssert.AreEqual(ExitKind.InternalError, internalErrorClassification.ExitKind);
+                XAssert.AreEqual("ErrorEvent", internalErrorClassification.ErrorBucket);
+            }
+        }
+
+        [Fact]
+        public void DistributedBuildConnectivityIssueTrumpsOtherErrors()
+        {
+            var loggingContext = XunitBuildXLTest.CreateLoggingContextForTest();
+
+            using (var listener = new TrackingEventListener(Events.Log))
+            {
+                listener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
+                listener.RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+                global::BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFromCacheFailure(loggingContext, "ArbitraryPip", "ArbitraryMessage");
+                global::BuildXL.Engine.Tracing.Logger.Log.DistributionExecutePipFailedNetworkFailure(loggingContext, "ArbitraryPip", "ArbitraryWorker", "ArbitraryMessage", "ArbitraryStep");
+                global::BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFromCacheFailure(loggingContext, "ArbitraryPip", "ArbitraryMessage");
+
+                var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(listener);
+                XAssert.AreEqual(ExitKind.InfrastructureError, infrastructureErrorClassification.ExitKind);
+                XAssert.AreEqual(global::BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), infrastructureErrorClassification.ErrorBucket);
             }
         }
 
@@ -47,27 +66,30 @@ namespace Test.BuildXL
             {
                 listener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
                 const string ErrorName = "MyTestEvent";
+                const string ErrorText = "Event logged from worker";
                 LoggingContext loggingContext = BuildXL.TestUtilities.Xunit.XunitBuildXLTest.CreateLoggingContextForTest();
                 global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedError(loggingContext, new global::BuildXL.Engine.Tracing.WorkerForwardedEvent()
                 {
                     EventId = 100,
                     EventName = ErrorName,
-                    EventKeywords = isUserError ? (int)global::BuildXL.Utilities.Tracing.Events.Keywords.UserError : 0,
-                    Text = "Event logged from worker",
+                    EventKeywords = isUserError ? (int)global::BuildXL.Utilities.Instrumentation.Common.Keywords.UserError : 0,
+                    Text = ErrorText,
                 });
 
                 XAssert.IsTrue(listener.HasFailures);
                 if (isUserError)
                 {
-                    XAssert.AreEqual(1, listener.UserErrorCount);
-                    XAssert.AreEqual(0, listener.InternalErrorCount);
-                    XAssert.AreEqual(ErrorName, listener.FirstUserErrorName);
+                    XAssert.AreEqual(1, listener.UserErrorDetails.Count);
+                    XAssert.AreEqual(0, listener.InternalErrorDetails.Count);
+                    XAssert.AreEqual(ErrorName, listener.UserErrorDetails.FirstErrorName);
+                    XAssert.AreEqual(ErrorText, listener.UserErrorDetails.FirstErrorMessage);
                 }
                 else
                 {
-                    XAssert.AreEqual(0, listener.UserErrorCount);
-                    XAssert.AreEqual(1, listener.InternalErrorCount);
-                    XAssert.AreEqual(ErrorName, listener.FirstInternalErrorName);
+                    XAssert.AreEqual(0, listener.UserErrorDetails.Count);
+                    XAssert.AreEqual(1, listener.InternalErrorDetails.Count);
+                    XAssert.AreEqual(ErrorName, listener.InternalErrorDetails.FirstErrorName);
+                    XAssert.AreEqual(ErrorText, listener.InternalErrorDetails.FirstErrorMessage);
                 }
             }
         }

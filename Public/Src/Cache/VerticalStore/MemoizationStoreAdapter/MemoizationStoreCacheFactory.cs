@@ -75,6 +75,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         ///     "ScenarioName":"{23}",
         ///     "RetryIntervalSeconds":{24},
         ///     "RetryCount":{25},
+        ///     "ReplaceExistingOnPlaceFile":{26},
         /// }
         /// </remarks>
         public sealed class Config : CasConfig
@@ -182,6 +183,10 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             public int RetryCount { get; set; }
 
             /// <nodoc />
+            [DefaultValue(false)]
+            public bool ReplaceExistingOnPlaceFile { get; set; }
+
+            /// <nodoc />
             public Config()
             {
                 CacheId = "FileSystemCache";
@@ -195,6 +200,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 ApplyDenyWriteAttributesOnContent = FileSystemContentStoreInternal.DefaultApplyDenyWriteAttributesOnContent;
                 UseStreamCAS = false;
                 StreamCAS = null;
+                ReplaceExistingOnPlaceFile = false;
             }
         }
 
@@ -292,7 +298,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     : CreateLocalCacheWithSingleCas(cacheConfig, logger);
 
                 var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
-                var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, localCache, logger, statsFilePath);
+                var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, localCache, logger, statsFilePath, cacheConfig.ReplaceExistingOnPlaceFile);
 
                 var startupResult = await cache.StartupAsync();
                 if (!startupResult.Succeeded)

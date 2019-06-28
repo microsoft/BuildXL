@@ -6,9 +6,7 @@ using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Storage.ChangeJournalService.Protocol;
-using BuildXL.Storage.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Storage
@@ -21,9 +19,8 @@ namespace BuildXL.Storage
         /// <summary>
         /// Tries to get <see cref="IChangeJournalAccessor"/>.
         /// </summary>
-        public static Optional<IChangeJournalAccessor> TryGetJournalAccessor(LoggingContext loggingContext, VolumeMap volumeMap, string path)
+        public static Possible<IChangeJournalAccessor> TryGetJournalAccessor(VolumeMap volumeMap, string path)
         {
-            Contract.Requires(loggingContext != null);
             Contract.Requires(volumeMap != null);
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
 
@@ -54,27 +51,24 @@ namespace BuildXL.Storage
                             }
                             else
                             {
-                                Logger.Log.FailedCheckingDirectJournalAccess(loggingContext, I($"Querying journal results in {result.Response.Status.ToString()}"));
+                                return new Failure<string>(I($"Querying journal results in {result.Response.Status.ToString()}"));
                             }
                         }
                         else
                         {
-                            Logger.Log.FailedCheckingDirectJournalAccess(loggingContext, result.Error.Message);
+                            return new Failure<string>(result.Error.Message);
                         }
                     }
                     else
                     {
-                        Logger.Log.FailedCheckingDirectJournalAccess(loggingContext, I($"Failed to get volume path for '{path}'"));
+                        return new Failure<string>(I($"Failed to get volume path for '{path}'"));
                     }
                 }
             }
             catch (BuildXLException ex)
             {
-                Logger.Log.FailedCheckingDirectJournalAccess(loggingContext, ex.Message);
-                return default;
+                return new Failure<string>(ex.Message);
             }
-
-            return default;
         }
     }
 }

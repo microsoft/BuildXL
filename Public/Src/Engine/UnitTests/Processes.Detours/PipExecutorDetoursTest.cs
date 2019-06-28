@@ -25,6 +25,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
+using ProcessLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
 
@@ -218,7 +219,7 @@ namespace Test.BuildXL.Processes.Detours
             }
 
             // The \\?\ escaped path should not have failed parsing.
-            AssertWarningEventLogged(EventId.PipProcessFailedToParsePathOfFileAccess, count: 0);
+            AssertWarningEventLogged(ProcessLogEventId.PipProcessFailedToParsePathOfFileAccess, count: 0);
         }
 
         [Flags]
@@ -6179,10 +6180,52 @@ namespace Test.BuildXL.Processes.Detours
                 if (untracked)
                 {
                     VerifyNoFileAccesses(result);
+                    VerifySharingViolation(context, result);
+                    SetExpectedFailures(1, 0);
                 }
+                else
+                {
+                    VerifyNormalSuccess(context, result);
+                }
+            }
+        }
 
-                VerifySharingViolation(context, result);
-                SetExpectedFailures(1, 0);
+        [Fact]
+        public async Task CallDeleteOnOpenedHardlink()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var untrackedDirectory = tempFiles.GetDirectory(pathTable, "untracked");
+                WriteFile(pathTable, untrackedDirectory.Combine(pathTable, "file.txt"), "real");
+                var outputFile = tempFiles.GetFileName(pathTable, "output.txt");
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallDeleteOnOpenedHardlink",
+                    inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateSourceFile(outputFile), FileExistence.Required)),
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(untrackedDirectory));
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreRepPoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString);
+
+                VerifyNormalSuccess(context, result);
             }
         }
 

@@ -26,16 +26,11 @@ namespace Test.BuildXL.Storage.Admin
                 {
                     using (FileStream file = File.Create(GetFullPath("File")))
                     {
-                        QueryUsnJournalResult queryResult = FileUtilities.TryQueryUsnJournal(volumeHandle);
-                        XAssert.AreEqual(
-                            QueryUsnJournalStatus.Success,
-                            queryResult.Status,
-                            "Failed to query the volume's change journal. Is it enabled on the test output directory's volume?");
-                        XAssert.IsTrue(queryResult.Succeeded);
+                        QueryUsnJournalData journalState = QueryJournal(volumeHandle);
 
                         Usn usn = FileUtilities.ReadFileUsnByHandle(file.SafeFileHandle).Value.Usn;
-                        XAssert.IsTrue(queryResult.Data.LowestValidUsn <= usn);
-                        XAssert.IsTrue(queryResult.Data.NextUsn > usn);
+                        XAssert.IsTrue(journalState.LowestValidUsn <= usn);
+                        XAssert.IsTrue(journalState.NextUsn > usn);
                     }
                 });
         }
@@ -146,7 +141,7 @@ namespace Test.BuildXL.Storage.Admin
                 });
         }
 
-        private static void ExpectChangesSinceUsn(
+        private void ExpectChangesSinceUsn(
             UsnChangeReasons expectedChangeReasons, 
             SafeFileHandle volumeHandle, 
             Usn startUsn, 
@@ -202,7 +197,7 @@ namespace Test.BuildXL.Storage.Admin
             XAssert.AreEqual(expectedChangeReasons, foundChangeReasons & expectedChangeReasons);
         }
 
-        private static ReadUsnJournalResult ReadChangesSinceUsn(SafeFileHandle volumeHandle, Usn startUsn)
+        private ReadUsnJournalResult ReadChangesSinceUsn(SafeFileHandle volumeHandle, Usn startUsn)
         {
             QueryUsnJournalData journalState = QueryJournal(volumeHandle);
 
@@ -214,13 +209,13 @@ namespace Test.BuildXL.Storage.Admin
             return readJournalResult;
         }
 
-        private static QueryUsnJournalData QueryJournal(SafeFileHandle volumeHandle)
+        private QueryUsnJournalData QueryJournal(SafeFileHandle volumeHandle)
         {
             QueryUsnJournalResult queryResult = FileUtilities.TryQueryUsnJournal(volumeHandle);
             XAssert.AreEqual(
                 QueryUsnJournalStatus.Success,
                 queryResult.Status,
-                "Failed to query the volume's change journal. Is it enabled on the test output directory's volume?");
+                "Failed to query the volume's change journal. Is it enabled on volume of the test temporary directory '" + TemporaryDirectory + "'?");
             XAssert.IsTrue(queryResult.Succeeded);
 
             return queryResult.Data;
@@ -228,7 +223,7 @@ namespace Test.BuildXL.Storage.Admin
 
         private void WithVolumeHandle(Action<SafeFileHandle> action)
         {
-            VolumeMap map = VolumeMap.TryCreateMapOfAllLocalVolumes(new LoggingContext("Dummy", "Dummy"));
+            VolumeMap map = JournalUtils.TryCreateMapOfAllLocalVolumes(new LoggingContext("Dummy", "Dummy"));
             XAssert.IsNotNull(map, "Failed to create a volume map");
 
             using (VolumeAccessor volumeAccessor = map.CreateVolumeAccessor())

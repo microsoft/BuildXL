@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities;
 using Microsoft.Azure.EventHubs;
@@ -146,7 +147,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             switch (eventData)
             {
                 case AddContentLocationEventData add:
-                    return $"{add.ContentHashes[index]}: {add.ContentSizes[index]}";
+                    return $"{add.ContentHashes[index].ToString()}: {add.ContentSizes[index]}";
                 default:
                     return eventData.ContentHashes[index].ToString();
             }

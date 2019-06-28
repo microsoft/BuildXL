@@ -21,13 +21,23 @@ namespace Sandbox {
         derivedDataOutDir: StaticDirectory
     }
 
-    const sandboxSealDir = Transformer.sealSourceDirectory(
-        d`${Context.getMount("Sandbox").path}`,
-        Transformer.SealSourceDirectoryOption.allDirectories);
+    const sourceFileDependencies = (() =>
+    {
+        const sandboxDir = d`${Context.getMount("Sandbox").path}`;
+        const thirdPartyDir = d`../../../../third_party`;
 
-    const thirdPartySealDir = Transformer.sealSourceDirectory(
-        d`../../../../third_party`,
-        Transformer.SealSourceDirectoryOption.allDirectories);
+        const sourceSealOptions =  Transformer.SealSourceDirectoryOption.allDirectories;
+        const globPattern = "*";
+
+        return BuildXLSdk.Flags.isMicrosoftInternal ?
+            [
+                Transformer.sealSourceDirectory(sandboxDir, sourceSealOptions),
+                Transformer.sealSourceDirectory(thirdPartyDir, sourceSealOptions)
+            ] : [
+                ...Transformer.sealDirectory(sandboxDir, globR(sandboxDir, globPattern)).contents,
+                ...Transformer.sealDirectory(thirdPartyDir, globR(thirdPartyDir, globPattern)).contents
+            ];
+    })();
 
     export function build(args: Args): Result {
         const conf = args.configuration || qualifier.configuration;
@@ -45,10 +55,10 @@ namespace Sandbox {
             ],
             dependencies: [
                 ...(args.dependencies || []),
-                sandboxSealDir,
-                thirdPartySealDir
+                ...sourceFileDependencies
             ]
         });
+
         return {
             outFiles: outFilePaths.map(result.getOutputFile),
             derivedDataOutDir: result.getOutputDirectory(outDir)
@@ -60,12 +70,14 @@ namespace Sandbox {
         : f`BundleInfo.xcconfig`;
 
     const isMacOs = Context.getCurrentHost().os === "macOS";
+
     const interopXcodeproj = Transformer.sealDirectory({
-        root: d`Interop/Interop.xcodeproj`, 
+        root: d`Interop/Interop.xcodeproj`,
         files: globR(d`Interop/Interop.xcodeproj`, "*")
     });
+
     const sandboxXcodeproj = Transformer.sealDirectory({
-        root: d`Sandbox/Sandbox.xcodeproj`, 
+        root: d`Sandbox/Sandbox.xcodeproj`,
         files: globR(d`Sandbox/Sandbox.xcodeproj`, "*")
     });
 

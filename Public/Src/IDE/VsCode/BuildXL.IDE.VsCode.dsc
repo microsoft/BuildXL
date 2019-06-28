@@ -62,10 +62,6 @@ namespace LanguageService.Server {
                             subfolder: a`bin`,
                             contents: [
                                 serverAssembly,
-                                // Language server could start nuget download and in this case
-                                // the nuget.exe is detoured.
-                                // This requires detours to be deployed with the language server
-                                DetoursServices.Deployment.definition,
                             ]
                         },
                         {

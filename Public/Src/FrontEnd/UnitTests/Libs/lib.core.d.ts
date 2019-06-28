@@ -4044,3 +4044,13 @@ const enum ContainerIsolationLevel {
     isolateAllOutputs = isolateOutputFiles | isolateOutputDirectories,
     isolateAll = isolateAllOutputs | isolateInputs,
 }
+
+/** Type that only allows one value */
+interface Unit {
+    __unitBrand: any;
+}
+
+namespace Unit {
+    /** Returns the (only) value of type Unit*/
+    export declare function unit(): Unit;
+}

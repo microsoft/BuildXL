@@ -71,6 +71,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipHashSourceFile = false;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
+
+            EarlyWorkerReleaseMultiplier = 0.5;
         }
 
         /// <nodoc />
@@ -134,6 +136,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipHashSourceFile = template.SkipHashSourceFile;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = template.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing;
+            EarlyWorkerRelease = template.EarlyWorkerRelease;
+            EarlyWorkerReleaseMultiplier = template.EarlyWorkerReleaseMultiplier;
         }
 
         /// <inheritdoc />
@@ -314,5 +318,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool UseHistoricalCpuUsageInfo { get; set; }
+
+        /// <inheritdoc />
+        public bool EarlyWorkerRelease { get; set; }
+
+        /// <inheritdoc />
+        public double EarlyWorkerReleaseMultiplier { get; set; }
     }
 }

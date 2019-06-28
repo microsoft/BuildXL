@@ -38,6 +38,11 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual(@"C:\", p.ToString(pt));
             XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"C:\..\..\..\..", out p));
             XAssert.AreEqual(@"C:\", p.ToString(pt));
+            XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"C:\a\..\b.txt", out p));
+            XAssert.AreEqual(@"C:\b.txt", p.ToString(pt));
+            XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"C:\a\..\..\..\..\b.txt", out p));
+            XAssert.AreEqual(@"C:\b.txt", p.ToString(pt));
+
 
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"C\::AAA", out p));
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"AAA:", out p));

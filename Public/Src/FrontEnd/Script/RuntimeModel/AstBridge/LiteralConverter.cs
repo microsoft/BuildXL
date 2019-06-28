@@ -226,22 +226,23 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         private AbsolutePath ComputeAbsolutePath(AbsolutePath currentFolder, RelativePath relativePath, int parentFolderCount)
         {
             // parent folder count is a number of ../ expression in the original path literal
+            if (!currentFolder.IsValid)
+            {
+                return AbsolutePath.Invalid;
+            }
+
             var folder = currentFolder;
-            // If we go beyond the root directory, stay at the root directory. Ie C:/AAA/BBB/../../../../.. should be C:/
-            var tempFolder = currentFolder;
+
             for (int i = 0; i < parentFolderCount; i++)
             {
-                tempFolder = tempFolder.GetParent(Context.PathTable);
+                var tempFolder = folder.GetParent(Context.PathTable);
+                // If we go beyond the root directory (tempFolder will be invalid), stay at the root directory. 
+                // Ie. C:/AAA/BBB/../../../../.. should be C:/
                 if (!tempFolder.IsValid)
                 {
                     break;
                 }
                 folder = tempFolder;
-            }
-
-            if (!folder.IsValid)
-            {
-                return AbsolutePath.Invalid;
             }
 
             return folder.Combine(Context.PathTable, relativePath);

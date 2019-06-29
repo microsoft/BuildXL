@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Security.Cryptography;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
@@ -33,12 +34,19 @@ namespace Test.BuildXL.Utilities
             AbsolutePath p;
             XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"C:\AAA\CCC", out p));
             XAssert.AreEqual(@"C:\AAA\CCC", p.ToString(pt));
+            XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"C:\..", out p));
+            XAssert.AreEqual(@"C:\", p.ToString(pt));
+            XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"C:\..\..\..\..", out p));
+            XAssert.AreEqual(@"C:\", p.ToString(pt));
+            XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"C:\a\..\b.txt", out p));
+            XAssert.AreEqual(@"C:\b.txt", p.ToString(pt));
+            XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"C:\a\..\..\..\..\b.txt", out p));
+            XAssert.AreEqual(@"C:\b.txt", p.ToString(pt));
+
 
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"C\::AAA", out p));
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"AAA:", out p));
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @":AAA", out p));
-            XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"C:\..", out p));
-            XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"C:\..\..", out p));
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"..", out p));
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @".", out p));
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"C:\:", out p));
@@ -94,7 +102,7 @@ namespace Test.BuildXL.Utilities
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void TryCreateWithDeviceOrNtPrefix()
-        {
+        {            
             var pt = new PathTable();
             AbsolutePath p;
             XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"\\?\C:\AAA\CCC", out p));

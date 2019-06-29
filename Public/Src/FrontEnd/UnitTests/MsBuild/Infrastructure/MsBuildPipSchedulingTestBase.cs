@@ -101,10 +101,14 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         {
             var projectNameRelative = RelativePath.Create(StringTable, projectName ?? "testProj.proj");
 
+            // We need to simulate the project comes from MSBuild with /graph
+            var properties = new Dictionary<string, string>(globalProperties ?? GlobalProperties.Empty);
+            properties[PipConstructor.s_isGraphBuildProperty] = "true";
+
             var projectWithPredictions = new ProjectWithPredictions(
                 TestPath.Combine(PathTable, projectNameRelative), 
                 implementsTargetProtocol,
-                globalProperties ?? GlobalProperties.Empty, 
+                new GlobalProperties(properties), 
                 inputs ?? CollectionUtilities.EmptyArray<AbsolutePath>(), 
                 outputs ?? CollectionUtilities.EmptyArray<AbsolutePath>(), 
                 projectReferences: references?.ToArray() ?? CollectionUtilities.EmptyArray<ProjectWithPredictions>(),

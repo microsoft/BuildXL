@@ -1531,8 +1531,20 @@ namespace BuildXL.Scheduler.Artifacts
                 }
             }
 
-            if (IsDistributedWorker)
+            // Delete the absent files if any
+            if (!await DeleteFilesRequiredAbsentAsync(state, operationContext))
             {
+                return ArtifactMaterializationResult.DeleteFilesRequiredAbsentFailed;
+            }
+
+            if (IsDistributedWorker && SourceFileMaterializationEnabled)
+            {
+                // NOTE: In the typical case (SourceFileMaterializationEnabled=false), we only verify source files after
+                // placement to ensure directory symlinks which can make outputs appear as source files work. This relies
+                // on the logic that pips which depend on the source file version of a file under a directory symlink also
+                // have a dependency on the corresponding file at its real location where it appears as an output and therefore
+                // will be materialized during PlaceFilesAsync.
+
                 // Check that source files match (this may fail the materialization or leave the
                 // source file to be materialized later if the materializeSourceFiles option is set (distributed worker))
                 if (!await VerifySourceFileInputsAsync(operationContext, pipInfo, state))
@@ -1541,16 +1553,20 @@ namespace BuildXL.Scheduler.Artifacts
                 }
             }
 
-            // Delete the absent files if any
-            if (!await DeleteFilesRequiredAbsentAsync(state, operationContext))
-            {
-                return ArtifactMaterializationResult.DeleteFilesRequiredAbsentFailed;
-            }
-
             // Place Files:
             if (!await PlaceFilesAsync(operationContext, pipInfo, state))
             {
                 return ArtifactMaterializationResult.PlaceFileFailed;
+            }
+
+            if (IsDistributedWorker)
+            {
+                // Check that source files match (this may fail the materialization or leave the
+                // source file to be materialized later if the materializeSourceFiles option is set (distributed worker))
+                if (!await VerifySourceFileInputsAsync(operationContext, pipInfo, state))
+                {
+                    return ArtifactMaterializationResult.VerifySourceFilesFailed;
+                }
             }
 
             // Mark directories as materialized so that the full set of files in the directory will
@@ -1980,6 +1996,11 @@ namespace BuildXL.Scheduler.Artifacts
                     for (int i = 0; i < state.MaterializationFiles.Count; i++)
                     {
                         MaterializationFile materializationFile = state.MaterializationFiles[i];
+                        if (!materializationFile.CanMaterialize(this))
+                        {
+                            continue;
+                        }
+
                         FileArtifact file = materializationFile.Artifact;
                         FileMaterializationInfo materializationInfo = materializationFile.MaterializationInfo;
                         ContentHash hash = materializationInfo.Hash;
@@ -3448,6 +3469,11 @@ namespace BuildXL.Scheduler.Artifacts
                 PriorArtifactVersionCompletion = priorArtifactVersionCompletion;
                 SymlinkTarget = symlinkTarget;
             }
+
+            public bool CanMaterialize(FileContentManager manager)
+            {
+                return manager.SourceFileMaterializationEnabled || !Artifact.IsSourceFile || CreateSymlink;
+            }
         }
 
         /// <summary>
@@ -3557,6 +3583,11 @@ namespace BuildXL.Scheduler.Artifacts
                 for (int i = 0; i < MaterializationFiles.Count; i++)
                 {
                     var file = MaterializationFiles[i];
+                    if (!file.CanMaterialize(m_manager))
+                    {
+                        continue;
+                    }
+
                     if (!(file.CreateSymlink || file.MaterializationInfo.IsReparsePointActionable) && !m_manager.m_host.CanMaterializeFile(file.Artifact))
                     {
                         m_filesAndContentHashes.Add((file.Artifact, file.MaterializationInfo.Hash, i));

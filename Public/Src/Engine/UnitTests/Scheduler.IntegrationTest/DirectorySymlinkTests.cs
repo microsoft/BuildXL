@@ -643,6 +643,44 @@ Versions/sym-sym-A -> sym-A/
             RunScheduler().AssertCacheMiss(processWithOutputs.Process.PipId);
         }
 
+        /// <summary>
+        /// Creates a shared opaque directory producer & consumer and verifies their usage and caching behavior
+        /// </summary>
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void PipDependsOnFileAndSourceFileAlternatePathUnderDirectorySymlink()
+        {
+            // Set up PipA  => sharedOpaqueDirectory => PipB
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            FileArtifact outputInSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
+            FileArtifact source = CreateSourceFile();
+
+            var pipA = CreateAndScheduleSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically: FileArtifact.Invalid, sourceFileToRead: source, new KeyValuePair<FileArtifact, string>(outputInSharedOpaque, null));
+
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(outputInSharedOpaque, doNotInfer:true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            builderB.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath));
+            var pipB = SchedulePipBuilder(builderB);
+
+            // B should be able to consume the file in the opaque directory. Second build should have both cached
+            RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
+            RunScheduler().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
+
+            // Make sure we can replay the file in the opaque directory
+            File.Delete(ArtifactToString(outputInSharedOpaque));
+            RunScheduler().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputInSharedOpaque)));
+
+            // Modify the input and make sure both are rerun
+            File.WriteAllText(ArtifactToString(source), "New content");
+            RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
+            RunScheduler().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
+        }
+
         private static IEnumerable<T> Multiply<T>(int count, T elem) => Enumerable.Range(1, count).Select(_ => elem);
         private static IEnumerable<T> Concat<T>(T elem, params IEnumerable<T>[] rest) => new[] { elem }.Concat(rest.SelectMany(e => e));
         private static IEnumerable<T> Shuffle<T>(IEnumerable<T> col) => col.OrderBy(e => new Random().Next());

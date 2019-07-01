@@ -37,6 +37,9 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         /// <inheritdoc />
         public Task<GetStatsResult> GetStatsAsync(Context context) => Task.FromResult(new GetStatsResult(_tracer.GetCounters()));
+
+        /// <inheritdoc />
+        Task<DeleteResult> IContentStore.DeleteAsync(Context context, ContentHash contentHash) => throw new System.NotImplementedException();
     }
 
     /// <summary>

@@ -337,5 +337,11 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             return fileExistenceResult ?? new FileExistenceResult(FileExistenceResult.ResultCode.Error, $"Could not find a content store which implements {nameof(IStreamStore)} in {nameof(MultiplexedContentStore)}.");
         }
+
+        /// <inheritdoc />
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

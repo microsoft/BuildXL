@@ -339,9 +339,29 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        public async Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
         {
-            throw new NotImplementedException();
+            var succeeded = false;
+            long evictedSize = 0L;
+            long pinnedSize = 0L;
+
+            foreach (var kvp in _drivesWithContentStore)
+            {
+                var deleteResult = await kvp.Value.DeleteAsync(context, contentHash);
+                if (deleteResult.Succeeded)
+                {
+                    succeeded = true;
+                    evictedSize += deleteResult.EvictedSize;
+                    pinnedSize += deleteResult.PinnedSize;
+                }
+                else
+                {
+                    return deleteResult;
+                }
+            }
+
+            Contract.Assert(succeeded);
+            return new DeleteResult(contentHash, evictedSize, pinnedSize);
         }
     }
 }

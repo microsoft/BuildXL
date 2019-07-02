@@ -14,12 +14,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
         /// </summary>
-        public DeleteResult(ContentHash contentHash, long evictedSize, long pinnedSize, long replicaCount)
+        public DeleteResult(ContentHash contentHash, long evictedSize, long pinnedSize)
         {
             ContentHash = contentHash;
             EvictedSize = evictedSize;
             PinnedSize = pinnedSize;
-            ReplicaCount = replicaCount;
         }
 
         /// <summary>
@@ -53,16 +52,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         public long PinnedSize { get; }
 
-        /// <summary>
-        ///     Gets number of locations content exists at in the data center.
-        /// </summary>
-        public long ReplicaCount { get; }
-
         /// <inheritdoc />
         public override string ToString()
         {
             return Succeeded
-                ? $"Success Hash={ContentHash} Size={EvictedSize} Pinned={PinnedSize} ReplicaCount={ReplicaCount}"
+                ? $"Success Hash={ContentHash} Size={EvictedSize} Pinned={PinnedSize}"
                 : GetErrorString();
         }
     }

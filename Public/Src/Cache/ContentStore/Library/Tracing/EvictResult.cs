@@ -106,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 return new DeleteResult(ErrorMessage, Diagnostics);
             }
 
-            return new DeleteResult(contentHash, EvictedSize, PinnedSize, ReplicaCount);
+            return new DeleteResult(contentHash, EvictedSize, PinnedSize);
         }
 
         /// <inheritdoc />

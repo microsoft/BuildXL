@@ -1615,7 +1615,7 @@ namespace BuildXL.Processes
                     var translatedPathString = m_fileAccessManifest.DirectoryTranslator.Translate(pathString);
                     var translatedPath = AbsolutePath.Create(m_pathTable, translatedPathString);
 
-                    if (!path.Equals(translatedPath))
+                    if (path != translatedPath)
                     {
                         m_fileAccessManifest.AddScope(translatedPath, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
                         Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString);

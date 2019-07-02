@@ -158,7 +158,11 @@ public:
     CanonicalizedPathType const& GetCanonicalizedPath() const { return m_canonicalizedPath; }
     bool AllowRead() const { return (m_policy & FileAccessPolicy_AllowRead) != 0; }
     bool AllowReadIfNonexistent() const { return (m_policy & FileAccessPolicy_AllowReadIfNonExistent) != 0; }
+#if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
     bool AllowWrite() const;
+#else
+    bool AllowWrite() const { return (m_policy & FileAccessPolicy_AllowWrite) != 0; }
+#endif
     bool AllowSymlinkCreation() const { return (m_policy & FileAccessPolicy_AllowSymlinkCreation) != 0; }
     bool AllowCreateDirectory() const { return (m_policy & FileAccessPolicy_AllowCreateDirectory) != 0; }
 	bool AllowRealInputTimestamps() const { return (m_policy & FileAccessPolicy_AllowRealInputTimestamps) != 0; }

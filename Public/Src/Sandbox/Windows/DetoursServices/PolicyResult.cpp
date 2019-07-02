@@ -104,6 +104,7 @@ void PolicyResult::ReportIndeterminatePolicyAndSetLastError(FileOperationContext
         -1);
 }
 
+#if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
 bool PolicyResult::AllowWrite() const {
 
     bool isWriteAllowedByPolicy = (m_policy & FileAccessPolicy_AllowWrite) != 0;
@@ -148,3 +149,4 @@ bool PolicyResult::AllowWrite() const {
 
     return isWriteAllowedByPolicy;
 }
+#endif

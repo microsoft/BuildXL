@@ -50,9 +50,9 @@ namespace Test.BuildXL.Pips
 
                 AbsolutePath firstPath = reader.ReadAbsolutePath();
                 string firstPathString = firstPath.ToString(readerPathTable);
-                Assert.Equal(path, firstPathString);
+                XAssert.AreEqual(path, firstPathString);
                 AbsolutePath secondPath = reader.ReadAbsolutePath();
-                Assert.Equal(firstPath, secondPath);
+                XAssert.AreEqual(firstPath, secondPath);
             }
         }
 
@@ -82,9 +82,9 @@ namespace Test.BuildXL.Pips
 
                 StringId firstStringId = reader.ReadStringId();
                 string firstString = firstStringId.ToString(readerContext.StringTable);
-                Assert.Equal(stringToTest, firstString);
+                XAssert.AreEqual(stringToTest, firstString);
                 StringId secondStringId = reader.ReadStringId();
-                Assert.Equal(firstStringId, secondStringId);
+                XAssert.AreEqual(firstStringId, secondStringId);
             }
         }
 
@@ -118,11 +118,11 @@ namespace Test.BuildXL.Pips
 
                 PipData firstPipData = reader.ReadPipData();
                 string firstPathString = firstPipData.Entries[1].GetStringValue().ToString(readerContext.StringTable);
-                Assert.Equal(path, firstPathString);
+                XAssert.AreEqual(path, firstPathString);
                 string firstAbsolutePathString = firstPipData.Entries[2].GetPathValue().ToString(readerPathTable);
-                Assert.Equal(path, firstAbsolutePathString);
+                XAssert.AreEqual(path, firstAbsolutePathString);
                 PipData secondPipData = reader.ReadPipData();
-                Assert.Equal(firstPipData, secondPipData);
+                XAssert.AreEqual(firstPipData, secondPipData);
             }
         }
     }

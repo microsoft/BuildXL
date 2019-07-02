@@ -131,12 +131,21 @@ inline bool IsLocalDevicePathName(PCPathChar path) {
             (path[3] == L'\\');
 }
 
+// Indicates if the path is an NT object path (prefix \??\)
+inline bool IsNtObjectPath(PCPathChar path) {
+    return
+            (path[0] == L'\\') &&
+            (path[1] == L'?') &&
+            (path[2] == L'?') &&
+            (path[3] == L'\\');
+}
+
 // Indicates if this is a pipe device.
 inline bool IsPipeDevice(PCPathChar path)
 {
     assert(path);
 
-    return IsLocalDevicePathName(path) &&
+    return (IsLocalDevicePathName(path) || IsNtObjectPath(path)) &&
         (path[4] == L'p') &&
         (path[5] == L'i') &&
         (path[6] == L'p') &&

@@ -85,12 +85,11 @@ namespace BuildXL.Processes
         /// Override writes allowed by policy based on file existence checks. 
         /// </summary>
         /// <remarks>
-        /// Override writes allowed by policy based on file existence checks. 
-        /// Used mainly in the context of shared opaques, where the whole cone under the opaque root is write-allowed by policy (except known inputs).
+        /// Used entirely in the context of shared opaques, where the whole cone under the opaque root is write-allowed by policy (except known inputs).
         /// This policy makes sure that writes on undeclared inputs that fall under the write-allowed cone are flagged as DFAs.
         /// The way to dermine undeclared inputs is based on file existence: if a pip tries to write into a file - allowed by policy - but
-        /// that was not created by the pip (i.e. the file was there before the first write), then it is a write on an undeclared input
-        /// Observe detours never blocks in this case, denying the access is surfaced as a DFA after the write happened.
+        /// that was not created by the pip (i.e. the file was there before the first write attempted by this pip), then it is a write on an undeclared input
+        /// Observe that sandboxing never blocks in this case, denying the access is surfaced as a DFA after the write happened.
         /// </remarks>
         OverrideAllowWriteForExistingFiles = 0x400,
 

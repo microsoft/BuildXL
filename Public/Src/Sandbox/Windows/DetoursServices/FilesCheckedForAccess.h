@@ -36,7 +36,6 @@ struct CaseInsensitiveStringHasher {
 class FilesCheckedForAccess {
 public:
     FilesCheckedForAccess();
-    static FilesCheckedForAccess Create();
     // Tries to register that a given path was checked for access
     // Returns whether the path was not registered before
     bool TryRegisterPath(const CanonicalizedPath& path);

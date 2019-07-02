@@ -110,7 +110,7 @@ bool PolicyResult::AllowWrite() const {
 
     // Send a special message to managed code if the policy to override allowed writes based on file existence is set
     // and the write is allowed by policy (for the latter, if the write is denied, there is nothing to override)
-    if (OverrideAllowWriteForExistingFiles() && isWriteAllowedByPolicy) {
+    if (isWriteAllowedByPolicy && OverrideAllowWriteForExistingFiles()) {
         
         // Let's check if this path was already checked for allow writes in this process. Observe this structure lifespan is the same 
         // as the current process so other child processes won't share it. 
@@ -129,17 +129,14 @@ bool PolicyResult::AllowWrite() const {
             bool fileExists = ExistsAsFile(m_canonicalizedPath.GetPathString());
 
             AccessCheckResult accessCheck = AccessCheckResult(RequestedAccess::Read, ResultAction::Allow, ReportLevel::Ignore);
-            FileOperationContext operationContext(
-                L"FirstAllowWriteCheckInProcess",
-                GENERIC_WRITE,
-                FILE_SHARE_WRITE,
-                OPEN_ALWAYS,
-                FILE_ATTRIBUTE_NORMAL,
-                this->GetCanonicalizedPath().GetPathString());
+            FileOperationContext operationContext = 
+                FileOperationContext::CreateForRead(L"FirstAllowWriteCheckInProcess", this->GetCanonicalizedPath().GetPathString());
 
             ReportFileAccess(
                 operationContext,
-                fileExists? FileAccessStatus_Denied : FileAccessStatus_Allowed,
+                fileExists? 
+                    FileAccessStatus_Denied : 
+                    FileAccessStatus_Allowed,
                 *this,
                 AccessCheckResult(RequestedAccess::None, ResultAction::Deny, ReportLevel::Report),
                 0,

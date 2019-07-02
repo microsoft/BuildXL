@@ -1026,9 +1026,9 @@ bool EnumerateDirectory(
     return true;
 }
 
-bool ExistsAsFile(const wchar_t* path)
+bool ExistsAsFile(_In_ PCWSTR path)
 {
-    DWORD dwAttrib = Real_GetFileAttributesW(path);
+    DWORD dwAttrib = GetFileAttributesW(path);
 
     return (dwAttrib != INVALID_FILE_ATTRIBUTES &&
         !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));

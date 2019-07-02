@@ -4,11 +4,6 @@
 #include "FilesCheckedForAccess.h"
 #include "string.h"
 
-FilesCheckedForAccess FilesCheckedForAccess::Create()
-{
-    return FilesCheckedForAccess();
-}
-
 FilesCheckedForAccess::FilesCheckedForAccess()
 {
     InitializeCriticalSection(&m_lock);

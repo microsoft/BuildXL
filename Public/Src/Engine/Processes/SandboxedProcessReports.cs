@@ -658,7 +658,7 @@ namespace BuildXL.Processes
                 // is reported for a given path, and ignore subsequent reports.
                 // Races are ignored: a race means two child processes are racing to create or delete the same file
                 // - something that is not a good build behavior anyway - and the outcome will be that we will 
-                // non -deterministically deny the access
+                // non-deterministically deny the access
                 if (path != null && !m_overrideAllowedWritePaths.ContainsKey(path))
                 {
                     // We should override write allowed accesses for this path if the status of the special operation was 'denied'
@@ -668,7 +668,7 @@ namespace BuildXL.Processes
                 return true;
             }
 
-            FileAccessStatusMethod method;
+            FileAccessStatusMethod method = FileAccessStatusMethod.PolicyBased;
 
             // If we are processing an allowed write, but this should be overridden based on file existence, 
             // we change the status here
@@ -680,10 +680,6 @@ namespace BuildXL.Processes
             {
                 status = FileAccessStatus.Denied;
                 method = FileAccessStatusMethod.FileExistenceBased;
-            }
-            else
-            {
-                method = FileAccessStatusMethod.PolicyBased;
             }
 
             var reportedAccess =

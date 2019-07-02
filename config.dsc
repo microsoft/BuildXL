@@ -13,7 +13,6 @@ config({
         ...globR(d`Private/QTest`, "module.config.dsc"),
         ...globR(d`Private/InternalSdk`, "module.config.dsc"),
         ...globR(d`Private/Tools`, "module.config.dsc"),
-        ...globR(d`Public/External/BuildPrediction`, "module.config.dsc"),
         ...globR(d`Public/Sdk/SelfHost`, "module.config.dsc"),
     ],
 
@@ -114,7 +113,7 @@ config({
                 { id: "Microsoft.Diagnostics.Tracing.TraceEvent", version: "2.0.30" },
                 { id: "Microsoft.Extensions.Globalization.CultureInfoCache", version: "1.0.0-rc1-final" },
                 { id: "Microsoft.Extensions.MemoryPool", version: "1.0.0-rc1-final" },
-                { id: "Microsoft.Extensions.PlatformAbstractions", version: "1.0.0-rc1-final" },
+                { id: "Microsoft.Extensions.PlatformAbstractions", version: "1.1.0" },
 
                 { id: "Microsoft.Tpl.Dataflow", version: "4.5.24" },
                 { id: "Microsoft.TypeScript.Compiler", version: "1.8" },
@@ -163,7 +162,7 @@ config({
                 ...importFile(f`config.nuget.aspNetCore.dsc`).pkgs,
                 ...importFile(f`config.microsoftInternal.dsc`).pkgs,
 
-                { id: "WindowsAzure.Storage", version: "8.7.0", alias: "WindowsAzure.Storage" },
+                { id: "WindowsAzure.Storage", version: "9.3.3", alias: "WindowsAzure.Storage" },
                 { id: "Microsoft.Data.OData", version: "5.8.2" },
                 { id: "Microsoft.Data.Services.Client", version: "5.8.2" },
                 { id: "System.Spatial", version: "5.8.2" },
@@ -182,7 +181,7 @@ config({
                 { id: "xunit.runner.utility", version: "2.4.1" },
                 { id: "xunit.runner.visualstudio", version: "2.4.1" },
 
-                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "3.17.2" },
+                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "4.5.1" },
 
                 // CloudStore dependencies
                 { id: "Microsoft.Bcl", version: "1.1.10" },
@@ -444,7 +443,9 @@ config({
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
                 { id: "System.CodeDom", version: "4.4.0"},
-                { id: "Microsoft.Build.Locator", version: "1.0.31"},
+
+                // Used for MSBuild input/output prediction
+                { id: "Microsoft.Build.Prediction", version: "0.2.0" },
 
                 { id: "SharpZipLib", version: "1.1.0" },
 
@@ -454,7 +455,25 @@ config({
 
                 // CoreRT
                 { id: "runtime.osx-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
-                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" }
+                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
+
+                // Kusto SDK (for netstandard)
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard", version: "6.1.8", dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform.NETStandard", version: "6.1.8", dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.Azure.Kusto.Data.NETStandard", version: "6.1.8", dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.Azure.Kusto.Ingest.NETStandard", version: "6.1.8", dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.IO.RecyclableMemoryStream", version: "1.2.2" },
+                { id: "Microsoft.Azure.KeyVault", version: "3.0.1"},
+                { id: "Microsoft.Azure.KeyVault.WebKey", version: "3.0.1"},
+                { id: "Microsoft.Rest.ClientRuntime", version: "3.0.0", dependentPackageIdsToIgnore: ["Microsoft.NETCore.Runtime"]  },
+                { id: "Microsoft.Rest.ClientRuntime.Azure", version: "3.3.18" },
+                { id: "Microsoft.NETCore.Windows.ApiSets", version: "1.0.1" },
+
+                // Kusto SDK (for full framework)
+                { id: "Microsoft.Azure.Kusto.Data", version: "6.1.8" },
+                { id: "Microsoft.Azure.Kusto.Ingest", version: "6.1.8" },
+                { id: "Microsoft.Azure.Kusto.Tools", version: "2.2.2" },
+                { id: "Microsoft.Azure.Management.Kusto", version: "1.0.0" },
             ],
 
             doNotEnforceDependencyVersions: true,
@@ -524,6 +543,14 @@ config({
                     hash: "VSO0:9DE138F52CCCE4B89747BFDEC5D3A0DDBB23BF80BB2A45AE0218D852845AB13C00",
                     archiveType: "tgz",
                 },
+
+                // Electron
+                {
+                    moduleName: "Electron.win-x64",
+                    url: "https://github.com/electron/electron/releases/download/v2.0.10/electron-v2.0.10-win32-x64.zip",
+                    hash: "VSO0:F836344F3D3FEBCD50976B5F33FC2DA64D0753C242C68F61B5908F59CD49B0AB00",
+                    archiveType: "zip",
+                }
             ],
         },
     ],

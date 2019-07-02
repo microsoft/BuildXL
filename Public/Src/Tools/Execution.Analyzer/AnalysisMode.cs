@@ -41,6 +41,7 @@ namespace BuildXL.Execution.Analyzer
         InputTracker,
         CacheMiss,
         ScheduledInputsOutputs,
+        RequiredDependencies,
 #if FEATURE_VSTS_ARTIFACTSERVICES
         CacheHitPredictor,
 #endif
@@ -53,5 +54,6 @@ namespace BuildXL.Execution.Analyzer
         DumpMounts,
         FailedPipsDump,
         PipFingerprint,
+        CopyFile
     }
 }

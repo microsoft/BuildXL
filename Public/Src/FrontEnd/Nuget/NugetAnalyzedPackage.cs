@@ -59,6 +59,11 @@ namespace BuildXL.FrontEnd.Nuget
         /// </summary>
         public MultiValueDictionary<PathAtom, NugetTargetFramework> AssemblyToTargetFramework { get; private set; }
 
+        /// <summary>
+        /// Indicates if the package contains only .NETStandard comaptible assemblies (this is false if full framework or .NETCoreApp assemblies are present)
+        /// </summary>
+        public bool IsNetStandardPackageOnly { get; private set; }
+
         /// <nodoc />
         public PackageOnDisk PackageOnDisk { get; }
 
@@ -410,6 +415,10 @@ namespace BuildXL.FrontEnd.Nuget
 
             Dependencies = dependencies;
             DependenciesPerFramework = dependenciesPerFramework;
+
+            IsNetStandardPackageOnly =
+                !TargetFrameworks.Any(tfm => NugetFrameworkMonikers.FullFrameworkVersionHistory.Contains(tfm)) &&
+                !TargetFrameworks.Any(tfm => NugetFrameworkMonikers.NetCoreAppVersionHistory.Contains(tfm));
 
             return true;
         }

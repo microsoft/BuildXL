@@ -53,7 +53,6 @@ namespace Scheduler {
             importFrom("BuildXL.Utilities").Configuration.dll,
         ],
         runtimeContent: [
-            importFrom("BuildXL.Sandbox.Windows").Deployment.definition,
             importFrom("BuildXL.Utilities.UnitTests").testProcessExe
         ],
     });

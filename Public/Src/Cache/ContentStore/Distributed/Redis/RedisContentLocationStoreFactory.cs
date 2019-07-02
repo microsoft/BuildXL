@@ -31,28 +31,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public const string Salt = "V4";
 
         private readonly ContentSessionTracer _tracer = new ContentSessionTracer(nameof(RedisContentLocationStoreFactory));
-        private readonly IConnectionStringProvider _contentConnectionStringProvider;
-        private readonly IConnectionStringProvider _machineConnectionStringProvider;
+
+        private readonly IConnectionStringProvider /*CanBeNull*/ _contentConnectionStringProvider;
+        private readonly IConnectionStringProvider /*CanBeNull*/ _machineConnectionStringProvider;
+
+        // https://github.com/StackExchange/StackExchange.Redis/blob/master/Docs/Basics.md
+        // Maintain the same connection multiplexer to reuse across sessions
+        private RedisDatabaseFactory /*CanBeNull*/ _redisDatabaseFactoryForContent;
+        private RedisDatabaseFactory /*CanBeNull*/ _redisDatabaseFactoryForMachineLocations;
+
         private readonly IClock _clock;
         private readonly TimeSpan _contentHashBumpTime;
         private readonly string _keySpace;
         private readonly byte[] _localMachineLocation;
         private readonly RedisContentLocationStoreConfiguration _configuration;
 
-        // https://github.com/StackExchange/StackExchange.Redis/blob/master/Docs/Basics.md
-        // Maintain the same connection multiplexer to reuse across sessions
-        private RedisDatabaseFactory _redisDatabaseFactoryForContent;
-
         private RedisDatabaseFactory _redisDatabaseFactoryForRedisGlobalStore;
         private RedisDatabaseFactory _redisDatabaseFactoryForRedisGlobalStoreSecondary;
-        private RedisDatabaseFactory _redisDatabaseFactoryForMachineLocations;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RedisContentLocationStoreFactory"/> class.
         /// </summary>
         public RedisContentLocationStoreFactory(
-            IConnectionStringProvider contentConnectionStringProvider,
-            IConnectionStringProvider machineLocationConnectionStringProvider,
+            /*CanBeNull*/IConnectionStringProvider contentConnectionStringProvider,
+            /*CanBeNull*/IConnectionStringProvider machineLocationConnectionStringProvider,
             IClock clock,
             TimeSpan contentHashBumpTime,
             string keySpace,
@@ -60,7 +62,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             IAbsFileSystem fileSystem = null,
             RedisContentLocationStoreConfiguration configuration = null)
         {
-            Contract.Requires(contentConnectionStringProvider != null);
             Contract.Requires(!string.IsNullOrWhiteSpace(keySpace));
 
             _contentConnectionStringProvider = contentConnectionStringProvider;
@@ -70,6 +71,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             _keySpace = keySpace + Salt;
             _localMachineLocation = localMachineLocation;
             _configuration = configuration ?? RedisContentLocationStoreConfiguration.Default;
+
+            if (_configuration.HasReadOrWriteMode(ContentLocationMode.Redis))
+            {
+                Contract.Assert(contentConnectionStringProvider != null, "When ReadFromRedis is on 'contentConnectionStringProvider' must not be null.");
+                Contract.Assert(machineLocationConnectionStringProvider != null, "When ReadFromRedis is on 'machineLocationConnectionStringProvider' must not be null.");
+            }
         }
 
         /// <inheritdoc />
@@ -159,8 +166,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                           Contract.Assert(!_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore));
                       }
 
-                      _redisDatabaseFactoryForContent = await RedisDatabaseFactory.CreateAsync(context, _contentConnectionStringProvider);
-                      _redisDatabaseFactoryForMachineLocations = await RedisDatabaseFactory.CreateAsync(context, _machineConnectionStringProvider);
+                      // Instantiate factories for old redis only when we use old redis.
+                      if (_configuration.HasReadOrWriteMode(ContentLocationMode.Redis))
+                      {
+                          Contract.Assert(_contentConnectionStringProvider != null);
+                          Contract.Assert(_machineConnectionStringProvider != null);
+                          _redisDatabaseFactoryForContent = await RedisDatabaseFactory.CreateAsync(context, _contentConnectionStringProvider);
+                          _redisDatabaseFactoryForMachineLocations = await RedisDatabaseFactory.CreateAsync(context, _machineConnectionStringProvider);
+                      }
+
                       StartupCompleted = true;
                       return BoolResult.Success;
                   });

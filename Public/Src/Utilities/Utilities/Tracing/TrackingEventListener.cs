@@ -1,11 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Threading;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Instrumentation.Common;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
@@ -29,11 +31,12 @@ namespace BuildXL.Utilities.Tracing
         private int m_numWarnings;
         private int m_numEventSourceInternalWarnings;
 
-        private int m_numInternalErrors;
-        private int m_numInfrastructureErrors;
-        private int m_numUserErrors;
-
         private readonly BigBuffer<int> m_eventCounts = new BigBuffer<int>(entriesPerBufferBitWidth: 14);
+
+        /// <summary>
+        /// The UTC time representing time 0 for this listener
+        /// </summary>
+        private readonly DateTime m_baseTime;
 
         /// <summary>
         /// Initializes an instance.
@@ -41,15 +44,19 @@ namespace BuildXL.Utilities.Tracing
         /// <param name="eventSource">
         /// The event source to listen to.
         /// </param>
+        /// <param name="baseTime">
+        /// The starting time that events are compared against for displaying relative time for messages.
+        /// </param>
         /// <param name="warningMapper">
         /// An optional delegate that is used to map warnings into errors or to suppress warnings.
         /// </param>
-        public TrackingEventListener(Events eventSource, WarningMapper warningMapper = null)
+        public TrackingEventListener(Events eventSource, DateTime baseTime = default(DateTime), WarningMapper warningMapper = null)
             : base(
                 eventSource,
                 warningMapper,
                 EventLevel.Verbose)
         {
+            m_baseTime = baseTime == default(DateTime) ? DateTime.Now : baseTime;
             Contract.Requires(eventSource != null);
             m_eventCounts.Initialize(MaxEventIdExclusive);
         }
@@ -124,7 +131,7 @@ namespace BuildXL.Utilities.Tracing
         /// <summary>
         /// Gets the number of error events written.
         /// </summary>
-        public int TotalErrorCount => Volatile.Read(ref m_numInternalErrors) + Volatile.Read(ref m_numInfrastructureErrors) + Volatile.Read(ref m_numUserErrors);
+        public int TotalErrorCount => InternalErrorDetails.Count + InfrastructureErrorDetails.Count + UserErrorDetails.Count;
 
         /// <summary>
         /// Gets the number of informational events written.
@@ -142,49 +149,24 @@ namespace BuildXL.Utilities.Tracing
         public int AlwaysCount => Volatile.Read(ref m_numAlways);
 
         /// <summary>
-        /// Gets the number of user errors
-        /// </summary>
-        public int UserErrorCount => Volatile.Read(ref m_numUserErrors);
-
-        /// <summary>
         /// The name of the first user error encountered
         /// </summary>
         public string FirstUserErrorName { get; private set; }
 
         /// <summary>
-        /// The name of the last user error encountered
+        /// Details about UserErrors that have been logged
         /// </summary>
-        public string LastUserErrorName { get; private set; }
+        public ErrorCagetoryDetails UserErrorDetails = new ErrorCagetoryDetails();
 
         /// <summary>
-        /// Gets the number internal errors
+        /// Details about InfrastructureErrors that have been logged
         /// </summary>
-        public int InternalErrorCount => Volatile.Read(ref m_numInternalErrors);
+        public ErrorCagetoryDetails InfrastructureErrorDetails = new ErrorCagetoryDetails();
 
         /// <summary>
-        /// The name of the first internal error encountered
+        /// Details about InternalErrors that have been logged
         /// </summary>
-        public string FirstInternalErrorName { get; private set; }
-
-        /// <summary>
-        /// The name of the last internal error encountered
-        /// </summary>
-        public string LastInternalErrorName { get; private set; }
-
-        /// <summary>
-        /// Gets the number of infrastructure errors
-        /// </summary>
-        public int InfrastructureErrorCount => Volatile.Read(ref m_numInfrastructureErrors);
-
-        /// <summary>
-        /// The name of the first Infrastructure error encountered
-        /// </summary>
-        public string FirstInfrastructureErrorName { get; private set; }
-
-        /// <summary>
-        /// The name of the last Infrastructure error encountered
-        /// </summary>
-        public string LastInfrastructureErrorName { get; private set; }
+        public ErrorCagetoryDetails InternalErrorDetails = new ErrorCagetoryDetails();
 
         /// <summary>
         /// Gets whether any errors were written.
@@ -206,7 +188,7 @@ namespace BuildXL.Utilities.Tracing
             long keywords = (long)eventData.Keywords;
             string eventName = eventData.EventName;
 
-            BucketError(keywords, eventName);
+            BucketError(keywords, eventName, eventData.Message);
             Interlocked.Increment(ref m_numCriticals);
         }
 
@@ -231,15 +213,17 @@ namespace BuildXL.Utilities.Tracing
             {
                 long keywords = (long)eventData.Keywords;
                 string eventName = eventData.EventName;
+                string eventMessage = FormattingEventListener.CreateFullMessageString(eventData, "error", eventData.Message, m_baseTime, useCustomPipDescription: false);
 
                 // Errors replayed from workers should respect their original event name and keywords
                 if (eventData.EventId == (int)EventId.DistributionWorkerForwardedError)
                 {
+                    eventMessage = (string)eventData.Payload[0];
                     eventName = (string)eventData.Payload[2];
                     keywords = (long)eventData.Payload[3];
                 }
 
-                BucketError(keywords, eventName);
+                BucketError(keywords, eventName, eventMessage);
             }
             else
             {
@@ -247,42 +231,25 @@ namespace BuildXL.Utilities.Tracing
                 // WarningMapper to upconvert a lower priority event to an error
                 Contract.Assert((level == EventLevel.Warning) || (level == EventLevel.Informational) || (level == EventLevel.Verbose));
 
+                string eventMessage = FormattingEventListener.CreateFullMessageString(eventData, "error", eventData.Message, DateTime.Now, useCustomPipDescription: false);
                 // The configuration promoted a warning to an error. That's a user error
-                if (Interlocked.Increment(ref m_numUserErrors) == 1)
-                {
-                    FirstUserErrorName = eventData.EventName;
-                }
+                UserErrorDetails.RegisterError(eventData.EventName, eventMessage);
             }
         }
 
-        private void BucketError(long keywords, string eventName)
+        private void BucketError(long keywords, string eventName, string errorMessage)
         {
-            if ((keywords & (long)Events.Keywords.UserError) > 0)
+            if ((keywords & (long)Keywords.UserError) > 0)
             {
-                if (Interlocked.Increment(ref m_numUserErrors) == 1)
-                {
-                    FirstUserErrorName = eventName;
-                }
-
-                LastUserErrorName = eventName;
+                UserErrorDetails.RegisterError(eventName, errorMessage);
             }
-            else if ((keywords & (long)Events.Keywords.InfrastructureError) > 0)
+            else if ((keywords & (long)Keywords.InfrastructureError) > 0)
             {
-                if (Interlocked.Increment(ref m_numInfrastructureErrors) == 1)
-                {
-                    FirstInfrastructureErrorName = eventName;
-                }
-
-                LastInfrastructureErrorName = eventName;
+                InfrastructureErrorDetails.RegisterError(eventName, errorMessage);
             }
             else
             {
-                if (Interlocked.Increment(ref m_numInternalErrors) == 1)
-                {
-                    FirstInternalErrorName = eventName;
-                }
-
-                LastInternalErrorName = eventName;
+                InternalErrorDetails.RegisterError(eventName, errorMessage);
             }
         }
 

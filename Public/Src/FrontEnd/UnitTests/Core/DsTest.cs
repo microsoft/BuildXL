@@ -1103,9 +1103,12 @@ namespace Test.BuildXL.FrontEnd.Core
             {
                 var location = LocationData.Create(specPath);
                 global::BuildXL.FrontEnd.Sdk.Tracing.Logger.Log.ErrorUnsupportedQualifierValue(
-                FrontEndContext.LoggingContext,
-                location.ToLogLocation(FrontEndContext.PathTable),
-                error);
+                    FrontEndContext.LoggingContext,
+                    location.ToLogLocation(FrontEndContext.PathTable),
+                    error.QualifierKey,
+                    error.InvalidValue,
+                    error.LegalValues
+                );
 
                 // Returning null, because it can happen in a real test case.
                 return null;
@@ -1167,9 +1170,7 @@ namespace Test.BuildXL.FrontEnd.Core
         {
             var conversionConfiguration = new AstConversionConfiguration(
                 policyRules: customRules ?? new string[] { },
-                degreeOfParallelism: 1,
-                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis(),
-                useLegacyOfficeLogic: false)
+                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis())
             {
                 PreserveFullNameSymbols = true,
             };

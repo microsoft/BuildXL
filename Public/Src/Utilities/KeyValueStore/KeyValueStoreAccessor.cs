@@ -11,6 +11,7 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Threading;
 using RocksDbSharp;
 
 namespace BuildXL.Engine.Cache.KeyValueStores
@@ -70,7 +71,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <summary>
         /// Protects the store from being disposed while read/write operations are occurring and vice versa.
         /// </summary>
-        private readonly ReaderWriterLockSlim m_rwl = new ReaderWriterLockSlim();
+        private readonly ReadWriteLock m_rwl = ReadWriteLock.Create();
 
         /// <summary>
         /// <see cref="Failure"/> to return when this store has been disabled due to an error.
@@ -542,36 +543,33 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] // allows catching exceptions from unmanaged code
         public Possible<TResult> Use<TState, TResult>(Func<IBuildXLKeyValueStore, TState, TResult> use, TState state)
         {
-            m_rwl.EnterReadLock();
-
-            try
+            using (m_rwl.AcquireReadLock())
             {
-                if (Disabled)
+                try
                 {
-                    return DisposedOrDisabledFailure;
-                }
+                    if (Disabled)
+                    {
+                        return DisposedOrDisabledFailure;
+                    }
 
-                return use(m_store, state);
-            }
-            catch (RocksDbSharpException ex)
-            {
-                return HandleException(ex);
-            }
-            // The SEHException class handles SEH (structured exception handling) errors that are thrown from unmanaged code, 
-            // but that have not been mapped to another .NET Framework exception. The SEHException class also corresponds to the HRESULT E_FAIL (0x80004005).
-            catch (System.Runtime.InteropServices.SEHException ex)
-            {
-                return HandleException(ex);
-            }
-            // Provide an opportunity for caller to handle any unknown exception type, including unmanaged ones, then rethrow
-            catch (Exception ex)
-            {
-                HandleException(ex);
-                throw;
-            }
-            finally
-            {
-                m_rwl.ExitReadLock();
+                    return use(m_store, state);
+                }
+                catch (RocksDbSharpException ex)
+                {
+                    return HandleException(ex);
+                }
+                // The SEHException class handles SEH (structured exception handling) errors that are thrown from unmanaged code, 
+                // but that have not been mapped to another .NET Framework exception. The SEHException class also corresponds to the HRESULT E_FAIL (0x80004005).
+                catch (System.Runtime.InteropServices.SEHException ex)
+                {
+                    return HandleException(ex);
+                }
+                // Provide an opportunity for caller to handle any unknown exception type, including unmanaged ones, then rethrow
+                catch (Exception ex)
+                {
+                    HandleException(ex);
+                    throw;
+                }
             }
         }
 
@@ -631,8 +629,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <inheritdoc />
         public void Dispose()
         {
-            m_rwl.EnterWriteLock();
-            try
+            using (m_rwl.AcquireWriteLock())
             {
                 if (!m_disposed)
                 {
@@ -643,10 +640,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     }
                     ((RocksDbStore)m_store).Dispose();
                 }
-            }
-            finally
-            {
-                m_rwl.ExitWriteLock();
             }
         }
 

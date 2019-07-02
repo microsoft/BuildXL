@@ -38,6 +38,15 @@ namespace BuildXL.Processes
         /// </summary>
         public const int MaxConsoleLength = 2048; // around 30 lines
 
+        /// <summary>
+        /// Azure Watson's dead exit code.
+        /// </summary>
+        /// <remarks>
+        /// When running in CloudBuild, Process nondeterministically sometimes exits with 0xDEAD exit code. This is the exit code
+        /// returned by Azure Watson dump after catching the process crash.
+        /// </remarks>
+        private const uint AzureWatsonExitCode = 0xDEAD;
+
         private static readonly string s_appDataLocalMicrosoftClrPrefix =
             Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "CLR");
 
@@ -587,6 +596,8 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
+                PrepareEnvironmentVariables(ref environmentVariables);
+
                 if (!PrepareTempDirectory(ref environmentVariables))
                 {
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
@@ -852,6 +863,11 @@ namespace BuildXL.Processes
 
             info.RedirectedTempFolders = m_tempFolderRedirectionForVm.Select(kvp => (kvp.Key.ToString(m_pathTable), kvp.Value.ToString(m_pathTable))).ToArray();
 
+            if (m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternalVm())
+            {
+                TranslateHostSharedUncDrive(info);
+            }
+
             // Preparation should be finished.
             sandboxPrepTime.Stop();
             ISandboxedProcess process = null;
@@ -896,6 +912,23 @@ namespace BuildXL.Processes
             }
 
             return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+        }
+
+        /// <summary>
+        /// Translates VMs' host shared drive.
+        /// </summary>
+        /// <remarks>
+        /// VMs' host net shares the drive where the enlistiment resides, e.g., D, that is net used by the VMs. When the process running in a VM 
+        /// accesses D:\E\f.txt, the process actually accesses D:\E\f.txt in the host. Thus, the file access manifest constructed in the host
+        /// is often sufficient for running pips in VMs. However, some tools, like dotnet.exe, can access the path in UNC format, i.e.,
+        /// \\192.168.0.1\D\E\f.txt. In this case, we need to supply a directory translation from that UNC path to the non-UNC path.
+        /// </remarks>
+        private void TranslateHostSharedUncDrive(SandboxedProcessInfo info)
+        {
+            DirectoryTranslator newTranslator = info.FileAccessManifest.DirectoryTranslator?.GetUnsealedClone() ?? new DirectoryTranslator();
+            newTranslator.AddTranslation($@"\\{VmIOConstants.Host.IpAddress}\{VmIOConstants.Host.NetUseDrive}", $@"{VmIOConstants.Host.NetUseDrive}:");
+            newTranslator.Seal();
+            info.FileAccessManifest.DirectoryTranslator = newTranslator;
         }
 
         private async Task<SandboxedProcessPipExecutionResult> GetAndProcessResultAsync(
@@ -1207,14 +1240,32 @@ namespace BuildXL.Processes
                     {
                         LogFinishedFailed(result);
 
-                        if (exitedButCanBeRetried)
+                        if (m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0)
                         {
-                            if (await TrySaveAndLogStandardOutputAsync(result) && await TrySaveAndLogStandardErrorAsync(result))
-                            {
-                                await TryLogErrorAsync(result, exitedWithSuccessExitCode);
-                            }
+                            return SandboxedProcessPipExecutionResult.RetryProcessDueToUserSpecifiedExitCode(
+                                result.NumberOfProcessLaunchRetries,
+                                result.ExitCode,
+                                primaryProcessTimes,
+                                jobAccounting,
+                                result.DetouringStatuses,
+                                sandboxPrepMs,
+                                sw.ElapsedMilliseconds,
+                                result.ProcessStartTime,
+                                maxDetoursHeapSize,
+                                m_containerConfiguration);
+                        }
+                        else if (m_sandboxConfig.RetryOnAzureWatsonExitCode && result.Processes.Any(p => p.ExitCode == AzureWatsonExitCode))
+                        {
+                            // Retry if the exit code is 0xDEAD.
+                            var deadProcess = result.Processes.Where(p => p.ExitCode == AzureWatsonExitCode).First();
+                            Tracing.Logger.Log.PipRetryDueToExitedWithAzureWatsonExitCode(
+                                m_loggingContext,
+                                m_pip.SemiStableHash,
+                                m_pip.GetDescription(m_context),
+                                deadProcess.Path,
+                                deadProcess.ProcessId);
 
-                            return SandboxedProcessPipExecutionResult.RetryProcessDueToExitCode(
+                            return SandboxedProcessPipExecutionResult.RetryProcessDueToAzureWatsonExitCode(
                                 result.NumberOfProcessLaunchRetries,
                                 result.ExitCode,
                                 primaryProcessTimes,
@@ -1554,6 +1605,12 @@ namespace BuildXL.Processes
                 }
             }
 
+            // Untrack the globally untracked paths specified in the configuration 
+            foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
+            {
+                m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+            }
+
             // For some static system mounts (currently only for AppData\Roaming) we allow CreateDirectory requests for all processes.
             // This is done because many tools are using CreateDirectory to check for the existence of that directory. Since system directories
             // always exist, allowing such requests would not lead to any changes on the disk. Moreover, we are applying an exact path policy (i.e., not a scope policy).
@@ -1868,7 +1925,7 @@ namespace BuildXL.Processes
             // Rationale: probes may be performed on those directories (directory probes don't need declarations)
             // so they need to be faked as well
             var currentPath = path.GetParent(m_pathTable);
-            while (!allInputPathsUnderSharedOpaques.Contains(currentPath) && currentPath.IsWithin(m_pathTable, sharedOpaqueRoot))
+            while (currentPath.IsValid && !allInputPathsUnderSharedOpaques.Contains(currentPath) && currentPath.IsWithin(m_pathTable, sharedOpaqueRoot))
             {
                 // We want to set a policy for the directory without affecting the scope for the underlying artifacts
                 m_fileAccessManifest.AddPath(
@@ -1993,6 +2050,14 @@ namespace BuildXL.Processes
             return true;
         }
 
+        private void PrepareEnvironmentVariables(ref IBuildParameters environmentVariables)
+        {
+            if (ShouldSandboxedProcessExecuteInVm)
+            {
+                environmentVariables = environmentVariables.Override(new[] { new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.IsInVm, "1")});
+            }
+        }
+
         /// <summary>
         /// Creates and cleans the Process's temp directory if necessary
         /// </summary>
@@ -2057,7 +2122,11 @@ namespace BuildXL.Processes
                     // However, a number of operations, like creating/accessing/enumerating junctions, will fail.
                     // Recall that junctions are evaluated locally, so that creating junction using host path is like creating junctions 
                     // on the host from the VM.
-                    var overridenEnvVars = DisallowedTempVariables.Select(v => new KeyValuePair<string, string>(v, redirectedTempDirectory.ToString(m_pathTable)));
+                    string redirectedTempDirectoryPath = redirectedTempDirectory.ToString(m_pathTable);
+                    var overridenEnvVars = DisallowedTempVariables
+                        .Select(v => new KeyValuePair<string, string>(v, redirectedTempDirectoryPath))
+                        .Append(new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.VmTemp, redirectedTempDirectoryPath));
+
                     environmentVariables = environmentVariables.Override(overridenEnvVars);
                 }
             }
@@ -2078,7 +2147,9 @@ namespace BuildXL.Processes
             {
                 // Temp directories are lazily, best effort cleaned after the pip finished. The previous build may not
                 // have finished this work before exiting so we must double check.
-                PreparePathForDirectory(tempDirectoryPath.ToString(m_pathTable), createIfNonExistent: true);
+                PreparePathForDirectory(
+                    tempDirectoryPath.ToString(m_pathTable), 
+                    createIfNonExistent: m_sandboxConfig.EnsureTempDirectoriesExistenceBeforePipExecution);
             }
             catch (BuildXLException ex)
             {
@@ -2831,14 +2902,19 @@ namespace BuildXL.Processes
                             continue;
                         }
 
-                        // If the access occurred under any of the pip shared opaque outputs, and the access is not happening on any known input paths (neither dynamic nor static)
-                        // then we just skip reporting the access. Together with the above step, this means that no accesses under shared opaques that represent outputs are actually
-                        // reported as observed accesses. This matches the same behavior that occurs on static outputs.
-                        if (!allInputPathsUnderSharedOpaques.Contains(entry.Key) && IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out _))
+                        // The following two lines need to be removed in order to report file accesses for
+                        // undeclared files and sealed directories. But since this is a breaking change, we do
+                        // it under an unsafe flag.
+                        if (m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques)
                         {
-                            continue;
+                            // If the access occurred under any of the pip shared opaque outputs, and the access is not happening on any known input paths (neither dynamic nor static)
+                            // then we just skip reporting the access. Together with the above step, this means that no accesses under shared opaques that represent outputs are actually
+                            // reported as observed accesses. This matches the same behavior that occurs on static outputs.
+                            if (!allInputPathsUnderSharedOpaques.Contains(entry.Key) && IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out _))
+                            {
+                                continue;
+                            }
                         }
-
                         ObservationFlags observationFlags = ObservationFlags.None;
 
                         if (isProbe)
@@ -3463,7 +3539,7 @@ namespace BuildXL.Processes
                 AddTrailingNewLineIfNeeded(outputPathsToLog),
                 result.ExitCode,
                 // if the process finished successfully (exit code 0) and we entered this method --> some outputs are missing
-                exitedWithSuccessExitCode ? BuildXL.Utilities.Tracing.Events.PipProcessErrorMissingOutputsSuffix : string.Empty);
+                exitedWithSuccessExitCode ? EventConstants.PipProcessErrorMissingOutputsSuffix : string.Empty);
         }
 
         private void HandleErrorsFromTool(string error)

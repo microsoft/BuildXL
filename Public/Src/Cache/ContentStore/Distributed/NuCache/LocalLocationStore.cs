@@ -393,15 +393,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         Tracer.Debug(context, $"Switching Roles: New={newRole}, Old={oldRole}.");
 
-                            // Local database should be immutable on workers and only master is responsible for collecting stale records
-                            Database.ConfigureGarbageCollection(shouldDoGc: newRole == Role.Master);
+                        // Local database should be immutable on workers and only master is responsible for collecting stale records
+                        Database.SetDatabaseMode(isDatabaseWritable: newRole == Role.Master);
                     }
 
-                        // Always restore when switching roles
-                        bool shouldRestore = switchedRoles;
+                    // Always restore when switching roles
+                    bool shouldRestore = switchedRoles;
 
-                        // Restore if this is a worker and the last restore time is past the restore interval
-                        shouldRestore |= (newRole == Role.Worker && ShouldSchedule(
+                    // Restore if this is a worker and the last restore time is past the restore interval
+                    shouldRestore |= (newRole == Role.Worker && ShouldSchedule(
                                           _configuration.Checkpoint.RestoreCheckpointInterval,
                                           _lastRestoreTime));
 
@@ -415,8 +415,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         _lastRestoreTime = _clock.UtcNow;
 
-                            // Update the checkpoint time to avoid uploading a checkpoint immediately after restoring on the master
-                            _lastCheckpointTime = _lastRestoreTime;
+                        // Update the checkpoint time to avoid uploading a checkpoint immediately after restoring on the master
+                        _lastCheckpointTime = _lastRestoreTime;
                     }
 
                     var updateResult = await UpdateClusterStateAsync(context);
@@ -428,13 +428,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (newRole == Role.Master)
                     {
-                            // Start receiving events from the given checkpoint
-                            result = EventStore.StartProcessing(context, checkpointState.StartSequencePoint);
+                        // Start receiving events from the given checkpoint
+                        result = EventStore.StartProcessing(context, checkpointState.StartSequencePoint);
                     }
                     else
                     {
-                            // Stop receiving events.
-                            result = EventStore.SuspendProcessing(context);
+                        // Stop receiving events.
+                        result = EventStore.SuspendProcessing(context);
                     }
 
                     if (!result)
@@ -444,8 +444,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (newRole == Role.Master)
                     {
-                            // Only create a checkpoint if the machine is currently a master machine and was a master machine
-                            if (ShouldSchedule(_configuration.Checkpoint.CreateCheckpointInterval, _lastCheckpointTime))
+                        // Only create a checkpoint if the machine is currently a master machine and was a master machine
+                        if (ShouldSchedule(_configuration.Checkpoint.CreateCheckpointInterval, _lastCheckpointTime))
                         {
                             result = await CreateCheckpointAsync(context);
                             if (!result)
@@ -457,8 +457,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
 
-                        // Successfully, applied changes for role. Set it as the current role.
-                        CurrentRole = newRole;
+                    // Successfully, applied changes for role. Set it as the current role.
+                    CurrentRole = newRole;
 
                     return result;
                 });
@@ -469,6 +469,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             try
             {
                 var checkpointState = await GlobalStore.GetCheckpointStateAsync(context);
+                
                 if (!checkpointState)
                 {
                     // The error is already logged.
@@ -784,13 +785,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             SkippedDueToRedundantAdd,
         }
 
+        private enum RegisterCoreAction
+        {
+            Skip,
+            Events,
+            Global,
+        }
+
+        private static RegisterCoreAction ToCoreAction(RegisterAction action)
+        {
+            switch (action)
+            {
+                case RegisterAction.EagerGlobal:
+                case RegisterAction.RecentInactiveEagerGlobal:
+                case RegisterAction.RecentRemoveEagerGlobal:
+                    return RegisterCoreAction.Global;
+                case RegisterAction.LazyEventOnly:
+                case RegisterAction.LazyTouchEventOnly:
+                    return RegisterCoreAction.Events;
+                case RegisterAction.SkippedDueToRecentAdd:
+                case RegisterAction.SkippedDueToRedundantAdd:
+                    return RegisterCoreAction.Skip;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(action), action, $"Unexpected action '{action}'.");
+            }
+        }
+
         private RegisterAction GetRegisterAction(OperationContext context, ContentHash hash, DateTime now)
         {
-            if (_configuration.SkipRedundantContentLocationAdd && _recentlyAddedHashes.Contains(hash))
+            if (_configuration.SkipRedundantContentLocationAdd && _recentlyRemovedHashes.Contains(hash))
             {
-                // Content was recently added for the machine by a prior operation
-                Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Increment();
-                return RegisterAction.SkippedDueToRecentAdd;
+                // Content was recently removed. Eagerly register with global store.
+                Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Increment();
+                return RegisterAction.RecentRemoveEagerGlobal;
             }
 
             if (ClusterState.LastInactiveTime.IsRecent(now, _configuration.RecomputeInactiveMachinesExpiry.Multiply(5)))
@@ -801,11 +828,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return RegisterAction.RecentInactiveEagerGlobal;
             }
 
-            if (_recentlyRemovedHashes.Contains(hash))
+            if (_configuration.SkipRedundantContentLocationAdd && _recentlyAddedHashes.Contains(hash))
             {
-                // Content was recently removed. Eagerly register with global store.
-                Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Increment();
-                return RegisterAction.RecentRemoveEagerGlobal;
+                // Content was recently added for the machine by a prior operation
+                Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Increment();
+                return RegisterAction.SkippedDueToRecentAdd;
             }
 
             // Query local db and only eagerly update global store if replica count is below threshold
@@ -816,7 +843,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (_configuration.SkipRedundantContentLocationAdd
                     && entry.Locations[LocalMachineId.Index]) // content is registered for this machine
                 {
-
                     // If content was touched recently, we can skip. Otherwise, we touch via event
                     if (entry.LastAccessTimeUtc.ToDateTime().IsRecent(now, _configuration.TouchFrequency))
                     {
@@ -867,13 +893,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return BoolResult.Success;
             }
 
+            string extraMessage = string.Empty;
             return await context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
-                    var eventContentHashes = new List<ContentHashWithSize>();
-                    var eagerContentHashes = new List<ContentHashWithSize>();
-                    var actions = new List<RegisterAction>();
+                    var eventContentHashes = new List<ContentHashWithSize>(contentHashes.Count);
+                    var eagerContentHashes = new List<ContentHashWithSize>(contentHashes.Count);
+                    var actions = new List<RegisterAction>(contentHashes.Count);
                     var now = _clock.UtcNow;
 
                     // Select which hashes are not already registered for the local machine and those which must eagerly go to the global store
@@ -881,59 +908,58 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         var registerAction = GetRegisterAction(context, contentHash.Hash, now);
                         actions.Add(registerAction);
-                        if (registerAction == RegisterAction.SkippedDueToRecentAdd || registerAction == RegisterAction.SkippedDueToRedundantAdd)
+
+                        var coreAction = ToCoreAction(registerAction);
+                        if (coreAction == RegisterCoreAction.Skip)
                         {
                             continue;
                         }
 
+                        // In both cases (RegisterCoreAction.Events and RegisterCoreAction.Global)
+                        // we need to send an events over event hub.
                         eventContentHashes.Add(contentHash);
-                        if (registerAction == RegisterAction.LazyEventOnly || registerAction == RegisterAction.LazyTouchEventOnly)
+
+                        if (coreAction == RegisterCoreAction.Global)
                         {
-                            continue;
-                        }
-                        else
-                        {
-                            Contract.Assert(registerAction == RegisterAction.EagerGlobal || registerAction == RegisterAction.RecentInactiveEagerGlobal || registerAction == RegisterAction.RecentRemoveEagerGlobal);
                             eagerContentHashes.Add(contentHash);
                         }
                     }
 
                     var registerActionsMessage = string.Join(", ", contentHashes.Select((c, i) => $"{new ShortHash(c.Hash)}={actions[i]}"));
-                    Tracer.Debug(context, $"Register actions(Eager={eagerContentHashes.Count}, Event={eventContentHashes.Count}): [{registerActionsMessage}]");
+                    extraMessage = $"Register actions(Eager={eagerContentHashes.Count.ToString()}, Event={eventContentHashes.Count.ToString()}): [{registerActionsMessage}]";
 
                     if (eagerContentHashes.Count != 0)
                     {
                         // Update global store
-                        var result = await GlobalStore.RegisterLocalLocationAsync(context, eagerContentHashes);
-                        if (!result)
-                        {
-                            return result;
-                        }
+                        await GlobalStore.RegisterLocalLocationAsync(context, eagerContentHashes).ThrowIfFailure();
                     }
 
                     if (eventContentHashes.Count != 0)
                     {
                         // Send add events
-                        var result = EventStore.AddLocations(context, LocalMachineId, eventContentHashes);
-                        if (!result)
+                        EventStore.AddLocations(context, LocalMachineId, eventContentHashes).ThrowIfFailure();
+                    }
+
+                    // Register all recently added hashes so subsequent operations do not attempt to re-add
+                    if (_configuration.SkipRedundantContentLocationAdd)
+                    {
+                        foreach (var hash in eventContentHashes)
                         {
-                            return result;
+                            _recentlyAddedHashes.Add(hash.Hash, _configuration.TouchFrequency);
                         }
 
-                        // Register all recently added hashes so subsequent operations do not attempt to re-add
-                        if (_configuration.SkipRedundantContentLocationAdd)
+                        // Only eagerly added hashes should invalidate recently removed hashes.
+                        foreach (var hash in eagerContentHashes)
                         {
-                            foreach (var hash in eventContentHashes)
-                            {
-                                _recentlyAddedHashes.Add(hash.Hash, _configuration.TouchFrequency);
-                                _recentlyRemovedHashes.Invalidate(hash.Hash);
-                            }
+                            _recentlyRemovedHashes.Invalidate(hash.Hash);
                         }
                     }
 
                     return BoolResult.Success;
                 },
-                Counters[ContentLocationStoreCounters.RegisterLocalLocation]);
+                Counters[ContentLocationStoreCounters.RegisterLocalLocation],
+                traceOperationStarted: false,
+                extraEndMessage: _ => extraMessage);
         }
 
         /// <nodoc />
@@ -1055,31 +1081,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 () =>
                 {
                     var effectiveLastAccessTimes = new List<ContentHashWithLastAccessTimeAndReplicaCount>();
-                    int replicaCount = 1;
+                    double logInverseMachineRisk = -Math.Log(_configuration.MachineRisk);
 
                     foreach (var contentHash in contentHashes)
                     {
+                        DateTime lastAccessTime = contentHash.LastAccessTime;
+                        int replicaCount = 1;
                         DateTime? effectiveLastAccessTime = null;
+
                         if (TryGetContentLocations(context, contentHash.Hash, out var entry))
                         {
+                            // Use the latest last access time between LLS and local last access time
+                            DateTime distributedLastAccessTime = entry.LastAccessTimeUtc.ToDateTime();
+                            lastAccessTime = distributedLastAccessTime > lastAccessTime ? distributedLastAccessTime : lastAccessTime;
+
                             // TODO[LLS]: Maybe some machines should be primary replicas for the content and not prioritize deletion (bug 1365340)
                             // just because there are many replicas
+
+                            replicaCount = entry.Locations.Count;
 
                             // Incorporate both replica count and size into an evictability metric.
                             // It's better to eliminate big content (more bytes freed per eviction) and it's better to eliminate content with more replicas (less chance
                             // of all replicas being inaccessible).
                             // A simple model with exponential decay of likelihood-to-use and a fixed probability of each replica being inaccessible shows that the metric
-                            //   evictability = age + (time decay parameter) * (number of replicas + log(size of content))
+                            //   evictability = age + (time decay parameter) * (-log(risk of content unavailability) * (number of replicas) + log(size of content))
                             // minimizes the increase in the probability of (content wanted && all replicas inaccessible) / per bytes freed.
                             // Since this metric is just the age plus a computed quantity, it can be intrepreted as an "effective age".
-                            // (One dev wanted no penalty until we reach a threshold number of replicas. We don't have a model justification for this but I'm content to oblige.)
-                            TimeSpan totalReplicaPenalty = TimeSpan.FromMinutes(_configuration.ReplicaPenaltyInMinutes * (Math.Max(0, entry.Locations.Count - 3) + Math.Log(Math.Max(1, entry.ContentSize))));
+                            TimeSpan totalReplicaPenalty = TimeSpan.FromMinutes(_configuration.ContentLifetime.TotalMinutes * (Math.Max(1, replicaCount) * logInverseMachineRisk + Math.Log(Math.Max(1, entry.ContentSize))));
+                            effectiveLastAccessTime = lastAccessTime - totalReplicaPenalty;
 
-                            // Use the latest last access time between LLS and local last access time
-                            var lastAccessTime = entry.LastAccessTimeUtc > contentHash.LastAccessTime
-                                ? entry.LastAccessTimeUtc
-                                : contentHash.LastAccessTime;
-                            effectiveLastAccessTime = lastAccessTime.ToDateTime() - totalReplicaPenalty;
                             Counters[ContentLocationStoreCounters.EffectiveLastAccessTimeLookupHit].Increment();
                         }
                         else
@@ -1087,7 +1117,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             Counters[ContentLocationStoreCounters.EffectiveLastAccessTimeLookupMiss].Increment();
                         }
 
-                        effectiveLastAccessTimes.Add(new ContentHashWithLastAccessTimeAndReplicaCount(contentHash.Hash, effectiveLastAccessTime ?? contentHash.LastAccessTime, replicaCount, originalLastAccessTime: contentHash.LastAccessTime));
+                        effectiveLastAccessTimes.Add(new ContentHashWithLastAccessTimeAndReplicaCount(contentHash.Hash, lastAccessTime, replicaCount, effectiveLastAccessTime: effectiveLastAccessTime ?? lastAccessTime));
                     }
 
                     return Result.Success<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>(effectiveLastAccessTimes);

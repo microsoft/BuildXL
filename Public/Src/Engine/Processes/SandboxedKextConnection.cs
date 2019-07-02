@@ -51,9 +51,13 @@ namespace BuildXL.Processes
         public bool IsInTestMode { get; }
 
         private const string KextInstallHelperFormat =
-@"Use the 'bxl.sh' or 'sandbox-load.sh' bash script with super-user permissions to load/reload the sandbox kernel extension, e.g.,:
+@"
 
-    sudo /bin/bash '{0}/bxl.sh' --load-kext";
+Use the the following command to load/reload the sandbox kernel extension and fix this issue:
+
+----> sudo /bin/bash '{0}/bxl.sh' --load-kext <----
+
+";
 
         private static readonly string s_buildXLBin = Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetLocation());
 
@@ -63,7 +67,7 @@ namespace BuildXL.Processes
         /// Until some automation for kernel extension building and deployment is in place, this number has to be kept in sync with the 'CFBundleVersion'
         /// inside the Info.plist file of the kernel extension code base. BuildXL will not work if a version mismatch is detected!
         /// </summary>
-        public const string RequiredKextVersionNumber = "1.92.99";
+        public const string RequiredKextVersionNumber = "1.94.99";
 
         /// <summary>
         /// See TN2420 (https://developer.apple.com/library/archive/technotes/tn2420/_index.html) on how versioning numbers are formatted in the Apple ecosystem
@@ -123,7 +127,7 @@ namespace BuildXL.Processes
             if (ProcessUtilities.IsNativeInDebugConfiguration())
 #endif
             {
-                throw new BuildXLException($"Sandbox kernel extension build flavor missmatch - the extension must match the engine build flavor, Debug != Release. {KextInstallHelper}");
+                throw new BuildXLException($"Sandbox kernel extension build flavor mismatch - the extension must match the engine build flavor, Debug != Release. {KextInstallHelper}");
             }
 
             // check if the sandbox version matches

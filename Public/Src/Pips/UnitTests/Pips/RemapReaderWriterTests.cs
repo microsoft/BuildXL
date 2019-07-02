@@ -125,41 +125,5 @@ namespace Test.BuildXL.Pips
                 Assert.Equal(firstPipData, secondPipData);
             }
         }
-
-        [Fact]
-        public void TestPipVariableNames()
-        {
-            PathTable writerPathTable = new PathTable();
-            var writerFileSystem = new PassThroughFileSystem(writerPathTable);
-            PipExecutionContext writerContext = EngineContext.CreateNew(CancellationToken.None, writerPathTable, writerFileSystem);
-            PipGraphFragmentContext writerFragmentContext = new PipGraphFragmentContext();
-
-            PathTable readerPathTable = new PathTable();
-            var readerFileSystem = new PassThroughFileSystem(writerPathTable);
-            PipExecutionContext readerContext = EngineContext.CreateNew(CancellationToken.None, readerPathTable, readerFileSystem);
-            PipGraphFragmentContext readerFragmentContext = new PipGraphFragmentContext();
-            using (MemoryStream memStream = new MemoryStream())
-            using (RemapWriter writer = new RemapWriter(memStream, writerContext, writerFragmentContext))
-            using (RemapReader reader = new RemapReader(readerFragmentContext, memStream, readerContext))
-            {
-                string path = @"d:\foo";
-                AbsolutePath absolutePath;
-                AbsolutePath.TryCreate(writerPathTable, path, out absolutePath);
-                PipDataBuilder pipDataBuilder = new PipDataBuilder(writerContext.StringTable);
-                pipDataBuilder.Add(path);
-                pipDataBuilder.Add(absolutePath);
-                PipData pipdata = pipDataBuilder.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping);
-                WriteFile writeFilePip = new WriteFile(new FileArtifact(absolutePath, 0), pipdata, WriteFileEncoding.Utf8,ReadOnlyArray<StringId>.Empty, PipProvenance.CreateDummy(writerContext));
-                writeFilePip.PipId = new PipId(42);
-                writerFragmentContext.AddPipIdValueMapping(FullSymbol.Create(writerContext."MyVariable"), writeFilePip.PipId.Value);
-                writeFilePip.Serialize(writer);
-
-                memStream.Position = 0;
-
-                WriteFile readPip = (WriteFile)Pip.Deserialize(reader);
-                FullSymbol fullSymbol;
-                readerFragmentContext.TryGetVariableNameForPipIdValue(42, out fullSymbol);
-            }
-        }
     }
 }

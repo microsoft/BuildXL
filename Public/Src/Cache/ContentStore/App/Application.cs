@@ -2,14 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Redis.Credentials;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -39,40 +37,105 @@ namespace BuildXL.Cache.ContentStore.App
     internal sealed partial class Application : IDisposable
     {
         private const string HashTypeDescription = "Content hash type (SHA1/SHA256/MD5/Vso0/DedupChunk/DedupNode)";
+
+        /// <summary>
+        ///     The name of this service (sent to Kusto as the value of the 
+        ///     <see cref="CsvFileLog.ColumnKind.Service"/> column)
+        /// </summary>
+        private const string ServiceName = "ContentAddressableStoreService";
+
+        private const string CsvLogFileExt = ".csv";
+        private const string TmpCsvLogFileExt = ".csvtmp";
+
+        /// <summary>
+        ///     Name of the environment variable in which to look for a Kusto connection string.
+        /// </summary>
+        private const string KustoConnectionStringEnvVarName = "KustoConnectionString";
+
+        /// <summary>
+        ///     Target Kusto database for remote telemetry
+        /// </summary>
+        private const string KustoDatabase = "CloudBuildCBTest";
+
+        /// <summary>
+        ///     Target Kusto table for remote telemetry
+        /// </summary>
+        private const string KustoTable = "CloudBuildLogEvent";
+
+        /// <summary>
+        ///     The Kusto schema of the target table (<see cref="KustoTable"/>).
+        ///
+        ///     The schema for the target table can be automatically exported from the Kusto Explorer.
+        /// </summary>
+        private const string KustoTableSchema = "env_ver:string, env_name:string, env_time:datetime, env_epoch:string, env_seqNum:long, env_popSample:real, env_iKey:string, env_flags:long, env_cv:string, env_os:string, env_osVer:string, env_appId:string, env_appVer:string, env_cloud_ver:string, env_cloud_name:string, env_cloud_role:string, env_cloud_roleVer:string, env_cloud_roleInstance:string, env_cloud_environment:string, env_cloud_location:string, env_cloud_deploymentUnit:string, Stamp:string, Ring:string, BuildId:string, CorrelationId:string, ParentCorrelationId:string, Exception:string, Message:string, LogLevel:long, LogLevelFriendly:string, LoggingType:string, LoggingMethod:string, LoggingLineNumber:long, PreciseTimeStamp:datetime, LocalPreciseTimeStamp:datetime, ThreadId:long, ThreadPrincipal:string, Cluster:string, Environment:string, MachineFunction:string, Machine:string, Service:string, ServiceVersion:string, SourceNamespace:string, SourceMoniker:string, SourceVersion:string, ProcessId:long, BuildQueue:string";
+
+        /// <summary>
+        ///     CSV file schema to be passed to <see cref="CsvFileLog"/>.
+        ///     This schema is automatically generated from <see cref="KustoTableSchema"/>
+        /// </summary>
+        private static readonly CsvFileLog.ColumnKind[] KustoTableCsvSchema = CsvFileLog.ParseTableSchema(KustoTableSchema);      
+
+        private readonly CancellationToken _cancellationToken;
         private readonly IAbsFileSystem _fileSystem;
         private readonly ConsoleLog _consoleLog;
         private readonly Logger _logger;
         private readonly Tracer _tracer;
+        private readonly KustoUploader _kustoUploader;
         private bool _waitForDebugger;
         private FileLog _fileLog;
+        private CsvFileLog _csvFileLog;
         private Severity _fileLogSeverity = Severity.Diagnostic;
         private bool _logAutoFlush;
         private string _logDirectoryPath;
         private long _logMaxFileSize;
+        private long _csvLogMaxFileSize = 100 * 1024 * 1024; // 100 MB
         private int _logMaxFileCount;
         private bool _pause;
         private string _scenario;
         private uint _connectionsPerSession;
         private uint _retryIntervalSeconds;
         private uint _retryCount;
+        private bool _enableRemoteTelemetry;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Application"/> class.
         /// </summary>
-        public Application()
+        public Application(CancellationToken cancellationToken)
         {
+            _cancellationToken = cancellationToken;
             _consoleLog = new ConsoleLog(Severity.Warning);
             _logger = new Logger(true, _consoleLog);
             _fileSystem = new PassThroughFileSystem(_logger);
             _tracer = new Tracer(nameof(Application));
+
+            var kustoConnectionString = Environment.GetEnvironmentVariable(KustoConnectionStringEnvVarName);
+            _kustoUploader = string.IsNullOrWhiteSpace(kustoConnectionString)
+                ? null
+                : new KustoUploader
+                    (
+                    kustoConnectionString,
+                    database: KustoDatabase,
+                    table: KustoTable,
+                    deleteFilesOnSuccess: true,
+                    checkForIngestionErrors: true,
+                    log: _consoleLog
+                    );
         }
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "_fileLog")]
         public void Dispose()
         {
+            // 1. it's important to dispose _logger before log objects
+            //    because _logger.Dispose() calls Flush() on its log objects
+            // 2. it's important to dispose _csvFileLogger before _kustoUploader because
+            //    csvFileLogger.Dispose() can post one last file to be uploaded to Kusto
+            // 3. it's important to dispose _kustoUploader before _consoleLog because
+            //    _kustoUploader uses _consoleLog
             _logger.Dispose();
             _fileLog?.Dispose();
+            _csvFileLog?.Dispose();
+            _kustoUploader?.Dispose(); 
             _consoleLog.Dispose();
             _fileSystem.Dispose();
         }
@@ -178,6 +241,15 @@ namespace BuildXL.Cache.ContentStore.App
         }
 
         /// <summary>
+        ///     Set CSV log rolling max file size.
+        /// </summary>
+        [Global("CsvLogMaxFileSizeMB", Description = "Set CSV log (used only when remote telemetry is enabled) rolling max file size in MB")]
+        public void SetCsvLogMaxFileSizeMB(long value)
+        {
+            _csvLogMaxFileSize = value * 1024 * 1024;
+        }
+
+        /// <summary>
         ///     Set log rolling max file count.
         /// </summary>
         [Global("LogMaxFileCount", Description = "Set log rolling max file count")]
@@ -240,6 +312,15 @@ namespace BuildXL.Cache.ContentStore.App
             _retryCount = value;
         }
 
+        /// <summary>
+        ///     Whether or not to enable remote telemetry.
+        /// </summary>
+        [Global("RemoteTelemetry", Description = "Enable remote telemetry")]
+        public void EnableRemoteTelemetry(bool enableRemoteTelemetry)
+        {
+            _enableRemoteTelemetry = enableRemoteTelemetry;
+        }
+
         private static void SetThreadPoolSizes()
         {
             ThreadPool.GetMaxThreads(out var workerThreads, out var completionPortThreads);
@@ -285,11 +366,62 @@ namespace BuildXL.Cache.ContentStore.App
 
             SetThreadPoolSizes();
 
+            string logFilePath = FileLog.GetLogFilePath(_logDirectoryPath, logFileBaseName: null, dateInFileName: true, processIdInFileName: true);
             if (_fileLog == null)
             {
-                _fileLog = new FileLog(_logDirectoryPath, null, _fileLogSeverity, _logAutoFlush, _logMaxFileSize, _logMaxFileCount);
+                _fileLog = new FileLog(logFilePath, _fileLogSeverity, _logAutoFlush, _logMaxFileSize, _logMaxFileCount);
                 _logger.AddLog(_fileLog);
             }
+
+            EnableRemoteTelemetryIfNeeded(logFilePath);
+        }
+
+        private void Validate()
+        {
+            if (_enableRemoteTelemetry && _kustoUploader == null)
+            {
+                throw new CacheException("Remote telemetry is enabled but Kusto uploader was not created");
+            }
+        }
+
+        private void EnableRemoteTelemetryIfNeeded(string logFilePath)
+        {
+            if (!_enableRemoteTelemetry)
+            {
+                return;
+            }
+
+            if (_kustoUploader == null)
+            {
+                _logger.Warning
+                    (
+                    "Remote telemetry flag is enabled but no Kusto connection string was found in environment variable '{0}'",
+                    KustoConnectionStringEnvVarName
+                    );
+                return;
+            }
+
+            _csvFileLog = new CsvFileLog
+                (
+                logFilePath: logFilePath + TmpCsvLogFileExt,
+                serviceName: ServiceName,
+                schema: KustoTableCsvSchema,
+                severity: _fileLogSeverity,
+                maxFileSize: _csvLogMaxFileSize
+                );
+
+            // Every time a log file written to disk and closed, we rename it and upload it to Kusto.
+            // The last log file will be produced when _csvFileLog is disposed, so _kustUploader better
+            // not be disposed before _csvFileLog.
+            _csvFileLog.OnLogFileProduced += (path) =>
+            {
+                string newPath = Path.ChangeExtension(path, CsvLogFileExt);
+                File.Move(path, newPath);
+                _kustoUploader.PostFileForUpload(newPath, _csvFileLog.BuildId);
+            };
+
+            _logger.AddLog(_csvFileLog);
+            _logger.Always("Remote telemetry enabled");
         }
 
         private void RunFileSystemContentStoreInternal(AbsolutePath rootPath, System.Func<Context, FileSystemContentStoreInternal, Task> funcAsync)
@@ -299,6 +431,7 @@ namespace BuildXL.Cache.ContentStore.App
             try
             {
                 var context = new Context(_logger);
+                Validate();
 
                 using (var store = CreateInternal(rootPath))
                 {
@@ -378,6 +511,8 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
+                Validate();
+
                 using (var store = createStoreFunc())
                 {
                     try
@@ -451,7 +586,18 @@ namespace BuildXL.Cache.ContentStore.App
         }
 
         internal DistributedCacheServiceArguments CreateDistributedCacheServiceArguments(
-            IAbsolutePathFileCopier copier, IAbsolutePathTransformer pathTransformer, DistributedContentSettings dcs, HostInfo host, string cacheName, string cacheRootPath, uint grpcPort, int maxSizeQuotaMB, string dataRootPath, CancellationToken ct, int? bufferSizeForGrpcCopies = null)
+            IAbsolutePathFileCopier copier,
+            IAbsolutePathTransformer pathTransformer,
+            DistributedContentSettings dcs,
+            HostInfo host,
+            string cacheName,
+            string cacheRootPath,
+            uint grpcPort,
+            int maxSizeQuotaMB,
+            string dataRootPath,
+            CancellationToken ct,
+            int? bufferSizeForGrpcCopies = null,
+            int? gzipBarrierSizeForGrpcCopies = null)
         {
             var distributedCacheServiceHost = new EnvironmentVariableHost();
 
@@ -462,7 +608,7 @@ namespace BuildXL.Cache.ContentStore.App
                 grpcPort: grpcPort,
                 grpcPortFileName: _scenario);
             localCasSettings.PreferredCacheDrive = Path.GetPathRoot(cacheRootPath);
-            localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies);
+            localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies, gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies);
 
             var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs);
 

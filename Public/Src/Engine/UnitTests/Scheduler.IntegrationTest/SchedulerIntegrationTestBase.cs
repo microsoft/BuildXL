@@ -85,6 +85,7 @@ namespace Test.BuildXL.Scheduler
             Configuration.Logging.LogExecution = false;
             Configuration.Engine.TrackBuildsInUserFolder = false;
             Configuration.Engine.CleanTempDirectories = false;
+            Configuration.Sandbox.EnsureTempDirectoriesExistenceBeforePipExecution = true;
 
             // Skip hash source file pips
             // Some error becomes a contract exception when SkipHashSourceFile is enabled.
@@ -353,6 +354,10 @@ namespace Test.BuildXL.Scheduler
             TempCleaner tempCleaner = null,
             IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
         {
+            // This is a new logging context to be used just for this instantiation of the scheduler. That way it can
+            // be validated against the LoggingContext to make sure the scheduler's return result and error logging
+            // are in agreement.
+            var localLoggingContext = BuildXLTestBase.CreateLoggingContextForTest();
             var config = new CommandLineConfiguration(Configuration);
 
             // Populating the configuration may modify the configuration, so it should occur first.
@@ -364,13 +369,13 @@ namespace Test.BuildXL.Scheduler
 
             IReadOnlyList<string> junctionRoots = Configuration.Engine.DirectoriesToTranslate?.Select(a => a.ToPath.ToString(Context.PathTable)).ToList();
 
-            var map = VolumeMap.TryCreateMapOfAllLocalVolumes(LoggingContext, junctionRoots);
-            var optionalAccessor = TryGetJournalAccessor(map);
+            var map = JournalUtils.TryCreateMapOfAllLocalVolumes(localLoggingContext, junctionRoots);
+            var maybeAccessor = TryGetJournalAccessor(map);
 
             // Although scan change journal is enabled, but if we cannot create an enabled journal accessor, then create a disabled one.
-            m_journalState = map == null || !optionalAccessor.IsValid
+            m_journalState = map == null || !maybeAccessor.Succeeded
                 ? JournalState.DisabledJournal
-                : JournalState.CreateEnabledJournal(map, optionalAccessor.Value);
+                : JournalState.CreateEnabledJournal(map, maybeAccessor.Result);
 
             if (config.Schedule.IncrementalScheduling)
             {
@@ -387,7 +392,7 @@ namespace Test.BuildXL.Scheduler
             string dummyCacheDir = Path.Combine(TemporaryDirectory, "Out", "Cache");
             Directory.CreateDirectory(dummyCacheDir); // EngineSchedule tries to put the PreserveOutputsSalt.txt here
             ContentHash? previousOutputsSalt =
-                EngineSchedule.PreparePreviousOutputsSalt(LoggingContext, Context.PathTable, config);
+                EngineSchedule.PreparePreviousOutputsSalt(localLoggingContext, Context.PathTable, config);
             Contract.Assert(previousOutputsSalt.HasValue);
             // .....................................................................................
 
@@ -395,7 +400,7 @@ namespace Test.BuildXL.Scheduler
             Contract.Assert(!(config.Engine.CleanTempDirectories && tempCleaner == null));
 
             using (var queue = new PipQueue(config.Schedule))
-            using (var testQueue = new TestPipQueue(queue, LoggingContext, initiallyPaused: constraintExecutionOrder != null))
+            using (var testQueue = new TestPipQueue(queue, localLoggingContext, initiallyPaused: constraintExecutionOrder != null))
             using (var testScheduler = new TestScheduler(
                 graph: graph,
                 pipQueue: constraintExecutionOrder == null ? 
@@ -403,7 +408,7 @@ namespace Test.BuildXL.Scheduler
                             constraintExecutionOrder.Aggregate(testQueue, (TestPipQueue _testQueue, (Pip before, Pip after) constraint) => { _testQueue.ConstrainExecutionOrder(constraint.before, constraint.after); return _testQueue; }).Unpause(),
                 context: Context,
                 fileContentTable: FileContentTable,
-                loggingContext: LoggingContext,
+                loggingContext: localLoggingContext,
                 cache: Cache,
                 configuration: config,
                 journalState: m_journalState,
@@ -422,19 +427,19 @@ namespace Test.BuildXL.Scheduler
                 MountPathExpander mountPathExpander = null;
                 var frontEndNonScrubbablePaths = CollectionUtilities.EmptyArray<string>();
                 var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
-                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, LoggingContext, config, nonScrubbablePaths, tempCleaner);
+                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, localLoggingContext, config, nonScrubbablePaths, tempCleaner);
 
                 if (filter == null)
                 {
-                    EngineSchedule.TryGetPipFilter(LoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);
+                    EngineSchedule.TryGetPipFilter(localLoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);
                 }
 
-                XAssert.IsTrue(testScheduler.InitForMaster(LoggingContext, filter, schedulerState), "Failed to initialized test scheduler");
+                XAssert.IsTrue(testScheduler.InitForMaster(localLoggingContext, filter, schedulerState), "Failed to initialized test scheduler");
 
-                testScheduler.Start(LoggingContext);
+                testScheduler.Start(localLoggingContext);
 
                 bool success = testScheduler.WhenDone().GetAwaiter().GetResult();
-                testScheduler.SaveFileChangeTrackerAsync(LoggingContext).Wait();
+                testScheduler.SaveFileChangeTrackerAsync(localLoggingContext).Wait();
 
                 if (ShouldLogSchedulerStats)
                 {
@@ -442,10 +447,10 @@ namespace Test.BuildXL.Scheduler
                     // to write out the stats perf JSON file
                     var logsDir = config.Logging.LogsDirectory.ToString(Context.PathTable);
                     Directory.CreateDirectory(logsDir);
-                    testScheduler.LogStats(LoggingContext);
+                    testScheduler.LogStats(localLoggingContext);
                 }
 
-                return new ScheduleRunResult
+                var runResult = new ScheduleRunResult
                 {
                     Graph = graph,
                     Config = config,
@@ -457,14 +462,20 @@ namespace Test.BuildXL.Scheduler
                     ProcessPipCountersByTelemetryTag = testScheduler.ProcessPipCountersByTelemetryTag,
                     SchedulerState = new SchedulerState(testScheduler)
                 };
+
+                runResult.AssertSuccessMatchesLogging(localLoggingContext);
+
+                // Prmote this run's specific LoggingContext into the test's LoggingContext.
+                LoggingContext.AbsorbLoggingContextState(localLoggingContext);
+                return runResult;
             }
         }
 
-        private Optional<global::BuildXL.Storage.ChangeJournalService.IChangeJournalAccessor> TryGetJournalAccessor(VolumeMap map)
+        private Possible<global::BuildXL.Storage.ChangeJournalService.IChangeJournalAccessor> TryGetJournalAccessor(VolumeMap map)
         {
             return map.Volumes.Any()
-                ? JournalAccessorGetter.TryGetJournalAccessor(LoggingContext, map, AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()))
-                : Optional<global::BuildXL.Storage.ChangeJournalService.IChangeJournalAccessor>.Invalid;
+                ? JournalUtils.TryGetJournalAccessorForTest(map)
+                : new Failure<string>("Invalid");
         }
 
         public string ArtifactToString(FileOrDirectoryArtifact file, PathTable pathTable = null)
@@ -476,22 +487,52 @@ namespace Test.BuildXL.Scheduler
             string sharedOpaqueDir,
             params FileArtifact[] filesToProduce)
         {
-            return CreateAndScheduleSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically: FileArtifact.Invalid, sourceFileToRead: FileArtifact.Invalid, filesToProduce);
+            return CreateAndScheduleSharedOpaqueProducer(
+                sharedOpaqueDir, 
+                fileToProduceStatically: FileArtifact.Invalid, 
+                sourceFileToRead: FileArtifact.Invalid, 
+                filesToProduce.Select(f => new KeyValuePair<FileArtifact, string>(f, null)).ToArray());
         }
 
-        protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(string sharedOpaqueDir, FileArtifact fileToProduceStatically, FileArtifact sourceFileToRead, params FileArtifact[] filesToProduceDynamically)
+        protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(
+            string sharedOpaqueDir,
+            FileArtifact fileToProduceStatically,
+            FileArtifact sourceFileToRead,
+            params FileArtifact[] filesToProduceDynamically)
         {
-            var filesAndContent = new KeyValuePair<FileArtifact, string>[filesToProduceDynamically.Length];
-            for (var i = 0 ; i < filesToProduceDynamically.Length; i++)
-            {
-                // null content for an output will make the builder use random content
-                filesAndContent[i] = new KeyValuePair<FileArtifact, string>(filesToProduceDynamically[i], null);
-            }
-
-            return CreateAndScheduleSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically, sourceFileToRead, filesAndContent);
+            return CreateAndScheduleSharedOpaqueProducer(
+                sharedOpaqueDir,
+                fileToProduceStatically,
+                sourceFileToRead,
+                filesToProduceDynamically.Select(f => new KeyValuePair<FileArtifact, string>(f, null)).ToArray());
         }
 
-        protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(string sharedOpaqueDir, FileArtifact fileToProduceStatically, FileArtifact sourceFileToRead, params KeyValuePair<FileArtifact, string>[] filesAndContentToProduceDynamically)
+        protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(
+            string sharedOpaqueDir,
+            FileArtifact fileToProduceStatically,
+            FileArtifact sourceFileToRead,
+            params KeyValuePair<FileArtifact, string>[] filesAndContentToProduceDynamically)
+        {
+            return CreateAndScheduleSharedOpaqueProducer(
+                sharedOpaqueDir,
+                fileToProduceStatically,
+                sourceFileToRead,
+                filesAndContentToProduceDynamically.SelectMany(
+                    fac =>
+                    {
+                        return new[]
+                        {
+                            Operation.DeleteFile(fac.Key),
+                            Operation.WriteFile(fac.Key, content: fac.Value, doNotInfer: true)
+                        };
+                    }).ToArray());
+        }
+
+        protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(
+            string sharedOpaqueDir,
+            FileArtifact fileToProduceStatically,
+            FileArtifact sourceFileToRead,
+            params Operation[] additionalOperations)
         {
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             var sharedOpaqueDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
@@ -507,13 +548,8 @@ namespace Test.BuildXL.Scheduler
             {
                 operations.Add(Operation.ReadFile(sourceFileToRead));
             }
-            
-            foreach (var fac in filesAndContentToProduceDynamically)
-            {
-                // Make sure the file is not there before writing
-                operations.Add(Operation.DeleteFile(fac.Key));
-                operations.Add(Operation.WriteFile(fac.Key, content: fac.Value, doNotInfer: true));
-            }
+
+            operations.AddRange(additionalOperations);
 
             var builder = CreatePipBuilder(operations);
             builder.AddOutputDirectory(sharedOpaqueDirectoryArtifact, SealDirectoryKind.SharedOpaque);

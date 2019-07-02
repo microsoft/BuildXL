@@ -19,6 +19,7 @@ namespace Script {
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
             parallelGroups: categoriesToRunInParallel,
+            weight: 2, //increase weight for frequent timeout pip
         },
         references: [
             Script.TestBase.dll,

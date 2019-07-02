@@ -9,6 +9,7 @@ using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
+using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 
@@ -284,7 +285,7 @@ namespace BuildXL.Cache.InMemory
 
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(filename));
+                FileUtilities.CreateDirectory(Path.GetDirectoryName(filename));
                 using (FileStream fs = new FileStream(filename, FileMode.CreateNew, FileAccess.Write))
                 {
                     await casStream.Result.CopyToAsync(fs);

@@ -5,6 +5,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Tracing;
 using BuildXL.Tracing.CloudBuild;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Diagnostics.Tracing;
 
@@ -41,7 +42,7 @@ namespace Tool.DropDaemon
 
         private void LogDropEventLocally(DropOperationBaseEvent e)
         {
-            var enabled = BuildXL.Tracing.ETWLogger.Log.IsEnabled(EventLevel.Verbose, Events.Keywords.CloudBuild) ? "ENABLED" : "DISABLED";
+            var enabled = BuildXL.Tracing.ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.CloudBuild) ? "ENABLED" : "DISABLED";
             m_localLogger.Info("Logging {0}Event(dropUrl: {1}, succeeded: {2}): {3}", e.Kind, e.DropUrl, e.Succeeded, enabled);
         }
     }

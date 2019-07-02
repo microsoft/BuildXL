@@ -14,6 +14,8 @@ using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Threading;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Distribution
@@ -48,6 +50,21 @@ namespace BuildXL.Scheduler.Distribution
         private WorkerNodeStatus m_status;
         private OperationContext m_workerStatusOperation;
         private OperationContext m_currentStatusOperation;
+
+        /// <summary>
+        /// Whether the worker has finished all pending requests after stop is initiated.
+        /// </summary>
+        protected readonly TaskSourceSlim<bool> DrainCompletion;
+
+        /// <summary>
+        /// Lock needed to cover 'acquireslots' and 'earlyrelease' logics
+        /// </summary>
+        protected readonly ReadWriteLock EarlyReleaseLock = ReadWriteLock.Create();
+
+        /// <summary>
+        /// If the worker is released early, we record the datetime.
+        /// </summary>
+        public DateTime? WorkerEarlyReleasedTime;
 
         internal static readonly OperationKind WorkerStatusParentOperationKind = OperationKind.Create("Distribution.WorkerStatus");
 
@@ -249,6 +266,7 @@ namespace BuildXL.Scheduler.Distribution
             PipStateSnapshot = m_workerPipStateManager.GetSnapshot();
 
             m_workerOperationKind = OperationKind.Create("Worker " + Name);
+            DrainCompletion = TaskSourceSlim.Create<bool>();
         }
 
         /// <summary>
@@ -270,6 +288,16 @@ namespace BuildXL.Scheduler.Distribution
 #pragma warning restore 1998
 
         /// <summary>
+        /// Release worker before build is finished due to the insufficient amount of work left
+        /// </summary>
+#pragma warning disable 1998 // Disable the warning for "This async method lacks 'await'"
+        public virtual async Task EarlyReleaseAsync()
+        {
+            throw new NotImplementedException("Local worker does not support early release");
+        }
+#pragma warning restore 1998
+
+        /// <summary>
         /// Returns if true if the worker holds a local node; false otherwise.
         /// </summary>
         public bool IsLocal => WorkerId == LocalWorkerIndex;
@@ -283,6 +311,16 @@ namespace BuildXL.Scheduler.Distribution
         /// Whether the worker is available to acquire work items
         /// </summary>
         public bool IsAvailable => Status == WorkerNodeStatus.Running;
+
+        /// <summary>
+        /// Gets the currently acquired slots for all operations that can be done on a worker.
+        /// </summary>
+        public int AcquiredSlots => AcquiredProcessSlots + AcquiredCacheLookupSlots + AcquiredIpcSlots;
+
+        /// <summary>
+        /// Gets the currently acquired slots for process pips.
+        /// </summary>
+        public int AcquiredSlotsForProcessPips => AcquiredProcessSlots + AcquiredCacheLookupSlots;
 
         /// <summary>
         /// Gets the currently acquired process slots
@@ -359,38 +397,41 @@ namespace BuildXL.Scheduler.Distribution
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
         public bool TryAcquireCacheLookup(ProcessRunnablePip runnablePip, bool force)
         {
-            if (!IsAvailable)
+            using (EarlyReleaseLock.AcquireReadLock())
             {
-                return false;
-            }
-
-            if (force)
-            {
-                Interlocked.Increment(ref m_acquiredCacheLookupSlots);
-                runnablePip.AcquiredResourceWorker = this;
-                return true;
-            }
-
-            // Atomically acquire a cache lookup slot, being sure to not increase above the limit
-            while (true)
-            {
-                int acquiredCacheLookupSlots = AcquiredCacheLookupSlots;
-                if (acquiredCacheLookupSlots < TotalCacheLookupSlots)
+                if (!IsAvailable)
                 {
-                    if (Interlocked.CompareExchange(ref m_acquiredCacheLookupSlots, acquiredCacheLookupSlots + 1, acquiredCacheLookupSlots) == acquiredCacheLookupSlots)
+                    return false;
+                }
+
+                if (force)
+                {
+                    Interlocked.Increment(ref m_acquiredCacheLookupSlots);
+                    runnablePip.AcquiredResourceWorker = this;
+                    return true;
+                }
+
+                // Atomically acquire a cache lookup slot, being sure to not increase above the limit
+                while (true)
+                {
+                    int acquiredCacheLookupSlots = AcquiredCacheLookupSlots;
+                    if (acquiredCacheLookupSlots < TotalCacheLookupSlots)
                     {
-                        OnWorkerResourcesChanged(WorkerResource.AvailableCacheLookupSlots, increased: false);
-                        runnablePip.AcquiredResourceWorker = this;
-                        return true;
+                        if (Interlocked.CompareExchange(ref m_acquiredCacheLookupSlots, acquiredCacheLookupSlots + 1, acquiredCacheLookupSlots) == acquiredCacheLookupSlots)
+                        {
+                            OnWorkerResourcesChanged(WorkerResource.AvailableCacheLookupSlots, increased: false);
+                            runnablePip.AcquiredResourceWorker = this;
+                            return true;
+                        }
+                        else
+                        {
+                            // Failed to update value. Retry.
+                        }
                     }
                     else
                     {
-                        // Failed to update value. Retry.
+                        return false;
                     }
-                }
-                else
-                {
-                    return false;
                 }
             }
         }
@@ -402,51 +443,53 @@ namespace BuildXL.Scheduler.Distribution
         {
             Contract.Requires(runnablePip.PipType == PipType.Ipc || runnablePip.PipType == PipType.Process);
             Contract.Ensures(Contract.Result<bool>() == (limitingResource == null), "Must set a limiting resource when resources cannot be acquired");
-
-            if (!IsAvailable)
+            using (EarlyReleaseLock.AcquireReadLock())
             {
-                limitingResource = WorkerResource.Status;
+                if (!IsAvailable)
+                {
+                    limitingResource = WorkerResource.Status;
+                    return false;
+                }
+
+                if (runnablePip.PipType == PipType.Ipc)
+                {
+                    Interlocked.Increment(ref m_acquiredIpcSlots);
+                    runnablePip.AcquiredResourceWorker = this;
+                    limitingResource = null;
+                    return true;
+                }
+
+                if (IsLocal)
+                {
+                    // Local worker does not use load factor as it may be down throttle by the
+                    // scheduler in order to handle remote requests.
+                    loadFactor = 1;
+                }
+
+                var processRunnablePip = runnablePip as ProcessRunnablePip;
+                // If a process has a weight higher than the total number of process slots, still allow it to run as long as there are no other
+                // processes running (the number of acquired slots is 0)
+                if (AcquiredProcessSlots != 0 && AcquiredProcessSlots + processRunnablePip.Weight > (EffectiveTotalProcessSlots * loadFactor))
+                {
+                    limitingResource = WorkerResource.AvailableProcessSlots;
+                    return false;
+                }
+
+                StringId limitingResourceName = StringId.Invalid;
+                if (processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip), out limitingResourceName))
+                {
+                    Interlocked.Add(ref m_acquiredProcessSlots, processRunnablePip.Weight);
+                    OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
+                    runnablePip.AcquiredResourceWorker = this;
+                    limitingResource = null;
+                    return true;
+                }
+
+                limitingResource = limitingResourceName == m_ramSemaphoreNameId
+                    ? WorkerResource.AvailableMemoryMb
+                    : WorkerResource.CreateSemaphoreResource(limitingResourceName.ToString(runnablePip.Environment.Context.StringTable));
                 return false;
             }
-
-            if (runnablePip.PipType == PipType.Ipc)
-            {
-                Interlocked.Increment(ref m_acquiredIpcSlots);
-                runnablePip.AcquiredResourceWorker = this;
-                limitingResource = null;
-                return true;
-            }
-
-            if (IsLocal)
-            {
-                // Local worker does not use load factor as it may be down throttle by the
-                // scheduler in order to handle remote requests.
-                loadFactor = 1;
-            }
-
-            var processRunnablePip = runnablePip as ProcessRunnablePip;
-            // If a process has a weight higher than the total number of process slots, still allow it to run as long as there are no other
-            // processes running (the number of acquired slots is 0)
-            if (AcquiredProcessSlots != 0 && AcquiredProcessSlots + processRunnablePip.Weight > (EffectiveTotalProcessSlots * loadFactor))
-            {
-                limitingResource = WorkerResource.AvailableProcessSlots;
-                return false;
-            }
-
-            StringId limitingResourceName = StringId.Invalid;
-            if (processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip), out limitingResourceName))
-            {
-                Interlocked.Add(ref m_acquiredProcessSlots, processRunnablePip.Weight);
-                OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
-                runnablePip.AcquiredResourceWorker = this;
-                limitingResource = null;
-                return true;
-            }
-
-            limitingResource = limitingResourceName == m_ramSemaphoreNameId
-                ? WorkerResource.AvailableMemoryMb
-                : WorkerResource.CreateSemaphoreResource(limitingResourceName.ToString(runnablePip.Environment.Context.StringTable));
-            return false;
         }
 
         private ProcessSemaphoreInfo[] GetAdditionalResourceInfo(ProcessRunnablePip runnableProcess)
@@ -500,31 +543,36 @@ namespace BuildXL.Scheduler.Distribution
 
             runnablePip.AcquiredResourceWorker = null;
 
-            if (runnablePip.Step == PipExecutionStep.CacheLookup)
-            {
-                Interlocked.Decrement(ref m_acquiredCacheLookupSlots);
-                OnWorkerResourcesChanged(WorkerResource.AvailableCacheLookupSlots, increased: true);
-                runnablePip.SetWorker(null);
-                return;
-            }
-
-            runnablePip.AcquiredResourceWorker = null;
             var processRunnablePip = runnablePip as ProcessRunnablePip;
             if (processRunnablePip != null)
             {
-                Contract.Assert(processRunnablePip.Resources.HasValue);
+                if (runnablePip.Step == PipExecutionStep.CacheLookup)
+                {
+                    Interlocked.Decrement(ref m_acquiredCacheLookupSlots);
+                    OnWorkerResourcesChanged(WorkerResource.AvailableCacheLookupSlots, increased: true);
+                    runnablePip.SetWorker(null);
+                }
+                else
+                {
+                    Contract.Assert(processRunnablePip.Resources.HasValue);
 
-                Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Weight);
+                    Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Weight);
 
-                var resources = processRunnablePip.Resources.Value;
-                m_workerSemaphores.ReleaseResources(resources);
+                    var resources = processRunnablePip.Resources.Value;
+                    m_workerSemaphores.ReleaseResources(resources);
 
-                OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: true);
+                    OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: true);
+                }
             }
 
             if (runnablePip.PipType == PipType.Ipc)
             {
                 Interlocked.Decrement(ref m_acquiredIpcSlots);
+            }
+
+            if (AcquiredSlots == 0 && Status == WorkerNodeStatus.Stopping)
+            {
+                DrainCompletion.TrySetResult(true);
             }
         }
 

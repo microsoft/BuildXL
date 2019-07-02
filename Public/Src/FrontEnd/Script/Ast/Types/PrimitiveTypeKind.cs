@@ -8,29 +8,22 @@ namespace BuildXL.FrontEnd.Script.Types
     /// </summary>
     public enum PrimitiveTypeKind : byte
     {
-        /// <summary>
-        /// Any.
-        /// </summary>
+        /// <nodoc/>
         Any,
 
-        /// <summary>
-        /// Number.
-        /// </summary>
+        /// <nodoc/>
         Number,
 
-        /// <summary>
-        /// Boolean.
-        /// </summary>
+        /// <nodoc/>
         Boolean,
 
-        /// <summary>
-        /// String.
-        /// </summary>
+        /// <nodoc/>
         String,
 
-        /// <summary>
-        /// Void.
-        /// </summary>
+        /// <nodoc/>
         Void,
+
+        /// <nodoc/>
+        Unit,
     }
 }

@@ -6,7 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using BuildXL.Utilities.Collections;
-
+using BuildXL.Utilities.Instrumentation.Common;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
 using Microsoft.Diagnostics.Tracing;
 #else
@@ -80,7 +80,7 @@ namespace BuildXL.Utilities.Tracing
         /// The base level of data to be sent to the listener.
         /// </param>
         /// <param name="captureAllDiagnosticMessages">
-        /// If true, all messages tagged with <see cref="Events.Keywords.Diagnostics" /> are captured.
+        /// If true, all messages tagged with <see cref="Keywords.Diagnostics" /> are captured.
         /// </param>
         /// <param name="timeDisplay">
         /// The kind of time prefix to apply to each chunk of output.
@@ -93,7 +93,7 @@ namespace BuildXL.Utilities.Tracing
         /// Otherwise, such conditions will throw an exception.
         /// </param>
         /// <param name="listenDiagnosticMessages">
-        /// If true, all messages tagged with <see cref="Events.Keywords.Diagnostics" /> at or above <paramref name="level"/> are enabled but not captured unless diagnostics are enabled per-task.
+        /// If true, all messages tagged with <see cref="Keywords.Diagnostics" /> at or above <paramref name="level"/> are enabled but not captured unless diagnostics are enabled per-task.
         /// This is useful for StatisticsEventListener, where you need to listen diagnostics messages but capture only ones tagged with CommonInfrastructure task.
         /// </param>
         /// <param name="useCustomPipDescription">
@@ -260,12 +260,12 @@ namespace BuildXL.Utilities.Tracing
             string full;
 
             // see if this event provides provenance info
-            if (message.StartsWith(Events.ProvenancePrefix, StringComparison.Ordinal))
+            if (message.StartsWith(EventConstants.ProvenancePrefix, StringComparison.Ordinal))
             {
                 Contract.Assume(args.Length >= 3, "Provenance prefix contains 3 formatting tokens.");
 
                 // this is formatted with local culture
-                string body = string.Format(CultureInfo.CurrentCulture, message.Substring(Events.ProvenancePrefix.Length), args);
+                string body = string.Format(CultureInfo.CurrentCulture, message.Substring(EventConstants.ProvenancePrefix.Length), args);
 
                 // this is formatted with the invariant culture since it is parsed by VS
                 full = string.Format(
@@ -290,7 +290,7 @@ namespace BuildXL.Utilities.Tracing
                     // error/warning text
                     body);
             }
-            else if ((eventData.Keywords & Events.Keywords.Progress) != 0 || message.StartsWith(Events.PhasePrefix, StringComparison.Ordinal))
+            else if ((eventData.Keywords & Keywords.Progress) != 0 || message.StartsWith(EventConstants.PhasePrefix, StringComparison.Ordinal))
             {
                 // Phases get printed without any DX code
                 string body = string.Format(CultureInfo.CurrentCulture, message, args);

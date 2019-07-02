@@ -39,7 +39,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         ///     Size, in bytes, of serialized form.
         /// </summary>
         public const int SerializedLength = MaxHashByteLength + 1;
-        private const char SerializedDelimiter = ':';
+
+        internal const char SerializedDelimiter = ':';
+
         private readonly HashType _hashType;
         private readonly ReadOnlyFixedBytes _bytes;
 
@@ -227,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public string Serialize()
         {
-            return $"{HashType.Serialize()}{SerializedDelimiter}{ToHex()}";
+            return $"{HashType.Serialize()}{SerializedDelimiter.ToString()}{ToHex()}";
         }
 
         /// <summary>
@@ -235,7 +237,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public string SerializeReverse()
         {
-            return $"{ToHex()}{SerializedDelimiter}{HashType.Serialize()}";
+            return $"{ToHex()}{SerializedDelimiter.ToString()}{HashType.Serialize()}";
         }
 
         /// <summary>
@@ -243,9 +245,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public void Serialize(byte[] buffer, int offset = 0, SerializeHashBytesMethod serializeMethod = SerializeHashBytesMethod.Trimmed)
         {
-            unchecked {
+            unchecked
+            {
                 buffer[offset++] = (byte)_hashType;
             }
+
             var length = serializeMethod == SerializeHashBytesMethod.Trimmed ? ByteLength : MaxHashByteLength;
             _bytes.Serialize(buffer, length, offset);
         }
@@ -345,10 +349,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
             var segment0 = serialized.Substring(0, x);
             var segment1 = serialized.Substring(x + 1);
 
-            HashType hashType;
             string hash;
 
-            if (segment0.Deserialize(out hashType))
+            if (segment0.Deserialize(out var hashType))
             {
                 hash = segment1;
             }

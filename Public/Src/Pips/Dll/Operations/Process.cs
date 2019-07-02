@@ -182,7 +182,7 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [PipCaching(FingerprintingRole = FingerprintingRole.Content)]
-        public ReadOnlyArray<DirectoryArtifact> DirectoryDependencies { get; }
+        public ReadOnlyArray<DirectoryArtifact> DirectoryDependencies { get; private set; }
 
         /// <summary>
         /// Order-only dependencies.
@@ -687,6 +687,11 @@ namespace BuildXL.Pips.Operations
         /// </remarks>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public ContainerIsolationLevel ContainerIsolationLevel { get; }
+
+        internal void UnsafeUpdateDirectoryDependencies(ReadOnlyArray<DirectoryArtifact> newDirectoryDependencies)
+        {
+            DirectoryDependencies = newDirectoryDependencies;
+        }
 
         #region PipUniqueOutputHash
 

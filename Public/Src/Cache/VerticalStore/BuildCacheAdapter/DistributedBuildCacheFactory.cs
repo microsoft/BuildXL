@@ -61,9 +61,10 @@ namespace BuildXL.Cache.BuildCacheAdapter
         //     "MaxFingerprintsPerIncorporateRequest":{23},
         //     "HttpSendTimeoutMinutes":{24},
         //     "LogFlushIntervalSeconds":{25}
-        //     "DownloadBlobsThroughBlobStore":{26}  
-        //     "UseDedupStore":{27}   
-        //     "DisableContent":{28}   
+        //     "DownloadBlobsThroughBlobStore":{26}
+        //     "UseDedupStore":{27}
+        //     "DisableContent":{28}
+        //     "OverrideUnixFileAccessMode":{29}
         // }
         private sealed class Config : BuildCacheCacheConfig
         {

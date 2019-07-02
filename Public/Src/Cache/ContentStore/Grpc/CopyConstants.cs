@@ -5,8 +5,6 @@ namespace BuildXL.Cache.ContentStore.Grpc
 {
     public static class CopyConstants
     {
-        public static readonly int DefaultBufferSize = 8192;
-
-        public static readonly int CompressionSize = DefaultBufferSize * 8;
+        public const int DefaultBufferSize = 8192;
     }
 }

@@ -49,8 +49,10 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                using (var rpcClient = GrpcCopyClient.Create(host, grpcPort, useCompressionForCopies))
+                using (var clientCache = new GrpcCopyClientCache(context))
+                using (var rpcClientWrapper = clientCache.CreateAsync(host, grpcPort, useCompressionForCopies).GetAwaiter().GetResult())
                 {
+                    var rpcClient = rpcClientWrapper.Value;
                     var finalPath = new AbsolutePath(destinationPath);
 
                     // This action is synchronous to make sure the calling application doesn't exit before the method returns.
@@ -62,12 +64,6 @@ namespace BuildXL.Cache.ContentStore.App
                     else
                     {
                         _logger.Debug($"Copy of {hashString} to {finalPath} was successful");
-                    }
-
-                    var shutdownResult = rpcClient.ShutdownAsync(context).Result;
-                    if (!shutdownResult.Succeeded)
-                    {
-                        throw new CacheException(shutdownResult.ErrorMessage);
                     }
                 }
             }

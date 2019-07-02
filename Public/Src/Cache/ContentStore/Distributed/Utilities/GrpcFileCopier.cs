@@ -26,14 +26,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         private int _grpcPort;
         private bool _useCompression;
 
+        private GrpcCopyClientCache _clientCache;
+
         /// <summary>
         /// Constructor for <see cref="GrpcFileCopier"/>.
         /// </summary>
-        public GrpcFileCopier(Context context, int grpcPort, bool useCompression = false)
+        public GrpcFileCopier(Context context, int grpcPort, int maxGrpcClientCount, int maxGrpcClientAgeMinutes, int grpcClientCleanupDelayMinutes, bool useCompression = false, int? bufferSize = null)
         {
             _context = context;
             _grpcPort = grpcPort;
             _useCompression = useCompression;
+
+            _clientCache = new GrpcCopyClientCache(context, maxGrpcClientCount, maxGrpcClientAgeMinutes, grpcClientCleanupDelayMinutes, bufferSize: bufferSize);
         }
 
         /// <inheritdoc />
@@ -43,9 +47,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(path);
 
             FileExistenceResult fileExistenceResult = null;
-            using (var client = GrpcCopyClient.Create(host, _grpcPort))
+            using (var clientWrapper = await _clientCache.CreateAsync(host, _grpcPort, _useCompression))
             {
-                fileExistenceResult = await client.CheckFileExistsAsync(_context, contentHash);
+                fileExistenceResult = await clientWrapper.Value.CheckFileExistsAsync(_context, contentHash);
             }
 
             return fileExistenceResult;
@@ -59,9 +63,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
-            using (var client = GrpcCopyClient.Create(host, _grpcPort, _useCompression))
+            using (var clientWrapper = await _clientCache.CreateAsync(host, _grpcPort, _useCompression))
             {
-                copyFileResult = await client.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken);
+                copyFileResult = await clientWrapper.Value.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken);
             }
 
             return copyFileResult;
@@ -100,9 +104,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
-            using (var client = GrpcCopyClient.Create(host, _grpcPort, _useCompression))
+            using (var clientWrapper = await _clientCache.CreateAsync(host, _grpcPort, _useCompression))
             {
-                copyFileResult = await client.CopyToAsync(_context, contentHash, destinationStream, cancellationToken);
+                copyFileResult = await clientWrapper.Value.CopyToAsync(_context, contentHash, destinationStream, cancellationToken);
             }
 
             return copyFileResult;

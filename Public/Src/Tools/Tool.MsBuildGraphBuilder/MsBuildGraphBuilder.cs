@@ -33,13 +33,11 @@ namespace MsBuildGraphBuilderTool
     /// </summary>
     public static class MsBuildGraphBuilder
     {
-        private static readonly (IReadOnlyCollection<string> predictedBy, string failure) s_noPredictionFailure = (new string[] { }, string.Empty);
-
         // Well-known item that defines the protocol static targets.
         // See https://github.com/Microsoft/msbuild/blob/master/documentation/specs/static-graph.md#inferring-which-targets-to-run-for-a-project-within-the-graph
         // TODO: maybe the static graph API can provide this information in the future in a more native way
         private const string ProjectReferenceTargets = "ProjectReferenceTargets";
-        
+
         /// <summary>
         /// Makes sure the required MsBuild assemblies are loaded from, uses the MsBuild static graph API to get a build graph starting
         /// at the project entry point and serializes it to an output file.
@@ -64,10 +62,10 @@ namespace MsBuildGraphBuilderTool
         /// For tests only. Similar to <see cref="BuildGraphAndSerialize(MSBuildGraphBuilderArguments)"/>, but the assembly loader and reporter can be passed explicitly
         /// </summary>
         internal static void BuildGraphAndSerializeForTesting(
-            IMsBuildAssemblyLoader assemblyLoader, 
+            IMsBuildAssemblyLoader assemblyLoader,
             GraphBuilderReporter reporter,
             MSBuildGraphBuilderArguments arguments,
-            IReadOnlyCollection<IProjectStaticPredictor> projectPredictorsForTesting = null)
+            IReadOnlyCollection<IProjectPredictor> projectPredictorsForTesting = null)
         {
             DoBuildGraphAndSerialize(
                 assemblyLoader,
@@ -77,10 +75,10 @@ namespace MsBuildGraphBuilderTool
         }
 
         private static void DoBuildGraphAndSerialize(
-            IMsBuildAssemblyLoader assemblyLoader, 
+            IMsBuildAssemblyLoader assemblyLoader,
             GraphBuilderReporter reporter,
             MSBuildGraphBuilderArguments arguments,
-            IReadOnlyCollection<IProjectStaticPredictor> projectPredictorsForTesting = null)
+            IReadOnlyCollection<IProjectPredictor> projectPredictorsForTesting = null)
         {
             reporter.ReportMessage("Starting MSBuild graph construction process...");
             var stopwatch = Stopwatch.StartNew();
@@ -95,7 +93,7 @@ namespace MsBuildGraphBuilderTool
             IMsBuildAssemblyLoader assemblyLoader,
             GraphBuilderReporter reporter,
             MSBuildGraphBuilderArguments arguments,
-            IReadOnlyCollection<IProjectStaticPredictor> projectPredictorsForTesting)
+            IReadOnlyCollection<IProjectPredictor> projectPredictorsForTesting)
         {
             reporter.ReportMessage("Looking for MSBuild toolset...");
 
@@ -125,7 +123,7 @@ namespace MsBuildGraphBuilderTool
             IReadOnlyDictionary<string, string> assemblyPathsToLoad,
             string locatedMsBuildPath,
             MSBuildGraphBuilderArguments graphBuildArguments,
-            IReadOnlyCollection<IProjectStaticPredictor> projectPredictorsForTesting)
+            IReadOnlyCollection<IProjectPredictor> projectPredictorsForTesting)
         {
             try
             {
@@ -134,10 +132,10 @@ namespace MsBuildGraphBuilderTool
                 var projectInstanceToProjectCache = new ConcurrentDictionary<ProjectInstance, Project>();
 
                 if (!TryBuildEntryPoints(
-                    graphBuildArguments.ProjectsToParse, 
-                    graphBuildArguments.RequestedQualifiers, 
-                    graphBuildArguments.GlobalProperties, 
-                    out List<ProjectGraphEntryPoint> entryPoints, 
+                    graphBuildArguments.ProjectsToParse,
+                    graphBuildArguments.RequestedQualifiers,
+                    graphBuildArguments.GlobalProperties,
+                    out List<ProjectGraphEntryPoint> entryPoints,
                     out string failure))
                 {
                     return ProjectGraphWithPredictionsResult.CreateFailure(
@@ -149,7 +147,7 @@ namespace MsBuildGraphBuilderTool
                 var projectGraph = new ProjectGraph(
                     entryPoints,
                     // The project collection doesn't need any specific global properties, since entry points already contain all the ones that are needed, and the project graph will merge them
-                    new ProjectCollection(), 
+                    new ProjectCollection(),
                     (projectPath, globalProps, projectCollection) => ProjectInstanceFactory(projectPath, globalProps, projectCollection, projectInstanceToProjectCache));
 
                 // This is a defensive check to make sure the assembly loader actually honored the search locations provided by the user. The path of the assembly where ProjectGraph
@@ -161,28 +159,26 @@ namespace MsBuildGraphBuilderTool
                 if (!assemblyPathsToLoad.Values.Contains(assemblylocation, StringComparer.InvariantCultureIgnoreCase))
                 {
                     return ProjectGraphWithPredictionsResult.CreateFailure(
-                        GraphConstructionError.CreateFailureWithoutLocation($"Internal error: the assembly '{assembly.GetName().Name}' was loaded from '{assemblylocation}'. This path doesn't match any of the provided search locations. Please contact the BuildXL team."), 
-                        assemblyPathsToLoad, 
+                        GraphConstructionError.CreateFailureWithoutLocation($"Internal error: the assembly '{assembly.GetName().Name}' was loaded from '{assemblylocation}'. This path doesn't match any of the provided search locations. Please contact the BuildXL team."),
+                        assemblyPathsToLoad,
                         locatedMsBuildPath);
                 }
 
                 reporter.ReportMessage("Done parsing MSBuild specs.");
 
                 if (!TryConstructGraph(
-                    projectGraph, 
-                    locatedMsBuildPath,
-                    graphBuildArguments.EnlistmentRoot, 
-                    reporter, 
+                    projectGraph,
+                    reporter,
                     projectInstanceToProjectCache,
-                    graphBuildArguments.EntryPointTargets, 
-                    projectPredictorsForTesting, 
+                    graphBuildArguments.EntryPointTargets,
+                    projectPredictorsForTesting,
                     graphBuildArguments.AllowProjectsWithoutTargetProtocol,
-                    out ProjectGraphWithPredictions projectGraphWithPredictions, 
+                    out ProjectGraphWithPredictions projectGraphWithPredictions,
                     out failure))
                 {
                     return ProjectGraphWithPredictionsResult.CreateFailure(
-                        GraphConstructionError.CreateFailureWithoutLocation(failure), 
-                        assemblyPathsToLoad, 
+                        GraphConstructionError.CreateFailureWithoutLocation(failure),
+                        assemblyPathsToLoad,
                         locatedMsBuildPath);
                 }
 
@@ -218,9 +214,9 @@ namespace MsBuildGraphBuilderTool
         /// configuration) plus the particular qualifier, which is passed to MSBuild as properties as well.
         /// </remarks>
         private static bool TryBuildEntryPoints(
-            IReadOnlyCollection<string> projectsToParse, 
-            IReadOnlyCollection<GlobalProperties> requestedQualifiers, 
-            GlobalProperties globalProperties, 
+            IReadOnlyCollection<string> projectsToParse,
+            IReadOnlyCollection<GlobalProperties> requestedQualifiers,
+            GlobalProperties globalProperties,
             out List<ProjectGraphEntryPoint> entryPoints,
             out string failure)
         {
@@ -299,19 +295,16 @@ namespace MsBuildGraphBuilderTool
         }
 
         private static bool TryConstructGraph(
-            ProjectGraph projectGraph, 
-            string locatedMsBuildPath, 
-            string enlistmentRoot, 
-            GraphBuilderReporter reporter, 
+            ProjectGraph projectGraph,
+            GraphBuilderReporter reporter,
             ConcurrentDictionary<ProjectInstance, Project> projectInstanceToProjectCache,
             IReadOnlyCollection<string> entryPointTargets,
-            IReadOnlyCollection<IProjectStaticPredictor> projectPredictorsForTesting,
+            IReadOnlyCollection<IProjectPredictor> projectPredictorsForTesting,
             bool allowProjectsWithoutTargetProtocol,
             out ProjectGraphWithPredictions projectGraphWithPredictions,
             out string failure)
         {
             Contract.Assert(projectGraph != null);
-            Contract.Assert(!string.IsNullOrEmpty(locatedMsBuildPath));
 
             var projectNodes = new ProjectWithPredictions[projectGraph.ProjectNodes.Count];
 
@@ -332,10 +325,10 @@ namespace MsBuildGraphBuilderTool
 
             // Create the registered predictors and initialize the prediction executor
             // The prediction executor potentially initializes third-party predictors, which may contain bugs. So let's be very defensive here
-            IReadOnlyCollection<IProjectStaticPredictor> predictors;
+            IReadOnlyCollection<IProjectPredictor> predictors;
             try
             {
-                predictors = projectPredictorsForTesting ?? ProjectStaticPredictorFactory.CreateStandardPredictors(locatedMsBuildPath);
+                predictors = projectPredictorsForTesting ?? ProjectPredictors.AllPredictors;
             }
             catch(Exception ex)
             {
@@ -344,10 +337,11 @@ namespace MsBuildGraphBuilderTool
                 return false;
             }
 
-            var predictionExecutor = new ProjectStaticPredictionExecutor(enlistmentRoot, predictors);
+            // Using single-threaded prediction since we're parallelizing on project nodes instead.
+            var predictionExecutor = new ProjectPredictionExecutor(predictors, new ProjectPredictionOptions { MaxDegreeOfParallelism = 1 });
 
             // Each predictor may return unexpected/incorrect results and targets may not be able to be predicted. We put those failures here for post-processing.
-            ConcurrentQueue<(IReadOnlyCollection<string> predictedBy, string failure)> predictedIOFailures = new ConcurrentQueue<(IReadOnlyCollection<string>, string)>();
+            ConcurrentQueue<(string predictorName, string failure)> predictionFailures = new ConcurrentQueue<(string, string)>();
             var predictedTargetFailures = new ConcurrentQueue<string>();
 
             // The predicted targets to execute (per project) go here
@@ -363,38 +357,27 @@ namespace MsBuildGraphBuilderTool
                 ProjectInstance projectInstance = msBuildNode.ProjectInstance;
                 Project project = projectInstanceToProjectCache[projectInstance];
 
-                StaticPredictions predictions;
+                var inputFilePredictions = new List<string>();
+                var outputFolderPredictions = new List<string>();
+
+                var predictionCollector = new MsBuildPredictionCollector(inputFilePredictions, outputFolderPredictions, predictionFailures);
                 try
                 {
                     // Again, be defensive when using arbitrary predictors
-                    predictions = predictionExecutor.PredictInputsAndOutputs(project);
+                    predictionExecutor.PredictInputsAndOutputs(project, predictionCollector);
                 }
                 catch(Exception ex)
                 {
-                    predictedIOFailures.Enqueue((
-                        new string[] { "Unknown predictor" }, 
+                    predictionFailures.Enqueue((
+                        "Unknown predictor",
                         $"Cannot run static predictor on project '{project.FullPath ?? "Unknown project"}'. An unexpected error occurred. Please contact BuildPrediction project owners with this stack trace: {ex.ToString()}"));
-                    
-                    // Stick an empty prediction. The error will be caught anyway after all predictors are done.
-                    predictions = new StaticPredictions(new BuildInput[] { }, new BuildOutputDirectory[] { });
-                }
-
-                // Let's validate the predicted inputs and outputs, in case the predictor is not working properly
-                if (!TryGetInputPredictions(predictions, out IReadOnlyCollection<string> inputPredictions, out (IReadOnlyCollection<string> predictedBy, string failure) inputPredictionFailure))
-                {
-                    predictedIOFailures.Enqueue(inputPredictionFailure);
-                }
-
-                if (!TryGetOutputPredictions(predictions, out IReadOnlyCollection<string> outputPredictions, out (IReadOnlyCollection<string> predictedBy, string failure) outputPredictionFailure))
-                {
-                    predictedIOFailures.Enqueue(outputPredictionFailure);
                 }
 
                  if (!TryGetPredictedTargetsAndPropertiesToExecute(
-                    projectInstance, 
-                    msBuildNode, 
-                    targetsPerProject, 
-                    computedTargets, 
+                    projectInstance,
+                    msBuildNode,
+                    targetsPerProject,
+                    computedTargets,
                     pendingAddDefaultTargets,
                     allowProjectsWithoutTargetProtocol,
                     out GlobalProperties globalProperties,
@@ -408,8 +391,8 @@ namespace MsBuildGraphBuilderTool
                     projectInstance.FullPath,
                     projectInstance.GetItems(ProjectReferenceTargets).Count > 0,
                     globalProperties,
-                    inputPredictions,
-                    outputPredictions);
+                    inputFilePredictions,
+                    outputFolderPredictions);
 
                 // If projects not implementing the target protocol are blocked, then the list of computed targets is final. So we set it right here
                 // to avoid wasted allocations
@@ -424,16 +407,16 @@ namespace MsBuildGraphBuilderTool
                 msBuildNodesToNodeWithPredictionIndex[msBuildNode] = projectNodes[i];
             });
 
-            // There were IO prediction errors. 
-            if (!predictedIOFailures.IsEmpty)
+            // There were IO prediction errors.
+            if (!predictionFailures.IsEmpty)
             {
                 projectGraphWithPredictions = new ProjectGraphWithPredictions(new ProjectWithPredictions<string>[] { });
                 failure = $"Errors found during static prediction of inputs and outputs. " +
-                    $"{string.Join(", ", predictedIOFailures.Select(failureWithCulprit => $"[Predicted by: {string.Join(", ", failureWithCulprit.predictedBy)}] {failureWithCulprit.failure}"))}";
+                    $"{string.Join(", ", predictionFailures.Select(failureWithCulprit => $"[Predicted by: {failureWithCulprit.predictorName}] {failureWithCulprit.failure}"))}";
                 return false;
             }
 
-            // There were target prediction errors. 
+            // There were target prediction errors.
             if (!predictedTargetFailures.IsEmpty)
             {
                 projectGraphWithPredictions = new ProjectGraphWithPredictions(new ProjectWithPredictions<string>[] { });
@@ -519,88 +502,12 @@ namespace MsBuildGraphBuilderTool
 
             // This is the case where the project doesn't implement the protocol, it has non-empty references
             // and projects without a protocol are not allowed.
-            
+
             failure = $"Project '{projectInstance.FullPath}' is not specifying its project reference protocol. For more details see https://github.com/Microsoft/msbuild/blob/master/documentation/specs/static-graph.md";
             computedTargets = null;
             globalPropertiesForNode = GlobalProperties.Empty;
 
             return false;
-        }
-
-        private static bool TryGetInputPredictions(StaticPredictions predictions, out IReadOnlyCollection<string> inputPredictions, out (IReadOnlyCollection<string> predictedBy, string failure) inputPredictionFailure)
-        {
-            var inputs = new List<string>(predictions.BuildInputs.Count);
-
-            foreach (BuildInput input in predictions.BuildInputs)
-            {
-                var folder = input.Path;
-
-                if (!IsStringValidAbsolutePath(folder, out string invalidPathFailure))
-                {
-                    inputPredictionFailure = (input.PredictedBy, invalidPathFailure);
-                    inputPredictions = inputs;
-                    return false;
-                }
-
-                if (input.IsDirectory)
-                {
-                    if (Directory.Exists(folder))
-                    {
-                        inputs.AddRange(Directory.EnumerateFiles(folder));
-                    }
-                    // TODO: Can we do anything to flag that the input prediction is not going to be used?
-                }
-                else
-                {
-                    inputs.Add(folder);
-                }
-
-            }
-
-            inputPredictions = inputs;
-            inputPredictionFailure = s_noPredictionFailure;
-            return true;
-        }
-
-        private static bool TryGetOutputPredictions(StaticPredictions predictions, out IReadOnlyCollection<string> outputPredictions, out (IReadOnlyCollection<string> predictedBy, string failure) outputPredictionFailure)
-        {
-            var items = new List<string>();
-            foreach (var output in predictions.BuildOutputDirectories)
-            {
-                var path = output.Path;
-                if (!IsStringValidAbsolutePath(path, out string invalidPathFailure))
-                {
-                    outputPredictionFailure = (output.PredictedBy, invalidPathFailure);
-                    outputPredictions = items;
-                    return false;
-                }
-
-                items.Add(path);
-            }
-            outputPredictions = items;
-            outputPredictionFailure = s_noPredictionFailure;
-
-            return true;
-        }
-
-        private static bool IsStringValidAbsolutePath(string path, out string failure)
-        {
-            try
-            {
-                var isRooted = Path.IsPathRooted(path);
-                if (!isRooted)
-                {
-                    failure = $"The predicted path '{path}' is not absolute.";
-                    return false;
-                }
-                failure = string.Empty;
-                return true;
-            }
-            catch (ArgumentException e)
-            {
-                failure = $"The predicted path '{path}' is malformed: {e.Message}";
-                return false;
-            }
         }
 
         private static void SerializeGraph(ProjectGraphWithPredictionsResult projectGraphWithPredictions, string outputFile, GraphBuilderReporter reporter)

@@ -9,6 +9,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -52,6 +54,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         private readonly object[] _locks = Enumerable.Range(0, ushort.MaxValue + 1).Select(s => new object()).ToArray();
 
+        /// <summary>
+        /// Whether the cache is currently being used. Can only possibly be true in master. Only meant for testing
+        /// purposes.
+        /// </summary>
+        internal bool IsInMemoryCacheEnabled { get; private set; } = false;
+
+        private readonly FlushableCache _inMemoryCache;
+
+        /// <summary>
+        /// This counter is not exact, but provides an approximate count. It may be thwarted by flushes and cache
+        /// activate/deactivate events. Its only purpose is to roughly help ensure flushes are more frequent as
+        /// more operations are performed.
+        /// </summary>
+        private int _cacheUpdatesSinceLastFlush = 0;
+
+        /// <summary>
+        /// Controls cache flushing due to timeout.
+        /// </summary>
+        private Timer _inMemoryCacheFlushTimer;
+
+        private readonly object _cacheFlushTimerLock = new object();
+
         /// <nodoc />
         protected ContentLocationDatabase(IClock clock, ContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)
         {
@@ -62,30 +86,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Clock = clock;
             _configuration = configuration;
             _getInactiveMachines = getInactiveMachines;
+
+            _inMemoryCache = new FlushableCache(configuration, this);
         }
-
-        /// <summary>
-        /// Synchronizes machine location data between the database and the given cluster state instance
-        /// </summary>
-        public void UpdateClusterState(OperationContext context, ClusterState clusterState, bool write)
-        {
-            if (!_configuration.StoreClusterState)
-            {
-                return;
-            }
-
-            context.PerformOperation(
-                Tracer,
-                () =>
-                {
-                    // TODO: Handle setting inactive machines here
-                    UpdateClusterStateCore(context, clusterState, write);
-                    return BoolResult.Success;
-                }).IgnoreFailure();
-        }
-
-        /// <nodoc />
-        protected abstract void UpdateClusterStateCore(OperationContext context, ClusterState clusterState, bool write);
 
         /// <summary>
         /// Factory method that creates an instance of a <see cref="ContentLocationDatabase"/> based on an optional <paramref name="configuration"/> instance.
@@ -107,15 +110,55 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Prepares the database for read only or read/write mode. This operation assumes no operations are underway
+        /// while running. It is the responsibility of the caller to ensure that is so.
+        /// </summary>
+        public void SetDatabaseMode(bool isDatabaseWritable)
+        {
+            ConfigureGarbageCollection(isDatabaseWritable);
+            ConfigureInMemoryDatabaseCache(isDatabaseWritable);
+        }
+
+        /// <summary>
         /// Configures the behavior of the database's garbage collection
         /// </summary>
-        public void ConfigureGarbageCollection(bool shouldDoGc)
+        private void ConfigureGarbageCollection(bool shouldDoGc)
         {
             if (_isGarbageCollectionEnabled != shouldDoGc)
             {
                 _isGarbageCollectionEnabled = shouldDoGc;
                 var nextGcTimeSpan = _isGarbageCollectionEnabled ? _configuration.LocalDatabaseGarbageCollectionInterval : Timeout.InfiniteTimeSpan;
                 _gcTimer?.Change(nextGcTimeSpan, Timeout.InfiniteTimeSpan);
+            }
+        }
+
+        private void ConfigureInMemoryDatabaseCache(bool isDatabaseWritable)
+        {
+            if (_configuration.CacheEnabled)
+            {
+                // This clear is actually safe, as no operations should happen concurrently with this function.
+                _inMemoryCache.UnsafeClear();
+
+                Interlocked.Exchange(ref _cacheUpdatesSinceLastFlush, 0);
+
+                lock (_cacheFlushTimerLock)
+                {
+                    IsInMemoryCacheEnabled = isDatabaseWritable;
+                }
+
+                ResetFlushTimer();
+            }
+        }
+
+        private void ResetFlushTimer()
+        {
+            lock (_cacheFlushTimerLock)
+            {
+                var cacheFlushTimeSpan = IsInMemoryCacheEnabled
+                    ? _configuration.CacheFlushingMaximumInterval
+                    : Timeout.InfiniteTimeSpan;
+
+                _inMemoryCacheFlushTimer?.Change(cacheFlushTimeSpan, Timeout.InfiniteTimeSpan);
             }
         }
 
@@ -128,6 +171,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     _ => GarbageCollect(context),
                     null,
                     _isGarbageCollectionEnabled ? _configuration.LocalDatabaseGarbageCollectionInterval : Timeout.InfiniteTimeSpan,
+                    Timeout.InfiniteTimeSpan);
+            }
+
+            if (_configuration.CacheEnabled && _configuration.CacheFlushingMaximumInterval != Timeout.InfiniteTimeSpan)
+            {
+                _inMemoryCacheFlushTimer = new Timer(
+                    _ => {
+                        Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByTimer].Increment();
+                        ForceCacheFlushAsync(context).FireAndForget(context);
+                    },
+                    null,
+                    Timeout.InfiniteTimeSpan,
                     Timeout.InfiniteTimeSpan);
             }
 
@@ -152,6 +207,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             lock (this)
             {
                 _gcTimer?.Dispose();
+                _inMemoryCacheFlushTimer?.Dispose();
             }
 
             return base.ShutdownCoreAsync(context);
@@ -174,22 +230,42 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return false;
         }
 
+        /// <nodoc />
+        protected abstract IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(CancellationToken token);
+
         /// <summary>
         /// Gets a sequence of keys.
         /// </summary>
-        public abstract IEnumerable<ShortHash> EnumerateSortedKeys(CancellationToken token);
+        protected IEnumerable<ShortHash> EnumerateSortedKeys(OperationContext context)
+        {
+            // NOTE: This is used by GC which will query for the value itself and thereby
+            // get the value from the in memory cache if present. It will NOT necessarily
+            // enumerate all keys in the in memory cache since they may be new keys but GC
+            // is fine to just handle those on the next GC iteration
+            return EnumerateSortedKeysFromStorage(context.Token);
+        }
 
         /// <summary>
         /// Enumeration filter used by <see cref="ContentLocationDatabase.EnumerateEntriesWithSortedKeys"/> to filter out entries by raw value from a database.
         /// </summary>
         public delegate bool EnumerationFilter(byte[] value);
 
+        /// <nodoc />
+        protected abstract IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeysFromStorage(
+            CancellationToken token,
+            EnumerationFilter filter = null);
+
         /// <summary>
         /// Gets a sequence of keys and values sorted by keys.
         /// </summary>
-        public abstract IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeys(
-            CancellationToken token,
-            EnumerationFilter filter = null);
+        public IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeys(
+            OperationContext context,
+            EnumerationFilter filter = null)
+        {
+            Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByGarbageCollection].Increment();
+            ForceCacheFlush(context);
+            return EnumerateEntriesWithSortedKeysFromStorage(context.Token, filter);
+        }
 
         /// <summary>
         /// Collects entries with last access time longer then time to live.
@@ -211,9 +287,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             lock (this)
             {
-                if (!ShutdownStarted && _isGarbageCollectionEnabled)
+                if (!ShutdownStarted)
                 {
-                    _gcTimer?.Change(_configuration.LocalDatabaseGarbageCollectionInterval, Timeout.InfiniteTimeSpan);
+                    if (_isGarbageCollectionEnabled)
+                    {
+                        _gcTimer?.Change(_configuration.LocalDatabaseGarbageCollectionInterval, Timeout.InfiniteTimeSpan);
+                    }
                 }
             }
         }
@@ -240,7 +319,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 ShortHash? lastHash = null;
 
-                foreach (var hash in EnumerateSortedKeys(context.Token))
+                foreach (var hash in EnumerateSortedKeys(context))
                 {
                     totalEntries++;
 
@@ -326,6 +405,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Synchronizes machine location data between the database and the given cluster state instance
+        /// </summary>
+        public void UpdateClusterState(OperationContext context, ClusterState clusterState, bool write)
+        {
+            if (!_configuration.StoreClusterState)
+            {
+                return;
+            }
+
+            context.PerformOperation(
+                Tracer,
+                () =>
+                {
+                    // TODO: Handle setting inactive machines here
+                    UpdateClusterStateCore(context, clusterState, write);
+
+                    return BoolResult.Success;
+                }).IgnoreFailure();
+        }
+
+        /// <nodoc />
+        protected abstract void UpdateClusterStateCore(OperationContext context, ClusterState clusterState, bool write);
+
+        /// <summary>
         /// Gets whether the file in the database's checkpoint directory is immutable between checkpoints (i.e. files with the same name will have the same content)
         /// </summary>
         public abstract bool IsImmutable(AbsolutePath dbFile);
@@ -335,6 +438,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using (Counters[ContentLocationDatabaseCounters.SaveCheckpoint].Start())
             {
+                Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByCheckpoint].Increment();
+                ForceCacheFlush(context);
                 return context.PerformOperation(Tracer, () => SaveCheckpointCore(context, checkpointDirectory));
             }
         }
@@ -355,19 +460,97 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected abstract BoolResult RestoreCheckpointCore(OperationContext context, AbsolutePath checkpointDirectory);
 
         /// <nodoc />
-        protected abstract bool TryGetEntryCore(OperationContext context, ShortHash hash, out ContentLocationEntry entry);
+        protected abstract bool TryGetEntryCoreFromStorage(OperationContext context, ShortHash hash, out ContentLocationEntry entry);
 
         /// <nodoc />
-        protected abstract void Store(OperationContext context, ShortHash hash, ContentLocationEntry entry);
+        protected bool TryGetEntryCore(OperationContext context, ShortHash hash, out ContentLocationEntry entry)
+        {
+            Counters[ContentLocationDatabaseCounters.NumberOfGetOperations].Increment();
+
+            if (IsInMemoryCacheEnabled && _inMemoryCache.TryGetEntry(hash, out entry))
+            {
+                return true;
+            }
+
+            return TryGetEntryCoreFromStorage(context, hash, out entry);
+        }
 
         /// <nodoc />
-        protected abstract void Delete(OperationContext context, ShortHash hash);
+        internal abstract void Persist(OperationContext context, ShortHash hash, ContentLocationEntry entry);
+
+        /// <nodoc />
+        internal virtual void PersistBatch(OperationContext context, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs)
+        {
+            foreach (var pair in pairs)
+            {
+                Persist(context, pair.Key, pair.Value);
+            }
+        }
+
+        /// <nodoc />
+        protected void Store(OperationContext context, ShortHash hash, ContentLocationEntry entry)
+        {
+            Counters[ContentLocationDatabaseCounters.NumberOfStoreOperations].Increment();
+
+            if (IsInMemoryCacheEnabled)
+            {
+                _inMemoryCache.Store(context, hash, entry);
+
+                // The fact that this is == is important to ensure it can only be triggered once by this condition
+                if (Interlocked.Increment(ref _cacheUpdatesSinceLastFlush) == _configuration.CacheMaximumUpdatesPerFlush)
+                {
+                    Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByUpdates].Increment();
+                    ForceCacheFlushAsync(context).FireAndForget(context);
+                }
+            }
+            else
+            {
+                Persist(context, hash, entry);
+                Counters[ContentLocationDatabaseCounters.NumberOfPersistedEntries].Increment();
+            }
+        }
+
+        /// <nodoc />
+        protected void Delete(OperationContext context, ShortHash hash)
+        {
+            Store(context, hash, entry: null);
+        }
+
+        private Task ForceCacheFlushAsync(OperationContext context)
+        {
+            if (!IsInMemoryCacheEnabled)
+            {
+                return BoolResult.SuccessTask;
+            }
+
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    try
+                    {
+                        await Task.Yield();
+                        await _inMemoryCache.FlushAsync(context);
+                        return BoolResult.Success;
+                    }
+                    finally
+                    {
+                        Interlocked.Exchange(ref _cacheUpdatesSinceLastFlush, 0);
+                        ResetFlushTimer();
+                    }
+                }).ThrowIfFailure();
+        }
+
+        internal void ForceCacheFlush(OperationContext context)
+        {
+            ForceCacheFlushAsync(context).GetAwaiter().GetResult();
+        }
 
         private ContentLocationEntry SetMachineExistenceAndUpdateDatabase(OperationContext context, ShortHash hash, MachineId? machine, bool existsOnMachine, long size, UnixTime? lastAccessTime, bool reconciling)
         {
-            bool created = false;
-            OperationReason reason = reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
-            int priorLocationCount = 0;
+            var created = false;
+            var reason = reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
+            var priorLocationCount = 0;
             lock (GetLock(hash))
             {
                 if (TryGetEntryCore(context, hash, out var entry))

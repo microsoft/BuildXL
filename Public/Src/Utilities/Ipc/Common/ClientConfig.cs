@@ -13,7 +13,7 @@ namespace BuildXL.Ipc.Common
     public sealed class ClientConfig : IClientConfig
     {
         /// <nodoc />
-        public const int DefaultMaxConnectRetries = 1;
+        public const int DefaultMaxConnectRetries = 5;
 
         /// <nodoc />
         public const int DefaultConnectRetryDelayMillis = 100;

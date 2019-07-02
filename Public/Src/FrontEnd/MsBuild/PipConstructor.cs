@@ -19,6 +19,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
+using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
 
@@ -56,6 +57,8 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private readonly AbsolutePath m_msBuildExePath;
         private readonly string m_frontEndName;
+        private readonly IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
+        private readonly IEnumerable<string> m_userDefinedPassthroughVariables;
 
         private PathTable PathTable => m_context.PathTable;
         private FrontEndEngineAbstraction Engine => m_frontEndHost.Engine;
@@ -68,6 +71,10 @@ namespace BuildXL.FrontEnd.MsBuild
         /// </remarks>
         internal const string OutputCacheFileName = "output.cache";
 
+        // All projects should contain this property since the build graph is created by MSBuild under the /graph option
+        // TODO: it would be better if MSBuild provided the property name
+        internal const string s_isGraphBuildProperty = "IsGraphBuild";
+
         /// <nodoc/>
         public PipConstructor(
             FrontEndContext context,
@@ -75,7 +82,9 @@ namespace BuildXL.FrontEnd.MsBuild
             ModuleDefinition moduleDefinition,
             IMsBuildResolverSettings resolverSettings,
             AbsolutePath pathToMsBuildExe,
-            string frontEndName)
+            string frontEndName,
+            IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
+            IEnumerable<string> userDefinedPassthroughVariables)
         {
             Contract.Requires(context != null);
             Contract.Requires(frontEndHost != null);
@@ -83,13 +92,17 @@ namespace BuildXL.FrontEnd.MsBuild
             Contract.Requires(resolverSettings != null);
             Contract.Requires(pathToMsBuildExe.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
-            
+            Contract.Requires(userDefinedEnvironment != null);
+            Contract.Requires(userDefinedPassthroughVariables != null);
+
             m_context = context;
             m_frontEndHost = frontEndHost;
             m_moduleDefinition = moduleDefinition;
             m_resolverSettings = resolverSettings;
             m_msBuildExePath = pathToMsBuildExe;
             m_frontEndName = frontEndName;
+            m_userDefinedEnvironment = userDefinedEnvironment;
+            m_userDefinedPassthroughVariables = userDefinedPassthroughVariables;
         }
 
         /// <summary>
@@ -147,12 +160,9 @@ namespace BuildXL.FrontEnd.MsBuild
             // Check UseSynchronousLogging on https://github.com/Microsoft/msbuild
             env[BuildEnvironmentConstants.MsBuildLogAsyncEnvVar] = "1";
 
-            // If the resolver settings environment was not specified, we expose the whole process environment
-            var environment = m_resolverSettings.Environment ?? 
-                Environment.GetEnvironmentVariables().Cast<DictionaryEntry>().Select(
-                    entry => new KeyValuePair<string, string>((string)entry.Key, (string)entry.Value));
-
-            foreach (var input in environment)
+            // Observe there is no need to inform the engine this environment is being used since
+            // the same environment was used during graph construction, and the engine is already tracking them
+            foreach (var input in m_userDefinedEnvironment)
             {
                 string envVarName = input.Key;
 
@@ -164,9 +174,6 @@ namespace BuildXL.FrontEnd.MsBuild
                 }
 
                 env[envVarName] = input.Value;
-
-                // We don't actually need the value, but we need to tell the engine that the value is being used
-                Engine.TryGetBuildParameter(envVarName, m_frontEndName, out _);
             }
 
             //
@@ -464,6 +471,14 @@ namespace BuildXL.FrontEnd.MsBuild
                         envPipData.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
                 }
             }
+
+            if (m_userDefinedPassthroughVariables != null)
+            {
+                foreach (string passThroughVariable in m_userDefinedPassthroughVariables)
+                {
+                    processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(m_context.StringTable, passThroughVariable));
+                }
+            }
         }
 
         private bool TryConfigureProcessBuilder(
@@ -541,6 +556,9 @@ namespace BuildXL.FrontEnd.MsBuild
             // It'll cause full cache misses if we try to hash it as an input, however, so exclude.
             processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(m_context.StringTable, BuildEnvironmentConstants.QSessionGuidEnvVar));
 
+            // GlobalUnsafePassthroughEnvironmentVariables
+            processBuilder.SetGlobalPassthroughEnvironmentVariable(m_frontEndHost.Configuration.FrontEnd.GlobalUnsafePassthroughEnvironmentVariables, m_context.StringTable);
+
             // mspdbsrv: _MSPDBSRV_ENDPOINT_ sets up one mspdbsrv.exe instance per build target execution.
             // However this process will live beyond the build.cmd or msbuild.exe call.
             // Allow the pip job object to clean the process without complaint.
@@ -549,10 +567,8 @@ namespace BuildXL.FrontEnd.MsBuild
             // Just let it be killed.
             // TODO: Can we stop it running? https://stackoverflow.microsoft.com/questions/74425/how-to-disable-vctip-exe-in-vc14
             //
-            // conhost.exe: This process needs a little bit more time to finish after the main process. We shouldn't be allowing
-            // this one to survive, we just need the timeout to be slightly more than zero. This will also be beneficial to other 
-            // arbitrary processeses that need a little bit more time. But, apparently, setting a timeout has a perf impact that is 
-            // being investigated. TODO: revisit this once this is fixed.
+            // conhost.exe: This process needs a little bit more time to finish after the main process, but killing it right away
+            // is inconsequential. 
             //
             // All child processes: Don't wait to kill the processes.
             // CODESYNC: CloudBuild repo TrackerExecutor.cs "info.NestedProcessTerminationTimeout = TimeSpan.Zero"
@@ -561,7 +577,12 @@ namespace BuildXL.FrontEnd.MsBuild
                 PathAtom.Create(m_context.StringTable, "vctip.exe"),
                 PathAtom.Create(m_context.StringTable, "conhost.exe"),
                 PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe"));
-            processBuilder.NestedProcessTerminationTimeout = TimeSpan.Zero;
+            // There are some cases (e.g. a 64-bit MSBuild launched as a child process from a 32-bit MSBuild instance) where
+            // processes need a little bit more time to finish. Increasing the timeout does not affect job objects where no child
+            // processes survive, or job object where the only surviving processes are the ones explicitly allowed to survive (which
+            // are killed immediately). So overall, this non-zero timeout will only make some pips that would have failed to take a little
+            // bit longer (and hopefully succeed)
+            processBuilder.NestedProcessTerminationTimeout = TimeSpan.FromMilliseconds(500);
 
             SetProcessEnvironmentVariables(CreateEnvironment(logDirectory, project), processBuilder);
 
@@ -715,8 +736,11 @@ namespace BuildXL.FrontEnd.MsBuild
             var success = Root.TryGetRelative(PathTable, projectFile.FullPath, out var inFolderPathFromEnlistmentRoot);
             Contract.Assert(success);
 
-            // We hardcode the log to go under Logs (and follow the project structure underneath)
-            var result = m_frontEndHost.Configuration.Logging.LogsDirectory
+            // We hardcode the log to go under the output directory Logs/MSBuild (and follow the project structure underneath)
+            // The 'official' log directory (defined by Configuration.Logging) is not stable in CloudBuild across machines, and therefore it would
+            // introduce cache misses
+            var result = m_frontEndHost.Configuration.Layout.OutputDirectory
+                .Combine(PathTable, "Logs")
                 .Combine(PathTable, "MSBuild")
                 .Combine(PathTable, inFolderPathFromEnlistmentRoot);
 
@@ -724,7 +748,7 @@ namespace BuildXL.FrontEnd.MsBuild
             // Projects can be evaluated multiple times with different global properties (but same qualifiers), so just
             // the qualifier name is not enough
             List<string> values = qualifier.Values.Select(value => value.ToString(m_context.StringTable))
-                .Union(projectFile.GlobalProperties.Values)
+                .Union(projectFile.GlobalProperties.Where(kvp => kvp.Key != s_isGraphBuildProperty).Select(kvp => kvp.Value))
                 .Select(value => PipConstructionUtilities.SanitizeStringForSymbol(value))
                 .OrderBy(value => value, StringComparer.Ordinal) // Let's make sure we always produce the same string for the same set of values
                 .ToList();
@@ -809,7 +833,9 @@ namespace BuildXL.FrontEnd.MsBuild
             var valueName = PipConstructionUtilities.SanitizeStringForSymbol(project.FullPath.GetName(PathTable).ToString(m_context.StringTable));
 
             // If global properties are present, we append to the value name a flatten representation of them
-            if (project.GlobalProperties.Count > 0)
+            // There should always be a 'IsGraphBuild' property, so we count > 1
+            Contract.Assert(project.GlobalProperties.ContainsKey(s_isGraphBuildProperty));
+            if (project.GlobalProperties.Count > 1)
             {
                 valueName += ".";
             }
@@ -818,6 +844,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 project.GlobalProperties
                     // let's sort global properties keys to make sure the same string is generated consistently
                     // case-sensitivity is already handled (and ignored) by GlobalProperties class 
+                    .Where(kvp => kvp.Key != s_isGraphBuildProperty)
                     .OrderBy(kvp => kvp.Key, StringComparer.Ordinal) 
                     .Select(gp => $"{PipConstructionUtilities.SanitizeStringForSymbol(gp.Key)}_{PipConstructionUtilities.SanitizeStringForSymbol(gp.Value)}"));
 

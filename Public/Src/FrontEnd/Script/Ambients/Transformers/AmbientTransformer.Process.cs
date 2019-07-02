@@ -502,6 +502,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 ProcessUnsafeOptions(context, processBuilder, unsafeOptions);
             }
 
+            // GlobalUnsafePassthroughEnvironmentVariables
+            processBuilder.SetGlobalPassthroughEnvironmentVariable(context.FrontEndHost.Configuration.FrontEnd.GlobalUnsafePassthroughEnvironmentVariables, context.StringTable);
+
             // Set outputs to remain writable.
             var keepOutputsWritable = Converter.ExtractOptionalBoolean(obj, m_executeKeepOutputsWritable);
             if (keepOutputsWritable == true)

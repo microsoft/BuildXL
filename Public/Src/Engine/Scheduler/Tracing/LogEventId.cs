@@ -133,8 +133,9 @@ namespace BuildXL.Scheduler.Tracing
 
         AllowedSameContentDoubleWrite = 5044,
 
-        FailedToLoadPipGraphFragment = 5045
-
+        InitiateWorkerRelease = 5045,
+        WorkerReleasedEarly = 5046, 
+        FailedToLoadPipGraphFragment = 5047
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

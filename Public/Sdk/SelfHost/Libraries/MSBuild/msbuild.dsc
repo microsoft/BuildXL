@@ -23,9 +23,6 @@ export const msbuildReferences: Managed.ManagedNugetPackage[] = [
 ];
 
 @@public
-export const msbuildLocatorReferences: Managed.ManagedNugetPackage[] = [importFrom("Microsoft.Build.Locator").pkg];
-
-@@public
 export const msbuildRuntimeContent = [
     importFrom("System.Numerics.Vectors").pkg,
     importFrom("DataflowForMSBuildRuntime").pkg,

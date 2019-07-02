@@ -32,6 +32,7 @@ using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -1397,7 +1398,8 @@ namespace BuildXL.Scheduler
                                 }
 
                                 if (result.Status == SandboxedProcessPipExecutionStatus.OutputWithNoFileAccessFailed ||
-                                    result.Status == SandboxedProcessPipExecutionStatus.MismatchedMessageCount)
+                                    result.Status == SandboxedProcessPipExecutionStatus.MismatchedMessageCount ||
+                                    result.Status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToAzureWatsonExitCode)
                                 {
                                     if (remainingInternalSandboxedProcessExecutionFailureRetries > 0)
                                     {
@@ -1411,6 +1413,10 @@ namespace BuildXL.Scheduler
 
                                             case SandboxedProcessPipExecutionStatus.MismatchedMessageCount:
                                                 counters.IncrementCounter(PipExecutorCounter.MismatchMessageRetriesCount);
+                                                break;
+
+                                            case SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToAzureWatsonExitCode:
+                                                counters.IncrementCounter(PipExecutorCounter.AzureWatsonExitCodeRetriesCount);
                                                 break;
 
                                             default:
@@ -1437,6 +1443,13 @@ namespace BuildXL.Scheduler
                                                 processDescription);
                                             break;
 
+                                        case SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToAzureWatsonExitCode:
+                                            Logger.Log.PipExitedWithAzureWatsonExitCode(
+                                                operationContext,
+                                                pip.SemiStableHash,
+                                                processDescription);
+                                            break;
+
                                         default:
                                             Contract.Assert(false, "Unexpected result error type gotten.");
                                             break;
@@ -1445,7 +1458,7 @@ namespace BuildXL.Scheduler
                                     // Just break the loop below. The result is already set properly.
                                 }
 
-                                if (result.Status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToExitCode)
+                                if (result.Status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode)
                                 {
                                     Contract.Assert(remainingUserRetries > 0);
 
@@ -1957,7 +1970,7 @@ namespace BuildXL.Scheduler
                                             computedStrongFingerprint: strongFingerprint.Value,
                                             observedInputs: observedInputProcessingResult.ObservedInputs.BaseArray);
 
-                                        if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Events.Keywords.Diagnostics))
+                                        if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                                         {
                                             Logger.Log.TwoPhaseStrongFingerprintComputedForPathSet(
                                                 operationContext,
@@ -1971,7 +1984,7 @@ namespace BuildXL.Scheduler
                                     case ObservedInputProcessingStatus.Mismatched:
                                         // This pip can't access some of the paths. We should remember that (the path set may be repeated many times).
                                         strongFingerprint = null;
-                                        if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Events.Keywords.Diagnostics))
+                                        if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                                         {
                                             Logger.Log.TwoPhaseStrongFingerprintUnavailableForPathSet(
                                                 operationContext,
@@ -2034,7 +2047,7 @@ namespace BuildXL.Scheduler
                                 break;
                             }
 
-                            if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, BuildXL.Utilities.Tracing.Events.Keywords.Diagnostics))
+                            if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                             {
                                 Logger.Log.TwoPhaseStrongFingerprintRejected(
                                     operationContext,
@@ -2980,7 +2993,7 @@ namespace BuildXL.Scheduler
             {
                 // The path can't be accessed. Note that we don't apply a whitelist here (that only applies to process execution).
                 // We let this cause overall failure (i.e., a failed ObservedInputProcessingResult, and an undefined StrongContentFingerprint).
-                if (!BuildXL.Scheduler.ETWLogger.Log.IsEnabled(EventLevel.Verbose, BuildXL.Utilities.Tracing.Events.Keywords.Diagnostics))
+                if (!BuildXL.Scheduler.ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                 {
                     Logger.Log.PathSetValidationTargetFailedAccessCheck(m_operationContext, m_pipDescription, assertion.Path.ToString(m_pathTable));
                 }
@@ -3294,7 +3307,7 @@ namespace BuildXL.Scheduler
             }
 
             // Tracing input assertions is expensive (many events and many string expansions); we avoid tracing when nobody is listening.
-            if (!BuildXL.Scheduler.ETWLogger.Log.IsEnabled(EventLevel.Verbose, BuildXL.Utilities.Tracing.Events.Keywords.Diagnostics))
+            if (!BuildXL.Scheduler.ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
             {
                 return;
             }

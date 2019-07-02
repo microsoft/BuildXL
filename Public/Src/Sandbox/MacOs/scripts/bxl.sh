@@ -23,6 +23,9 @@ declare arg_loadKext=""
 
 declare g_bxlCmdArgs=()
 
+# Allow for up to 1MB of thread stack size
+export COMPlus_DefaultStackSize=100000
+
 # Clears and then populates the 'g_bxlArgs' array with arguments to be passed to 'bxl'.
 # The arguments are decided based on sensible defaults as well as the current values of the 'arg_*' variables.
 function setBxlCmdArgs {

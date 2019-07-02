@@ -100,8 +100,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         private const string IllegalPathFragment = "|";
 
         [Fact]
-        // Illegal characters in path are Windows specific (it seems that '/' is illegal on unix, but mac tests disagree with that).
-        [Trait("Category", "WindowsOSOnly")]
+        // DotNetCore does not validate the absence of illegal path characters in paths
+        [Trait("Category", "SkipDotNetCore")]
         public void InvalidPathCharacterPrintedInExceptionMessage()
         {
             var relativePath = new RelativePath(PathGeneratorUtilities.GetRelativePath("a"));

@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
+using BuildXL.Native.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Diagnostics;
 using BuildXL.Storage.FileContentTableAccessor;
@@ -306,7 +307,7 @@ namespace Test.BuildXL.Storage
             ExpectHashUnknown(loadedTable, m_testFileA);
             ExpectHashUnknown(loadedTable, m_testFileB);
 
-            AssertInformationalEventLogged(EventId.StorageLoadFileContentTable);
+            AssertInformationalEventLogged(LogEventId.StorageLoadFileContentTable);
 
             VerifyTable(loadedTable);
         }
@@ -344,7 +345,7 @@ namespace Test.BuildXL.Storage
             WriteTestFiles();
 
             VersionedFileIdentityAndContentInfo info = RecordContentHash(table, m_testFileA, s_hashA);
-            AssertVerboseEventLogged(EventId.StorageFileContentTableIgnoringFileSinceVersionedFileIdentityIsNotSupported);
+            AssertVerboseEventLogged(LogEventId.StorageFileContentTableIgnoringFileSinceVersionedFileIdentityIsNotSupported);
             XAssert.AreEqual(VersionedFileIdentity.IdentityKind.Anonymous, info.Identity.Kind);
             XAssert.IsTrue(info.Identity.IsAnonymous);
         }

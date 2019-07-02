@@ -267,7 +267,7 @@ namespace BuildXL.Utilities.Tracing
         /// <summary>
         /// Increments a value of a current counter by <paramref name="value"/>.
         /// </summary>
-        public void Add(int value)
+        public void Add(long value)
         {
             m_collection.AddToCounterInternal(m_id, value);
         }
@@ -303,7 +303,7 @@ namespace BuildXL.Utilities.Tracing
         /// <inheritdoc />
         public override string ToString()
         {
-            string optionalDuration = IsStopwatch ? Duration.ToString(@"hh\:mm\:ss\.fff") : string.Empty;
+            string optionalDuration = IsStopwatch ? (" " + Duration.ToString(@"hh\:mm\:ss\.fff")) : string.Empty;
             return $"[{Value.ToString().PadLeft(8, ' ')}{optionalDuration}";
         }
     }

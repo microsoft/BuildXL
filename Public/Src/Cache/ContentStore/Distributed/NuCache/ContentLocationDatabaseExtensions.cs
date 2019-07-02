@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -20,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             MachineId currentMachineId)
         {
             foreach (var (key, entry) in database.EnumerateEntriesWithSortedKeys(
-                context.Token,
+                context,
                 rawValue => database.HasMachineId(rawValue, currentMachineId.Index)))
             {
                 yield return (key, entry);

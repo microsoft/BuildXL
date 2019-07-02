@@ -326,20 +326,26 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
-        public static void Contains<T>(IEnumerable<T> container, T elem)
+        public static void Contains<T>(IEnumerable<T> container, params T[] elems)
         {
-            if (!container.Contains(elem))
+            foreach (var elem in elems)
             {
-                Assert.True(false, I($"Element '{elem}' not found in container: {RenderContainer(container)}"));
+                if (!container.Contains(elem))
+                {
+                    Assert.True(false, I($"Element '{elem}' not found in container: {RenderContainer(container)}"));
+                }
             }
         }
 
         /// <nodoc/>
-        public static void ContainsNot<T>(IEnumerable<T> container, T elem)
+        public static void ContainsNot<T>(IEnumerable<T> container, params T[] elems)
         {
-            if (container.Contains(elem))
+            foreach (var elem in elems)
             {
-                Assert.True(false, I($"Element '{elem}' found in container: {RenderContainer(container)}"));
+                if (container.Contains(elem))
+                {
+                    Assert.True(false, I($"Element '{elem}' found in container: {RenderContainer(container)}"));
+                }
             }
         }
 

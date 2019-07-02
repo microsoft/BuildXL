@@ -220,36 +220,63 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            if (!FileSystem.DirectoryExists(Config.DataRootPath))
+            // Splitting initialization into two pieces:
+            // Normal startup procedure and post-initialization step that notifies all
+            // the special stores that the initialization has finished.
+            // This is a workaround to make sure hibernated sessions are fully restored
+            // before FileSystemContentStore can evict the content.
+            var result = await tryStartupCoreAsync();
+
+            foreach (var store in StoresByName.Values)
             {
-                FileSystem.CreateDirectory(Config.DataRootPath);
+                if (store is IContentStoreWithPostInitialization contentStore)
+                {
+                    contentStore.PostInitializationCompleted(context, result);
+                }
             }
 
-            await StartupStoresAsync(context).ThrowIfFailure();
+            return result;
 
-            await LoadHibernatedSessionsAsync(context);
+            async Task<BoolResult> tryStartupCoreAsync()
+            {
+                try
+                {
+                    if (!FileSystem.DirectoryExists(Config.DataRootPath))
+                    {
+                        FileSystem.CreateDirectory(Config.DataRootPath);
+                    }
 
-            InitializeAndStartGrpcServer(Config.GrpcPort, BindServices(), Config.RequestCallTokensPerCompletionQueue);
+                    await StartupStoresAsync(context).ThrowIfFailure();
 
-            _serviceReadinessChecker.Ready(context);
+                    await LoadHibernatedSessionsAsync(context);
 
-            _sessionExpirationCheckTimer = new IntervalTimer(
-                () => CheckForExpiredSessionsAsync(context),
-                MinTimeSpan(Config.UnusedSessionHeartbeatTimeout, TimeSpan.FromMinutes(CheckForExpiredSessionsPeriodMinutes)),
-                message => Tracer.Debug(context, $"[{CheckForExpiredSessionsName}] message"));
+                    InitializeAndStartGrpcServer(Config.GrpcPort, BindServices(), Config.RequestCallTokensPerCompletionQueue);
 
-            _logIncrementalStatsTimer = new IntervalTimer(
-                () => LogIncrementalStatsAsync(context),
-                Config.LogIncrementalStatsInterval);
+                    _serviceReadinessChecker.Ready(context);
 
-            return BoolResult.Success;
+                    _sessionExpirationCheckTimer = new IntervalTimer(
+                        () => CheckForExpiredSessionsAsync(context),
+                        MinTimeSpan(Config.UnusedSessionHeartbeatTimeout, TimeSpan.FromMinutes(CheckForExpiredSessionsPeriodMinutes)),
+                        message => Tracer.Debug(context, $"[{CheckForExpiredSessionsName}] message"));
+
+                    _logIncrementalStatsTimer = new IntervalTimer(
+                        () => LogIncrementalStatsAsync(context),
+                        Config.LogIncrementalStatsInterval);
+
+                    return BoolResult.Success;
+                }
+                catch (Exception e)
+                {
+                    return new BoolResult(e);
+                }
+            }
         }
 
         private void InitializeAndStartGrpcServer(int grpcPort, ServerServiceDefinition[] definitions, int requestCallTokensPerCompletionQueue)
         {
             Contract.Requires(definitions.Length != 0);
             GrpcEnvironment.InitializeIfNeeded();
-            _grpcServer = new Server
+            _grpcServer = new Server(GrpcEnvironment.DefaultConfiguration)
                           {
                               Ports = { new ServerPort(IPAddress.Any.ToString(), grpcPort, ServerCredentials.Insecure) },
 

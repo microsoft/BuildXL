@@ -48,7 +48,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
         }
 
         /// <summary>
-        /// Resolves and returns a bound memmber member for receiver and a specified name.
+        /// Resolves and returns a bound member for receiver and a specified name.
         /// </summary>
         public CallableValue<T> ResolveMember(T receiver, SymbolAtom name)
         {

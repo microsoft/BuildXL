@@ -4,7 +4,7 @@
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 
 import * as Managed      from "Sdk.Managed";
-import * as Qtest from "BuildXL.Tools.QTest";
+import * as Qtest        from "BuildXL.Tools.QTest";
 
 export declare const qualifier : Managed.TargetFrameworks.All;
 const qTestContents = importFrom("CB.QTest").Contents.all;
@@ -115,7 +115,7 @@ function runTest(args : TestRunArguments) : File[] {
 
     const qtestDllLogDir = args.limitGroups ? p`${qtestLogDir}/${args.limitGroups[0]}` : p`${qtestLogDir}`;
     const logDir = d`${qtestDllLogDir}/${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`;
-    
+
     let result = Qtest.runQTest({
         testAssembly: args.testDeployment.primaryFile.path,
         qTestType: Qtest.QTestType.msTest_latest,
@@ -138,7 +138,8 @@ function runTest(args : TestRunArguments) : File[] {
         tags: args.tags,
         weight: args.weight,
         privilegeLevel: args.privilegeLevel,
-        qTestBuildType: qualifier.configuration
+        qTestBuildType: qualifier.configuration,
+        testSourceDir: Context.getMount("SourceRoot").path.getRelative(Context.getSpecFileDirectory().path),
     });
 
     return [

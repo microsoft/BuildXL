@@ -11,6 +11,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 #if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
@@ -93,7 +94,7 @@ namespace Test.BuildXL.Utilities
                     }
 
                     XAssert.IsTrue(
-                        (eventAttribute.Keywords & Events.Keywords.Diagnostics) == 0 || (eventAttribute.Keywords & Events.Keywords.UserMessage) == 0,
+                        (eventAttribute.Keywords & Keywords.Diagnostics) == 0 || (eventAttribute.Keywords & Keywords.UserMessage) == 0,
                         "Event {0} specifies both the UserMessage and Diagnostics keywords; these are mutually exclusive.", eventMethod.Name);
 
                     string formattedMessage;
@@ -138,9 +139,9 @@ namespace Test.BuildXL.Utilities
                     // We now verify that all strings in the payload appear in the message.
                     // We exclude pip-provenance and phase events for now because for some reason they define GUIDs that never actually
                     // get logged (which is probably not a valid thing to do on an EventSource).
-                    if (!l.LastEvent.Message.StartsWith(Events.ProvenancePrefix, StringComparison.Ordinal)
-                        && !l.LastEvent.Message.StartsWith(Events.PhasePrefix, StringComparison.Ordinal)
-                        && !l.LastEvent.Keywords.HasFlag(Events.Keywords.Performance))
+                    if (!l.LastEvent.Message.StartsWith(EventConstants.ProvenancePrefix, StringComparison.Ordinal)
+                        && !l.LastEvent.Message.StartsWith(EventConstants.PhasePrefix, StringComparison.Ordinal)
+                        && !l.LastEvent.Keywords.HasFlag(Keywords.Performance))
                     {
                         for (int i = 0; i < payload.Length; i++)
                         {
@@ -161,7 +162,7 @@ namespace Test.BuildXL.Utilities
                     {
                         XAssert.IsTrue(
                             eventAttribute.Level != EventLevel.Error ||
-                            (eventAttribute.Keywords & Events.Keywords.UserMessage) == Events.Keywords.UserMessage,
+                            (eventAttribute.Keywords & Keywords.UserMessage) == Keywords.UserMessage,
                             "Event {0} marked as Error must be Keywords.UserMessage",
                             eventMethod.Name);
                     }

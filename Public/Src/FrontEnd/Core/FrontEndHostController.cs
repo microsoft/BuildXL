@@ -568,7 +568,17 @@ namespace BuildXL.FrontEnd.Core
 
             // partially reload graph
             var stats = graph.PartiallyReloadGraph(affectedSpecs: affectedSpecPaths);
-            Logger.GraphPartiallyReloaded(FrontEndContext.LoggingContext, stats, ignoredSpecPaths.Count);
+
+            var numAffectedSpecs = stats.AffectedSpecs.Count();
+            Logger.GraphPartiallyReloaded(
+                FrontEndContext.LoggingContext,
+                numAffectedSpecs,
+                numAffectedSpecs + ignoredSpecPaths.Count,
+                stats.ElapsedMilliseconds,
+                stats.NumPipsReloaded,
+                stats.NumPipsAutomaticallyAdded,
+                stats.NumPipsSkipped,
+                stats.NumPipsNotReloadable);
 
             // log some debugging details
             Func<AbsolutePath, string> toStringFn = p => p.ToString(FrontEndContext.PathTable);

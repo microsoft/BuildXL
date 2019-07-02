@@ -18,7 +18,7 @@ BuildXL has a command-line interface. There are currently no plans to integrate 
 The BuildXL documentation main page is [here](Documentation/INDEX.md).
 
 ## Examples and Demos
-See the Examples/ folder for basic project examples. See the [Demos](Public/Src/Demos/Demos.md) page for information about various technical demos like using the process sandboxing code.
+See the `Examples/` folder for basic project examples. See the [Demos](Public/Src/Demos/Demos.md) page for information about various technical demos like using the process sandboxing code.
 
 # Building the Code
 

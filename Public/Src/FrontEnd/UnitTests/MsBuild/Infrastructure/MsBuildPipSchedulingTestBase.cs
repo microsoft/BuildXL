@@ -101,10 +101,14 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         {
             var projectNameRelative = RelativePath.Create(StringTable, projectName ?? "testProj.proj");
 
+            // We need to simulate the project comes from MSBuild with /graph
+            var properties = new Dictionary<string, string>(globalProperties ?? GlobalProperties.Empty);
+            properties[PipConstructor.s_isGraphBuildProperty] = "true";
+
             var projectWithPredictions = new ProjectWithPredictions(
                 TestPath.Combine(PathTable, projectNameRelative), 
                 implementsTargetProtocol,
-                globalProperties ?? GlobalProperties.Empty, 
+                new GlobalProperties(properties), 
                 inputs ?? CollectionUtilities.EmptyArray<AbsolutePath>(), 
                 outputs ?? CollectionUtilities.EmptyArray<AbsolutePath>(), 
                 projectReferences: references?.ToArray() ?? CollectionUtilities.EmptyArray<ProjectWithPredictions>(),
@@ -123,13 +127,17 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
 
             using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, workspaceFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _, requestedQualifiers))
             {
+                resolverSettings.ComputeEnvironment(out var trackedEnv, out var passthroughVars);
+
                 var pipConstructor = new PipConstructor(
                     FrontEndContext,
                     controller,
                     m_testModule,
                     resolverSettings,
                     AbsolutePath.Create(PathTable, TestDeploymentDir).Combine(PathTable, "MSBuild.exe"),
-                    nameof(MsBuildFrontEnd));
+                    nameof(MsBuildFrontEnd),
+                    trackedEnv,
+                    passthroughVars);
 
                 var schedulingResults = new Dictionary<ProjectWithPredictions, (bool, string, Process)>();
 

@@ -1605,9 +1605,24 @@ namespace BuildXL.Processes
                 }
             }
 
-            // Untrack the globally untracked paths specified in the configuration 
+            // Untrack the globally untracked paths specified in the configuration     
             foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
             {
+                // translate the path and untrack the translated one                
+                if (m_fileAccessManifest.DirectoryTranslator != null)
+                {
+                    var pathString = path.ToString(m_pathTable);
+                    var translatedPathString = m_fileAccessManifest.DirectoryTranslator.Translate(pathString);
+                    var translatedPath = AbsolutePath.Create(m_pathTable, translatedPathString);
+
+                    if (path != translatedPath)
+                    {
+                        m_fileAccessManifest.AddScope(translatedPath, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                        Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString);
+                    }
+                }               
+
+                // untrack the original path
                 m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
             }
 

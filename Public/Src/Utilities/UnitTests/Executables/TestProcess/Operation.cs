@@ -26,6 +26,7 @@ namespace Test.BuildXL.Executables.TestProcess
         private const int ERROR_ALREADY_EXISTS = 183;
         private const string StdErrMoniker = "stderr";
         private const string WaitToFinishMoniker = "wait";
+        private const string AllUppercasePath = "allUpper";
 
         /// <summary>
         /// Returns an <code>IEnumerable</code> containing <paramref name="operation"/>
@@ -280,6 +281,7 @@ namespace Test.BuildXL.Executables.TestProcess
         ///   - search pattern for directory enumerations in <see cref="Type.EnumerateDir"/>
         ///   - whether to wait for the spawned process to finish in <see cref="Type.Spawn"/>
         ///   - whether to use stdout or stderr in <see cref="Type.Echo"/>
+        ///   - whether to use an all uppercase path in <see cref="Type.WriteFile"/> (for testing casing awareness)
         /// </summary>
         public string AdditionalArgs { get; private set; }
 
@@ -288,7 +290,15 @@ namespace Test.BuildXL.Executables.TestProcess
         /// </summary>
         public int RetriesOnWrite { get; }
 
-        private Operation(Type type, FileOrDirectoryArtifact? path = null, string content = null, FileOrDirectoryArtifact? linkPath = null, SymbolicLinkFlag? symLinkFlag = null, bool? doNotInfer = null, string additionalArgs = null, int retriesOnWrite = 5)
+        private Operation(
+            Type type, 
+            FileOrDirectoryArtifact? path = null, 
+            string content = null, 
+            FileOrDirectoryArtifact? linkPath = null, 
+            SymbolicLinkFlag? symLinkFlag = null, 
+            bool? doNotInfer = null, 
+            string additionalArgs = null, 
+            int retriesOnWrite = 5)
         {
             Contract.Requires(content == null || !content.Contains(Environment.NewLine));
 
@@ -463,11 +473,11 @@ namespace Test.BuildXL.Executables.TestProcess
         /// Creates a write file operation that appends. The file is created if it does not exist.
         /// Writes random content to file at path if no content is specified.
         /// </summary>
-        public static Operation WriteFile(FileArtifact path, string content = null, bool doNotInfer = false)
+        public static Operation WriteFile(FileArtifact path, string content = null, bool doNotInfer = false, bool changePathToAllUpperCase = false)
         {
             return content == Environment.NewLine
-                ? new Operation(Type.AppendNewLine, path, doNotInfer: doNotInfer)
-                : new Operation(Type.WriteFile, path, content, doNotInfer: doNotInfer);
+                ? new Operation(Type.AppendNewLine, path, doNotInfer: doNotInfer, additionalArgs: changePathToAllUpperCase? Operation.AllUppercasePath : null)
+                : new Operation(Type.WriteFile, path, content, doNotInfer: doNotInfer, additionalArgs: changePathToAllUpperCase ? Operation.AllUppercasePath : null);
         }
 
         /// <summary>
@@ -787,6 +797,11 @@ namespace Test.BuildXL.Executables.TestProcess
         {
             try
             {
+                if (AdditionalArgs == AllUppercasePath)
+                {
+                    file = file.ToUpperInvariant();
+                }
+
                 File.AppendAllText(file, content);
             }
             catch (UnauthorizedAccessException)

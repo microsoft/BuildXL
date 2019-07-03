@@ -24,7 +24,6 @@ namespace Test.BuildXL.Pips
         {
         }
 
-        [Fact]
         public void TestInliningPath()
         {
             PathTable writerPathTable = new PathTable();
@@ -56,7 +55,6 @@ namespace Test.BuildXL.Pips
             }
         }
 
-        [Fact]
         public void TestInliningString()
         {
             PathTable writerPathTable = new PathTable();
@@ -88,7 +86,6 @@ namespace Test.BuildXL.Pips
             }
         }
 
-        [Fact]
         public void TestInliningPipData()
         {
             PathTable writerPathTable = new PathTable();

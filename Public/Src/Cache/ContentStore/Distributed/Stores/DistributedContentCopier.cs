@@ -129,6 +129,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             try
             {
+                Random r = new Random();
                 PutResult putResult = null;
                 var badContentLocations = new HashSet<MachineLocation>();
                 var missingContentLocations = new HashSet<MachineLocation>();
@@ -171,7 +172,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     }
 
                     TimeSpan waitDelay = _retryIntervals[attemptCount];
-                    Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash}...");
+                    bool extendedForBadLocations = false;
+
+                    if (badContentLocations.Count == hashInfo.Locations.Count)
+                    {
+                        // Double delay because all locations are bad. This allows the machines more time to recover, especially if they are overwhelmed by requests.
+                        waitDelay += TimeSpan.FromTicks((long)(waitDelay.Ticks * r.NextDouble()));
+                        extendedForBadLocations = true;
+                    }
+
+                    Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash} in {waitDelay.TotalMilliseconds}ms{(extendedForBadLocations ? " because all locations had issues with the source" : string.Empty)}...");
 
                     attemptCount++;
 

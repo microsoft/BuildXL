@@ -118,7 +118,7 @@ namespace BuildXL.Utilities.Configuration
         /// Creates a custom log file for a specific set of event IDs. Event list should be comma separated integers excluding the DX prefix.
         /// </summary>
         [NotNull]
-        IReadOnlyDictionary<AbsolutePath, IReadOnlyList<int>> CustomLog { get; }
+        IReadOnlyDictionary<AbsolutePath, (IReadOnlyList<int>, System.Diagnostics.Tracing.EventLevel?)> CustomLog { get; }
 
         /// <summary>
         /// Specifies the ETW log kind for custom logs by path. Normal text log kind is 'default'.

@@ -129,7 +129,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             try
             {
-                Random r = new Random();
                 PutResult putResult = null;
                 var badContentLocations = new HashSet<MachineLocation>();
                 var missingContentLocations = new HashSet<MachineLocation>();
@@ -177,7 +176,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     if (badContentLocations.Count == hashInfo.Locations.Count)
                     {
                         // Double delay because all locations are bad. This allows the machines more time to recover, especially if they are overwhelmed by requests.
-                        waitDelay += TimeSpan.FromTicks((long)(waitDelay.Ticks * r.NextDouble()));
+                        waitDelay += TimeSpan.FromTicks((long)(waitDelay.Ticks * ThreadSafeRandom.Generator.NextDouble()));
                         extendedForBadLocations = true;
                     }
 

@@ -3934,6 +3934,9 @@ declare function addIfLazy<T>(condition: boolean, items: () => T[]) : T[];
 declare function importFrom(s: string, o?: any): any;
 declare function importFile(s: string, o?: any): any;
 
+declare function unsafe_outputFile(path: string, rewriteCount?: number): any;
+declare function unsafe_exOutputDirectory(path: string): any;
+
 /** Creates an absolute path from a string. */
 declare function __p(format: string, ...args: any[]): any;
 

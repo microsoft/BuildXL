@@ -23,6 +23,12 @@ declare function globR(folder: Directory, pattern?: string): File[];
 declare function globRecursively(folder: Directory, pattern?: string): File[];
 
 /**
+ * Unsafe functions to create output file artifact and exclusive output directory.
+ */
+declare function unsafe_outputFile(path: Path, rewriteCount?: number): File;
+declare function unsafe_exOutputDirectory(path: Path): Directory;
+
+/**
  * Import require
  * This function returns undefined if the first argument cannot be resolved.
  */

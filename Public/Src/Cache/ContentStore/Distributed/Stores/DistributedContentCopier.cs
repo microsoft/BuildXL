@@ -175,7 +175,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                     if (badContentLocations.Count == hashInfo.Locations.Count)
                     {
-                        // Double delay because all locations are bad. This allows the machines more time to recover, especially if they are overwhelmed by requests.
+                        // Reduce delay by a randomized amount because all locations are "bad", suggesting that the server(s) is/are throttling due to incoming traffic. Copies tend to be quick, so retrying sooner may be helpful.
                         waitDelay += TimeSpan.FromTicks((long)(waitDelay.Ticks * ThreadSafeRandom.Generator.NextDouble()));
                         extendedForBadLocations = true;
                     }

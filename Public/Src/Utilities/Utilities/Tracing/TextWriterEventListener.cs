@@ -134,7 +134,7 @@ namespace BuildXL.Utilities.Tracing
         /// <inheritdoc />
         protected override void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
         {
-            m_writer.WriteLine(level, (m_translator != null && !doNotTranslatePaths) ? m_translator.Translate(text) : text);
+            m_writer?.WriteLine(level, (m_translator != null && !doNotTranslatePaths) ? m_translator.Translate(text) : text);
 
             // At the expense of performance, flush Critical and Error events to the underlying file as they are written
             // so the log can be viewed immediately.
@@ -148,7 +148,7 @@ namespace BuildXL.Utilities.Tracing
         /// <inheritdoc/>
         protected override void UnsynchronizedFlush()
         {
-            m_writer.Flush();
+            m_writer?.Flush();
         }
 
         /// <summary>

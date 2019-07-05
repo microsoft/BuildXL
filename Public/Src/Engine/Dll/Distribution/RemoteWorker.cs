@@ -998,9 +998,6 @@ namespace BuildXL.Engine.Distribution
         {
             Analysis.IgnoreResult(m_workerClient.CloseAsync(), justification: "Okay to ignore close");
 
-            // The worker goes in a stopped state either by a scheduler request or because it lost connection with the
-            // remote machine. Check which one applies.
-
             // Fail all pending pips. Do it repeatedly in case there are other threads adding pips at the same time.
             // Note that the state never goes directly from Running to Stopped, so it is not expected to have
             // other threads trying to insert new pips.

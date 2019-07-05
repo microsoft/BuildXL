@@ -337,5 +337,31 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             return fileExistenceResult ?? new FileExistenceResult(FileExistenceResult.ResultCode.Error, $"Could not find a content store which implements {nameof(IStreamStore)} in {nameof(MultiplexedContentStore)}.");
         }
+
+        /// <inheritdoc />
+        public async Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        {
+            var succeeded = false;
+            long evictedSize = 0L;
+            long pinnedSize = 0L;
+
+            foreach (var kvp in _drivesWithContentStore)
+            {
+                var deleteResult = await kvp.Value.DeleteAsync(context, contentHash);
+                if (deleteResult.Succeeded)
+                {
+                    succeeded = true;
+                    evictedSize += deleteResult.EvictedSize;
+                    pinnedSize += deleteResult.PinnedSize;
+                }
+                else
+                {
+                    return deleteResult;
+                }
+            }
+
+            Contract.Assert(succeeded);
+            return new DeleteResult(contentHash, evictedSize, pinnedSize);
+        }
     }
 }

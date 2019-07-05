@@ -2071,7 +2071,7 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
-                "Allowed undeclared access on an output file: This pip accesses path '{4}', but '{5}' writes into it. " +
+                "Undeclared access on an output file: This pip accesses path '{4}', but '{5}' writes into it. " +
                 "Even though the undeclared access is allowed, it should only happen on a source file.")]
         public abstract void DependencyViolationWriteInUndeclaredSourceRead(
             LoggingContext context,
@@ -2081,6 +2081,24 @@ namespace BuildXL.Scheduler.Tracing
             string pipWorkingDirectory,
             string path,
             string producingPipDescription);
+
+        [GeneratedEvent(
+            (int)LogEventId.DependencyViolationWriteOnExistingFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                PipDependencyAnalysisPrefix +
+                "This pip writes to path '{4}', but the file was not created by this pip. This means the " +
+                "pip is attempting to rewrite a file without an explicit rewrite declaration. This may introduce non-deterministic behaviors in the build.")]
+        public abstract void DependencyViolationWriteOnExistingFile(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipSpecPath,
+            string pipWorkingDirectory,
+            string path);
 
         [GeneratedEvent(
             (int)LogEventId.DependencyViolationWriteOnAbsentPathProbe,

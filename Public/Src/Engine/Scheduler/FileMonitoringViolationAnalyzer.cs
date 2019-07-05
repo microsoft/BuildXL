@@ -144,6 +144,16 @@ namespace BuildXL.Scheduler
             WriteInUndeclaredSourceRead,
 
             /// <summary>
+            /// Detected a write on a path that corresponds to a file that existed before the pip ran.
+            /// </summary>
+            /// <remarks>
+            /// Observe this file was not known to be an input (so there is not a HashSourceFile pip for it). This can
+            /// be understood as a sub-category of <see cref="UndeclaredOutput"/>, but in this case the file is known to exist
+            /// before the pip ran
+            /// </remarks>
+            WriteInExistingFile,
+
+            /// <summary>
             /// Detected a write to the same path where an absent path probe also occurs
             /// </summary>
             WriteOnAbsentPathProbe,
@@ -156,7 +166,7 @@ namespace BuildXL.Scheduler
             /// <summary>
             /// Detected a write inside a temp directory under a shared opaque
             /// </summary>
-            WriteToTempPathInsideSharedOpaque
+            WriteToTempPathInsideSharedOpaque,
         }
 
         /// <summary>
@@ -183,14 +193,16 @@ namespace BuildXL.Scheduler
             public readonly AccessLevel Level;
             public readonly AbsolutePath Path;
             public readonly AbsolutePath ProcessPath;
+            public readonly FileAccessStatusMethod Method;
 
-            public AggregateViolation(AccessLevel level, AbsolutePath path, AbsolutePath processPath)
+            public AggregateViolation(AccessLevel level, AbsolutePath path, AbsolutePath processPath, FileAccessStatusMethod method)
             {
                 Contract.Requires(path.IsValid);
                 Contract.Requires(processPath.IsValid);
                 Level = level;
                 Path = path;
                 ProcessPath = processPath;
+                Method = method;
             }
 
             public AggregateViolation Combine(AccessLevel newLevel)
@@ -198,7 +210,8 @@ namespace BuildXL.Scheduler
                 return new AggregateViolation(
                     (AccessLevel)Math.Max((int)Level, (int)newLevel),
                     Path,
-                    ProcessPath);
+                    ProcessPath,
+                    Method);
             }
         }
 
@@ -631,6 +644,7 @@ namespace BuildXL.Scheduler
                         case DependencyViolationType.UndeclaredOutput:
                         case DependencyViolationType.WriteOnAbsentPathProbe:
                         case DependencyViolationType.WriteInUndeclaredSourceRead:
+                        case DependencyViolationType.WriteInExistingFile:
                             return true;
                         default:
                             return false;
@@ -1051,7 +1065,7 @@ namespace BuildXL.Scheduler
                 AggregateViolation aggregate;
                 aggregate = aggregateViolationsByPath.TryGetValue(key, out aggregate)
                     ? aggregate.Combine(GetAccessLevel(violation.RequestedAccess))
-                    : new AggregateViolation(GetAccessLevel(violation.RequestedAccess), path, processPath);
+                    : new AggregateViolation(GetAccessLevel(violation.RequestedAccess), path, processPath, violation.Method);
 
                 aggregateViolationsByPath[key] = aggregate;
             }
@@ -1109,17 +1123,34 @@ namespace BuildXL.Scheduler
                         }
                         else
                         {
-                            // If there was no producer, this is a standard undeclared write
-                            reportedViolations.Add(
-                                HandleDependencyViolation(
-                                    DependencyViolationType.UndeclaredOutput,
-                                    AccessLevel.Write,
-                                    violation.Path,
-                                    pip,
-                                    isWhitelistedViolation,
-                                    related: null,
-                                    violation.ProcessPath));
-
+                            // So this is the case where there is no producer. 
+                            // When the violation was determined based on the manifest policy, this means a standard undeclared write.
+                            // When the violation was determined based on file existence, this means the pip tried to write into an undeclared 
+                            // file that was created by the pip
+                            if (violation.Method == FileAccessStatusMethod.FileExistenceBased)
+                            {
+                                reportedViolations.Add(
+                                    HandleDependencyViolation(
+                                        DependencyViolationType.WriteInExistingFile,
+                                        AccessLevel.Write,
+                                        violation.Path,
+                                        pip,
+                                        isWhitelistedViolation,
+                                        related: null,
+                                        violation.ProcessPath));
+                            }
+                            else
+                            {
+                                reportedViolations.Add(
+                                    HandleDependencyViolation(
+                                        DependencyViolationType.UndeclaredOutput,
+                                        AccessLevel.Write,
+                                        violation.Path,
+                                        pip,
+                                        isWhitelistedViolation,
+                                        related: null,
+                                        violation.ProcessPath));
+                            }
                             // Handle known readers for undeclared output
 
                             // NOTE: Modifications to undeclared accessors is safe because map ensure synchronized acccess or
@@ -1498,6 +1529,20 @@ namespace BuildXL.Scheduler
                             LoggingContext,
                             violator.SemiStableHash,
                             violator.GetDescription(Context),
+                            path.ToString(Context.PathTable));
+                    }
+
+                    break;
+                case DependencyViolationType.WriteInExistingFile:
+
+                    if (isError)
+                    {
+                        Logger.Log.DependencyViolationWriteOnExistingFile(
+                            LoggingContext,
+                            violator.SemiStableHash,
+                            violator.GetDescription(Context),
+                            violator.Provenance.Token.Path.ToString(Context.PathTable),
+                            violator.WorkingDirectory.ToString(Context.PathTable),
                             path.ToString(Context.PathTable));
                     }
 

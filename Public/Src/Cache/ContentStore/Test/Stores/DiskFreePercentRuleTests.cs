@@ -420,6 +420,11 @@ namespace ContentStoreTest.Stores
             {
                 throw new NotImplementedException();
             }
+
+            public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+            {
+                throw new NotImplementedException();
+            }
         }
     }
 }

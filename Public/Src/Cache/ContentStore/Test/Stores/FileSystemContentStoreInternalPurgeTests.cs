@@ -212,6 +212,22 @@ namespace ContentStoreTest.Stores
             });
         }
 
+        [Fact]
+        public Task AddImmediatelyDelete()
+        {
+            return TestStore(Context, Clock, async (store) =>
+            {
+                int contentSize = 10;
+                PutResult putResult = await store.PutRandomAsync(Context, contentSize);
+                putResult.ShouldBeSuccess();
+
+                DeleteResult deleteResult = await store.DeleteAsync(Context, putResult.ContentHash);
+                deleteResult.ShouldBeSuccess();
+                deleteResult.EvictedSize.Should().Be(contentSize);
+                deleteResult.PinnedSize.Should().Be(0);
+            });
+        }
+
         private async Task FillSoNextPutTriggersSoftPurgeThenRunTest(
             Func<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>, Task<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>> onLruEnumerationWithTime,
             Func<TestFileSystemContentStoreInternal, ContentHash, ContentHash, MemoryStream, Task> func)

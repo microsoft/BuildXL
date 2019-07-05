@@ -35,7 +35,7 @@ namespace BuildXL.Utilities.Tracing
         /// numeric level) will not be masked</param>
         /// <param name="enabledEvents">events to be enabled</param>
         /// <param name="disabledEvents">events to be disabled</param>
-        public EventMask(IEnumerable<int> enabledEvents, IEnumerable<int> disabledEvents, EventLevel nonMaskableLevel)
+        public EventMask(IEnumerable<int> enabledEvents, IEnumerable<int> disabledEvents, EventLevel? nonMaskableLevel)
             : this(enabledEvents, disabledEvents)
         {
             Contract.Requires(

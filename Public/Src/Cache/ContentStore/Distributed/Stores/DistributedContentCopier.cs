@@ -176,7 +176,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     if (badContentLocations.Count == hashInfo.Locations.Count)
                     {
                         // Reduce delay by a randomized amount because all locations are "bad", suggesting that the server(s) is/are throttling due to incoming traffic. Copies tend to be quick, so retrying sooner may be helpful.
-                        waitDelay += TimeSpan.FromTicks((long)(waitDelay.Ticks * ThreadSafeRandom.Generator.NextDouble()));
+                        waitDelay = TimeSpan.FromTicks((long)(waitDelay.Ticks * Math.Min(0.5, ThreadSafeRandom.Generator.NextDouble())));
                         extendedForBadLocations = true;
                     }
 

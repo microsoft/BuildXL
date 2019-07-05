@@ -92,7 +92,7 @@ namespace Test.BuildXL.Scheduler
                 (fingerprinter, pip) => fingerprinter.ComputeWeakFingerprint(pip));
         }
 
-        [Fact]
+        //[Fact]
         public void ProcessFingerprintingOrderIndependent()
         {
             var pathTable = m_context.PathTable;

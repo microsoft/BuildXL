@@ -122,6 +122,8 @@ namespace BuildXL.Utilities.Configuration
 
         /// <summary>
         /// Creates a custom log file for a specific set of event IDs. Event list should be comma separated integers excluding the DX prefix.
+        /// EventLevel specifies the non-skippable events. All events of this of higher event level will be included in the log
+        /// regardless whether they are specified in the event list. Defaults to null (i.e., log will include only the specified events)
         /// </summary>
         [NotNull]
         IReadOnlyDictionary<AbsolutePath, (IReadOnlyList<int>, EventLevel?)> CustomLog { get; }

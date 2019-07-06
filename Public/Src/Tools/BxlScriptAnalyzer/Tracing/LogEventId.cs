@@ -41,6 +41,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
         DocumentationErrorCreatingOutputFolder = 7232,
         DocumentationSkippingV1Module = 7233,
 
+        // Graph fragment
+        GraphFragmentMissingOutputFile =  7240,
+        GraphFragmentInvalidOutputFile = 7241,
+        GraphFragmentMissingGraph = 7242,
+
         // Max: 7499
     }
 }

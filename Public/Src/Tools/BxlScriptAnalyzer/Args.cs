@@ -38,19 +38,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// </summary>
         public readonly List<Analyzer> Analyzers;
 
-        /// <summary>
-        /// Constructs a new args from
-        /// </summary>
-        public Args(string config, string filter, bool fix, bool help, List<Analyzer> analyzers, params string[] args)
-            : base(args)
-        {
-            Config = config;
-            Filter = filter;
-            Fix = fix;
-            Help = help;
-            Analyzers = analyzers;
-        }
-
         /// <nodoc />
         public Args(string[] args, Func<AnalyzerKind, Analyzer> analyzerFactory)
             : base(args)
@@ -124,10 +111,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             HelpWriter writer = new HelpWriter();
             writer.WriteBanner($"Tool for performing analysis/transformation of cached pip graphs and execution logs.");
 
-            writer.WriteOption("Config", "Optional main config file to be used.", shortName: "c");
-            writer.WriteOption("Filter", "The filter representing the scope of script specs that should be analyzed.", shortName: "f");
+            writer.WriteOption(nameof(Config), "Optional main config file to be used.", shortName: "c");
+            writer.WriteOption(nameof(Filter), "The filter representing the scope of script specs that should be analyzed.", shortName: "f");
             writer.WriteOption("Analyzer", "One or more analyzers to run. Subsequent arguments are analyzer specific.", shortName: "a");
-            writer.WriteOption("Fix[+|-]", "Whether the analyzer should fix the specs.");
+            writer.WriteOption($"{nameof(Fix)}[+|-]", "Whether the analyzer should fix the specs.");
 
             writer.WriteLine(string.Empty);
             writer.WriteLine("Analyzers:");

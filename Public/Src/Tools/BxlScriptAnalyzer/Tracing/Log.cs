@@ -291,6 +291,37 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
         public abstract void DocumentationSkippingV1Module(LoggingContext context, string moduleName);
 
         #endregion
+
+        #region Graph fragment
+
+        [GeneratedEvent(
+            (ushort)LogEventId.GraphFragmentMissingOutputFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = "The GraphFragment Analyzer requires the parameter '{parameter}'. None was given.",
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
+        public abstract void GraphFragmentMissingOutputFile(LoggingContext context, string parameter);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.GraphFragmentInvalidOutputFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = "The GraphFragment Analyzer has invalid file '{file}' for parameter '{parameter}'.",
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
+        public abstract void GraphFragmentInvalidOutputFile(LoggingContext context, string file, string parameter);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.GraphFragmentMissingGraph,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = "The GraphFragment Analyzer requires a pip graph.",
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
+        public abstract void GraphFragmentMissingGraph(LoggingContext context);
+
+        #endregion
     }
 }
 

@@ -45,8 +45,6 @@ namespace AriaNative {
         linkTimeCodeGeneration: qualifier.configuration === "release" ? native.Link.LinkTimeCodeGenerationOption.use : undefined,
     };
 
-    const ariaRoot = d`${Context.getMount("Sandbox").path}/MacOs/Interop/Aria`;
-
     @@public
     export const dll = !isWinOs ? undefined : native.Dll.build(nativeDllBuilderDefaultValue.merge<Native.Dll.Arguments>({
         outputFileName: a`BuildXLAria.dll`,

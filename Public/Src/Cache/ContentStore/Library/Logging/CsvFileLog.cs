@@ -68,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Logging
             LogLevelFriendly,
 
             /// <summary>
-            ///     Name of the service using this log (<see cref="CsvFileLog.Service"/>)
+            ///     Name of the service using this log (service name is passed in the constructor of <see cref="CsvFileLog"/>)
             /// </summary>
             Service,
 
@@ -98,17 +98,18 @@ namespace BuildXL.Cache.ContentStore.Logging
                 StringComparer.OrdinalIgnoreCase
                 );
 
-        private readonly ColumnKind[] _schema;
+        private readonly Dictionary<ColumnKind, string> _constColumns;
 
         /// <summary>
-        ///     Name of the service using this log.
+        ///     Schema of the produced CSV file.
         /// </summary>
-        public string Service { get; }
+        public IReadOnlyList<ColumnKind> FileSchema { get; }
 
         /// <summary>
-        ///     Host name.
+        ///     Additional const-valued columns that are conceptually part of the schema but are not rendered
+        ///     to the output CSV file (e.g., to save time/space) and hence are not included in <see cref="FileSchema"/>.
         /// </summary>
-        public string Machine { get; }
+        public IReadOnlyList<ColumnKind> ConstSchema { get; }
 
         /// <summary>
         ///     Unique identifier of this log object.
@@ -153,10 +154,23 @@ namespace BuildXL.Cache.ContentStore.Logging
         }
 
         /// <summary>
+        ///     Whether the value of <paramref name="col"/> is constant over time.
+        ///
+        ///     For example, <code>true</code> is returned for columns <see cref="ColumnKind.Empty"/>,
+        ///     <see cref="ColumnKind.BuildId"/>, <see cref="ColumnKind.Machine"/> etc. because their values
+        ///     don't change during a single execution of the program; in contrast, columns like
+        ///     <see cref="ColumnKind.Message"/>, <see cref="ColumnKind.PreciseTimeStamp"/> are not constant.
+        /// </summary>
+        public bool IsConstValueColumn(ColumnKind col) => _constColumns.ContainsKey(col);
+
+        /// <summary>
         ///     Constructor.  Initializes this object and does nothing else.
         /// </summary>
         /// <param name="logFilePath">Full path to log file</param>
         /// <param name="schema">CSV schema as a list of columns. Each element in the list denotes a column to be rendered at that position.</param>
+        /// <param name="renderConstColums">
+        ///     When true, const columns (<see cref="IsConstValueColumn"/>) from <paramref name="schema"/> are not rendered to the log file.
+        /// </param>
         /// <param name="severity">Minimum severity to log</param>
         /// <param name="maxFileSize">Maximum size of the log file.</param>
         /// <param name="serviceName">Name of the service using this log.  Used to render <see cref="ColumnKind.Service"/></param>
@@ -165,6 +179,7 @@ namespace BuildXL.Cache.ContentStore.Logging
             (
             string logFilePath,
             IEnumerable<ColumnKind> schema,
+            bool renderConstColums = true,
             Severity severity = Severity.Diagnostic,
             long maxFileSize = 0,
             string serviceName = null,
@@ -182,10 +197,31 @@ namespace BuildXL.Cache.ContentStore.Logging
         {
             Contract.Requires(schema != null);
 
-            _schema = schema.ToArray();
-            Service = CsvEscape(serviceName ?? string.Empty);
-            Machine = CsvEscape(Environment.MachineName);
             BuildId = buildId == default ? Guid.NewGuid() : buildId;
+
+            _constColumns = new Dictionary<ColumnKind, string>
+            {
+                [ColumnKind.Empty] = string.Empty,
+                [ColumnKind.BuildId] = BuildId.ToString(),
+                [ColumnKind.Machine] = CsvEscape(Environment.MachineName),
+                [ColumnKind.Service] = CsvEscape(serviceName ?? string.Empty),
+                [ColumnKind.env_os]    = Environment.OSVersion.Platform.ToString(),
+                [ColumnKind.env_osVer] = Environment.OSVersion.Version.ToString()
+            };
+
+            if (renderConstColums)
+            {
+                FileSchema = schema.ToArray();
+                ConstSchema = new ColumnKind[0];
+            }
+            else
+            {
+                var groupedByIsConst = schema
+                    .GroupBy(col => IsConstValueColumn(col))
+                    .ToDictionary(grp => grp.Key, grp => grp.ToArray());
+                FileSchema = GetValueOrDefault(groupedByIsConst, key: false, defaultValue: new ColumnKind[0]);
+                ConstSchema = GetValueOrDefault(groupedByIsConst, key: true, defaultValue: new ColumnKind[0]);
+            }
         }
 
         /// <summary>
@@ -209,7 +245,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// <nodoc />
         public void RenderMessage(StringBuilder line, DateTime dateTime, int threadId, Severity severity, string message)
         {
-            foreach (var col in _schema)
+            foreach (var col in FileSchema)
             {
                 if (line.Length > 0)
                 {
@@ -225,14 +261,13 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// <nodoc />
         public string RenderColumn(ColumnKind col, DateTime dateTime, int threadId, Severity severity, string message)
         {
+            if (_constColumns.TryGetValue(col, out var constColumnValue))
+            {
+                return constColumnValue;
+            }
+
             switch (col)
             {
-                case ColumnKind.Empty:
-                    return string.Empty;
-                case ColumnKind.BuildId:
-                    return BuildId.ToString();
-                case ColumnKind.Machine:
-                    return Machine;
                 case ColumnKind.PreciseTimeStamp:
                     return FormatTimeStamp(dateTime.ToUniversalTime());
                 case ColumnKind.LocalPreciseTimeStamp:
@@ -245,17 +280,21 @@ namespace BuildXL.Cache.ContentStore.Logging
                     return ((int)severity).ToString();
                 case ColumnKind.LogLevelFriendly:
                     return severity.ToString();
-                case ColumnKind.Service:
-                    return Service;
                 case ColumnKind.Message:
                     return CsvEscape(message);
-                case ColumnKind.env_os:
-                    return Environment.OSVersion.Platform.ToString();
-                case ColumnKind.env_osVer:
-                    return Environment.OSVersion.Version.ToString();
                 default:
                     throw Contract.AssertFailure("Unknown column type: " + col);
             }
+        }
+
+        /// <summary>
+        ///     Returns the const value of the <paramref name="col"/> column.
+        ///     Precondition: <see cref="IsConstValueColumn"/> must return true for <paramref name="col"/>.
+        /// </summary>
+        public string RenderConstColumn(ColumnKind col)
+        {
+            Contract.Requires(IsConstValueColumn(col));
+            return _constColumns[col];
         }
 
         private string FormatTimeStamp(DateTime dateTime)

@@ -13,7 +13,7 @@ namespace AriaNative {
         configuration: "debug" | "release";
     };
 
-    const isWinOs = Context.getCurrentHost().os === "win";
+    const needNativeAria = Context.getCurrentHost().os === "win" && BuildXLSdk.Flags.isMicrosoftInternal;
 
     const platform: "x86" | "x64" = "x64";
     const AriaPkg = importFrom("Aria.Cpp.SDK").withQualifier({targetFramework: "netcoreapp3.0"}).pkg;
@@ -46,7 +46,7 @@ namespace AriaNative {
     };
 
     @@public
-    export const dll = !isWinOs ? undefined : native.Dll.build(nativeDllBuilderDefaultValue.merge<Native.Dll.Arguments>({
+    export const dll = !needNativeAria ? undefined : native.Dll.build(nativeDllBuilderDefaultValue.merge<Native.Dll.Arguments>({
         outputFileName: a`BuildXLAria.dll`,
         preprocessorSymbols: [
             ...addIf(BuildXLSdk.Flags.isMicrosoftInternal,
@@ -84,7 +84,7 @@ namespace AriaNative {
     }));
 
     @@public
-    export const deployment: Deployment.Definition = !isWinOs ? undefined : {
+    export const deployment: Deployment.Definition = !needNativeAria ? undefined : {
         contents: [
             {
                 subfolder: PathAtom.create(platform),

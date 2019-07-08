@@ -39,6 +39,17 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         public readonly List<Analyzer> Analyzers;
 
         /// <nodoc />
+        public Args(string config, string filter, bool fix, bool help, List<Analyzer> analyzers, params string[] args)
+            : base(args)
+        {
+            Config = config;
+            Filter = filter;
+            Fix = fix;
+            Help = help;
+            Analyzers = analyzers;
+        }
+
+        /// <nodoc />
         public Args(string[] args, Func<AnalyzerKind, Analyzer> analyzerFactory)
             : base(args)
         {

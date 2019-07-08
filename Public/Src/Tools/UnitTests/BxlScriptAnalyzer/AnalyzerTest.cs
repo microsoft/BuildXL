@@ -10,6 +10,7 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Script.Analyzer;
 using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.FrontEnd.Script.Analyzer.Utilities;
+using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Sdk;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -140,7 +141,7 @@ namespace Test.Tool.DScript.Analyzer
             Workspace workspace;
             var testModuleFile = LoadAndTypecheckFile(context, testSource, extraSources, modules, out workspace, preserveTrivia);
 
-            analyzer.SetSharedState(args, context, logger, workspace);
+            analyzer.SetSharedState(args, context, logger, workspace, null);
 
             var result = analyzer.AnalyzeSourceFile(workspace, testModuleFile.Key, testModuleFile.Value);
 

@@ -2851,20 +2851,11 @@ namespace BuildXL.Scheduler
                 new List<(FileArtifact, FileMaterializationInfo)>(pip.Outputs.Length);
 
             // Outputs should be the same as what was in the metadata section.
-            int outputHashIndex = 0;
-            for (int i = 0; i < pip.Outputs.Length; i++)
+            for (int i = 0; i < metadata.StaticOutputHashes.Count; i++)
             {
-                FileArtifactWithAttributes attributedOutput = pip.Outputs[i];
-                if (!attributedOutput.CanBeReferencedOrCached())
-                {
-                    // Skipping non-cacheable outputs (note that StoreContentForProcess does the same).
-                    continue;
-                }
-
+                FileMaterializationInfo materializationInfo = metadata.StaticOutputHashes[i].Info.ToFileMaterializationInfo(pathTable);
+                FileArtifactWithAttributes attributedOutput = pip.Outputs.Where(o => AbsolutePath.Create(pathTable, metadata.StaticOutputHashes[i].AbsolutePath) == o.Path).Single();
                 FileArtifact output = attributedOutput.ToFileArtifact();
-
-                FileMaterializationInfo materializationInfo = metadata.StaticOutputHashes[outputHashIndex].ToFileMaterializationInfo(pathTable);
-                outputHashIndex++;
 
                 // Following logic should be in sync with StoreContentForProcess method.
                 bool isRequired = IsRequiredForCaching(attributedOutput);
@@ -4123,8 +4114,12 @@ namespace BuildXL.Scheduler
 
                 if (outputData.HasAllFlags(OutputFlags.DeclaredFile))
                 {
-                    // If it is a static output, just store its hash in the descriptor.
-                    metadata.StaticOutputHashes.Add(materializationInfo.ToBondFileMaterializationInfo(pathTable));
+                    var keyedHash = new AbsolutePathFileMaterializationInfo
+                    {
+                        AbsolutePath = path.ToString(pathTable),
+                        Info = materializationInfo.ToBondFileMaterializationInfo(pathTable),
+                    };
+                    metadata.StaticOutputHashes.Add(keyedHash);
                 }
 
                 if (outputData.HasAllFlags(OutputFlags.DynamicFile))

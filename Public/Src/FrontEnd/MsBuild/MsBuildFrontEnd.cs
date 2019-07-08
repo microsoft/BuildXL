@@ -64,11 +64,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 // If this is the first time a resolver is reporting the load of MsBuild assemblies, we just store the result
                 if (m_loadedMsBuildAssemblyLocations.Count == 0)
                 {
-                    foreach(var assembly in assemblyPathsToLoad)
-                    {
-                        m_loadedMsBuildAssemblyLocations.Add(assembly);
-                    }
-                    
+                    m_loadedMsBuildAssemblyLocations.AddRange(assemblyPathsToLoad);
                     return true;
                 }
 

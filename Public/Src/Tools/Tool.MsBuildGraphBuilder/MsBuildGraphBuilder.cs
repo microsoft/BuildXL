@@ -54,7 +54,7 @@ namespace MsBuildGraphBuilderTool
             // The output file is used as a unique name to identify the pipe
             using (var reporter = new GraphBuilderReporter(Path.GetFileName(arguments.OutputPath)))
             {
-                DoBuildGraphAndSerialize(MsBuildAssemblyLoader.Instance, reporter, arguments);
+                DoBuildGraphAndSerialize(new MsBuildAssemblyLoader(arguments.MsBuildRuntimeIsDotNetCore), reporter, arguments);
             }
         }
 

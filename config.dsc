@@ -127,7 +127,6 @@ config({
                 { id: "System.Data.SQLite.Linq", version: "1.0.102.0" },
                 { id: "System.Reflection.Metadata", version: "1.6.0" },
                 { id: "System.Threading.Tasks.Dataflow", version: "4.9.0" },
-                { id: "System.Threading.Tasks.Dataflow", version: "4.5.24", alias: "DataflowForMSBuildRuntime"},
 
                 // Nuget
                 { id: "NuGet.Commandline", version: "4.7.1" },
@@ -443,6 +442,7 @@ config({
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
                 { id: "System.CodeDom", version: "4.4.0"},
+                { id: "System.Text.Encoding.CodePages", version: "4.5.1", alias: "CodePagesForMSBuild" },
 
                 // Used for MSBuild input/output prediction
                 { id: "Microsoft.Build.Prediction", version: "0.3.0" },

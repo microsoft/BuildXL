@@ -8,14 +8,13 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using MsBuildGraphBuilderTool;
-using Test.BuildXL.TestUtilities.Xunit;
 using Test.ProjectGraphBuilder.Utilities;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Test.ProjectGraphBuilder
 {
-    public class MsBuildGraphProgressTests : TemporaryStorageTestBase
+    public class MsBuildGraphProgressTests : GraphBuilderToolTestBase
     {
         private readonly string m_entryPoint;
 
@@ -69,16 +68,15 @@ namespace Test.ProjectGraphBuilder
         private bool BuildAndReport(GraphBuilderReporter reporter, out string failure)
         {
             string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
-            var arguments = new MSBuildGraphBuilderArguments(
+            var arguments = GetStandardBuilderArguments(
                 new[] { m_entryPoint },
                 outputFile,
                 globalProperties: GlobalProperties.Empty,
-                mSBuildSearchLocations: new[] {TestDeploymentDir},
                 entryPointTargets: new string[0],
                 requestedQualifiers: new GlobalProperties[] { GlobalProperties.Empty },
                 allowProjectsWithoutTargetProtocol: false);
 
-            MsBuildGraphBuilder.BuildGraphAndSerializeForTesting(MsBuildAssemblyLoader.Instance, reporter, arguments);
+            MsBuildGraphBuilder.BuildGraphAndSerializeForTesting(AssemblyLoader, reporter, arguments);
             var result = SimpleDeserializer.Instance.DeserializeGraph(outputFile);
 
             failure = string.Empty;
@@ -117,6 +115,5 @@ namespace Test.ProjectGraphBuilder
                     }
                 );
         }
-
     }
 }

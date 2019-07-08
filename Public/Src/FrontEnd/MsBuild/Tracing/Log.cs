@@ -69,9 +69,9 @@ namespace BuildXL.FrontEnd.MsBuild.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
-            Message = EventConstants.LabeledProvenancePrefix + "Build parameter 'PATH' is not specified, and no explicit locations were defined in the resolver settings via 'MsBuildAssemblyLocations'.",
+            Message = EventConstants.LabeledProvenancePrefix + "Build parameter 'PATH' is not specified, and no explicit locations were defined in the resolver settings via '{specifiedVia}'.",
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
-        public abstract void NoSearchLocationsSpecified(LoggingContext context, Location location);
+        public abstract void NoSearchLocationsSpecified(LoggingContext context, Location location, string specifiedVia);
 
         [GeneratedEvent(
             (ushort)LogEventId.CannotParseBuildParameterPath,

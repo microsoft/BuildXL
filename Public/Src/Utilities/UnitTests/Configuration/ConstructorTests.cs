@@ -220,6 +220,18 @@ namespace Test.BuildXL.Utilities
                         CreateInstance(context, type.GenericTypeArguments[1], booleanDefault));
                     return newDictionary;
                 }
+
+                if (generic == typeof(ValueTuple<,>))
+                {
+                    var newTuple = Activator.CreateInstance(type);
+
+                    // In ValueTuple classes, the first 7 values are accessible via Item1-Item7 fields.
+                    // The tuple field names (named tuples) aren't part of runtime representation.
+                    type.GetField("Item1").SetValue(newTuple, CreateInstance(context, type.GenericTypeArguments[0], booleanDefault));
+                    type.GetField("Item2").SetValue(newTuple, CreateInstance(context, type.GenericTypeArguments[1], booleanDefault));
+
+                    return newTuple;
+                }
             }
 
             if (type.GetTypeInfo().IsInterface)
@@ -408,7 +420,7 @@ namespace Test.BuildXL.Utilities
 
                     XAssert.IsTrue(
                         (expectedList == null) == (actualList == null),
-                        "One of the lists is null, the other isnt for objPath: {0}",
+                        "One of the lists is null, the other isn't for objPath: {0}",
                         objPath);
                     if (expectedList != null)
                     {
@@ -437,7 +449,7 @@ namespace Test.BuildXL.Utilities
 
                     XAssert.IsTrue(
                         (expectedDictionary == null) == (actualDictionary == null),
-                        $"One of the dictionaries is null, the other isnt for objPath: {objPath}");
+                        $"One of the dictionaries is null, the other isn't for objPath: {objPath}");
                     if (expectedDictionary != null)
                     {
                         XAssert.AreEqual(

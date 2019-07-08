@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
@@ -162,5 +163,11 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         /// <inheritdoc />
         public Task<GetStatsResult> GetStatsAsync(Context context) => Task.FromResult(new GetStatsResult(new CounterSet()));
+
+        /// <inheritdoc />
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

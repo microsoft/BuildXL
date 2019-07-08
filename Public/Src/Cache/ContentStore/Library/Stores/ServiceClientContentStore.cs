@@ -3,6 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -240,6 +241,12 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                    return new GetStatsResult(aggregatedCounters);
                });
+        }
+
+        /// <inheritdoc />
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        {
+            throw new System.NotImplementedException();
         }
     }
 }

@@ -902,7 +902,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipSpecifiedToRunInContainerButIsolationIsNotSupported(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int) LogEventId.PipProcessStartExternalTool,
+            (int)LogEventId.PipProcessStartExternalTool,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -954,13 +954,26 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Process needs to be executed externally because (require admin privilege: {requiredAdminPrivilege} | execution mode: {executionMode}), but instead it executes internally because (Win OS: {isWinOS} | container enabled: {isContainerEnabled} | listener existence: {existsListener})")]
         public abstract void PipProcessNeedsExecuteExternalButExecuteInternal(
-            LoggingContext context, 
-            long pipSemiStableHash, 
-            string pipDescription, 
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
             bool requiredAdminPrivilege,
             string executionMode,
             bool isWinOS,
             bool isContainerEnabled,
             bool existsListener);
+
+        [GeneratedEvent(
+            (int)LogEventId.TranslatePathInGlobalUnsafeUntrackedScopes,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "{path} in GlobalUnsafeUntrackedScopes get translated")]
+        public abstract void TranslatePathInGlobalUnsafeUntrackedScopes(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path);
     }
 }

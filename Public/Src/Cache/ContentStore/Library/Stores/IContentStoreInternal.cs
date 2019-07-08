@@ -309,5 +309,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Read pin history.
         /// </summary>
         PinSizeHistory.ReadHistoryResult ReadPinSizeHistory(int windowSize);
+
+        /// <summary>
+        ///     Remove given content from the store.
+        /// </summary>
+        Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash);
     }
 }

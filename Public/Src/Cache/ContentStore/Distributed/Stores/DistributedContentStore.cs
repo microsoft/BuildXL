@@ -564,5 +564,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             return new FileExistenceResult(FileExistenceResult.ResultCode.Error, $"{InnerContentStore} does not implement {nameof(IStreamStore)} in {nameof(DistributedContentStore<T>)}.");
         }
+
+        /// <inheritdoc />
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

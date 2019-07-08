@@ -2,9 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Graph;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using TypeScript.Net.Types;
@@ -91,9 +94,29 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             var serializer = new PipGraphFragmentSerializer();
 
             // TODO: topologically sort all pips.
-            serializer.Serialize(m_description, Context, new PipGraphFragmentContext(), m_absoluteOutputPath, PipGraph.RetrieveAllPips().ToList());
+            serializer.Serialize(m_description, Context, new PipGraphFragmentContext(), m_absoluteOutputPath, TopSortGraph());
 
             return base.FinalizeAnalysis();
+        }
+
+        private IReadOnlyList<Pip> TopSortGraph()
+        {
+            Contract.Requires(PipGraph != null);
+
+            var nodesByHeight = PipGraph.DataflowGraph.TopSort();
+            var maxHeight = nodesByHeight.Count > 0 ? nodesByHeight.Keys.Max() : -1;
+
+            var topSortPips = new List<Pip>();
+
+            for (int i = 0; i <= maxHeight; ++i)
+            {
+                if (nodesByHeight.TryGetValue(i, out var nodes))
+                {
+                    topSortPips.AddRange(nodes.Select(n => PipGraph.PipTable.HydratePip(n.ToPipId(), Pips.PipQueryContext.PipGraphRetrieveAllPips)));
+                }
+            }
+
+            return topSortPips;
         }
 
         private struct OptionName

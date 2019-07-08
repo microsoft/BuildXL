@@ -160,7 +160,7 @@ namespace BuildXL.Cache.ContentStore.App
             }
 
             var start = DateTime.UtcNow;
-            var ingestionFailures = _client.PeekTopIngestionFailures().GetAwaiter().GetResult().ToList();
+            var ingestionFailures = _client.GetAndDiscardTopIngestionFailures().GetAwaiter().GetResult().ToList();
             var duration = DateTime.UtcNow.Subtract(start);
             Always("Checking for ingestion failures took {0} ms", duration.TotalMilliseconds);
 

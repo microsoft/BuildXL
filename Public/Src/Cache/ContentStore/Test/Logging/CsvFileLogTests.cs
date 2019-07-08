@@ -193,7 +193,7 @@ namespace ContentStoreTest.Logging
                 renderConstColums: false);
             csvLog.IsConstValueColumn(constCol).Should().BeTrue();
             csvLog.IsConstValueColumn(dynCol).Should().BeFalse();
-            
+
             csvLog.FileSchema.Should().BeEquivalentTo(TranslateSchema(expectedFileSchema));
             csvLog.ConstSchema.Should().BeEquivalentTo(TranslateSchema(expectedConstSchema));
 

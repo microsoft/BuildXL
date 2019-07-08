@@ -62,24 +62,23 @@ namespace BuildXL.Cache.ContentStore.App
         /// <summary>
         ///     Target Kusto table for remote telemetry
         /// </summary>
-        private const string KustoTable = "CloudBuildLogEvent";
+        private const string KustoTable = "ContentStoreAppMessage";
 
         /// <summary>
         ///     CSV file schema to be produced by <see cref="CsvFileLog"/>.
         /// </summary>
         private static readonly CsvFileLog.ColumnKind[] KustoTableCsvSchema = new CsvFileLog.ColumnKind[]
         {
-            CsvFileLog.ColumnKind.BuildId,
-            CsvFileLog.ColumnKind.Machine,
             CsvFileLog.ColumnKind.PreciseTimeStamp,
-            CsvFileLog.ColumnKind.LocalPreciseTimeStamp,
-            CsvFileLog.ColumnKind.ThreadId,
-            CsvFileLog.ColumnKind.ProcessId,
             CsvFileLog.ColumnKind.LogLevel,
             CsvFileLog.ColumnKind.LogLevelFriendly,
             CsvFileLog.ColumnKind.Message,
+            CsvFileLog.ColumnKind.ProcessId,
+            CsvFileLog.ColumnKind.ThreadId,
             CsvFileLog.ColumnKind.env_os,
             CsvFileLog.ColumnKind.env_osVer,
+            CsvFileLog.ColumnKind.BuildId,
+            CsvFileLog.ColumnKind.Machine,
         };
 
         private readonly CancellationToken _cancellationToken;
@@ -406,26 +405,20 @@ namespace BuildXL.Cache.ContentStore.App
                 maxFileSize: _csvLogMaxFileSize
                 );
 
-            var indexedColumns = _csvFileLog.FileSchema
-                .Select((col, idx) => new CsvColumnMapping
-                    {
-                    ColumnName = col.ToString(),
-                    Ordinal = idx
-                    });
-            var constColumns = _csvFileLog.ConstSchema
-                .Select(col => new CsvColumnMapping
-                    {
-                    ColumnName = col.ToString(),
-                    ConstValue = _csvFileLog.RenderConstColumn(col)
-                });
+            var indexedColumns = _csvFileLog.FileSchema.Select((col, idx) => new CsvColumnMapping { ColumnName = col.ToString(), Ordinal = idx });
+            var constColumns = _csvFileLog.ConstSchema.Select(col => new CsvColumnMapping { ColumnName = col.ToString(), ConstValue = _csvFileLog.RenderConstColumn(col) });
+            var csvMapping = indexedColumns.Concat(constColumns).ToArray();
+
+            var csvMappingStr = string.Join("", csvMapping.Select(col => $"{Environment.NewLine}  Name: '{col.ColumnName}', ConstValue: '{col.ConstValue}', Ordinal: {col.Ordinal}"));
+            _logger.Always("Using csv mapping:{0}", csvMappingStr);
 
             _kustoUploader = new KustoUploader
                 (
                 kustoConnectionString,
                 database: KustoDatabase,
                 table: KustoTable,
-                csvMapping: indexedColumns.Concat(constColumns),
-                deleteFilesOnSuccess: true,
+                csvMapping: csvMapping,
+                deleteFilesOnSuccess: false,
                 checkForIngestionErrors: true,
                 log: _consoleLog
                 );

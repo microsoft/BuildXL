@@ -43,11 +43,6 @@ namespace BuildXL.Cache.ContentStore.Logging
             PreciseTimeStamp,
 
             /// <summary>
-            ///     Timestamp of the message in local time.
-            /// </summary>
-            LocalPreciseTimeStamp,
-
-            /// <summary>
             ///     The id of the thread logging the message
             /// </summary>
             ThreadId,
@@ -106,8 +101,9 @@ namespace BuildXL.Cache.ContentStore.Logging
         public IReadOnlyList<ColumnKind> FileSchema { get; }
 
         /// <summary>
-        ///     Additional const-valued columns that are conceptually part of the schema but are not rendered
-        ///     to the output CSV file (e.g., to save time/space) and hence are not included in <see cref="FileSchema"/>.
+        ///     Additional columns that are conceptually part of the schema but are not rendered to the
+        ///     output CSV file because their values remain constant throughout the execution of this log. 
+        ///     These columns are not included in <see cref="FileSchema"/>.
         /// </summary>
         public IReadOnlyList<ColumnKind> ConstSchema { get; }
 
@@ -270,8 +266,6 @@ namespace BuildXL.Cache.ContentStore.Logging
             {
                 case ColumnKind.PreciseTimeStamp:
                     return FormatTimeStamp(dateTime.ToUniversalTime());
-                case ColumnKind.LocalPreciseTimeStamp:
-                    return FormatTimeStamp(dateTime.ToLocalTime());
                 case ColumnKind.ThreadId:
                     return threadId.ToString();
                 case ColumnKind.ProcessId:

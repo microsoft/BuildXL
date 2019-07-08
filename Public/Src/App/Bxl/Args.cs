@@ -5,6 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
+using Microsoft.Diagnostics.Tracing;
+#else
+using System.Diagnostics.Tracing;
+#endif
 using System.Globalization;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -280,7 +285,7 @@ namespace BuildXL
                             sign => engineConfiguration.Converge = sign),
                         OptionHandlerFactory.CreateOption(
                             "customLog",
-                            opt => ParseKeyValueOption(opt, pathTable, loggingConfiguration.CustomLog)),
+                            opt => ParseCustomLogOption(opt, pathTable, loggingConfiguration.CustomLog)),
                         OptionHandlerFactory.CreateBoolOption(
                             "debuggerBreakOnExit",
                             opt => frontEndConfiguration.DebuggerBreakOnExit = opt),
@@ -1458,25 +1463,26 @@ namespace BuildXL
             map[keyValuePair.Key] = CommandLineUtilities.GetFullPath(keyValuePair.Value, opt, pathTable);
         }
 
-        private static void ParseKeyValueOption(
+        private static void ParseCustomLogOption(
             CommandLineUtilities.Option opt,
             PathTable pathTable,
-            Dictionary<AbsolutePath, IReadOnlyList<int>> map)
+            Dictionary<AbsolutePath, (IReadOnlyList<int>, EventLevel?)> map)
         {
             Contract.Requires(map != null);
 
             var keyValuePair = CommandLineUtilities.ParseKeyValuePair(opt);
 
             var key = CommandLineUtilities.GetFullPath(keyValuePair.Key, opt, pathTable);
-            if (!map.TryGetValue(key, out IReadOnlyList<int> values))
+
+            if (!map.TryGetValue(key, out (IReadOnlyList<int> eventIds, EventLevel? _) value))
             {
-                values = new List<int>(0);
+                value.eventIds = new List<int>();
             }
 
-            var newValues = new List<int>(values);
+            var newValues = new List<int>(value.eventIds);
             ParseInt32ListOption(keyValuePair.Value, opt.Name, newValues);
 
-            map[key] = newValues;
+            map[key] = (newValues, null);
         }
 
         /// <summary>

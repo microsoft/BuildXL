@@ -3,6 +3,7 @@
 #if FEATURE_ARIA_TELEMETRY
 
 using System;
+using System.Collections.Generic;
 #if !FEATURE_CORECLR
 using Microsoft.Applications.Telemetry;
 using Microsoft.Applications.Telemetry.Desktop;
@@ -17,6 +18,9 @@ namespace BuildXL.Utilities.Instrumentation.Common
     /// </summary>
     public enum PiiType
     {
+        /// <nodoc />
+        None = 0,
+
         /// <nodoc />
         Identity = 10,
     }
@@ -36,10 +40,9 @@ namespace BuildXL.Utilities.Instrumentation.Common
 #if !FEATURE_CORECLR
         private EventProperties m_eventProperties;
 #else
-    #if PLATFORM_OSX
-        private IntPtr m_eventProperties;
-    #endif
+        private List<AriaNative.EventProperty> m_eventProperties;
 #endif
+        private readonly string m_eventName;
         private readonly string m_targetFramework;
         private readonly string m_targetRuntime;
 
@@ -51,15 +54,14 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <param name="targetRuntime">TThe target runtime to create the Aria logging facilities for</param>
         public AriaEvent(string name, string targetFramework, string targetRuntime)
         {
+            m_eventName = name;
             m_targetFramework = targetFramework;
             m_targetRuntime = targetRuntime;
 
 #if !FEATURE_CORECLR
             m_eventProperties = new EventProperties(name);
 #else
-    #if PLATFORM_OSX
-            m_eventProperties = AriaMacOS.CreateEvent(name);
-    #endif
+            m_eventProperties = new List<AriaNative.EventProperty>();
 #endif
         }
 
@@ -73,9 +75,12 @@ namespace BuildXL.Utilities.Instrumentation.Common
 #if !FEATURE_CORECLR
             m_eventProperties.SetProperty(name, value);
 #else
-    #if PLATFORM_OSX
-            AriaMacOS.SetStringProperty(m_eventProperties, name, value);
-    #endif
+            m_eventProperties.Add(new AriaNative.EventProperty()
+            {
+                Name = name,
+                Value = value ?? string.Empty,
+                PiiOrValue = (long)PiiType.None
+            });
 #endif
         }
 
@@ -90,9 +95,12 @@ namespace BuildXL.Utilities.Instrumentation.Common
 #if !FEATURE_CORECLR
             m_eventProperties.SetProperty(name, value, ConvertPiiType(type));
 #else
-    #if PLATFORM_OSX
-            AriaMacOS.SetStringPropertyWithPiiKind(m_eventProperties, name, value, (int) type);
-    #endif
+            m_eventProperties.Add(new AriaNative.EventProperty()
+            {
+                Name = name,
+                Value = value ?? string.Empty,
+                PiiOrValue = (long)type
+            });
 #endif
         }
 
@@ -106,9 +114,12 @@ namespace BuildXL.Utilities.Instrumentation.Common
 #if !FEATURE_CORECLR
             m_eventProperties.SetProperty(name, value);
 #else
-    #if PLATFORM_OSX
-            AriaMacOS.SetInt64Property(m_eventProperties, name, value);
-    #endif
+            m_eventProperties.Add(new AriaNative.EventProperty()
+            {
+                Name = name,
+                Value = null,
+                PiiOrValue = value
+            });
 #endif
         }
 
@@ -120,13 +131,8 @@ namespace BuildXL.Utilities.Instrumentation.Common
 #if !FEATURE_CORECLR
             LogManager.GetLogger().LogEvent(m_eventProperties);
 #else
-    #if PLATFORM_OSX
-            AriaMacOS.LogEvent(AriaV2StaticState.s_AriaLogger, m_eventProperties);
-
-            // Free the native Aria event
-            AriaMacOS.DisposeEvent(m_eventProperties);
-            m_eventProperties = IntPtr.Zero;
-    #endif
+            AriaNative.LogEvent(AriaV2StaticState.s_AriaLogger, m_eventName, m_eventProperties.ToArray());
+            m_eventProperties = null;
 #endif
         }
 

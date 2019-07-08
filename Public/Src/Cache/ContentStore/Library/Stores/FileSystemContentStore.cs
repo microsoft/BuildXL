@@ -226,5 +226,11 @@ namespace BuildXL.Cache.ContentStore.Stores
                 return new FileExistenceResult(FileExistenceResult.ResultCode.FileNotFound, $"{contentHash} wasn't found in the cache");
             }
         }
+
+        /// <inheritdoc />
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        {
+            return Store.DeleteAsync(context, contentHash);
+        }
     }
 }

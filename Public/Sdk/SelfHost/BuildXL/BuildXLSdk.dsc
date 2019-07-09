@@ -432,6 +432,10 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     "PLATFORM_OSX",
                     "FEATURE_THROTTLE_EVAL_SCHEDULER"
                 ),
+
+                ...addIf(qualifier.targetFramework === "net451", "NET_FRAMEWORK_451"),
+                ...addIf(qualifier.targetFramework === "net461", "NET_FRAMEWORK_461"),
+                ...addIf(qualifier.targetFramework === "net472", "NET_FRAMEWORK_472"),
             ],
             references: [
                 ...(args.skipDefaultReferences ? [] : [

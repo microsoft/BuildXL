@@ -200,8 +200,8 @@ namespace BuildXL.Cache.ContentStore.Logging
             {
                 [ColumnKind.Empty] = string.Empty,
                 [ColumnKind.BuildId] = BuildId.ToString(),
-                [ColumnKind.Machine] = CsvEscape(Environment.MachineName),
-                [ColumnKind.Service] = CsvEscape(serviceName ?? string.Empty),
+                [ColumnKind.Machine] = Environment.MachineName,
+                [ColumnKind.Service] = serviceName ?? string.Empty,
                 [ColumnKind.env_os]    = Environment.OSVersion.Platform.ToString(),
                 [ColumnKind.env_osVer] = Environment.OSVersion.Version.ToString()
             };
@@ -249,9 +249,7 @@ namespace BuildXL.Cache.ContentStore.Logging
                     line.Append(",");
                 }
 
-                line.Append('"');
-                line.Append(RenderColumn(col, dateTime, threadId, severity, message));
-                line.Append('"');
+                line.Append(CsvEscape(RenderColumn(col, dateTime, threadId, severity, message)));
             }
         }
 
@@ -276,7 +274,7 @@ namespace BuildXL.Cache.ContentStore.Logging
                 case ColumnKind.LogLevelFriendly:
                     return severity.ToString();
                 case ColumnKind.Message:
-                    return CsvEscape(message);
+                    return message;
                 default:
                     throw Contract.AssertFailure("Unknown column type: " + col);
             }
@@ -299,7 +297,7 @@ namespace BuildXL.Cache.ContentStore.Logging
 
         private string CsvEscape(string str)
         {
-            return str.Replace("\"", "\"\"");
+            return '"' + str.Replace("\"", "\"\"") + '"';
         }
     }
 }

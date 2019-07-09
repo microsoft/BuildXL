@@ -147,14 +147,19 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             var controller = frontEndControllerFactory.Create(engineContext.PathTable, engineContext.SymbolTable);
             controller.InitializeHost(frontEndContext, commandlineConfig);
 
+            frontEndHostController = (FrontEndHostController)controller;
+
+            // If there is an explicit engine abstraction, we set it. This is used by IDE test.
+            if (frontEndEngineAbstraction != null)
+            {
+                frontEndHostController.SetState(frontEndEngineAbstraction, pipGraph: null, configuration: commandlineConfig);
+            }
+
             var config = controller.ParseConfig(commandlineConfig);
             if (config == null)
             {
                 return false;
             }
-
-            frontEndHostController = controller as FrontEndHostController;
-            Contract.Assert(frontEndHostController != null);
 
             IPipGraphBuilder pipGraphBuilder = null;
 

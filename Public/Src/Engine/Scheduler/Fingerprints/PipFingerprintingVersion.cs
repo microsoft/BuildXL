@@ -33,7 +33,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 57: Fixed enumeration in StoreContentForProcessAndCreateCacheEntryAsync
         /// 58: Added RequiresAdmin field into the process pip.
         /// 59: Report all accesses under shared opaque fix
+        /// 60: Changed FileContentInfo
         /// </remarks>
-        TwoPhaseV2 = 59,
+        TwoPhaseV2 = 60,
     }
 }

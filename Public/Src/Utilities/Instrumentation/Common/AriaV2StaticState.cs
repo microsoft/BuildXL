@@ -37,8 +37,12 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public static void Enable(string tenantToken, string offlineTelemetryDBPath = "")
         {
             s_ariaTelemetryDBLocation = offlineTelemetryDBPath;
-            Initialize(tenantToken);
+#if FEATURE_ARIA_TELEMETRY
             IsEnabled = true;
+            Initialize(tenantToken);
+#else
+            IsEnabled = false;
+#endif
         }
 
         /// <summary>
@@ -86,6 +90,10 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public static ShutDownResult TryShutDown(TimeSpan timeout, out Exception exception)
         {
             exception = null;
+            if (!IsEnabled)
+            {
+                return ShutDownResult.Success;
+            }
 
             lock (s_syncRoot)
             {
@@ -123,8 +131,14 @@ namespace BuildXL.Utilities.Instrumentation.Common
             return ShutDownResult.Success;
         }
 
+        /// <nodoc />
         internal static void LogEvent(string eventName, AriaNative.EventProperty[] eventProperties)
         {
+            if (!IsEnabled)
+            {
+                return;
+            }
+
             AriaNative.LogEvent(s_ariaLogger, eventName, eventProperties);
         }
 

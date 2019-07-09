@@ -80,8 +80,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             });
         }
 
-
-
         /// <inheritdoc />
         public bool StartupCompleted { get; private set; }
 

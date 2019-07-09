@@ -90,7 +90,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <summary>
         /// Default value indicating whether implicit pin is used.
         /// </summary>
-        public const bool DefaultUseImplicitPin = false;
+        public const bool DefaultUseImplicitPin = true;
 
         /// <summary>
         /// Default value indicating whether Unix file access mode override is enabled.

@@ -3,6 +3,23 @@
 
 using System.Diagnostics.Tracing;
 
+#if NET_FRAMEWORK_451
+namespace System.Diagnostics.Tracing
+{
+    /// <summary>Placeholder for NET Framework 4.5.1 builds</summary>
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false)]
+    public class EventDataAttribute : Attribute
+    {
+        /// <nodoc />
+        public EventDataAttribute() {}
+
+        /// <nodoc />
+        public string Name { get; set; }
+    }
+}
+#endif
+
+
 namespace BuildXL.Utilities.Tracing
 {
     /// <summary>

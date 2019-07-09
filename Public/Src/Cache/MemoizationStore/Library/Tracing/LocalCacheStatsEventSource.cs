@@ -40,7 +40,11 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
     public sealed class LocalCacheStatsEventSource : EventSource
     {
         private LocalCacheStatsEventSource()
+#if NET_FRAMEWORK_451
+            : base()
+#else
             : base(EventSourceSettings.EtwSelfDescribingEventFormat)
+#endif
         {
         }
 

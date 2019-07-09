@@ -25,7 +25,12 @@ namespace BuildXL.Cache.Compositing
         /// <summary>
         /// Our event source.
         /// </summary>
-        public static readonly EventSource EventSource = new EventSource("CompositingCacheEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
+        public static readonly EventSource EventSource = 
+#if NET_FRAMEWORK_451
+            new EventSource();
+#else
+            new EventSource("CompositingCacheEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
+#endif
 
         internal CompositingCache(ICache metadatCache, ICache casCache, string cacheId, bool strictMetadataCasCoupling)
         {

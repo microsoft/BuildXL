@@ -96,7 +96,12 @@ namespace BuildXL.LogGen.Generators
                     }
 
                     m_codeGenerator.Ln();
-                    m_codeGenerator.Ln("private ETWLogger() : base(EventSourceSettings.EtwSelfDescribingEventFormat)");
+                    m_codeGenerator.Ln("private ETWLogger()");
+                    m_codeGenerator.Ln("#if NET_FRAMEWORK_451");
+                    m_codeGenerator.Ln("  : base()");
+                    m_codeGenerator.Ln("#else");
+                    m_codeGenerator.Ln("  : base(EventSourceSettings.EtwSelfDescribingEventFormat)");
+                    m_codeGenerator.Ln("#endif");
                     using (m_codeGenerator.Br)
                     {
                     }

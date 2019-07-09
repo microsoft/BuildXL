@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -19,6 +20,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using ContentStore.Grpc;
 using Google.Protobuf;
@@ -32,6 +34,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// </summary>
     public class GrpcContentServer
     {
+        private readonly Tracer _tracer = new Tracer(nameof(GrpcContentServer));
+
         private readonly Capabilities _serviceCapabilities;
         private readonly ILogger _logger;
         private readonly Dictionary<string, IContentStore> _contentStoreByCacheName;
@@ -49,13 +53,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Dictionary<string, IContentStore> storesByName,
             LocalServerConfiguration localServerConfiguration = null)
         {
+            Contract.Requires(storesByName != null);
+
             _logger = logger;
             _serviceCapabilities = serviceCapabilities;
             _sessionHandler = sessionHandler;
             _adapter = new ContentServerAdapter(this);
             _contentStoreByCacheName = storesByName;
             _bufferSize = localServerConfiguration?.BufferSizeForGrpcCopies ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
-            _gzipSizeBarrier = localServerConfiguration?.GzipBarrierSizeForGrpcCopies ?? _bufferSize * 8;
+            _gzipSizeBarrier = localServerConfiguration?.GzipBarrierSizeForGrpcCopies ?? (_bufferSize * 8);
             _pool = new ByteArrayPool(_bufferSize);
         }
 
@@ -141,7 +147,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             DateTime startTime = DateTime.UtcNow;
             var cacheContext = new Context(new Guid(request.TraceId), _logger);
-            long filesEvicted = 0;
             var removeFromTrackerResult = await _sessionHandler.RemoveFromTrackerAsync(new OperationContext(cacheContext, token));
             if (!removeFromTrackerResult)
             {
@@ -151,7 +156,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 };
             }
 
-            filesEvicted = removeFromTrackerResult.Value;
+            long filesEvicted = removeFromTrackerResult.Value;
 
             return new RemoveFromTrackerResponse
             {
@@ -162,8 +167,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private async Task<OpenStreamResult> GetFileStreamAsync(Context context, ContentHash hash)
         {
-            Debug.Assert(_contentStoreByCacheName != null);
-
             // Iterate through all known stores, looking for content in each.
             // In most of our configurations there is just one store anyway,
             // and doing this means both we can callers don't have
@@ -171,8 +174,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             foreach (KeyValuePair<string, IContentStore> entry in _contentStoreByCacheName)
             {
-                IStreamStore store = entry.Value as IStreamStore;
-                if (store != null)
+                if (entry.Value is IStreamStore store)
                 {
                     OpenStreamResult result = await store.StreamContentAsync(context, hash);
                     if (result.Code != OpenStreamResult.ResultCode.ContentNotFound)
@@ -189,8 +191,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             OperationStarted();
 
-            Debug.Assert(_contentStoreByCacheName != null);
-
             DateTime startTime = DateTime.UtcNow;
             Context cacheContext = new Context(new Guid(request.TraceId), _logger);
             HashType type = (HashType)request.HashType;
@@ -203,8 +203,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             foreach (KeyValuePair<string, IContentStore> entry in _contentStoreByCacheName)
             {
-                IStreamStore store = entry.Value as IStreamStore;
-                if (store != null)
+                if (entry.Value is IStreamStore store)
                 {
                     FileExistenceResult result = await store.CheckFileExistsAsync(cacheContext, hash);
                     if (result.Succeeded)
@@ -222,89 +221,82 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         private async Task CopyFileAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context)
         {
-            try
+            OperationStarted();
+
+            // Get the content stream.
+            Context cacheContext = new Context(new Guid(request.TraceId), _logger);
+            ContentHash hash = request.GetContentHash();
+            OpenStreamResult result = await GetFileStreamAsync(cacheContext, hash);
+
+            // If result is unsuccessful, then result.Stream is null, but using(null) is just a no op.
+            using (result.Stream)
             {
-                OperationStarted();
-
-                // Get the content stream.
-                Context cacheContext = new Context(new Guid(request.TraceId), _logger);
-                HashType type = (HashType)request.HashType;
-                ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
-                OpenStreamResult result = await GetFileStreamAsync(cacheContext, hash);
-
-                using (result.Stream)
+                // Figure out response headers.
+                CopyCompression compression = CopyCompression.None;
+                Metadata headers = new Metadata();
+                switch (result.Code)
                 {
-                    // Figure out response headers.
-                    CopyCompression compression = CopyCompression.None;
-                    Metadata headers = new Metadata();
-                    switch (result.Code)
-                    {
-                        case OpenStreamResult.ResultCode.ContentNotFound:
-                            headers.Add("Exception", "ContentNotFound");
-                            headers.Add("Message", $"Requested content at {hash} not found.");
-                            break;
-                        case OpenStreamResult.ResultCode.Error:
-                            Debug.Assert(result.Exception != null);
-                            headers.Add("Exception", result.Exception.GetType().Name);
-                            headers.Add("Message", result.Exception.Message);
-                            break;
-                        case OpenStreamResult.ResultCode.Success:
-                            Debug.Assert(result.Stream != null);
-                            long size = result.Stream.Length;
-                            headers.Add("FileSize", size.ToString());
-                            if ((request.Compression == CopyCompression.Gzip) && (size > _gzipSizeBarrier))
-                            {
-                                compression = CopyCompression.Gzip;
-                            }
-                            headers.Add("Compression", compression.ToString());
-                            headers.Add("ChunkSize", _bufferSize.ToString());
-                            break;
-                        default:
-                            throw new NotImplementedException();
-                    }
-
-                    // Send the response headers.
-                    await context.WriteResponseHeadersAsync(headers);
-
-                    // Send the content.
-                    if (result.Succeeded)
-                    {
-                        _logger.Debug($"Streaming file through GRPC with GZip {(compression == CopyCompression.Gzip ? "on" : "off")}");
-
-                        using (var arrayHandle = _pool.Get())
+                    case OpenStreamResult.ResultCode.ContentNotFound:
+                        headers.Add("Exception", "ContentNotFound");
+                        headers.Add("Message", $"Requested content at {hash} not found.");
+                        break;
+                    case OpenStreamResult.ResultCode.Error:
+                        Contract.Assert(result.Exception != null);
+                        headers.Add("Exception", result.Exception.GetType().Name);
+                        headers.Add("Message", result.Exception.Message);
+                        break;
+                    case OpenStreamResult.ResultCode.Success:
+                        Contract.Assert(result.Stream != null);
+                        long size = result.Stream.Length;
+                        headers.Add("FileSize", size.ToString());
+                        if ((request.Compression == CopyCompression.Gzip) && (size > _gzipSizeBarrier))
                         {
-                            byte[] buffer = arrayHandle.Value;
-                            switch (compression)
-                            {
-                                case CopyCompression.None:
-                                    await StreamContentAsync(result.Stream, buffer, responseStream, context.CancellationToken);
-                                    break;
-                                case CopyCompression.Gzip:
-                                    await StreamContentWithCompressionAsync(result.Stream, buffer, responseStream, context.CancellationToken);
-                                    break;
-                            }
+                            compression = CopyCompression.Gzip;
                         }
+                        headers.Add("Compression", compression.ToString());
+                        headers.Add("ChunkSize", _bufferSize.ToString());
+                        break;
+                    default:
+                        throw new NotImplementedException($"Unknown result.Code '{result.Code}'.");
+                }
+
+                // Send the response headers.
+                await context.WriteResponseHeadersAsync(headers);
+
+                // Send the content.
+                if (result.Succeeded)
+                {
+                    var operationContext = new OperationContext(cacheContext, context.CancellationToken);
+
+                    using (var arrayHandle = _pool.Get())
+                    {
+                        StreamContentDelegate streamContent = compression == CopyCompression.None ? (StreamContentDelegate)StreamContentAsync : StreamContentWithCompressionAsync;
+
+                        byte[] buffer = arrayHandle.Value;
+                        await operationContext.PerformOperationAsync(
+                                _tracer,
+                                () => streamContent(result.Stream, buffer, responseStream, context.CancellationToken),
+                                traceOperationStarted: false, // Tracing only stop messages
+                                extraEndMessage: r => $"Hash={hash.ToShortString()}, GZip={(compression == CopyCompression.Gzip ? "on" : "off")}.")
+                            .IgnoreFailure(); // The error was already logged.
                     }
                 }
-            
-            }
-            catch (Exception)
-            {
-                throw;
             }
         }
 
-        private async Task<(long Chunks, long Bytes)> StreamContentAsync(Stream reader, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct = default(CancellationToken))
+        private delegate Task<Result<(long Chunks, long Bytes)>> StreamContentDelegate(Stream input, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct);
+
+        private async Task<Result<(long Chunks, long Bytes)>> StreamContentAsync(Stream input, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
         {
-            Debug.Assert(!(reader is null));
-            Debug.Assert(!(responseStream is null));
+            Contract.Requires(!(input is null));
+            Contract.Requires(!(responseStream is null));
 
             int chunkSize = 0;
             long chunks = 0L;
             long bytes = 0L;
 
             // Pre-fill buffer with the file's first chunk
-            await ReadNextChunk();
+            await readNextChunk();
 
             while (true)
             {
@@ -319,18 +311,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 chunks++;
 
                 // Read the next chunk while waiting for the response
-                await Task.WhenAll(ReadNextChunk(), responseStream.WriteAsync(response));
+                await Task.WhenAll(readNextChunk(), responseStream.WriteAsync(response));
             }
 
             return (chunks, bytes);
 
-            async Task<int> ReadNextChunk() { chunkSize = await reader.ReadAsync(buffer, 0, buffer.Length, ct); return chunkSize; }
+            async Task<int> readNextChunk() { chunkSize = await input.ReadAsync(buffer, 0, buffer.Length, ct); return chunkSize; }
         }
 
-        private async Task<(long Chunks, long Bytes)> StreamContentWithCompressionAsync(Stream reader, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct = default(CancellationToken))
+        private async Task<Result<(long Chunks, long Bytes)>> StreamContentWithCompressionAsync(Stream input, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
         {
-            Debug.Assert(!(reader is null));
-            Debug.Assert(!(responseStream is null));
+            Contract.Requires(!(input is null));
+            Contract.Requires(!(responseStream is null));
 
             long bytes = 0L;
             long chunks = 0L;
@@ -348,16 +340,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 using (Stream compressionStream = new GZipStream(grpcStream, System.IO.Compression.CompressionLevel.Fastest, true))
                 {
-                    await reader.CopyToAsync(compressionStream, buffer.Length, ct).ConfigureAwait(false);
-                    await compressionStream.FlushAsync().ConfigureAwait(false);
+                    await input.CopyToAsync(compressionStream, buffer.Length, ct);
+                    await compressionStream.FlushAsync(ct);
                 }
-                await grpcStream.FlushAsync().ConfigureAwait(false);
+                await grpcStream.FlushAsync(ct);
             }
 
             return (chunks, bytes);
-
         }
-
 
         /// <summary>
         /// Implements a pin request.
@@ -367,6 +357,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
+
             var cacheContext = new Context(new Guid(request.Header.TraceId), _logger);
             return await RunFuncAndReportAsync(
                 request.Header.SessionId,

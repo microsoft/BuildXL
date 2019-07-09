@@ -88,6 +88,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public const bool DefaultUseDedupStore = false;
 
         /// <summary>
+        /// Default value indicating whether implicit pin is used.
+        /// </summary>
+        public const bool DefaultUseImplicitPin = false;
+
+        /// <summary>
         /// Default value indicating whether Unix file access mode override is enabled.
         /// </summary>
         public const bool DefaultOverrideUnixFileAccessMode = false;
@@ -221,6 +226,12 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// </summary>
         [DataMember]
         public bool UseDedupStore { get; set; } = DefaultUseDedupStore;
+
+        /// <summary>
+        /// Gets or sets whether an implicit pin is used.
+        /// </summary>
+        [DataMember]
+        public bool UseImplicitPin { get; set; } = DefaultUseImplicitPin;
 
         /// <summary>
         /// Gets or sets whether to override Unix file access modes.

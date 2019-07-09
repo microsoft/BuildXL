@@ -275,7 +275,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Fail on missing output
             RunScheduler().AssertFailure();
             AssertVerboseEventLogged(EventId.PipProcessMissingExpectedOutputOnCleanExit);
-            AssertErrorEventLogged(EventId.PipProcessExpectedMissingOutputs);
+            AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
             AssertErrorEventLogged(EventId.PipProcessError);
         }
 

@@ -3458,13 +3458,6 @@ namespace BuildXL.Processes
                 {
                     return new LogErrorResult(success: false, errorWasTruncated: errorWasTruncated);
                 }
-
-                string stdOut = await TryFilterAsync(result.StandardOutput, s => true, appendNewLine: true);
-                string stdErr = await TryFilterAsync(result.StandardError, s => true, appendNewLine: true);
-                LogPipProcessError(result, exitedWithSuccessExitCode, stdErr, stdOut);
-
-                stdOutTotalLength = stdOut.Length;
-                stdErrTotalLength = stdErr.Length;
             }
 
             return new LogErrorResult(success: true, errorWasTruncated: errorWasTruncated);

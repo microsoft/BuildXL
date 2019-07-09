@@ -119,7 +119,7 @@ namespace Test.BuildXL.Processes.Detours
                         sandboxConfiguration,
                         pip);
 
-                    AssertErrorEventLogged(EventId.PipProcessExpectedMissingOutputs);
+                    AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
                     AssertErrorEventLogged(EventId.PipProcessError);
                 }
             }

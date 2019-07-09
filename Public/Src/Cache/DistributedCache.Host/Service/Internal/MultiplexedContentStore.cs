@@ -21,7 +21,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 namespace BuildXL.Cache.Host.Service.Internal
 {
     // TODO: move it to the library?
-    public class MultiplexedContentStore : IContentStore, IRepairStore, IStreamStore
+    public class MultiplexedContentStore : IContentStoreWithPostInitialization, IRepairStore, IStreamStore
     {
         private readonly Dictionary<string, IContentStore> _drivesWithContentStore;
         private readonly string _preferredCacheDrive;
@@ -79,6 +79,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 return finalResult;
             });
         }
+
+
 
         /// <inheritdoc />
         public bool StartupCompleted { get; private set; }
@@ -362,6 +364,18 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             Contract.Assert(succeeded);
             return new DeleteResult(contentHash, evictedSize, pinnedSize);
+        }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result)
+        {
+            foreach (var kvp in _drivesWithContentStore)
+            {
+                if (kvp.Value is IContentStoreWithPostInitialization cs)
+                {
+                    cs.PostInitializationCompleted(context, result);
+                }
+            }
         }
     }
 }

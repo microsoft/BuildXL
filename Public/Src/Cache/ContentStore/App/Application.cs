@@ -418,7 +418,7 @@ namespace BuildXL.Cache.ContentStore.App
                 database: KustoDatabase,
                 table: KustoTable,
                 csvMapping: csvMapping,
-                deleteFilesOnSuccess: false,
+                deleteFilesOnSuccess: true,
                 checkForIngestionErrors: true,
                 log: _consoleLog
                 );

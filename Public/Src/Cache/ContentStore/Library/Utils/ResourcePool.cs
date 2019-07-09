@@ -21,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// </summary>
     /// <typeparam name="TKey">Identifier for a given resource.</typeparam>
     /// <typeparam name="TObject">Type of the pooled object.</typeparam>
-    public class ResourcePool<TKey, TObject> : IDisposable where TObject : IShutdown<BoolResult>
+    public class ResourcePool<TKey, TObject> : IDisposable where TObject : IShutdownSlim<BoolResult>
     {
         private readonly int _maxResourceCount;
         private readonly int _maximumAgeInMinutes;

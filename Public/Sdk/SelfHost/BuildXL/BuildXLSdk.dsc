@@ -425,9 +425,6 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                 ...addIf(!Flags.isMicrosoftInternal || isDotNetCoreBuild,
                     "DISABLE_FEATURE_BOND_RPC"
                 ),
-                ...addIf(isFullFramework,
-                    "FEATURE_MICROSOFT_DIAGNOSTICS_TRACING"
-                ),
                 ...addIf(Flags.isMicrosoftInternal,
                     "FEATURE_ARIA_TELEMETRY"
                 ),
@@ -435,12 +432,15 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     "PLATFORM_OSX",
                     "FEATURE_THROTTLE_EVAL_SCHEDULER"
                 ),
+
+                ...addIf(qualifier.targetFramework === "net451", "NET_FRAMEWORK_451"),
+                ...addIf(qualifier.targetFramework === "net461", "NET_FRAMEWORK_461"),
+                ...addIf(qualifier.targetFramework === "net472", "NET_FRAMEWORK_472"),
             ],
             references: [
                 ...(args.skipDefaultReferences ? [] : [
                     ...(isDotNetCoreBuild ? [] : [
                         NetFx.System.Threading.Tasks.dll,
-                        importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").pkg,
                         ...(qualifier.targetFramework === "net472")
                             ? [
                                 importFrom("System.Threading.Tasks.Dataflow").pkg,
@@ -459,11 +459,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                         importFrom("BuildXL.Utilities").System.FormattableString.dll
                     ]),
                     ...(args.generateLogs ? [
-                        importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
-
-                        ...addIfLazy(isFullFramework && Flags.isMicrosoftInternal, () =>
-                            importFrom("Microsoft.Applications.Telemetry.Desktop").pkg.compile
-                        ),
+                        importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll
                     ] : []),
                 ]),
             ],
@@ -515,9 +511,6 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
             : [
                 importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll.compile,
                 importFrom("BuildXL.Utilities.Instrumentation").Common.dll.compile,
-                ...(isDotNetCoreBuild ? [] : 
-                    importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").pkg.compile
-                ),
                 ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),
             ];
         
@@ -595,7 +588,6 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
                 importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll,
             ]),
             ...(isDotNetCoreBuild ? [] : [
-                importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").pkg,
                 importFrom("System.Runtime.Serialization.Primitives").pkg,
             ]),
         ],

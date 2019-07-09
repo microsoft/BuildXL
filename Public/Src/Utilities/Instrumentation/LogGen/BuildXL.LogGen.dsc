@@ -11,7 +11,6 @@ namespace LogGen {
         references: [
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Text.Encoding.dll,
-                importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").pkg,
                 importFrom("System.Reflection.Metadata").pkg,
                 importFrom("System.Collections.Immutable").pkg,
             ]),

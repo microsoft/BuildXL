@@ -36,11 +36,8 @@ using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Visualization;
 using BuildXL.Visualization.Models;
 using BuildXL.Utilities.CrashReporting;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
+
 using static BuildXL.Utilities.FormattableStringEx;
 
 

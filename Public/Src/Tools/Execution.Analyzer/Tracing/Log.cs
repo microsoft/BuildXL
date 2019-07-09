@@ -5,9 +5,6 @@ using System.Collections.Generic;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-#if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-
-#endif
 
 #pragma warning disable 1591
 

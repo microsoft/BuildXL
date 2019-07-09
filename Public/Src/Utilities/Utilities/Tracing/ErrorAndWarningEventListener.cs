@@ -3,12 +3,8 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.IO;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
+using System.IO;
 
 namespace BuildXL.Utilities.Tracing
 {

@@ -991,7 +991,7 @@ namespace Tool.DropDaemon
                     DynamicTraceEventParser dynamicTraceEventParser = new DynamicTraceEventParser(etwTraceEventSource);
                     dynamicTraceEventParser.All += traceEvent =>
                         {
-                            Possible<CloudBuildEvent, Failure> possibleEvent = CloudBuildEvent.TryParse(traceEvent);
+                            Possible<CloudBuildEvent, Failure> possibleEvent = TryParse(traceEvent);
 
                             if (!possibleEvent.Succeeded)
                             {
@@ -1010,6 +1010,11 @@ namespace Tool.DropDaemon
             Console.WriteLine("FINISHED");
             Thread.Sleep(100000);
             return 0;
+        }
+
+        private static Possible<CloudBuildEvent, Failure> TryParse(TraceEvent traceEvent)
+        {
+            return CloudBuildEvent.TryParse(traceEvent.EventName, traceEvent.PayloadNames.Select(name => traceEvent.PayloadByName(name)).ToList());
         }
     }
 }

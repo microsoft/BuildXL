@@ -425,9 +425,6 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                 ...addIf(!Flags.isMicrosoftInternal || isDotNetCoreBuild,
                     "DISABLE_FEATURE_BOND_RPC"
                 ),
-                ...addIf(isFullFramework,
-                    "FEATURE_MICROSOFT_DIAGNOSTICS_TRACING"
-                ),
                 ...addIf(Flags.isMicrosoftInternal,
                     "FEATURE_ARIA_TELEMETRY"
                 ),

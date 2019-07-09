@@ -12,18 +12,11 @@ namespace Common {
         assemblyName: "BuildXL.Utilities.Instrumentation.Common",
         sources: globR(d`.`, '*.cs'),
         skipDefaultReferences: true,
-        references: [
-            ...addIfLazy(BuildXLSdk.isFullFramework, () => [
-                importFrom("Microsoft.Applications.Telemetry.Desktop").pkg,
-                importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").pkg
-            ]),
-        ],
+        references: [],
         runtimeContent: [
+            AriaNative.deployment,
             ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
                 MacServices.Deployment.ariaLibrary
-            ]),
-            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
-                AriaNative.deployment
             ]),
         ],
         internalsVisibleTo: [

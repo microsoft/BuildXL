@@ -6,10 +6,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-#endif
 
 namespace BuildXL.Scheduler
 {

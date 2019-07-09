@@ -407,7 +407,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             /// </summary>
             public string ToParseableString()
             {
-                var lastPosition = LastPosition?.ToShortString() ?? EmptyHash;
+                var lastPosition = LastPosition?.ToString() ?? EmptyHash;
                 return $"{Epoch}|{LastReconcileTime.ToReadableString()}|{lastPosition}";
             }
 

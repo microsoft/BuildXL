@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -65,6 +66,36 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
             _contentHashes = contentHashes;
             _payload = payload;
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="ContentHashList" /> class.
+        /// </summary>
+        public ContentHashList(BinaryReader reader)
+        {
+            Contract.Requires(reader != null);
+            var numHashes = reader.ReadInt32();
+            if (numHashes < 0)
+            {
+                _contentHashes = null;
+            }
+            else
+            {
+                _contentHashes = new ContentHash[numHashes];
+                foreach (var index in Enumerable.Range(0, numHashes))
+                {
+                    _contentHashes[index] = new ContentHash(reader);
+                }
+            }
+
+            var payloadLength = reader.ReadInt32();
+            if (payloadLength < 0)
+            {
+                _payload = null;
+            } else
+            {
+                _payload = reader.ReadBytes(payloadLength);
+            }
         }
 
         /// <summary>
@@ -222,6 +253,36 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             }
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        ///     Serialize whole value to a binary writer.
+        /// </summary>
+        public void Serialize(BinaryWriter writer)
+        {
+            Contract.Requires(writer != null);
+
+            if (_contentHashes == null)
+            {
+                writer.Write(-1);
+            }
+            else
+            {
+                writer.Write(_contentHashes.Length);
+                foreach (var contentHash in _contentHashes)
+                {
+                    contentHash.Serialize(writer);
+                }
+            }
+
+            if (_payload == null)
+            {
+                writer.Write(-1);
+            } else
+            {
+                writer.Write(_payload.Length);
+                writer.Write(_payload);
+            }
         }
     }
 }

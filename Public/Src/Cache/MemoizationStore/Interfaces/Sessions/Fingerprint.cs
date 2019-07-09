@@ -84,7 +84,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// </summary>
         public Fingerprint(BinaryReader reader)
         {
-            Console.WriteLine(reader != null);
+            Contract.Requires(reader != null);
             _length = reader.ReadByte();
             _bytes = ReadOnlyFixedBytes.ReadFrom(reader, _length);
         }

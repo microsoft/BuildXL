@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.IO;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using Xunit;
 
@@ -68,6 +69,27 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             var v1 = StrongFingerprint.Random();
             var v2 = StrongFingerprint.Random();
             Assert.NotEqual(v1.GetHashCode(), v2.GetHashCode());
+        }
+
+        [Fact]
+        public void SerializeRoundtrip()
+        {
+            var v = StrongFingerprint.Random();
+            using (var ms = new MemoryStream())
+            {
+                using (var bw = new BinaryWriter(ms))
+                {
+                    v.Serialize(bw);
+
+                    ms.Position = 0;
+
+                    using (var reader = new BinaryReader(ms))
+                    {
+                        var v2 = new StrongFingerprint(reader);
+                        Assert.Equal(v, v2);
+                    }
+                }
+            }
         }
     }
 }

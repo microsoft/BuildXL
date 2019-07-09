@@ -12,10 +12,13 @@ using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.MemoizationStore.Interfaces.Results;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
@@ -629,6 +632,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             context.TraceDebug($"Deleted entry for hash {hash}. Creation Time: '{entry.CreationTimeUtc}', Last Access Time: '{entry.LastAccessTimeUtc}'");
         }
 
+        /// <todoc />
+        public abstract GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint);
+
+        /// <todoc />
+        public abstract AddOrGetContentHashListResult AddOrGetContentHashList(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism);
+
+        /// <todoc />
+        public abstract IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint);
+
         private object GetLock(ShortHash hash)
         {
             // NOTE: We choose not to use "random" two bytes of the hash because
@@ -665,40 +677,50 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
-        /// Serialize a given <paramref name="entry"/> into a byte stream.
+        /// Uses an object pool to fetch a serializer and feed it into the serialization function.
         /// </summary>
-        protected byte[] Serialize(ContentLocationEntry entry)
+        /// <remarks>
+        /// We explicitly take and pass the instance as parameters in order to avoid lambda capturing.
+        /// </remarks>
+        protected byte[] SerializeWithPool<T>(T instance, Action<T, BuildXLWriter> serializeFunc)
         {
             using (var pooledWriter = _writerPool.GetInstance())
             {
                 var writer = pooledWriter.Instance.Writer;
-                writer.WriteCompact(entry.ContentSize);
-                entry.Locations.Serialize(writer);
-                writer.Write(entry.CreationTimeUtc);
-                long lastAccessTimeOffset = entry.LastAccessTimeUtc.Value - entry.CreationTimeUtc.Value;
-                writer.WriteCompact(lastAccessTimeOffset);
+                serializeFunc(instance, writer);
                 return pooledWriter.Instance.Buffer.ToArray();
             }
         }
 
         /// <summary>
-        /// Deserialize <see cref="ContentLocationEntry"/> from an array of bytes.
+        /// Uses an object pool to fetch a binary reader and feed it into the deserialization function.
         /// </summary>
-        protected ContentLocationEntry Deserialize(byte[] bytes)
+        /// <remarks>
+        /// Be mindful of avoiding lambda capture when using this function.
+        /// </remarks>
+        protected T DeserializeWithPool<T>(byte[] bytes, Func<BuildXLReader, T> deserializeFunc)
         {
             using (PooledObjectWrapper<StreamBinaryReader> pooledReader = _readerPool.GetInstance())
             {
                 var reader = pooledReader.Instance;
-                return reader.Deserialize(new ArraySegment<byte>(bytes), r =>
-                                                                         {
-                                                                             var size = r.ReadInt64Compact();
-                                                                             var locations = MachineIdSet.Deserialize(r);
-                                                                             var creationTimeUtc = r.ReadUnixTime();
-                                                                             var lastAccessTimeOffset = r.ReadInt64Compact();
-                                                                             var lastAccessTime = new UnixTime(creationTimeUtc.Value + lastAccessTimeOffset);
-                                                                             return ContentLocationEntry.Create(locations, size, lastAccessTime, creationTimeUtc);
-                                                                         });
+                return reader.Deserialize(new ArraySegment<byte>(bytes), deserializeFunc);
             }
+        }
+
+        /// <summary>
+        /// Serialize a given <paramref name="entry"/> into a byte stream.
+        /// </summary>
+        protected byte[] SerializeContentLocationEntry(ContentLocationEntry entry)
+        {
+            return SerializeWithPool(entry, (instance, writer) => instance.Serialize(writer));
+        }
+
+        /// <summary>
+        /// Deserialize <see cref="ContentLocationEntry"/> from an array of bytes.
+        /// </summary>
+        protected ContentLocationEntry DeserializeContentLocationEntry(byte[] bytes)
+        {
+            return DeserializeWithPool(bytes, ContentLocationEntry.Deserialize);
         }
 
         /// <summary>

@@ -8,7 +8,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
     /// <summary>
     /// Interface for persistent key value stores.
     /// </summary>
-    public interface IKeyValueStore<in TKey, TValue>
+    public interface IKeyValueStore<TKey, TValue>
     {
         /// <summary>
         /// Adds a new entry or overwrites an existing entry.
@@ -98,5 +98,16 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// The column family to use.
         /// </param>
         void ApplyBatch(IEnumerable<TKey> keys, IEnumerable<TValue> values, string columnFamilyName = null);
+
+        /// <summary>
+        /// Fetches keys and values with the same prefix. Order is dependant on the underlying store's guarantees.
+        /// </summary>
+        /// <param name="prefix">
+        /// Common prefix
+        /// </param>
+        /// <param name="columnFamilyName">
+        /// The column family to use.
+        /// </param>
+        IEnumerable<KeyValuePair<TKey, TValue>> PrefixSearch(TKey prefix, string columnFamilyName = null);
     }
 }

@@ -2,6 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics.ContractsLight;
+using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
@@ -22,6 +24,16 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <summary>
+        ///     Initializes a new instance of the <see cref="StrongFingerprint" /> struct.
+        /// </summary>
+        public StrongFingerprint(BinaryReader reader)
+        {
+            Contract.Requires(reader != null);
+            WeakFingerprint = new Fingerprint(reader);
+            Selector = new Selector(reader);
+        }
+
+        /// <summary>
         ///     Gets weakFingerprint associated with this StrongFingerprint.
         /// </summary>
         public Fingerprint WeakFingerprint { get; }
@@ -30,6 +42,16 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         ///     Gets selector associated with this StrongFingerprint.
         /// </summary>
         public Selector Selector { get; }
+
+        /// <summary>
+        ///     Serialize whole value to a binary writer.
+        /// </summary>
+        public void Serialize(BinaryWriter writer)
+        {
+            Contract.Requires(writer != null);
+            WeakFingerprint.Serialize(writer);
+            Selector.Serialize(writer);
+        }
 
         /// <inheritdoc />
         public bool Equals(StrongFingerprint other)

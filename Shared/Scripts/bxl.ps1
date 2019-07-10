@@ -181,6 +181,11 @@ if ($DominoArguments -eq $null) {
 # Use Env var to check for microsoftInternal
 $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal") -eq "1"
 
+if ($isMicrosoftInternal) {
+    $aadUserName = & whoami.exe /UPN
+    [Environment]::SetEnvironmentVariable("VSTSAADUSERNAME", $aadUserName)
+}
+
 $disableSharedCache = ($SharedCacheMode -eq "Disable" -or (-not $isMicrosoftInternal));
 $publishToSharedCache = ($SharedCacheMode -eq "ConsumeAndPublish" -and $isMicrosoftInternal);
 

@@ -5,6 +5,8 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Threading.Tasks;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Microsoft.VisualStudio.Services.Client;
 using Microsoft.VisualStudio.Services.Common;
 #if !PLATFORM_OSX
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
@@ -74,7 +76,27 @@ namespace BuildXL.Cache.ContentStore.Vsts
             _credentials = creds;
         }
 
-#if !PLATFORM_OSX
+        private const string VsoAadSettings_ProdAadAddress = "https://login.windows.net/";
+        private const string VsoAadSettings_TestAadAddress = "https://login.windows-ppe.net/";
+        private const string VsoAadSettings_DefaultTenant = "microsoft.com";
+
+        public const string AadUserNameEnvVar = "VSTSAADUSERNAME";
+
+        private Task<VssCredentials> CreateVssCredentialsForUserNameAsync(Uri baseUri, string userName)
+        {
+            var authorityAadAddres = baseUri.Host.ToLowerInvariant().Contains("visualstudio.com")
+                ? VsoAadSettings_ProdAadAddress
+                : VsoAadSettings_TestAadAddress;
+            var authCtx = new AuthenticationContext(authorityAadAddres + VsoAadSettings_DefaultTenant);
+
+            var userCred = userName == null
+                ? new UserCredential() 
+                : new UserCredential(userName);
+
+            var token = new VssAadToken(authCtx, userCred, VssAadTokenOptions.None);
+            token.AcquireToken(); 
+            return Task.FromResult<VssCredentials>(new VssAadCredential(token));
+        }
 
         /// <summary>
         /// Creates a VssCredentials object and returns it.
@@ -91,22 +113,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return _helper.GetPATCredentials(_pat);
             }
 
+#if PLATFORM_OSX
+            throw new CacheException("On non-Windows platforms only PAT-based VSTS authentication is allowed.");
+#elif FEATURE_CORECLR
+            return await CreateVssCredentialsForUserNameAsync(baseUri, Environment.GetEnvironmentVariable(AadUserNameEnvVar))
+                .ConfigureAwait(false);
+#else
             return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, null)
                 .ConfigureAwait(false);
-        }
-#else
-        /// <summary>
-        /// Creates a VssCredentials object and returns it.
-        /// </summary>
-        public Task<VssCredentials> CreateVssCredentialsAsync(Uri baseUri, bool useAad)
-        {
-            if (_credentials != null)
-            {
-                return Task.FromResult(_credentials);
-            }
-
-            throw new CacheException("CoreCLR on non-windows platforms only allows PAT based VSTS authentication!");
-        }
 #endif
+        }
     }
 }

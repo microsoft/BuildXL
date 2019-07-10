@@ -171,7 +171,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         protected override void DisposeCore() => TempDirectory.Dispose();
 
         /// <inheritdoc />
-        protected override bool TracePinFinished => false; // Since this implementation calls PinBulk, it results in a duplicate stop message.
+        protected override bool TracePinFinished => false; // Since this implementation calls PinBulk, which has its own tracing, it results in a duplicate stop message.
 
         /// <inheritdoc />
         protected override async Task<PinResult> PinCoreAsync(

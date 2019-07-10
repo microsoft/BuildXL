@@ -1,19 +1,14 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-#if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using System.Diagnostics.Tracing;
-#endif
+
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Tracing
 {
@@ -72,7 +67,7 @@ namespace BuildXL.Tracing
                     m_finalStatistics.AddOrUpdate(key, value, (k, v) => value);
                 }
 
-                Output(eventData.Level, eventData.EventId, eventData.EventName, eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0}={1}", key, value));
+                Output(eventData.Level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0}={1}", key, value));
             }
         }
 

@@ -183,7 +183,7 @@ namespace Test.BuildXL.Processes
 
                 // The redirected output is created as a tombstone file, but the sandboxed pip executor should report it as an absent file
                 AssertErrorEventLogged(EventId.PipProcessMissingExpectedOutputOnCleanExit);
-                AssertErrorEventLogged(EventId.PipProcessExpectedMissingOutputs);
+                AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
             }
         }
 

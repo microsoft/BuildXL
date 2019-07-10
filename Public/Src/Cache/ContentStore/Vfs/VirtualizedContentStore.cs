@@ -85,5 +85,8 @@ namespace BuildXL.Cache.ContentStore.Vfs
         {
             throw new System.NotImplementedException();
         }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result) => InnerStore.PostInitializationCompleted(context, result);
     }
 }

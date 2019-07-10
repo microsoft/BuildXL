@@ -5,16 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Reflection;
 using System.Text;
 using System.Threading;
 using BuildXL.Utilities.Instrumentation.Common;
-
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Utilities.Tracing
 {
@@ -108,7 +103,12 @@ namespace BuildXL.Utilities.Tracing
         }
 
         private Events()
+#if NET_FRAMEWORK_451
+            : base()
+#else
             : base(EventSourceSettings.EtwSelfDescribingEventFormat)
+#endif
+
         {
         }
 
@@ -224,7 +224,7 @@ namespace BuildXL.Utilities.Tracing
             Volatile.Write(ref m_eventSourceWarningsEncountered, true);
         }
 
-        #region Log helpers
+#region Log helpers
 
         /// <summary>
         /// Logs an event with provenance information
@@ -287,7 +287,7 @@ namespace BuildXL.Utilities.Tracing
             eventAction(loggingContext, relatedLocation.Path.ToString(pathTable), relatedLocation.Line, relatedLocation.Position, alreadyReportedLocation.Path.ToString(pathTable), alreadyReportedLocation.Line, alreadyReportedLocation.Position);
         }
 
-        #endregion
+#endregion
 
         // this method is internal to allow access from unit tests
         [NonEvent]
@@ -314,7 +314,7 @@ namespace BuildXL.Utilities.Tracing
             }
         }
 
-        #region Testing
+#region Testing
 
         /////////////////////////
         //
@@ -443,7 +443,7 @@ namespace BuildXL.Utilities.Tracing
             WriteEvent((int)EventId.VerboseEventWithProvenance, file, line, column, message);
         }
 
-        #endregion
+#endregion
 
         [Event(
             (int)EventId.StartViewer,

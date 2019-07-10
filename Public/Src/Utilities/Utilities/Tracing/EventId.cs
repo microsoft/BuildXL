@@ -431,7 +431,7 @@ namespace BuildXL.Utilities.Tracing
 
         Channel = 502,
         StorageCacheContentHitSources = 503,
-        PipProcessExpectedMissingOutputs = 504,
+        // Elsewhere = 504,
         // was PipProcessAllowedMissingOutputs = 505,
 
         // USN/Change Journal usage (FileChangeTracker)

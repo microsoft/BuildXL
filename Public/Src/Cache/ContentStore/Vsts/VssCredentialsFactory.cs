@@ -114,6 +114,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return _helper.GetPATCredentials(_pat);
             }
 
+// The .NET Core platform cannot ask the OS for the AAD username of the
+// current user, so instead, the username has to be provided explicitly.
 #if FEATURE_CORECLR
             var task = CreateVssCredentialsForUserNameAsync(baseUri, Environment.GetEnvironmentVariable(AadUserNameEnvVar));
 #else

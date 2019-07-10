@@ -80,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private const string VsoAadSettings_TestAadAddress = "https://login.windows-ppe.net/";
         private const string VsoAadSettings_DefaultTenant = "microsoft.com";
 
-        public const string AadUserNameEnvVar = "VSTSAADUSERNAME";
+        private const string AadUserNameEnvVar = "VSTSAADUSERNAME";
 
         private Task<VssCredentials> CreateVssCredentialsForUserNameAsync(Uri baseUri, string userName)
         {
@@ -98,6 +98,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             return Task.FromResult<VssCredentials>(new VssAadCredential(token));
         }
 
+#if !PLATFORM_OSX
         /// <summary>
         /// Creates a VssCredentials object and returns it.
         /// </summary>
@@ -113,15 +114,26 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return _helper.GetPATCredentials(_pat);
             }
 
-#if PLATFORM_OSX
-            throw new CacheException("On non-Windows platforms only PAT-based VSTS authentication is allowed.");
-#elif FEATURE_CORECLR
-            return await CreateVssCredentialsForUserNameAsync(baseUri, Environment.GetEnvironmentVariable(AadUserNameEnvVar))
-                .ConfigureAwait(false);
+#if FEATURE_CORECLR
+            var task = CreateVssCredentialsForUserNameAsync(baseUri, Environment.GetEnvironmentVariable(AadUserNameEnvVar));
 #else
-            return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, null)
-                .ConfigureAwait(false);
+            var task = _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, null);
 #endif
+            return await task.ConfigureAwait(false);
         }
+#else
+        /// <summary>
+        /// Creates a VssCredentials object and returns it.
+        /// </summary>
+        public Task<VssCredentials> CreateVssCredentialsAsync(Uri baseUri, bool useAad)
+        {
+            if (_credentials != null)
+            {
+                return Task.FromResult(_credentials);
+            }
+
+            throw new CacheException("CoreCLR on non-windows platforms only allows PAT based VSTS authentication!");
+        }
+#endif
     }
 }

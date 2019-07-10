@@ -33,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// <summary>
         ///     Remove given content from all sessions.
         /// </summary>
-        Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash);
+        Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, bool allowWait = true);
     }
 
     /// <summary>

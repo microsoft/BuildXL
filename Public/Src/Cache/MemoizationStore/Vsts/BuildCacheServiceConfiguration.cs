@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Runtime.Serialization;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 using Newtonsoft.Json;
 
@@ -90,7 +91,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <summary>
         /// Default value indicating whether implicit pin is used.
         /// </summary>
-        public const bool DefaultUseImplicitPin = true;
+        public const ImplicitPin DefaultImplicitPin = ImplicitPin.PutAndGet;
 
         /// <summary>
         /// Default value indicating whether Unix file access mode override is enabled.
@@ -231,7 +232,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// Gets or sets whether an implicit pin is used.
         /// </summary>
         [DataMember]
-        public bool UseImplicitPin { get; set; } = DefaultUseImplicitPin;
+        public ImplicitPin ImplicitPin { get; set; } = DefaultImplicitPin;
 
         /// <summary>
         /// Gets or sets whether to override Unix file access modes.

@@ -66,7 +66,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
         //     "UseDedupStore":{27}
         //     "DisableContent":{28}
         //     "OverrideUnixFileAccessMode":{29}
-        //     "UseImplicitPin":{30}
+        //     "ImplicitPin":{30}
         // }
         private sealed class Config : BuildCacheCacheConfig
         {
@@ -113,8 +113,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
                 logger.Debug($"Distributed cache created successfully.");
 
                 var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
-                var implicitPin = cacheConfig.UseImplicitPin ? ImplicitPin.PutAndGet : ImplicitPin.None;
-                var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, distributedCache, logger, statsFilePath, implicitPin: implicitPin);
+                var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, distributedCache, logger, statsFilePath, implicitPin: cacheConfig.ImplicitPin);
 
                 logger.Diagnostic($"Initializing the cache [{cacheConfig.CacheId}]");
                 var startupResult = await cache.StartupAsync();

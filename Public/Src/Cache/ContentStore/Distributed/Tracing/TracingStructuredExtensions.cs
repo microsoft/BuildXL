@@ -85,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                 return result.ToString();
             }
 
-            return string.Join(", ", result.ContentHashesInfo.Select(info => $"{new ShortHash(info.ContentHash)}={info.Locations?.Count ?? 0}"));
+            return string.Join(", ", result.ContentHashesInfo.Select(info => $"{info.ContentHash.ToShortString()}={info.Locations?.Count ?? 0}"));
         }
 
         /// <nodoc />

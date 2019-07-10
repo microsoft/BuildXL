@@ -242,14 +242,15 @@ namespace BuildXL
         {
             mutableConfig.Logging.CustomLog.Add(
                 mutableConfig.Logging.CacheMissLog,
-                new[]
+                (new[]
                 {
                     (int)EventId.CacheMissAnalysis,
                     (int)EventId.MissingKeyWhenSavingFingerprintStore,
                     (int)EventId.FingerprintStoreSavingFailed,
                     (int)EventId.FingerprintStoreToCompareTrace,
                     (int)EventId.SuccessLoadFingerprintStoreToCompare
-                });
+                },
+                null));
         }
 
         private static void ConfigureDistributionLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
@@ -257,7 +258,7 @@ namespace BuildXL
             if (mutableConfig.Distribution.BuildRole != DistributedBuildRoles.None)
             {
                 mutableConfig.Logging.CustomLog.Add(
-                    mutableConfig.Logging.RpcLog, DistributionHelpers.DistributionAllMessages.ToArray());
+                    mutableConfig.Logging.RpcLog, (DistributionHelpers.DistributionAllMessages.ToArray(), null));
             }
         }
 
@@ -275,10 +276,11 @@ namespace BuildXL
 
                 // NOTE: We rely on explicit exclusion of pip output messages in CloudBuild rather than turning them off by default.
                 mutableConfig.Logging.CustomLog.Add(
-                    mutableConfig.Logging.PipOutputLog, new[] { (int)EventId.PipProcessOutput });
+                    mutableConfig.Logging.PipOutputLog, (new[] { (int)EventId.PipProcessOutput }, null));
 
                 mutableConfig.Logging.CustomLog.Add(
-                    mutableConfig.Logging.DevLog, new[]
+                    mutableConfig.Logging.DevLog,
+                    (new[]
                     {
                         // Add useful low volume-messages for dev diagnostics here
                         (int)EventId.DominoInvocation,
@@ -336,7 +338,9 @@ namespace BuildXL
                         (int)Engine.Tracing.LogEventId.DeserializedFile,
                         (int)EventId.PipQueueConcurrency,
                         (int)Engine.Tracing.LogEventId.GrpcSettings
-                    });
+                    },
+                    // all errors should be included in a dev log
+                    EventLevel.Error));
 
                 // Distribution related messages are disabled in default text log and routed to special log file
                 mutableConfig.Logging.NoLog.AddRange(DistributionHelpers.DistributionInfoMessages);
@@ -787,7 +791,7 @@ namespace BuildXL
                     {
                         case (int)EventId.FileMonitoringError:
                             return ExitKind.BuildFailedWithFileMonErrors;
-                        case (int)EventId.PipProcessExpectedMissingOutputs:
+                        case (int)BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs:
                             return ExitKind.BuildFailedWithMissingOutputErrors;
                         case (int)EventId.InvalidOutputDueToSimpleDoubleWrite:
                             return ExitKind.BuildFailedSpecificationError;
@@ -1477,7 +1481,7 @@ namespace BuildXL
                     });
             }
 
-            private void ConfigureAdditionalFileLoggers(IReadOnlyDictionary<AbsolutePath, IReadOnlyList<int>> additionalLoggers)
+            private void ConfigureAdditionalFileLoggers(IReadOnlyDictionary<AbsolutePath, (IReadOnlyList<int> eventIds, EventLevel? nonMaskableLevel)> additionalLoggers)
             {
                 foreach (var additionalLogger in additionalLoggers)
                 {
@@ -1485,7 +1489,7 @@ namespace BuildXL
                         additionalLogger.Key,
                         (writer) =>
                         {
-                            var eventMask = new EventMask(enabledEvents: additionalLogger.Value, disabledEvents: null, nonMaskableLevel: EventLevel.Error);
+                            var eventMask = new EventMask(enabledEvents: additionalLogger.Value.eventIds, disabledEvents: null, nonMaskableLevel: additionalLogger.Value.nonMaskableLevel);
                             return new TextWriterEventListener(
                                 Events.Log,
                                 writer,

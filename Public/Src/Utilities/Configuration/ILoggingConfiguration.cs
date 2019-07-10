@@ -2,7 +2,13 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
+using Microsoft.Diagnostics.Tracing;
+#else
+using System.Diagnostics.Tracing;
+#endif
 using JetBrains.Annotations;
+
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -116,9 +122,11 @@ namespace BuildXL.Utilities.Configuration
 
         /// <summary>
         /// Creates a custom log file for a specific set of event IDs. Event list should be comma separated integers excluding the DX prefix.
+        /// EventLevel specifies the non-skippable events. All events of this of higher event level will be included in the log
+        /// regardless whether they are specified in the event list. Defaults to null (i.e., log will include only the specified events)
         /// </summary>
         [NotNull]
-        IReadOnlyDictionary<AbsolutePath, IReadOnlyList<int>> CustomLog { get; }
+        IReadOnlyDictionary<AbsolutePath, (IReadOnlyList<int>, EventLevel?)> CustomLog { get; }
 
         /// <summary>
         /// Specifies the ETW log kind for custom logs by path. Normal text log kind is 'default'.

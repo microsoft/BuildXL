@@ -175,7 +175,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 var (isValid, error) = await ValidateFileAsync(context, hashInfo.Hash, hashInfo.Payload);
                 if (!isValid)
                 {
-                    _tracer.Warning(context, $"SelfCheck: Found invalid entry in cache. Hash={hashInfo.Hash}. {error}. Evicting the file...");
+                    _tracer.Warning(context, $"SelfCheck: Found invalid entry in cache. Hash={hashInfo.Hash.ToShortString()}. {error}. Evicting the file...");
                     await _contentStoreInternal.RemoveInvalidContentAsync(context, hashInfo.Hash);
                     invalidEntries++;
                 }
@@ -274,14 +274,14 @@ namespace BuildXL.Cache.ContentStore.Stores
                 if (actualHashAndSize != null && actualHashAndSize.Value.Hash != expectedHash)
                 {
                     // Don't need to add an expected hash into the error string because the client code will always put it into the final error message.
-                    return (isValid: false, error: $"Hash mismatch. Actual hash is {actualHashAndSize.Value.Hash}");
+                    return (isValid: false, error: $"Hash mismatch. Actual hash is {actualHashAndSize.Value.Hash.ToShortString()}");
                 }
 
                 return (isValid: true, error: string.Empty);
             }
             catch (Exception e)
             {
-                _tracer.Warning(context, $"SelfCheck: Content hash is invalid. Hash={expectedHash}, Error={e}");
+                _tracer.Warning(context, $"SelfCheck: Content hash is invalid. Hash={expectedHash.ToShortString()}, Error={e}");
 
                 return (isValid: true, error: string.Empty);
             }

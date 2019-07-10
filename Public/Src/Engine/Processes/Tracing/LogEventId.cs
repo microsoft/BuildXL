@@ -60,7 +60,7 @@ namespace BuildXL.Processes.Tracing
 
         PipProcessInvalidErrorRegex = 89,
         //// Reserved  = 90,
-        //// Reserved  = 91,
+        TranslatePathInGlobalUnsafeUntrackedScopes = 91,
         PipProcessNeedsExecuteExternalButExecuteInternal = 92,
 
         PipProcessDisallowedFileAccessWhitelistedCacheable = 264,

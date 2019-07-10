@@ -344,7 +344,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 var r = await result;
                 if (!r.Item.Succeeded)
                 {
-                    _tracer.Warning(context, $"Failed to pin contentHash=[{contentHashList[r.Index]}]");
+                    _tracer.Warning(context, $"Failed to pin contentHash=[{contentHashList[r.Index].ToShortString()}]");
                 }
             }
         }

@@ -248,5 +248,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             throw new System.NotImplementedException();
         }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result) { }
     }
 }

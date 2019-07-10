@@ -294,5 +294,12 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             throw new NotImplementedException();
         }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result)
+        {
+            ContentStore1.PostInitializationCompleted(context, result);
+            ContentStore2.PostInitializationCompleted(context, result);
+        }
     }
 }

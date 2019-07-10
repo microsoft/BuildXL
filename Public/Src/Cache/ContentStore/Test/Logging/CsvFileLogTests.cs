@@ -176,6 +176,49 @@ namespace ContentStoreTest.Logging
             }
         }
 
+        [Theory]
+        [InlineData("D", "D", "")]
+        [InlineData("C", "", "C")]
+        [InlineData("D,C", "D", "C")]
+        [InlineData("D,C,D", "D,D", "C")]
+        [InlineData("C,D,C", "D", "C,C")]
+        public void TestDontRenderConstColumns(string schema, string expectedFileSchema, string expectedConstSchema)
+        {
+            var constCol = CsvFileLog.ColumnKind.BuildId;
+            var dynCol = CsvFileLog.ColumnKind.Message;
+
+            var csvLog = new CsvFileLog(
+                GetRandomLogFile(),
+                schema: TranslateSchema(schema),
+                renderConstColums: false);
+            csvLog.IsConstValueColumn(constCol).Should().BeTrue();
+            csvLog.IsConstValueColumn(dynCol).Should().BeFalse();
+
+            csvLog.FileSchema.Should().BeEquivalentTo(TranslateSchema(expectedFileSchema));
+            csvLog.ConstSchema.Should().BeEquivalentTo(TranslateSchema(expectedConstSchema));
+
+            CsvFileLog.ColumnKind[] TranslateSchema(string s)
+            {
+                return s
+                    .Split(',')
+                    .Select(c => c.Trim())
+                    .Where(c => !string.IsNullOrEmpty(c))
+                    .Select(TranslateCol)
+                    .ToArray();
+            }
+
+            CsvFileLog.ColumnKind TranslateCol(string c)
+            {
+                Assert.True(c == "D" || c == "C", $"Column specified must be either 'C' or 'D', but is '{c}'");
+                return c == "D" ? dynCol : constCol;
+            }
+        }
+
+        private static string GetRandomLogFile()
+        {
+            return Path.Combine(Path.GetTempPath(), GetRandomFileName());
+        }
+
         private string RenderMessage(CsvFileLog log, string message)
         {
             var sb = new StringBuilder();

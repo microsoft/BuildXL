@@ -1107,8 +1107,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             //   evictability = age + (time decay parameter) * (-log(risk of content unavailability) * (number of replicas) + log(size of content))
                             // minimizes the increase in the probability of (content wanted && all replicas inaccessible) / per bytes freed.
                             // Since this metric is just the age plus a computed quantity, it can be intrepreted as an "effective age".
-                            // (One dev wanted no penalty until we reach a threshold number of replicas. We don't have a model justification for this but I'm content to oblige.)
-                            TimeSpan totalReplicaPenalty = TimeSpan.FromMinutes(_configuration.ContentLifetime.TotalMinutes * (Math.Max(0, replicaCount - 3) * logInverseMachineRisk + Math.Log(Math.Max(1, entry.ContentSize))));
+                            TimeSpan totalReplicaPenalty = TimeSpan.FromMinutes(_configuration.ContentLifetime.TotalMinutes * (Math.Max(1, replicaCount) * logInverseMachineRisk + Math.Log(Math.Max(1, entry.ContentSize))));
                             effectiveLastAccessTime = lastAccessTime - totalReplicaPenalty;
 
                             Counters[ContentLocationStoreCounters.EffectiveLastAccessTimeLookupHit].Increment();

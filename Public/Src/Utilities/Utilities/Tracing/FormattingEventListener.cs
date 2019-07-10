@@ -7,11 +7,7 @@ using System.Globalization;
 using System.Linq;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Utilities.Tracing
 {
@@ -187,7 +183,7 @@ namespace BuildXL.Utilities.Tracing
 
                 // Don't translate paths in the DominoInvocation event since that contains bxl.exe's command line. It
                 // is useful to see exactly how BuildXL was invoked since some of those options control the translation.
-                Output(level, eventData.EventId, eventData.EventName, eventData.Keywords, full, doNotTranslatePaths: eventData.EventId == (int)EventId.DominoInvocation);
+                Output(level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, full, doNotTranslatePaths: eventData.EventId == (int)EventId.DominoInvocation);
             }
         }
 

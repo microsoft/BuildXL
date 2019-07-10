@@ -80,7 +80,7 @@ namespace BuildXL.Scheduler.Tracing
         /// Why this extra prefix? Text filtering. There's a corresponding ETW keyword, but today people lean mostly on the text logs.
         /// </remarks>
         public const string PipSpecDependencyAnalysisPrefix = "Detected dependency violation: [{1}, {2}, {3}] ";
-        
+
         private const string AbsentPathProbeUnderOpaqueDirectoryMessage = "Absent path probe under opaque directory: This pip probed path '{2}' that does not exist. The path is under an output directory that the pip does not depend on. " +
                            "The probe is not guaranteed to always be absent and may introduce non-deterministic behaviors in the build if the pip is incrementally skipped. " +
                            "Please declare an explicit dependency between this pip and the producer of the output directory so the probe always happens after the directory is finalized. ";
@@ -257,7 +257,7 @@ namespace BuildXL.Scheduler.Tracing
             string fileName,
             string contentHash,
             string reparsePointInfo);
-        
+
         [GeneratedEvent(
             (ushort)EventId.PipWarningsFromCache,
             EventGenerators = EventGenerators.LocalOnly,
@@ -401,7 +401,7 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Storage,
             Message = "Failed to copy the content with hash {contentHash} (from '{fallbackPath}') into the build cache. This is needed in order to provide a private, writable copy at the same location. Error: {errorMessage}")]
         internal abstract void StorageCacheIngressFallbackContentToMakePrivateError(LoggingContext loggingContext, string contentHash, string fallbackPath, string errorMessage);
-        
+
         [GeneratedEvent(
             (ushort)EventId.ProcessDescendantOfUncacheable,
             EventGenerators = EventGenerators.LocalOnly,
@@ -500,7 +500,7 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] A pip cache descriptor was found for content fingerprint '{contentFingerprint}' (unique ID: {uniqueId:X}) from cache depth {cacheDepth}, indicating that an equivalent pip previously ran with these inputs.")]
         internal abstract void ScheduleCacheDescriptorHitForContentFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint, ulong uniqueId, int cacheDepth);
-        
+
         [GeneratedEvent(
             (ushort)EventId.DisallowedFileAccessInSealedDirectory,
             EventGenerators = EventGenerators.LocalOnly,
@@ -2071,7 +2071,7 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Tasks.Scheduler,
             Message =
                 PipDependencyAnalysisPrefix +
-                "Allowed undeclared access on an output file: This pip accesses path '{4}', but '{5}' writes into it. " +
+                "Undeclared access on an output file: This pip accesses path '{4}', but '{5}' writes into it. " +
                 "Even though the undeclared access is allowed, it should only happen on a source file.")]
         public abstract void DependencyViolationWriteInUndeclaredSourceRead(
             LoggingContext context,
@@ -2081,6 +2081,24 @@ namespace BuildXL.Scheduler.Tracing
             string pipWorkingDirectory,
             string path,
             string producingPipDescription);
+
+        [GeneratedEvent(
+            (int)LogEventId.DependencyViolationWriteOnExistingFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                PipDependencyAnalysisPrefix +
+                "This pip writes to path '{4}', but the file was not created by this pip. This means the " +
+                "pip is attempting to rewrite a file without an explicit rewrite declaration. This may introduce non-deterministic behaviors in the build.")]
+        public abstract void DependencyViolationWriteOnExistingFile(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipSpecPath,
+            string pipWorkingDirectory,
+            string path);
 
         [GeneratedEvent(
             (int)LogEventId.DependencyViolationWriteOnAbsentPathProbe,
@@ -2111,7 +2129,7 @@ namespace BuildXL.Scheduler.Tracing
             Message =
                 PipDependencyAnalysisPrefix +
                 AbsentPathProbeUnderOpaqueDirectoryMessage +
-                "This pip is configured to fail if such a probe occurs. " )]
+                "This pip is configured to fail if such a probe occurs. ")]
         public abstract void DependencyViolationAbsentPathProbeInsideUndeclaredOpaqueDirectory(
             LoggingContext context,
             long pipSemiStableHash,
@@ -2125,9 +2143,9 @@ namespace BuildXL.Scheduler.Tracing
             Keywords = (int)Keywords.UserMessage | (int)Keywords.DependencyAnalysis,
             EventTask = (int)Tasks.Scheduler,
             Message =
-                "[{1}]"+
-                AbsentPathProbeUnderOpaqueDirectoryMessage + 
-                "If the pip is configured to run in Relaxed mode (AbsentPathProbeInUndeclaredOpaquesMode), this pip will not be incrementally skipped which might cause perf degradation. " )]
+                "[{1}]" +
+                AbsentPathProbeUnderOpaqueDirectoryMessage +
+                "If the pip is configured to run in Relaxed mode (AbsentPathProbeInUndeclaredOpaquesMode), this pip will not be incrementally skipped which might cause perf degradation. ")]
         public abstract void AbsentPathProbeInsideUndeclaredOpaqueDirectory(
             LoggingContext context,
             long pipSemiStableHash,
@@ -2565,7 +2583,7 @@ namespace BuildXL.Scheduler.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message = "Failed to delete corrupt {ShortProductName} file. This could cause subsequent build issues. File: {file}, Error: {exception}")]
-            public abstract void FailedToDeleteCorruptFile(
+        public abstract void FailedToDeleteCorruptFile(
                 LoggingContext context,
                 string file,
                 string exception);
@@ -3809,7 +3827,7 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "[{ShortProductName} API Server] Operation GetSealedDirectoryContent('{directory}') executed.")]
         internal abstract void ApiServerGetSealedDirectoryContentExecuted(LoggingContext loggingContext, string directory);
-        
+
         [GeneratedEvent(
             (ushort)LogEventId.UnexpectedlySmallObservedInputCount,
             EventGenerators = EventGenerators.LocalAndTelemetry,
@@ -3893,16 +3911,16 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Tasks.CriticalPaths,
             Message = "Critical Path Pip Duration={pipDurationMs}ms Result={executionLevel} ExplicitlyScheduled={isExplicitlyScheduled} Index={indexFromBeginning} {pipDescription}")]
         public abstract void CriticalPathPipRecord(
-            LoggingContext context, 
-            long pipSemiStableHash, 
+            LoggingContext context,
+            long pipSemiStableHash,
             string pipDescription,
-            long pipDurationMs, 
-            long exeDurationMs, 
-            long queueDurationMs, 
-            int indexFromBeginning, 
-            bool isExplicitlyScheduled, 
-            string executionLevel, 
-            int numCacheEntriesVisited, 
+            long pipDurationMs,
+            long exeDurationMs,
+            long queueDurationMs,
+            int indexFromBeginning,
+            bool isExplicitlyScheduled,
+            string executionLevel,
+            int numCacheEntriesVisited,
             int numPathSetsDownloaded);
 
         [GeneratedEvent(
@@ -4167,7 +4185,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void LimitingResourceStatistics(LoggingContext context, IDictionary<string, long> statistics);
 
         [GeneratedEvent(
-            (int) EventId.FailedToDuplicateSchedulerFile,
+            (int)EventId.FailedToDuplicateSchedulerFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort) Tasks.Scheduler,
@@ -4334,6 +4352,18 @@ namespace BuildXL.Scheduler.Tracing
             string directoryPath,
             string pipDescription,
             string deletedPaths);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.FailedToLoadPipGraphFragment,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Engine,
+            Message = "[{pipDescription}] Unable to add pip from fragment {fragmentName}.")]
+        public abstract void FailedToAddFragmentPipToGraph(
+            LoggingContext context,
+            string fragmentName,
+            string pipDescription);
     }
 }
 #pragma warning restore CA1823 // Unused field

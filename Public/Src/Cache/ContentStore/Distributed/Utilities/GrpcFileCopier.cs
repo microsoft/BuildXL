@@ -23,10 +23,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     {
         private const int DefaultGrpcPort = 7089;
         private readonly Context _context;
-        private int _grpcPort;
-        private bool _useCompression;
+        private readonly int _grpcPort;
+        private readonly bool _useCompression;
 
-        private GrpcCopyClientCache _clientCache;
+        private readonly GrpcCopyClientCache _clientCache;
 
         /// <summary>
         /// Constructor for <see cref="GrpcFileCopier"/>.
@@ -46,13 +46,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             // Extract host and contentHash from sourcePath
             (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(path);
 
-            FileExistenceResult fileExistenceResult = null;
             using (var clientWrapper = await _clientCache.CreateAsync(host, _grpcPort, _useCompression))
             {
-                fileExistenceResult = await clientWrapper.Value.CheckFileExistsAsync(_context, contentHash);
+                return await clientWrapper.Value.CheckFileExistsAsync(_context, contentHash);
             }
-
-            return fileExistenceResult;
         }
 
         /// <inheritdoc />
@@ -61,14 +58,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             // Extract host and contentHash from sourcePath
             (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
 
-            CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
             using (var clientWrapper = await _clientCache.CreateAsync(host, _grpcPort, _useCompression))
             {
-                copyFileResult = await clientWrapper.Value.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken);
+                return await clientWrapper.Value.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken);
             }
-
-            return copyFileResult;
         }
 
         private (string host, ContentHash contentHash) ExtractHostHashFromAbsolutePath(AbsolutePath sourcePath)
@@ -102,14 +96,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             // Extract host and contentHash from sourcePath
             (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
 
-            CopyFileResult copyFileResult = null;
             // Contact hard-coded port on source
             using (var clientWrapper = await _clientCache.CreateAsync(host, _grpcPort, _useCompression))
             {
-                copyFileResult = await clientWrapper.Value.CopyToAsync(_context, contentHash, destinationStream, cancellationToken);
+                return await clientWrapper.Value.CopyToAsync(_context, contentHash, destinationStream, cancellationToken);
             }
-
-            return copyFileResult;
         }
     }
 }

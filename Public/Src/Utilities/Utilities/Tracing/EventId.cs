@@ -431,7 +431,7 @@ namespace BuildXL.Utilities.Tracing
 
         Channel = 502,
         StorageCacheContentHitSources = 503,
-        PipProcessExpectedMissingOutputs = 504,
+        // Elsewhere = 504,
         // was PipProcessAllowedMissingOutputs = 505,
 
         // USN/Change Journal usage (FileChangeTracker)
@@ -1136,5 +1136,7 @@ namespace BuildXL.Utilities.Tracing
         // Sandbox kernel extension connection manger errors
         KextFailedToInitializeConnectionManager = 14500,
         KextFailureNotificationReceived = 14501,
+
+        FailedToLoadPipGraphFragment = 14502
     }
 }

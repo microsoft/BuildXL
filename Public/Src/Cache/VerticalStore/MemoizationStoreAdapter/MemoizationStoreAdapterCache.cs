@@ -217,7 +217,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             var createSessionResult = m_cache.CreateReadOnlySession(
                 context,
                 $"{CacheId}-Anonymous",
-                ImplicitPin.PutAndGet);
+                m_implicitPin);
             if (createSessionResult.Succeeded)
             {
                 var innerCacheSession = createSessionResult.Session;

@@ -105,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{PinCallName} stop {result.DurationMs}ms input=[{input}] result=[{result}]");
+                TracerOperationFinished(context, result, $"{Name}.{PinCallName} stop {result.DurationMs}ms input=[{input.ToShortString()}] result=[{result}]");
             }
 
             _pinCallCounter.Completed(result.Duration.Ticks);
@@ -123,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (context.IsEnabled)
             {
-                Debug(context, $"{Name}.{PinBulkCallName}({results.Count}) results:[{string.Join(",", results.Select((result, index) => $"{contentHashes[index]}={result}"))}]");
+                Debug(context, $"{Name}.{PinBulkCallName}({results.Count}) results:[{string.Join(",", results.Select((result, index) => $"{contentHashes[index].ToShortString()}={result}"))}]");
             }
         }
 
@@ -154,7 +154,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                         $"{Name}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). Result={pinStatus}. ",
                         results.Select((result, index) => (result, hash: contentHashes[index])),
                         contentHashes.Count,
-                        itemPrinter: tpl => $"{tpl.hash}={tpl.result.Item}",
+                        itemPrinter: tpl => $"{tpl.hash.ToShortString()}={tpl.result.Item}",
                         printAction: message => Debug(context, message));
                 }
                 else if (pinStatus == Error)
@@ -166,7 +166,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                         $"{Name}.{PinBulkCallName}() failed for hashes",
                         results.Select((result, index) => (result, hash: contentHashes[index])),
                         contentHashes.Count,
-                        itemPrinter: tpl => $"{tpl.hash}={tpl.result.Item}",
+                        itemPrinter: tpl => $"{tpl.hash.ToShortString()}={tpl.result.Item}",
                         printAction: message => Debug(context, message));
                 }
 
@@ -223,7 +223,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{PlaceFileCallName} stop {result.DurationMs}ms input=[{input}] result=[{result}]");
+                TracerOperationFinished(context, result, $"{Name}.{PlaceFileCallName} stop {result.DurationMs}ms input=[{input.ToShortString()}] result=[{result}]");
             }
 
             _placeFileCallCounter.Completed(result.Duration.Ticks);

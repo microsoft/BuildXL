@@ -311,7 +311,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             var contentHashesAndLocations = new List<ContentHashWithSizeAndLocations>();
             foreach (ContentHash contentHash in contentHashes)
             {
-                _tracer.Debug(context, $"[DistributedEviction] Re-adding local location for content hash {contentHash} because it was not evicted");
+                _tracer.Debug(context, $"[DistributedEviction] Re-adding local location for content hash {contentHash.ToShortString()} because it was not evicted");
                 contentHashesAndLocations.Add(new ContentHashWithSizeAndLocations(contentHash));
             }
 

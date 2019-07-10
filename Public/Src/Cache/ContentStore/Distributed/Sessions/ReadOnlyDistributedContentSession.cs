@@ -189,7 +189,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             PinResult local = await Inner.PinAsync(operationContext, contentHash, operationContext.Token, urgencyHint);
             if (local.Succeeded)
             {
-                Tracer.Info(operationContext, $"Pin succeeded for {contentHash}: local pin succeeded.");
+                Tracer.Info(operationContext, $"Pin succeeded for {contentHash.ToShortString()}: local pin succeeded.");
 
                 var contentHashInfo = new ContentHashWithSizeAndLastAccessTime(contentHash, local.ContentSize, local.LastAccessTime);
                 await UpdateContentTrackerWithLocalHitsAsync(operationContext, new[] { contentHashInfo }, operationContext.Token, urgencyHint);
@@ -228,7 +228,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 }
                 else
                 {
-                    Tracer.Info(operationContext, $"Pin failed for hash {contentHash}: directory query failed with error {lookup.ErrorMessage}");
+                    Tracer.Info(operationContext, $"Pin failed for hash {contentHash.ToShortString()}: directory query failed with error {lookup.ErrorMessage}");
                     return new PinResult(lookup);
                 }
             }
@@ -272,7 +272,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     if (!getBulkResult || !getBulkResult.ContentHashesInfo.Any())
                     {
-                        return new BoolResult($"Metadata records for hash {contentHash} not found in content location store.");
+                        return new BoolResult($"Metadata records for hash {contentHash.ToShortString()} not found in content location store.");
                     }
 
                     // Don't reconsider locally stored results that were checked in prior iteration
@@ -477,17 +477,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             PlaceFileResult result;
                             if (contentHashWithSizeAndLocations.Locations == null)
                             {
-                                Tracer.Debug(context, $"No replicas found in content tracker for hash {contentHashWithSizeAndLocations.ContentHash}");
+                                Tracer.Debug(context, $"No replicas found in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}");
                                 result = new PlaceFileResult(
                                     PlaceFileResult.ResultCode.NotPlacedContentNotFound,
-                                    $"No replicas ever registered for hash {hashesWithPaths[indexed.Index].Hash}.");
+                                    $"No replicas ever registered for hash {hashesWithPaths[indexed.Index].Hash.ToShortString()}.");
                             }
                             else if (contentHashWithSizeAndLocations.Locations.Count == 0)
                             {
-                                Tracer.Debug(context, $"No replicas exist currently in content tracker for hash {contentHashWithSizeAndLocations.ContentHash}");
+                                Tracer.Debug(context, $"No replicas exist currently in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}");
                                 result = new PlaceFileResult(
                                     PlaceFileResult.ResultCode.NotPlacedContentNotFound,
-                                    $"No remaining replicas for hash {hashesWithPaths[indexed.Index].Hash}.");
+                                    $"No remaining replicas for hash {hashesWithPaths[indexed.Index].Hash.ToShortString()}.");
                             }
                             else
                             {
@@ -546,7 +546,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 if (log)
                 {
-                    Tracer.Debug(context, $"No replicas found in content tracker for hash {result.ContentHash}");
+                    Tracer.Debug(context, $"No replicas found in content tracker for hash {result.ContentHash.ToShortString()}");
                 }
 
                 return new BoolResult($"No replicas registered for hash");
@@ -556,7 +556,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 if (log)
                 {
-                    Tracer.Debug(context, $"No replicas currently exist in content tracker for hash {result.ContentHash}");
+                    Tracer.Debug(context, $"No replicas currently exist in content tracker for hash {result.ContentHash.ToShortString()}");
                 }
 
                 return new BoolResult($"Content for hash is missing from all replicas");
@@ -569,7 +569,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             if (trace)
             {
-                Tracer.Debug(context, $"Copying {hashInfo.ContentHash} with {hashInfo.Locations.Count} locations");
+                Tracer.Debug(context, $"Copying {hashInfo.ContentHash.ToShortString()} with {hashInfo.Locations.Count} locations");
             }
 
             using (var operationContext = TrackShutdown(context, cts))
@@ -650,7 +650,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     {
                         Tracer.Debug(
                             operationContext.Context,
-                            $"Removing bad content locations for content hash {hashInfo.ContentHash}: {string.Join(",", badContentLocations)}");
+                            $"Removing bad content locations for content hash {hashInfo.ContentHash.ToShortString()}: {string.Join(",", badContentLocations)}");
                         _backgroundTaskTracker.Add(
                             () =>
                                 ContentLocationStore.TrimBulkAsync(
@@ -727,7 +727,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     foreach (ContentHash hash in pageHashes)
                     {
-                        Tracer.Info(operationContext, $"Pin failed for hash {hash}: directory query failed with error {pageLookup.ErrorMessage}");
+                        Tracer.Info(operationContext, $"Pin failed for hash {hash.ToShortString()}: directory query failed with error {pageLookup.ErrorMessage}");
                         RemotePinning pinning = new RemotePinning() { Record = new ContentHashWithSizeAndLocations(hash, -1L), Result = new PinResult(pageLookup) };
                         pinnings.Add(pinning);
                     }
@@ -783,7 +783,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 if (!isLocal)
                 {
-                    Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash}: no remote records.");
+                    Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: no remote records.");
                 }
 
                 return PinResult.ContentNotFound;
@@ -821,7 +821,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (locations.Count >= minUnverifiedCount)
             {
                 _pinCache?.SetPinInfo(remote.ContentHash, pinCacheTimeToLive);
-                Tracer.Info(operationContext, $"Pin succeeded for hash {remote.ContentHash}: {locations.Count} remote records >= {minUnverifiedCount} required. PinCacheTTL={pinCacheTimeToLive}");
+                Tracer.Info(operationContext, $"Pin succeeded for hash {remote.ContentHash.ToShortString()}: {locations.Count} remote records >= {minUnverifiedCount} required. PinCacheTTL={pinCacheTimeToLive}");
                 return PinResult.Success;
             }
 
@@ -830,17 +830,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (locations.Count >= minVerifiedCount && _distributedCopier.CurrentIoGateCount > 0)
             {
                 var verify = await VerifyAsync(operationContext, remote, cancel);
-                Tracer.Info(operationContext, $"For hash {remote.ContentHash}, of {locations.Count} remote records, verified {verify.Present.Count} remote copies present and {verify.Absent.Count} remote copies absent.");
+                Tracer.Info(operationContext, $"For hash {remote.ContentHash.ToShortString()}, of {locations.Count} remote records, verified {verify.Present.Count} remote copies present and {verify.Absent.Count} remote copies absent.");
 
                 if (verify.Present.Count >= minVerifiedCount)
                 {
-                    Tracer.Info(operationContext, $"Pin succeeded for hash {remote.ContentHash}: {verify.Present.Count} verified remote copies >= {minVerifiedCount} required.");
+                    Tracer.Info(operationContext, $"Pin succeeded for hash {remote.ContentHash.ToShortString()}: {verify.Present.Count} verified remote copies >= {minVerifiedCount} required.");
                     return PinResult.Success;
                 }
 
                 if (verify.Present.Count == 0 && verify.Unknown.Count == 0)
                 {
-                    Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash}: all remote copies absent.");
+                    Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: all remote copies absent.");
                     return PinResult.ContentNotFound;
                 }
 
@@ -870,18 +870,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 BoolResult updated = await UpdateContentTrackerWithNewReplicaAsync(operationContext, new[] { new ContentHashWithSize(remote.ContentHash, copy.ContentSize) }, cancel, UrgencyHint.Nominal);
                 if (updated.Succeeded)
                 {
-                    Tracer.Info(operationContext, $"Pin succeeded for hash {remote.ContentHash}: local copy succeeded.");
+                    Tracer.Info(operationContext, $"Pin succeeded for hash {remote.ContentHash.ToShortString()}: local copy succeeded.");
                     return PinResult.Success;
                 }
                 else
                 {
-                    Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash}: local copy succeeded, but could not inform content directory due to {updated.ErrorMessage}.");
+                    Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy succeeded, but could not inform content directory due to {updated.ErrorMessage}.");
                     return new PinResult(updated);
                 }
             }
             else
             {
-                Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash}: local copy failed with {copy}.");
+                Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy failed with {copy}.");
                 return PinResult.ContentNotFound;
             }
         }
@@ -943,7 +943,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             var absent = verifyResult.Absent;
             if (absent.Count > 0)
             {
-                Tracer.Info(context, $"For hash {remote.ContentHash}, removing records for locations from which content is verified missing: {string.Join(",", absent)}");
+                Tracer.Info(context, $"For hash {remote.ContentHash.ToShortString()}, removing records for locations from which content is verified missing: {string.Join(",", absent)}");
                 _backgroundTaskTracker.Add(() => ContentLocationStore.TrimBulkAsync(context, new[] { new ContentHashAndLocations(remote.ContentHash, absent) }, CancellationToken.None, UrgencyHint.Low));
             }
 

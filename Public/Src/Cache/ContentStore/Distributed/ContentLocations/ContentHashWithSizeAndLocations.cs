@@ -41,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"[ContentHash={ContentHash} Size={Size} LocationCount={Locations?.Count}]";
+            return $"[ContentHash={ContentHash.ToShortString()} Size={Size} LocationCount={Locations?.Count}]";
         }
 
         /// <inheritdoc />

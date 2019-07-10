@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using BuildXL.Cache.ContentStore.Hashing;
+using ContentStore.Grpc;
 using Google.Protobuf;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
@@ -19,6 +20,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             byte[] contentHashByteArray = byteString.ToByteArray();
             return new ContentHash(hashType, contentHashByteArray);
         }
+
+        /// <summary>
+        /// Converts a <see cref="CopyFileRequest"/> to a <see cref="ContentHash"/>.
+        /// </summary>
+        public static ContentHash GetContentHash(this CopyFileRequest request) => request.ContentHash.ToContentHash((HashType)request.HashType);
 
         /// <summary>
         /// Converts a bytestring to a contenthash

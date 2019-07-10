@@ -60,7 +60,12 @@ namespace BuildXL.Cache.BasicFilesystem
         /// <summary>
         /// Our event source.
         /// </summary>
-        public static readonly EventSource EventSource = new EventSource("BasicFilesystemEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
+        public static readonly EventSource EventSource = 
+#if NET_FRAMEWORK_451
+            new EventSource();
+#else
+            new EventSource("BasicFilesystemEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
+#endif
 
         // m_cacheRoot is defined as the directory where it does all of its work - everything else is relative to that
         private readonly string m_cacheRoot;

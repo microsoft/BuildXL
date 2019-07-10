@@ -54,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"[ContentHash={ContentHash} LastAccessTime={LastAccessTime} EffectiveLastAccessTime={EffectiveLastAccessTime} ReplicaCount={ReplicaCount}]";
+            return $"[ContentHash={ContentHash.ToShortString()} LastAccessTime={LastAccessTime} EffectiveLastAccessTime={EffectiveLastAccessTime} ReplicaCount={ReplicaCount}]";
         }
 
         /// <summary>

@@ -181,6 +181,19 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Compares this object to another for purposes of ordering.
+        /// </summary>
+        /// <param name="other">Other File artifact to compare against.</param>
+        /// <param name="comparer">Path comparer to compare file paths</param>
+        /// <param name="pathOnly">If false, also compare rewrite count and file existence</param>
+        /// <returns>0 if the objects are equal, postitive or negative number depending on which object comes first.</returns>
+        public int CompareTo(FileArtifactWithAttributes other, PathTable.ExpandedAbsolutePathComparer comparer, bool pathOnly)
+        {
+            var pathCompare = comparer.Compare(Path, other.Path);
+            return pathCompare != 0 || pathOnly ? pathCompare : (((int)m_rewriteCountAndFileExistence) - ((int)other.m_rewriteCountAndFileExistence));
+        }
+
+        /// <summary>
         /// Determines whether the specified object is equal to the current object.
         /// </summary>
         /// <returns>

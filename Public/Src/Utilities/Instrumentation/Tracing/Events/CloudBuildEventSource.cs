@@ -16,7 +16,13 @@ namespace BuildXL.Tracing
         private static readonly bool s_disableTargetLevelEvents = true;
 
         private CloudBuildEventSource(string eventSourceName)
-            : base(eventSourceName, EventSourceSettings.EtwSelfDescribingEventFormat) { }
+#if NET_FRAMEWORK_451
+            : base()
+#else
+            : base(eventSourceName, EventSourceSettings.EtwSelfDescribingEventFormat)
+#endif
+        {
+        }
 
         /// <summary>
         /// Logging Instantiation

@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Exceptions;
@@ -27,6 +28,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using CLAP;
+using Kusto.Data.Common;
 
 // ReSharper disable UnusedMember.Global
 namespace BuildXL.Cache.ContentStore.App
@@ -60,30 +62,34 @@ namespace BuildXL.Cache.ContentStore.App
         /// <summary>
         ///     Target Kusto table for remote telemetry
         /// </summary>
-        private const string KustoTable = "CloudBuildLogEvent";
+        private const string KustoTable = "ContentStoreAppMessage";
 
         /// <summary>
-        ///     The Kusto schema of the target table (<see cref="KustoTable"/>).
-        ///
-        ///     The schema for the target table can be automatically exported from the Kusto Explorer.
+        ///     CSV file schema to be produced by <see cref="CsvFileLog"/>.
         /// </summary>
-        private const string KustoTableSchema = "env_ver:string, env_name:string, env_time:datetime, env_epoch:string, env_seqNum:long, env_popSample:real, env_iKey:string, env_flags:long, env_cv:string, env_os:string, env_osVer:string, env_appId:string, env_appVer:string, env_cloud_ver:string, env_cloud_name:string, env_cloud_role:string, env_cloud_roleVer:string, env_cloud_roleInstance:string, env_cloud_environment:string, env_cloud_location:string, env_cloud_deploymentUnit:string, Stamp:string, Ring:string, BuildId:string, CorrelationId:string, ParentCorrelationId:string, Exception:string, Message:string, LogLevel:long, LogLevelFriendly:string, LoggingType:string, LoggingMethod:string, LoggingLineNumber:long, PreciseTimeStamp:datetime, LocalPreciseTimeStamp:datetime, ThreadId:long, ThreadPrincipal:string, Cluster:string, Environment:string, MachineFunction:string, Machine:string, Service:string, ServiceVersion:string, SourceNamespace:string, SourceMoniker:string, SourceVersion:string, ProcessId:long, BuildQueue:string";
-
-        /// <summary>
-        ///     CSV file schema to be passed to <see cref="CsvFileLog"/>.
-        ///     This schema is automatically generated from <see cref="KustoTableSchema"/>
-        /// </summary>
-        private static readonly CsvFileLog.ColumnKind[] KustoTableCsvSchema = CsvFileLog.ParseTableSchema(KustoTableSchema);      
+        private static readonly CsvFileLog.ColumnKind[] KustoTableCsvSchema = new CsvFileLog.ColumnKind[]
+        {
+            CsvFileLog.ColumnKind.PreciseTimeStamp,
+            CsvFileLog.ColumnKind.LogLevel,
+            CsvFileLog.ColumnKind.LogLevelFriendly,
+            CsvFileLog.ColumnKind.Message,
+            CsvFileLog.ColumnKind.ProcessId,
+            CsvFileLog.ColumnKind.ThreadId,
+            CsvFileLog.ColumnKind.env_os,
+            CsvFileLog.ColumnKind.env_osVer,
+            CsvFileLog.ColumnKind.BuildId,
+            CsvFileLog.ColumnKind.Machine,
+        };
 
         private readonly CancellationToken _cancellationToken;
         private readonly IAbsFileSystem _fileSystem;
         private readonly ConsoleLog _consoleLog;
         private readonly Logger _logger;
         private readonly Tracer _tracer;
-        private readonly KustoUploader _kustoUploader;
         private bool _waitForDebugger;
         private FileLog _fileLog;
         private CsvFileLog _csvFileLog;
+        private KustoUploader _kustoUploader;
         private Severity _fileLogSeverity = Severity.Diagnostic;
         private bool _logAutoFlush;
         private string _logDirectoryPath;
@@ -107,19 +113,6 @@ namespace BuildXL.Cache.ContentStore.App
             _logger = new Logger(true, _consoleLog);
             _fileSystem = new PassThroughFileSystem(_logger);
             _tracer = new Tracer(nameof(Application));
-
-            var kustoConnectionString = Environment.GetEnvironmentVariable(KustoConnectionStringEnvVarName);
-            _kustoUploader = string.IsNullOrWhiteSpace(kustoConnectionString)
-                ? null
-                : new KustoUploader
-                    (
-                    kustoConnectionString,
-                    database: KustoDatabase,
-                    table: KustoTable,
-                    deleteFilesOnSuccess: true,
-                    checkForIngestionErrors: true,
-                    log: _consoleLog
-                    );
         }
 
         /// <inheritdoc />
@@ -391,7 +384,8 @@ namespace BuildXL.Cache.ContentStore.App
                 return;
             }
 
-            if (_kustoUploader == null)
+            var kustoConnectionString = Environment.GetEnvironmentVariable(KustoConnectionStringEnvVarName);
+            if (string.IsNullOrWhiteSpace(kustoConnectionString))
             {
                 _logger.Warning
                     (
@@ -406,8 +400,27 @@ namespace BuildXL.Cache.ContentStore.App
                 logFilePath: logFilePath + TmpCsvLogFileExt,
                 serviceName: ServiceName,
                 schema: KustoTableCsvSchema,
+                renderConstColums: false,
                 severity: _fileLogSeverity,
                 maxFileSize: _csvLogMaxFileSize
+                );
+
+            var indexedColumns = _csvFileLog.FileSchema.Select((col, idx) => new CsvColumnMapping { ColumnName = col.ToString(), Ordinal = idx });
+            var constColumns = _csvFileLog.ConstSchema.Select(col => new CsvColumnMapping { ColumnName = col.ToString(), ConstValue = _csvFileLog.RenderConstColumn(col) });
+            var csvMapping = indexedColumns.Concat(constColumns).ToArray();
+
+            var csvMappingStr = string.Join("", csvMapping.Select(col => $"{Environment.NewLine}  Name: '{col.ColumnName}', ConstValue: '{col.ConstValue}', Ordinal: {col.Ordinal}"));
+            _logger.Always("Using csv mapping:{0}", csvMappingStr);
+
+            _kustoUploader = new KustoUploader
+                (
+                kustoConnectionString,
+                database: KustoDatabase,
+                table: KustoTable,
+                csvMapping: csvMapping,
+                deleteFilesOnSuccess: true,
+                checkForIngestionErrors: true,
+                log: _consoleLog
                 );
 
             // Every time a log file written to disk and closed, we rename it and upload it to Kusto.

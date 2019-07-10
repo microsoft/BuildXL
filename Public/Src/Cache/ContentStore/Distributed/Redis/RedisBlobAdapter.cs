@@ -68,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
                     if (await _redis.KeyExists(context, key, context.Token))
                     {
-                        context.TraceDebug($"Hash=[{hash}] is already in Redis. PutBlob skipped.");
+                        context.TraceDebug($"Hash=[{hash.ToShortString()}] is already in Redis. PutBlob skipped.");
                         _counters[RedisBlobAdapterCounters.SkippedBlobs].Increment();
                         return BoolResult.Success;
                     }
@@ -100,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
             if (key == _lastFailedReservationKey)
             {
-                context.TraceDebug($"Skipping reservation for blob [{hash}] because key [{key}] has already been used in a previous failed reservation");
+                context.TraceDebug($"Skipping reservation for blob [{hash.ToShortString()}] because key [{key}] has already been used in a previous failed reservation");
                 return false;
             }
             
@@ -114,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             }, RedisOperation.StringIncrement);
 
             var couldReserve = newUsedCapacity <= _maxCapacityPerTimeBox;
-            context.TraceDebug($"{(couldReserve ? "Successfully reserved" : "Could not reserve")} {byteCount} bytes in {key} for {hash}. New used capacity: {newUsedCapacity} bytes");
+            context.TraceDebug($"{(couldReserve ? "Successfully reserved" : "Could not reserve")} {byteCount} bytes in {key} for {hash.ToShortString()}. New used capacity: {newUsedCapacity} bytes");
 
             if (!couldReserve)
             {
@@ -137,7 +137,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
                     if (result == null)
                     {
-                        return new Result<byte[]>($"Blob for hash=[{hash}] was not found.");
+                        return new Result<byte[]>($"Blob for hash=[{hash.ToShortString()}] was not found.");
                     }
 
                     _counters[RedisBlobAdapterCounters.DownloadedBytes].Add(result.Length);

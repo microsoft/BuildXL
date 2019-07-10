@@ -18,15 +18,9 @@ using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Scheduler;
 using BuildXL.Storage;
-using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
-using Microsoft.Diagnostics.Tracing;
-using Microsoft.Diagnostics.Tracing.Parsers;
-using Microsoft.Diagnostics.Tracing.Session;
 using Newtonsoft.Json.Linq;
 using static Tool.DropDaemon.Statics;
 
@@ -662,11 +656,6 @@ namespace Tool.DropDaemon
             // TODO:# 1208464- this can be removed once DropDaemon targets .net or newer 4.7 where TLS 1.2 is enabled by default
             ServicePointManager.SecurityProtocol = ServicePointManager.SecurityProtocol | SecurityProtocolType.Tls12;
 
-            if (args.Length > 0 && args[0] == "listen")
-            {
-                return SubscribeAndProcessCloudBuildEvents();
-            }
-
             try
             {
                 Console.WriteLine("DropDaemon started at " + DateTime.UtcNow);
@@ -950,71 +939,5 @@ namespace Tool.DropDaemon
         private static T RegisterDaemonConfigOption<T>(T option) where T : Option => RegisterOption(DaemonConfigOptions, option);
 
         private static T RegisterDropConfigOption<T>(T option) where T : Option => RegisterOption(DropConfigOptions, option);
-
-        private static int SubscribeAndProcessCloudBuildEvents()
-        {
-            if (!(TraceEventSession.IsElevated() ?? false))
-            {
-                Error("Not elevated; exiting");
-                return -1;
-            }
-
-            // BuildXL.Tracing.ETWLogger guid
-            if (!Guid.TryParse("43b71382-88db-5427-89d5-0b46476f8ef4", out Guid guid))
-            {
-                Error("Could not parse guid; exiting");
-                return -1;
-            }
-
-            Console.WriteLine("Listening for cloud build events");
-
-            // Create an unique session
-            string sessionName = "DropDaemon ETW Session";
-
-            // the null second parameter means 'real time session'
-            using (TraceEventSession traceEventSession = new TraceEventSession(sessionName, null))
-            {
-                // Note that sessions create a OS object (a session) that lives beyond the lifetime of the process
-                // that created it (like Files), thus you have to be more careful about always cleaning them up.
-                // An importantly way you can do this is to set the 'StopOnDispose' property which will cause
-                // the session to
-                // stop (and thus the OS object will die) when the TraceEventSession dies.   Because we used a 'using'
-                // statement, this means that any exception in the code below will clean up the OS object.
-                traceEventSession.StopOnDispose = true;
-                traceEventSession.EnableProvider(guid, matchAnyKeywords: (ulong)Keywords.CloudBuild);
-
-                // Prepare to read from the session, connect the ETWTraceEventSource to the session
-                using (ETWTraceEventSource etwTraceEventSource = new ETWTraceEventSource(
-                    sessionName,
-                    TraceEventSourceType.Session))
-                {
-                    DynamicTraceEventParser dynamicTraceEventParser = new DynamicTraceEventParser(etwTraceEventSource);
-                    dynamicTraceEventParser.All += traceEvent =>
-                        {
-                            Possible<CloudBuildEvent, Failure> possibleEvent = TryParse(traceEvent);
-
-                            if (!possibleEvent.Succeeded)
-                            {
-                                Error(possibleEvent.Failure.ToString());
-                                return;
-                            }
-
-                            CloudBuildEvent eventObj = possibleEvent.Result;
-                            Console.WriteLine("*** Event received: " + eventObj.Kind);
-                        };
-
-                    etwTraceEventSource.Process();
-                }
-            }
-
-            Console.WriteLine("FINISHED");
-            Thread.Sleep(100000);
-            return 0;
-        }
-
-        private static Possible<CloudBuildEvent, Failure> TryParse(TraceEvent traceEvent)
-        {
-            return CloudBuildEvent.TryParse(traceEvent.EventName, traceEvent.PayloadNames.Select(name => traceEvent.PayloadByName(name)).ToList());
-        }
     }
 }

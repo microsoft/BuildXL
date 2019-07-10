@@ -1216,7 +1216,10 @@ namespace BuildXL.Scheduler.Artifacts
                 foreach (var file in ListSealedDirectoryContents(directory))
                 {
                     var addedFile = m_sealedFiles.GetOrAdd(file.Path, file).Item.Value;
-                    Contract.Assert(addedFile == file, "Attempted to seal path twice with different rewrite counts");
+                    if (addedFile != file)
+                    {
+                        Contract.Assert(false, $"Attempted to seal path twice with different rewrite counts ({addedFile.RewriteCount} != {file.RewriteCount}): {addedFile.Path.ToString(Context.PathTable)}");
+                    }
 
                     if (sealDirectoryKind.IsDynamicKind())
                     {

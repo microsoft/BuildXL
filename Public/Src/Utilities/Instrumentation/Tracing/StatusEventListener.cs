@@ -49,12 +49,12 @@ namespace BuildXL.Tracing
         {
             if (eventData.EventId == (int)EventId.StatusHeader)
             {
-                Output(eventData.Level, eventData.EventId, eventData.EventName, eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", TimeHeaderText, eventData.Payload[0]));
+                Output(eventData.Level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", TimeHeaderText, eventData.Payload[0]));
             }
             else if (eventData.EventId == (int)EventId.Status)
             {
                 var time = TimeSpanToString(TimeDisplay.Seconds, DateTime.UtcNow - BaseTime);
-                Output(eventData.Level, eventData.EventId, eventData.EventName, eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", time.PadLeft(TimeHeaderText.Length), eventData.Payload[0]));
+                Output(eventData.Level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", time.PadLeft(TimeHeaderText.Length), eventData.Payload[0]));
             }
         }
     }

@@ -38,6 +38,9 @@ namespace BuildXL.Cache.ContentStore.Sessions
         public string Name { get; }
 
         /// <nodoc />
+        protected virtual bool TracePinFinished => true;
+
+        /// <nodoc />
         protected ContentSessionBase(string name)
         {
             Name = name;
@@ -80,6 +83,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     Tracer,
                     () => PinCoreAsync(operationContext, contentHash, urgencyHint, _counters[ContentSessionBaseCounters.PinRetries]),
                     traceOperationStarted: false,
+                    traceOperationFinished: TracePinFinished,
                     extraEndMessage: _ => $"input=[{contentHash.ToShortString()}]",
                     counter: _counters[ContentSessionBaseCounters.Pin]));
         }

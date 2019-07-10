@@ -363,5 +363,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             Contract.Assert(succeeded);
             return new DeleteResult(contentHash, evictedSize, pinnedSize);
         }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result)
+        {
+            foreach (var kvp in _drivesWithContentStore)
+            {
+                kvp.Value.PostInitializationCompleted(context, result);
+            }
+        }
     }
 }

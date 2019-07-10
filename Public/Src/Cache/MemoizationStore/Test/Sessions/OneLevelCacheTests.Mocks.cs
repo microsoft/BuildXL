@@ -72,6 +72,9 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         {
             throw new NotImplementedException();
         }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result) { }
     }
 
     internal class TestContentSession : IContentSession

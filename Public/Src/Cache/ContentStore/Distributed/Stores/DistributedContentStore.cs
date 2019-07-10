@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// A store that is based on content locations for opaque file locations.
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class DistributedContentStore<T> : StartupShutdownBase, IContentStoreWithPostInitialization, IRepairStore, IDistributedLocationStore, IStreamStore
+    public class DistributedContentStore<T> : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore, IStreamStore
         where T : PathBase
     {
         private readonly byte[] _localMachineLocation;

@@ -2850,11 +2850,12 @@ namespace BuildXL.Scheduler
             List<(FileArtifact, FileMaterializationInfo)> cachedArtifactContentHashes =
                 new List<(FileArtifact, FileMaterializationInfo)>(pip.Outputs.Length);
 
-            // Outputs should be the same as what was in the metadata section.
+            Dictionary<string, FileArtifactWithAttributes> outputs = pip.Outputs.ToDictionary(o => o.Path.ToString(pathTable), o => o);
+            FileArtifactWithAttributes attributedOutput;
             for (int i = 0; i < metadata.StaticOutputHashes.Count; i++)
             {
-                FileMaterializationInfo materializationInfo = metadata.StaticOutputHashes[i].Info.ToFileMaterializationInfo(pathTable);
-                FileArtifactWithAttributes attributedOutput = pip.Outputs.Where(o => AbsolutePath.Create(pathTable, metadata.StaticOutputHashes[i].AbsolutePath) == o.Path).Single();
+                FileMaterializationInfo materializationInfo = metadata.StaticOutputHashes[i].Info.ToFileMaterializationInfo(pathTable);                
+                outputs.TryGetValue(metadata.StaticOutputHashes[i].AbsolutePath, out attributedOutput);
                 FileArtifact output = attributedOutput.ToFileArtifact();
 
                 // Following logic should be in sync with StoreContentForProcess method.

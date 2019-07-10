@@ -165,8 +165,8 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// <param name="logFilePath">Full path to log file</param>
         /// <param name="schema">CSV schema as a list of columns. Each element in the list denotes a column to be rendered at that position.</param>
         /// <param name="renderConstColums">
-        ///     When true, const columns (<see cref="IsConstValueColumn"/>) from <paramref name="schema"/> are not
-        ///     rendered to the log file (those columns become available through the <see ref="ConstSchema"/> property.
+        ///     When false, const columns (<see cref="IsConstValueColumn"/>) from <paramref name="schema"/> are not
+        ///     rendered to log file (those columns become available through the <see ref="ConstSchema"/> property.
         /// </param>
         /// <param name="severity">Minimum severity to log</param>
         /// <param name="maxFileSize">Maximum size of the log file.</param>

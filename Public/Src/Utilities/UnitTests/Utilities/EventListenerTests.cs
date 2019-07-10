@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -11,11 +12,6 @@ using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-#if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using System.Diagnostics.Tracing;
-#else
-using Microsoft.Diagnostics.Tracing;
-#endif
 
 namespace Test.BuildXL.Utilities
 {

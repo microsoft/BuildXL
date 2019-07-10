@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Security.AccessControl;
@@ -10,11 +11,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.BasicFilesystem;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 

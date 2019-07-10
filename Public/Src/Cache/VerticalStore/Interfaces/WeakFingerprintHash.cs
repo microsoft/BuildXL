@@ -3,14 +3,10 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Cache.Interfaces
 {

@@ -77,6 +77,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                     Function(GetIpcServerMonikerFunctionName, GetIpcServerMoniker, GetIpcMonikerSignature),
                     Function(GetDominoIpcServerMonikerFunctionName, GetIpcServerMoniker, GetIpcMonikerSignature),
                     Function(IpcSendFunctionName, IpcSend, IpcSendSignature),
+                    Function(ReadGraphFragmentFunctionName, ReadGraphFragment, ReadGraphFragmentSignature)
                 });
         }
 

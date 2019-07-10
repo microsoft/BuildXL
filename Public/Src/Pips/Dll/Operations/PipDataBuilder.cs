@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Pips.Operations
 {
@@ -128,33 +129,40 @@ namespace BuildXL.Pips.Operations
 
             // Add 2 for start and end entries
             var entryLength = m_entries.Count - startIndexOfFirstFragment + 2;
+            var entriesBinarySegment = WriteEntries(getEntries(), entryLength, ref m_entriesBinaryStringBuffer);
 
-            var entryBytesLength = entryLength * PipDataEntry.BinarySize;
+            // NOTE: The raw value is added to string table backing byte buffers without being converted to a CLR string object
+            var pipDataId = StringTable.AddString(entriesBinarySegment);
 
-            var newLength = m_entriesBinaryStringBuffer.Length;
+            return PipData.CreateInternal(
+                PipDataEntry.CreateNestedDataHeader(escaping, separator),
+                new PipDataEntryList(StringTable.GetBytes(pipDataId)),
+                pipDataId);
 
-            // Increase the size of the array if needed
-            while (newLength < entryBytesLength)
+            IEnumerable<PipDataEntry> getEntries()
             {
-                newLength *= 2;
-            }
+                yield return PipDataEntry.CreateNestedDataStart(entryLength);
 
-            Array.Resize(ref m_entriesBinaryStringBuffer, newLength);
+                for(int i = startIndexOfFirstFragment; i < m_entries.Count; i++)
+                {
+                    yield return m_entries[i];
+                }
+
+                var fragmentCount = m_currentPipDataCountInfo.FragmentCount - startMarker.PrecedingFragmentCount;
+                yield return PipDataEntry.CreateNestedDataEnd(fragmentCount);
+            }
+        }
+
+        internal static BinaryStringSegment WriteEntries(IEnumerable<PipDataEntry> entries, int entryLength, ref byte[] buffer)
+        {
+            var entryBytesLength = entryLength * PipDataEntry.BinarySize;
+            CollectionUtilities.GrowArrayIfNecessary(ref buffer, entryBytesLength);
 
             int byteIndex = 0;
-
-            // Write start entry to buffer
-            PipDataEntry.CreateNestedDataStart(entryLength).Write(m_entriesBinaryStringBuffer, ref byteIndex);
-
-            // Write entries to buffer
-            for (int i = startIndexOfFirstFragment; i < m_entries.Count; i++)
+            foreach (var entry in entries)
             {
-                m_entries[i].Write(m_entriesBinaryStringBuffer, ref byteIndex);
+                entry.Write(buffer, ref byteIndex);
             }
-
-            // Write end entry to buffer
-            var fragmentCount = m_currentPipDataCountInfo.FragmentCount - startMarker.PrecedingFragmentCount;
-            PipDataEntry.CreateNestedDataEnd(fragmentCount).Write(m_entriesBinaryStringBuffer, ref byteIndex);
 
             Contract.Assert(byteIndex == entryBytesLength);
             if ((byteIndex % 2) != 0)
@@ -164,14 +172,7 @@ namespace BuildXL.Pips.Operations
             }
 
             // Convert the bytes to a binary string segment (i.e. represent raw entry bytes as UTF-16 string)
-            // and add to string table directly.
-            // NOTE: The raw value is added to string table backing byte buffers without being converted to a CLR string object
-            var pipDataId = StringTable.AddString(new BinaryStringSegment(m_entriesBinaryStringBuffer, 0, byteIndex, isAscii: false));
-
-            return PipData.CreateInternal(
-                PipDataEntry.CreateNestedDataHeader(escaping, separator),
-                new PipDataEntryList(StringTable.GetBytes(pipDataId)),
-                pipDataId);
+            return new BinaryStringSegment(buffer, 0, byteIndex, isAscii: false);
         }
 
         /// <summary>

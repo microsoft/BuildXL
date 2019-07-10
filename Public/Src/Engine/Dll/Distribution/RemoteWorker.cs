@@ -45,11 +45,8 @@ namespace BuildXL.Engine.Distribution
         private readonly MasterService m_masterService;
 
         private readonly ServiceLocation m_serviceLocation;
-
-        private int m_status;
         private BondContentHash m_cacheValidationContentHash;
         private int m_nextSequenceNumber;
-        private bool m_everAvailable;
         private PipGraph m_pipGraph;
 
         /// <summary>
@@ -59,9 +56,14 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         private string m_exitFailure;
 
+        private int m_status;
         public override WorkerNodeStatus Status => (WorkerNodeStatus) Volatile.Read(ref m_status);
 
+        private bool m_everAvailable;
         public override bool EverAvailable => Volatile.Read(ref m_everAvailable);
+
+        private bool m_isConnectionLost;
+        public bool IsConnectionLost => Volatile.Read(ref m_isConnectionLost);
 
         private readonly TaskSourceSlim<bool> m_attachCompletion;
         private readonly TaskSourceSlim<bool> m_executionBlobCompletion;
@@ -316,10 +318,8 @@ namespace BuildXL.Engine.Distribution
             // Unblock caller to make it a fire&forget event handler.
             await Task.Yield();
 
-            // Stop using the worker if the connect times out
-            while (!ChangeStatus(Status, WorkerNodeStatus.Stopped) && Status != WorkerNodeStatus.Stopped)
-            {
-            }
+            Volatile.Write(ref m_isConnectionLost, true);
+            await FinishAsync(null);
         }
 
         private void OnDeactivateConnection(object sender, EventArgs e)
@@ -335,6 +335,7 @@ namespace BuildXL.Engine.Distribution
         /// <inheritdoc/>
         public override void Dispose()
         {
+            Contract.Requires(!m_sendThread.IsAlive);
             m_executionLogBinaryReader?.Dispose();
             m_workerClient?.Dispose();
             
@@ -476,12 +477,16 @@ namespace BuildXL.Engine.Distribution
                 exitCancellation.CancelAfter(TimeSpan.FromSeconds(15));
             }
 
-            var buildEndData = new BuildEndData()
+            // If we still have a connection with the worker, we should send a message to worker to make it exit. 
+            if (!IsConnectionLost)
             {
-                Failure = buildFailure ?? m_exitFailure
-            };
+                var buildEndData = new BuildEndData()
+                {
+                    Failure = buildFailure ?? m_exitFailure
+                };
 
-            await m_workerClient.ExitAsync(buildEndData, exitCancellation.Token);
+                await m_workerClient.ExitAsync(buildEndData, exitCancellation.Token);
+            }
 
             m_executionBlobQueue.CompleteAdding();
 
@@ -982,22 +987,16 @@ namespace BuildXL.Engine.Distribution
             // In the case of a stop fail all pending pips and stop the timer.
             if (toStatus == WorkerNodeStatus.Stopped)
             {
-                // The worker goes in a stopped state either by a scheduler request or because it lost connection with the
-                // remote machine. Check which one applies.
-                bool isLostConnection = fromStatus != WorkerNodeStatus.Stopping;
-                Stop(isLostConnection);
+                Stop();
             }
 
             OnStatusChanged();
             return true;
         }
 
-        private void Stop(bool isLostConnection)
+        private void Stop()
         {
             Analysis.IgnoreResult(m_workerClient.CloseAsync(), justification: "Okay to ignore close");
-
-            // The worker goes in a stopped state either by a scheduler request or because it lost connection with the
-            // remote machine. Check which one applies.
 
             // Fail all pending pips. Do it repeatedly in case there are other threads adding pips at the same time.
             // Note that the state never goes directly from Running to Stopped, so it is not expected to have
@@ -1016,7 +1015,9 @@ namespace BuildXL.Engine.Distribution
                 {
                     Func<ExecutionResult> executionResultFactory;
 
-                    if (isLostConnection)
+                    // The worker goes in a stopped state either by a scheduler request or because it lost connection with the
+                    // remote machine. Check which one applies.
+                    if (IsConnectionLost)
                     {
                         // Remember that we have an infrastructure error so we can report it at the end.
                         // Do not set the flag if the lost connection doesn't affect any pip execution.

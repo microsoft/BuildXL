@@ -43,12 +43,12 @@ namespace BuildXL.Pips
             protected override BuildXLWriter CreateWriter(Stream stream, bool leaveOpen)
             {
                 Contract.Requires(CanWrite);
-                return new PipWriter(this, stream, leaveOpen, logStats: true);
+                return new PipWriter(Debug, stream, leaveOpen, logStats: true);
             }
 
             protected override BuildXLReader CreateReader(Stream stream, bool leaveOpen)
             {
-                return new PipReader(this, stream, leaveOpen);
+                return new PipReader(Debug, StringTable, stream, leaveOpen);
             }
 
             public static async Task<PageablePipStore> DeserializeAsync(BuildXLReader reader, Task<PathTable> pathTableTask, Task<SymbolTable> symbolTableTask, int initialBufferSize)

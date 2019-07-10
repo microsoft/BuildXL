@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         public Task<GetStatsResult> GetStatsAsync(Context context) => Task.FromResult(new GetStatsResult(_tracer.GetCounters()));
 
         /// <inheritdoc />
-        Task<DeleteResult> IContentStore.DeleteAsync(Context context, ContentHash contentHash) => Task.FromResult(new DeleteResult($"{nameof(ReadOnlyEmptyContentStore)} cannot contain any content to delete"));
+        Task<DeleteResult> IContentStore.DeleteAsync(Context context, ContentHash contentHash, bool allowWait) => Task.FromResult(new DeleteResult($"{nameof(ReadOnlyEmptyContentStore)} cannot contain any content to delete"));
 
         /// <inheritdoc />
         public void PostInitializationCompleted(Context context, BoolResult result) { }

@@ -421,7 +421,7 @@ namespace ContentStoreTest.Stores
                 throw new NotImplementedException();
             }
 
-            public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+            public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, bool allowWait = true)
             {
                 throw new NotImplementedException();
             }

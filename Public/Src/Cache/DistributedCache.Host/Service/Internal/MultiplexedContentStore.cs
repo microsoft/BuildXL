@@ -339,7 +339,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <inheritdoc />
-        public async Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        public async Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, bool allowWait = true)
         {
             var succeeded = false;
             long evictedSize = 0L;
@@ -347,7 +347,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             foreach (var kvp in _drivesWithContentStore)
             {
-                var deleteResult = await kvp.Value.DeleteAsync(context, contentHash);
+                var deleteResult = await kvp.Value.DeleteAsync(context, contentHash, allowWait);
                 if (deleteResult.Succeeded)
                 {
                     succeeded = true;

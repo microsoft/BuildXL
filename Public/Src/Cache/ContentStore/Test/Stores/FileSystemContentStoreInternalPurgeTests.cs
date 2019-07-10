@@ -223,13 +223,12 @@ namespace ContentStoreTest.Stores
                 PutResult putResult = await store.PutRandomAsync(Context, contentSize);
                 putResult.ShouldBeSuccess();
 
-                DeleteResult deleteResult = await store.DeleteAsync(Context, putResult.ContentHash);
+                DeleteResult deleteResult = await store.DeleteAsync(Context, putResult.ContentHash, true);
                 deleteResult.ShouldBeSuccess();
                 deleteResult.EvictedSize.Should().Be(contentSize);
                 deleteResult.PinnedSize.Should().Be(0);
 
                 store.IsPinned(putResult.ContentHash).Should().BeFalse();
-                store.QuotaKeeperSize().Should().Be(0);
             });
         }
 

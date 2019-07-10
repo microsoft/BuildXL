@@ -170,17 +170,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         break;
                     }
 
-                    TimeSpan waitDelay = _retryIntervals[attemptCount];
-                    bool extendedForBadLocations = false;
+                    long waitTicks = _retryIntervals[attemptCount].Ticks;
 
-                    if (badContentLocations.Count == hashInfo.Locations.Count)
-                    {
-                        // Reduce delay by a randomized amount because all locations are "bad", suggesting that the server(s) is/are throttling due to incoming traffic. Copies tend to be quick, so retrying sooner may be helpful.
-                        waitDelay = TimeSpan.FromTicks((long)(waitDelay.Ticks * Math.Min(0.5, ThreadSafeRandom.Generator.NextDouble())));
-                        extendedForBadLocations = true;
-                    }
+                    // Randomize the wait delay to `[0.5 * delay, 1.5 * delay)`
+                    TimeSpan waitDelay = TimeSpan.FromTicks((long)(waitTicks / 2 + waitTicks * ThreadSafeRandom.Generator.NextDouble()));
 
-                    Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash} in {waitDelay.TotalMilliseconds}ms{(extendedForBadLocations ? " because all locations had issues with the source" : string.Empty)}...");
+                    Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash} in {waitDelay.TotalMilliseconds}ms...");
 
                     attemptCount++;
 

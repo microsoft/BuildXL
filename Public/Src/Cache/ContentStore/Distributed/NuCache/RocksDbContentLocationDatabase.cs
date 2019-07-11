@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
@@ -558,7 +559,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (result == null)
                     {
-                        return new GetContentHashListResult(CacheMiss(CacheDeterminism.None));
+                        return new GetContentHashListResult(EmptyContentHashList(CacheDeterminism.None));
                     }
 
                     return new GetContentHashListResult(result.Value);
@@ -577,50 +578,80 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var status = _keyValueStore.Use(
                         store =>
                         {
-                            // TODO(jubayard): RocksDB supports transactional semantics that would make this logic better
-                            var contentHashList = contentHashListWithDeterminism.ContentHashList;
-                            var determinism = contentHashListWithDeterminism.Determinism;
-
-                            // Load old value
-                            var oldContentHashListWithDeterminism = GetContentHashList(context, strongFingerprint);
-                            var oldContentHashList = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.ContentHashList;
-                            var oldDeterminism = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.Determinism;
-
-                            // Make sure we're not mixing SinglePhaseNonDeterminism records
-                            if (oldContentHashList != null &&
-                                        oldDeterminism.IsSinglePhaseNonDeterministic != determinism.IsSinglePhaseNonDeterministic)
+                            // We do multiple attempts here because we have a "CompareExchange" RocksDB in the heart
+                            // of this implementation, and this may fail if the database is heavily contended.
+                            // Unfortunately, there is not much we can do at the time of writing to avoid this
+                            // requirement.
+                            var maxAttempts = 5;
+                            while (maxAttempts-- >= 0)
                             {
-                                return AddOrGetContentHashListResult.SinglePhaseMixingError;
+                                // TODO(jubayard): RocksDB supports transactional semantics that would make this logic better
+                                var contentHashList = contentHashListWithDeterminism.ContentHashList;
+                                var determinism = contentHashListWithDeterminism.Determinism;
+
+                                // Load old value
+                                var oldContentHashListWithDeterminism = GetContentHashList(context, strongFingerprint);
+                                var oldContentHashList = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.ContentHashList;
+                                var oldDeterminism = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.Determinism;
+
+                                // Make sure we're not mixing SinglePhaseNonDeterminism records
+                                if (oldContentHashList != null &&
+                                            oldDeterminism.IsSinglePhaseNonDeterministic != determinism.IsSinglePhaseNonDeterministic)
+                                {
+                                    return AddOrGetContentHashListResult.SinglePhaseMixingError;
+                                }
+
+                                if (oldContentHashList == null || oldDeterminism.ShouldBeReplacedWith(determinism) ||
+                                            !IsContentAvailable(context, oldContentHashList))
+                                {
+                                    // Replace if incoming has better determinism or some content for the existing
+                                    // entry is missing. The entry could have changed since we fetched the old value
+                                    // earlier, hence, we need to check it hasn't.
+                                    AddOrGetContentHashListResult contentHashListResult = _keyValueStore.UseExclusive(() =>
+                                    {
+                                        // Do a CompareExchange for the current value
+                                        var contentHashListInStore = GetContentHashList(context, strongFingerprint);
+                                        if (!contentHashListInStore.Equals(oldContentHashListWithDeterminism))
+                                        {
+                                            return new AddOrGetContentHashListResult(contentHashListInStore);
+                                        }
+
+                                        store.Put(key, SerializeContentHashList(contentHashListWithDeterminism), nameof(Columns.Metadata));
+                                        return new AddOrGetContentHashListResult(EmptyContentHashList(determinism));
+                                    });
+
+                                    // our add lost - need to retry.
+                                    if (contentHashListResult.ContentHashListWithDeterminism.ContentHashList != null)
+                                    {
+                                        continue;
+                                    }
+
+                                    if (contentHashListResult.ContentHashListWithDeterminism.ContentHashList == null)
+                                    {
+                                        return contentHashListResult;
+                                    }
+                                }
+
+                                // If we didn't accept the new value because it is the same as before, just with a not
+                                // necessarily better determinism, then let the user know.
+                                if (oldContentHashList != null && oldContentHashList.Equals(contentHashList))
+                                {
+                                    return new AddOrGetContentHashListResult(EmptyContentHashList(oldDeterminism));
+                                }
+
+                                // If we didn't accept a deterministic tool's data, then we're in an inconsistent state
+                                if (determinism.IsDeterministicTool)
+                                {
+                                    return new AddOrGetContentHashListResult(
+                                        AddOrGetContentHashListResult.ResultCode.InvalidToolDeterminismError,
+                                        oldContentHashListWithDeterminism.ContentHashListWithDeterminism);
+                                }
+
+                                // If we did not accept the given value, return the value in the cache
+                                return new AddOrGetContentHashListResult(oldContentHashListWithDeterminism);
                             }
 
-                            // Replace if incoming has better determinism or some content for the existing entry is missing.
-                            if (oldContentHashList == null || oldDeterminism.ShouldBeReplacedWith(determinism) ||
-                                        !IsContentAvailable(context, oldContentHashList))
-                            {
-                                // TODO(jubayard): SQLite impl runs this with exclusive access to the DB to avoid data races. We have no way to do this here.
-                                store.Put(key, SerializeContentHashList(contentHashListWithDeterminism), nameof(Columns.Metadata));
-
-                                // Accept the value
-                                return new AddOrGetContentHashListResult(CacheMiss(determinism));
-                            }
-
-                            // If we didn't accept the new value because it is the same as before, just with a not
-                            // necessarily better determinism, then let the user know.
-                            if (oldContentHashList != null && oldContentHashList.Equals(contentHashList))
-                            {
-                                return new AddOrGetContentHashListResult(CacheMiss(oldDeterminism));
-                            }
-
-                            // If we didn't accept a deterministic tool's data, then we're in an inconsistent state
-                            if (determinism.IsDeterministicTool)
-                            {
-                                return new AddOrGetContentHashListResult(
-                                    AddOrGetContentHashListResult.ResultCode.InvalidToolDeterminismError,
-                                    oldContentHashListWithDeterminism.ContentHashListWithDeterminism);
-                            }
-
-                            // If we did not accept the given value, return the value in the cache
-                            return new AddOrGetContentHashListResult(oldContentHashListWithDeterminism);
+                            return new AddOrGetContentHashListResult("Hit too many races attempting to add content hash list into the cache");
                         });
 
                     // Success for this status here may actually be an error that's been returned
@@ -628,7 +659,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }, Counters[ContentLocationDatabaseCounters.AddOrGetContentHashList]);
         }
         
-        private ContentHashListWithDeterminism CacheMiss(CacheDeterminism determinism)
+        private ContentHashListWithDeterminism EmptyContentHashList(CacheDeterminism determinism)
         {
             return new ContentHashListWithDeterminism(null, determinism);
         }
@@ -723,7 +754,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private class KeyValueStoreGuard : IDisposable
         {
             private KeyValueStoreAccessor _accessor;
-            private readonly ReadWriteLock _rwLock = ReadWriteLock.Create();
+            private readonly ReadWriteLock _accessorLock = ReadWriteLock.Create();
+            private readonly SemaphoreSlim _writeLock = new SemaphoreSlim(1, 1);
 
             public KeyValueStoreGuard(KeyValueStoreAccessor accessor)
             {
@@ -732,7 +764,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public void Dispose()
             {
-                using (_rwLock.AcquireWriteLock())
+                using (_accessorLock.AcquireWriteLock())
                 {
                     _accessor.Dispose();
                 }
@@ -740,7 +772,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public void Replace(KeyValueStoreAccessor accessor)
             {
-                using (_rwLock.AcquireWriteLock())
+                using (_accessorLock.AcquireWriteLock())
                 {
                     _accessor.Dispose();
                     _accessor = accessor;
@@ -749,7 +781,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public Possible<TResult> Use<TState, TResult>(Func<IBuildXLKeyValueStore, TState, TResult> action, TState state)
             {
-                using (_rwLock.AcquireReadLock())
+                using (_accessorLock.AcquireReadLock())
                 {
                     return _accessor.Use(action, state);
                 }
@@ -757,7 +789,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public Possible<Unit> Use(Action<IBuildXLKeyValueStore> action)
             {
-                using (_rwLock.AcquireReadLock())
+                using (_accessorLock.AcquireReadLock())
                 {
                     return _accessor.Use(action);
                 }
@@ -765,9 +797,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public Possible<TResult> Use<TResult>(Func<IBuildXLKeyValueStore, TResult> action)
             {
-                using (_rwLock.AcquireReadLock())
+                using (_accessorLock.AcquireReadLock())
                 {
                     return _accessor.Use(action);
+                }
+            }
+
+            /// <summary>
+            /// Allows exclusiveness for some subset of operations. Please notice:
+            ///
+            /// * Exclusiveness only actually needs to be per column-family and key.
+            /// * This doesn't enforce that no other writes to the key-value store can go through, unless they are
+            ///   also guarded by this function.
+            /// </summary>
+            public TResult UseExclusive<TResult>(Func<TResult> action)
+            {
+                using (SemaphoreSlimToken.Wait(_writeLock))
+                using (_accessorLock.AcquireReadLock())
+                {
+                    return action();
                 }
             }
         }

@@ -16,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal
         /// </summary>
         public static Task<SemaphoreSlimToken> WaitToken(this SemaphoreSlim semaphore)
         {
-            return SemaphoreSlimToken.Wait(semaphore);
+            return SemaphoreSlimToken.WaitAsync(semaphore);
         }
     }
 }

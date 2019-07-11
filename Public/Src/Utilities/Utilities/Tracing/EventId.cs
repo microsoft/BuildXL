@@ -28,7 +28,7 @@ namespace BuildXL.Utilities.Tracing
         PipProcessStartFailed = 11,
         PipProcessFinished = 12,
         PipProcessFinishedFailed = 13,
-        // was PipProcessDisallowedFileAccessError = 14,
+        // elsewhere,
         PipProcessTookTooLongWarning = 15,
         PipProcessTookTooLongError = 16,
         PipProcessStandardOutput = 17,

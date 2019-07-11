@@ -785,8 +785,7 @@ namespace BuildXL.Processes
                                 LocationData location = m_pip.Provenance.Token;
                                 string specFile = location.Path.ToString(m_pathTable);
 
-                                Tracing.Logger.Log.PipProcessStartFailed(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), 2,
-                                    string.Format(CultureInfo.InvariantCulture, "File '{0}' was not found on disk. The tool is referred in '{1}({2})'.", info.FileName, specFile, location.Position));
+                                Tracing.Logger.Log.PipProcessFileNotFound(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), 2, info.FileName, specFile, location.Position);
                             }
                             else if (ex.LogEventErrorCode == NativeIOConstants.ErrorPartialCopy && (processLaunchRetryCount < ProcessLaunchRetryCountMax))
                             {
@@ -3479,13 +3478,6 @@ namespace BuildXL.Processes
                 {
                     return new LogErrorResult(success: false, errorWasTruncated: errorWasTruncated);
                 }
-
-                string stdOut = await TryFilterAsync(result.StandardOutput, s => true, appendNewLine: true);
-                string stdErr = await TryFilterAsync(result.StandardError, s => true, appendNewLine: true);
-                LogPipProcessError(result, exitedWithSuccessExitCode, stdErr, stdOut);
-
-                stdOutTotalLength = stdOut.Length;
-                stdErrTotalLength = stdErr.Length;
             }
 
             return new LogErrorResult(success: true, errorWasTruncated: errorWasTruncated);

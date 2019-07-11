@@ -3,14 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Tracing;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Cache.VerticalAggregator
 {
@@ -47,7 +43,12 @@ namespace BuildXL.Cache.VerticalAggregator
         /// <summary>
         /// Our event source.
         /// </summary>
-        public static readonly EventSource EventSource = new EventSource("VerticalCacheAggregatorEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
+        public static readonly EventSource EventSource =
+#if NET_FRAMEWORK_451
+            new EventSource();
+#else
+            new EventSource("VerticalCacheAggregatorEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
+#endif
 
         internal VerticalCacheAggregator(ICache localCache, ICache remoteCache, bool remoteIsReadOnly, bool writeThroughCasData, bool remoteContentIsReadOnly)
         {

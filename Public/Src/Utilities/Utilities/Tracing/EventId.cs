@@ -28,7 +28,7 @@ namespace BuildXL.Utilities.Tracing
         PipProcessStartFailed = 11,
         PipProcessFinished = 12,
         PipProcessFinishedFailed = 13,
-        // was PipProcessDisallowedFileAccessError = 14,
+        // elsewhere,
         PipProcessTookTooLongWarning = 15,
         PipProcessTookTooLongError = 16,
         PipProcessStandardOutput = 17,
@@ -431,7 +431,7 @@ namespace BuildXL.Utilities.Tracing
 
         Channel = 502,
         StorageCacheContentHitSources = 503,
-        PipProcessExpectedMissingOutputs = 504,
+        // Elsewhere = 504,
         // was PipProcessAllowedMissingOutputs = 505,
 
         // USN/Change Journal usage (FileChangeTracker)

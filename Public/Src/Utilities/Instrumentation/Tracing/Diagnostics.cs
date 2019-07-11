@@ -1,11 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using DiagnosticTracing = Microsoft.Diagnostics.Tracing;
-#endif
-#if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
+
 using DiagnosticTracing = System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Tracing
 {

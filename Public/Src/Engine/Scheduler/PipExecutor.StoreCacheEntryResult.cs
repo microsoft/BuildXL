@@ -4,10 +4,6 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-#endif
 
 namespace BuildXL.Scheduler
 {

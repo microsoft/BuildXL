@@ -4,11 +4,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Utilities.Instrumentation.Common
 {

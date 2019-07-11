@@ -23,9 +23,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
     public class VssCredentialsFactory
     {
         private readonly VssCredentials _credentials;
-        private readonly string _userName;
 
 #if !PLATFORM_OSX
+        private readonly string _userName;
         private readonly SecureString _pat;
         private readonly byte[] _credentialBytes;
 

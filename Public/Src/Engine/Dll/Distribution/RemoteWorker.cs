@@ -624,16 +624,22 @@ namespace BuildXL.Engine.Distribution
             }
             catch (InvalidOperationException)
             {
-                // We cannot send the pip build request as the connection has been lost with the worker. 
+                if (IsConnectionLost)
+                {
+                    // We cannot send the pip build request as the connection has been lost with the worker. 
 
-                // When connection has been lost, the worker gets stopped and scheduler stops choosing that worker. 
-                // However, if the connection is lost after the worker is choosen 
-                // and before we add those build requests to blocking collection(m_buildRequests), 
-                // we will try to add the build request to the blocking colletion which is marked as completed 
-                // It will throw InvalidOperationException. 
-                FailRemotePip(
-                    pipCompletionTask,
-                    "Connection was lost");
+                    // When connection has been lost, the worker gets stopped and scheduler stops choosing that worker. 
+                    // However, if the connection is lost after the worker is choosen 
+                    // and before we add those build requests to blocking collection(m_buildRequests), 
+                    // we will try to add the build request to the blocking colletion which is marked as completed 
+                    // It will throw InvalidOperationException. 
+                    FailRemotePip(
+                        pipCompletionTask,
+                        "Connection was lost");
+                    return;
+                }
+
+                throw;
             }
 
         }

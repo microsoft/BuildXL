@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.IO;
 using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
@@ -41,6 +42,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             Process pipA = SchedulePipBuilder(builderA).Process;
             RunScheduler().AssertCacheMiss(pipA.PipId);
 
+            File.Delete(ArtifactToString(outputFile1));
+            File.Delete(ArtifactToString(outputFile2));
+
             ResetPipGraphBuilder();
 
             var opsB = new Operation[]
@@ -57,7 +61,5 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pipB = SchedulePipBuilder(builderB).Process;
             RunScheduler().AssertCacheHit(pipB.PipId);
         }
-
-
     }
 }

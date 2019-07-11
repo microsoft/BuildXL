@@ -78,7 +78,7 @@ namespace BuildXL.Utilities
                 map => { map.Clear(); return map; });
 
         /// <summary>
-        /// Global pool of maps from <see cref="BuildXL.Utilities.AbsolutePath"/> to many <see cref="BuildXL.Utilities.FileArtifactWithAttributes"/>.
+        /// Global pool of maps from <see cref="BuildXL.Utilities.AbsolutePath"/> to <see cref="BuildXL.Utilities.FileArtifactWithAttributes"/>.
         /// </summary>
         public static ObjectPool<Dictionary<AbsolutePath, FileArtifactWithAttributes>> AbsolutePathFileArtifactWithAttributesMap { get; } =
             new ObjectPool<Dictionary<AbsolutePath, FileArtifactWithAttributes>>(
@@ -86,7 +86,7 @@ namespace BuildXL.Utilities
                 map => { map.Clear(); return map;});
 
         /// <summary>
-        /// Global pool of maps from string to many <see cref="BuildXL.Utilities.FileArtifactWithAttributes"/>.
+        /// Global pool of maps from string to <see cref="BuildXL.Utilities.FileArtifactWithAttributes"/>.
         /// </summary>
         public static ObjectPool<Dictionary<string, FileArtifactWithAttributes>> StringFileArtifactWithAttributesMap { get; } =
             new ObjectPool<Dictionary<string, FileArtifactWithAttributes>>(

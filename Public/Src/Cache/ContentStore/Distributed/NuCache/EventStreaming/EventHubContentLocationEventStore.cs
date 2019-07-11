@@ -525,12 +525,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             private int _remainingMessageCount;
             public long SequenceNumber { get; }
-
             public OperationContext Context { get; }
-
+            public EventHubContentLocationEventStore Store { get; }
             public CounterCollection<ContentLocationEventStoreCounters> EventStoreCounters { get; } = new CounterCollection<ContentLocationEventStoreCounters>();
 
-            public EventHubContentLocationEventStore Store { get; }
 
             private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
 
@@ -541,8 +539,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 EventHubContentLocationEventStore store,
                 List<EventData> messages)
             {
-                _remainingMessageCount = messages.Count;
+                Context = context;
+                Store = store;
                 SequenceNumber = messages[messages.Count - 1].SystemProperties.SequenceNumber;
+                _remainingMessageCount = messages.Count;
                 store._pendingEventProcessingStates.Enqueue(this);
             }
 

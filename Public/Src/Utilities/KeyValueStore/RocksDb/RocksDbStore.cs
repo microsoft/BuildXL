@@ -735,7 +735,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
                 using (var iterator = m_store.NewIterator(columnFamilyInfo.Handle, readOptions))
                 {
-                    if (prefix != null)
+                    if (prefix == null || prefix.Length == 0)
+                    {
+                        iterator.SeekToFirst();
+                    }
+                    else
                     {
                         iterator.Seek(prefix);
                     }

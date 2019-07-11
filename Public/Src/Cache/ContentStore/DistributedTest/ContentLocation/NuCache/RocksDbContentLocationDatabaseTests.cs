@@ -270,10 +270,10 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         [InlineData(DeterminismCache1, DeterminismCache2)]
         [InlineData(DeterminismCache2, DeterminismCache1)]
         [InlineData(DeterminismCache1, DeterminismTool)]
-        // TODO(jubayard): I can't tell why these are valid tests.
-        // [InlineData(DeterminismTool, DeterminismNone)]
-        // [InlineData(DeterminismTool, DeterminismCache1)]
-        // [InlineData(DeterminismCache1, DeterminismNone)]
+        // TODO(jubayard): These tests will permanently fail until this is integrated with the content store, as they rely on the content not being there when attempting to pin.
+        //[InlineData(DeterminismTool, DeterminismNone)]
+        //[InlineData(DeterminismTool, DeterminismCache1)]
+        //[InlineData(DeterminismCache1, DeterminismNone)]
         [InlineData(DeterminismNone, DeterminismNone)]
         [InlineData(DeterminismCache1, DeterminismCache1)]
         [InlineData(DeterminismTool, DeterminismTool)]

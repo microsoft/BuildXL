@@ -407,6 +407,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void WritingToExistentFileProducedBySamePipIsAllowed(bool varyPath)
         {
             // Run a pip that writes into a file twice: the second time, the file will exist. However, this should be allowed.

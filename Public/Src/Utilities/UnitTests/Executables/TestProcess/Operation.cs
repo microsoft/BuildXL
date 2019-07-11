@@ -478,7 +478,7 @@ namespace Test.BuildXL.Executables.TestProcess
         {
             Contract.Assert(!changePathToAllUpperCase || !useLongPathPrefix, "Cannot specify changePathToAllUpperCase and useLongPathPrefix simultaneously");
 
-            string additionalArgs = changePathToAllUpperCase ? Operation.AllUppercasePath : useLongPathPrefix ? Operation.UseLongPathPrefix : null;
+            string additionalArgs = changePathToAllUpperCase ? Operation.AllUppercasePath : (useLongPathPrefix ? Operation.UseLongPathPrefix : null);
 
             return content == Environment.NewLine
                 ? new Operation(Type.AppendNewLine, path, doNotInfer: doNotInfer, additionalArgs: additionalArgs)
@@ -808,7 +808,7 @@ namespace Test.BuildXL.Executables.TestProcess
                 }
                 if (AdditionalArgs == UseLongPathPrefix)
                 {
-                    file = "\\\\?\\" + file.ToUpperInvariant();
+                    file = @"\\?\" + file.ToUpperInvariant();
                 }
 
                 File.AppendAllText(file, content);

@@ -33,7 +33,7 @@ export const defaultArgs: Arguments = {
     fullpaths: true,
     platform: "anycpu",
     checksumAlgorithm: "sha256",
-    languageVersion: "preview", // Allow us using new features like not-nullable types and switch expressions.
+    languageVersion: "preview", // Allow us using new features like non-nullable types and switch expressions.
     deterministic: true,
     pathMap: [
             // Add a pathMap entry so that the PDB files and any generated paths that start

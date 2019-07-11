@@ -95,6 +95,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private const string VsoAadSettings_TestAadAddress = "https://login.windows-ppe.net/";
         private const string VsoAadSettings_DefaultTenant = "microsoft.com";
 
+#if !PLATFORM_OSX
         private VssCredentials CreateVssCredentialsForUserName(Uri baseUri)
         {
             var authorityAadAddres = baseUri.Host.ToLowerInvariant().Contains("visualstudio.com")
@@ -111,7 +112,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
             return new VssAadCredential(token);
         }
 
-#if !PLATFORM_OSX
         /// <summary>
         /// Creates a VssCredentials object and returns it.
         /// </summary>

@@ -557,7 +557,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return new GetContentHashListResult(status.Failure.CreateException());
                     }
 
-                    if (result == null)
+                    if (result is null)
                     {
                         return new GetContentHashListResult(EmptyContentHashList(CacheDeterminism.None));
                     }
@@ -595,13 +595,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 var oldDeterminism = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.Determinism;
 
                                 // Make sure we're not mixing SinglePhaseNonDeterminism records
-                                if (oldContentHashList != null &&
+                                if (!(oldContentHashList is null) &&
                                             oldDeterminism.IsSinglePhaseNonDeterministic != determinism.IsSinglePhaseNonDeterministic)
                                 {
                                     return AddOrGetContentHashListResult.SinglePhaseMixingError;
                                 }
 
-                                if (oldContentHashList == null || oldDeterminism.ShouldBeReplacedWith(determinism) ||
+                                if (oldContentHashList is null || oldDeterminism.ShouldBeReplacedWith(determinism) ||
                                             !IsContentAvailable(context, oldContentHashList))
                                 {
                                     // Replace if incoming has better determinism or some content for the existing
@@ -621,12 +621,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     });
 
                                     // our add lost - need to retry.
-                                    if (contentHashListResult.ContentHashListWithDeterminism.ContentHashList != null)
+                                    if (!(contentHashListResult.ContentHashListWithDeterminism.ContentHashList is null))
                                     {
                                         continue;
                                     }
 
-                                    if (contentHashListResult.ContentHashListWithDeterminism.ContentHashList == null)
+                                    if (contentHashListResult.ContentHashListWithDeterminism.ContentHashList is null)
                                     {
                                         return contentHashListResult;
                                     }
@@ -634,7 +634,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                                 // If we didn't accept the new value because it is the same as before, just with a not
                                 // necessarily better determinism, then let the user know.
-                                if (oldContentHashList != null && oldContentHashList.Equals(contentHashList))
+                                if (!(oldContentHashList is null) && oldContentHashList.Equals(contentHashList))
                                 {
                                     return new AddOrGetContentHashListResult(EmptyContentHashList(oldDeterminism));
                                 }

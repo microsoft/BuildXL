@@ -70,6 +70,46 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
         }
 
+        [Fact]
+        public void OpaqueDirectoryExternallyContributedFiles()
+        {
+            string opaqueDir = Path.Combine(ObjectRoot, "opaqueDir");
+            FileArtifact producedOutput = CreateOutputFileArtifact(opaqueDir);
+            string externallyProducedOutput = Path.Combine(opaqueDir, "FileProducedOutsideOfBuild");
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            var pip = SchedulePipBuilder(builder);
+
+            // Execute the build with a pip that produces a single file to the output directory
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+
+            // Add a file to the output
+            Directory.CreateDirectory(Path.GetDirectoryName(externallyProducedOutput));
+            File.WriteAllText(externallyProducedOutput, "Hello!");
+
+            // The pip should be a cache hit
+            RunScheduler().AssertCacheHit(pip.Process.PipId);
+
+            // If running with Incremental scheduling the stray file will still exist, otherwise it will not.
+            if (Configuration.Schedule.IncrementalScheduling || Configuration.Schedule.GraphAgnosticIncrementalScheduling)
+            {
+                XAssert.IsTrue(File.Exists(externallyProducedOutput), "Expected {0} to exist when using incremental scheduling", externallyProducedOutput);
+            }
+            else
+            {
+                XAssert.IsFalse(File.Exists(externallyProducedOutput), "Did not expect {0} to exist when using incremental scheduling", externallyProducedOutput);
+            }
+
+            // Now delete the opaque directory. In both scheduling algorithms the stray file should no longer exist after replay.
+            FileUtilities.DeleteDirectoryContents(opaqueDir, deleteRootDirectory: true);
+            RunScheduler().AssertCacheHit(pip.Process.PipId);
+            XAssert.IsFalse(File.Exists(externallyProducedOutput));
+        }
+
         /// <summary>
         /// Creates an opaque directory and an output file outside of that directory.
         /// Checks that the opaque directory is replayed on a cash hit.

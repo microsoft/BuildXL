@@ -34,7 +34,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 58: Added RequiresAdmin field into the process pip.
         /// 59: Report all accesses under shared opaque fix
         /// 60: Changed FileContentInfo
+        /// 61: More changes to FileContentInfo
         /// </remarks>
-        TwoPhaseV2 = 60,
+        TwoPhaseV2 = 61,
     }
 }

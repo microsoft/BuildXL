@@ -280,14 +280,18 @@ namespace BuildXL.Storage
         /// Return if the length is valid.
         ///    - Negative length is invalid
         ///    - Zero length is valid only for the "empty file" hash
+        ///    - A special hash turns any length into an invalid length
         /// </summary>
         [Pure]
         public static bool IsValidLength(long length, ContentHash hash)
         {
-            if (length < 0 || length > LengthAndExistence.MaxSupportedLength)
+            if (length < 0
+                || length > LengthAndExistence.MaxSupportedLength
+                || hash.IsSpecialValue())
             {
                 return false;
             }
+
             ContentHash emptyHash = HashInfoLookup.Find(hash.HashType).EmptyHash;
             return length == 0 ? (hash == emptyHash) : (hash != emptyHash);
         }

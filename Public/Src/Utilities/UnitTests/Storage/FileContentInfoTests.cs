@@ -66,7 +66,7 @@ namespace Test.BuildXL.Storage
         }
 
         [Fact]
-        public void ExistenceBehavior()
+        public void ExistenceAndHasKnownLengthBehavior()
         {
             // non-empty hash + non-zero length => exists as a file
             var fci = new FileContentInfo(ContentHashingUtilities.CreateRandom(), 100);
@@ -91,6 +91,20 @@ namespace Test.BuildXL.Storage
             // we should see exactly the same value that was passed when the struct was created
             var existence = PathExistence.ExistsAsDirectory;
             fci = FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.CreateRandom(), existence);
+            XAssert.IsFalse(fci.HasKnownLength);
+            XAssert.IsTrue(fci.Existence.HasValue && fci.Existence.Value == existence);
+
+            // if a special hash is used, the length is invalid
+            var specialHash = ContentHashingUtilities.CreateSpecialValue(1);
+            fci = new FileContentInfo(specialHash, 100);
+            XAssert.IsFalse(fci.HasKnownLength);
+            XAssert.IsFalse(fci.Existence.HasValue);
+
+            fci = FileContentInfo.CreateWithUnknownLength(specialHash);
+            XAssert.IsFalse(fci.HasKnownLength);
+            XAssert.IsFalse(fci.Existence.HasValue);
+
+            fci = FileContentInfo.CreateWithUnknownLength(specialHash, existence);
             XAssert.IsFalse(fci.HasKnownLength);
             XAssert.IsTrue(fci.Existence.HasValue && fci.Existence.Value == existence);
         }

@@ -86,6 +86,14 @@ namespace BuildXL.Utilities
                 map => { map.Clear(); return map;});
 
         /// <summary>
+        /// Global pool of maps from string to many <see cref="BuildXL.Utilities.FileArtifactWithAttributes"/>.
+        /// </summary>
+        public static ObjectPool<Dictionary<string, FileArtifactWithAttributes>> StringFileArtifactWithAttributesMap { get; } =
+            new ObjectPool<Dictionary<string, FileArtifactWithAttributes>>(
+                () => new Dictionary<string, FileArtifactWithAttributes>(),
+                map => { map.Clear(); return map; });
+
+        /// <summary>
         /// Global pool of StringBuilder instances.
         /// </summary>
         public static ObjectPool<StringBuilder> StringBuilderPool { get; } = new ObjectPool<StringBuilder>(
@@ -463,6 +471,18 @@ namespace BuildXL.Utilities
         public static PooledObjectWrapper<Dictionary<AbsolutePath, FileArtifactWithAttributes>> GetAbsolutePathFileArtifactWithAttributesMap()
         {
             return AbsolutePathFileArtifactWithAttributesMap.GetInstance();
+        }
+
+        /// <summary>
+        /// Gets a mapping from string to <see cref="FileArtifactWithAttributes"/> from a common object pool.
+        /// </summary>
+        /// <remarks>
+        /// You are expected to call the Dispose method on the returned PooledObjectWrapper instance
+        /// when you are done with the set. Calling Dispose returns the set to the pool.
+        /// </remarks>
+        public static PooledObjectWrapper<Dictionary<string, FileArtifactWithAttributes>> GetStringFileArtifactWithAttributesMap()
+        {
+            return StringFileArtifactWithAttributesMap.GetInstance();
         }
     }
 }

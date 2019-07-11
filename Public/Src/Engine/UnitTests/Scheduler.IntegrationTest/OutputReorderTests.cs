@@ -25,22 +25,39 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             FileArtifact outputFile1 = CreateSourceFile();
             FileArtifact outputFile2 = CreateSourceFile();
+            FileArtifact inputFile = CreateSourceFile();
 
-            var builderA = CreatePipBuilder(new Operation[]{});
-            builderA.AddOutputFile(outputFile1, FileExistence.Optional);
-            builderA.AddOutputFile(outputFile2, FileExistence.Optional);
+            var opsA = new Operation[]
+            {
+                Operation.ReadFile(inputFile),
+                Operation.WriteFile(outputFile1, doNotInfer: true),
+                Operation.WriteFile(outputFile2, doNotInfer: true),
+            };
+
+            var builderA = CreatePipBuilder(opsA);
+            builderA.AddOutputFile(outputFile1, FileExistence.Required);
+            builderA.AddOutputFile(outputFile2, FileExistence.Required);
 
             Process pipA = SchedulePipBuilder(builderA).Process;
             RunScheduler().AssertCacheMiss(pipA.PipId);
 
             ResetPipGraphBuilder();
 
-            var builderB = CreatePipBuilder(new Operation[] { });
-            builderB.AddOutputFile(outputFile2, FileExistence.Optional);
-            builderB.AddOutputFile(outputFile1, FileExistence.Optional);
+            var opsB = new Operation[]
+            {
+                Operation.ReadFile(inputFile),
+                Operation.WriteFile(outputFile1, doNotInfer: true),
+                Operation.WriteFile(outputFile2, doNotInfer: true),
+            };
+
+            var builderB = CreatePipBuilder(opsB);
+            builderB.AddOutputFile(outputFile2, FileExistence.Required);
+            builderB.AddOutputFile(outputFile1, FileExistence.Required);
 
             var pipB = SchedulePipBuilder(builderB).Process;
             RunScheduler().AssertCacheHit(pipB.PipId);
         }
+
+
     }
 }

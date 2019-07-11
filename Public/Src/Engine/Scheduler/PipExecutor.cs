@@ -2849,34 +2849,40 @@ namespace BuildXL.Scheduler
             List<FileArtifact> absentArtifacts = null; // Almost never populated, since outputs are almost always required.
             List<(FileArtifact, FileMaterializationInfo)> cachedArtifactContentHashes =
                 new List<(FileArtifact, FileMaterializationInfo)>(pip.Outputs.Length);
-
-            Dictionary<string, FileArtifactWithAttributes> outputs = pip.Outputs.ToDictionary(o => o.Path.ToString(pathTable), o => o);
+ 
+            // Only the CanBeReferencedOrCached output will be saved in metadata.StaticOutputHashes
+            // We looped metadata.StaticOutputHashes and meanwhile find the corresponding output in current executing pip.
             FileArtifactWithAttributes attributedOutput;
-            for (int i = 0; i < metadata.StaticOutputHashes.Count; i++)
+            using (var poolStringFileArtifactWithAttributes = Pools.GetStringFileArtifactWithAttributesMap())
             {
-                FileMaterializationInfo materializationInfo = metadata.StaticOutputHashes[i].Info.ToFileMaterializationInfo(pathTable);                
-                outputs.TryGetValue(metadata.StaticOutputHashes[i].AbsolutePath, out attributedOutput);
-                FileArtifact output = attributedOutput.ToFileArtifact();
+                Dictionary<string, FileArtifactWithAttributes> outputs = poolStringFileArtifactWithAttributes.Instance;
+                outputs.AddRange(pip.Outputs.ToDictionary(o => o.Path.ToString(pathTable), o => o));
+                for (int i = 0; i < metadata.StaticOutputHashes.Count; i++)
+                {
+                    FileMaterializationInfo materializationInfo = metadata.StaticOutputHashes[i].Info.ToFileMaterializationInfo(pathTable);
+                    outputs.TryGetValue(metadata.StaticOutputHashes[i].AbsolutePath, out attributedOutput);
+                    FileArtifact output = attributedOutput.ToFileArtifact();
 
-                // Following logic should be in sync with StoreContentForProcess method.
-                bool isRequired = IsRequiredForCaching(attributedOutput);
-                if (materializationInfo.Hash != WellKnownContentHashes.AbsentFile)
-                {
-                    cachedArtifactContentHashes.Add((output, materializationInfo));
-                }
-                else if (isRequired)
-                {
-                    // Required but looks absent; entry is invalid.
-                    return null;
-                }
-                else
-                {
-                    if (absentArtifacts == null)
+                    // Following logic should be in sync with StoreContentForProcess method.
+                    bool isRequired = IsRequiredForCaching(attributedOutput);
+                    if (materializationInfo.Hash != WellKnownContentHashes.AbsentFile)
                     {
-                        absentArtifacts = new List<FileArtifact>();
+                        cachedArtifactContentHashes.Add((output, materializationInfo));
                     }
+                    else if (isRequired)
+                    {
+                        // Required but looks absent; entry is invalid.
+                        return null;
+                    }
+                    else
+                    {
+                        if (absentArtifacts == null)
+                        {
+                            absentArtifacts = new List<FileArtifact>();
+                        }
 
-                    absentArtifacts.Add(output);
+                        absentArtifacts.Add(output);
+                    }
                 }
             }
 

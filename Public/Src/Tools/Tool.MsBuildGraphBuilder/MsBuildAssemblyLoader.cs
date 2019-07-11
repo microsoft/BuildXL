@@ -50,7 +50,7 @@ namespace MsBuildGraphBuilderTool
 
         public MsBuildAssemblyLoader(bool msBuildRuntimeIsDotNetCore)
         {
-            m_msbuild = msBuildRuntimeIsDotNetCore ? "MsBuild.dll" : "MsBuild.exe";
+            m_msbuild = msBuildRuntimeIsDotNetCore ? "MSBuild.dll" : "MSBuild.exe";
 
             m_assemblyNamesToLoad = new[]
             {

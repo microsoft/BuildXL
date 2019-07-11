@@ -33,9 +33,10 @@ export const msbuildRuntimeContent = [
 ];
 
 function getFrameworkFolder() { 
-    return qualifier.targetFramework === "net472" ? a`net472` : a`dotnetcore`; 
+    return BuildXLSdk.isDotNetCoreBuild ? "dotnetcore" : qualifier.targetFramework;
 }
     
+
 @@public
 export const deployment = [
     {

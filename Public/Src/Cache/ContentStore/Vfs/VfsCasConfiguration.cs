@@ -43,24 +43,14 @@ namespace BuildXL.Cache.ContentStore.Vfs
         public AbsolutePath VfsRootPath { get; }
 
         /// <summary>
-        /// The root of mounted virtualized directories
+        /// The root of mounted virtualized directories (i.e. {VfsRootPath}\mounts)
         /// </summary>
         public AbsolutePath VfsMountRootPath { get; }
 
         /// <summary>
-        /// The root of mounted virtualized directories
+        /// The root of mounted virtualized directories (relative to vfs root)
         /// </summary>
         public RelativePath VfsMountRelativeRoot { get; }
-
-        /// <summary>
-        /// The root of mounted virtualized directories
-        /// </summary>
-        public RelativePath VfsCasRelativeRoot { get; }
-
-        /// <summary>
-        /// The root of virtualized CAS directory
-        /// </summary>
-        public AbsolutePath VfsCasRootPath { get; }
 
         /// <summary>
         /// The cache name
@@ -91,8 +81,6 @@ namespace BuildXL.Cache.ContentStore.Vfs
             VfsRootPath = RootPath / "vfs";
             VfsMountRelativeRoot = new RelativePath("mounts");
             VfsMountRootPath = VfsRootPath / VfsMountRelativeRoot;
-            VfsCasRelativeRoot = new RelativePath("cas");
-            VfsCasRootPath = VfsRootPath / VfsCasRelativeRoot;
             ServerRootPath = RootPath / "server";
         }
 

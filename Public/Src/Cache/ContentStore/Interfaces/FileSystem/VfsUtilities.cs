@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static bool IsPathWithin(this string path, string candidateParent)
         {
-            if (!path.StartsWith(candidateParent, StringComparison.OrdinalIgnoreCase))
+            if (path.Length <= candidateParent.Length || !path.StartsWith(candidateParent, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -33,8 +33,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 return true;
             }
 
-            return path.Length > candidateParent.Length &&
-                path[candidateParent.Length] == Path.DirectorySeparatorChar;
+            return path[candidateParent.Length] == Path.DirectorySeparatorChar;
         }
 
         /// <summary>

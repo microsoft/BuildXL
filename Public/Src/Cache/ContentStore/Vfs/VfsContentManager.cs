@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
     internal class VfsContentManager : IDisposable
     {
         // TODO: Track stats about file materialization (i.e. how much content was hydrated)
-        // On Domino side, track how much requested total requested file content size would be.
+        // On BuildXL side, track how much requested total requested file content size would be.
 
         public CounterCollection<VfsCounters> Counters { get; } = new CounterCollection<VfsCounters>();
 

@@ -38,8 +38,6 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
         private static readonly byte[] s_contentId = new byte[] { 0 };
         private static readonly byte[] s_providerId = new byte[] { 1 };
 
-        private readonly string _casRelativePrefix;
-
         // These variables hold the layer and scratch paths.
         private readonly int currentProcessId = Process.GetCurrentProcess().Id;
 
@@ -56,8 +54,6 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
             Configuration = configuration;
             Tree = tree;
             ContentManager = contentManager;
-
-            _casRelativePrefix = Configuration.VfsCasRootPath.Path.Substring(Configuration.VfsRootPath.Path.Length + 1) + Path.DirectorySeparatorChar;
 
             // Enable notifications if the user requested them.
             var notificationMappings = new List<NotificationMapping>();
@@ -81,7 +77,7 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
 
         public bool StartVirtualization()
         {
-            return Log.PerformOperation(Configuration.VfsCasRootPath.Path, () =>
+            return Log.PerformOperation(Configuration.VfsRootPath.Path, () =>
             {
                 virtualizationInstance.OnQueryFileName = QueryFileNameCallback;
                 virtualizationInstance.OnNotifyNewFileCreated = OnNotifyNewFileCreated;
@@ -391,6 +387,7 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
                 return HResult.Ok;
             }
 
+            // TODO: Check whether this handles long paths appropriately.
             if (!Utils.DoesNameContainWildCards(relativePath))
             {
                 // No wildcards and normal lookup failed so file must not exist

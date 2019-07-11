@@ -14,8 +14,7 @@ using BuildXL.Utilities.Collections;
 namespace BuildXL.Cache.ContentStore.Vfs
 {
     /// <summary>
-    /// A store which virtualizes calls to an underlying content store (i.e. content will
-    /// be lazily materialized using the projected file system filter driver)
+    /// Tracks the virtualized file system nodes (directories and files with content info) under a virtual root.
     /// </summary>
     internal class VfsTree
     {
@@ -94,7 +93,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
         public readonly string Name;
         public readonly DateTime Timestamp;
         public VfsNode NextSibling;
-        public VfsNode PriorSibling;
+        public VfsNode PreviousSibling;
         public readonly VfsDirectoryNode Parent;
 
         public virtual long Size => -1;
@@ -117,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
                     NextSibling = parent.FirstChild;
                     if (parent.FirstChild != null)
                     {
-                        parent.FirstChild.PriorSibling = this;
+                        parent.FirstChild.PreviousSibling = this;
                     }
 
                     Parent.FirstChild = this;
@@ -136,12 +135,12 @@ namespace BuildXL.Cache.ContentStore.Vfs
                     if (Parent.FirstChild == this)
                     {
                         Parent.FirstChild = NextSibling;
-                        NextSibling.PriorSibling = null;
+                        NextSibling.PreviousSibling = null;
                     }
                     else
                     {
-                        PriorSibling.NextSibling = NextSibling;
-                        NextSibling.PriorSibling = PriorSibling;
+                        PreviousSibling.NextSibling = NextSibling;
+                        NextSibling.PreviousSibling = PreviousSibling;
                     }
                 }
             }

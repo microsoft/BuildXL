@@ -7,6 +7,9 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
 {
     using Utils = Microsoft.Windows.ProjFS.Utils;
 
+    /// <summary>
+    /// Represents an active filesystem enumeration of a directory with cursor.
+    /// </summary>
     internal class ActiveEnumeration
     {
         private readonly IEnumerable<VfsNode> fileInfos;

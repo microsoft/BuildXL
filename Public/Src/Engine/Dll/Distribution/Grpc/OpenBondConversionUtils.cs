@@ -207,7 +207,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 {
                     ContentHash = i.ContentHash.Data.ToByteString(),
                     FileName = i.FileName ?? string.Empty,
-                    Length = i.Length,
+                    SerializedLengthAndExistence = i.SerializedLengthAndExistence,
                     PathString = i.PathString ?? string.Empty,
                     PathValue = i.PathValue,
                     ReparsePointType = (FileArtifactKeyedHash.Types.GrpcReparsePointType)i.ReparsePointType,
@@ -275,7 +275,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     AssociatedDirectories = bondDirectories,
                     ContentHash = i.ContentHash.ToBondContentHash(),
                     FileName = i.FileName ?? string.Empty,
-                    Length = i.Length,
+                    SerializedLengthAndExistence = i.SerializedLengthAndExistence,
                     PathString = i.PathString,
                     PathValue = i.PathValue,
                     ReparsePointTarget = i.ReparsePointTarget,

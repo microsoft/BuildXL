@@ -50,7 +50,7 @@ namespace BuildXL.Storage
 
             private const long ExistenceBitsMask = ~LengthBitsMask;
             private const long IsKnownExistenceFlag = 1L << 63;
-            private const long ExistenceValueMask = ExistenceBitsMask ^ IsKnownExistenceFlag;            
+            private const long ExistenceValueMask = ExistenceBitsMask ^ IsKnownExistenceFlag;
 
             private readonly long m_data;
 
@@ -72,7 +72,7 @@ namespace BuildXL.Storage
             /// <summary>
             /// The underlying value used for storage.
             /// </summary>
-            public long CombinedValue => m_data;
+            public long SerializedValue => m_data;
 
             /// <summary>
             /// The stored existence value. If no value is stored, returns null.
@@ -99,7 +99,7 @@ namespace BuildXL.Storage
                 {
                     Contract.Assert(false, $"Invalid length value (reserved bits should not be used): {length} ({System.Text.RegularExpressions.Regex.Replace(Convert.ToString(length, 2).PadLeft(64, '0'), ".{4}", "$0 ")})");
                 }
-                
+
                 m_data = (existence.HasValue ? (IsKnownExistenceFlag | ((long)existence << ExistenceShift)) : 0L)
                     | IsKnownLengthFlag
                     | length;
@@ -120,9 +120,9 @@ namespace BuildXL.Storage
             }
 
             /// <summary>
-            /// Creates a <see cref="LengthAndExistence"/> using a combined existence/length value. Mainly used in deserialization logic.
+            /// Creates a <see cref="LengthAndExistence"/> using a combined existence/length value.
             /// </summary>                        
-            public static LengthAndExistence CreateWithCombinedValue(long combinedValue)
+            public static LengthAndExistence Deserialize(long combinedValue)
             {
                 // check that if a flag is not set, the corresponding value is not set as well
                 if ((combinedValue & IsKnownExistenceFlag) == 0)
@@ -142,16 +142,16 @@ namespace BuildXL.Storage
         /// <summary>
         /// Creates a <see cref="FileContentInfo"/> with real USN version information.
         /// </summary>
-        public FileContentInfo(ContentHash hash, long length) 
+        public FileContentInfo(ContentHash hash, long length)
         {
             Contract.Requires(length >= 0);
-            
-            m_lengthAndExistence = new LengthAndExistence(            
+
+            m_lengthAndExistence = new LengthAndExistence(
                 length,
                 // if the length is valid, assign the existence value
-                IsValidLength(length, hash) 
-                    ? PathExistence.ExistsAsFile 
-                    : (PathExistence?)null);            
+                IsValidLength(length, hash)
+                    ? PathExistence.ExistsAsFile
+                    : (PathExistence?)null);
 
             Hash = hash;
         }
@@ -190,13 +190,13 @@ namespace BuildXL.Storage
         /// <summary>
         /// The underlying value for file length/path existence. This property (and not Length property) must be used for serialization.
         /// </summary>
-        public long LengthExistenceCombinedValue => m_lengthAndExistence.CombinedValue;
+        public long SerializedLengthAndExistence => m_lengthAndExistence.SerializedValue;
 
         /// <summary>
         /// Gets the optional path existence file
         /// </summary>
         public PathExistence? Existence => m_lengthAndExistence.Existence;
-        
+
         /// <inheritdoc />
         public override string ToString()
         {
@@ -207,7 +207,7 @@ namespace BuildXL.Storage
         /// <inheritdoc />
         public bool Equals(FileContentInfo other)
         {
-            return other.Hash == Hash && other.LengthExistenceCombinedValue == LengthExistenceCombinedValue;
+            return other.Hash == Hash && other.SerializedLengthAndExistence == SerializedLengthAndExistence;
         }
 
         /// <inheritdoc />
@@ -219,7 +219,7 @@ namespace BuildXL.Storage
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(Hash.GetHashCode(), LengthExistenceCombinedValue.GetHashCode());
+            return HashCodeHelper.Combine(Hash.GetHashCode(), SerializedLengthAndExistence.GetHashCode());
         }
 
         private const string RenderSeparator = "_";
@@ -241,7 +241,7 @@ namespace BuildXL.Storage
                 return valueStr;
             };
             string hashStr = propertyRenderer(nameof(Hash), Hash);
-            string lengthStr = propertyRenderer(nameof(LengthExistenceCombinedValue), LengthExistenceCombinedValue);
+            string lengthStr = propertyRenderer(nameof(SerializedLengthAndExistence), SerializedLengthAndExistence);
             return I($"{hashStr}{RenderSeparator}{lengthStr}");
         }
 
@@ -273,7 +273,7 @@ namespace BuildXL.Storage
                 throw Contract.AssertFailure(I($"Invalid file length format: '{splits[1]}'"));
             }
 
-            return new FileContentInfo(hash, LengthAndExistence.CreateWithCombinedValue(lengthAndExistence));
+            return new FileContentInfo(hash, LengthAndExistence.Deserialize(lengthAndExistence));
         }
 
         /// <summary>
@@ -284,7 +284,7 @@ namespace BuildXL.Storage
         [Pure]
         public static bool IsValidLength(long length, ContentHash hash)
         {
-            if (length < 0)
+            if (length < 0 || length > LengthAndExistence.MaxSupportedLength)
             {
                 return false;
             }

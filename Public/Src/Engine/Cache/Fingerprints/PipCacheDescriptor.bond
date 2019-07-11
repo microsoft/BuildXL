@@ -28,7 +28,7 @@ enum BondReparsePointType {
 struct BondFileMaterializationInfo
 {
     1: BondContentHash Hash;
-    2: int64 Length;
+    2: int64 SerializedLengthAndExistence;
     3: nullable<string> FileName;
     4: BondReparsePointType ReparsePointType = None;
     5: nullable<string> ReparsePointTarget;

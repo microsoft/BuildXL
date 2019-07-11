@@ -30,7 +30,7 @@ namespace BuildXL.Engine.Distribution.OpenBond
         /// <nodoc/>
         public FileArtifactKeyedHash SetFileMaterializationInfo(PathTable pathTable, FileMaterializationInfo info)
         {
-            Length = info.FileContentInfo.LengthExistenceCombinedValue;
+            SerializedLengthAndExistence = info.FileContentInfo.SerializedLengthAndExistence;
             ContentHash = info.Hash.ToBondContentHash();
             FileName = info.FileName.IsValid ? info.FileName.ToString(pathTable.StringTable) : null;
             ReparsePointType = info.ReparsePointInfo.ReparsePointType.ToBondReparsePointType();
@@ -42,7 +42,7 @@ namespace BuildXL.Engine.Distribution.OpenBond
         public FileMaterializationInfo GetFileMaterializationInfo(PathTable pathTable)
         {
             return new FileMaterializationInfo(
-                new FileContentInfo(ContentHash.ToContentHash(), FileContentInfo.LengthAndExistence.CreateWithCombinedValue(Length)),
+                new FileContentInfo(ContentHash.ToContentHash(), FileContentInfo.LengthAndExistence.Deserialize(SerializedLengthAndExistence)),
                 !string.IsNullOrEmpty(FileName) ? PathAtom.Create(pathTable.StringTable, FileName) : PathAtom.Invalid,
                 ReparsePointInfo.Create(ReparsePointType.ToReparsePointType(), ReparsePointTarget));
         }

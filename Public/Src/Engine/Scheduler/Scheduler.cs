@@ -5471,7 +5471,7 @@ namespace BuildXL.Scheduler
             {
                 if (existence != PathExistence.Nonexistent && trackedFileContentInfo.Hash.IsSpecialValue())
                 {
-                    Contract.Assert(false, I($"Hash={trackedFileContentInfo.Hash}, Length={trackedFileContentInfo.FileContentInfo.LengthExistenceCombinedValue}, Existence={existence}, Path={artifact.Path.ToString(Context.PathTable)}, Origin={origin}"));
+                    Contract.Assert(false, I($"Hash={trackedFileContentInfo.Hash}, Length={trackedFileContentInfo.FileContentInfo.SerializedLengthAndExistence}, Existence={existence}, Path={artifact.Path.ToString(Context.PathTable)}, Origin={origin}"));
                 }
 
                 // Since it's an output file, force the existence as ExistsAsFile.

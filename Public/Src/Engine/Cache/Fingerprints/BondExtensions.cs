@@ -117,7 +117,7 @@ namespace BuildXL.Engine.Cache.Fingerprints
             return new BondFileMaterializationInfo()
             {
                 Hash = info.Hash.ToBondContentHash(),
-                Length = info.FileContentInfo.LengthExistenceCombinedValue,
+                SerializedLengthAndExistence = info.FileContentInfo.SerializedLengthAndExistence,
                 FileName = info.FileName.IsValid ?
                     info.FileName.ToString(pathTable.StringTable) : null,
                 ReparsePointType = info.ReparsePointInfo.ReparsePointType.ToBondReparsePointType(),
@@ -131,7 +131,7 @@ namespace BuildXL.Engine.Cache.Fingerprints
             Contract.Requires(bondInfo != null);
 
             return new FileMaterializationInfo(
-                new FileContentInfo(bondInfo.Hash.ToContentHash(), FileContentInfo.LengthAndExistence.CreateWithCombinedValue(bondInfo.Length)),
+                new FileContentInfo(bondInfo.Hash.ToContentHash(), FileContentInfo.LengthAndExistence.Deserialize(bondInfo.SerializedLengthAndExistence)),
                 bondInfo.FileName != null ? PathAtom.Create(pathTable.StringTable, bondInfo.FileName) : PathAtom.Invalid,
                 ReparsePointInfo.Create(bondInfo.ReparsePointType.ToReparsePointType(), bondInfo.ReparsePointTarget));
         }

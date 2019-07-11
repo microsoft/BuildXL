@@ -119,7 +119,7 @@ struct FileArtifactKeyedHash
 	5: nullable<string> FileName;
 
     /// The length of the file
-    6: int64 Length;
+    6: int64 SerializedLengthAndExistence;
 
     /// The reparse point type
     7: BondReparsePointType ReparsePointType = None;

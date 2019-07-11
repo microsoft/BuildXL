@@ -404,10 +404,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.DependencyViolationWriteOnExistingFile);
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]
-        public void WritingToExistentFileProducedBySamePipIsAllowed(bool varyPathCasing)
+        public void WritingToExistentFileProducedBySamePipIsAllowed(bool varyPath)
         {
             // Run a pip that writes into a file twice: the second time, the file will exist. However, this should be allowed.
             // This test complements WritingUndeclaredInputsUnderSharedOpaquesAreBlocked, since the check cannot be made purely based on file existence,
@@ -415,7 +415,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             var outputFile = CreateOutputFileArtifact(SharedOpaqueDirectoryRoot);
             var pipBuilder = CreatePipBuilder(new Operation[] {
                 Operation.WriteFile(outputFile, doNotInfer: true),
-                Operation.WriteFile(outputFile, doNotInfer: true, changePathToAllUpperCase: varyPathCasing),
+                Operation.WriteFile(outputFile, doNotInfer: true, changePathToAllUpperCase: varyPath),
+                Operation.WriteFile(outputFile, doNotInfer: true, useLongPathPrefix: varyPath),
             });
             pipBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(Context.PathTable, SharedOpaqueDirectoryRoot)), SealDirectoryKind.SharedOpaque);
             pipBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;

@@ -27,6 +27,7 @@ namespace Test.BuildXL.Executables.TestProcess
         private const string StdErrMoniker = "stderr";
         private const string WaitToFinishMoniker = "wait";
         private const string AllUppercasePath = "allUpper";
+        private const string UseLongPathPrefix = "useLongPathPrefix";
 
         /// <summary>
         /// Returns an <code>IEnumerable</code> containing <paramref name="operation"/>
@@ -473,11 +474,15 @@ namespace Test.BuildXL.Executables.TestProcess
         /// Creates a write file operation that appends. The file is created if it does not exist.
         /// Writes random content to file at path if no content is specified.
         /// </summary>
-        public static Operation WriteFile(FileArtifact path, string content = null, bool doNotInfer = false, bool changePathToAllUpperCase = false)
+        public static Operation WriteFile(FileArtifact path, string content = null, bool doNotInfer = false, bool changePathToAllUpperCase = false, bool useLongPathPrefix = false)
         {
+            Contract.Assert(!changePathToAllUpperCase || !useLongPathPrefix, "Cannot specify changePathToAllUpperCase and useLongPathPrefix simultaneously");
+
+            string additionalArgs = changePathToAllUpperCase ? Operation.AllUppercasePath : (useLongPathPrefix ? Operation.UseLongPathPrefix : null);
+
             return content == Environment.NewLine
-                ? new Operation(Type.AppendNewLine, path, doNotInfer: doNotInfer, additionalArgs: changePathToAllUpperCase? Operation.AllUppercasePath : null)
-                : new Operation(Type.WriteFile, path, content, doNotInfer: doNotInfer, additionalArgs: changePathToAllUpperCase ? Operation.AllUppercasePath : null);
+                ? new Operation(Type.AppendNewLine, path, doNotInfer: doNotInfer, additionalArgs: additionalArgs)
+                : new Operation(Type.WriteFile, path, content, doNotInfer: doNotInfer, additionalArgs: additionalArgs);
         }
 
         /// <summary>
@@ -800,6 +805,10 @@ namespace Test.BuildXL.Executables.TestProcess
                 if (AdditionalArgs == AllUppercasePath)
                 {
                     file = file.ToUpperInvariant();
+                }
+                if (AdditionalArgs == UseLongPathPrefix)
+                {
+                    file = @"\\?\" + file.ToUpperInvariant();
                 }
 
                 File.AppendAllText(file, content);

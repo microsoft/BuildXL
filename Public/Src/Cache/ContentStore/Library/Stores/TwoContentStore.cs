@@ -290,7 +290,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, bool allowWait)
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
         {
             throw new NotImplementedException();
         }

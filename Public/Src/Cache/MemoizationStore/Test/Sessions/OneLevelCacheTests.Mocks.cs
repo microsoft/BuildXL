@@ -68,7 +68,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             return Task.FromResult(BoolResult.Success);
         }
 
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, bool allowWait = true)
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
         {
             throw new NotImplementedException();
         }

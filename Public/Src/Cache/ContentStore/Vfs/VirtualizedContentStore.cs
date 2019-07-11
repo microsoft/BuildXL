@@ -81,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
         }
 
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, bool allowWait = true)
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
         {
             throw new System.NotImplementedException();
         }

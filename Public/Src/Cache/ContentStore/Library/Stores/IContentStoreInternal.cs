@@ -313,6 +313,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Remove given content from the store.
         /// </summary>
-        Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, bool allowWait = true);
+        Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash);
     }
 }

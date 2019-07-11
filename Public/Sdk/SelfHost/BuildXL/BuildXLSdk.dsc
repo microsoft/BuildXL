@@ -468,6 +468,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     noWarnings: [1701, 1702],
                     warningLevel: "level 4",
                     subSystemVersion: "6.00",
+                    languageVersion: "preview", // Allow us using new features like non-nullable types and switch expressions.
 
                     // TODO: Make analyzers supported in regular references by undestanding the structure in nuget packages
                     analyzers: getAnalyzers(args),

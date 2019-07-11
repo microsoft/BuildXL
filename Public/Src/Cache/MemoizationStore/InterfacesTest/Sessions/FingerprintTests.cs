@@ -264,7 +264,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         public void PartialBinaryRoundtrip()
         {
             var value = Fingerprint.Random();
-            Utilities.TestSerializationRoundtrip(value, value.Serialize,
+            Utilities.TestSerializationRoundtrip(value, value.SerializeBytes,
                 reader => new Fingerprint(value.Length, reader));
         }
     }

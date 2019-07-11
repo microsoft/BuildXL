@@ -389,17 +389,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private void UpdatingPendingEventProcessingStates()
         {
+            // Prevent concurrent access to dequeuing from the queue and updating the last processed sequence point
             if (Interlocked.CompareExchange(ref _updatingPendingEventProcessingStates, value: 1, comparand: 0) == 0)
             {
-                while (_pendingEventProcessingStates.TryPeek(out var peekPendingEventProcessingState))
+                var pendingEventProcessingStates = _pendingEventProcessingStates;
+
+                // Look at top event on queue, to see if it is complete, and dequeue and set as last processed event if it is. Otherwise,
+                // just exit.
+                while (pendingEventProcessingStates.TryPeek(out var peekPendingEventProcessingState))
                 {
                     if (peekPendingEventProcessingState.IsComplete)
                     {
-                        bool found = _pendingEventProcessingStates.TryDequeue(out var pendingEventProcessingState);
+                        bool found = pendingEventProcessingStates.TryDequeue(out var pendingEventProcessingState);
                         Contract.Assert(found, "There should be no concurrent access to _pendingEventProcessingStates, so after peek a state should be dequeued.");
                         Contract.Assert(peekPendingEventProcessingState == pendingEventProcessingState, "There should be no concurrent access to _pendingEventProcessingStates, so the state for peek and dequeue should be the same.");
 
                         _lastProcessedSequencePoint = new EventSequencePoint(pendingEventProcessingState.SequenceNumber);
+                    }
+                    else
+                    {
+                        // Top event batch on queue is not complete, no need to continue.
+                        break;
                     }
                 }
 
@@ -426,6 +436,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 _partitionReceiver.SetReceiveHandler(_currentEventProcessor);
             }
 
+            _pendingEventProcessingStates = new ConcurrentQueue<SharedEventProcessingState>();
             _lastProcessedSequencePoint = sequencePoint;
             return BoolResult.Success;
         }
@@ -441,6 +452,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             // TODO: Make these async (bug 1365340)
             UnregisterEventProcessorIfNecessary();
+            _pendingEventProcessingStates = new ConcurrentQueue<SharedEventProcessingState>();
             return BoolResult.Success;
         }
 

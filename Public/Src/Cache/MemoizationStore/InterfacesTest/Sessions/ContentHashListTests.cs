@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities;
 using Xunit;
 
 namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
@@ -141,43 +142,29 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         [Fact]
         public void SerializeRoundtrip()
         {
-            var v = ContentHashList.Random();
-            using (var ms = new MemoryStream())
-            {
-                using (var bw = new BinaryWriter(ms))
-                {
-                    v.Serialize(bw);
+            var value = ContentHashList.Random();
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashList.Deserialize);
+        }
 
-                    ms.Position = 0;
-
-                    using (var reader = new BinaryReader(ms))
-                    {
-                        var v2 = new ContentHashList(reader);
-                        Assert.Equal(v, v2);
-                    }
-                }
-            }
+        [Fact]
+        public void SerializeRoundtripNonNullPayload()
+        {
+            var value = ContentHashList.Random(payload: new byte[] { 1, 2, 3 });
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashList.Deserialize);
         }
 
         [Fact]
         public void SerializeWithDeterminismRoundtrip()
         {
-            var v = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
-            using (var ms = new MemoryStream())
-            {
-                using (var bw = new BinaryWriter(ms))
-                {
-                    v.Serialize(bw);
+            var value = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashListWithDeterminism.Deserialize);
+        }
 
-                    ms.Position = 0;
-
-                    using (var reader = new BinaryReader(ms))
-                    {
-                        var v2 = new ContentHashListWithDeterminism(reader);
-                        Assert.Equal(v, v2);
-                    }
-                }
-            }
+        [Fact]
+        public void SerializeWithDeterminismRoundtripNoContentHashList()
+        {
+            var value = new ContentHashListWithDeterminism(null, CacheDeterminism.None);
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashListWithDeterminism.Deserialize);
         }
     }
 }

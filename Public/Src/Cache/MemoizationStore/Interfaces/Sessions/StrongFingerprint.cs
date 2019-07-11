@@ -5,7 +5,8 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Utilities;
+using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
@@ -24,16 +25,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="StrongFingerprint" /> struct.
-        /// </summary>
-        public StrongFingerprint(BinaryReader reader)
-        {
-            Contract.Requires(reader != null);
-            WeakFingerprint = new Fingerprint(reader);
-            Selector = new Selector(reader);
-        }
-
-        /// <summary>
         ///     Gets weakFingerprint associated with this StrongFingerprint.
         /// </summary>
         public Fingerprint WeakFingerprint { get; }
@@ -46,11 +37,28 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Serialize whole value to a binary writer.
         /// </summary>
-        public void Serialize(BinaryWriter writer)
+        /// <remarks>
+        ///     The included <see cref="Fingerprint"/> needs to always come first in the serialization order. This is
+        ///     needed to be able to do prefix searches by weak fingerprint in key value stores.
+        /// </remarks>
+        public void Serialize(BuildXLWriter writer)
         {
             Contract.Requires(writer != null);
             WeakFingerprint.Serialize(writer);
             Selector.Serialize(writer);
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="StrongFingerprint" /> struct from its binary
+        ///     representation.
+        /// </summary>
+        public static StrongFingerprint Deserialize(BuildXLReader reader)
+        {
+            Contract.Requires(reader != null);
+
+            var weakFingerprint = Fingerprint.Deserialize(reader);
+            var selector = Selector.Deserialize(reader);
+            return new StrongFingerprint(weakFingerprint, selector);
         }
 
         /// <inheritdoc />

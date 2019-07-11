@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Utilities;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
@@ -66,36 +67,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
             _contentHashes = contentHashes;
             _payload = payload;
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="ContentHashList" /> class.
-        /// </summary>
-        public ContentHashList(BinaryReader reader)
-        {
-            Contract.Requires(reader != null);
-            var numHashes = reader.ReadInt32();
-            if (numHashes < 0)
-            {
-                _contentHashes = null;
-            }
-            else
-            {
-                _contentHashes = new ContentHash[numHashes];
-                foreach (var index in Enumerable.Range(0, numHashes))
-                {
-                    _contentHashes[index] = new ContentHash(reader);
-                }
-            }
-
-            var payloadLength = reader.ReadInt32();
-            if (payloadLength < 0)
-            {
-                _payload = null;
-            } else
-            {
-                _payload = reader.ReadBytes(payloadLength);
-            }
         }
 
         /// <summary>
@@ -258,31 +229,52 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Serialize whole value to a binary writer.
         /// </summary>
-        public void Serialize(BinaryWriter writer)
+        public void Serialize(BuildXLWriter writer)
         {
             Contract.Requires(writer != null);
 
-            if (_contentHashes == null)
+            writer.Write(_contentHashes, (w, hash) => hash.Serialize(w));
+            WriteNullableArray(_payload, writer);
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="ContentHashList" /> class from its binary representation.
+        /// </summary>
+        public static ContentHashList Deserialize(BuildXLReader reader)
+        {
+            Contract.Requires(reader != null);
+
+            var contentHashes = reader.ReadArray(r => new ContentHash(r));
+            var payload = ReadNullableArray(reader);
+            return new ContentHashList(contentHashes, payload);
+        }
+
+
+        /// <nodoc />
+        public static void WriteNullableArray(byte[] array, BuildXLWriter writer)
+        {
+            if (array == null)
             {
-                writer.Write(-1);
+                writer.WriteCompact(-1);
             }
             else
             {
-                writer.Write(_contentHashes.Length);
-                foreach (var contentHash in _contentHashes)
-                {
-                    contentHash.Serialize(writer);
-                }
+                writer.WriteCompact(array.Length);
+                writer.Write(array);
+            }
+        }
+
+        /// <nodoc />
+        public static byte[] ReadNullableArray(BuildXLReader reader)
+        {
+            var payloadLength = reader.ReadInt32Compact();
+            byte[] payload = null;
+            if (payloadLength >= 0)
+            {
+                payload = reader.ReadBytes(payloadLength);
             }
 
-            if (_payload == null)
-            {
-                writer.Write(-1);
-            } else
-            {
-                writer.Write(_payload.Length);
-                writer.Write(_payload);
-            }
+            return payload;
         }
     }
 }

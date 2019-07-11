@@ -632,14 +632,64 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             context.TraceDebug($"Deleted entry for hash {hash}. Creation Time: '{entry.CreationTimeUtc}', Last Access Time: '{entry.LastAccessTimeUtc}'");
         }
 
-        /// <todoc />
+        /// <summary>
+        /// Load a ContentHashList.
+        /// </summary>
+        /// <param name="context">
+        ///     Tracing context.
+        /// </param>
+        /// <param name="strongFingerprint">
+        ///     Full key for ContentHashList value.
+        /// </param>
+        /// <returns>
+        ///     Result providing the call's completion status.
+        /// </returns>
         public abstract GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint);
 
-        /// <todoc />
+        /// <summary>
+        /// Store a ContentHashList
+        /// </summary>
+        /// <param name="context">
+        ///     Tracing context.
+        /// </param>
+        /// <param name="strongFingerprint">
+        ///     Full key for ContentHashList value.
+        /// </param>
+        /// <param name="contentHashListWithDeterminism">
+        ///     The value, and associated determinism guarantee, to store.
+        /// </param>
+        /// <returns>
+        ///     Result providing the call's completion status.
+        /// </returns>
         public abstract AddOrGetContentHashListResult AddOrGetContentHashList(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism);
 
-        /// <todoc />
+        /// <summary>
+        /// Gets known selectors for a given weak fingerprint.
+        /// </summary>
+        /// <param name="context">
+        ///     Tracing context.
+        /// </param>
+        /// <param name="weakFingerprint">
+        ///     Weak fingerprint to fetch selectors for
+        /// </param>
+        /// <returns>
+        ///     Result providing the call's completion status.
+        /// </returns>
         public abstract IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint);
+
+        /// <summary>
+        /// Enumerates all strong fingerprints currently stored in the cache.
+        /// </summary>
+        /// <remarks>
+        ///     Warning: this function should only ever be used on tests.
+        /// </remarks>
+        /// <param name="context">
+        ///     Tracing context.
+        /// </param>
+        /// <returns>
+        ///     Result providing the call's completion status.
+        /// </returns>
+        public abstract IEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context);
 
         private object GetLock(ShortHash hash)
         {
@@ -682,7 +732,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <remarks>
         /// We explicitly take and pass the instance as parameters in order to avoid lambda capturing.
         /// </remarks>
-        protected byte[] SerializeWithPool<T>(T instance, Action<T, BuildXLWriter> serializeFunc)
+        protected byte[] SerializeCore<T>(T instance, Action<T, BuildXLWriter> serializeFunc)
         {
             using (var pooledWriter = _writerPool.GetInstance())
             {
@@ -698,7 +748,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <remarks>
         /// Be mindful of avoiding lambda capture when using this function.
         /// </remarks>
-        protected T DeserializeWithPool<T>(byte[] bytes, Func<BuildXLReader, T> deserializeFunc)
+        protected T DeserializeCore<T>(byte[] bytes, Func<BuildXLReader, T> deserializeFunc)
         {
             using (PooledObjectWrapper<StreamBinaryReader> pooledReader = _readerPool.GetInstance())
             {
@@ -712,7 +762,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         protected byte[] SerializeContentLocationEntry(ContentLocationEntry entry)
         {
-            return SerializeWithPool(entry, (instance, writer) => instance.Serialize(writer));
+            return SerializeCore(entry, (instance, writer) => instance.Serialize(writer));
         }
 
         /// <summary>
@@ -720,7 +770,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         protected ContentLocationEntry DeserializeContentLocationEntry(byte[] bytes)
         {
-            return DeserializeWithPool(bytes, ContentLocationEntry.Deserialize);
+            return DeserializeCore(bytes, ContentLocationEntry.Deserialize);
         }
 
         /// <summary>

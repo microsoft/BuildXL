@@ -95,42 +95,14 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         public void SerializeRoundtrip()
         {
             var v = Selector.Random();
-            using (var ms = new MemoryStream())
-            {
-                using (var bw = new BinaryWriter(ms))
-                {
-                    v.Serialize(bw);
-
-                    ms.Position = 0;
-
-                    using (var reader = new BinaryReader(ms))
-                    {
-                        var v2 = new Selector(reader);
-                        Assert.Equal(v, v2);
-                    }
-                }
-            }
+            Utilities.TestSerializationRoundtrip(v, v.Serialize, Selector.Deserialize);
         }
 
         [Fact]
         public void NullOutputSerializeRoundtrip()
         {
             var v = Selector.Random(outputLength: 0);
-            using (var ms = new MemoryStream())
-            {
-                using (var bw = new BinaryWriter(ms))
-                {
-                    v.Serialize(bw);
-
-                    ms.Position = 0;
-
-                    using (var reader = new BinaryReader(ms))
-                    {
-                        var v2 = new Selector(reader);
-                        Assert.Equal(v, v2);
-                    }
-                }
-            }
+            Utilities.TestSerializationRoundtrip(v, v.Serialize, Selector.Deserialize);
         }
     }
 }

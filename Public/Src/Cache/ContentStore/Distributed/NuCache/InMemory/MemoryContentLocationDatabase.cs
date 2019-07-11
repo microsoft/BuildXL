@@ -52,17 +52,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         }
 
         /// <inheritdoc />
-        public override GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint) => null;
+        public override GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
+        {
+            throw new NotImplementedException();
+        }
 
         /// <inheritdoc />
         public override AddOrGetContentHashListResult AddOrGetContentHashList(
             OperationContext context,
             StrongFingerprint strongFingerprint,
-            ContentHashListWithDeterminism contentHashListWithDeterminism) =>
-            null;
+            ContentHashListWithDeterminism contentHashListWithDeterminism)
+        {
+            throw new NotImplementedException();
+        }
 
         /// <inheritdoc />
-        public override IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint) => null;
+        public override IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        public override IEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context)
+        {
+            throw new NotImplementedException();
+        }
 
         /// <inheritdoc />
         protected override IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(CancellationToken token)

@@ -83,7 +83,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             await database.ShutdownAsync(operationContext).ShouldBeSuccess();
         }
 
-
         [Fact]
         public Task GetSelectorsGivesZeroTasks()
         {
@@ -117,12 +116,10 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 List<GetSelectorResult> getSelectorResults = contentLocationDatabase.GetSelectors(context, weakFingerprint).ToList();
                 Assert.Equal(2, getSelectorResults.Count);
 
-                GetSelectorResult r1 = getSelectorResults[0];
-                Assert.True(r1.Succeeded);
+                GetSelectorResult r1 = getSelectorResults[0].ShouldBeSuccess();
                 Assert.True(r1.Selector == selector1 || r1.Selector == selector2);
 
-                GetSelectorResult r2 = getSelectorResults[1];
-                Assert.True(r2.Succeeded);
+                GetSelectorResult r2 = getSelectorResults[1].ShouldBeSuccess();
                 Assert.True(r2.Selector == selector1 || r2.Selector == selector2);
             });
         }
@@ -273,7 +270,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         [InlineData(DeterminismCache1, DeterminismCache2)]
         [InlineData(DeterminismCache2, DeterminismCache1)]
         [InlineData(DeterminismCache1, DeterminismTool)]
-        // TODO(jubayard): I believe these are legacy and not used any more, but have yet to confirm.
+        // TODO(jubayard): I can't tell why these are valid tests.
         // [InlineData(DeterminismTool, DeterminismNone)]
         // [InlineData(DeterminismTool, DeterminismCache1)]
         // [InlineData(DeterminismCache1, DeterminismNone)]
@@ -332,6 +329,54 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, Determinism[toDeterminism]));
                 Assert.Equal(AddOrGetContentHashListResult.ResultCode.SinglePhaseMixingError, addResult.Code);
             });
+        }
+
+        [Fact]
+        public Task EnumerateStrongFingerprintsEmpty()
+        {
+            return RunTest((context, store) =>
+            {
+                using (var strongFingerprintEnumerator = store.EnumerateStrongFingerprints(context).GetEnumerator())
+                {
+                    Assert.Equal(false, strongFingerprintEnumerator.MoveNext());
+                }
+            });
+        }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(10)]
+        [InlineData(100)]
+        [InlineData(500)]
+        [InlineData(1337)]
+        public Task EnumerateStrongFingerprints(int strongFingerprintCount)
+        {
+            return RunTest((context, session) =>
+            {
+                var expected = AddRandomContentHashLists(context, strongFingerprintCount, session);
+                var enumerated =
+                    (session.EnumerateStrongFingerprints(context).ToList())
+                    .Where(result => result.Succeeded)
+                    .Select(result => result.Data)
+                    .ToHashSet();
+                Assert.Equal(expected.Count, enumerated.Count);
+                Assert.True(expected.SetEquals(enumerated));
+            });
+        }
+
+        private HashSet<StrongFingerprint> AddRandomContentHashLists(
+            OperationContext context, int count, ContentLocationDatabase session)
+        {
+            var strongFingerprints = new HashSet<StrongFingerprint>();
+            for (int i = 0; i < count; i++)
+            {
+                var strongFingerprint = StrongFingerprint.Random();
+                var contentHashListWithDeterminism = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
+                session.AddOrGetContentHashList(context, strongFingerprint, contentHashListWithDeterminism).ShouldBeSuccess();
+                strongFingerprints.Add(strongFingerprint);
+            }
+
+            return strongFingerprints;
         }
     }
 }

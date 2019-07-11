@@ -4,7 +4,8 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Utilities;
+using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
@@ -23,22 +24,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="ContentHashListWithDeterminism"/> struct from a binary
-        ///     representation
-        /// </summary>
-        public ContentHashListWithDeterminism(BinaryReader reader)
-        {
-            Contract.Requires(reader != null);
-
-            var writeContentHashList = reader.ReadBoolean();
-            ContentHashList = writeContentHashList ? new ContentHashList(reader) : null;
-
-            var length = reader.ReadInt32();
-            var determinism = reader.ReadBytes(length);
-            Determinism = CacheDeterminism.Deserialize(determinism);
-        }
-
-        /// <summary>
         ///     Gets the content hash list member.
         /// </summary>
         public ContentHashList ContentHashList { get; }
@@ -49,9 +34,9 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public CacheDeterminism Determinism { get; }
 
         /// <summary>
-        /// Serializes an instance into a binary stream.
+        ///     Serializes an instance into a binary stream.
         /// </summary>
-        public void Serialize(BinaryWriter writer)
+        public void Serialize(BuildXLWriter writer)
         {
             Contract.Requires(writer != null);
 
@@ -65,6 +50,24 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             var determinism = Determinism.Serialize();
             writer.Write(determinism.Length);
             writer.Write(determinism);
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="ContentHashListWithDeterminism"/> struct from its binary
+        ///     representation.
+        /// </summary>
+        public static ContentHashListWithDeterminism Deserialize(BuildXLReader reader)
+        {
+            Contract.Requires(reader != null);
+
+            var writeContentHashList = reader.ReadBoolean();
+            var contentHashList = writeContentHashList ? ContentHashList.Deserialize(reader) : null;
+
+            var length = reader.ReadInt32();
+            var determinismBytes = reader.ReadBytes(length);
+            var determinism = CacheDeterminism.Deserialize(determinismBytes);
+
+            return new ContentHashListWithDeterminism(contentHashList, determinism);
         }
 
         /// <inheritdoc />

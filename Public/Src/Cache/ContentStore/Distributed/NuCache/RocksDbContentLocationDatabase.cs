@@ -68,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ///
             /// This serves all of CaChaaS' needs for storage, modulo garbage collection.
             /// </summary>
-            CaChaaS
+            Metadata
         }
 
         private enum ClusterStateKeys
@@ -119,7 +119,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Info(context, $"Creating rocksdb store at '{storeLocation}'.");
 
                 var possibleStore = KeyValueStoreAccessor.Open(storeLocation,
-                    additionalColumns: new[] { nameof(ClusterState), "CaChaaS" });
+                    additionalColumns: new[] { nameof(ClusterState), "Metadata" });
                 if (possibleStore.Succeeded)
                 {
                     var oldKeyValueStore = _keyValueStore;
@@ -529,95 +529,132 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return hash.ToByteArray();
         }
 
-        #region Memoization
         // TODO(jubayard): garbage collection / removal in general
 
         /// <inheritdoc />
         public override GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
         {
-            var key = GetCaChaaSKey(strongFingerprint);
-            ContentHashListWithDeterminism? result = null;
-            var status = _keyValueStore.Use(
-                store =>
+            return context.PerformOperation(
+                Tracer,
+                () =>
                 {
-                    if (store.TryGetValue(key, out var data, nameof(Columns.CaChaaS)))
-                    {
-                        result = DeserializeContentHashList(data);
-                        // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
-                        // hashes exist. Moreover, we can prune content.
-                    }
-                });
+                    var key = GetMetadataKey(strongFingerprint);
+                    ContentHashListWithDeterminism? result = null;
+                    var status = _keyValueStore.Use(
+                        store =>
+                        {
+                            if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
+                            {
+                                result = DeserializeContentHashList(data);
+                                // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
+                                // hashes exist. Moreover, we can prune content.
+                            }
+                        });
 
-            if (!status.Succeeded)
-            {
-                return new GetContentHashListResult(status.Failure.CreateException());
-            }
-            
-            return new GetContentHashListResult(result ?? default);
+                    if (!status.Succeeded)
+                    {
+                        return new GetContentHashListResult(status.Failure.CreateException());
+                    }
+
+                    if (result == null)
+                    {
+                        return new GetContentHashListResult(CacheMiss(CacheDeterminism.None));
+                    }
+
+                    return new GetContentHashListResult(result.Value);
+                }, Counters[ContentLocationDatabaseCounters.GetContentHashList]);
         }
         
         /// <inheritdoc />
         public override AddOrGetContentHashListResult AddOrGetContentHashList(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism)
         {
-            var key = GetCaChaaSKey(strongFingerprint);
+            return context.PerformOperation(
+                Tracer,
+                () =>
+                {
+                    var key = GetMetadataKey(strongFingerprint);
 
-            Possible<AddOrGetContentHashListResult> status = _keyValueStore.Use(
+                    var status = _keyValueStore.Use(
+                        store =>
+                        {
+                            // TODO(jubayard): RocksDB supports transactional semantics that would make this logic better
+                            var contentHashList = contentHashListWithDeterminism.ContentHashList;
+                            var determinism = contentHashListWithDeterminism.Determinism;
+
+                            // Load old value
+                            var oldContentHashListWithDeterminism = GetContentHashList(context, strongFingerprint);
+                            var oldContentHashList = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.ContentHashList;
+                            var oldDeterminism = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.Determinism;
+
+                            // Make sure we're not mixing SinglePhaseNonDeterminism records
+                            if (oldContentHashList != null &&
+                                        oldDeterminism.IsSinglePhaseNonDeterministic != determinism.IsSinglePhaseNonDeterministic)
+                            {
+                                return AddOrGetContentHashListResult.SinglePhaseMixingError;
+                            }
+
+                            // Replace if incoming has better determinism or some content for the existing entry is missing.
+                            if (oldContentHashList == null || oldDeterminism.ShouldBeReplacedWith(determinism) ||
+                                        !IsContentAvailable(context, oldContentHashList))
+                            {
+                                // TODO(jubayard): SQLite impl runs this with exclusive access to the DB to avoid data races. We have no way to do this here.
+                                store.Put(key, SerializeContentHashList(contentHashListWithDeterminism), nameof(Columns.Metadata));
+
+                                // Accept the value
+                                return new AddOrGetContentHashListResult(CacheMiss(determinism));
+                            }
+
+                            // If we didn't accept the new value because it is the same as before, just with a not
+                            // necessarily better determinism, then let the user know.
+                            if (oldContentHashList != null && oldContentHashList.Equals(contentHashList))
+                            {
+                                return new AddOrGetContentHashListResult(CacheMiss(oldDeterminism));
+                            }
+
+                            // If we didn't accept a deterministic tool's data, then we're in an inconsistent state
+                            if (determinism.IsDeterministicTool)
+                            {
+                                return new AddOrGetContentHashListResult(
+                                    AddOrGetContentHashListResult.ResultCode.InvalidToolDeterminismError,
+                                    oldContentHashListWithDeterminism.ContentHashListWithDeterminism);
+                            }
+
+                            // If we did not accept the given value, return the value in the cache
+                            return new AddOrGetContentHashListResult(oldContentHashListWithDeterminism);
+                        });
+
+                    // Success for this status here may actually be an error that's been returned
+                    return status.Succeeded ? status.Result : new AddOrGetContentHashListResult(status.Failure.CreateException());
+                }, Counters[ContentLocationDatabaseCounters.AddOrGetContentHashList]);
+        }
+        
+        private ContentHashListWithDeterminism CacheMiss(CacheDeterminism determinism)
+        {
+            return new ContentHashListWithDeterminism(null, determinism);
+        }
+
+        /// <inheritdoc />
+        public override IEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context)
+        {
+            var result = new List<StructResult<StrongFingerprint>>();
+            var status = _keyValueStore.Use(
                 store =>
                 {
-                    int maxAttempts = 5;
-                    while (maxAttempts-- >= 0)
+                    foreach (var kvp in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
                     {
-                        // TODO(jubayard): RocksDB supports transactional semantics that would make this logic better
-                        var contentHashList = contentHashListWithDeterminism.ContentHashList;
-                        var determinism = contentHashListWithDeterminism.Determinism;
-
-                        // Load old value
-                        var oldContentHashListWithDeterminism = GetContentHashList(context, strongFingerprint);
-                        var oldContentHashList = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.ContentHashList;
-                        var oldDeterminism = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.Determinism;
-
-                        // Make sure we're not mixing SinglePhaseNonDeterminism records
-                        if (oldContentHashList != null &&
-                            oldDeterminism.IsSinglePhaseNonDeterministic != determinism.IsSinglePhaseNonDeterministic)
-                        {
-                            return AddOrGetContentHashListResult.SinglePhaseMixingError;
-                        }
-                        
-                        // Replace if incoming has better determinism or some content for the existing entry is missing.
-                        if (oldContentHashList == null || oldDeterminism.ShouldBeReplacedWith(determinism) ||
-                            !IsContentAvailable(context, oldContentHashList))
-                        {
-                            // TODO(jubayard): SQLite impl runs this with exclusive access to the DB to avoid data races. We have no way to do this here.
-                            store.Put(key, SerializeContentHashList(contentHashListWithDeterminism), nameof(Columns.CaChaaS));
-
-                            // Accept the value
-                            return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, determinism));
-                        }
-
-                        // If we didn't accept the new value because it is the same as before, just with a not
-                        // necessarily better determinism, then let the user know.
-                        if (oldContentHashList.Equals(contentHashList))
-                        {
-                            return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, oldDeterminism));
-                        }
-
-                        // If we didn't accept a deterministic tool's data, then we're in an inconsistent state
-                        if (determinism.IsDeterministicTool)
-                        {
-                            return new AddOrGetContentHashListResult(
-                                AddOrGetContentHashListResult.ResultCode.InvalidToolDeterminismError,
-                                oldContentHashListWithDeterminism.ContentHashListWithDeterminism);
-                        }
-
-                        // If we did not accept the given value, return the value in the cache
-                        return new AddOrGetContentHashListResult(oldContentHashListWithDeterminism);
+                        var strongFingerprint = DeserializeStrongFingerprint(kvp.Key);
+                        result.Add(StructResult.Create(strongFingerprint));
                     }
 
-                    return new AddOrGetContentHashListResult("Hit too many races attempting to add content hash list into the cache");
+                    return result;
                 });
 
-            // Success for this status here may actually be an error that's been returned
-            return status.Succeeded ? status.Result : new AddOrGetContentHashListResult(status.Failure.CreateException());
+            if (!status.Succeeded)
+            {
+                result.Add(new StructResult<StrongFingerprint>(status.Failure.CreateException()));
+            }
+
+            return result;
         }
 
         private bool IsContentAvailable(OperationContext context, ContentHashList contentHashList)
@@ -626,11 +663,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return true;
         }
 
-        private byte[] SerializeContentHashList(ContentHashListWithDeterminism value)
-        {
-            return SerializeWithPool(value, (instance, writer) => instance.Serialize(writer));
-        }
-        
         /// <inheritdoc />
         public override IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
         {
@@ -643,7 +675,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     // This only works because the strong fingerprint serializes the weak fingerprint first. Hence,
                     // we know that all keys here are strong fingerprints that match the weak fingerprint.
-                    foreach (var kvp in store.PrefixSearch(key, columnFamilyName: nameof(Columns.CaChaaS)))
+                    foreach (var kvp in store.PrefixSearch(key, columnFamilyName: nameof(Columns.Metadata)))
                     {
                         var strongFingerprint = DeserializeStrongFingerprint(kvp.Key);
                         result.Add(new GetSelectorResult(strongFingerprint.Selector));
@@ -660,30 +692,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private byte[] SerializeWeakFingerprint(Fingerprint weakFingerprint)
         {
-            return SerializeWithPool(weakFingerprint, (instance, writer) => instance.Serialize(writer));
+            return SerializeCore(weakFingerprint, (instance, writer) => instance.Serialize(writer));
         }
 
         private byte[] SerializeStrongFingerprint(StrongFingerprint strongFingerprint)
         {
-            return SerializeWithPool(strongFingerprint, (instance, writer) => instance.Serialize(writer));
-        }
-        
-        private ContentHashListWithDeterminism DeserializeContentHashList(byte[] data)
-        {
-            return DeserializeWithPool(data, (reader) => new ContentHashListWithDeterminism(reader));
-        }
-
-        private byte[] GetCaChaaSKey(StrongFingerprint strongFingerprint)
-        {
-            return SerializeStrongFingerprint(strongFingerprint);
+            return SerializeCore(strongFingerprint, (instance, writer) => instance.Serialize(writer));
         }
 
         private StrongFingerprint DeserializeStrongFingerprint(byte[] bytes)
         {
-            return DeserializeWithPool(bytes, (reader) => new StrongFingerprint(reader));
+            return DeserializeCore(bytes, reader => StrongFingerprint.Deserialize(reader));
         }
 
-        #endregion
+        private byte[] SerializeContentHashList(ContentHashListWithDeterminism value)
+        {
+            return SerializeCore(value, (instance, writer) => instance.Serialize(writer));
+        }
+
+        private ContentHashListWithDeterminism DeserializeContentHashList(byte[] data)
+        {
+            return DeserializeCore(data, reader => ContentHashListWithDeterminism.Deserialize(reader));
+        }
+
+        private byte[] GetMetadataKey(StrongFingerprint strongFingerprint)
+        {
+            return SerializeStrongFingerprint(strongFingerprint);
+        }
 
         private class KeyValueStoreGuard : IDisposable
         {

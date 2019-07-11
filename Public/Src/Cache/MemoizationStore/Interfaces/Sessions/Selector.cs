@@ -7,6 +7,8 @@ using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities;
+using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
@@ -24,18 +26,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         {
             ContentHash = contentHash;
             Output = output;
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="Selector" /> struct.
-        /// </summary>
-        public Selector(BinaryReader reader)
-        {
-            Contract.Requires(reader != null);
-            ContentHash = new ContentHash(reader);
-
-            var length = reader.ReadInt32();
-            Output = length == -1 ? null : reader.ReadBytes(length);
         }
 
         /// <summary>
@@ -57,19 +47,23 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Serialize whole value to a binary writer.
         /// </summary>
-        public void Serialize(BinaryWriter writer)
+        public void Serialize(BuildXLWriter writer)
         {
             ContentHash.Serialize(writer);
+            ContentHashList.WriteNullableArray(Output, writer);
+        }
 
-            if (Output == null)
-            {
-                writer.Write(-1);
-            }
-            else
-            {
-                writer.Write(Output.Length);
-                writer.Write(Output);
-            }
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="Selector" /> struct.
+        /// </summary>
+        public static Selector Deserialize(BuildXLReader reader)
+        {
+            Contract.Requires(reader != null);
+
+            var contentHash = new ContentHash(reader);
+            var output = ContentHashList.ReadNullableArray(reader);
+
+            return new Selector(contentHash, output);
         }
 
         /// <inheritdoc />

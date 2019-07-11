@@ -3,6 +3,7 @@
 
 using System.IO;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities;
 using Xunit;
 
 namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
@@ -74,22 +75,15 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         [Fact]
         public void SerializeRoundtrip()
         {
-            var v = StrongFingerprint.Random();
-            using (var ms = new MemoryStream())
-            {
-                using (var bw = new BinaryWriter(ms))
-                {
-                    v.Serialize(bw);
+            var value = StrongFingerprint.Random();
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, StrongFingerprint.Deserialize);
+        }
 
-                    ms.Position = 0;
-
-                    using (var reader = new BinaryReader(ms))
-                    {
-                        var v2 = new StrongFingerprint(reader);
-                        Assert.Equal(v, v2);
-                    }
-                }
-            }
+        [Fact]
+        public void WeakFingerprintIsSerializedFirst()
+        {
+            var value = StrongFingerprint.Random();
+            Utilities.TestSerializationRoundtrip(value.WeakFingerprint, value.Serialize, Fingerprint.Deserialize);
         }
     }
 }

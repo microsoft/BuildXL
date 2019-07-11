@@ -217,6 +217,8 @@ namespace ContentStoreTest.Stores
         {
             return TestStore(Context, Clock, async (store) =>
             {
+                store.QuotaKeeperSize().Should().Be(0);
+
                 int contentSize = 10;
                 PutResult putResult = await store.PutRandomAsync(Context, contentSize);
                 putResult.ShouldBeSuccess();
@@ -225,6 +227,8 @@ namespace ContentStoreTest.Stores
                 deleteResult.ShouldBeSuccess();
                 deleteResult.EvictedSize.Should().Be(contentSize);
                 deleteResult.PinnedSize.Should().Be(0);
+
+                store.IsPinned(putResult.ContentHash).Should().BeFalse();
             });
         }
 

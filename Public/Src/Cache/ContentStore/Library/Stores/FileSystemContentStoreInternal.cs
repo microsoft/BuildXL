@@ -2077,16 +2077,16 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <inheritdoc />
         public async Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
         {
-            var evictResult = await EvictCoreAsync(context, new ContentHashWithLastAccessTimeAndReplicaCount(contentHash, DateTime.MinValue, safeToEvict: true), force: true, onlyUnlinked: false, (l) => { });
+            var evictResult = await EvictCoreAsync(context, new ContentHashWithLastAccessTimeAndReplicaCount(contentHash, DateTime.MinValue, safeToEvict: true), force: true, onlyUnlinked: false, (l) => { }, acquireLock: true);
             return evictResult.ToDeleteResult(contentHash);
         }
 
-        private async Task<EvictResult> EvictCoreAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool force, bool onlyUnlinked, Action<long> evicted)
+        private async Task<EvictResult> EvictCoreAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool force, bool onlyUnlinked, Action<long> evicted, bool acquireLock = false)
         {
             ContentHash contentHash = contentHashInfo.ContentHash;
 
             long pinnedSize = 0;
-            using (LockSet<ContentHash>.LockHandle? contentHashHandle = _lockSet.TryAcquire(contentHash))
+            using (LockSet<ContentHash>.LockHandle? contentHashHandle = acquireLock ? await _lockSet.AcquireAsync(contentHash) : _lockSet.TryAcquire(contentHash))
             {
                 if (contentHashHandle == null)
                 {
@@ -2229,7 +2229,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                 return null;
                             });
 
-                    return new EvictResult(contentHashInfo, evictedSize, evictedFiles, pinnedSize,successfullyEvictedHash);
+                    return new EvictResult(contentHashInfo, evictedSize, evictedFiles, pinnedSize, successfullyEvictedHash);
                 });
             }
         }

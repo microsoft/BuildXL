@@ -404,10 +404,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.DependencyViolationWriteOnExistingFile);
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void WritingToExistentFileProducedBySamePipIsAllowed(bool varyPath)
         {
             // Run a pip that writes into a file twice: the second time, the file will exist. However, this should be allowed.

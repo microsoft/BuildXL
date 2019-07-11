@@ -128,7 +128,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
 
             // If the user name is explicitly provided call a different auth method that's
-            // not going to query the OS for the AAD user name (which is, btw, disallowed on CoreCLR)
+            // not going to query the OS for the AAD user name (which is, btw, disallowed on CoreCLR).
             if (_userName != null)
             {
                 return CreateVssCredentialsForUserName(baseUri);

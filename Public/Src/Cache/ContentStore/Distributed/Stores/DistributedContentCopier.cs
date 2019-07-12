@@ -170,8 +170,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         break;
                     }
 
-                    TimeSpan waitDelay = _retryIntervals[attemptCount];
-                    Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()}...");
+                    long waitTicks = _retryIntervals[attemptCount].Ticks;
+
+                    // Randomize the wait delay to `[0.5 * delay, 1.5 * delay)`
+                    TimeSpan waitDelay = TimeSpan.FromTicks((long)((waitTicks / 2) + (waitTicks * ThreadSafeRandom.Generator.NextDouble())));
+
+                    Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in {waitDelay.TotalMilliseconds}ms...");
 
                     attemptCount++;
 

@@ -54,6 +54,8 @@ namespace BuildXL.Cache.BuildCacheAdapter
         //     "DownloadBlobsThroughBlobStore":{25}
         //     "UseDedupStore":{26}
         //     "OverrideUnixFileAccessMode":{27}
+        //     "DefaultPinInlineThresholdMinutes":{28}
+        //     "DefaultIgnorePinThresholdHours":{29}
         // }
         private sealed class Config : BuildCacheCacheConfig
         {

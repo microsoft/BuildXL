@@ -21,7 +21,6 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -129,6 +128,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             ImplicitPin implicitPin,
             IDedupStoreHttpClient dedupStoreHttpClient,
             TimeSpan timeToKeepContent,
+            TimeSpan pinInlineThreshold,
+            TimeSpan ignorePinThreshold,
             int maxConnections = DefaultMaxConnections)
             : base(name)
         {
@@ -142,6 +143,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
             TempDirectory = new DisposableDirectory(fileSystem);
             ConnectionGate = new SemaphoreSlim(maxConnections);
             EndDateTime = DateTime.UtcNow + timeToKeepContent;
+
+            _pinInlineThreshold = pinInlineThreshold;
+            _ignorePinThreshold = ignorePinThreshold;
         }
 
         /// <summary>

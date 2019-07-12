@@ -198,7 +198,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             string tempFile = null;
             try
             {
-                if (ImplicitPin == ImplicitPin.PutAndGet)
+                if (ImplicitPin == ImplicitPin.Get)
                 {
                     var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint).ConfigureAwait(false);
                     if (!pinResult.Succeeded)
@@ -267,7 +267,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists);
                 }
 
-                if (ImplicitPin == ImplicitPin.PutAndGet)
+                if (ImplicitPin == ImplicitPin.Get)
                 {
                     var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint).ConfigureAwait(false);
                     if (!pinResult.Succeeded)

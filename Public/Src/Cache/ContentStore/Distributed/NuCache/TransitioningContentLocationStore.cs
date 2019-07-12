@@ -59,9 +59,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public int PageSize => _configuration.RedisBatchPageSize;
 
-        /// <nodoc />
-        public int EvictionWindowSize => _configuration.EvictionWindowSize;
-
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(TransitioningContentLocationStore));
 
@@ -252,7 +249,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore), "GetLruPages can only be called when local location store is enabled");
 
-            var pageSize = EvictionWindowSize;
+            var pageSize = _configuration.EvictionWindowSize;
 
             // Priority queue orders by least first. So we compare by last access time to get the least last access time (i.e. oldest) first.
             var priorityQueue = new PriorityQueue<ContentHashWithLastAccessTimeAndReplicaCount>(

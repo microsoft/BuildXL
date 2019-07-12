@@ -369,7 +369,6 @@ config({
                 { id: "System.Security.Principal.Windows", version: "4.6.0-preview5.19224.8" },
                 { id: "System.Security.SecureString", version: "4.3.0" },
                 { id: "System.Text.Encoding", version: "4.3.0" },
-                { id: "System.Text.Encoding.CodePages", version: "4.3.0" },
                 { id: "System.Text.Encoding.Extensions", version: "4.3.0" },
                 { id: "System.Text.RegularExpressions", version: "4.3.0" },
                 { id: "System.Threading", version: "4.3.0" },
@@ -442,7 +441,7 @@ config({
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
                 { id: "System.CodeDom", version: "4.4.0"},
-                { id: "System.Text.Encoding.CodePages", version: "4.5.1", alias: "CodePagesForMSBuild" },
+                { id: "System.Text.Encoding.CodePages", version: "4.5.1", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"]},
 
                 // Used for MSBuild input/output prediction
                 { id: "Microsoft.Build.Prediction", version: "0.3.0" },

@@ -266,13 +266,13 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.IsReconciliationEnabled, value => configuration.EnableReconciliation = value);
             ApplyIfNotNull(_distributedSettings.UseIncrementalCheckpointing, value => configuration.Checkpoint.UseIncrementalCheckpointing = value);
 
-            configuration.RedisGlobalStoreConnectionString = (GetRequiredSecret(secrets, _distributedSettings.GlobalRedisSecretName) as RedisCredentials).ConnectionString;
+            configuration.RedisGlobalStoreConnectionString = ((RedisCredentials) GetRequiredSecret(secrets, _distributedSettings.GlobalRedisSecretName)).ConnectionString;
 
             if (_distributedSettings.SecondaryGlobalRedisSecretName != null)
             {
-                configuration.RedisGlobalStoreSecondaryConnectionString = (GetRequiredSecret(
+                configuration.RedisGlobalStoreSecondaryConnectionString = ((RedisCredentials) GetRequiredSecret(
                     secrets,
-                    _distributedSettings.SecondaryGlobalRedisSecretName) as RedisCredentials).ConnectionString;
+                    _distributedSettings.SecondaryGlobalRedisSecretName)).ConnectionString;
             }
 
             ApplyIfNotNull(
@@ -324,19 +324,12 @@ namespace BuildXL.Cache.Host.Service.Internal
         private AzureBlobStorageCredentials[] GetStorageCredentials(Dictionary<string, Credentials> secrets, StringBuilder errorBuilder)
         {
             var storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
-            if (storageSecretNames == null)
-            {
-                return null;
-            }
-
-            return storageSecretNames.Select(name => {
-                return GetRequiredSecret(secrets, name) as AzureBlobStorageCredentials;
-            }).ToArray();
+            return storageSecretNames?.Select(name => GetRequiredSecret(secrets, name) as AzureBlobStorageCredentials).ToArray();
         }
 
         private List<string> GetAzureStorageSecretNames(StringBuilder errorBuilder)
         {
-            List<string> secretNames = new List<string>();
+            var secretNames = new List<string>();
             if (_distributedSettings.AzureStorageSecretName != null && !string.IsNullOrEmpty(_distributedSettings.AzureStorageSecretName))
             {
                 secretNames.Add(_distributedSettings.AzureStorageSecretName);
@@ -347,14 +340,15 @@ namespace BuildXL.Cache.Host.Service.Internal
                 secretNames.AddRange(_distributedSettings.AzureStorageSecretNames);
             }
 
-            if (secretNames.Count == 0)
+            if (secretNames.Count > 0)
             {
-                errorBuilder.Append(
-                    $"Unable to configure Azure Storage. {nameof(DistributedContentSettings.AzureStorageSecretName)} or {nameof(DistributedContentSettings.AzureStorageSecretNames)} configuration options should be provided. ");
-                return null;
+                return secretNames;
             }
 
-            return secretNames;
+            errorBuilder.Append(
+                $"Unable to configure Azure Storage. {nameof(DistributedContentSettings.AzureStorageSecretName)} or {nameof(DistributedContentSettings.AzureStorageSecretNames)} configuration options should be provided. ");
+            return null;
+
         }
 
         private async Task<Dictionary<string, Credentials>> TryRetrieveSecretsAsync(CancellationToken token, StringBuilder errorBuilder)
@@ -381,7 +375,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 return null;
             }
-            retrieveSecretsRequests.AddRange(storageSecretNames.Select(secretName => new RetrieveSecretsRequest(secretName, CredentialsKind.AzureBlobPlainText)));
+            var azureBlobStorageCredentialsKind = _distributedSettings.AzureBlobStorageUseSasTokens ? CredentialsKind.AzureBlobSASToken : CredentialsKind.AzureBlobPlainText;
+            retrieveSecretsRequests.AddRange(storageSecretNames.Select(secretName => new RetrieveSecretsRequest(secretName, azureBlobStorageCredentialsKind)));
 
             if (string.IsNullOrEmpty(_distributedSettings.EventHubSecretName) ||
                 string.IsNullOrEmpty(_distributedSettings.GlobalRedisSecretName))

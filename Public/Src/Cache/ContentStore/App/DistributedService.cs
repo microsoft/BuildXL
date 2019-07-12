@@ -5,9 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -118,9 +118,40 @@ namespace BuildXL.Cache.ContentStore.App
             {
             }
 
-            public Task<Dictionary<string, string>> RetrieveKeyVaultSecretsAsync(List<string> secrets, CancellationToken token)
+            public Task<Dictionary<string, Credentials>> RetrieveKeyVaultSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
             {
-                return Task.FromResult(secrets.ToDictionary(s => GetSecretStoreValue(s)));
+                var result = new Dictionary<string, Credentials>();
+
+                foreach (var request in requests)
+                {
+                    Credentials credentials = null;
+
+                    var secret = GetSecretStoreValue(request.Name);
+                    if (string.IsNullOrEmpty(secret))
+                    {
+                        // Environment variables are null by default. Skip if that's the case.
+                        continue;
+                    }
+
+                    switch (request.Kind)
+                    {
+                        case CredentialsKind.AzureBlobPlainText:
+                            credentials = new AzureBlobStorageCredentials(secret);
+                            break;
+                        case CredentialsKind.EventHubPlainText:
+                            credentials = new EventHubCredentials(secret);
+                            break;
+                        case CredentialsKind.RedisPlainText:
+                            credentials = new RedisCredentials(secret);
+                            break;
+                        case CredentialsKind.AzureBlobSASToken:
+                            continue;
+                    }
+
+                    result[request.Name] = credentials;
+                }
+
+                return Task.FromResult(result);
             }
         }
     }

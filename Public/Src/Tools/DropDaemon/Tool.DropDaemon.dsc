@@ -51,7 +51,7 @@ export namespace DropDaemon {
         ]
     });
 
-    const temporarySdkDropNextToEngineFolder = d`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Drop`;
+    const temporarySdkDropNextToEngineFolder = d`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Drop/bin`;
     const temporaryDropDaemonTool : Transformer.ToolDefinition = {
         exe: f`${temporarySdkDropNextToEngineFolder}/DropDaemon.exe`,
         runtimeDirectoryDependencies: [

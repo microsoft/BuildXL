@@ -618,7 +618,30 @@ namespace BuildXL.Engine.Distribution
                 SequenceNumber = Interlocked.Increment(ref m_nextSequenceNumber),
             };
 
-            m_buildRequests.Add(ValueTuple.Create(pipCompletionTask, pipBuildRequest));
+            try
+            {
+                m_buildRequests.Add(ValueTuple.Create(pipCompletionTask, pipBuildRequest));
+            }
+            catch (InvalidOperationException)
+            {
+                if (IsConnectionLost)
+                {
+                    // We cannot send the pip build request as the connection has been lost with the worker. 
+
+                    // When connection has been lost, the worker gets stopped and scheduler stops choosing that worker. 
+                    // However, if the connection is lost after the worker is choosen 
+                    // and before we add those build requests to blocking collection(m_buildRequests), 
+                    // we will try to add the build request to the blocking colletion which is marked as completed 
+                    // It will throw InvalidOperationException. 
+                    FailRemotePip(
+                        pipCompletionTask,
+                        "Connection was lost");
+                    return;
+                }
+
+                throw;
+            }
+
         }
 
         private void ExtractHashes(RunnablePip runnable, List<FileArtifactKeyedHash> hashes)

@@ -34,7 +34,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 58: Added RequiresAdmin field into the process pip.
         /// 59: Report all accesses under shared opaque fix
         /// 60: Save AbsolutePath in the StaticOutputHashes
+        /// 62: FileContentInfo - change how length/existence is stored.
         /// </remarks>
-        TwoPhaseV2 = 60,
+        TwoPhaseV2 = 62,
     }
 }

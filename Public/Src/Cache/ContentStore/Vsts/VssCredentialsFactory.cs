@@ -6,7 +6,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
+#if FEATURE_CORECLR
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
+#endif
 using Microsoft.VisualStudio.Services.Client;
 using Microsoft.VisualStudio.Services.Common;
 #if !PLATFORM_OSX
@@ -91,11 +93,12 @@ namespace BuildXL.Cache.ContentStore.Vsts
             _credentials = creds;
         }
 
+#if !PLATFORM_OSX
+#if FEATURE_CORECLR
         private const string VsoAadSettings_ProdAadAddress = "https://login.windows.net/";
         private const string VsoAadSettings_TestAadAddress = "https://login.windows-ppe.net/";
         private const string VsoAadSettings_DefaultTenant = "microsoft.com";
 
-#if !PLATFORM_OSX
         private VssCredentials CreateVssCredentialsForUserName(Uri baseUri)
         {
             var authorityAadAddres = baseUri.Host.ToLowerInvariant().Contains("visualstudio.com")
@@ -111,6 +114,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             token.AcquireToken(); 
             return new VssAadCredential(token);
         }
+#endif //FEATURE_CORECLR
 
         /// <summary>
         /// Creates a VssCredentials object and returns it.
@@ -127,13 +131,14 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return _helper.GetPATCredentials(_pat);
             }
 
+#if FEATURE_CORECLR
             // If the user name is explicitly provided call a different auth method that's
             // not going to query the OS for the AAD user name (which is, btw, disallowed on CoreCLR).
             if (_userName != null)
             {
                 return CreateVssCredentialsForUserName(baseUri);
             }
-
+#endif // FEATURE_CORECLR
             return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, null)
                 .ConfigureAwait(false);
         }

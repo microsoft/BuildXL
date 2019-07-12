@@ -256,19 +256,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // Priority queue orders by least first. So we compare by last access time to get the least last access time (i.e. oldest) first.
             var priorityQueue = new PriorityQueue<ContentHashWithLastAccessTimeAndReplicaCount>(
-                pageSize,
+                pageSize * 2,
                 // Assume that EffectiveLastAccessTime will always have a value.
                 Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value)));
 
             var operationContext = new OperationContext(context);
 
-            var subPageSize = Math.Max(1, pageSize / 20);
+            var subPageSize = Math.Max(1, pageSize / 10);
 
             // Content is retrieved in batches of size, PageSize, and then returned in pages of subPageSize=PageSize/10 as long as the queue has >= PageSize elements.
             // This ensures that we have PageSize amount of lookahead
             // NOTE: We use RandomSplitInterleave to ensure we select a random set of the newer content. This ensure we at least look at newer content to see if it should be
             // evicted first due to having a high number of replicas
-            foreach (var page in contentHashesWithInfo.RandomSplitInterleave().GetPages(pageSize / 2))
+            foreach (var page in contentHashesWithInfo.RandomSplitInterleave().GetPages(pageSize))
             {
                 var pageWithEffectiveLastAccessTimeResult = _localLocationStore.GetEffectiveLastAccessTimes(operationContext, page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime)));
                 IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> lastAccessTimes = pageWithEffectiveLastAccessTimeResult.ThrowIfFailure();
@@ -278,7 +278,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     priorityQueue.Push(lastAccessTimes[i]);
                 }
 
-                while (priorityQueue.Count >= pageSize / 2)
+                while (priorityQueue.Count >= pageSize)
                 {
                     yield return GetPriorityPage(priorityQueue, subPageSize);
                 }

@@ -94,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Indicates the window size for executing eviction.
         /// </summary>
-        public int EvictionWindowSize { get; set; } = 1000;
+        public int EvictionWindowSize { get; set; } = 500;
 
         /// <nodoc />
         public bool HasWriteMode(ContentLocationMode mode)

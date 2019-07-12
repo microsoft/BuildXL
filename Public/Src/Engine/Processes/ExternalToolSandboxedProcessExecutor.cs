@@ -42,6 +42,10 @@ namespace BuildXL.Processes
             }
 
             string directory = Path.GetDirectoryName(executablePath);
+
+            // If the pip run by this sandboxed process executor tool also executes Detours, then that pip may access
+            // DetoursServices.pdb that is linked with this tool. Thus, we need to tell the pip to untrack the directories
+            // where DetoursServices are located.
             UntrackedScopes = new[] { Path.Combine(directory, "X86"), Path.Combine(directory, "X64") };
         }
 

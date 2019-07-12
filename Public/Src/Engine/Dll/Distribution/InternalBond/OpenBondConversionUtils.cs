@@ -170,7 +170,7 @@ namespace BuildXL.Engine.Distribution.InternalBond
                 {
                     ContentHash = hash.ContentHash.ToDistributedContentHash(),
                     FileName = hash.FileName,
-                    SerializedLengthAndExistence = hash.SerializedLengthAndExistence,
+                    Length = hash.Length,
                     PathString = hash.PathString,
                     PathValue = hash.PathValue,
                     ReparsePointType = (BondReparsePointType)hash.ReparsePointType,
@@ -242,7 +242,7 @@ namespace BuildXL.Engine.Distribution.InternalBond
                     AssociatedDirectories = directories,
                     ContentHash = i.ContentHash.ToBondContentHash(),
                     FileName = i.FileName,
-                    SerializedLengthAndExistence = i.SerializedLengthAndExistence,
+                    Length = i.Length,
                     PathString = i.PathString,
                     PathValue = i.PathValue,
                     ReparsePointTarget = i.ReparsePointTarget,

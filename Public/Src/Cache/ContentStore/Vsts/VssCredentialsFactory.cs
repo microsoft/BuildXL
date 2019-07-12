@@ -143,10 +143,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 .ConfigureAwait(false);
         }
 #else
-            /// <summary>
-            /// Creates a VssCredentials object and returns it.
-            /// </summary>
-            public Task<VssCredentials> CreateVssCredentialsAsync(Uri baseUri, bool useAad)
+        /// <summary>
+        /// Creates a VssCredentials object and returns it.
+        /// </summary>
+        public Task<VssCredentials> CreateVssCredentialsAsync(Uri baseUri, bool useAad)
         {
             if (_credentials != null)
             {

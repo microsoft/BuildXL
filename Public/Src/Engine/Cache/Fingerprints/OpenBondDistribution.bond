@@ -74,7 +74,7 @@ struct FileArtifactKeyedHash
 	5: nullable<string> FileName;
 
     /// The length of the file
-    6: int64 SerializedLengthAndExistence;
+    6: int64 Length;
 
     /// The reparse point type
     7: BuildXL.Engine.Cache.Fingerprints.BondReparsePointType ReparsePointType = None;

@@ -189,7 +189,7 @@ message FileArtifactKeyedHash
     string FileName = 5;
 
     // The length of the file
-    int64 SerializedLengthAndExistence = 6;
+    int64 Length = 6;
 
     enum GrpcReparsePointType {
         None = 0;

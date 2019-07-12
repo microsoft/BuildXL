@@ -24,5 +24,8 @@ namespace Test.Tool.MsBuildGraphBuilder {
             ...MSBuild.msbuildRuntimeContent,
             ...MSBuild.msbuildReferences,
         ],
+        runtimeContentToSkip: [
+            importFrom("System.Threading.Tasks.Dataflow").pkg
+        ]
     });
 }

@@ -215,9 +215,87 @@ namespace BuildXL.Cache.ContentStore.Distributed
     }
 
     /// <summary>
+    /// Enumeration of the different types of credentials that we currently support
+    /// </summary>
+    public enum CredentialsKind
+    {
+        /// <nodoc />
+        RedisPlainText,
+
+        /// <nodoc />
+        EventHubPlainText,
+
+        /// <nodoc />
+        AzureBlobPlainText,
+
+        /// <nodoc />
+        AzureBlobSASToken,
+    }
+
+    /// <summary>
+    /// Base class for all credentials required to be handled by CaSaaS. Any class that inherits from here needs to be
+    /// kept in sync with <see cref="CredentialsKind"/> and all implementations of IDistributedCacheServiceHost.
+    /// </summary>
+    public abstract class Credentials
+    {
+        /// <summary>
+        /// Returns true if the current instance is of the kind passed by parameter
+        /// </summary>
+        public abstract bool IsOfKind(CredentialsKind kind);
+    }
+
+    /// <summary>
+    /// Provides authentication options for all redis usages across CaSaaS
+    /// </summary>
+    public class RedisCredentials : Credentials
+    {
+        /// <nodoc />
+        public string ConnectionString { get; }
+
+        /// <summary>
+        /// Creates a fixed credential; this is our default mode of authentication
+        /// </summary>
+        public RedisCredentials(string connectionString)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(connectionString));
+            ConnectionString = connectionString;
+        }
+
+        /// <inheritdoc />
+        public override bool IsOfKind(CredentialsKind kind)
+        {
+            return kind == CredentialsKind.RedisPlainText;
+        }
+    }
+
+    /// <summary>
+    /// Provides authentication options for <see cref="EventHubContentLocationEventStore"/>
+    /// </summary>
+    public class EventHubCredentials : Credentials
+    {
+        /// <nodoc />
+        public string ConnectionString { get; }
+
+        /// <summary>
+        /// Creates a fixed credential; this is our default mode of authentication.
+        /// </summary>
+        public EventHubCredentials(string connectionString)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(connectionString));
+            ConnectionString = connectionString;
+        }
+
+        /// <inheritdoc />
+        public override bool IsOfKind(CredentialsKind kind)
+        {
+            return kind == CredentialsKind.EventHubPlainText;
+        }
+    }
+
+    /// <summary>
     /// Provides Azure Storage authentication options for <see cref="BlobCentralStorage"/>
     /// </summary>
-    public class AzureBlobStorageCredentials
+    public class AzureBlobStorageCredentials : Credentials
     {
         /// <nodoc />
         private string ConnectionString { get; }
@@ -279,6 +357,22 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public CloudBlobClient CreateCloudBlobClient()
         {
             return CreateCloudStorageAccount().CreateCloudBlobClient();
+        }
+
+        /// <inheritdoc />
+        public override bool IsOfKind(CredentialsKind kind)
+        {
+            if (!string.IsNullOrEmpty(ConnectionString))
+            {
+                return kind == CredentialsKind.AzureBlobPlainText;
+            }
+
+            if (StorageCredentials != null && StorageCredentials.IsSAS)
+            {
+                return kind == CredentialsKind.AzureBlobSASToken;
+            }
+
+            return false;
         }
     }
 

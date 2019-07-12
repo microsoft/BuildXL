@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Security;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -265,13 +266,13 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.IsReconciliationEnabled, value => configuration.EnableReconciliation = value);
             ApplyIfNotNull(_distributedSettings.UseIncrementalCheckpointing, value => configuration.Checkpoint.UseIncrementalCheckpointing = value);
 
-            configuration.RedisGlobalStoreConnectionString = GetRequiredSecret(secrets, _distributedSettings.GlobalRedisSecretName);
+            configuration.RedisGlobalStoreConnectionString = (GetRequiredSecret(secrets, _distributedSettings.GlobalRedisSecretName) as RedisCredentials).ConnectionString;
 
             if (_distributedSettings.SecondaryGlobalRedisSecretName != null)
             {
-                configuration.RedisGlobalStoreSecondaryConnectionString = GetRequiredSecret(
+                configuration.RedisGlobalStoreSecondaryConnectionString = (GetRequiredSecret(
                     secrets,
-                    _distributedSettings.SecondaryGlobalRedisSecretName);
+                    _distributedSettings.SecondaryGlobalRedisSecretName) as RedisCredentials).ConnectionString;
             }
 
             ApplyIfNotNull(
@@ -310,7 +311,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var eventStoreConfiguration = new EventHubContentLocationEventStoreConfiguration(
                 eventHubName: "eventhub",
-                eventHubConnectionString: GetRequiredSecret(secrets, _distributedSettings.EventHubSecretName),
+                eventHubConnectionString: (GetRequiredSecret(secrets, _distributedSettings.EventHubSecretName) as EventHubCredentials).ConnectionString,
                 consumerGroupName: "$Default",
                 epoch: _keySpace + _distributedSettings.EventHubEpoch);
 
@@ -320,7 +321,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 value => eventStoreConfiguration.MaxEventProcessingConcurrency = value);
         }
 
-        private AzureBlobStorageCredentials[] GetStorageCredentials(Dictionary<string, string> settings, StringBuilder errorBuilder)
+        private AzureBlobStorageCredentials[] GetStorageCredentials(Dictionary<string, Credentials> secrets, StringBuilder errorBuilder)
         {
             var storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
             if (storageSecretNames == null)
@@ -329,19 +330,19 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
 
             return storageSecretNames.Select(name => {
-                return new AzureBlobStorageCredentials(GetRequiredSecret(settings, name));
+                return GetRequiredSecret(secrets, name) as AzureBlobStorageCredentials;
             }).ToArray();
         }
 
         private List<string> GetAzureStorageSecretNames(StringBuilder errorBuilder)
         {
             List<string> secretNames = new List<string>();
-            if (_distributedSettings.AzureStorageSecretName != null)
+            if (_distributedSettings.AzureStorageSecretName != null && !string.IsNullOrEmpty(_distributedSettings.AzureStorageSecretName))
             {
                 secretNames.Add(_distributedSettings.AzureStorageSecretName);
             }
 
-            if (_distributedSettings.AzureStorageSecretNames != null)
+            if (_distributedSettings.AzureStorageSecretNames != null && !_distributedSettings.AzureStorageSecretNames.Any(string.IsNullOrEmpty))
             {
                 secretNames.AddRange(_distributedSettings.AzureStorageSecretNames);
             }
@@ -356,7 +357,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             return secretNames;
         }
 
-        private async Task<Dictionary<string, string>> TryRetrieveSecretsAsync(CancellationToken token, StringBuilder errorBuilder)
+        private async Task<Dictionary<string, Credentials>> TryRetrieveSecretsAsync(CancellationToken token, StringBuilder errorBuilder)
         {
             _logger.Debug(
                 $"{nameof(_distributedSettings.EventHubSecretName)}: {_distributedSettings.EventHubSecretName}, " +
@@ -372,32 +373,50 @@ namespace BuildXL.Cache.Host.Service.Internal
                 return null;
             }
 
+            // Create the credentials requests
+            var retrieveSecretsRequests = new List<RetrieveSecretsRequest>();
+
             var storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
             if (storageSecretNames == null)
             {
                 return null;
             }
+            retrieveSecretsRequests.AddRange(storageSecretNames.Select(secretName => new RetrieveSecretsRequest(secretName, CredentialsKind.AzureBlobPlainText)));
 
-            if (_distributedSettings.EventHubSecretName != null &&
-                _distributedSettings.GlobalRedisSecretName != null)
+            if (string.IsNullOrEmpty(_distributedSettings.EventHubSecretName) ||
+                string.IsNullOrEmpty(_distributedSettings.GlobalRedisSecretName))
             {
-                var retryPolicy = CreateSecretsRetrievalRetryPolicy(_distributedSettings);
-                return await retryPolicy.ExecuteAsync(
-                    async () =>
-                    {
-                        return await _arguments.Host.RetrieveKeyVaultSecretsAsync(
-                            new List<string>(storageSecretNames)
-                            {
-                                _distributedSettings.EventHubSecretName,
-                                _distributedSettings.GlobalRedisSecretName,
-                                _distributedSettings.SecondaryGlobalRedisSecretName
-                            }.Where(s => s != null).ToList(),
-                            token);
-                    },
-                    token);
+                return null;
             }
 
-            return null;
+            retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.EventHubSecretName, CredentialsKind.EventHubPlainText));
+
+            retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.GlobalRedisSecretName, CredentialsKind.RedisPlainText));
+            if (!string.IsNullOrEmpty(_distributedSettings.SecondaryGlobalRedisSecretName))
+            {
+                retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.SecondaryGlobalRedisSecretName, CredentialsKind.RedisPlainText));
+            }
+
+            // Ask the host for credentials
+            var retryPolicy = CreateSecretsRetrievalRetryPolicy(_distributedSettings);
+            var secrets = await retryPolicy.ExecuteAsync(
+                async () => await _arguments.Host.RetrieveKeyVaultSecretsAsync(retrieveSecretsRequests, token),
+                token);
+            if (secrets == null)
+            {
+                return null;
+            }
+
+            // Validate requests match as expected
+            foreach (var request in retrieveSecretsRequests)
+            {
+                if (secrets.TryGetValue(request.Name, out var credential) && !credential.IsOfKind(request.Kind))
+                {
+                    throw new SecurityException($"The credentials produced by the host for secret named {request.Name} do not match the expected kind");
+                }
+            }
+
+            return secrets;
 
             bool appendIfNull(object value, string propertyName)
             {
@@ -427,9 +446,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private static string GetRequiredSecret(Dictionary<string, string> secrets, string secretName)
+        private static Credentials GetRequiredSecret(Dictionary<string, Credentials> secrets, string secretName)
         {
-            if (!secrets.TryGetValue(secretName, out var value) || string.IsNullOrEmpty(value))
+            if (!secrets.TryGetValue(secretName, out var value))
             {
                 throw new KeyNotFoundException($"Missing secret: {secretName}");
             }

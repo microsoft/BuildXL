@@ -2,11 +2,30 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed;
 
 namespace BuildXL.Cache.Host.Service
 {
+    /// <summary>
+    /// Type to signal the host which kind of secret is expected to be returned
+    /// </summary>
+    public struct RetrieveSecretsRequest
+    {
+        public string Name { get; }
+
+        public CredentialsKind Kind { get; }
+
+        public RetrieveSecretsRequest(string name, CredentialsKind kind)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(name));
+            Name = name;
+            Kind = kind;
+        }
+    }
+
     /// <summary>
     /// Host used for providing callbacks and external functionality to a distributed cache service
     /// </summary>
@@ -36,6 +55,6 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Retrieves secrets from key vault
         /// </summary>
-        Task<Dictionary<string, string>> RetrieveKeyVaultSecretsAsync(List<string> secrets, CancellationToken token);
+        Task<Dictionary<string, Credentials>> RetrieveKeyVaultSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token);
     }
 }

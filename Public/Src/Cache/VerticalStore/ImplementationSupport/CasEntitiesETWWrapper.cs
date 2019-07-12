@@ -3,12 +3,8 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using BuildXL.Cache.Interfaces;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
+using BuildXL.Cache.Interfaces;
 
 #pragma warning disable SA1649 // File name must match first type name
 

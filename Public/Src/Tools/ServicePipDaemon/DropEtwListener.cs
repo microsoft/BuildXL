@@ -3,9 +3,9 @@
 
 using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using BuildXL.Tracing;
 using BuildXL.Tracing.CloudBuild;
-using Microsoft.Diagnostics.Tracing;
 
 namespace Tool.ServicePipDaemon
 {

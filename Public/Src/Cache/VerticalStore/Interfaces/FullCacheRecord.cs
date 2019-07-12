@@ -3,12 +3,8 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.Text;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
+using System.Text;
 
 namespace BuildXL.Cache.Interfaces
 {

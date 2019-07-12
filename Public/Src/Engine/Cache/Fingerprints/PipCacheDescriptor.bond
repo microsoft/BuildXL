@@ -40,6 +40,12 @@ struct RelativePathFileMaterializationInfo
     2: BondFileMaterializationInfo Info;
 }
 
+struct AbsolutePathFileMaterializationInfo
+{
+    1: string AbsolutePath;
+    2: BondFileMaterializationInfo Info;
+}
+
 /// <summary>
 /// TODO: Remove along with PipCacheDescriptor (V1)
 /// </summary>
@@ -250,7 +256,7 @@ struct PipCacheDescriptorV2Metadata : PipFingerprintEntryData
     /// Hashes of the outputs
     /// The ordering must match with outputs defined in the pip
     /// </summary>
-    11: vector<BondFileMaterializationInfo> StaticOutputHashes;
+    11: vector<AbsolutePathFileMaterializationInfo> StaticOutputHashes;
 
     /// <summary>
     /// Dynamic outputs (<relative path, hash>) per opaque directory.

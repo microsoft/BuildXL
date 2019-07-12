@@ -310,7 +310,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pipB = CreateAndScheduleSharedOpaqueProducer(
                 sharedOpaqueDir,
                 fileToProduceStatically: FileArtifact.Invalid,
-                sourceFileToRead: CreateSourceFile(),
+                sourceFileToRead: dummyOutputA,
                 Operation.WriteFile(outputArtifactB),
                 Operation.ReadFile(outputArtifactA, doNotInfer: true));
 

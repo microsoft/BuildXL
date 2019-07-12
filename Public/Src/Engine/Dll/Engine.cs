@@ -1101,13 +1101,7 @@ namespace BuildXL.Engine
                 mutableConfig.Logging.StoreFingerprints = true;
             }
 
-            // EarlyWorkerRelease is only enabled for Office ProductBuild lab and OSG lab builds.
-            if (mutableConfig.Logging.Environment != ExecutionEnvironment.OfficeProductBuildLab &&
-                mutableConfig.Logging.Environment != ExecutionEnvironment.OsgLab)
-            {
-                mutableConfig.Schedule.EarlyWorkerRelease = false;
-            }
-
+            // When replicating outputs to workers, workers cannot be released early.
             if (mutableConfig.Distribution.ReplicateOutputsToWorkers == true)
             {
                 mutableConfig.Schedule.EarlyWorkerRelease = false;

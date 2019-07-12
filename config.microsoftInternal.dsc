@@ -12,14 +12,13 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Bond.Core.NET", version: "3.2.0" },
     { id: "Bond.Rpc.NET", version: "3.2.0" },
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
-    { id: "Microsoft.Applications.Telemetry.Desktop", version: "1.1.152" },
 
     // Runtime dependencies used for macOS deployments
-    { id: "runtime.osx-x64.BuildXL", version: "1.94.99" },
-    { id: "Aria.Cpp.SDK.osx-x64", version: "8.5.4" },
+    { id: "runtime.osx-x64.BuildXL", version: "1.95.99" },
+    { id: "Aria.Cpp.SDK", version: "8.5.6" },
 
-    { id: "CB.QTest", version: "19.6.25.1151" },
-    { id: "CloudBuild.VmCommandProxy", version: "19.6.25.820" },
+    { id: "CB.QTest", version: "19.7.5.150853" },
+    { id: "CloudBuild.VmCommandProxy", version: "19.7.5.150555" },
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 
@@ -66,7 +65,6 @@ export const resolver = {
         f`private/InternalSdk/Bond/module.config.dsc`,
         f`private/InternalSdk/Bond.NET/module.config.dsc`,
         f`private/InternalSdk/BuildXL.DeviceMap/module.config.dsc`,
-        f`private/InternalSdk/Microsoft.Applications.Telemetry.Desktop/module.config.dsc`,
         f`private/InternalSdk/CB.QTest/module.config.dsc`,
         ...addIf(isMicrosoftInternal,
             f`private/InternalSdk/PowerShell.Core/module.config.dsc`,

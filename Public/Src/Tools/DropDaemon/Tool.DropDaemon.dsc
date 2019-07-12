@@ -39,7 +39,6 @@ export namespace DropDaemon {
             importFrom("ItemStore.Shared").pkg,
             importFrom("Microsoft.ApplicationInsights").pkg,
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
-            importFrom("Microsoft.Diagnostics.Tracing.TraceEvent").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             ...BuildXLSdk.visualStudioServicesArtifactServicesSharedPkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
@@ -53,11 +52,32 @@ export namespace DropDaemon {
         ]
     });
 
+    const temporarySdkDropNextToEngineFolder = d`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Drop/bin`;
+    const temporaryDropDaemonTool : Transformer.ToolDefinition = {
+        exe: f`${temporarySdkDropNextToEngineFolder}/DropDaemon.exe`,
+        runtimeDirectoryDependencies: [
+            Transformer.sealSourceDirectory({
+                root: temporarySdkDropNextToEngineFolder,
+                include: "allDirectories",
+            }), 
+        ],
+        untrackedDirectoryScopes: [
+            Context.getUserHomeDirectory(),
+            d`${Context.getMount("ProgramData").path}`,
+        ],
+        dependsOnWindowsDirectories: true,
+        dependsOnAppDataDirectory: true,
+        prepareTempDirectory: true,
+    };
+
     @@public
-    export const tool = !BuildXLSdk.isDropToolingEnabled ? undefined : BuildXLSdk.deployManagedTool({
-        tool: exe,
-        options: toolTemplate,
-    });
+    export const tool = !BuildXLSdk.isDropToolingEnabled 
+        ? undefined 
+        : temporaryDropDaemonTool;
+        // : BuildXLSdk.deployManagedTool({
+        // tool: exe,
+        // options: toolTemplate,
+        // });
 
     @@public
     export const deployment: Deployment.Definition = !BuildXLSdk.isDropToolingEnabled ? undefined : {

@@ -190,11 +190,12 @@ namespace BuildXL.Utilities
             {
                 // Here we handle classic absolute paths like C:\foo.txt, or a prefixed one like \\?\C:\foo.txt after \\?\ has been skipped (skipped > 0)
                 // N.B. We intentionally do not allow C:dir. That actually means C: + (current working directory on C:) + dir, which is in fact an exotic *relative* path.
-                RelativePath.ParseResult parseResult = RelativePath.TryCreate(
+                RelativePath.ParseResult parseResult = RelativePath.TryCreateInternal(
                     table.StringTable,
                     CharSpan.Skip(absolutePath, OperatingSystemHelper.IsUnixOS ? prefixLength : 3),
                     out RelativePath relPath,
-                    out characterWithError);
+                    out characterWithError,
+                    allowDotDotOutOfScope: true);
                 if (parseResult == RelativePath.ParseResult.Success)
                 {
                     components = new StringId[1 + relPath.Components.Length];
@@ -222,7 +223,7 @@ namespace BuildXL.Utilities
             if (pathType == AbsolutePathType.UNC)
             {
                 // here we handle UNC paths like \\srv\share\foo.txt
-                RelativePath.ParseResult parseResult = RelativePath.TryCreate(table.StringTable, CharSpan.Skip(absolutePath, 2), out RelativePath relPath, out characterWithError);
+                RelativePath.ParseResult parseResult = RelativePath.TryCreateInternal(table.StringTable, CharSpan.Skip(absolutePath, 2), out RelativePath relPath, out characterWithError, allowDotDotOutOfScope: true);
                 if (parseResult == RelativePath.ParseResult.Success)
                 {
                     if (relPath.IsEmpty)
@@ -453,7 +454,7 @@ namespace BuildXL.Utilities
             }
             else
             {
-                RelativePath.ParseResult parseRes = RelativePath.TryCreate(table.StringTable, relativeOrAbsolutePath, out RelativePath relPath, out _);
+                RelativePath.ParseResult parseRes = RelativePath.TryCreateInternal(table.StringTable, relativeOrAbsolutePath, out RelativePath relPath, out _);
                 Contract.Assert(parseRes == RelativePath.ParseResult.Success);
 
                 return AddPathComponents(table, this, relPath.Components);

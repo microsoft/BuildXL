@@ -76,6 +76,15 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessStartFailed(LoggingContext context, long pipSemiStableHash, string pipDescription, int errorCode, string message);
 
         [GeneratedEvent(
+            (int)LogEventId.PipProcessFileNotFound,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process start failed with error code {2:X8}: File '{3}' was not found on disk. The tool is referred to in '{4}({5})'.")]
+        public abstract void PipProcessFileNotFound(LoggingContext context, long pipSemiStableHash, string pipDescription, int errorCode, string filename, string specFile, int position);
+
+        [GeneratedEvent(
             (int)LogEventId.PipProcessFinished,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -902,7 +911,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipSpecifiedToRunInContainerButIsolationIsNotSupported(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int) LogEventId.PipProcessStartExternalTool,
+            (int)LogEventId.PipProcessStartExternalTool,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -954,13 +963,26 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Process needs to be executed externally because (require admin privilege: {requiredAdminPrivilege} | execution mode: {executionMode}), but instead it executes internally because (Win OS: {isWinOS} | container enabled: {isContainerEnabled} | listener existence: {existsListener})")]
         public abstract void PipProcessNeedsExecuteExternalButExecuteInternal(
-            LoggingContext context, 
-            long pipSemiStableHash, 
-            string pipDescription, 
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
             bool requiredAdminPrivilege,
             string executionMode,
             bool isWinOS,
             bool isContainerEnabled,
             bool existsListener);
+
+        [GeneratedEvent(
+            (int)LogEventId.TranslatePathInGlobalUnsafeUntrackedScopes,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "{path} in GlobalUnsafeUntrackedScopes get translated")]
+        public abstract void TranslatePathInGlobalUnsafeUntrackedScopes(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path);
     }
 }

@@ -24,11 +24,6 @@ namespace Tool.DropDaemon
             // TODO:# 1208464- this can be removed once DropDaemon targets .net or newer 4.7 where TLS 1.2 is enabled by default
             ServicePointManager.SecurityProtocol = ServicePointManager.SecurityProtocol | SecurityProtocolType.Tls12;
 
-            if (args.Length > 0 && args[0] == "listen")
-            {
-                return ServicePipDaemon.ServicePipDaemon.SubscribeAndProcessCloudBuildEvents();
-            }
-
             try
             {
                 Console.WriteLine("DropDaemon started at " + DateTime.UtcNow);

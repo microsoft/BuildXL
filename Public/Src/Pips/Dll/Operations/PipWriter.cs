@@ -13,16 +13,12 @@ namespace BuildXL.Pips.Operations
     /// <remarks>
     /// This type is internal, as the serialization/deserialization functionality is encapsulated by the PipTable.
     /// </remarks>
-    internal sealed class PipWriter : BuildXLWriter
+    internal class PipWriter : BuildXLWriter
     {
-        public PipWriter(PageableStore store, Stream stream, bool leaveOpen, bool logStats)
-            : base(store.Debug, stream, leaveOpen, logStats)
+        public PipWriter(bool debug, Stream stream, bool leaveOpen, bool logStats)
+            : base(debug, stream, leaveOpen, logStats)
         {
-            Contract.Requires(store != null);
-            Store = store;
         }
-
-        public PageableStore Store { get; }
 
         public void Write(Pip pip)
         {
@@ -32,11 +28,16 @@ namespace BuildXL.Pips.Operations
             End();
         }
 
-        public void Write(in PipData value)
+        public virtual void Write(in PipData value)
         {
             Start<PipData>();
             value.Serialize(this);
             End();
+        }
+
+        public virtual void WritePipDataId(in StringId value)
+        {
+            Write(value);
         }
 
         public void Write(in EnvironmentVariable value)
@@ -64,7 +65,7 @@ namespace BuildXL.Pips.Operations
         public void Write(PipId value)
         {
             Start<PipId>();
-            Write(value.Value);
+            WritePipIdValue(value.Value);
             End();
         }
 

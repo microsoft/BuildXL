@@ -166,11 +166,18 @@ namespace BuildXL.Processes
         ZwOpenFile,
 
         /// <summary>
-        /// This is a quazy operation. We issue this
+        /// This is a quasi operation. We issue this
         /// report when Detours is changing file open
         /// request with Read/Write access to Read access only.
         /// </summary>
         ChangedReadWriteToReadAccess,
+
+        /// <summary>
+        /// This is a quasi operation. The sandbox issues this only when <see cref="FileAccessPolicy.OverrideAllowWriteForExistingFiles"/> is set, representing
+        /// that an allow for write check was performed for a given path for the first time (in the scope of a process, another process in the same process 
+        /// tree may also report this for the same path)
+        /// </summary>
+        FirstAllowWriteCheckInProcess,
 
         /// <summary>
         /// Access of reparse point target.

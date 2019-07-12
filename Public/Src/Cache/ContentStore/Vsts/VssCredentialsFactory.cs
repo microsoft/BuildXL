@@ -5,6 +5,9 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Threading.Tasks;
+using JetBrains.Annotations;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Microsoft.VisualStudio.Services.Client;
 using Microsoft.VisualStudio.Services.Common;
 #if !PLATFORM_OSX
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
@@ -22,6 +25,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private readonly VssCredentials _credentials;
 
 #if !PLATFORM_OSX
+        private readonly string _userName;
         private readonly SecureString _pat;
         private readonly byte[] _credentialBytes;
 
@@ -33,6 +37,19 @@ namespace BuildXL.Cache.ContentStore.Vsts
         public VssCredentialsFactory(VsoCredentialHelper helper)
         {
             _helper = helper;
+        }
+
+        /// <summary>
+        /// Initializes a new instance with a helper and a user name explicitly provided.
+        /// </summary>
+        /// <remarks>
+        /// CoreCLR is not allowed to query the OS for the AAD user name of the current user,
+        /// which is why this constructor allows for that user name to be explicitly provided.
+        /// </remarks>
+        public VssCredentialsFactory(VsoCredentialHelper helper, [CanBeNull] string userName)
+            : this(helper)
+        {
+            _userName = userName;
         }
 
         /// <summary>
@@ -74,7 +91,26 @@ namespace BuildXL.Cache.ContentStore.Vsts
             _credentials = creds;
         }
 
+        private const string VsoAadSettings_ProdAadAddress = "https://login.windows.net/";
+        private const string VsoAadSettings_TestAadAddress = "https://login.windows-ppe.net/";
+        private const string VsoAadSettings_DefaultTenant = "microsoft.com";
+
 #if !PLATFORM_OSX
+        private VssCredentials CreateVssCredentialsForUserName(Uri baseUri)
+        {
+            var authorityAadAddres = baseUri.Host.ToLowerInvariant().Contains("visualstudio.com")
+                ? VsoAadSettings_ProdAadAddress
+                : VsoAadSettings_TestAadAddress;
+            var authCtx = new AuthenticationContext(authorityAadAddres + VsoAadSettings_DefaultTenant);
+
+            var userCred = string.IsNullOrEmpty(_userName)
+                ? new UserCredential() 
+                : new UserCredential(_userName);
+
+            var token = new VssAadToken(authCtx, userCred, VssAadTokenOptions.None);
+            token.AcquireToken(); 
+            return new VssAadCredential(token);
+        }
 
         /// <summary>
         /// Creates a VssCredentials object and returns it.
@@ -89,6 +125,13 @@ namespace BuildXL.Cache.ContentStore.Vsts
             if (_pat != null)
             {
                 return _helper.GetPATCredentials(_pat);
+            }
+
+            // If the user name is explicitly provided call a different auth method that's
+            // not going to query the OS for the AAD user name (which is, btw, disallowed on CoreCLR).
+            if (_userName != null)
+            {
+                return CreateVssCredentialsForUserName(baseUri);
             }
 
             return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, null)

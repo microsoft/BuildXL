@@ -473,7 +473,7 @@ namespace BuildXL.Scheduler.Distribution
 
                     outputContent[i] = (
                         file,
-                        new FileMaterializationInfo(new FileContentInfo(hash, length), fileName, ReparsePointInfo.Create(reparsePointType, reparsePointTarget)),
+                        new FileMaterializationInfo(new FileContentInfo(hash, FileContentInfo.LengthAndExistence.Deserialize(length)), fileName, ReparsePointInfo.Create(reparsePointType, reparsePointTarget)),
                         PipOutputOrigin.NotMaterialized);
                 }
             }
@@ -496,7 +496,7 @@ namespace BuildXL.Scheduler.Distribution
                 {
                     var output = outputContent[i];
                     WriteFileArtifact(writer, output.fileArtifact);
-                    writer.WriteCompact(output.fileMaterializationInfo.FileContentInfo.RawLength);
+                    writer.WriteCompact(output.fileMaterializationInfo.FileContentInfo.SerializedLengthAndExistence);
                     output.Item2.Hash.SerializeHashBytes(byteBuffer, 0);
                     writer.Write(byteBuffer, 0, ContentHashingUtilities.HashInfo.ByteLength);
                     WritePathAtom(writer, output.fileMaterializationInfo.FileName);

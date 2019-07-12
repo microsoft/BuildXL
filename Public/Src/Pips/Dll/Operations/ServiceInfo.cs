@@ -154,9 +154,9 @@ namespace BuildXL.Pips.Operations
             writer.Write(info.FinalizationPipIds, (w, v) => WritePipId(w, v));
         }
 
-        private static void WritePipId(BuildXLWriter writer, PipId pipId) => writer.Write(pipId.Value);
+        private static void WritePipId(BuildXLWriter writer, PipId pipId) => writer.WritePipIdValue(pipId.Value);
 
-        private static PipId ReadPipId(BuildXLReader reader) => new PipId(reader.ReadUInt32());
+        private static PipId ReadPipId(BuildXLReader reader) => new PipId(reader.ReadPipIdValue());
         #endregion
     }
 }

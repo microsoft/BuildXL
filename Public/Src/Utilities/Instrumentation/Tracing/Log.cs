@@ -7,12 +7,6 @@ using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-
-#else
-
-#endif
-
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
 
@@ -33,7 +27,7 @@ namespace BuildXL.Tracing
         /// <summary>
         /// CAUTION!!
         ///
-        /// WDG has Asimov telemetry listening to this event. Any change will require a breaking change announcement
+        /// WDG has Asimov telemetry listening to this event. Any change to an existing field will require a breaking change announcement
         /// </summary>
         [GeneratedEvent(
             (ushort)EventId.Statistic,

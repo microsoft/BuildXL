@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -16,11 +17,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 
 using static BuildXL.Scheduler.ExecutionSampler;
 
@@ -46,7 +42,7 @@ namespace BuildXL.App.Tracing
         /// <summary>
         /// CAUTION!!
         ///
-        /// WDG has Asimov telemetry listening to this event. Any change will require a breaking change announcement.
+        /// WDG has Asimov telemetry listening to this event. Any change to an existing field will require a breaking change announcement
         /// 
         /// This event is only used for ETW and telemetry. The commandLine must be scrubbed so it doesn't overflow
         /// </summary>
@@ -88,7 +84,7 @@ namespace BuildXL.App.Tracing
         /// <summary>
         /// CAUTION!!
         ///
-        /// WDG has Asimov telemetry listening to this event. Any change will require a breaking change announcement.
+        /// WDG has Asimov telemetry listening to this event. Any change to an existing field will require a breaking change announcement
         /// </summary>
         [GeneratedEvent(
             (ushort)EventId.DominoCompletion,
@@ -96,7 +92,7 @@ namespace BuildXL.App.Tracing
             EventLevel = Level.Verbose,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = "{ShortProductName} process exited with: ExitCode:'{0}', ExitType:{1}, ErrorBucket:{errorBucket}")]
-        public abstract void DominoCompletion(LoggingContext context, int exitCode, string exitKind, string errorBucket, int processRunningTime);
+        public abstract void DominoCompletion(LoggingContext context, int exitCode, string exitKind, string errorBucket, string bucketMessage, int processRunningTime);
 
         [GeneratedEvent(
             (ushort)EventId.DominoPerformanceSummary,
@@ -751,9 +747,15 @@ namespace BuildXL.App.Tracing
         /// <summary>
         /// Logging DominoCompletion with an extra CloudBuild event
         /// </summary>
-        public static void LogDominoCompletion(LoggingContext context, int exitCode, ExitKind exitKind, ExitKind cloudBuildExitKind, string errorBucket, int processRunningTime, long utcTicks, bool inCloudBuild)
+        public static void LogDominoCompletion(LoggingContext context, int exitCode, ExitKind exitKind, ExitKind cloudBuildExitKind, string errorBucket, string bucketMessage, int processRunningTime, long utcTicks, bool inCloudBuild)
         {
-            Log.DominoCompletion(context, exitCode, exitKind.ToString(), errorBucket, processRunningTime);
+            Log.DominoCompletion(context, 
+                exitCode, 
+                exitKind.ToString(), 
+                errorBucket, 
+                // This isn't a command line but it should still be sanatized for sake of not overflowing in telemetry
+                ScrubCommandLine(bucketMessage, 1000, 1000), 
+                processRunningTime);
 
             // Sending a different event to CloudBuild ETW listener.
             if (inCloudBuild)

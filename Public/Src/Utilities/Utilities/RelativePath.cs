@@ -96,7 +96,22 @@ namespace BuildXL.Utilities
         /// Try to create a RelativePath from a string.
         /// </summary>
         /// <returns>Return the parser result indicating success, or what was wrong with the parsing.</returns>
-        public static ParseResult TryCreate<T>(StringTable table, T relativePath, out RelativePath result, out int characterWithError)
+        public static ParseResult TryCreate<T>(StringTable table, T relativePath, out RelativePath result, out int characterWithError) where T : struct, ICharSpan<T>
+        {
+            return TryCreateInternal(table, relativePath, out result, out characterWithError);
+        }
+
+        /// <summary>
+        /// Internal api to try to create a RelativePath from a string.
+        /// </summary>
+        /// <remarks>This function serves as an internal overload for tryCreate when called from AbsolutePath so we do not get the DotDotOutOfScope error when traversing beyond the root.</remarks>
+        /// <param name="table">StringTable instance.</param>
+        /// <param name="relativePath">Relative path to pass in.</param>
+        /// <param name="result">Output relative path after parsing.</param>
+        /// <param name="characterWithError">Output the character that had the error.</param>
+        /// <param name="allowDotDotOutOfScope">Whether to allow the function to parse .. beyond the root.</param>
+        /// <returns>Return the parser result indicating success, or what was wrong with the parsing.</returns>
+        internal static ParseResult TryCreateInternal<T>(StringTable table, T relativePath, out RelativePath result, out int characterWithError, bool allowDotDotOutOfScope = false)
             where T : struct, ICharSpan<T>
         {
             Contract.Requires(table != null);
@@ -169,14 +184,17 @@ namespace BuildXL.Utilities
                                 || (relativePath[index + 2] == '/'))
                             {
                                 // component is a sole .. so try to go up
-                                if (components.Count == 0)
+                                if (components.Count == 0 && !allowDotDotOutOfScope)
                                 {
                                     characterWithError = index;
                                     result = Invalid;
                                     return ParseResult.FailureDueToDotDotOutOfScope;
                                 }
 
-                                components.RemoveAt(components.Count - 1);
+                                if (components.Count != 0)
+                                {
+                                    components.RemoveAt(components.Count - 1);
+                                }
 
                                 index += 3;
                                 start = index;

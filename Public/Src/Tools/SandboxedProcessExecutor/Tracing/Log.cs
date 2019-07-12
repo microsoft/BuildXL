@@ -6,10 +6,6 @@ using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
-#if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using System.Diagnostics.Tracing;
-#endif
-
 #pragma warning disable 1591
 
 namespace BuildXL.SandboxedProcessExecutor.Tracing

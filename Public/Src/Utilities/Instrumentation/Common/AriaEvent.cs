@@ -21,13 +21,6 @@ namespace BuildXL.Utilities.Instrumentation.Common
     /// <summary>
     /// Aria Event Wrapper that is aware of target framework and runtime configuration
     /// </summary>
-    /// <remarks>
-    /// Currently Aria telemetry is only enabled for:
-    /// - Windows when building against the full framework .NET assemblies +4.6.1 through Microsoft.Applications.Telemetry
-    /// - macOS when building against .NET Core through the native Aria C++ SDK
-    /// TODO: Extend this class with more cross platform Aria implementations once they get usable and more mature, ultimately
-    ///       use the cross-platform .NETStandard2.0 Aria assemblies.
-    /// </remarks>
     public sealed class AriaEvent
     {
         private readonly List<AriaNative.EventProperty> m_eventProperties;

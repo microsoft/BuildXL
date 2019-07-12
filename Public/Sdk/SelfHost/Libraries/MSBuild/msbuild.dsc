@@ -17,7 +17,7 @@ export const msbuildReferences: Managed.ManagedNugetPackage[] = [
 /** Runtime content for tests */
 @@public
 export const msbuildRuntimeContent = [
-    importFrom("System.Threading.Tasks.Dataflow").pkg,
+    BuildXLSdk.isDotNetCoreBuild ? importFrom("System.Threading.Tasks.Dataflow").pkg : importFrom("DataflowForMSBuild").pkg,
     importFrom("System.Numerics.Vectors").pkg,
     importFrom("Microsoft.Build.Runtime").pkg,
     ...BuildXLSdk.isDotNetCoreBuild ? [

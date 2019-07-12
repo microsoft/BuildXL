@@ -128,6 +128,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="implicitPin">Policy determining whether or not content should be automatically pinned on adds or gets.</param>
         /// <param name="dedupStoreHttpClient">Backing DedupStore http client.</param>
         /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
+        /// <param name="pinInlineThreshold">Maximum time-to-live to inline pin calls.</param>
+        /// <param name="ignorePinThreshold">Minimum time-to-live to ignore pin calls.</param>
         /// <param name="maxConnections">The maximum number of outboud connections to VSTS.</param>
         public DedupReadOnlyContentSession(
             IAbsFileSystem fileSystem,

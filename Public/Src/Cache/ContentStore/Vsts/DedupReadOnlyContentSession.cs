@@ -195,6 +195,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             if (timeLeft > _ignorePinThreshold)
             {
+                Tracer.Debug(context, $"Pin ignored bacause keepUntil has remaining time [{timeLeft}] that is greater than the ignorePinThreshold");
                 _dedupCounters[Counters.PinIgnored].Increment();
                 return PinResult.Success;
             }
@@ -203,6 +204,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             if (timeLeft < _pinInlineThreshold)
             {
+                Tracer.Debug(context, $"Pin inlined bacause keepUntil has remaining time [{timeLeft}] that is less than the pinInlineThreshold");
                 _dedupCounters[Counters.PinInlined].Increment();
                 return await task;
             }

@@ -114,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         ///     Expiration time of content in VSTS
         ///     Note: Determined by configurable timeToKeepContent. This is usually defined to be on the order of days.
         /// </summary>
-        protected DateTime EndDateTime;
+        protected readonly DateTime EndDateTime;
 
         private readonly TimeSpan _pinInlineThreshold;
 

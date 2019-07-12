@@ -371,7 +371,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
 
             var ms = (long)duration.TotalMilliseconds;
-            Debug(context, $"{Name}.PlaceFileCopy({path},{contentHash}) {ms}ms");
+            Debug(context, $"{Name}.PlaceFileCopy({path},{contentHash.ToShortString()}) {ms}ms");
         }
 
         public void ReconstructDirectory(Context context, TimeSpan duration, long contentCount, long contentSize)
@@ -425,7 +425,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.Evict() stop {result.DurationMs}ms input=[{input}] result=[{result}]");
+                TracerOperationFinished(context, result, $"{Name}.Evict() stop {result.DurationMs}ms input=[{input.ToShortString()}] result=[{result}]");
             }
         }
 

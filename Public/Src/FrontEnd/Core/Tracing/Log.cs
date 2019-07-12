@@ -4,15 +4,11 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Tracing;
 using System.Linq;
 //using BuildXL.Pips;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
@@ -274,6 +270,16 @@ namespace BuildXL.FrontEnd.Core.Tracing
             EventOpcode = (byte)EventOpcode.Start,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void FrontEndEvaluatePhaseProgress(LoggingContext context, int numModulesDone, int numModulesTotal, int numSpecsDone, int numSpecsTotal, string remaining);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.FrontEndEvaluateFragmentsProgress,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Message = EventConstants.PhasePrefix + "Evaluation progress :: Fragments: {numFragmentsDone}/{numFragmentsTotal} :: Remaining fragments: {remaining}",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Start,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
+        public abstract void FrontEndEvaluatePhaseFragmentProgress(LoggingContext context, int numFragmentsDone, int numFragmentsTotal, string remaining);
 
         [GeneratedEvent(
             (ushort)LogEventId.FrontEndStartEvaluateValues,

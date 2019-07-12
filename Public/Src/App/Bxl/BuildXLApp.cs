@@ -36,11 +36,8 @@ using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Visualization;
 using BuildXL.Visualization.Models;
 using BuildXL.Utilities.CrashReporting;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
+
 using static BuildXL.Utilities.FormattableStringEx;
 
 
@@ -791,7 +788,7 @@ namespace BuildXL
                     {
                         case (int)EventId.FileMonitoringError:
                             return ExitKind.BuildFailedWithFileMonErrors;
-                        case (int)EventId.PipProcessExpectedMissingOutputs:
+                        case (int)BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs:
                             return ExitKind.BuildFailedWithMissingOutputErrors;
                         case (int)EventId.InvalidOutputDueToSimpleDoubleWrite:
                             return ExitKind.BuildFailedSpecificationError;

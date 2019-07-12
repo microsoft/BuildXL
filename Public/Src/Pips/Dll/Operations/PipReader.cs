@@ -13,16 +13,16 @@ namespace BuildXL.Pips.Operations
     /// <remarks>
     /// This type is internal, as the serialization/deserialization functionality is encapsulated by the PipTable.
     /// </remarks>
-    internal sealed class PipReader : BuildXLReader
+    internal class PipReader : BuildXLReader
     {
-        public PipReader(PageableStore store, Stream stream, bool leaveOpen)
-            : base(store.Debug, stream, leaveOpen)
+        public PipReader(bool debug, StringTable stringTable, Stream stream, bool leaveOpen)
+            : base(debug, stream, leaveOpen)
         {
-            Contract.Requires(store != null);
-            Store = store;
+            Contract.Requires(stringTable != null);
+            StringTable = stringTable;
         }
 
-        public PageableStore Store { get; }
+        public StringTable StringTable { get; }
 
         public Pip ReadPip()
         {
@@ -42,7 +42,12 @@ namespace BuildXL.Pips.Operations
             return value;
         }
 
-        public PipData ReadPipData()
+        public virtual StringId ReadPipDataId()
+        {
+            return ReadStringId();
+        }
+
+        public virtual PipData ReadPipData()
         {
             Start<PipData>();
             PipData value = PipData.Deserialize(this);
@@ -66,10 +71,10 @@ namespace BuildXL.Pips.Operations
             return value;
         }
 
-        public PipId ReadPipId()
+        public virtual PipId ReadPipId()
         {
             Start<PipId>();
-            var value = new PipId(ReadUInt32());
+            var value = new PipId(base.ReadPipIdValue());
             End();
             return value;
         }

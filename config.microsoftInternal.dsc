@@ -12,7 +12,6 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Bond.Core.NET", version: "3.2.0" },
     { id: "Bond.Rpc.NET", version: "3.2.0" },
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
-    { id: "Microsoft.Applications.Telemetry.Desktop", version: "1.1.152" },
 
     // Runtime dependencies used for macOS deployments
     { id: "runtime.osx-x64.BuildXL", version: "1.95.99" },
@@ -66,7 +65,6 @@ export const resolver = {
         f`private/InternalSdk/Bond/module.config.dsc`,
         f`private/InternalSdk/Bond.NET/module.config.dsc`,
         f`private/InternalSdk/BuildXL.DeviceMap/module.config.dsc`,
-        f`private/InternalSdk/Microsoft.Applications.Telemetry.Desktop/module.config.dsc`,
         f`private/InternalSdk/CB.QTest/module.config.dsc`,
         ...addIf(isMicrosoftInternal,
             f`private/InternalSdk/PowerShell.Core/module.config.dsc`,

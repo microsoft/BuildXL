@@ -179,7 +179,6 @@ namespace ContentStoreTest.Stores
                 // Because the first hash is correct, we should've enumerate 2 entries because only the second one is wrong.
                 result.Value.TotalProcessedFiles.Should().Be(2);
 
-                
                 // Now the self check should continue from the previous step
                 result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ShouldBeSuccess();
                 result.Value.InvalidFiles.Should().Be(1);

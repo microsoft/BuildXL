@@ -256,10 +256,10 @@ namespace BuildXL.Scheduler.Fingerprints
 
             fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>("Dependencies", process.Dependencies, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);            
             fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryDependencies", process.DirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d), m_directoryComparer);
-                        
+
             fingerprinter.AddOrderIndependentCollection<FileArtifactWithAttributes, ReadOnlyArray<FileArtifactWithAttributes>>("Outputs", process.FileOutputs, (fp, f) => AddFileOutput(fp, f), m_expandedPathFileArtifactWithAttributesComparer);
             fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryOutputs", process.DirectoryOutputs, (h, p) => h.Add(p.Path), m_directoryComparer);
-
+                         
             fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("UntrackedPaths", process.UntrackedPaths, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
             fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("UntrackedScopes", process.UntrackedScopes, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
 

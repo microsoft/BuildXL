@@ -21,6 +21,7 @@ using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Graph;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -166,7 +167,8 @@ namespace BuildXL.FrontEnd.Core
             Engine = engine;
             FrontEndArtifactManager = CreateFrontEndArtifactManager();
             PipGraph = pipGraph;
-            
+            PipGraphFragmentManager = new PipGraphFragmentManager(LoggingContext, FrontEndContext, pipGraph);
+
             // TODO: The EngineBasedFileSystem should be replaced with a tracking file system that wraps the passed in filesystem
             // so that the speccache, engine caching/tracking all work for the real and for the fake filesystem.s
             if (FrontEndContext.FileSystem is PassThroughFileSystem)
@@ -470,7 +472,6 @@ namespace BuildXL.FrontEnd.Core
                     }
 
                     bool evaluateSucceeded = DoPhaseEvaluate(evaluationFilter, qualifiersToEvaluate);
-
                     NotifyResolversEvaluationIsFinished();
                     Engine.FinishTrackingBuildParameters();
 
@@ -1366,7 +1367,25 @@ namespace BuildXL.FrontEnd.Core
                 taskSelector: item => item.Task,
                 action: (elapsed, all, remaining) => LogModuleEvaluationProgress(numSpecs, elapsed, all, remaining),
                 period: EvaluationProgressReportingPeriod);
-            return results.All(b => b);
+            bool success = results.All(b => b);
+            if (!success)
+            {
+                return false;
+            }
+
+            if (PipGraphFragmentManager != null)
+            {
+                var tasks = PipGraphFragmentManager.GetAllFragmentTasks();
+                numSpecs = tasks.Count;
+                results = await TaskUtilities.AwaitWithProgressReporting(
+                    tasks,
+                    taskSelector: item => item.Item2,
+                    action: (elapsed, all, remaining) => LogFragmentEvaluationProgress(numSpecs, elapsed, all, remaining),
+                    period: EvaluationProgressReportingPeriod);
+                return results.All(b => b);
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -1438,11 +1457,39 @@ namespace BuildXL.FrontEnd.Core
                 remaining: remainingMessage);
         }
 
+        private void LogFragmentEvaluationProgress(
+            int numSpecsTotal,
+            TimeSpan elapsed,
+            IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> allItems,
+            IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> remainingItems)
+        {
+            string remainingMessage = ConstructProgressRemainingMessage(elapsed, remainingItems);
+            m_logger.FrontEndEvaluatePhaseFragmentProgress(
+                FrontEndContext.LoggingContext,
+                numFragmentsDone: allItems.Count - remainingItems.Count,
+                numFragmentsTotal: allItems.Count,
+                remaining: remainingMessage);
+        }
+
         private static string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<ModuleEvaluationProgress> remainingItems)
         {
             var progressMessages = remainingItems
                 .Take(10)
                 .Select(item => FormatProgressMessage(elapsed, item.Module.Descriptor.DisplayName))
+                .OrderBy(s => s, StringComparer.Ordinal)
+                .ToList();
+
+            return progressMessages.Count > 0
+                ? Environment.NewLine + string.Join(Environment.NewLine, progressMessages)
+                : "0";
+        }
+
+        private static string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> remainingItems)
+        {
+            var progressMessages = remainingItems
+                .Where(item => item.Item1.PipsDeserialized > 0)
+                .Take(10)
+                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPips})"))
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
 

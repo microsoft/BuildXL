@@ -2,13 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.IO;
+using System.Diagnostics.Tracing;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Ide.JsonRpc;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Ide.LanguageServer.Tracing
 {

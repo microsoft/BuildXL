@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.App
         ///     Hash some files and optionally display their chunks
         /// </summary>
         [SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
-        [Verb(Aliases = "hf", Description = "Hash content files")]
+        [Verb(Aliases = "dhf", Description = "Hash content files")]
         public void DedupHashFile
             (
             [Required] string[] path,
@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             var paths = new List<AbsolutePath>();
 
-            foreach (AbsolutePath root in path.Select(p => new AbsolutePath(p)))
+            foreach (AbsolutePath root in path.Select(p => new AbsolutePath(Path.GetFullPath(p))))
             {
                 if (_fileSystem.DirectoryExists(root))
                 {

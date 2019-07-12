@@ -105,6 +105,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool CheckLocalFiles { get; set; } = false;
 
+        [DataMember]
+        public int MaxShutdownDurationInMinutes { get; set; } = 30;
+
         /// <summary>
         /// Whether to use old (original) implementation of QuotaKeeper or to use the new one.
         /// </summary>

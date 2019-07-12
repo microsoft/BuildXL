@@ -169,5 +169,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
         {
             throw new NotImplementedException();
         }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result) { }
     }
 }

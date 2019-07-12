@@ -229,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             foreach (var store in StoresByName.Values)
             {
-                if (store is IContentStoreWithPostInitialization contentStore)
+                if (store is IContentStore contentStore)
                 {
                     contentStore.PostInitializationCompleted(context, result);
                 }

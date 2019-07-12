@@ -4,16 +4,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.Threading;
 using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-# endif
 
 namespace BuildXL.Engine.Distribution
 {

@@ -9,11 +9,6 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities.Instrumentation.Common;
 using VSCode.DebugProtocol;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-
-#endif
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -64,13 +59,8 @@ namespace BuildXL.FrontEnd.Script.Debugger
             Contract.Requires(context != null);
             Contract.Requires(diagnostic != null);
 
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-            if (diagnostic.Level == Microsoft.Diagnostics.Tracing.EventLevel.Error ||
-                diagnostic.Level == Microsoft.Diagnostics.Tracing.EventLevel.Critical)
-#else
             if (diagnostic.Level == System.Diagnostics.Tracing.EventLevel.Error ||
                 diagnostic.Level == System.Diagnostics.Tracing.EventLevel.Critical)
-#endif
             {
                 context.DebugState.AddError(diagnostic);
             }

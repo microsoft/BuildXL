@@ -71,5 +71,8 @@ namespace ContentStoreTest.Stores
         {
             return Task.FromResult(new DeleteResult(FailureMessage));
         }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result) { }
     }
 }

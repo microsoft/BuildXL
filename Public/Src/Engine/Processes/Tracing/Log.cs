@@ -76,6 +76,15 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessStartFailed(LoggingContext context, long pipSemiStableHash, string pipDescription, int errorCode, string message);
 
         [GeneratedEvent(
+            (int)LogEventId.PipProcessFileNotFound,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process start failed with error code {2:X8}: File '{3}' was not found on disk. The tool is referred to in '{4}({5})'.")]
+        public abstract void PipProcessFileNotFound(LoggingContext context, long pipSemiStableHash, string pipDescription, int errorCode, string filename, string specFile, int position);
+
+        [GeneratedEvent(
             (int)LogEventId.PipProcessFinished,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

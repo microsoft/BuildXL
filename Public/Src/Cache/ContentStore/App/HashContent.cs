@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -23,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.App
             Initialize();
 
             var ht = GetHashTypeByNameOrDefault(hashType);
-            var absolutePath = new AbsolutePath(path);
+            var absolutePath = new AbsolutePath(Path.GetFullPath(path));
             var paths = new List<AbsolutePath>();
 
             if (_fileSystem.DirectoryExists(absolutePath))

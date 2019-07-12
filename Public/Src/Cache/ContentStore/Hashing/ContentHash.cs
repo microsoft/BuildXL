@@ -217,6 +217,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <summary>
+        /// Produces shorter string representation of the hash.
+        /// </summary>
+        public string ToShortString()
+        {
+            return new ShortHash(this).ToString();
+        }
+
+        /// <summary>
         ///     Give the hash bytes as a hex string.
         /// </summary>
         public string ToHex()

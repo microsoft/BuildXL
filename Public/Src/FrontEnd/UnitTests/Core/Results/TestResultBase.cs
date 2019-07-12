@@ -4,15 +4,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Text;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 using BuildXL.FrontEnd.Sdk.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 

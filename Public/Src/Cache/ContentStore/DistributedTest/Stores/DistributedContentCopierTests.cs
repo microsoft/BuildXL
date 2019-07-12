@@ -85,8 +85,8 @@ namespace ContentStoreTest.Distributed.Stores
                 );
 
                 result.ShouldBeError();
-                result.ErrorMessage.Should().Contain(hash.ToString());
-                result.ErrorMessage.Should().Contain(wrongHash.ToString());
+                result.ErrorMessage.Should().Contain(hash.ToShortString());
+                result.ErrorMessage.Should().Contain(wrongHash.ToShortString());
             }
         }
 

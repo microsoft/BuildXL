@@ -70,5 +70,8 @@ namespace ContentStoreTest.Grpc
         {
             throw new System.NotImplementedException();
         }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result) { }
     }
 }

@@ -266,7 +266,7 @@ namespace BuildXL.Execution.Analyzer
                     }
                 }
 
-                serializedPip.ResetPipIdForTesting();
+                serializedPip.ResetPipId();
                 m_pipTable.Add(nodeId.Value, serializedPip);
             }
 

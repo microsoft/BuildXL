@@ -89,7 +89,7 @@ namespace Test.BuildXL.Engine
 
             FailedBuild("Build #4");
             AssertVerboseEventLogged(EventId.PipProcessMissingExpectedOutputOnCleanExit);
-            AssertErrorEventLogged(EventId.PipProcessExpectedMissingOutputs);
+            AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
             AssertErrorEventLogged(EventId.PipProcessError);
 
             // Verify DeterminismProbeEncounteredPipFailure was logged

@@ -35,7 +35,7 @@ namespace BuildXL.Processes
         private readonly ConcurrentDictionary<uint, ReportedProcess> m_processesExits = new ConcurrentDictionary<uint, ReportedProcess>();
 
         private readonly Dictionary<string, string> m_pathCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, bool> m_overrideAllowedWritePaths = new Dictionary<string, bool>();
+        private readonly Dictionary<AbsolutePath, bool> m_overrideAllowedWritePaths = new Dictionary<AbsolutePath, bool>();
         private readonly IDetoursEventListener m_detoursEventListener;
 
         public readonly List<ReportedProcess> Processes = new List<ReportedProcess>();
@@ -659,10 +659,12 @@ namespace BuildXL.Processes
                 // Races are ignored: a race means two child processes are racing to create or delete the same file
                 // - something that is not a good build behavior anyway - and the outcome will be that we will 
                 // non-deterministically deny the access
-                if (path != null && !m_overrideAllowedWritePaths.ContainsKey(path))
+                // We store the path as an absolute path in order to guarantee canonicalization: e.g. prefixes like \\?\ 
+                // are not canonicalized in detours
+                if (path != null && AbsolutePath.TryCreate(m_pathTable, path, out var pathAsAbsolutePath) && !m_overrideAllowedWritePaths.ContainsKey(pathAsAbsolutePath))
                 {
                     // We should override write allowed accesses for this path if the status of the special operation was 'denied'
-                    m_overrideAllowedWritePaths[path] = (status == FileAccessStatus.Denied);
+                    m_overrideAllowedWritePaths[pathAsAbsolutePath] = (status == FileAccessStatus.Denied);
                 }
 
                 return true;
@@ -675,7 +677,9 @@ namespace BuildXL.Processes
             if (path != null &&
                 (requestedAccess & RequestedAccess.Write) != 0 &&
                 status == FileAccessStatus.Allowed &&
-                m_overrideAllowedWritePaths.TryGetValue(path, out bool shouldOverrideAllowedAccess) &&
+                m_overrideAllowedWritePaths.Count > 0 && // Avoid creating the absolute path if the override allowed writes flag is off
+                AbsolutePath.TryCreate(m_pathTable, path, out var absolutePath) &&
+                m_overrideAllowedWritePaths.TryGetValue(absolutePath, out bool shouldOverrideAllowedAccess) &&
                 shouldOverrideAllowedAccess)
             {
                 status = FileAccessStatus.Denied;

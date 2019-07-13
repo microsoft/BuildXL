@@ -284,8 +284,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, value => configuration.LocationEntryExpiry = TimeSpan.FromMinutes(value));
 
             var storageCredentials = GetStorageCredentials(secrets, errorBuilder);
-            // We already retrieved storage connection strings, so the result should not be null.
-            Contract.Assert(storageCredentials != null);
+            Contract.Assert(storageCredentials != null && storageCredentials.Length > 0);
 
             var blobStoreConfiguration = new BlobCentralStoreConfiguration(
                 credentials: storageCredentials,
@@ -311,7 +310,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var eventStoreConfiguration = new EventHubContentLocationEventStoreConfiguration(
                 eventHubName: "eventhub",
-                eventHubConnectionString: (GetRequiredSecret(secrets, _distributedSettings.EventHubSecretName) as EventHubCredentials).ConnectionString,
+                eventHubConnectionString: ((EventHubCredentials)GetRequiredSecret(secrets, _distributedSettings.EventHubSecretName)).ConnectionString,
                 consumerGroupName: "$Default",
                 epoch: _keySpace + _distributedSettings.EventHubEpoch);
 
@@ -324,7 +323,10 @@ namespace BuildXL.Cache.Host.Service.Internal
         private AzureBlobStorageCredentials[] GetStorageCredentials(Dictionary<string, Credentials> secrets, StringBuilder errorBuilder)
         {
             var storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
-            return storageSecretNames?.Select(name => GetRequiredSecret(secrets, name) as AzureBlobStorageCredentials).ToArray();
+            return storageSecretNames?
+                .Select(name => GetRequiredSecret(secrets, name))
+                .OfType<AzureBlobStorageCredentials>()
+                .ToArray();
         }
 
         private List<string> GetAzureStorageSecretNames(StringBuilder errorBuilder)

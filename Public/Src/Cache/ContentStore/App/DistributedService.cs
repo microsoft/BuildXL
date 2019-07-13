@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,6 +16,8 @@ using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using CLAP;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Auth;
 using Newtonsoft.Json;
 
 // ReSharper disable once UnusedMember.Global
@@ -138,16 +141,36 @@ namespace BuildXL.Cache.ContentStore.App
                         case CredentialsKind.AzureBlobPlainText:
                             credentials = new AzureBlobStorageCredentials(secret);
                             break;
+                        case CredentialsKind.AzureBlobSASToken:
+                            var account = CloudStorageAccount.Parse(secret);
+                            var sasToken = account.GetSharedAccessSignature(new SharedAccessAccountPolicy
+                            {
+                                // Doesn't ever expire
+                                SharedAccessExpiryTime = null,
+                                // Grants permissions for everything
+                                Permissions = SharedAccessAccountPermissions.Add | SharedAccessAccountPermissions.Create | SharedAccessAccountPermissions.Delete | SharedAccessAccountPermissions.List | SharedAccessAccountPermissions.ProcessMessages | SharedAccessAccountPermissions.Read | SharedAccessAccountPermissions.Update | SharedAccessAccountPermissions.Write,
+                                // Only allows talking to Azure Blob
+                                Services = SharedAccessAccountServices.Blob,
+                                // Any kind of resource
+                                ResourceTypes = SharedAccessAccountResourceTypes.Object | SharedAccessAccountResourceTypes.Container | SharedAccessAccountResourceTypes.Service,
+                                // Only over Https
+                                Protocols = SharedAccessProtocol.HttpsOnly
+                            });
+
+                            // We don't need to use any endpoint suffix different than the default
+                            credentials = new AzureBlobStorageCredentials(new StorageCredentials(sasToken), account.Credentials.AccountName);
+                            break;
                         case CredentialsKind.EventHubPlainText:
                             credentials = new EventHubCredentials(secret);
                             break;
                         case CredentialsKind.RedisPlainText:
                             credentials = new RedisCredentials(secret);
                             break;
-                        case CredentialsKind.AzureBlobSASToken:
-                            continue;
+                        default:
+                            throw new NotImplementedException("It is expected that all supported credential kinds be handled when creating a DistributedService.");
                     }
 
+                    Contract.Requires(credentials != null);
                     result[request.Name] = credentials;
                 }
 

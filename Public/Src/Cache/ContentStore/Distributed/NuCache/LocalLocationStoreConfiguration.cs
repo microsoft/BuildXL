@@ -238,10 +238,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// </summary>
     public abstract class Credentials
     {
-        /// <summary>
-        /// Returns true if the current instance is of the kind passed by parameter
-        /// </summary>
-        public abstract bool IsOfKind(CredentialsKind kind);
+        /// <nodoc />
+        public CredentialsKind Kind { get; protected set; }
+
+        /// <nodoc />
+        public bool IsOfKind(CredentialsKind kind) => kind == Kind;
     }
 
     /// <summary>
@@ -259,12 +260,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         {
             Contract.Requires(!string.IsNullOrEmpty(connectionString));
             ConnectionString = connectionString;
-        }
-
-        /// <inheritdoc />
-        public override bool IsOfKind(CredentialsKind kind)
-        {
-            return kind == CredentialsKind.RedisPlainText;
+            Kind = CredentialsKind.RedisPlainText;
         }
     }
 
@@ -283,12 +279,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         {
             Contract.Requires(!string.IsNullOrEmpty(connectionString));
             ConnectionString = connectionString;
-        }
-
-        /// <inheritdoc />
-        public override bool IsOfKind(CredentialsKind kind)
-        {
-            return kind == CredentialsKind.EventHubPlainText;
+            Kind = CredentialsKind.EventHubPlainText;
         }
     }
 
@@ -320,6 +311,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         {
             Contract.Requires(!string.IsNullOrEmpty(connectionString));
             ConnectionString = connectionString;
+            Kind = CredentialsKind.AzureBlobPlainText;
         }
 
         /// <summary>
@@ -335,6 +327,8 @@ namespace BuildXL.Cache.ContentStore.Distributed
             StorageCredentials = storageCredentials;
             AccountName = accountName;
             EndpointSuffix = endpointSuffix;
+
+            Kind = CredentialsKind.AzureBlobSASToken;
         }
 
         /// <nodoc />
@@ -357,22 +351,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public CloudBlobClient CreateCloudBlobClient()
         {
             return CreateCloudStorageAccount().CreateCloudBlobClient();
-        }
-
-        /// <inheritdoc />
-        public override bool IsOfKind(CredentialsKind kind)
-        {
-            if (!string.IsNullOrEmpty(ConnectionString))
-            {
-                return kind == CredentialsKind.AzureBlobPlainText;
-            }
-
-            if (StorageCredentials != null && StorageCredentials.IsSAS)
-            {
-                return kind == CredentialsKind.AzureBlobSASToken;
-            }
-
-            return false;
         }
     }
 

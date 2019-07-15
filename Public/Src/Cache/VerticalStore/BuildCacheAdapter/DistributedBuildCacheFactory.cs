@@ -19,10 +19,6 @@ using BuildXL.Cache.MemoizationStoreAdapter;
 using BuildXL.Utilities;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
-[module: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812:AvoidUninstantiatedInternalClasses",
-    Scope = "type",
-    Target = "BuildXL.Cache.BuildCacheAdapter.DistributedBuildCacheFactory+Config",
-    Justification = "Tool is confused - it is constructed generically")]
 namespace BuildXL.Cache.BuildCacheAdapter
 {
     /// <summary>

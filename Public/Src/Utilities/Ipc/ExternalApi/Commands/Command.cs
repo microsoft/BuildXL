@@ -28,7 +28,7 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         /// are allowed to write binary values, and at the end, this method will encode
         /// the resulting byte array into string (currently using Base64).
         /// </remarks>
-        [SuppressMessage("Microsoft.Usage", "CA2202:StreamDisposeMultipleTimes", Justification = "it's ok")]
+        [SuppressMessage("Microsoft.Usage", "CA2202:StreamDisposeMultipleTimes", Justification = "False positive")]
         public static string Serialize(Command command)
         {
             Contract.Requires(command != null);
@@ -51,7 +51,7 @@ namespace BuildXL.Ipc.ExternalApi.Commands
         /// Every time a new concrete Command class is added, this method must be updated
         /// by adding a case statement to the switch.
         /// </remarks>
-        [SuppressMessage("Microsoft.Usage", "CA2202:StreamDisposeMultipleTimes", Justification = "it's ok")]
+        [SuppressMessage("Microsoft.Usage", "CA2202:StreamDisposeMultipleTimes", Justification = "False positive")]
         public static Command Deserialize(string value)
         {
             Contract.Requires(value != null);

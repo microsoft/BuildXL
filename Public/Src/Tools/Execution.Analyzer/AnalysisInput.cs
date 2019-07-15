@@ -18,7 +18,7 @@ namespace BuildXL.Execution.Analyzer
     /// <summary>
     /// Represents the inputs to an analysis (ie cached graph and execution log)
     /// </summary>
-    [SuppressMessage("Microsoft.Performance", "CA1815:ShouldOverrideEquals", Justification="Not an issue")]
+    [SuppressMessage("Microsoft.Performance", "CA1815:ShouldOverrideEquals", Justification = "Not an issue")]
     public struct AnalysisInput
     {
         /// <summary>

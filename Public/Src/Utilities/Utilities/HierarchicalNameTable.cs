@@ -701,7 +701,7 @@ namespace BuildXL.Utilities
         /// faster queries (i.e., finding the first parent name with some flag set, hinting at set membership),
         /// but not e.g. definite set membership. See <see cref="SetFlags"/>.
         /// </remarks>
-        [SuppressMessage("Microsoft.Usage", "CA2217:DoNotMarkEnumsWithFlags", Justification = "Yep, these are flags.")]
+        [SuppressMessage("Microsoft.Usage", "CA2217:DoNotMarkEnumsWithFlags", Justification = "These are intended as flags.")]
         [Flags]
         public enum NameFlags : byte
         {

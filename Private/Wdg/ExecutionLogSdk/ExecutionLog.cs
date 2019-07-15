@@ -497,7 +497,7 @@ namespace Tool.ExecutionLogSdk
         /// <exception cref="InvalidDataException">The specified XLG file is invalid or it contains unsupported data</exception>
         /// <exception cref="InvalidOperationException">The execution log folder does not contain a valid build grap and pip table</exception>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "executionLogStream is Disposed by LoadExecutionLogData called by LoadAllExecutionLogData.")]
+            Justification = "ExecutionLogStream is Disposed by LoadExecutionLogData called by LoadAllExecutionLogData.")]
         private void Initialize(string executionLogPath)
         {
             Contract.Requires(Path.IsPathRooted(executionLogPath));
@@ -598,7 +598,7 @@ namespace Tool.ExecutionLogSdk
         /// or the matching folder containing the build graph does not exist</exception>
         /// <exception cref="InvalidDataException">The specified XLG file is invalid or it contains unsupported data</exception>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "executionLogStream is Disposed by LoadExecutionLogData.")]
+            Justification = "ExecutionLogStream is Disposed by LoadExecutionLogData.")]
         private void LoadAllExecutionLogData(string executionLogPath)
         {
             // stopwatch objects to measure execution times of various initialization steps
@@ -828,7 +828,7 @@ namespace Tool.ExecutionLogSdk
         /// <param name="context">BuildXL context containing path, string and symbols</param>
         /// <param name="executionLogFileStream">Stream that contains the execution log events</param>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope",
-        Justification = "executionLogStream is Disposed by LoadExecutionLogData called by LoadAllExecutionLogData.")]
+        Justification = "ExecutionLogStream is Disposed by LoadExecutionLogData called by LoadAllExecutionLogData.")]
         private void Initialize(PipGraph pipGraph, BuildXLContext context, string executionLogFilename)
         {
             Contract.Requires(pipGraph != null, "pipGraph parameter is null");
@@ -888,7 +888,7 @@ namespace Tool.ExecutionLogSdk
         /// <exception cref="InvalidDataException">Thrown when the execution log does not contain
         /// a valid LogId or when the LogId does not match the Graph Id from the build graph.</exception>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "executionLogStream is Disposed by FilteredExecutionLogFileReader.")]
+            Justification = "ExecutionLogStream is Disposed by FilteredExecutionLogFileReader.")]
         [SuppressMessage("Microsoft.Naming", "CA2204: Correct the spelling of the unrecognized token",
             Justification = "LogId and GraphId are known tokens")]
         private Task LoadExecutionLogData(string executionLogPath)

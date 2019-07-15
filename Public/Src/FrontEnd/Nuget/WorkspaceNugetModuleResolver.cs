@@ -1447,7 +1447,6 @@ namespace BuildXL.FrontEnd.Nuget
             return contents;
         }
 
-        [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic", Justification = "False positive: the analyzer can't detect that the instance member was used in the local function.")]
         private EnumerateDirectoryResult EnumerateDirectoryRecursively(string packagePath, out List<RelativePath> resultingContent)
         {
             resultingContent = new List<RelativePath>();

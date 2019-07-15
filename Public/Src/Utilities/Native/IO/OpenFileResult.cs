@@ -168,6 +168,12 @@ namespace BuildXL.Native.IO
                 case NativeIOConstants.ErrorTimeout:
                     status = OpenFileStatus.Timeout;
                     break;
+                case NativeIOConstants.ErrorCantAccessFile:
+                    status = OpenFileStatus.CannotAccessFile;
+                    break;
+                case NativeIOConstants.ErrorBadPathname:
+                    status = OpenFileStatus.BadPathname;
+                    break;
                 default:
                     Contract.Assume(!handleIsValid);
                     status = OpenFileStatus.UnknownError;

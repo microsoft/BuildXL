@@ -32,6 +32,7 @@ using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -100,6 +101,11 @@ namespace ContentStoreTest.Distributed.Sessions
                 }
 
                 throw new InvalidOperationException($"Unable to find Master instance.");
+            }
+
+            internal void SendEventToMaster(ContentLocationEventData eventData)
+            {
+                GetMaster().LocalLocationStore.EventStore.DispatchAsync(this, eventData).GetAwaiter().GetResult();
             }
 
             internal TransitioningContentLocationStore GetMaster()

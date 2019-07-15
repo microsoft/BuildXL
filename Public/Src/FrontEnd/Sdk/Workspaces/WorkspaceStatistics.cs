@@ -253,7 +253,7 @@ namespace BuildXL.FrontEnd.Workspaces
         /// <summary>
         /// Disposable struct for measuring <see cref="AggregateDuration"/> of a given Counter.
         /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1815:ShouldOverrideEquals", Justification = "not comparable")]
+        [SuppressMessage("Microsoft.Performance", "CA1815:ShouldOverrideEquals", Justification = "Not comparable")]
         public struct Stopwatch : IDisposable
         {
             private static readonly ObjectPool<System.Diagnostics.Stopwatch> s_stopWatchPool = new ObjectPool<System.Diagnostics.Stopwatch>(

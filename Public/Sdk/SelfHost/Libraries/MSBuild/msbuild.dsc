@@ -34,8 +34,7 @@ export const msbuildRuntimeContent = [
 
 function getFrameworkFolder() { 
     return BuildXLSdk.isDotNetCoreBuild ? "dotnetcore" : qualifier.targetFramework;
-}
-    
+}  
 
 @@public
 export const deployment = [

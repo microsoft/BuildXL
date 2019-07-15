@@ -250,7 +250,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore), "GetLruPages can only be called when local location store is enabled");
 
-            context.Debug($"GetLruPages start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={contentHashesWithInfo.FirstOrDefault().Age}, lastAge={contentHashesWithInfo.LastOrDefault().Age}");
+            ContentHashWithLastAccessTimeAndReplicaCount first = default;
+            ContentHashWithLastAccessTimeAndReplicaCount last = default;
+            if (contentHashesWithInfo.Count != 0)
+            {
+                first = contentHashesWithInfo[0];
+                last = contentHashesWithInfo[contentHashesWithInfo.Count - 1];
+            }
+
+            context.Debug($"GetLruPages start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age}, lastAge={last.Age}");
 
             var pageSize = _configuration.EvictionWindowSize;
 
@@ -278,7 +286,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     priorityQueue.Push(lastAccessTimes[i]);
                 }
 
-                context.Debug($"GetLruPages page.First:(Age={page.First().Age}, EffectiveAge={page.First().EffectiveAge}), queue.Top:(Age={priorityQueue.Top.Age}, EffectiveAge={priorityQueue.Top.EffectiveAge})");
+                first = page[0];
+                last = page[page.Count - 1];
+                context.Debug($"GetLruPages page.First:(Hash={first.ContentHash.ToShortString()}, Age={first.Age}, EffectiveAge={first.EffectiveAge}), page.Last:(Hash={last.ContentHash.ToShortString()}, Age={last.Age}, EffectiveAge={last.EffectiveAge}), queue.Top:(Age={priorityQueue.Top.Age}, EffectiveAge={priorityQueue.Top.EffectiveAge})");
 
                 while (priorityQueue.Count >= pageSize)
                 {

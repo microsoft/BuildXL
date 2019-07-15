@@ -41,7 +41,7 @@ static bool IsPathNonexistent(DWORD error)
            error == ERROR_FILE_NOT_FOUND ||
            error == ERROR_NOT_READY ||
            error == FVE_E_LOCKED_VOLUME ||
-           error == ERROR_NOT_DOS_DISK;
+           error == ERROR_BAD_PATHNAME;
 }
 
 void FileReadContext::InferExistenceFromError(DWORD error) {

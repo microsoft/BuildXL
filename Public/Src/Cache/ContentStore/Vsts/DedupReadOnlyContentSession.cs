@@ -178,9 +178,16 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return pinResult;
             }
 
+            // Since pinning the whole tree can be an expensive operation, we have optimized how we call it. Depending on the current
+            //  keepUntil of the root node, which is unexpensive to check, the operation will behave differently:
+            //      The pin operation will be ignored if it is greater than ignorePinThreshold, to reduce amount of calls
+            //      The pin operation will be inlined if it is lower than pinInlineThreshold, to make sure that we don't try to use
+            //          content that we pin in the background but has expired before we could complete the pin.
+            //      The pin operation will be done asynchronously and will return success otherwise. Most calls should follow this
+            //          behavior, to avoid waiting on a potentially long operation.
+
             VstsBlobIdentifier blobId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier());
             VstsDedupIdentifier dedupId = blobId.ToDedupIdentifier();
-
             var keepUntilResult = await CheckNodeKeepUntilAsync(context, dedupId);
             if (!keepUntilResult.Succeeded)
             {

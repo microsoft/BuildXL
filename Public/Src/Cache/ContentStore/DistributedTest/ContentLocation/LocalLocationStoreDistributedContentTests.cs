@@ -2311,8 +2311,9 @@ namespace ContentStoreTest.Distributed.Sessions
                 2,
                 async context =>
                 {
+                    var master = context.GetMaster();
                     var sessions = context.Sessions;
-                    Warmup(maximumBatchSize, warmupBatches, memoryContentLocationEventStore);
+                    Warmup(context, maximumBatchSize, warmupBatches);
                     context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                     PrintCacheStatistics(context);
 
@@ -2329,7 +2330,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                             foreach (var ev in events[machineId])
                             {
-                                eventHub.LockFreeSend(ev);
+                                context.SendEventToMaster(ev);
                             }
                         });
                         context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
@@ -2347,10 +2348,9 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        private void Warmup(int maximumBatchSize, int warmupBatches, MemoryContentLocationEventStoreConfiguration memoryContentLocationEventStore)
+        private void Warmup(TestContext context, int maximumBatchSize, int warmupBatches)
         {
             Output.WriteLine("[Warmup] Starting");
-            var warmupEventHub = memoryContentLocationEventStore.Hub;
             var warmupRng = new Random(Environment.TickCount);
 
             var stopWatch = new Stopwatch();
@@ -2359,7 +2359,7 @@ namespace ContentStoreTest.Distributed.Sessions
             {
                 var machineId = new MachineId(warmupRng.Next());
                 var batch = Enumerable.Range(0, maximumBatchSize).Select(x => new ShortHash(ContentHash.Random())).ToList();
-                warmupEventHub.Send(new RemoveContentLocationEventData(machineId, batch));
+                context.SendEventToMaster(new RemoveContentLocationEventData(machineId, batch));
             }
             stopWatch.Stop();
 
@@ -2437,7 +2437,8 @@ namespace ContentStoreTest.Distributed.Sessions
                 async context =>
                 {
                     var sessions = context.Sessions;
-                    Warmup(maximumBatchSize, warmupBatches, memoryContentLocationEventStore);
+                    var master = context.GetMaster();
+                    Warmup(context, maximumBatchSize, warmupBatches);
                     context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                     PrintCacheStatistics(context);
 
@@ -2454,7 +2455,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                             foreach (var ev in events[machineId])
                             {
-                                eventHub.LockFreeSend(ev);
+                                context.SendEventToMaster(ev);
                             }
                         });
                         context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
@@ -2589,7 +2590,8 @@ namespace ContentStoreTest.Distributed.Sessions
                 async context =>
                 {
                     var sessions = context.Sessions;
-                    Warmup(maximumBatchSize, warmupBatches, memoryContentLocationEventStore);
+                    var master = context.GetMaster();
+                    Warmup(context, maximumBatchSize, warmupBatches);
                     context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                     PrintCacheStatistics(context);
 
@@ -2606,7 +2608,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                             foreach (var ev in events[machineId])
                             {
-                                eventHub.LockFreeSend(ev);
+                                context.SendEventToMaster(ev);
                             }
                         });
                         context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);

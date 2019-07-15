@@ -285,6 +285,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     priorityQueue.Push(lastAccessTimes[i]);
                 }
 
+                //  Each page is guaranteed to have at least one entry.
                 first = page[0];
                 last = page[page.Count - 1];
                 context.Debug($"GetLruPages page.First:(Hash={first.ContentHash.ToShortString()}, Age={first.Age}, EffectiveAge={first.EffectiveAge}), page.Last:(Hash={last.ContentHash.ToShortString()}, Age={last.Age}, EffectiveAge={last.EffectiveAge}), queue.Top:(Age={priorityQueue.Top.Age}, EffectiveAge={priorityQueue.Top.EffectiveAge})");

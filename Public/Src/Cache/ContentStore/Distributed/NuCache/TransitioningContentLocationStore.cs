@@ -249,15 +249,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore), "GetLruPages can only be called when local location store is enabled");
 
-            ContentHashWithLastAccessTimeAndReplicaCount first = default;
-            ContentHashWithLastAccessTimeAndReplicaCount last = default;
             if (contentHashesWithInfo.Count != 0)
             {
-                first = contentHashesWithInfo[0];
-                last = contentHashesWithInfo[contentHashesWithInfo.Count - 1];
-            }
+                var first = contentHashesWithInfo[0];
+                var last = contentHashesWithInfo[contentHashesWithInfo.Count - 1];
 
-            context.Debug($"GetLruPages start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age}, lastAge={last.Age}");
+                context.Debug($"GetLruPages start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age}, lastAge={last.Age}");
+            }
 
             var pageSize = _configuration.EvictionWindowSize;
 
@@ -285,10 +283,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     priorityQueue.Push(lastAccessTimes[i]);
                 }
 
-                //  Each page is guaranteed to have at least one entry.
-                first = page[0];
-                last = page[page.Count - 1];
-                context.Debug($"GetLruPages page.First:(Hash={first.ContentHash.ToShortString()}, Age={first.Age}, EffectiveAge={first.EffectiveAge}), page.Last:(Hash={last.ContentHash.ToShortString()}, Age={last.Age}, EffectiveAge={last.EffectiveAge}), queue.Top:(Age={priorityQueue.Top.Age}, EffectiveAge={priorityQueue.Top.EffectiveAge})");
+                if (page.Count != 0)
+                {
+                    var first = page[0];
+                    var last = page[page.Count - 1];
+                    context.Debug($"GetLruPages page.First:(Hash={first.ContentHash.ToShortString()}, Age={first.Age}, EffectiveAge={first.EffectiveAge}), page.Last:(Hash={last.ContentHash.ToShortString()}, Age={last.Age}, EffectiveAge={last.EffectiveAge}), queue.Top:(Age={priorityQueue.Top.Age}, EffectiveAge={priorityQueue.Top.EffectiveAge})");
+                }
 
                 while (priorityQueue.Count >= pageSize)
                 {

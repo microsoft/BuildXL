@@ -62,7 +62,7 @@ namespace ContentStoreTest.Grpc
                 // Delete content
                 var deleteResult = await rpcClient.DeleteContentAsync(context, putResult.ContentHash);
                 deleteResult.ShouldBeSuccess();
-                deleteResult.ContentHash.Equals(putResult.ContentHash);
+                deleteResult.ContentHash.Equals(putResult.ContentHash).Should().BeTrue();
                 string.IsNullOrEmpty(deleteResult.ErrorMessage).Should().BeTrue();
                 deleteResult.EvictedSize.Should().Be(size);
                 deleteResult.PinnedSize.Should().Be(0L);
@@ -71,6 +71,29 @@ namespace ContentStoreTest.Grpc
                 var failPlaceResult = await rpcClient.PlaceFileAsync(context, putResult.ContentHash, new AbsolutePath(fileName.Path + "fail"), FileAccessMode.None, FileReplacementMode.None, FileRealizationMode.Copy);
                 failPlaceResult.Succeeded.Should().BeFalse();
                 failPlaceResult.Code.Should().Be(PlaceFileResult.ResultCode.NotPlacedContentNotFound);
+            });
+        }
+
+        [Fact]
+        public Task DeleteMissingContent()
+        {
+            var scenario = nameof(GrpcDeleteContentTests) + nameof(SendReceiveDeletion);
+            return RunServerTestAsync(new Context(Logger), scenario, async (context, config, rpcClient) =>
+            {
+                // Create random hash which doesn't exist in the store
+                byte[] content = new byte[42];
+                ThreadSafeRandom.Generator.NextBytes(content);
+
+                var contentHash = content.CalculateHash(HashType.Vso0);
+
+                // Delete content
+                var deleteResult = await rpcClient.DeleteContentAsync(context, contentHash);
+                deleteResult.ShouldBeError();
+                deleteResult.Code.Should().Be(DeleteResult.ResultCode.ContentNotDeleted);
+                deleteResult.ContentHash.Equals(contentHash).Should().BeFalse();
+                deleteResult.EvictedSize.Should().Be(0L);
+                deleteResult.PinnedSize.Should().Be(0L);
+                deleteResult.ErrorMessage.Should().Contain($"Hash {contentHash.ToShortString()} was not found");
             });
         }
 

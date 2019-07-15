@@ -101,9 +101,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
             {
                 return new DeleteResult(DeleteResult.ResultCode.Error, Exception, ErrorMessage);
             }
+            else if (!SuccessfullyEvictedHash)
+            {
+                return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, $"Hash {contentHash.ToShortString()} was not found", ErrorMessage + " " + Diagnostics);
+            }
             else if (!Succeeded)
             {
-                return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, ErrorMessage, Diagnostics);
+                return new DeleteResult(DeleteResult.ResultCode.ServerError, ErrorMessage, Diagnostics);
             }
 
             return new DeleteResult(contentHash, EvictedSize, PinnedSize);

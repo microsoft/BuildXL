@@ -65,7 +65,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 RedisBatchPageSize = _distributedSettings.RedisBatchPageSize,
                 BlobExpiryTimeMinutes = _distributedSettings.BlobExpiryTimeMinutes,
                 MaxBlobCapacity = _distributedSettings.MaxBlobCapacity,
-                MaxBlobSize = _distributedSettings.MaxBlobSize
+                MaxBlobSize = _distributedSettings.MaxBlobSize,
+                EvictionWindowSize = _distributedSettings.EvictionWindowSize
             };
 
             ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => redisContentLocationStoreConfiguration.ContentLifetime = TimeSpan.FromMinutes(v));

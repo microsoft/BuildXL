@@ -443,6 +443,7 @@ config({
                 { id: "System.CodeDom", version: "4.4.0"},
                 { id: "System.Text.Encoding.CodePages", version: "4.5.1", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"]},
                 { id: "System.Threading.Tasks.Dataflow", version: "4.5.24", alias: "DataflowForMSBuild" },
+                { id: "Microsoft.NETCore.App", version: "2.1.0", alias: "Microsoft.NETCore.App.210" },
 
                 // Used for MSBuild input/output prediction
                 { id: "Microsoft.Build.Prediction", version: "0.3.0" },

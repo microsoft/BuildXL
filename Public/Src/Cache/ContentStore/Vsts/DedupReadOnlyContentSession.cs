@@ -184,7 +184,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             //      The pin operation will be inlined if it is lower than pinInlineThreshold, to make sure that we don't try to use
             //          content that we pin in the background but has expired before we could complete the pin.
             //      The pin operation will be done asynchronously and will return success otherwise. Most calls should follow this
-            //          behavior, to avoid waiting on a potentially long operation.
+            //          behavior, to avoid waiting on a potentially long operation. We're confident returning a success because we
+            //          know that the content is there even though we still have to extend it's keepUntil
 
             VstsBlobIdentifier blobId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier());
             VstsDedupIdentifier dedupId = blobId.ToDedupIdentifier();
@@ -204,21 +205,21 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             if (timeLeft > _ignorePinThreshold)
             {
-                Tracer.Debug(context, $"Pin ignored bacause keepUntil has remaining time [{timeLeft}] that is greater than the ignorePinThreshold");
+                Tracer.Debug(context, $"Pin was skipped bacause keepUntil has remaining time [{timeLeft}] that is greater than ignorePinThreshold=[{_ignorePinThreshold}]");
                 _dedupCounters[Counters.PinIgnored].Increment();
                 return PinResult.Success;
             }
 
-            var task = PinImplAsync(context, contentHash);
+            var pinTask = PinImplAsync(context, contentHash);
 
             if (timeLeft < _pinInlineThreshold)
             {
-                Tracer.Debug(context, $"Pin inlined bacause keepUntil has remaining time [{timeLeft}] that is less than the pinInlineThreshold");
+                Tracer.Debug(context, $"Pin inlined bacause keepUntil has remaining time [{timeLeft}] that is less than pinInlineThreshold=[{_pinInlineThreshold}]");
                 _dedupCounters[Counters.PinInlined].Increment();
-                return await task;
+                return await pinTask;
             }
 
-            task.FireAndForget(context);
+            pinTask.FireAndForget(context);
 
             return PinResult.Success;
         }

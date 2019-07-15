@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
@@ -249,6 +250,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore), "GetLruPages can only be called when local location store is enabled");
 
+            context.Debug($"GetLruPages start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={contentHashesWithInfo.FirstOrDefault().Age}, lastAge={contentHashesWithInfo.LastOrDefault().Age}");
+
             var pageSize = _configuration.EvictionWindowSize;
 
             // Priority queue orders by least first. So we compare by last access time to get the least last access time (i.e. oldest) first.
@@ -274,6 +277,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     priorityQueue.Push(lastAccessTimes[i]);
                 }
+
+                context.Debug($"GetLruPages page.First:(Age={page.First().Age}, EffectiveAge={page.First().EffectiveAge}), queue.Top:(Age={priorityQueue.Top.Age}, EffectiveAge={priorityQueue.Top.EffectiveAge})");
 
                 while (priorityQueue.Count >= pageSize)
                 {

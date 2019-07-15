@@ -67,6 +67,8 @@ namespace BuildXL.Cache.BuildCacheAdapter
         //     "DisableContent":{28}
         //     "OverrideUnixFileAccessMode":{29}
         //     "ImplicitPin":{30}
+        //     "DefaultPinInlineThresholdMinutes":{31}
+        //     "DefaultIgnorePinThresholdHours":{32}
         // }
         private sealed class Config : BuildCacheCacheConfig
         {

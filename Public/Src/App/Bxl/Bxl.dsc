@@ -10,6 +10,7 @@ namespace Main {
     export const exe = BuildXLSdk.executable({
         assemblyName: "bxl",
         generateLogs: true,
+        generateLogsLite: false,
         assemblyInfo: {
             fileVersion: Branding.Managed.fileVersion,
         },

@@ -71,6 +71,10 @@ namespace BuildXL.FrontEnd.MsBuild
         /// </remarks>
         internal const string OutputCacheFileName = "output.cache";
 
+        // All projects should contain this property since the build graph is created by MSBuild under the /graph option
+        // TODO: it would be better if MSBuild provided the property name
+        internal const string s_isGraphBuildProperty = "IsGraphBuild";
+
         /// <nodoc/>
         public PipConstructor(
             FrontEndContext context,
@@ -744,7 +748,7 @@ namespace BuildXL.FrontEnd.MsBuild
             // Projects can be evaluated multiple times with different global properties (but same qualifiers), so just
             // the qualifier name is not enough
             List<string> values = qualifier.Values.Select(value => value.ToString(m_context.StringTable))
-                .Union(projectFile.GlobalProperties.Values)
+                .Union(projectFile.GlobalProperties.Where(kvp => kvp.Key != s_isGraphBuildProperty).Select(kvp => kvp.Value))
                 .Select(value => PipConstructionUtilities.SanitizeStringForSymbol(value))
                 .OrderBy(value => value, StringComparer.Ordinal) // Let's make sure we always produce the same string for the same set of values
                 .ToList();
@@ -829,7 +833,9 @@ namespace BuildXL.FrontEnd.MsBuild
             var valueName = PipConstructionUtilities.SanitizeStringForSymbol(project.FullPath.GetName(PathTable).ToString(m_context.StringTable));
 
             // If global properties are present, we append to the value name a flatten representation of them
-            if (project.GlobalProperties.Count > 0)
+            // There should always be a 'IsGraphBuild' property, so we count > 1
+            Contract.Assert(project.GlobalProperties.ContainsKey(s_isGraphBuildProperty));
+            if (project.GlobalProperties.Count > 1)
             {
                 valueName += ".";
             }
@@ -838,6 +844,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 project.GlobalProperties
                     // let's sort global properties keys to make sure the same string is generated consistently
                     // case-sensitivity is already handled (and ignored) by GlobalProperties class 
+                    .Where(kvp => kvp.Key != s_isGraphBuildProperty)
                     .OrderBy(kvp => kvp.Key, StringComparer.Ordinal) 
                     .Select(gp => $"{PipConstructionUtilities.SanitizeStringForSymbol(gp.Key)}_{PipConstructionUtilities.SanitizeStringForSymbol(gp.Value)}"));
 

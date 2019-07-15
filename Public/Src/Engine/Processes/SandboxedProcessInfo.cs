@@ -226,7 +226,7 @@ namespace BuildXL.Processes
         public IBuildParameters EnvironmentVariables { get; set; }
 
         /// <summary>
-        /// Environment variables (can be null)
+        /// Root drive remappings (can be null)
         /// </summary>
         public IReadOnlyDictionary<string, string> RootMappings { get; set; }
 

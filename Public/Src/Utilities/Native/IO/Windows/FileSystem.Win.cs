@@ -1747,7 +1747,7 @@ namespace BuildXL.Native.IO.Windows
 
             int rootLength = GetRootLength(directoryPath);
 
-            if (Directory.Exists(directoryPath))
+            if (Directory.Exists(ToLongPathIfExceedMaxPath(directoryPath)))
             {
                 // Short cut if directory exists
                 return;
@@ -1768,7 +1768,7 @@ namespace BuildXL.Native.IO.Windows
                 while (i >= rootLength && !parentPathExists)
                 {
                     string dir = directoryPath.Substring(0, i + 1);
-                    if (!Directory.Exists(dir))
+                    if (!Directory.Exists(ToLongPathIfExceedMaxPath(dir)))
                     {
                         stackDirs.Push(dir);
                     }

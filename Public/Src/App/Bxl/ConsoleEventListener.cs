@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -13,14 +14,10 @@ using System.Threading;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Visualization.Models;
 using Strings = bxl.Strings;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL
 {
@@ -470,11 +467,11 @@ namespace BuildXL
 
             var keyWords = eventData.Keywords;
 
-            if ((keyWords & Events.Keywords.Overwritable) != 0 ||
-                (keyWords & Events.Keywords.OverwritableOnly) != 0)
+            if ((keyWords & Keywords.Overwritable) != 0 ||
+                (keyWords & Keywords.OverwritableOnly) != 0)
             {
                 OutputUpdatable(eventData.Level, finalMessage, updatableMessage ?? finalMessage,
-                    (keyWords & Events.Keywords.OverwritableOnly) != 0);
+                    (keyWords & Keywords.OverwritableOnly) != 0);
             }
             else
             {

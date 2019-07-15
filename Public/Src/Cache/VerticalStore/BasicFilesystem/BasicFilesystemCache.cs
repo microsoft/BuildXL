@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -19,11 +20,7 @@ using BuildXL.Cache.Interfaces;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using Newtonsoft.Json;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
+using BuildXL.Native.IO;
 
 namespace BuildXL.Cache.BasicFilesystem
 {
@@ -63,7 +60,12 @@ namespace BuildXL.Cache.BasicFilesystem
         /// <summary>
         /// Our event source.
         /// </summary>
-        public static readonly EventSource EventSource = new EventSource("BasicFilesystemEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
+        public static readonly EventSource EventSource = 
+#if NET_FRAMEWORK_451
+            new EventSource();
+#else
+            new EventSource("BasicFilesystemEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
+#endif
 
         // m_cacheRoot is defined as the directory where it does all of its work - everything else is relative to that
         private readonly string m_cacheRoot;
@@ -234,17 +236,17 @@ namespace BuildXL.Cache.BasicFilesystem
                 // Obviously, the directories either need to be created
                 // if they are not there but this will fail if we are
                 // read-only and they are not there.  (We want that)
-                Directory.CreateDirectory(m_cacheRoot);
-                Directory.CreateDirectory(m_sessionRoot);
+                FileUtilities.CreateDirectory(m_cacheRoot);
+                FileUtilities.CreateDirectory(m_sessionRoot);
 
                 foreach (string casRoot in m_casShardRoots.Distinct())
                 {
-                    Directory.CreateDirectory(casRoot);
+                    FileUtilities.CreateDirectory(casRoot);
                 }
 
                 foreach (string wfpRoot in m_weakFingerprintShardRoots.Distinct())
                 {
-                    Directory.CreateDirectory(wfpRoot);
+                    FileUtilities.CreateDirectory(wfpRoot);
                 }
 
                 try
@@ -642,7 +644,7 @@ namespace BuildXL.Cache.BasicFilesystem
                     // Note that this can fail due to high-load-races so...
                     try
                     {
-                        Directory.CreateDirectory(Path.GetDirectoryName(path));
+                        FileUtilities.CreateDirectory(Path.GetDirectoryName(path));
                     }
 #pragma warning disable ERP022 // TODO: This should really handle specific errors
                     catch
@@ -851,7 +853,7 @@ namespace BuildXL.Cache.BasicFilesystem
                 // Make sure the CAS shared directory exists - if this fails, we fail to
                 // add to the CAS
                 string directory = Path.GetDirectoryName(path);
-                Directory.CreateDirectory(directory);
+                FileUtilities.CreateDirectory(directory);
 
                 // This name is a unique name for a given attempt at a CAS entry.
                 // We depend on uniqueness here to allow multiple uploads at the

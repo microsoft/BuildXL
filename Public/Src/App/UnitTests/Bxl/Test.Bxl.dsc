@@ -15,6 +15,7 @@ namespace UnitTests.Bxl {
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             importFrom("BuildXL.Engine").Engine.dll,
+            importFrom("BuildXL.Engine").Scheduler.dll,
         ],
     });
 }

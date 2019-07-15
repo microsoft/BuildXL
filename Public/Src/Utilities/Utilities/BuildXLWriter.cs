@@ -172,6 +172,14 @@ namespace BuildXL.Utilities
             End();
         }
 
+        /// <summary>
+        /// Write pip id value to disk.
+        /// </summary>
+        public virtual void WritePipIdValue(uint value)
+        {
+            Write(value);
+        }
+
         private void Write7BitEncodedLong(long value)
         {
             unchecked
@@ -279,7 +287,7 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Writes a DirectoryArtifact
         /// </summary>
-        public void Write(DirectoryArtifact value)
+        public virtual void Write(DirectoryArtifact value)
         {
             Start<DirectoryArtifact>();
             Write(value.Path);

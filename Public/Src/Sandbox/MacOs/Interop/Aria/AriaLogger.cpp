@@ -49,50 +49,36 @@ void DisposeAriaLogger(const AriaLogger *logger)
     }
 }
 
-EventProperties *CreateEvent(const char *name)
+void LogEvent(const AriaLogger *logger,
+              const char *eventName,
+              int eventPropertiesLength,
+              const AriaEventProperty *eventProperties)
 {
-    return new EventProperties(name);
-}
-
-void DisposeEvent(EventProperties *event)
-{
-    if (event != nullptr)
+    if (logger != nullptr)
     {
-        delete event;
-        event = nullptr;
-    }
-}
+        EventProperties props(eventName);
+        for (int i = 0; i < eventPropertiesLength; i++)
+        {
+            const char *propName = eventProperties[i].name;
+            const char *propValue = eventProperties[i].value;
+            int64_t piiOrValue = eventProperties[i].piiOrLongValue;
 
-void SetStringProperty(EventProperties *event, const char *name, const char *value)
-{
-    if (event != nullptr)
-    {
-        event->SetProperty(name, value);
-    }
-}
+            if (propValue == nullptr)
+            {
+                props.SetProperty(propName, piiOrValue);
+            }
+            else if (piiOrValue == (int)PiiKind::PiiKind_None)
+            {
+                props.SetProperty(propName, propValue);
+            }
+            else
+            {
+                props.SetProperty(propName, propValue, static_cast<PiiKind>(piiOrValue));
+            }
+        }
 
-void SetStringPropertyWithPiiKind(EventProperties *event, const char *name, const char *value, int kind)
-{
-    if (event != nullptr)
-    {
-        event->SetProperty(name, value, static_cast<PiiKind>(kind));
-    }
-}
-
-void SetInt64Property(EventProperties *event, const char *name, const int64_t value)
-{
-    if (event != nullptr)
-    {
-        event->SetProperty(name, value);
-    }
-}
-
-void LogEvent(const AriaLogger *logger, const EventProperties *event)
-{
-    if (logger != nullptr && event != nullptr)
-    {
         ILogger *log = logger->GetLogger();
-        log->LogEvent(*event);
+        log->LogEvent(props);
     }
 }
 

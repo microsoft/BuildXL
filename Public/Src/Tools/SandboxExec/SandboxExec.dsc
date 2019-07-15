@@ -11,9 +11,9 @@ namespace SandboxExec {
 
     @@public
     export const exe = BuildXLSdk.executable({
+        assemblyName: "SandboxExec",
         generateLogs: true,
         allowUnsafeBlocks: true,
-        assemblyName: "SandboxExec",
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Utilities").dll,

@@ -102,6 +102,14 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         DoubleWritePolicy? DoubleWritePolicy { get; }
 
+        /// <summary>
+        /// Undeclared accesses under a shared opaque are not reported.
+        /// </summary>
+        /// <remarks>
+        /// Temporary flag due to a bug in the sandboxed process pip executor to allow customers to snap to the fixed behavior
+        /// </remarks>
+        bool IgnoreUndeclaredAccessesUnderSharedOpaques { get; }
+
         // NOTE: if you add a property here, don't forget to update UnsafeSandboxConfigurationExtensions
 
         // NOTE: whenever unsafe options change, the fingerprint version needs to be bumped
@@ -148,6 +156,7 @@ namespace BuildXL.Utilities.Configuration
             {
                 writer.Write((byte)@this.DoubleWritePolicy.Value);
             }
+            writer.Write(@this.IgnoreUndeclaredAccessesUnderSharedOpaques);
         }
 
         /// <nodoc/>
@@ -171,6 +180,7 @@ namespace BuildXL.Utilities.Configuration
                 IgnorePreloadedDlls = reader.ReadBoolean(),
                 IgnoreDynamicWritesOnAbsentProbes = reader.ReadBoolean(),
                 DoubleWritePolicy = reader.ReadBoolean() ? (DoubleWritePolicy?)reader.ReadByte() : null,
+                IgnoreUndeclaredAccessesUnderSharedOpaques = reader.ReadBoolean(),
             };
         }
 
@@ -196,7 +206,8 @@ namespace BuildXL.Utilities.Configuration
                 // the pip in question. Because that requires pip specific details, that is determined in UnsafeOptions
                 && IsAsSafeOrSafer(lhs.IgnorePreloadedDlls, rhs.IgnorePreloadedDlls, SafeDefaults.IgnorePreloadedDlls)
                 && IsAsSafeOrSafer(lhs.IgnoreDynamicWritesOnAbsentProbes, rhs.IgnoreDynamicWritesOnAbsentProbes, SafeDefaults.IgnoreDynamicWritesOnAbsentProbes)
-                && IsAsSafeOrSafer(lhs.DoubleWritePolicy(), rhs.DoubleWritePolicy(), SafeDefaults.DoubleWritePolicy());
+                && IsAsSafeOrSafer(lhs.DoubleWritePolicy(), rhs.DoubleWritePolicy(), SafeDefaults.DoubleWritePolicy())
+                && IsAsSafeOrSafer(lhs.IgnoreUndeclaredAccessesUnderSharedOpaques, rhs.IgnoreUndeclaredAccessesUnderSharedOpaques, SafeDefaults.IgnoreUndeclaredAccessesUnderSharedOpaques);
         }
 
         private static bool IsAllowMissingOutputFileNamesSafer(IReadOnlyList<string> lhsValue, IReadOnlyList<string> rhsValue)

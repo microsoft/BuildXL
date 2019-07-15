@@ -4,15 +4,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.Threading;
 using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-# endif
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -54,7 +51,7 @@ namespace BuildXL.Engine.Distribution
                     return;
                 }
 
-                if (((long)eventKeywords & (long)Events.Keywords.NotForwardedToMaster) > 0)
+                if (((long)eventKeywords & (long)Keywords.NotForwardedToMaster) > 0)
                 { 
                     return;
                 }

@@ -30,6 +30,7 @@
 #include "DetouredProcessInjector.h"
 #include "SendReport.h"
 #include <Psapi.h>
+#include "FilesCheckedForAccess.h"
 
 #define BUILDXL_DETOURS_CREATE_PROCESS_RETRY_COUNT 5
 #define BUILDXL_DETOURS_MS_TO_SLEEP 10
@@ -1075,6 +1076,7 @@ static bool DllProcessAttach()
     g_invariantLocale = _wcreate_locale(LC_CTYPE, L"");
     InitProcessKind();
     InitializeHandleOverlay();
+    InitializeFilesCheckedForWriteAccesses();
 
 #define ATTACH(Name) \
     Real_##Name = ::Name; \

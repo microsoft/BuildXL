@@ -77,13 +77,14 @@ namespace BuildXL.Ipc.Common
             maxRetry = maxRetry < 0 ? 0 : maxRetry;
 
             Exception lastException = null;
+            TimeSpan currentWait = waitTimeBetweenAttempts;
             int numAttempts = 0;
             while (numAttempts <= maxRetry)
             {
                 if (numAttempts > 0)
                 {
-                    // TODO: consider implementing exponential backoff instead
-                    await Task.Delay(waitTimeBetweenAttempts);
+                    await Task.Delay(currentWait);
+                    currentWait = currentWait.Add(waitTimeBetweenAttempts);
                 }
 
                 numAttempts++;

@@ -56,7 +56,8 @@ namespace BuildXL.Cache.ContentStore.Service
             uint gracefulShutdownSeconds,
             int grpcPort,
             string grpcPortFileName = null,
-            int? bufferSizeForGrpcCopies = null)
+            int? bufferSizeForGrpcCopies = null,
+            int? gzipBarrierSizeForGrpcCopies = null)
         {
             Contract.Requires(namedCacheRoots != null);
 
@@ -67,6 +68,7 @@ namespace BuildXL.Cache.ContentStore.Service
             GrpcPort = (uint)grpcPort;
             GrpcPortFileName = grpcPortFileName;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
+            GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
             Initialize();
         }
 
@@ -79,8 +81,7 @@ namespace BuildXL.Cache.ContentStore.Service
             uint maxConnections,
             uint gracefulShutdownSeconds,
             int grpcPort,
-            string grpcPortFileName = null,
-            int? bufferSizeForGrpcCopies = null)
+            string grpcPortFileName = null)
             : this(namedCacheRootsRaw.ToDictionary(x => x.Key, v => new AbsolutePath(v.Value)), dataRootPath, maxConnections, gracefulShutdownSeconds, grpcPort, grpcPortFileName)
         {
             Contract.Requires(dataRootPath != null);
@@ -126,6 +127,12 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         [DataMember]
         public int? BufferSizeForGrpcCopies { get; set; }
+
+        /// <summary>
+        /// Files greater than this size will be compressed via GZip when GZip is enabled.
+        /// </summary>
+        [DataMember]
+        public int? GzipBarrierSizeForGrpcCopies { get; set; }
 
         /// <summary>
         ///     Gets the named cache roots.
@@ -263,6 +270,7 @@ namespace BuildXL.Cache.ContentStore.Service
             sb.AppendFormat(", GrpcPort={0}", GrpcPort);
             sb.AppendFormat(", GrcpPortFileName={0}", GrpcPortFileName);
             sb.AppendFormat(", BufferSizeForGrpcCopies={0}", BufferSizeForGrpcCopies);
+            sb.AppendFormat(", GzipBarrierSizeForGrpcCopies={0}", GzipBarrierSizeForGrpcCopies);
 
             return sb.ToString();
         }

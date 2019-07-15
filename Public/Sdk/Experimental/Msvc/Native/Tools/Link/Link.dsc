@@ -11,10 +11,6 @@ import * as Midl from "Sdk.Native.Tools.Midl";
 
 export declare const qualifier: PlatformDependentQualifier;
 
-export function defaultTool(): Transformer.ToolDefinition {
-    return importFrom("VisualCpp").linkDeployment;
-}
-
 export const defaultLinkArguments = <Arguments>{
     sources: [],
     resources: [],
@@ -145,7 +141,7 @@ export function evaluate(args: Arguments): Result {
     let msPdbSrvEndPointUniqueId = Context.getMount("ObjectRoot").path.getRelative(outDir.path).toPathAtoms().map(p => p.toString()).join("|");
 
     let result = Transformer.execute({
-        tool: args.tool || defaultTool(),
+        tool: args.tool || importFrom("VisualCpp").linkTool,
         workingDirectory: outDir,
         tags: args.tags,
         arguments: cmdArgs,

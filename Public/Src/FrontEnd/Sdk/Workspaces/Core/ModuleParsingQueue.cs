@@ -61,6 +61,11 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         private readonly CancellationTokenSource m_cancellationTokenSource = new CancellationTokenSource();
 
+        /// <summary>
+        /// CancellationToken
+        /// </summary>
+        protected System.Threading.CancellationToken CancellationToken => m_cancellationTokenSource.Token;
+
         [NotNull]
         private readonly ParsingOptions m_parsingOptions;
 
@@ -140,7 +145,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             {
                 CancelOnFirstFailure = workspaceConfiguration.CancelOnFirstFailure,
                 MaxDegreeOfParallelism = DegreeOfParallelism,
-                CancellationToken = m_cancellationTokenSource.Token,
+                CancellationToken = CancellationToken,
             };
 
             m_parseQueue = new ActionBlock<SpecWithOwningModule>(ProcessQueuedItemForParsing, m_queueOptions);

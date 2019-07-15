@@ -1,20 +1,15 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using System.Diagnostics.Tracing;
-#endif
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using BuildXL.Utilities.Tracing;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#endif
 
 namespace Test.BuildXL.TestUtilities
 {
@@ -89,12 +84,12 @@ namespace Test.BuildXL.TestUtilities
         /// Name of the owning test. Used for diagnostics when these listeners leak (not disposed after a test execution).
         /// </param>
         /// <param name="captureAllDiagnosticMessages">
-        /// If true, all messages tagged with <see cref="Events.Keywords.Diagnostics" /> are captured (rather than needing to be enabled per-task).
+        /// If true, all messages tagged with Diagnostics are captured (rather than needing to be enabled per-task).
         /// </param>
         /// <param name="logAction">
         /// Action to perform when logging a string. This allows test frameworks to hook into their own logging.
         /// Writes to the console if unspecified
-        /// </param>
+        /// </param> 
         protected TestEventListenerBase(Events eventSource, string fullyQualifiedTestName, bool captureAllDiagnosticMessages = true, Action<string> logAction = null)
             : base(eventSource, null, EventLevel.Verbose, captureAllDiagnosticMessages: captureAllDiagnosticMessages, listenDiagnosticMessages: true)
         {

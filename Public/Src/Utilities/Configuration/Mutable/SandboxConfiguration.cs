@@ -239,10 +239,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <inheritdoc />
         public bool EnsureTempDirectoriesExistenceBeforePipExecution { get; set; }
 
-        /// <nodoc /> 
+        /// <nodoc />
         public List<AbsolutePath> GlobalUnsafeUntrackedScopes { get; set; }
 
-        /// <inheritdoc /> 
-        IReadOnlyList<AbsolutePath> ISandboxConfiguration.GlobalUnsafeUntrackedScopes => GlobalUnsafeUntrackedScopes;        
+        /// <inheritdoc />
+        IReadOnlyList<AbsolutePath> ISandboxConfiguration.GlobalUnsafeUntrackedScopes => GlobalUnsafeUntrackedScopes;
     }
 }

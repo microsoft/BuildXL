@@ -9,14 +9,15 @@
 "InprocServer32"="$WinDir$\SYSTEM32\MSCOREE.DLL"
 "Class"="BuildXL.VsPackage.BuildXLVsPackage"
 "CodeBase"="$PackageFolder$\BuildXLVsPackage.dll"
+"AllowsBackgroundLoad"=dword:00000001
 [$RootKey$\AutoLoadPackages\{10534154-102d-46e2-aba8-a6bfa25ba0be}]
-"{76439c3a-9faf-4f38-9f54-f127e9be9171}"=dword:00000000
+"{76439c3a-9faf-4f38-9f54-f127e9be9171}"=dword:00000002
 [$RootKey$\AutoLoadPackages\{adfc4e64-0397-11d1-9f4e-00a0c911004f}]
-"{76439c3a-9faf-4f38-9f54-f127e9be9171}"=dword:00000000
+"{76439c3a-9faf-4f38-9f54-f127e9be9171}"=dword:00000002
 [$RootKey$\AutoLoadPackages\{adfc4e65-0397-11d1-9f4e-00a0c911004f}]
-"{76439c3a-9faf-4f38-9f54-f127e9be9171}"=dword:00000000
+"{76439c3a-9faf-4f38-9f54-f127e9be9171}"=dword:00000002
 [$RootKey$\AutoLoadPackages\{f1536ef8-92ec-443c-9ed7-fdadf150da82}]
-"{76439c3a-9faf-4f38-9f54-f127e9be9171}"=dword:00000000
+"{76439c3a-9faf-4f38-9f54-f127e9be9171}"=dword:00000002
 [$RootKey$\Projects\{daba23a1-650f-4eab-ac72-a2af90e10e37}]
 @="ProjectFlavorFactory"
 "DisplayName"="BuildXL Project"

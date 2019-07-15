@@ -7,6 +7,7 @@ namespace Tracing {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Tracing",
         generateLogs: true,
+        generateLogsLite: false,
         sources: [
             ...globR(d`.`, "*.cs"),
             importFrom("BuildXL.Tracing.AriaTenantToken").Contents.all.getFile(r`AriaTenantToken.cs`),
@@ -18,12 +19,7 @@ namespace Tracing {
             ...(qualifier.targetFramework !== "net451" ? [] : [
                 importFrom("BuildXL.Utilities").System.FormattableString.dll
             ]),
-            importFrom("BuildXL.Utilities").Configuration.dll,
-            ...addIfLazy(BuildXLSdk.isFullFramework, () => [
-                importFrom("Microsoft.Diagnostics.Tracing.TraceEvent").pkg,
-                importFrom("Microsoft.Applications.Telemetry.Desktop").pkg,
-                importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").pkg,
-            ]),
+            importFrom("BuildXL.Utilities").Configuration.dll
         ],
         embeddedResources: [{resX: f`Statistics.resx`, generatedClassMode: "implicitPublic"}],
     });

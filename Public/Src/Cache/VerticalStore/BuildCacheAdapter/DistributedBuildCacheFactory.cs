@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Distributed.Metadata;
@@ -65,6 +66,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
         //     "UseDedupStore":{27}
         //     "DisableContent":{28}
         //     "OverrideUnixFileAccessMode":{29}
+        //     "ImplicitPin":{30}
         // }
         private sealed class Config : BuildCacheCacheConfig
         {
@@ -111,7 +113,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
                 logger.Debug($"Distributed cache created successfully.");
 
                 var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
-                var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, distributedCache, logger, statsFilePath);
+                var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, distributedCache, logger, statsFilePath, implicitPin: cacheConfig.ImplicitPin);
 
                 logger.Diagnostic($"Initializing the cache [{cacheConfig.CacheId}]");
                 var startupResult = await cache.StartupAsync();

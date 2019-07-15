@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -32,15 +33,11 @@ using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Scheduler
 {
@@ -1969,7 +1966,7 @@ namespace BuildXL.Scheduler
                                             computedStrongFingerprint: strongFingerprint.Value,
                                             observedInputs: observedInputProcessingResult.ObservedInputs.BaseArray);
 
-                                        if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Events.Keywords.Diagnostics))
+                                        if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                                         {
                                             Logger.Log.TwoPhaseStrongFingerprintComputedForPathSet(
                                                 operationContext,
@@ -1983,7 +1980,7 @@ namespace BuildXL.Scheduler
                                     case ObservedInputProcessingStatus.Mismatched:
                                         // This pip can't access some of the paths. We should remember that (the path set may be repeated many times).
                                         strongFingerprint = null;
-                                        if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Events.Keywords.Diagnostics))
+                                        if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                                         {
                                             Logger.Log.TwoPhaseStrongFingerprintUnavailableForPathSet(
                                                 operationContext,
@@ -2046,7 +2043,7 @@ namespace BuildXL.Scheduler
                                 break;
                             }
 
-                            if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, BuildXL.Utilities.Tracing.Events.Keywords.Diagnostics))
+                            if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                             {
                                 Logger.Log.TwoPhaseStrongFingerprintRejected(
                                     operationContext,
@@ -2848,42 +2845,40 @@ namespace BuildXL.Scheduler
             List<FileArtifact> absentArtifacts = null; // Almost never populated, since outputs are almost always required.
             List<(FileArtifact, FileMaterializationInfo)> cachedArtifactContentHashes =
                 new List<(FileArtifact, FileMaterializationInfo)>(pip.Outputs.Length);
-
-            // Outputs should be the same as what was in the metadata section.
-            int outputHashIndex = 0;
-            for (int i = 0; i < pip.Outputs.Length; i++)
+ 
+            // Only the CanBeReferencedOrCached output will be saved in metadata.StaticOutputHashes
+            // We looped metadata.StaticOutputHashes and meanwhile find the corresponding output in current executing pip.
+            FileArtifactWithAttributes attributedOutput;
+            using (var poolStringFileArtifactWithAttributes = Pools.GetStringFileArtifactWithAttributesMap())
             {
-                FileArtifactWithAttributes attributedOutput = pip.Outputs[i];
-                if (!attributedOutput.CanBeReferencedOrCached())
+                Dictionary<string, FileArtifactWithAttributes> outputs = poolStringFileArtifactWithAttributes.Instance;
+                outputs.AddRange(pip.Outputs.ToDictionary(o => o.Path.ToString(pathTable), o => o));
+                for (int i = 0; i < metadata.StaticOutputHashes.Count; i++)
                 {
-                    // Skipping non-cacheable outputs (note that StoreContentForProcess does the same).
-                    continue;
-                }
+                    FileMaterializationInfo materializationInfo = metadata.StaticOutputHashes[i].Info.ToFileMaterializationInfo(pathTable);
+                    outputs.TryGetValue(metadata.StaticOutputHashes[i].AbsolutePath, out attributedOutput);
+                    FileArtifact output = attributedOutput.ToFileArtifact();
 
-                FileArtifact output = attributedOutput.ToFileArtifact();
-
-                FileMaterializationInfo materializationInfo = metadata.StaticOutputHashes[outputHashIndex].ToFileMaterializationInfo(pathTable);
-                outputHashIndex++;
-
-                // Following logic should be in sync with StoreContentForProcess method.
-                bool isRequired = IsRequiredForCaching(attributedOutput);
-                if (materializationInfo.Hash != WellKnownContentHashes.AbsentFile)
-                {
-                    cachedArtifactContentHashes.Add((output, materializationInfo));
-                }
-                else if (isRequired)
-                {
-                    // Required but looks absent; entry is invalid.
-                    return null;
-                }
-                else
-                {
-                    if (absentArtifacts == null)
+                    // Following logic should be in sync with StoreContentForProcess method.
+                    bool isRequired = IsRequiredForCaching(attributedOutput);
+                    if (materializationInfo.Hash != WellKnownContentHashes.AbsentFile)
                     {
-                        absentArtifacts = new List<FileArtifact>();
+                        cachedArtifactContentHashes.Add((output, materializationInfo));
                     }
+                    else if (isRequired)
+                    {
+                        // Required but looks absent; entry is invalid.
+                        return null;
+                    }
+                    else
+                    {
+                        if (absentArtifacts == null)
+                        {
+                            absentArtifacts = new List<FileArtifact>();
+                        }
 
-                    absentArtifacts.Add(output);
+                        absentArtifacts.Add(output);
+                    }
                 }
             }
 
@@ -2992,7 +2987,7 @@ namespace BuildXL.Scheduler
             {
                 // The path can't be accessed. Note that we don't apply a whitelist here (that only applies to process execution).
                 // We let this cause overall failure (i.e., a failed ObservedInputProcessingResult, and an undefined StrongContentFingerprint).
-                if (!BuildXL.Scheduler.ETWLogger.Log.IsEnabled(EventLevel.Verbose, BuildXL.Utilities.Tracing.Events.Keywords.Diagnostics))
+                if (!BuildXL.Scheduler.ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                 {
                     Logger.Log.PathSetValidationTargetFailedAccessCheck(m_operationContext, m_pipDescription, assertion.Path.ToString(m_pathTable));
                 }
@@ -3306,7 +3301,7 @@ namespace BuildXL.Scheduler
             }
 
             // Tracing input assertions is expensive (many events and many string expansions); we avoid tracing when nobody is listening.
-            if (!BuildXL.Scheduler.ETWLogger.Log.IsEnabled(EventLevel.Verbose, BuildXL.Utilities.Tracing.Events.Keywords.Diagnostics))
+            if (!BuildXL.Scheduler.ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
             {
                 return;
             }
@@ -4122,8 +4117,12 @@ namespace BuildXL.Scheduler
 
                 if (outputData.HasAllFlags(OutputFlags.DeclaredFile))
                 {
-                    // If it is a static output, just store its hash in the descriptor.
-                    metadata.StaticOutputHashes.Add(materializationInfo.ToBondFileMaterializationInfo(pathTable));
+                    var keyedHash = new AbsolutePathFileMaterializationInfo
+                    {
+                        AbsolutePath = path.ToString(pathTable),
+                        Info = materializationInfo.ToBondFileMaterializationInfo(pathTable),
+                    };
+                    metadata.StaticOutputHashes.Add(keyedHash);
                 }
 
                 if (outputData.HasAllFlags(OutputFlags.DynamicFile))

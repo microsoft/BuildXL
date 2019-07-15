@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.IO;
 using BuildXL.Utilities.Collections;
 
@@ -101,34 +102,44 @@ namespace BuildXL.Utilities.Serialization
         /// <inheritdoc />
         public override StringId ReadStringId()
         {
+            return ReadStringId(kind: InlinedStringKind.Default);
+        }
+
+        /// <todoc />
+        public StringId ReadStringId(InlinedStringKind kind)
+        {
             // Read the index
             var index = ReadInt32Compact();
 
             // Check if string already encountered
             if (index > m_maxReadStringIndex)
             {
-                // This is a new string
-                // Read if string is ascii or UTF-16
-                bool isAscii = ReadBoolean();
-
-                // Read the byte length
-                int byteLength = ReadInt32Compact();
-
-                CollectionUtilities.GrowArrayIfNecessary(ref m_buffer, byteLength);
-
-                // Read the bytes into the buffer
-                Read(m_buffer, 0, byteLength);
-
-                var binaryString = new BinaryStringSegment(m_buffer, 0, byteLength, isAscii);
+                var binaryString = ReadStringIdValue(kind, ref m_buffer);
                 var stringId = m_pathTable.StringTable.AddString(binaryString);
-
                 m_readStrings[(uint)index] = stringId;
-
                 m_maxReadStringIndex = index;
-                return stringId;
             }
 
             return m_readStrings[(uint)index];
+        }
+
+        /// <todoc />
+        public virtual BinaryStringSegment ReadStringIdValue(InlinedStringKind kind, ref byte[] buffer)
+        {
+            // This is a new string
+            // Read if string is ascii or UTF-16
+            bool isAscii = ReadBoolean();
+
+            // Read the byte length
+            int byteLength = ReadInt32Compact();
+
+            CollectionUtilities.GrowArrayIfNecessary(ref buffer, byteLength);
+
+            // Read the bytes into the buffer
+            Read(buffer, 0, byteLength);
+
+            var binaryString = new BinaryStringSegment(buffer, 0, byteLength, isAscii);
+            return binaryString;
         }
     }
 }

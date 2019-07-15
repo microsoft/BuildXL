@@ -21,6 +21,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using BuildXL.Native.IO;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
 
@@ -118,7 +119,7 @@ namespace Test.BuildXL.Processes.Detours
                         sandboxConfiguration,
                         pip);
 
-                    AssertErrorEventLogged(EventId.PipProcessExpectedMissingOutputs);
+                    AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
                     AssertErrorEventLogged(EventId.PipProcessError);
                 }
             }
@@ -1026,10 +1027,128 @@ namespace Test.BuildXL.Processes.Detours
 
                 XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Succeeded, result.Status);
 
-                // There should be a single reported file access: The attempt to read 'input/in.txt'. The accesses related to outputs (creating the nested output
-                // directory and writing the file) should not be reported here
-                ObservedFileAccess access = result.ObservedFileAccesses.Single();
+                // There should be a single reported file access that is not related to creating directories: The attempt to read 'input/in.txt'. The accesses related to writing the file should not be reported here.
+                ObservedFileAccess access = result.ObservedFileAccesses.Single(fa => !fa.Accesses.All(a => a.Operation == ReportedFileOperation.CreateDirectory));
                 XAssert.AreEqual(AbsolutePath.Create(context.PathTable, inputUndersharedOpaqueRoot), access.Path);
+            }
+        }
+
+        /// <summary>
+        /// Blocking accesses under shared opaques based on file existence is a Windows-only feature for now.
+        /// </summary>
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task ProcessFileAccessesBlockedBasedOnFileExistenceUnderSharedOpaques(bool pipCreatesFile)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var symbolTable = context.SymbolTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                string executable = CmdHelper.CmdX64;
+                FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, executable));
+
+                string workingDirectory = tempFiles.GetUniqueDirectory();
+                var sharedOpaqueRoot = Path.Combine(workingDirectory, "sharedOpaque");
+
+                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, sharedOpaqueRoot);
+
+                // Create a shared opaque.
+                var sharedOpaque = new DirectoryArtifact(AbsolutePath.Create(context.PathTable, sharedOpaqueRoot), 1, isSharedOpaque: true);
+
+                // The shared opaque input contains input/in.txt
+                var inputUndersharedOpaqueRoot = Path.Combine(sharedOpaqueRoot, "input", "in.txt");
+                Directory.CreateDirectory(sharedOpaqueRoot);
+                Directory.CreateDirectory(Path.Combine(sharedOpaqueRoot, "input"));
+
+                // If the test is configured so the pip does not create the file, we create it before the pip runs
+                if (!pipCreatesFile)
+                {
+                    File.WriteAllText(inputUndersharedOpaqueRoot, "Foo");
+                }
+
+                var arguments = new PipDataBuilder(context.PathTable.StringTable);
+                arguments.Add("/d");
+                arguments.Add("/c");
+                using (arguments.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
+                {
+                    // Writes into 'input/in.txt' (under the shared opaque input) twice
+                    arguments.Add("echo");
+                    arguments.Add("foo");
+                    arguments.Add(">");
+                    arguments.Add(@"input\in.txt");
+                    arguments.Add("&&");
+                    arguments.Add("echo");
+                    arguments.Add("bar");
+                    arguments.Add(">");
+                    arguments.Add(@"input\in.txt");
+                }
+
+                var pip = new Process(
+                    executableFileArtifact,
+                    workingDirectoryAbsolutePath,
+                    arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
+                    FileArtifact.Invalid,
+                    PipData.Invalid,
+                    ReadOnlyArray<EnvironmentVariable>.Empty,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    tempFiles.GetUniqueDirectory(context.PathTable),
+                    null,
+                    null,
+                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(executableFileArtifact),
+                    ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    ReadOnlyArray<DirectoryArtifact>.Empty, 
+                    ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { sharedOpaque }),
+                    ReadOnlyArray<PipId>.Empty,
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(context.PathTable)),
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencyScopes(context.PathTable)),
+                    ReadOnlyArray<StringId>.Empty,
+                    ReadOnlyArray<int>.Empty,
+                    ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
+                    new PipProvenance(
+                        0,
+                        ModuleId.Invalid,
+                        StringId.Invalid,
+                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "SharedOpaqueAccesses")),
+                        LocationData.Invalid,
+                        QualifierId.Unqualified,
+                        PipData.Invalid),
+                    toolDescription: StringId.Invalid,
+                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
+                    // Write on existing files are for now blocked only when allow undeclared source reads are on
+                    options: Process.Options.AllowUndeclaredSourceReads);
+
+                SandboxedProcessPipExecutionResult result = await RunProcess(
+                    context,
+                    new SandboxConfiguration {
+                        FileAccessIgnoreCodeCoverage = true,
+                        FailUnexpectedFileAccesses = false,
+                        UnsafeSandboxConfiguration = new UnsafeSandboxConfiguration { IgnoreUndeclaredAccessesUnderSharedOpaques = false },
+                        LogObservedFileAccesses = true},
+                    pip,
+                    fileAccessWhitelist: null,
+                    new Dictionary<string, string>(),
+                    SemanticPathExpander.Default,
+                    new TestDirectoryArtifactContext(
+                            SealDirectoryKind.SharedOpaque,
+                            new FileArtifact[] { }));
+
+                XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Succeeded, result.Status);
+
+                if (!pipCreatesFile)
+                {
+                    // There should be two denied accesses, both based on file existence
+                    var deniedAccessesBasedOnExistence = result.AllReportedFileAccesses.Where(a => a.Status == FileAccessStatus.Denied && a.Method == FileAccessStatusMethod.FileExistenceBased);
+                    XAssert.AreEqual(2, deniedAccessesBasedOnExistence.Count());
+                }
+                else
+                {
+                    // No violations when the pip is the one creating the file
+                    XAssert.AreEqual(null, result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted);
+                }
             }
         }
 
@@ -1516,7 +1635,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 // Very occasionally the child dump fails to be collected due to ERROR_PARTIAL_COPY (0x12B) or ERROR_BAD_LENGTH 
                 // Check for the masked version of this in the native error code of the process dump message and ignore when it is hit
-                if (EventListener.GetEventCount(EventId.PipFailedToCreateDumpFile) == 1 &&
+                if (EventListener.GetEventCount((int)ProcessesLogEventId.PipFailedToCreateDumpFile) == 1 &&
                     (EventListener.GetLog().Contains("-2147024597")) // -2147024597 && 0x0FFF == 0x12B (ERROR_PARTIAL_COPY)
                     || EventListener.GetLog().Contains("80070018")) // win32 error code 18 is (ERROR_BAD_LENGTH)
                 {

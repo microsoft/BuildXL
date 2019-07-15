@@ -72,7 +72,7 @@ namespace BuildXL.Pips.Operations
         {
             Contract.Requires(writer != null);
 
-            writer.Write(m_entriesStringId);
+            writer.WritePipDataId(m_entriesStringId);
             if (m_entriesStringId.IsValid)
             {
                 HeaderEntry.Serialize(writer);
@@ -94,7 +94,7 @@ namespace BuildXL.Pips.Operations
         internal static PipData Deserialize(PipReader reader)
         {
             Contract.Requires(reader != null);
-            var entriesStringId = reader.ReadStringId();
+            var entriesStringId = reader.ReadPipDataId();
             PipDataEntry headerEntry;
             PipDataEntryList entries;
             if (entriesStringId.IsValid)
@@ -102,7 +102,7 @@ namespace BuildXL.Pips.Operations
                 headerEntry = PipDataEntry.Deserialize(reader);
 
                 // Use the string table to get the raw bytes to back the entries
-                entries = new PipDataEntryList(reader.Store.StringTable.GetBytes(entriesStringId));
+                entries = new PipDataEntryList(reader.StringTable.GetBytes(entriesStringId));
             }
             else
             {

@@ -12,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// Wrapper for a resource within a <see cref="ResourcePool{TKey, TObject}"/>.
     /// </summary>
     /// <typeparam name="TObject">The wrapped type.</typeparam>
-    public sealed class ResourceWrapper<TObject> : IDisposable where TObject : IShutdown<BoolResult>
+    public sealed class ResourceWrapper<TObject> : IDisposable where TObject : IShutdownSlim<BoolResult>
     {
         internal DateTime _lastUseTime;
         private int _uses;
@@ -21,35 +21,17 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <summary>
         /// Count of ongoing uses of this resource.
         /// </summary>
-        public int Uses
-        {
-            get
-            {
-                return _uses;
-            }
-        }
+        public int Uses => _uses;
 
         /// <summary>
         /// Whether the resource's underlying lazy wrapper has been evaluated yet.
         /// </summary>
-        internal bool IsValueCreated
-        {
-            get
-            {
-                return _resource.IsValueCreated;
-            }
-        }
+        internal bool IsValueCreated => _resource.IsValueCreated;
 
         /// <summary>
         /// The contained resource.
         /// </summary>
-        public TObject Value
-        {
-            get
-            {
-                return _resource.Value;
-            }
-        }
+        public TObject Value => _resource.Value;
 
         /// <summary>
         /// Constructor.

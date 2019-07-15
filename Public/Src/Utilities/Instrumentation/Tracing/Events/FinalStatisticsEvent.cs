@@ -3,11 +3,7 @@
 
 using System;
 using System.Reflection;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Tracing.CloudBuild
 {

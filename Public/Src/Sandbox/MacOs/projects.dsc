@@ -21,13 +21,23 @@ namespace Sandbox {
         derivedDataOutDir: StaticDirectory
     }
 
-    const sandboxSealDir = Transformer.sealSourceDirectory(
-        d`${Context.getMount("Sandbox").path}`,
-        Transformer.SealSourceDirectoryOption.allDirectories);
+    const sourceFileDependencies = (() =>
+    {
+        const sandboxDir = d`${Context.getMount("Sandbox").path}`;
+        const thirdPartyDir = d`../../../../third_party`;
 
-    const thirdPartySealDir = Transformer.sealSourceDirectory(
-        d`../../../../third_party`,
-        Transformer.SealSourceDirectoryOption.allDirectories);
+        const sourceSealOptions =  Transformer.SealSourceDirectoryOption.allDirectories;
+        const globPattern = "*";
+
+        return BuildXLSdk.Flags.isMicrosoftInternal ?
+            [
+                Transformer.sealSourceDirectory(sandboxDir, sourceSealOptions),
+                Transformer.sealSourceDirectory(thirdPartyDir, sourceSealOptions)
+            ] : [
+                ...Transformer.sealDirectory(sandboxDir, globR(sandboxDir, globPattern)).contents,
+                ...Transformer.sealDirectory(thirdPartyDir, globR(thirdPartyDir, globPattern)).contents
+            ];
+    })();
 
     export function build(args: Args): Result {
         const conf = args.configuration || qualifier.configuration;
@@ -45,10 +55,10 @@ namespace Sandbox {
             ],
             dependencies: [
                 ...(args.dependencies || []),
-                sandboxSealDir,
-                thirdPartySealDir
+                ...sourceFileDependencies
             ]
         });
+
         return {
             outFiles: outFilePaths.map(result.getOutputFile),
             derivedDataOutDir: result.getOutputDirectory(outDir)
@@ -71,15 +81,15 @@ namespace Sandbox {
         files: globR(d`Sandbox/Sandbox.xcodeproj`, "*")
     });
 
-    const ariaPkg = importFrom("Aria.Cpp.SDK.osx-x64");
+    const ariaPkg = importFrom("Aria.Cpp.SDK");
     const ariaXcconfig = Transformer.writeData({
         outputPath: p`${Context.getNewOutputDirectory("xcconfig")}/Aria.xcconfig`,
         contents: {
             separator: "\n",
             contents: [
                 "GCC_PREPROCESSOR_DEFINITIONS = MICROSOFT_INTERNAL",
-                { separator: "", contents: ["LIBRARY_SEARCH_PATHS = $(inherited) \"", ariaPkg.Contents.all.root, "/tools"]},
-                { separator: "", contents: ["HEADER_SEARCH_PATHS = $(inherited) \"", ariaPkg.Contents.all.root, "/tools/include"]},
+                { separator: "", contents: ["LIBRARY_SEARCH_PATHS = $(inherited) \"", ariaPkg.Contents.all.root, "/osx-x64/tools"]},
+                { separator: "", contents: ["HEADER_SEARCH_PATHS = $(inherited) \"", ariaPkg.Contents.all.root, "/osx-x64/tools/include"]},
                 "OTHER_LDFLAGS = $(inherited) -laria_osx_objc_cpp"
             ]
         }

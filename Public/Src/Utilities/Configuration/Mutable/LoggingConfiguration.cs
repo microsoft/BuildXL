@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {
@@ -13,7 +14,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc />
         public LoggingConfiguration()
         {
-            CustomLog = new Dictionary<AbsolutePath, IReadOnlyList<int>>();
+            CustomLog = new Dictionary<AbsolutePath, (IReadOnlyList<int>, EventLevel?)>();
             CustomLogEtwKinds = new Dictionary<AbsolutePath, string>();
             NoLog = new List<int>();
             NoExecutionLog = new List<int>();
@@ -69,7 +70,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             HistoricMetadataCacheLogDirectory = pathRemapper.Remap(template.HistoricMetadataCacheLogDirectory);
             EngineCacheLogDirectory = pathRemapper.Remap(template.EngineCacheLogDirectory);
             EngineCacheCorruptFilesLogDirectory = pathRemapper.Remap(template.EngineCacheCorruptFilesLogDirectory);
-            CustomLog = new Dictionary<AbsolutePath, IReadOnlyList<int>>();
+            CustomLog = new Dictionary<AbsolutePath, (IReadOnlyList<int>, EventLevel?)>();
             foreach (var kv in template.CustomLog)
             {
                 CustomLog.Add(pathRemapper.Remap(kv.Key), kv.Value);
@@ -184,10 +185,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public Dictionary<AbsolutePath, IReadOnlyList<int>> CustomLog { get; set; }
+        public Dictionary<AbsolutePath, (IReadOnlyList<int>, EventLevel?)> CustomLog { get; set; }
 
         /// <inheritdoc />
-        IReadOnlyDictionary<AbsolutePath, IReadOnlyList<int>> ILoggingConfiguration.CustomLog => CustomLog;
+        IReadOnlyDictionary<AbsolutePath, (IReadOnlyList<int>, EventLevel?)> ILoggingConfiguration.CustomLog => CustomLog;
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]

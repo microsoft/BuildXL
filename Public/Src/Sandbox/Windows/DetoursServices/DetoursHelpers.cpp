@@ -1025,3 +1025,11 @@ bool EnumerateDirectory(
 
     return true;
 }
+
+bool ExistsAsFile(_In_ PCWSTR path)
+{
+    DWORD dwAttrib = GetFileAttributesW(path);
+
+    return (dwAttrib != INVALID_FILE_ATTRIBUTES &&
+        !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+}

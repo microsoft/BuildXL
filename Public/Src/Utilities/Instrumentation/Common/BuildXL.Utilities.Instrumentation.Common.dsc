@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as BuildXLSdk from "Sdk.BuildXL";
+import * as Managed from "Sdk.Managed";
 import * as MacServices from "BuildXL.Sandbox.MacOS";
 
 namespace Common {
@@ -11,13 +12,9 @@ namespace Common {
         assemblyName: "BuildXL.Utilities.Instrumentation.Common",
         sources: globR(d`.`, '*.cs'),
         skipDefaultReferences: true,
-        references: [
-            ...addIfLazy(BuildXLSdk.isFullFramework, () => [
-                importFrom("Microsoft.Applications.Telemetry.Desktop").pkg,
-                importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").pkg
-            ]),
-        ],
+        references: [],
         runtimeContent: [
+            AriaNative.deployment,
             ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
                 MacServices.Deployment.ariaLibrary
             ]),

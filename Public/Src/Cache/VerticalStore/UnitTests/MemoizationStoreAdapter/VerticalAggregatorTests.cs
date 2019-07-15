@@ -3,12 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using BuildXL.Cache.Tests;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
+using BuildXL.Cache.Tests;
 
 namespace Test.Cache.MemoizationStoreAdapter
 {

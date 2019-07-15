@@ -4,10 +4,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Utilities;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
@@ -222,6 +224,57 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             }
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        ///     Serialize whole value to a binary writer.
+        /// </summary>
+        public void Serialize(BuildXLWriter writer)
+        {
+            Contract.Requires(writer != null);
+
+            writer.Write(_contentHashes, (w, hash) => hash.Serialize(w));
+            WriteNullableArray(_payload, writer);
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="ContentHashList" /> class from its binary representation.
+        /// </summary>
+        public static ContentHashList Deserialize(BuildXLReader reader)
+        {
+            Contract.Requires(reader != null);
+
+            var contentHashes = reader.ReadArray(r => new ContentHash(r));
+            var payload = ReadNullableArray(reader);
+            return new ContentHashList(contentHashes, payload);
+        }
+
+
+        /// <nodoc />
+        public static void WriteNullableArray(byte[] array, BuildXLWriter writer)
+        {
+            if (array == null)
+            {
+                writer.WriteCompact(-1);
+            }
+            else
+            {
+                writer.WriteCompact(array.Length);
+                writer.Write(array);
+            }
+        }
+
+        /// <nodoc />
+        public static byte[] ReadNullableArray(BuildXLReader reader)
+        {
+            var payloadLength = reader.ReadInt32Compact();
+            byte[] payload = null;
+            if (payloadLength >= 0)
+            {
+                payload = reader.ReadBytes(payloadLength);
+            }
+
+            return payload;
         }
     }
 }

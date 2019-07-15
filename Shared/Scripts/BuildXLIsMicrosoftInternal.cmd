@@ -70,7 +70,7 @@ if not "%[Sdk.BuildXL]microsoftInternal%" == "" (
 
 REM @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 REM
-REM Last resport if not specified to check the domain. 
+REM Last resort if not specified to check the domain. 
 REM If you are not internal to microsoft and your domain matches one of the domains here, 
 REM you can set the environment varaible on your machine explicitly or pass it on the commandline when you build.
 REM

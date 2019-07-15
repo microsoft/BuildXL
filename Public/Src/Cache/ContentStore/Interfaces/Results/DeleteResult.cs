@@ -6,16 +6,44 @@ using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
+    /// <summary>
+    ///     Result of the Delete call.
+    /// </summary>
+    public class DeleteResult : BoolResult
+    {
+
         /// <summary>
-        ///     Result of the Delete call.
+        /// A code that helps caller to make decisions.
         /// </summary>
-        public class DeleteResult : BoolResult
+        public enum ResultCode
         {
+            /// <summary>
+            /// The call succeeded.
+            /// </summary>
+            Success = 0,
+
+            /// <summary>
+            /// The call did not succeed on the server.
+            /// </summary>
+            ContentNotDeleted = 1,
+
+            /// <summary>
+            /// The cause of the exception was the server.
+            /// </summary>
+            ServerError = 2,
+
+            /// <summary>
+            /// The cause of the exception was unknown.
+            /// </summary>
+            Error = 3
+        }
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
         /// </summary>
         public DeleteResult(ContentHash contentHash, long evictedSize, long pinnedSize)
         {
+            Code = ResultCode.Success;
             ContentHash = contentHash;
             EvictedSize = evictedSize;
             PinnedSize = pinnedSize;
@@ -24,18 +52,25 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
         /// </summary>
-        public DeleteResult(string errorMessage, string diagnostics = null)
+        public DeleteResult(ResultCode resultCode, string errorMessage, string diagnostics = null)
             : base(errorMessage, diagnostics)
         {
+            Code = resultCode;
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
         /// </summary>
-        public DeleteResult(Exception exception, string message = null)
+        public DeleteResult(ResultCode resultCode, Exception exception, string message = null)
             : base(exception, message)
         {
+            Code = resultCode;
         }
+
+        /// <summary>
+        /// Gets a classification of the result of the call.
+        /// </summary>
+        public ResultCode Code { get; }
 
         /// <summary>
         ///     Gets the deleted hash.

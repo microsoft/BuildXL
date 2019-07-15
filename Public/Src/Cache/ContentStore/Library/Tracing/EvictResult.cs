@@ -99,11 +99,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (HasException)
             {
-                return new DeleteResult(Exception, ErrorMessage);
+                return new DeleteResult(DeleteResult.ResultCode.Error, Exception, ErrorMessage);
             }
             else if (!Succeeded)
             {
-                return new DeleteResult(ErrorMessage, Diagnostics);
+                return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, ErrorMessage, Diagnostics);
             }
 
             return new DeleteResult(contentHash, EvictedSize, PinnedSize);

@@ -29,6 +29,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private OperationContext _context;
         private Action<EventData> _handler;
 
+        /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(MemoryEventHubClient));
 
         /// <nodoc />
@@ -101,8 +102,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public sealed class EventHub
         {
             // EventData system property names (copied from event hub codebase)
-            public const string EnqueuedTimeUtcName = "x-opt-enqueued-time";
-            public const string SequenceNumberName = "x-opt-sequence-number";
+            private const string EnqueuedTimeUtcName = "x-opt-enqueued-time";
+            private const string SequenceNumberName = "x-opt-sequence-number";
 
             private readonly PropertyInfo _systemPropertiesPropertyInfo = typeof(EventData).GetProperty(nameof(EventData.SystemProperties));
             private readonly List<EventData> _eventStream = new List<EventData>();

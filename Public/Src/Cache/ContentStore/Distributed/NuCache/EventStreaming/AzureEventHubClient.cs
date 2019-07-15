@@ -27,6 +27,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private PartitionReceiver _partitionReceiver;
 
+        /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(AzureEventHubClient));
 
         /// <nodoc />
@@ -62,8 +63,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             // In unit tests, hangs sometimes occur for this when running multiple tests in sequence.
             // Adding a timeout to detect when this occurs
-            _partitionReceiver?.CloseAsync().WithTimeoutAsync(TimeSpan.FromMinutes(1)).GetAwaiter().GetResult();
-            _partitionReceiver = null;
+            if (_partitionReceiver != null)
+            {
+                _partitionReceiver.CloseAsync().WithTimeoutAsync(TimeSpan.FromMinutes(1)).GetAwaiter().GetResult();
+                _partitionReceiver = null;
+            }
 
             return BoolResult.Success;
         }
@@ -92,16 +96,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             SuspendProcessing(context).ThrowIfFailure();
 
-            _partitionSender?.CloseAsync();
-            _eventHubClient?.CloseAsync();
+            if (_partitionSender != null)
+            {
+                await _partitionSender.CloseAsync();
+            }
+
+            if (_eventHubClient != null)
+            {
+                await _eventHubClient.CloseAsync();
+            }
 
             return await base.ShutdownCoreAsync(context);
         }
 
         /// <inheritdoc />
-        public async Task SendAsync(OperationContext context, EventData eventData)
+        public Task SendAsync(OperationContext context, EventData eventData)
         {
-            await _partitionSender.SendAsync(eventData);
+            return _partitionSender.SendAsync(eventData);
         }
 
         private EventPosition GetInitialOffset(OperationContext context, EventSequencePoint sequencePoint)

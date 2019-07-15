@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
     }
 
     /// <summary>
-    /// Configuration type for <see cref="MemoryContentLocationEventStore"/>.
+    /// Configuration type for <see cref="MemoryEventHubClient"/>.
     /// </summary>
     public sealed class MemoryContentLocationEventStoreConfiguration : ContentLocationEventStoreConfiguration
     {

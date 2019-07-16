@@ -423,9 +423,40 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             // Ask the host for credentials
             var retryPolicy = CreateSecretsRetrievalRetryPolicy(_distributedSettings);
-            return await retryPolicy.ExecuteAsync(
+            var secrets = await retryPolicy.ExecuteAsync(
                 async () => await _arguments.Host.RetrieveKeyVaultSecretsAsync(retrieveSecretsRequests, token),
                 token);
+            if (secrets == null)
+            {
+                return null;
+            }
+
+            // Validate requests match as expected
+            foreach (var request in retrieveSecretsRequests)
+            {
+                if (secrets.TryGetValue(request.Name, out var secret))
+                {
+                    bool typeMatch = true;
+                    switch (request.Kind)
+                    {
+                        case SecretKind.PlainText:
+                            typeMatch = secret is PlainTextSecret;
+                            break;
+                        case SecretKind.SasToken:
+                            typeMatch = secret is UpdatingSasToken;
+                            break;
+                        default:
+                            throw new NotSupportedException("The requested kind is missing support for secret request matching");
+                    }
+
+                    if (!typeMatch)
+                    {
+                        throw new SecurityException($"The credentials produced by the host for secret named {request.Name} do not match the expected kind");
+                    }
+                }
+            }
+
+            return secrets;
 
             bool appendIfNull(object value, string propertyName)
             {

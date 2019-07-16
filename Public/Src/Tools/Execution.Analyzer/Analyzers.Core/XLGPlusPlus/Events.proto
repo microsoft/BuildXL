@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package BuildXL.Execution.Analyzer;
+
+option csharp_namespace = "BuildXL.Execution.Analyzer";
+
+message test1{
+    string name = 1;
+}

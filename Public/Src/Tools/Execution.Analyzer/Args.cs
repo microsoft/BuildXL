@@ -322,6 +322,9 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.CopyFile:
                     m_analyzer = InitializeCopyFilesAnalyzer();
                     break;
+                case AnalysisMode.XlgToDb:
+                    m_analyzer = InitializeXLGToDBAnalyzer();
+                    break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
                     break;
@@ -580,6 +583,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteCopyFilesAnalyzerHelp(writer);
+
+            writer.WriteLine("");
+            WriteXLGToDBHelp(writer);
         }
 
         public void LogEventSummary()

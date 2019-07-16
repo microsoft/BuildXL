@@ -2,6 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Managed from "Sdk.Managed";
+import * as GrpcSdk from "Sdk.Protocols.Grpc";
+
 namespace Execution.Analyzer {
 
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
@@ -13,7 +15,10 @@ namespace Execution.Analyzer {
         generateLogs: true,
         rootNamespace: "BuildXL.Execution.Analyzer",
         skipDocumentationGeneration: true,
-        sources: globR(d`.`, "*.cs"),
+        sources: [
+            ...globR(d`.`, "*.cs"),
+            ...GrpcSdk.generate({proto: [f`Analyzers.core\XLGPlusPlus\Events.proto`]}).sources,
+        ],
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.IO.dll,
@@ -54,6 +59,7 @@ namespace Execution.Analyzer {
             importFrom("Microsoft.TeamFoundationServer.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
+            importFrom("Google.Protobuf").pkg,
         ],
         internalsVisibleTo: [
             "Test.Tool.Analyzers",

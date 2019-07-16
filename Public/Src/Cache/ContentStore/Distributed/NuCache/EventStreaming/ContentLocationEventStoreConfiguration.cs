@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <summary>
         /// An epoch used for reseting event processing.
         /// </summary>
-        public string Epoch { get; set; }
+        public string Epoch { get; set; } = string.Empty;
 
         /// <summary>
         /// Specifies the delay of the first event processed after the epoch is reset.
@@ -35,10 +35,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// If enabled, serialized entries would be deserialized back to make sure the serialization/deserialization process is correct.
         /// </summary>
         public bool SelfCheckSerialization { get; set; } = false;
+
+        /// <summary>
+        /// The max concurrency to use for events processing.
+        /// </summary>
+        public int MaxEventProcessingConcurrency { get; set; } = 1;
+
+        /// <summary>
+        /// The size of the queue used for concurrent event processing.
+        /// </summary>
+        public int EventProcessingMaxQueueSize { get; set; } = 100;
     }
 
     /// <summary>
-    /// Configuration type for <see cref="MemoryContentLocationEventStore"/>.
+    /// Configuration type for <see cref="MemoryEventHubClient"/>.
     /// </summary>
     public sealed class MemoryContentLocationEventStoreConfiguration : ContentLocationEventStoreConfiguration
     {
@@ -46,12 +56,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         public MemoryContentLocationEventStoreConfiguration()
         {
             EventBatchSize = 1;
+            MaxEventProcessingConcurrency = 1;
         }
 
         /// <summary>
         /// Global in-memory event hub used for testing purposes.
         /// </summary>
-        public MemoryContentLocationEventStore.EventHub Hub { get; } = new MemoryContentLocationEventStore.EventHub();
+        public MemoryEventHubClient.EventHub Hub { get; } = new MemoryEventHubClient.EventHub();
     }
 
     /// <summary>
@@ -86,16 +97,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         /// <nodoc />
         public string ConsumerGroupName { get; }
-
-        /// <summary>
-        /// The max concurrency to use for events processing.
-        /// </summary>
-        public int MaxEventProcessingConcurrency { get; set; } = 1;
-
-        /// <summary>
-        /// The size of the queue used for concurrent event processing.
-        /// </summary>
-        public int EventProcessingMaxQueueSize { get; set; } = 100;
 
         /// <summary>
         /// Creates another configuration instance with a given <paramref name="consumerGroupName"/>.

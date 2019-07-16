@@ -2,7 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using System.Diagnostics.ContractsLight;
+using System.IO;
+using BuildXL.Utilities;
+using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
@@ -29,6 +32,43 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         ///     Gets the cache determinism member.
         /// </summary>
         public CacheDeterminism Determinism { get; }
+
+        /// <summary>
+        ///     Serializes an instance into a binary stream.
+        /// </summary>
+        public void Serialize(BuildXLWriter writer)
+        {
+            Contract.Requires(writer != null);
+
+            var writeContentHashList = ContentHashList != null;
+            writer.Write(writeContentHashList);
+            if (writeContentHashList)
+            {
+                ContentHashList.Serialize(writer);
+            }
+
+            var determinism = Determinism.Serialize();
+            writer.Write(determinism.Length);
+            writer.Write(determinism);
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="ContentHashListWithDeterminism"/> struct from its binary
+        ///     representation.
+        /// </summary>
+        public static ContentHashListWithDeterminism Deserialize(BuildXLReader reader)
+        {
+            Contract.Requires(reader != null);
+
+            var writeContentHashList = reader.ReadBoolean();
+            var contentHashList = writeContentHashList ? ContentHashList.Deserialize(reader) : null;
+
+            var length = reader.ReadInt32();
+            var determinismBytes = reader.ReadBytes(length);
+            var determinism = CacheDeterminism.Deserialize(determinismBytes);
+
+            return new ContentHashListWithDeterminism(contentHashList, determinism);
+        }
 
         /// <inheritdoc />
         public bool Equals(ContentHashListWithDeterminism other)

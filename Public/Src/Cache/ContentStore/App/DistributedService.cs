@@ -121,60 +121,80 @@ namespace BuildXL.Cache.ContentStore.App
             {
             }
 
-            public Task<Dictionary<string, Credentials>> RetrieveKeyVaultSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
+            public Task<Dictionary<string, Secret>> RetrieveKeyVaultSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
             {
-                var result = new Dictionary<string, Credentials>();
+                var secrets = new Dictionary<string, Secret>();
 
                 foreach (var request in requests)
                 {
-                    Credentials credentials = null;
+                    Secret secret = null;
 
-                    var secret = GetSecretStoreValue(request.Name);
-                    if (string.IsNullOrEmpty(secret))
+                    var secretValue = GetSecretStoreValue(request.Name);
+                    if (string.IsNullOrEmpty(secretValue))
                     {
-                        // Environment variables are null by default. Skip if that's the case.
+                        // Environment variables are null by default. Skip if that's the case
                         continue;
                     }
 
                     switch (request.Kind)
                     {
-                        case CredentialsKind.AzureBlobPlainText:
-                            credentials = new AzureBlobStorageCredentials(secret);
+                        case SecretKind.PlainText:
+                            // In this case, the value is expected to be an entire connection string
+                            secret = new PlainTextSecret(secretValue);
                             break;
-                        case CredentialsKind.AzureBlobSASToken:
-                            var account = CloudStorageAccount.Parse(secret);
-                            var sasToken = account.GetSharedAccessSignature(new SharedAccessAccountPolicy
-                            {
-                                // Doesn't ever expire
-                                SharedAccessExpiryTime = null,
-                                // Grants permissions for everything
-                                Permissions = SharedAccessAccountPermissions.Add | SharedAccessAccountPermissions.Create | SharedAccessAccountPermissions.Delete | SharedAccessAccountPermissions.List | SharedAccessAccountPermissions.ProcessMessages | SharedAccessAccountPermissions.Read | SharedAccessAccountPermissions.Update | SharedAccessAccountPermissions.Write,
-                                // Only allows talking to Azure Blob
-                                Services = SharedAccessAccountServices.Blob,
-                                // Any kind of resource
-                                ResourceTypes = SharedAccessAccountResourceTypes.Object | SharedAccessAccountResourceTypes.Container | SharedAccessAccountResourceTypes.Service,
-                                // Only over Https
-                                Protocols = SharedAccessProtocol.HttpsOnly
-                            });
-
-                            // We don't need to use any endpoint suffix different than the default
-                            credentials = new AzureBlobStorageCredentials(new StorageCredentials(sasToken), account.Credentials.AccountName);
-                            break;
-                        case CredentialsKind.EventHubPlainText:
-                            credentials = new EventHubCredentials(secret);
-                            break;
-                        case CredentialsKind.RedisPlainText:
-                            credentials = new RedisCredentials(secret);
+                        case SecretKind.SasToken:
+                            secret = CreateSasTokenSecret(request, secretValue);
                             break;
                         default:
-                            throw new NotImplementedException("It is expected that all supported credential kinds be handled when creating a DistributedService.");
+                            throw new NotSupportedException("It is expected that all supported credential kinds be handled when creating a DistributedService.");
                     }
 
-                    Contract.Requires(credentials != null);
-                    result[request.Name] = credentials;
+                    Contract.Requires(secret != null);
+                    secrets[request.Name] = secret;
                 }
 
-                return Task.FromResult(result);
+                return Task.FromResult(secrets);
+            }
+
+            private Secret CreateSasTokenSecret(RetrieveSecretsRequest request, string secretValue)
+            {
+                var resourceTypeVariableName = $"{request.Name}_ResourceType";
+                var resourceType = GetSecretStoreValue(resourceTypeVariableName);
+                if (string.IsNullOrEmpty(resourceType))
+                {
+                    throw new ArgumentNullException($"Missing environment variable {resourceTypeVariableName} that stores the resource type for secret {request.Name}");
+                }
+
+                switch (resourceType.ToLowerInvariant())
+                {
+                    case "storagekey":
+                        return CreateAzureStorageSasTokenSecret(request, secretValue);
+                    default:
+                        throw new NotSupportedException($"Unknown resource type {resourceType} for secret named {request.Name}. Check environment variable {resourceTypeVariableName} has a valid value.");
+                }
+            }
+
+            private Secret CreateAzureStorageSasTokenSecret(RetrieveSecretsRequest request, string secretValue)
+            {
+                // In this case, the environment variable is expected to hold an Azure Storage connection string
+                var cloudStorageAccount = CloudStorageAccount.Parse(secretValue);
+
+                // Create a godlike SAS token for the account, so that we don't need to reimplement the Central Secrets Service.
+                var sasToken = cloudStorageAccount.GetSharedAccessSignature(new SharedAccessAccountPolicy
+                {
+                    SharedAccessExpiryTime = null,
+                    Permissions = SharedAccessAccountPermissions.Add | SharedAccessAccountPermissions.Create | SharedAccessAccountPermissions.Delete | SharedAccessAccountPermissions.List | SharedAccessAccountPermissions.ProcessMessages | SharedAccessAccountPermissions.Read | SharedAccessAccountPermissions.Update | SharedAccessAccountPermissions.Write,
+                    Services = SharedAccessAccountServices.Blob,
+                    ResourceTypes = SharedAccessAccountResourceTypes.Object | SharedAccessAccountResourceTypes.Container | SharedAccessAccountResourceTypes.Service,
+                    Protocols = SharedAccessProtocol.HttpsOnly,
+                    IPAddressOrRange = null,
+                });
+
+                var internalSasToken = new SasToken() {
+                    Token = sasToken,
+                    StorageAccount = cloudStorageAccount.Credentials.AccountName,
+                };
+                return new UpdatingSasToken(internalSasToken);
             }
         }
     }

@@ -13,9 +13,9 @@ namespace BuildXL.Cache.Host.Service
     {
         public string Name { get; }
 
-        public CredentialsKind Kind { get; }
+        public SecretKind Kind { get; }
 
-        public RetrieveSecretsRequest(string name, CredentialsKind kind)
+        public RetrieveSecretsRequest(string name, SecretKind kind)
         {
             Contract.Requires(!string.IsNullOrEmpty(name));
             Name = name;

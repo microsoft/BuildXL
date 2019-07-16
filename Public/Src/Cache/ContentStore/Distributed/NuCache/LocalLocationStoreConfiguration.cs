@@ -214,78 +214,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
     }
 
     /// <summary>
-    /// Enumeration of the different types of credentials that we currently support
-    /// </summary>
-    public enum CredentialsKind
-    {
-        /// <nodoc />
-        RedisPlainText,
-
-        /// <nodoc />
-        EventHubPlainText,
-
-        /// <nodoc />
-        AzureBlobPlainText,
-
-        /// <nodoc />
-        AzureBlobSASToken,
-    }
-
-    /// <summary>
-    /// Base class for all credentials required to be handled by CaSaaS. Any class that inherits from here needs to be
-    /// kept in sync with <see cref="CredentialsKind"/> and all implementations of IDistributedCacheServiceHost.
-    /// </summary>
-    public abstract class Credentials
-    {
-        /// <nodoc />
-        public CredentialsKind Kind { get; protected set; }
-
-        /// <nodoc />
-        public bool IsOfKind(CredentialsKind kind) => kind == Kind;
-    }
-
-    /// <summary>
-    /// Provides authentication options for all redis usages across CaSaaS
-    /// </summary>
-    public class RedisCredentials : Credentials
-    {
-        /// <nodoc />
-        public string ConnectionString { get; }
-
-        /// <summary>
-        /// Creates a fixed credential; this is our default mode of authentication
-        /// </summary>
-        public RedisCredentials(string connectionString)
-        {
-            Contract.Requires(!string.IsNullOrEmpty(connectionString));
-            ConnectionString = connectionString;
-            Kind = CredentialsKind.RedisPlainText;
-        }
-    }
-
-    /// <summary>
-    /// Provides authentication options for <see cref="EventHubContentLocationEventStore"/>
-    /// </summary>
-    public class EventHubCredentials : Credentials
-    {
-        /// <nodoc />
-        public string ConnectionString { get; }
-
-        /// <summary>
-        /// Creates a fixed credential; this is our default mode of authentication.
-        /// </summary>
-        public EventHubCredentials(string connectionString)
-        {
-            Contract.Requires(!string.IsNullOrEmpty(connectionString));
-            ConnectionString = connectionString;
-            Kind = CredentialsKind.EventHubPlainText;
-        }
-    }
-
-    /// <summary>
     /// Provides Azure Storage authentication options for <see cref="BlobCentralStorage"/>
     /// </summary>
-    public class AzureBlobStorageCredentials : Credentials
+    public class AzureBlobStorageCredentials
     {
         /// <nodoc />
         private string ConnectionString { get; }
@@ -310,7 +241,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         {
             Contract.Requires(!string.IsNullOrEmpty(connectionString));
             ConnectionString = connectionString;
-            Kind = CredentialsKind.AzureBlobPlainText;
         }
 
         /// <summary>
@@ -326,8 +256,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
             StorageCredentials = storageCredentials;
             AccountName = accountName;
             EndpointSuffix = endpointSuffix;
-
-            Kind = CredentialsKind.AzureBlobSASToken;
         }
 
         /// <nodoc />

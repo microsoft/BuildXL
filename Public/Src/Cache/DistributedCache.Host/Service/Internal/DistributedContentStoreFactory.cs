@@ -26,6 +26,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using Microsoft.Practices.TransientFaultHandling;
+using Microsoft.WindowsAzure.Storage.Auth;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -266,13 +267,13 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.IsReconciliationEnabled, value => configuration.EnableReconciliation = value);
             ApplyIfNotNull(_distributedSettings.UseIncrementalCheckpointing, value => configuration.Checkpoint.UseIncrementalCheckpointing = value);
 
-            configuration.RedisGlobalStoreConnectionString = ((RedisCredentials) GetRequiredSecret(secrets, _distributedSettings.GlobalRedisSecretName)).ConnectionString;
+            configuration.RedisGlobalStoreConnectionString = ((PlainTextSecret) GetRequiredSecret(secrets, _distributedSettings.GlobalRedisSecretName)).Secret;
 
             if (_distributedSettings.SecondaryGlobalRedisSecretName != null)
             {
-                configuration.RedisGlobalStoreSecondaryConnectionString = ((RedisCredentials) GetRequiredSecret(
+                configuration.RedisGlobalStoreSecondaryConnectionString = ((PlainTextSecret) GetRequiredSecret(
                     secrets,
-                    _distributedSettings.SecondaryGlobalRedisSecretName)).ConnectionString;
+                    _distributedSettings.SecondaryGlobalRedisSecretName)).Secret;
             }
 
             ApplyIfNotNull(
@@ -310,7 +311,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var eventStoreConfiguration = new EventHubContentLocationEventStoreConfiguration(
                 eventHubName: "eventhub",
-                eventHubConnectionString: ((EventHubCredentials)GetRequiredSecret(secrets, _distributedSettings.EventHubSecretName)).ConnectionString,
+                eventHubConnectionString: ((PlainTextSecret)GetRequiredSecret(secrets, _distributedSettings.EventHubSecretName)).Secret,
                 consumerGroupName: "$Default",
                 epoch: _keySpace + _distributedSettings.EventHubEpoch);
 
@@ -320,13 +321,39 @@ namespace BuildXL.Cache.Host.Service.Internal
                 value => eventStoreConfiguration.MaxEventProcessingConcurrency = value);
         }
 
-        private AzureBlobStorageCredentials[] GetStorageCredentials(Dictionary<string, Credentials> secrets, StringBuilder errorBuilder)
+        private AzureBlobStorageCredentials[] GetStorageCredentials(Dictionary<string, Secret> secrets, StringBuilder errorBuilder)
         {
             var storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
-            return storageSecretNames?
-                .Select(name => GetRequiredSecret(secrets, name))
-                .OfType<AzureBlobStorageCredentials>()
-                .ToArray();
+            // This would have failed earlier otherwise
+            Contract.Requires(storageSecretNames != null);
+
+            var credentials = new List<AzureBlobStorageCredentials>();
+            foreach (var secretName in storageSecretNames)
+            {
+                var secret = GetRequiredSecret(secrets, secretName);
+
+                if (!_distributedSettings.AzureBlobStorageUseSasTokens && secret is PlainTextSecret plainTextSecret)
+                {
+                    credentials.Add(new AzureBlobStorageCredentials(plainTextSecret.Secret));
+                }
+                else if (_distributedSettings.AzureBlobStorageUseSasTokens && secret is UpdatingSasToken updatingSasToken)
+                {
+                    var storageCredentials = new StorageCredentials(sasToken: updatingSasToken.Token.Token);
+                    updatingSasToken.TokenUpdated += (token, sasToken) =>
+                    {
+                        storageCredentials.UpdateSASToken(sasToken.Token);
+                    };
+
+                    // The account name should never actually be updated, so its OK to take it from the initial token
+                    credentials.Add(new AzureBlobStorageCredentials(storageCredentials, updatingSasToken.Token.StorageAccount));
+                }
+                else
+                {
+                    throw new NotSupportedException($"Unexpected secret kind retrieved for requested secret {secretName}");
+                }
+            }
+
+            return credentials.ToArray();
         }
 
         private List<string> GetAzureStorageSecretNames(StringBuilder errorBuilder)
@@ -353,7 +380,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         }
 
-        private async Task<Dictionary<string, Credentials>> TryRetrieveSecretsAsync(CancellationToken token, StringBuilder errorBuilder)
+        private async Task<Dictionary<string, Secret>> TryRetrieveSecretsAsync(CancellationToken token, StringBuilder errorBuilder)
         {
             _logger.Debug(
                 $"{nameof(_distributedSettings.EventHubSecretName)}: {_distributedSettings.EventHubSecretName}, " +
@@ -377,7 +404,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 return null;
             }
-            var azureBlobStorageCredentialsKind = _distributedSettings.AzureBlobStorageUseSasTokens ? CredentialsKind.AzureBlobSASToken : CredentialsKind.AzureBlobPlainText;
+            var azureBlobStorageCredentialsKind = _distributedSettings.AzureBlobStorageUseSasTokens ? SecretKind.SasToken : SecretKind.PlainText;
             retrieveSecretsRequests.AddRange(storageSecretNames.Select(secretName => new RetrieveSecretsRequest(secretName, azureBlobStorageCredentialsKind)));
 
             if (string.IsNullOrEmpty(_distributedSettings.EventHubSecretName) ||
@@ -386,34 +413,19 @@ namespace BuildXL.Cache.Host.Service.Internal
                 return null;
             }
 
-            retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.EventHubSecretName, CredentialsKind.EventHubPlainText));
+            retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.EventHubSecretName, SecretKind.PlainText));
 
-            retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.GlobalRedisSecretName, CredentialsKind.RedisPlainText));
+            retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.GlobalRedisSecretName, SecretKind.PlainText));
             if (!string.IsNullOrEmpty(_distributedSettings.SecondaryGlobalRedisSecretName))
             {
-                retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.SecondaryGlobalRedisSecretName, CredentialsKind.RedisPlainText));
+                retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.SecondaryGlobalRedisSecretName, SecretKind.PlainText));
             }
 
             // Ask the host for credentials
             var retryPolicy = CreateSecretsRetrievalRetryPolicy(_distributedSettings);
-            var secrets = await retryPolicy.ExecuteAsync(
+            return await retryPolicy.ExecuteAsync(
                 async () => await _arguments.Host.RetrieveKeyVaultSecretsAsync(retrieveSecretsRequests, token),
                 token);
-            if (secrets == null)
-            {
-                return null;
-            }
-
-            // Validate requests match as expected
-            foreach (var request in retrieveSecretsRequests)
-            {
-                if (secrets.TryGetValue(request.Name, out var credential) && !credential.IsOfKind(request.Kind))
-                {
-                    throw new SecurityException($"The credentials produced by the host for secret named {request.Name} do not match the expected kind");
-                }
-            }
-
-            return secrets;
 
             bool appendIfNull(object value, string propertyName)
             {
@@ -443,7 +455,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private static Credentials GetRequiredSecret(Dictionary<string, Credentials> secrets, string secretName)
+        private static Secret GetRequiredSecret(Dictionary<string, Secret> secrets, string secretName)
         {
             if (!secrets.TryGetValue(secretName, out var value))
             {

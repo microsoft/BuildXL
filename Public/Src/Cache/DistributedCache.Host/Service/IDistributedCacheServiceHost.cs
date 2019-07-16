@@ -37,6 +37,6 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Retrieves secrets from key vault
         /// </summary>
-        Task<Dictionary<string, Credentials>> RetrieveKeyVaultSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token);
+        Task<Dictionary<string, Secret>> RetrieveKeyVaultSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token);
     }
 }

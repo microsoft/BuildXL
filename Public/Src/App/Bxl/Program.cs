@@ -190,7 +190,7 @@ namespace BuildXL
                 {
                     try
                     {
-                        return connection.RunWithArgs(rawArgs, environmentVariablesToPass, serverModeStatusAndPerf);
+                        return connection.RunWithArgs(rawArgs, environmentVariablesToPass, serverModeStatusAndPerf, lightConfig.ServerDeploymentDirectory);
                     }
                     catch (BuildXLException ex)
                     {

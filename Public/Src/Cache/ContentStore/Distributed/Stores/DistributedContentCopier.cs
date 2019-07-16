@@ -154,13 +154,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                     if (missingContentLocations.Count == hashInfo.Locations.Count)
                     {
-                        Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} are reported missing. Not retrying for hash {hashInfo.ContentHash}.");
+                        Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} are reported missing. Not retrying for hash {hashInfo.ContentHash.ToShortString()}.");
                         break;
                     }
 
                     if (!retry)
                     {
-                        Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} Cannot place {hashInfo.ContentHash} due to error: {putResult.ErrorMessage}. Not retrying for hash {hashInfo.ContentHash}.");
+                        Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} Cannot place {hashInfo.ContentHash.ToShortString()} due to error: {putResult.ErrorMessage}. Not retrying for hash {hashInfo.ContentHash.ToShortString()}.");
                         break;
                     }
 
@@ -170,8 +170,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         break;
                     }
 
-                    TimeSpan waitDelay = _retryIntervals[attemptCount];
-                    Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash}...");
+                    long waitTicks = _retryIntervals[attemptCount].Ticks;
+
+                    // Randomize the wait delay to `[0.5 * delay, 1.5 * delay)`
+                    TimeSpan waitDelay = TimeSpan.FromTicks((long)((waitTicks / 2) + (waitTicks * ThreadSafeRandom.Generator.NextDouble())));
+
+                    Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in {waitDelay.TotalMilliseconds}ms...");
 
                     attemptCount++;
 
@@ -254,7 +258,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 {
                     Tracer.Debug(
                         context,
-                        $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash} to temp path {tempLocation} because cancellation was requested.");
+                        $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash.ToShortString()} to temp path {tempLocation} because cancellation was requested.");
                     return (result: CreateCanceledPutResult(), retry: false);
                 }
 
@@ -288,7 +292,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             traceOperationFinished: true,
                             // _ioGate.CurrentCount returns the number of free slots, but we need to print the number of occupied slots instead.
                             extraEndMessage: (result) =>
-                                $"contentHash=[{hashInfo.ContentHash}] " +
+                                $"contentHash=[{hashInfo.ContentHash.ToShortString()}] " +
                                 $"from=[{sourcePath}] " +
                                 $"size=[{result.Size ?? hashInfo.Size}] " +
                                 $"trusted={_settings.UseTrustedHash} " +
@@ -322,7 +326,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 _contentLocationStore.ReportReputation(location, MachineReputation.Good);
                                 break;
                             case CopyFileResult.ResultCode.FileNotFoundError:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
@@ -330,7 +334,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 _contentLocationStore.ReportReputation(location, MachineReputation.Missing);
                                 break;
                             case CopyFileResult.ResultCode.SourcePathError:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
@@ -338,33 +342,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 badContentLocations.Add(location);
                                 break;
                             case CopyFileResult.ResultCode.DestinationPathError:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to temp path {tempLocation} due to an error with the destination path: {copyFileResult}";
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an error with the destination path: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Not trying another replica.");
                                 return (result: new ErrorResult(copyFileResult).AsResult<PutResult>(), retry: true);
                             case CopyFileResult.ResultCode.CopyTimeoutError:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult}";
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 _contentLocationStore.ReportReputation(location, MachineReputation.Timeout);
                                 break;
                             case CopyFileResult.ResultCode.CopyBandwidthTimeoutError:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult}";
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 _contentLocationStore.ReportReputation(location, MachineReputation.Timeout);
                                 break;
                             case CopyFileResult.ResultCode.InvalidHash:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to path {tempLocation} due to invalid hash: {copyFileResult}";
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to invalid hash: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} {copyFileResult}");
                                 break;
                             case CopyFileResult.ResultCode.Unknown:
-                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash} from path {sourcePath} to temp path {tempLocation} due to an internal error: {copyFileResult}";
+                                lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to temp path {tempLocation} due to an internal error: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Not trying another replica.");
@@ -381,7 +385,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             if (hashInfo.Size != -1 && copyFileResult.Size != null && hashInfo.Size != copyFileResult.Size.Value)
                             {
                                 lastErrorMessage =
-                                    $"Contenthash {hashInfo.ContentHash} at location {location} has content size {copyFileResult.Size.Value} mismatch from {hashInfo.Size}";
+                                    $"Contenthash {hashInfo.ContentHash.ToShortString()} at location {location} has content size {copyFileResult.Size.Value} mismatch from {hashInfo.Size}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
@@ -399,7 +403,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 if (putResult.ContentHash != hashInfo.ContentHash)
                                 {
                                     lastErrorMessage =
-                                        $"Contenthash at location {location} has contenthash {putResult.ContentHash} mismatch from {hashInfo.ContentHash}";
+                                        $"Contenthash at location {location} has contenthash {putResult.ContentHash.ToShortString()} mismatch from {hashInfo.ContentHash.ToShortString()}";
                                     // If PutFileAsync re-hashed the file, then it could have found a content hash which differs from the expected content hash.
                                     // If this happens, we should fail this copy and move to the next location.
                                     Tracer.Warning(
@@ -423,7 +427,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             {
                                 // Nothing is known about the put's failure. Give up on all locations, do not retry.
                                 // An example of a failure requiring this: Failed to reserve space for content
-                                var errorMessage = $"Put file for content hash {hashInfo.ContentHash} failed with error {putResult.ErrorMessage} ";
+                                var errorMessage = $"Put file for content hash {hashInfo.ContentHash.ToShortString()} failed with error {putResult.ErrorMessage} ";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {errorMessage} diagnostics {putResult.Diagnostics}");
@@ -481,7 +485,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             var foundHash = hashingStream.GetContentHash();
                             if (foundHash != hashInfo.ContentHash)
                             {
-                                return new CopyFileResult(CopyFileResult.ResultCode.InvalidHash, $"{nameof(CopyFileAsync)} unsuccessful with different hash. Found {foundHash}, expected {hashInfo.ContentHash}. Found size {hashingStream.Length}, expected size {hashInfo.Size}.");
+                                return new CopyFileResult(CopyFileResult.ResultCode.InvalidHash, $"{nameof(CopyFileAsync)} unsuccessful with different hash. Found {foundHash.ToShortString()}, expected {hashInfo.ContentHash.ToShortString()}. Found size {hashingStream.Length}, expected size {hashInfo.Size}.");
                             }
 
                             // Expose the bytes that were copied, so that small files can be put into the ContentLocationStore even when trusted copy is done
@@ -594,12 +598,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 Contract.Assert(verification.IsCompleted);
                 if (verification.IsCanceled && !cancel.IsCancellationRequested)
                 {
-                    Tracer.Info(context, $"During verification, hash {remote.ContentHash} timed out for location {location}.");
+                    Tracer.Info(context, $"During verification, hash {remote.ContentHash.ToShortString()} timed out for location {location}.");
                     unknown.Add(location);
                 }
                 else if (verification.IsFaulted)
                 {
-                    Tracer.Info(context, $"During verification, hash {remote.ContentHash} encountered the error {verification.Exception} while verifying location {location}.");
+                    Tracer.Info(context, $"During verification, hash {remote.ContentHash.ToShortString()} encountered the error {verification.Exception} while verifying location {location}.");
                     unknown.Add(location);
                 }
                 else
@@ -611,7 +615,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     }
                     else if (result.Code == FileExistenceResult.ResultCode.FileNotFound)
                     {
-                        Tracer.Info(context, $"During verification, hash {remote.ContentHash} was not found at location {location}.");
+                        Tracer.Info(context, $"During verification, hash {remote.ContentHash.ToShortString()} was not found at location {location}.");
                         absent.Add(location);
                     }
                     else

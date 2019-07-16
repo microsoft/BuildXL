@@ -249,7 +249,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore), "GetLruPages can only be called when local location store is enabled");
 
-            var pageSize = PageSize;
+            var pageSize = _configuration.EvictionWindowSize;
 
             // Priority queue orders by least first. So we compare by last access time to get the least last access time (i.e. oldest) first.
             var priorityQueue = new PriorityQueue<ContentHashWithLastAccessTimeAndReplicaCount>(

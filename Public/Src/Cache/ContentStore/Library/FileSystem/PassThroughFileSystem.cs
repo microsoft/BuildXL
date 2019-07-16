@@ -229,6 +229,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             catch (UnauthorizedAccessException accessException)
             {
                 if ((deleteOptions & DeleteOptions.ReadOnly) != 0 &&
+                    accessException.HResult > 0 &&
                     (uint)accessException.HResult == Hresult.AccessDenied)
                 {
                     bool foundReadonly = false;

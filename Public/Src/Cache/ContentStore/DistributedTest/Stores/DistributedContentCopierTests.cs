@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
@@ -85,19 +86,46 @@ namespace ContentStoreTest.Distributed.Stores
                 );
 
                 result.ShouldBeError();
-                result.ErrorMessage.Should().Contain(hash.ToString());
-                result.ErrorMessage.Should().Contain(wrongHash.ToString());
+                result.ErrorMessage.Should().Contain(hash.ToShortString());
+                result.ErrorMessage.Should().Contain(wrongHash.ToShortString());
             }
         }
 
-        private async Task<(DistributedContentCopier<AbsolutePath>, MockFileCopier)> CreateAsync(Context context, AbsolutePath rootDirectory)
+        [Theory]
+        [InlineData(1)]
+        [InlineData(10)]
+        public async Task CopyRetries(int retries)
+        {
+            var context = new Context(Logger);
+            using (var directory = new DisposableDirectory(FileSystem))
+            {
+                var (distributedCopier, mockFileCopier) = await CreateAsync(context, directory.Path, retries);
+
+                var hash = ContentHash.Random();
+                var hashWithLocations = new ContentHashWithSizeAndLocations(
+                    hash,
+                    size: 99,
+                    new MachineLocation[] { new MachineLocation("") });
+
+                mockFileCopier.CopyFileAsyncResult = new CopyFileResult(CopyFileResult.ResultCode.SourcePathError);
+                var result = await distributedCopier.TryCopyAndPutAsync(
+                    new OperationContext(context),
+                    hashWithLocations,
+                    handleCopyAsync: tpl => Task.FromResult(new PutResult(hash, 99)));
+
+                result.ShouldBeError();
+                mockFileCopier.CopyAttempts.Should().Be(retries);
+            }
+        }
+
+        private async Task<(DistributedContentCopier<AbsolutePath>, MockFileCopier)> CreateAsync(Context context, AbsolutePath rootDirectory, int retries = 1)
         {
             var mockFileCopier = new MockFileCopier();
             var existenceChecker = new TestFileCopier();
             var contentCopier = new DistributedContentCopier<AbsolutePath>(
                 rootDirectory,
                 // Need to use exactly one retry.
-                new DistributedContentStoreSettings(){RetryIntervalForCopies = new TimeSpan[]{TimeSpan.Zero}},
+                new DistributedContentStoreSettings() { RetryIntervalForCopies = Enumerable.Range(0, retries).Select(r => TimeSpan.Zero).ToArray() },
                 FileSystem,
                 mockFileCopier,
                 existenceChecker,
@@ -219,10 +247,15 @@ namespace ContentStoreTest.Distributed.Stores
         private class MockFileCopier : IFileCopier
         {
             public CopyFileResult CopyFileAsyncResult;
+            public int CopyAttempts = 0;
 
             /// <inheritdoc />
             public Task<CopyFileResult> CopyFileAsync(PathBase path, AbsolutePath destinationPath, long contentSize, bool overwrite, CancellationToken cancellationToken)
-                => Task.FromResult(CopyFileAsyncResult);
+            {
+                CopyAttempts += 1;
+
+                return Task.FromResult(CopyFileAsyncResult);
+            }
 
 #pragma warning disable 649
             public CopyFileResult CopyToAsyncResult;

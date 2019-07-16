@@ -42,8 +42,7 @@ namespace BuildXL.LogGen.Generators
         {
             get
             {
-                yield return new Tuple<string, string>("Microsoft.Diagnostics.Tracing", "FEATURE_MICROSOFT_DIAGNOSTICS_TRACING");
-                yield return new Tuple<string, string>("System.Diagnostics.Tracing", "!FEATURE_MICROSOFT_DIAGNOSTICS_TRACING");
+                yield return new Tuple<string, string>("System.Diagnostics.Tracing", "");
             }
         }
 
@@ -78,11 +77,7 @@ namespace BuildXL.LogGen.Generators
                 m_codeGenerator.Ln("using global::System;");
                 m_codeGenerator.Ln("using global::System.CodeDom.Compiler;");
                 m_codeGenerator.Ln("using global::BuildXL.Utilities.Instrumentation.Common;");
-                m_codeGenerator.Ln("#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING");
-                m_codeGenerator.Ln("using global::Microsoft.Diagnostics.Tracing;");
-                m_codeGenerator.Ln("#else");
                 m_codeGenerator.Ln("using global::System.Diagnostics.Tracing;");
-                m_codeGenerator.Ln("#endif");
                 m_codeGenerator.Ln("using global::System.Runtime.CompilerServices;");
                 m_codeGenerator.Ln();
                 m_codeGenerator.GenerateSummaryComment("Output logger that logs event into ETW");
@@ -101,7 +96,12 @@ namespace BuildXL.LogGen.Generators
                     }
 
                     m_codeGenerator.Ln();
-                    m_codeGenerator.Ln("private ETWLogger() : base(EventSourceSettings.EtwSelfDescribingEventFormat)");
+                    m_codeGenerator.Ln("private ETWLogger()");
+                    m_codeGenerator.Ln("#if NET_FRAMEWORK_451");
+                    m_codeGenerator.Ln("  : base()");
+                    m_codeGenerator.Ln("#else");
+                    m_codeGenerator.Ln("  : base(EventSourceSettings.EtwSelfDescribingEventFormat)");
+                    m_codeGenerator.Ln("#endif");
                     using (m_codeGenerator.Br)
                     {
                     }

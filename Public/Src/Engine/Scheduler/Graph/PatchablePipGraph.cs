@@ -331,7 +331,7 @@ namespace BuildXL.Scheduler.Graph
         {
             var oldPipId = pip.PipId;
             pip = TranslatePipIds(pip);
-            pip.ResetPipIdForTesting();
+            pip.ResetPipId();
             bool success = AddPipToBuilder(pip, PipId.Invalid);
             Contract.Assert(success, "Expected to be able to reload pip");
             Interlocked.Increment(ref counter);

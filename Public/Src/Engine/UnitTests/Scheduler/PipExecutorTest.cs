@@ -941,7 +941,7 @@ namespace Test.BuildXL.Scheduler
                         env.Context,
                         workingDirectoryAbsolutePath,
                         destinationAbsolutePath, 
-                        errorPattern: "ERROR",
+                        errorPattern: regexMatchesSomething ? "ERROR" : "NOMATCH",
                         errorMessageLength: errorMessageLength);
                     var testRunChecker = new TestRunChecker();
 
@@ -959,9 +959,16 @@ namespace Test.BuildXL.Scheduler
                     }
                     else
                     {
-                        // When full build output is requested, we expect to to have the non-filtered process output to appear in a DX0066 message
-                        XAssert.IsTrue(log.Contains("DX00" + (int)EventId.PipProcessOutput));
+                        // The full build output is requested, we expect to to have the non-filtered process output to appear
                         XAssert.IsTrue(log.Contains("WARNING"));
+
+                        // If there was an error regex that matched something, the "WARNING" part of the error would not be in the standar
+                        // PipProcessError portion. But the user still requested the full unabridged output via the OutputReportingMode
+                        // setting. So we expect to see it repeated on the PipProcessOutput message
+                        if (regexMatchesSomething)
+                        {
+                            XAssert.IsTrue(log.Contains("DX00" + (int)EventId.PipProcessOutput));
+                        }
                     }
 
                     // Validates that errors don't get truncated when the regex doesn't match anything
@@ -972,7 +979,7 @@ namespace Test.BuildXL.Scheduler
                         XAssert.IsTrue(Regex.IsMatch(log, $@"(?<Prefix>dx00{(int)EventId.PipProcessError})(?<AnythingButZ>[^z]*)(?<ZForEndOfError>z)", RegexOptions.IgnoreCase), 
                             "Non-truncated error message was not found in error event. Full output:" + log);
                     }
-                    
+
                 },
                 null,
                 pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: outputReportingMode));
@@ -3049,6 +3056,10 @@ EXIT /b 3
                     toEcho.Add(sb.ToString());
                     sb.Clear();
                 }
+                else if (i == 0)
+                {
+                    sb.Append('A');
+                }
                 else
                 {
                     sb.Append('M');
@@ -3080,12 +3091,8 @@ EXIT /b 3
             {
                 string[] errorMessages = GenerateTestErrorMessages(errorMessageLength);
                 StringBuilder command = new StringBuilder();
-                
-                if (OperatingSystemHelper.IsUnixOS)
-                {
-                    command.AppendLine("@echo off");
-                }
-                
+
+                command.AppendLine("@echo off");
                 command.AppendLine(I($"echo ERROR "));
                 foreach (var errorMessage in errorMessages)
                 {

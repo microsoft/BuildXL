@@ -48,6 +48,7 @@ namespace Scheduler {
             "Test.BuildXL.Scheduler",
             "Test.BuildXL.FrontEnd.MsBuild",
             "Test.Tool.Analyzers",
+            "Test.Bxl",
             "IntegrationTest.BuildXL.Scheduler",
         ],
     });

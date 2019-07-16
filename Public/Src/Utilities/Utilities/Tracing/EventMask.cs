@@ -3,11 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Utilities.Tracing
 {
@@ -35,7 +31,7 @@ namespace BuildXL.Utilities.Tracing
         /// numeric level) will not be masked</param>
         /// <param name="enabledEvents">events to be enabled</param>
         /// <param name="disabledEvents">events to be disabled</param>
-        public EventMask(IEnumerable<int> enabledEvents, IEnumerable<int> disabledEvents, EventLevel nonMaskableLevel)
+        public EventMask(IEnumerable<int> enabledEvents, IEnumerable<int> disabledEvents, EventLevel? nonMaskableLevel)
             : this(enabledEvents, disabledEvents)
         {
             Contract.Requires(

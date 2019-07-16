@@ -27,7 +27,7 @@ namespace BuildXL.Engine.Cache.Fingerprints
         /// <nodoc />
         public IEnumerable<BondContentHash> ListRelatedContent()
         {
-            return StaticOutputHashes.Select(info => info.Hash);
+            return StaticOutputHashes.Select(info => info.Info.Hash);
         }
 
         /// <nodoc />

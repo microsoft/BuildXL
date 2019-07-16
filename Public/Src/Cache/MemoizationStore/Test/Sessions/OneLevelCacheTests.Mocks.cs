@@ -67,6 +67,14 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         {
             return Task.FromResult(BoolResult.Success);
         }
+
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result) { }
     }
 
     internal class TestContentSession : IContentSession

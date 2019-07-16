@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -56,11 +57,6 @@ using BuildXL.Interop.MacOS;
 using BuildXL.Processes.Containers;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 using BuildXL.Utilities.VmCommandProxy;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Scheduler
 {
@@ -5471,7 +5467,7 @@ namespace BuildXL.Scheduler
             {
                 if (existence != PathExistence.Nonexistent && trackedFileContentInfo.Hash.IsSpecialValue())
                 {
-                    Contract.Assert(false, I($"Hash={trackedFileContentInfo.Hash}, Length={trackedFileContentInfo.FileContentInfo.RawLength}, Existence={existence}, Path={artifact.Path.ToString(Context.PathTable)}, Origin={origin}"));
+                    Contract.Assert(false, I($"Hash={trackedFileContentInfo.Hash}, Length={trackedFileContentInfo.FileContentInfo.SerializedLengthAndExistence}, Existence={existence}, Path={artifact.Path.ToString(Context.PathTable)}, Origin={origin}"));
                 }
 
                 // Since it's an output file, force the existence as ExistsAsFile.

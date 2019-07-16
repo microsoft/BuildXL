@@ -20,7 +20,7 @@ namespace BuildXL.Processes.Tracing
         PipProcessStartFailed = 11,
         PipProcessFinished = 12,
         PipProcessFinishedFailed = 13,
-        // was PipProcessDisallowedFileAccessError = 14,
+        PipProcessFileNotFound = 14,
         PipProcessTookTooLongWarning = 15,
         PipProcessTookTooLongError = 16,
         PipProcessStandardOutput = 17,
@@ -60,7 +60,7 @@ namespace BuildXL.Processes.Tracing
 
         PipProcessInvalidErrorRegex = 89,
         //// Reserved  = 90,
-        //// Reserved  = 91,
+        TranslatePathInGlobalUnsafeUntrackedScopes = 91,
         PipProcessNeedsExecuteExternalButExecuteInternal = 92,
 
         PipProcessDisallowedFileAccessWhitelistedCacheable = 264,

@@ -256,41 +256,16 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         [Fact]
         public void BinaryRoundtrip()
         {
-            using (var ms = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(ms))
-                {
-                    var v1 = Fingerprint.Random();
-                    v1.Serialize(writer);
-                    ms.Position = 0;
-
-                    using (var reader = new BinaryReader(ms))
-                    {
-                        var v2 = new Fingerprint(reader);
-                        Assert.Equal(v1, v2);
-                    }
-                }
-            }
+            var value = Fingerprint.Random();
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, Fingerprint.Deserialize);
         }
 
         [Fact]
         public void PartialBinaryRoundtrip()
         {
-            using (var ms = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(ms))
-                {
-                    var v1 = Fingerprint.Random();
-                    v1.SerializeBytes(writer);
-                    ms.Position = 0;
-
-                    using (var reader = new BinaryReader(ms))
-                    {
-                        var v2 = new Fingerprint(v1.Length, reader);
-                        Assert.Equal(v1, v2);
-                    }
-                }
-            }
+            var value = Fingerprint.Random();
+            Utilities.TestSerializationRoundtrip(value, value.SerializeBytes,
+                reader => new Fingerprint(value.Length, reader));
         }
     }
 }

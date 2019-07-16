@@ -38,6 +38,7 @@ namespace Test.DScript.Ast.ErrorHandling
         [InlineData("Transformer.getIpcServerMoniker()")]
         [InlineData("Transformer.copyFile(f`foo`, p`bar`)")]
         [InlineData("Transformer.execute({ tool: { exe: f`dummy.exe` }, arguments: [], workingDirectory: d`.`, serviceShutdownCmd: { tool: { exe: f`dummy.exe` }, arguments: [], workingDirectory: d`.` } })")]
+        [InlineData("Transformer.readPipGraphFragment(f`fragment.bin`, [], \"My pip graph fragment\")")]
         [InlineData("Transformer.writeFile(p`foo`, \"hello\", [], \"\")")]
         [InlineData("Transformer.writeData(p`foo`, \"hello\")")]
         [InlineData("Transformer.writeAllLines(p`foo`, [])")]

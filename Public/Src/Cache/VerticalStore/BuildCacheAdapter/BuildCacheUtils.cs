@@ -3,6 +3,8 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
+using System.Text;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -26,6 +28,24 @@ namespace BuildXL.Cache.BuildCacheAdapter
     internal static class BuildCacheUtils
     {
         private const string CredentialProvidersPathEnvVariable = "ARTIFACT_CREDENTIALPROVIDERS_PATH";
+
+        private const int NameUserPrincipal = 8;
+
+        [DllImport("Secur32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetUserNameExW(
+            int nameFormat,
+            [Out] StringBuilder nameBuffer,
+            ref long bufferSize);
+
+        private static string GetAadUserNameUpn()
+        {
+            long maxLength = 1024;
+            var sb = new StringBuilder(capacity: (int)maxLength);
+            return GetUserNameExW(NameUserPrincipal, sb, ref maxLength)
+                ? sb.ToString()
+                : null;
+        }
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Disposed by another object")]
         [SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", Justification = "Not applicable")]
@@ -51,7 +71,11 @@ namespace BuildXL.Cache.BuildCacheAdapter
             VssCredentialsFactory credentialsFactory;
 
 #if !PLATFORM_OSX
-            credentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper(s => logger.Debug(s)));
+            string userName = null; // when running on .NET Framework, user name doesn't have to be explicitly provided
+#if FEATURE_CORECLR
+            userName = GetAadUserNameUpn();
+#endif
+            credentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper(s => logger.Debug(s)), userName);
 #else
             var secPat = new SecureString();
             if (!string.IsNullOrWhiteSpace(pat))

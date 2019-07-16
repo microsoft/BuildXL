@@ -212,6 +212,26 @@ namespace ContentStoreTest.Stores
             });
         }
 
+        [Fact]
+        public Task AddImmediatelyDelete()
+        {
+            return TestStore(Context, Clock, async (store) =>
+            {
+                store.QuotaKeeperSize().Should().Be(0);
+
+                int contentSize = 10;
+                PutResult putResult = await store.PutRandomAsync(Context, contentSize);
+                putResult.ShouldBeSuccess();
+
+                DeleteResult deleteResult = await store.DeleteAsync(Context, putResult.ContentHash);
+                deleteResult.ShouldBeSuccess();
+                deleteResult.EvictedSize.Should().Be(contentSize);
+                deleteResult.PinnedSize.Should().Be(0);
+
+                store.IsPinned(putResult.ContentHash).Should().BeFalse();
+            });
+        }
+
         private async Task FillSoNextPutTriggersSoftPurgeThenRunTest(
             Func<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>, Task<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>> onLruEnumerationWithTime,
             Func<TestFileSystemContentStoreInternal, ContentHash, ContentHash, MemoryStream, Task> func)
@@ -264,13 +284,13 @@ namespace ContentStoreTest.Stores
         protected async Task AssertContainsHash(IContentStoreInternal store, ContentHash contentHash)
         {
             var contains = await store.ContainsAsync(Context, contentHash);
-            contains.Should().BeTrue($"Expected hash={contentHash} to be present but was not");
+            contains.Should().BeTrue($"Expected hash={contentHash.ToShortString()} to be present but was not");
         }
 
         protected async Task AssertDoesNotContain(IContentStoreInternal store, ContentHash contentHash)
         {
             var contains = await store.ContainsAsync(Context, contentHash);
-            contains.Should().BeFalse($"Expected hash={contentHash} to not be present but was");
+            contains.Should().BeFalse($"Expected hash={contentHash.ToShortString()} to not be present but was");
         }
 
         protected async Task<bool> ContainsAsync(IContentStoreInternal store, ContentHash contentHash)

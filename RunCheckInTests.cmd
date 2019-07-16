@@ -246,7 +246,7 @@ endlocal && exit /b 0
         REM populate Release\*
         set start=!time!
         set stepName=Populating release for distribution tests
-        call :StatusMessge !stepName!
+        call :StatusMessage !stepName!
             call :RunBxl -Use RunCheckinTests /q:ReleaseNet472 /f:output='%ENLISTMENTROOT%\Out\Bin\release\net472\*' %BUILDXL_ARGS%
             if !ERRORLEVEL! NEQ 0 (
                 echo.

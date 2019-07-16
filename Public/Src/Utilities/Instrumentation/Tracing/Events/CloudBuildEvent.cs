@@ -9,10 +9,6 @@ using System.Reflection;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#endif
-
 namespace BuildXL.Tracing.CloudBuild
 {
     /// <summary>
@@ -146,16 +142,6 @@ namespace BuildXL.Tracing.CloudBuild
 
             return null;
         }
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-        /// <summary>
-        /// Parse the ETW event and fill out the fields of the object.
-        /// </summary>
-        /// <remarks> CloudBuild ETW listener uses this method to "deserialize" the event from a TraceEvent object</remarks>
-        public static Possible<CloudBuildEvent> TryParse(TraceEvent traceEvent)
-        {
-            return TryParse(traceEvent.EventName, traceEvent.PayloadNames.Select(name => traceEvent.PayloadByName(name)).ToList());
-        }
-#endif
 
         /// <summary>
         /// Recreate a <see cref="CloudBuildEvent"/> object whose concrete type name is <paramref name="eventName"/>.

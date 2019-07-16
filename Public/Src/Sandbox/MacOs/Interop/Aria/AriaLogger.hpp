@@ -34,18 +34,22 @@ public:
     ILogger *GetLogger() const;
 };
 
+struct AriaEventProperty
+{
+    const char *name;
+    const char *value;
+    int64_t piiOrLongValue;
+};
+
 extern "C"
 {
     extern __cdecl AriaLogger* CreateAriaLogger(const char *, const char *);
     extern __cdecl void DisposeAriaLogger(const AriaLogger *);
+    extern __cdecl void LogEvent(const AriaLogger *logger,
+                                 const char *eventName,
+                                 int eventPropertiesLength,
+                                 const AriaEventProperty *eventProperties);
 
-    extern __cdecl EventProperties *CreateEvent(const char *);
-    extern __cdecl void DisposeEvent(EventProperties *);
-
-    extern __cdecl void SetStringProperty(EventProperties *, const char *, const char *);
-    extern __cdecl void SetStringPropertyWithPiiKind(EventProperties *, const char *, const char *, int);
-    extern __cdecl void SetInt64Property(EventProperties *, const char *, const int64_t);
-    extern __cdecl void LogEvent(const AriaLogger *, const EventProperties *);
 }
 
 #pragma GCC visibility pop

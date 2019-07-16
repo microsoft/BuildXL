@@ -1,20 +1,15 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using System.Diagnostics.Tracing;
-#endif
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using BuildXL.Utilities.Tracing;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#endif
 
 namespace Test.BuildXL.TestUtilities
 {

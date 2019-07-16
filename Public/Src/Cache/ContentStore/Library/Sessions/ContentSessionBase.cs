@@ -38,6 +38,9 @@ namespace BuildXL.Cache.ContentStore.Sessions
         public string Name { get; }
 
         /// <nodoc />
+        protected virtual bool TracePinFinished => true;
+
+        /// <nodoc />
         protected ContentSessionBase(string name)
         {
             Name = name;
@@ -80,7 +83,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     Tracer,
                     () => PinCoreAsync(operationContext, contentHash, urgencyHint, _counters[ContentSessionBaseCounters.PinRetries]),
                     traceOperationStarted: false,
-                    extraEndMessage: _ => $"input=[{contentHash}]",
+                    traceOperationFinished: TracePinFinished,
+                    extraEndMessage: _ => $"input=[{contentHash.ToShortString()}]",
                     counter: _counters[ContentSessionBaseCounters.Pin]));
         }
 
@@ -110,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                         {
                             // Since all bulk operations are constructed with Task.FromResult, it is safe to just access the result;
                             var result = task.Result;
-                            return $"{contentHashes[result.Index]}:{result.Item}";
+                            return $"{contentHashes[result.Index].ToShortString()}:{result.Item}";
                         }));
 
                         return $"Hashes=[{resultString}]";
@@ -144,8 +148,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PlaceFileCoreAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PlaceFileRetries]),
-                    extraStartMessage: $"({contentHash},{path},{accessMode},{replacementMode},{realizationMode})",
-                    extraEndMessage: (_) => $"input={contentHash}",
+                    extraStartMessage: $"({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})",
+                    extraEndMessage: (_) => $"input={contentHash.ToShortString()}",
                     counter: _counters[ContentSessionBaseCounters.PlaceFile]));
         }
 
@@ -239,7 +243,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PutFileCoreAsync(operationContext, contentHash, path, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PutFileRetries]),
-                    extraStartMessage: $"({path},{realizationMode},{contentHash}) trusted=false",
+                    extraStartMessage: $"({path},{realizationMode},{contentHash.ToShortString()}) trusted=false",
                     extraEndMessage: _ => "trusted=false",
                     counter: _counters[ContentSessionBaseCounters.PutFile]));
         }
@@ -301,7 +305,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PutStreamCoreAsync(operationContext, contentHash, stream, urgencyHint, _counters[ContentSessionBaseCounters.PutStreamRetries]),
-                    extraStartMessage: $"({contentHash})",
+                    extraStartMessage: $"({contentHash.ToShortString()})",
                     counter: _counters[ContentSessionBaseCounters.PutStream]));
         }
 

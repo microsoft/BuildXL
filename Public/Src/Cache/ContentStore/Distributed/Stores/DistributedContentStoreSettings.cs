@@ -36,17 +36,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private static readonly List<TimeSpan> CacheCopierDefaultRetryIntervals = new List<TimeSpan>()
         {
             // retry the first 2 times quickly.
+            TimeSpan.FromMilliseconds(20),
             TimeSpan.FromMilliseconds(200),
-            TimeSpan.FromSeconds(1),
 
             // then back-off exponentially.
-            TimeSpan.FromSeconds(3),
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(5),
             TimeSpan.FromSeconds(10),
-            TimeSpan.FromSeconds(25),
-            TimeSpan.FromSeconds(60),
+            TimeSpan.FromSeconds(30),
 
             // Borrowed from Empirical CacheV2 determined to be appropriate for general remote server restarts.
-            TimeSpan.FromSeconds(90),
+            TimeSpan.FromSeconds(60),
             TimeSpan.FromSeconds(120),
         };
 

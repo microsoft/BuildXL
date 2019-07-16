@@ -18,6 +18,7 @@ using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
+using BuildXL.Processes.Internal;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -785,8 +786,7 @@ namespace BuildXL.Processes
                                 LocationData location = m_pip.Provenance.Token;
                                 string specFile = location.Path.ToString(m_pathTable);
 
-                                Tracing.Logger.Log.PipProcessStartFailed(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), 2,
-                                    string.Format(CultureInfo.InvariantCulture, "File '{0}' was not found on disk. The tool is referred in '{1}({2})'.", info.FileName, specFile, location.Position));
+                                Tracing.Logger.Log.PipProcessFileNotFound(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), 2, info.FileName, specFile, location.Position);
                             }
                             else if (ex.LogEventErrorCode == NativeIOConstants.ErrorPartialCopy && (processLaunchRetryCount < ProcessLaunchRetryCountMax))
                             {
@@ -868,8 +868,6 @@ namespace BuildXL.Processes
                 TranslateHostSharedUncDrive(info);
             }
 
-            // Preparation should be finished.
-            sandboxPrepTime.Stop();
             ISandboxedProcess process = null;
 
             try
@@ -877,6 +875,14 @@ namespace BuildXL.Processes
                 var externalSandboxedProcessExecutor = new ExternalToolSandboxedProcessExecutor(Path.Combine(
                     m_layoutConfiguration.BuildEngineDirectory.ToString(m_context.PathTable),
                     ExternalToolSandboxedProcessExecutor.DefaultToolRelativePath));
+
+                foreach (var scope in externalSandboxedProcessExecutor.UntrackedScopes)
+                {
+                    AddUntrackedScopeToManifest(AbsolutePath.Create(m_pathTable, scope), info.FileAccessManifest);
+                }
+
+                // Preparation should be finished.
+                sandboxPrepTime.Stop();
 
                 if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalTool)
                 {
@@ -1605,10 +1611,33 @@ namespace BuildXL.Processes
                 }
             }
 
-            // Untrack the globally untracked paths specified in the configuration 
+            // Untrack the globally untracked paths specified in the configuration     
             foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
             {
-                m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                // Translate the path and untrack the translated one                
+                if (m_fileAccessManifest.DirectoryTranslator != null)
+                {
+                    var pathString = path.ToString(m_pathTable);
+                    var translatedPathString = m_fileAccessManifest.DirectoryTranslator.Translate(pathString);
+                    var translatedPath = AbsolutePath.Create(m_pathTable, translatedPathString);
+
+                    if (path != translatedPath)
+                    {
+                        AddUntrackedScopeToManifest(translatedPath);
+                        Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString);
+                    }
+                }
+
+                // Untrack the original path
+                AddUntrackedScopeToManifest(path);
+            }
+
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                var binaryPaths = new BinaryPaths();
+
+                AddUntrackedScopeToManifest(AbsolutePath.Create(m_pathTable, binaryPaths.DllDirectoryX64));
+                AddUntrackedScopeToManifest(AbsolutePath.Create(m_pathTable, binaryPaths.DllDirectoryX86));
             }
 
             // For some static system mounts (currently only for AppData\Roaming) we allow CreateDirectory requests for all processes.
@@ -1676,6 +1705,16 @@ namespace BuildXL.Processes
             return true;
         }
 
+        private void AddUntrackedScopeToManifest(AbsolutePath path, FileAccessManifest manifest = null) => (manifest ?? m_fileAccessManifest).AddScope(
+            path,
+            mask: m_excludeReportAccessMask,
+            values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+
+        private void AddUntrackedPathToManifest(AbsolutePath path, FileAccessManifest manifest = null) => (manifest ?? m_fileAccessManifest).AddPath(
+            path,
+            mask: m_excludeReportAccessMask,
+            values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+
         private void AllowCreateDirectoryForDirectoriesOnPath(AbsolutePath path, HashSet<AbsolutePath> processedPaths, bool startWithParent = true)
         {
             Contract.Assert(path.IsValid);
@@ -1742,20 +1781,20 @@ namespace BuildXL.Processes
                     // (they should never fail for untracked accesses, which should be invisible).
 
                     // We allow the real input timestamp to be seen for untracked paths. This is to preserve existing behavior, where the timestamp of untracked stuff is never modified.
-                    m_fileAccessManifest.AddPath(path, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps, mask: m_excludeReportAccessMask);
+                    AddUntrackedPathToManifest(path);
                     AllowCreateDirectoryForDirectoriesOnPath(path, processedPaths);
 
                     var correspondingPath = CreatePathForActualRedirectedUserProfilePair(path, userProfilePath, redirectedUserProfilePath);
                     if (correspondingPath.IsValid)
                     {
-                        m_fileAccessManifest.AddPath(correspondingPath, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps, mask: m_excludeReportAccessMask);
+                        AddUntrackedPathToManifest(correspondingPath);
                         AllowCreateDirectoryForDirectoriesOnPath(correspondingPath, processedPaths);
                     }
 
                     // Untrack real logs directory if the redirected one is untracked.
                     if (m_loggingConfiguration != null && m_loggingConfiguration.RedirectedLogsDirectory.IsValid && m_loggingConfiguration.RedirectedLogsDirectory == path)
                     {
-                        m_fileAccessManifest.AddPath(m_loggingConfiguration.LogsDirectory, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps, mask: m_excludeReportAccessMask);
+                        AddUntrackedPathToManifest(m_loggingConfiguration.LogsDirectory);
                         AllowCreateDirectoryForDirectoriesOnPath(m_loggingConfiguration.LogsDirectory, processedPaths);
                     }
                 }
@@ -1768,20 +1807,20 @@ namespace BuildXL.Processes
 
                     // The default mask for untracked scopes is to not report anything.
                     // We block input timestamp faking for untracked scopes. This is to preserve existing behavior, where the timestamp of untracked stuff is never modified.
-                    m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                    AddUntrackedScopeToManifest(path);
                     AllowCreateDirectoryForDirectoriesOnPath(path, processedPaths);
 
                     var correspondingPath = CreatePathForActualRedirectedUserProfilePair(path, userProfilePath, redirectedUserProfilePath);
                     if (correspondingPath.IsValid)
                     {
-                        m_fileAccessManifest.AddScope(correspondingPath, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps, mask: m_excludeReportAccessMask);
+                        AddUntrackedScopeToManifest(correspondingPath);
                         AllowCreateDirectoryForDirectoriesOnPath(correspondingPath, processedPaths);
                     }
 
                     // Untrack real logs directory if the redirected one is untracked.
                     if (m_loggingConfiguration != null && m_loggingConfiguration.RedirectedLogsDirectory.IsValid && m_loggingConfiguration.RedirectedLogsDirectory == path)
                     {
-                        m_fileAccessManifest.AddScope(m_loggingConfiguration.LogsDirectory, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                        AddUntrackedScopeToManifest(m_loggingConfiguration.LogsDirectory);
                         AllowCreateDirectoryForDirectoriesOnPath(m_loggingConfiguration.LogsDirectory, processedPaths);
                     }
                 }
@@ -1798,7 +1837,13 @@ namespace BuildXL.Processes
                             FileAccessPolicy.AllowAll | // Symlink creation is allowed under opaques.
                             FileAccessPolicy.AllowRealInputTimestamps |
                             // For shared opaques, we need to know the (write) accesses that occurred, since we determine file ownership based on that.
-                            (directory.IsSharedOpaque? FileAccessPolicy.ReportAccess : FileAccessPolicy.Deny);
+                            (directory.IsSharedOpaque? FileAccessPolicy.ReportAccess : FileAccessPolicy.Deny) |
+                            // For shared opaques and if allowed undeclared source reads is enabled, make sure that any file used as an undeclared input under the 
+                            // shared opaque gets deny write access. Observe that with exclusive opaques they are wiped out before the pip runs, so it is moot to check for inputs
+                            // TODO: considering configuring this policy for all shared opaques, and not only when AllowedUndeclaredSourceReads is set. The case of a write on an undeclared
+                            // input is more likely to happen when undeclared sources are allowed, but also possible otherwise. For now, this is just a conservative way to try this feature
+                            // out for a subset of our scenarios.
+                            (m_pip.AllowUndeclaredSourceReads && directory.IsSharedOpaque ? FileAccessPolicy.OverrideAllowWriteForExistingFiles : FileAccessPolicy.Deny);
 
                         // For exclusive opaques, we don't need reporting back and the content is discovered by enumerating the disk
                         var mask = directory.IsSharedOpaque ? FileAccessPolicy.MaskNothing : m_excludeReportAccessMask;
@@ -3458,13 +3503,6 @@ namespace BuildXL.Processes
                 {
                     return new LogErrorResult(success: false, errorWasTruncated: errorWasTruncated);
                 }
-
-                string stdOut = await TryFilterAsync(result.StandardOutput, s => true, appendNewLine: true);
-                string stdErr = await TryFilterAsync(result.StandardError, s => true, appendNewLine: true);
-                LogPipProcessError(result, exitedWithSuccessExitCode, stdErr, stdOut);
-
-                stdOutTotalLength = stdOut.Length;
-                stdErrTotalLength = stdErr.Length;
             }
 
             return new LogErrorResult(success: true, errorWasTruncated: errorWasTruncated);

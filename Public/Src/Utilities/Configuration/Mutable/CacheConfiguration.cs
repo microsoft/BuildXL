@@ -55,6 +55,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FileChangeTrackingInclusionRoots = pathRemapper.Remap(template.FileChangeTrackingInclusionRoots);
             UseDedupStore = template.UseDedupStore;
             ReplaceExistingFileOnMaterialization = template.ReplaceExistingFileOnMaterialization;
+            VfsCasRoot = pathRemapper.Remap(template.VfsCasRoot);
         }
 
         /// <nodoc />
@@ -137,5 +138,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool ReplaceExistingFileOnMaterialization { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath VfsCasRoot { get; set; }
     }
 }

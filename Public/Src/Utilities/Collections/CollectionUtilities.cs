@@ -135,6 +135,16 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <summary>
+        /// Creates a sorted list from the enumerable.
+        /// </summary>
+        public static List<T> ToListSorted<T>(this IEnumerable<T> enumerable, IComparer<T> comparer = null)
+        {
+            var list = enumerable.ToList();
+            list.Sort(comparer);
+            return list;
+        }
+
+        /// <summary>
         /// Converts the collection to an array. Uses a cache array instance for empty arrays.
         /// </summary>
         /// <typeparam name="T">The type of collection elements.</typeparam>

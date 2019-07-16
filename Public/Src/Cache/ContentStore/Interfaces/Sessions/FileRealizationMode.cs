@@ -6,7 +6,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
     /// <summary>
     ///     Method for realizing a file to disk.
     /// </summary>
-    public enum FileRealizationMode
+    public enum FileRealizationMode : byte
     {
         /// <summary>
         ///     File realization not allowed at all.

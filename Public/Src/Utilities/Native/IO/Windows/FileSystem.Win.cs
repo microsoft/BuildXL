@@ -387,7 +387,7 @@ namespace BuildXL.Native.IO.Windows
         /// NotReadyDevice is treated as non-existent probe.
         /// BitLocker locked volume is treated as non-existent probe.
         /// </remarks>
-        public static bool IsHresultNonesixtent(int hr)
+        public static bool IsHresultNonexistent(int hr)
         {
             return hr == NativeIOConstants.ErrorFileNotFound
                 || hr == NativeIOConstants.ErrorPathNotFound
@@ -2920,7 +2920,7 @@ namespace BuildXL.Native.IO.Windows
         {
             if (!TryGetFileAttributesViaGetFileAttributes(path, out FileAttributes fileAttributes, out int hr))
             {
-                if (IsHresultNonesixtent(hr))
+                if (IsHresultNonexistent(hr))
                 {
                     return PathExistence.Nonexistent;
                 }
@@ -2933,7 +2933,7 @@ namespace BuildXL.Native.IO.Windows
                     // Thus, cache refuses to materialize the file
                     if (!TryGetFileAttributesViaFindFirstFile(path, out fileAttributes, out hr))
                     {
-                        if (IsHresultNonesixtent(hr))
+                        if (IsHresultNonexistent(hr))
                         {
                             return PathExistence.Nonexistent;
                         }

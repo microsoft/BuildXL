@@ -90,7 +90,7 @@ namespace BuildXL.Native.IO
         /// Whether the status is one that should be treated as a nonexistent file
         /// </summary>
         /// <remarks>
-        /// CODESYNC: <see cref="Windows.FileSystemWin.IsHresultNonesixtent(int)"/>
+        /// CODESYNC: <see cref="Windows.FileSystemWin.IsHresultNonexistent(int)"/>
         /// </remarks>
         public static bool IsNonexistent(this OpenFileStatus status)
         {

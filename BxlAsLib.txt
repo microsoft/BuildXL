@@ -1,0 +1,377 @@
+BuildXL as a library - aka. BXLLib.
+
+Problem statement
+-----------------
+- Performance
+  - Graph construction takes a long time due to DScript parsing, type checking, and evaluation.
+  - DScript frontend is not scalable to handle Office multi-architecture (mularchy) builds.
+
+- Frontend usability
+  - CMake, MsBuild frontends create their own adhoc JSON formats of build graphs.
+
+- Binary graph fragments are proposed as a way to construct build graphs, but need a way (API)
+  to represent and construct those fragments.
+
+Requirements
+------------
+- API must preserve compatibility, i.e., maintain backward compatibility.
+  - API must be binary compatible.
+  - Graph fragment must be versioned.
+
+- Graph fragment construction must be high performant.
+  - Creating, serializing, and deserializing pips must be performant.
+  - Stitching multiple fragments must be performant.
+
+- Graph fragment interactions:
+  - Fragment can consume artifacts produced by other frontends.
+  - Fragment can produce artifacts that can be consumed by other frontends.
+
+- API for constructing graph fragments that makes sense for customer
+  - Adding basic pips, e.g., process, copy, write, seal directory.
+  - Extensible for adding BuildXL's friends:
+    - Adding QTest pips.
+    - Adding drop and symbol pips.    
+  - Desirable:
+    - Higher-level API to ease migration from existing DScript SDK.
+      - Creating a unique output directory.
+      - Specifying inputs/outputs of pips like in DScript.
+    - API becomes yet another frontend.
+
+- Reuse existing DScript (or other frontends) SDK: Drop, Symbol, QTest, etc.
+
+- Control over BuildXL's friends behavior, e.g., adding a new default to QTest pips.
+
+- Track what files and environment variables used for graph fragment constructions.
+  - This is needed in case the construction is not done in a sandboxed environment.
+
+- BXLLib is applicable to many customers, not only to Office, e.g., WDG can benefit from BXLLib.
+
+Spike
+-----
+- Use BuildXL DScript frontend to evaluate specs and generate specific fragments.
+  - Description:
+    - This approach targets only performance.
+    - In metabuild, besides generating DScript spec, the pip also evaluates the spec (plus the SDK) and generates a fragment.
+    - Instead of using a full-blown BuildXL, we refactor BuildXL frontend to create so-called BXLScriptAnalyzer
+      that is used for evaluation and for generating fragment.
+    - The generated fragments are then fed as inputs to product build.
+    - Performance can be gained because:
+      - The metabuild pip generates a smaller spec that can be evaluated fast (to be proven).
+      - The metabuild pip can be distributed. 
+
+  - Pros:
+    - It's a shortcut and requires moderate efforts.
+    - We can (hopefully) deliver performance without changing DScript SDK, without changing static NMake, without
+      waiting for definite API.
+    - Existing DScript SDK can still be used.
+    - The shipment of BuildXL engine and its DScript SDK doesn't change.
+
+  - Cons:
+    - This may be applicable to Office where their project slices are kind of isolated from one another.
+    - Stitching fragments is non-trivial due to service and IPC pips:
+      - [In progress] Need to unify service and IPC pips:
+        - Instead of having one drop service pip for the whole graph, we now have N drop service pips, where
+          N is the number of generated fragments.
+        - IPC pips are tied to specific service pips through monikers. We need to mess around with IPC pips
+          command-line arguments to unify service and IPC pips.
+
+API
+---
+- Basic API: must be small and not prone to binary incompatibility.
+  
+  static class FragmentFactory 
+  {
+      /* Fragment's name can be thought of as module name */
+      public IGraphFragment InitGraphFragment(string name);
+  }
+
+  interface IGraphFragment 
+  {
+      void AddProcess(ProcessData processData);
+      void AddWriteFile(WriteFileData writeFileData);
+      void AddCopyFile(CopyFileData copyFileData);
+      void AddSealDirectory(SealDirectoryData sealDirectory);
+      ...
+
+      AbsolutePath P(string path);
+      FileArtifact F(AbsolutePath path, int rewriteCount);
+      DirectoryArtifact D(AbsolutePath path);
+  }
+
+- Some utilites need to be exposed for optimization:
+  - AbsolutePath, 
+  - FileArtifact(WithAttaributs), 
+  - DirectoryArtifact,
+  - PathTable
+  - PipData/PipDataBuilder:
+    - PipData builder is needed to construct PipData.
+    - Need to be moved to utilities.
+    - Some renderer that refers to FileContentInfo of BuildXL.Storage needs to use plain string.
+    - Perhaps create a restricted version of PipDataBuilder that user can use easily.
+  - To support reuse, some classes/enums in BuildXL.Pips needs to be moved to a smaller DLL (may be called
+    BuildXL.PipUtilities), e.g., ProcessOptions, EnvironmentVariables, etc.
+ 
+- ProcessData, WriteFileData, ... are the ones that are going to be serialized/deserialized, and thus need to be versioned.
+
+  - Option 1: Use Google protobuf to represent them.
+    - Pros:
+      - Kind of "de-facto" standard.
+      - Serialization and deserialization come out of box.
+      - Binary format is optimized.
+    - Cons:
+      - Cannot use custom serialization:
+        - We want the serialization to leverage pip inlining mechanism.
+      - Generate only classes.
+      - Deserialization can create a lot of objects.
+
+  - Option 2: Use protobuf-net.
+    - Pros:
+      - Serialization and deserialization come out of box.
+      - Doesn't need a separate proto file.
+    - Cons:
+      - Similar to Google protobuf.
+      - Stability, performance, and encoding size need to be investigated.
+
+  - Option 3 (potentially chosen): Classes have serialization & deserialization methods that mimic
+    protobuf, i.e., there are positional fields.
+    Ex.
+
+    class Data 
+    {       
+        /* TBD: We may want to add positional attrbute for each property, like protobuf-net. */
+
+        public AbsolutePath Path { get; set; }
+        public FileArtifact File { get; set; }
+        public void Serialize(Writer writer) 
+        {
+            if (Path.IsValid) { writer.WritePos(1); writer.WritePath(Path); }
+            if (File.IsValid) { writer.WritePos(2); write.WriteFile(File); }
+        }
+        public static Data Deserialize(Reader reader)
+        {
+            Data data;
+            while (!int pos = reader.ReadPos()) != -1) {
+                switch (pos) {
+                    case 1: { data.Path = reader.ReadPath(); break; }
+                    case 2: { data.File = reader.ReadFile(); break; }
+                }
+            }
+            return data;
+        }
+    }
+
+    - Pros: Can use custom serialization/deserialization.
+    - Cons: 
+      - Manually maintained the position.
+      - An intern working on XLG++ may choose protobuf for versioning.
+
+- Excerpt of ProcessData: basically it reflects Process in BuildXL.Pips
+
+  class ProcessData 
+  {
+      /* TBD: We may want to add positional attrbute for each property, like protobuf-net. */
+
+      public FileArtifact Executable { get; set; }
+      public PipData Arguments { get; set; }
+      public AbsolutePath WorkingDirectory { get; set; }
+      public IEnumerable<EnvironmentVariable> EnvironmentVariables { get; set; }
+      public ProcessOptions ProcessOptions { get; set; }
+      public IEnumerable<FileArtifact> Dependencies { get; set; }
+      public IEnumerable<DirectoryArtifact> DirectoryDependencies { get; set; }
+      public IEnumerable<FileArtifactWithAttributes> FileOutputs { get; set; }
+      public IEnumerable<DirectoryArtifact> DirectoryOutputs { get; set; }
+      ...
+  }       
+
+Graph fragment interactions
+---------------------------
+- We want graph fragments to be able to consume values from other frontends and produce values
+  that can be consumed by other frontends.
+- Even when stitching multiple graphs, we want to estabilish dependency relation between fragments.
+- API:
+  - To expose outputs to other frontends or other fragments:
+
+    interface IGraphFragment
+    {
+        ...
+        /* The implementation may verify that this fragment indeed produces the output file. */
+        AddOutputFileValue(FullSymbol id, FileArtifact outputFile);
+        AddOutputDirectoryValue(FullSymbol id, DirectoryArtifact outputDirectory);
+    }
+
+  - To consume file/directory outputs from other frontends or other fragments:
+    class SymbolicDependency
+    {
+        /* Module name can be name of another graph fragment. */
+        public string Module { get; set; }
+        public FullSymbol Id { get; set; }
+    }
+
+    class ProcessData
+    {
+        ...
+        /**
+         * Upon deserialization, the entry in these symbolic dependencies are assumed
+         * to exist (by querying FrontEndHost).
+         * Given (module: M, id: x.y.z) as a symbolic dependency, one should not evaluate
+         * "import('M').x.y.z" because the topological order will be violated.
+         */
+        public IEnumerable<SymbolicDependency> SymbolicDependencies { get; set; }
+        public IEnumerable<SymbolicDependency> SymbolicDirectoryDependencies { get; set; }
+    }
+
+  - Reading graph fragment:
+    - Option 1: Use "readFragment" method.
+    - Option 2: Resolver.
+      - Fragments can be thought of another resolver kind, where each fragment can be thought
+        of as a module.
+      - Fragment's dependencies must be encoded into the fragment itself.
+      - See example below for details.
+
+  - Other frontends can consume outputs of fragments. For example, one will write the following in
+    DScript:
+    /**
+     * Assume that the fragment is constructed as follows:
+     *   var f = InitGraphFragment("Word.Debug.X64");
+     *   ...
+     *   f.AddOutputFileValue(S("word.exe"), F("Target/Debug/X64/word.exe", 1));
+     */
+    const fragmentWordDebugX64 = readFragment(f`./word.debug.x64.frag`);
+    const dropOutput = DropSDK.dropFile(fragmentWordDebugX64.word.exe);
+  
+  - Fragment can consume outputs produced by other frontends or by other fragments.
+    - Option 1: Use "readFragment" method
+      /**
+       * Assume that the Word fragment is constructed as follows:
+       *   ---------------------------------
+       *   var f = InitGraphFragment("Word.Debug.X64");
+       *   f.AddProcess(new ProcessData {
+       *       SymbolicDependencies: new[] { 
+       *           new SymbolicDependency { Module: "Liblet.Debug.X64", Id: liblet.dll },
+       *           new SymbolicDependency { Module: "Utils", Id: IO.common.dll }
+       *       } 
+       *   });
+       *   ----------------------------------
+       *
+       * Liblet fragment is constructed as follows:
+       *   ----------------------------------
+       *   var f = InitGraphFragment("Liblet.Debug.X64");
+       *   ...
+       *   f.AddOutputFileValue(liblet.dll, F("Target/Debug/X64/liblet.dll", 1));
+       *   ----------------------------------
+       */
+       const libletFragment = readFragment(
+           f`./liblet.debug.x64.frag`,
+           fragmentDependencies: [],
+           fileDependencies: [],
+           directoryDependencies: []);
+       const wordFragment = readFragment(
+           f`./word.debug.x64.frag`,
+           fragmentDependencies: [libletFragment],
+           fileDependencies: [import("Utils").IO.common.dll]
+       )
+    
+    - Option 2: fragments as another resolver kind.
+        interface IGraphFragment
+        {
+            ...
+            /**
+             * Upon deserialization, this dependency will cause evaluation
+             * to ensure that the value for the dependency is created.
+             * The evaluation will also involve fragment loading if the module
+             * in the symbolic dependency refers to a fragment.
+             * This method should be called at the beginning before adding pips.
+             */ 
+            void AddSymbolicDependency(SymbolicDependency dependency);
+        }
+
+      In DScript, one can use the fragment as follows:
+        const f = import("Word.Debug.X64");
+        const o = DropSDK.dropFile(f.word.exe);
+
+BuildXL's friends
+-----------------
+- The above API is the bare minimal one for creating fragments.
+- Dealing with BuildXL's friends is tricky:
+  - For drop, the user needs to add the finalization pip before its dependencies.
+- We still want to have a control over our friends:
+  - QTest/BuildXL teams is improving QTest experience, and want to enable new behavior by
+    changing default values for QTest pips.
+
+- Enrich IGraphFragment API:
+    interface IGraphFragment
+    {
+        ...
+        AddDropServicePip(DropServiceData serviceData);
+        AddDropIpcPip(DropIpcData ipcData);
+        AddQTestPip(QTestData qTestData);
+    }
+
+    Similar to ProcessData, DropServiceData, DropIpcData, and QTestData are the ones that 
+    are serialized/deserialized, and thus they need to be versioned.
+
+- On the receiver (DominoEngine), when DropServiceData/DropIpcData/QTestData is received, 
+  the receiver dispatches the data to component that has the logic to interpret it and 
+  to create pip(s) out of the data.
+  - The logic component can be loaded dynamically.
+  - The logic component can be written in C#.
+  - The logic component can be a method in DScript SDK.
+    - The received data is converted into an object literal whose type matches the one that
+      the SDK method expects.
+  (In Newton's words, this model is like "call('method')" in assembly language.)
+
+
+Side notes
+----------
+- One may think that "AddProcess(...)" should return a kind of ProcessOutputs that can describe
+  producer/consumer relation, for example
+
+      var f = InitGraphFragment("Dummy");
+      var p1 = f.AddProcess(p1Data);
+      var p2 = f.AddProcess(new ProcessData {
+          FileDependencies: new[] {p1.GetOutput(P("a/b/c")}
+      })
+  
+  The above construct is nice to have but unnecessary because when "p1Data" is populated, 
+  the user already knows that the output of p1 is F("a/b/c", 1), and thus he/she can simply
+  plug F("a/b/c", 1) in p2's process data instead of writing p1.GetOutput(...).
+
+- Another approach to establishing producer-consumer relation with fragments is to delay
+  the establishment until deserialization. Suppose that a pip in a fragment needs file ff
+  produces by another fragment. The current fragment simply assumes that ff is a source file, 
+  and let the deserialization resolves that ff is in fact produced by another fragment.
+  For example:
+    Fragment 1:
+        var f = InitGraphFragment("Fragment1");
+        var p = f.AddProcess(new ProcessData {... FileOutputs: new[] { F("x.dll", 1) } ...});
+
+    Fragment 2:
+        var f = InitGraphFragment("Fragment2");
+        /* Assume that x.dll is a source file */
+        var p = f.AddProcess(new ProcessData {... FileDependencies: new[] { F("x.dll", 0) } ...});
+  
+  For loading fragment 2, we have in DScript the following:
+    const f1 = readFragment(f`./fragment1.frag`, ...);
+    const f2 = readFragment(f`./fragment2.frag`, fragmentDependencies: [f1], ...);
+  The readFragment now has to track the latest rewrite count of x.dll. 
+
+  If the user forgets to specify the fragment dependency, then graph construction can fail with 
+  different reasons. If fragment 2 is done first, then adding fragment 1 will cause source rewrite
+  violation. If fragment 1 is done first, then adding p of fragment 1 will violate latest rewrite
+  count restriction. These errors can be hard to trace/debug.
+
+- Yet another approach to establishing producer-consumer relation is to establish it during 
+  construction. This is possible if we have knowledge of such relation. Office has such knowledge. 
+  For example:
+    Fragment 1:
+        var f = InitGraphFragment("Fragment1");
+        var p = f.AddProcess(new ProcessData {... FileOutputs: new[] { F("x.dll", 1) } ...});
+
+    Fragment 2:
+        var f = InitGraphFragment("Fragment2");
+        /* Fragment 2 knows that it's consuming fragment 1's, x.dll, so x.dll is an output file. */
+        var p = f.AddProcess(new ProcessData {... FileDependencies: new[] { F("x.dll", 1) } ...});
+
+  This approach also suffers from the same problem as above if the user forgets to specify 
+  the dependency between fragment 1 and fragment 2.
+  Also, this approach doesn't support fragments as resolver kind.

@@ -2857,17 +2857,17 @@ namespace BuildXL.Scheduler
                 Dictionary<AbsolutePath, FileArtifactWithAttributes> outputs = poolAbsolutePathFileArtifactWithAttributes.Instance;
                 outputs.AddRange(pip.Outputs.Select(o => new KeyValuePair<AbsolutePath, FileArtifactWithAttributes>(o.Path, o)));
 
-                for (int i = 0; i < metadata.StaticOutputHashes.Count; i++)
+                foreach (var staticOutputHashes in metadata.StaticOutputHashes)
                 {
                     // TODO: The code path that returns null looks dubious. Could they ever be reached? Should we write a contract here instead of silently concluding weak fingerprint miss?
 
-                    FileMaterializationInfo materializationInfo = metadata.StaticOutputHashes[i].Info.ToFileMaterializationInfo(pathTable);
-                    AbsolutePath metadataPath = AbsolutePath.Create(pathTable, metadata.StaticOutputHashes[i].AbsolutePath);
+                    FileMaterializationInfo materializationInfo = staticOutputHashes.Info.ToFileMaterializationInfo(pathTable);
+                    AbsolutePath metadataPath = AbsolutePath.Create(pathTable, staticOutputHashes.AbsolutePath);
 
                     if (!outputs.TryGetValue(metadataPath, out attributedOutput))
                     {
                         // Output in metadata is missing from the pip specification; entry is invalid.
-                        Logger.Log.InvalidMetadataStaticOutputNotFound(operationContext, pip.Description, metadata.StaticOutputHashes[i].AbsolutePath);
+                        Logger.Log.InvalidMetadataStaticOutputNotFound(operationContext, pip.Description, staticOutputHashes.AbsolutePath);
                         return null;
                     }
 
@@ -2885,7 +2885,7 @@ namespace BuildXL.Scheduler
                     else if (isRequired)
                     {
                         // Required but looks absent; entry is invalid.
-                        Logger.Log.InvalidMetadataRequiredOutputIsAbsent(operationContext, pip.Description, metadata.StaticOutputHashes[i].AbsolutePath);
+                        Logger.Log.InvalidMetadataRequiredOutputIsAbsent(operationContext, pip.Description, staticOutputHashes.AbsolutePath);
                         return null;
                     }
                     else

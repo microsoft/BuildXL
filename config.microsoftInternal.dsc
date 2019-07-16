@@ -8,7 +8,7 @@ const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal"
 // Or they contain code which is internal and can't be open sourced due to tying into Microsoft internal systems.
 // The dependent code is still open sourced, but not compiled in the public repo.
 export const pkgs = isMicrosoftInternal ? [
-    { id: "Bond.NET", version: "3.2.0" },
+    { id: "Bond.NET", version: "3.2.0", forceFullFrameworkQualifiersOnly: true },
     { id: "Bond.Core.NET", version: "3.2.0" },
     { id: "Bond.Rpc.NET", version: "3.2.0" },
     { id: "BuildXL.DeviceMap", version: "0.0.1" },

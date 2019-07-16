@@ -10,7 +10,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
     ///     In some cases, a ReadOnly access level allows elision of local copies. Implementations
     ///     may set file ACLs to enforce the requested access level.
     /// </remarks>
-    public enum FileAccessMode
+    public enum FileAccessMode : byte
     {
         /// <summary>
         ///     Uninitialized

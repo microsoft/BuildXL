@@ -209,9 +209,10 @@ message DeleteContentRequest {
 }
 
 message DeleteContentResponse {
-    ResponseHeader Header = 1;
-    int64 evictedSize = 4;
-    int64 pinnedSize = 5;
+    ResponseHeader header = 1;
+    int32 result = 2;
+    int64 evictedSize = 3;
+    int64 pinnedSize = 4;
 }
 
 // AddOrGetContentHashList

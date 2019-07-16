@@ -553,18 +553,23 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             bool succeeded = true;
             long evictedSize = 0L;
             long pinnedSize = 0L;
+            int code = (int)DeleteResult.ResultCode.ContentNotFound;
             foreach (var deleteResult in deleteResults)
             {
                 succeeded &= deleteResult.Succeeded;
                 evictedSize += deleteResult.EvictedSize;
                 pinnedSize += deleteResult.PinnedSize;
+
+                // Return the most severe result code
+                code = Math.Max(code, (int)deleteResult.Code);
             }
 
             return new DeleteContentResponse
             {
                 Header = succeeded ? ResponseHeader.Success(startTime) : ResponseHeader.Failure(startTime, string.Join(Environment.NewLine, deleteResults.Select(r => r.ToString()))),
                 EvictedSize = evictedSize,
-                PinnedSize = pinnedSize
+                PinnedSize = pinnedSize,
+                Result = code
             };
         }
 

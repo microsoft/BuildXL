@@ -11,6 +11,21 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// </summary>
     public class DeleteResult : BoolResult
     {
+        private static bool IsSuccessfulResult(ResultCode code)
+        {
+            switch (code)
+            {
+                case ResultCode.ContentNotFound:
+                case ResultCode.Success:
+                    return true;
+                case ResultCode.ContentNotDeleted:
+                case ResultCode.ServerError:
+                case ResultCode.Error:
+                    return false;
+                default:
+                    throw new ArgumentException($"{code} is an unrecognized value of {nameof(DeleteResult)}.{nameof(ResultCode)}");
+            }
+        }
 
         /// <summary>
         /// A code that helps caller to make decisions.
@@ -18,32 +33,40 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public enum ResultCode
         {
             /// <summary>
-            /// The call succeeded.
+            /// The content does not exist on the server.
+            /// This deletion is successful.
             /// </summary>
-            Success = 0,
+            ContentNotFound = 0,
 
             /// <summary>
-            /// The call did not succeed on the server.
+            /// The content was found and deleted.
             /// </summary>
-            ContentNotDeleted = 1,
+            Success = 1,
 
             /// <summary>
-            /// The cause of the exception was the server.
+            /// Deletion of the content failed.
+            /// This deletion is an error.
             /// </summary>
-            ServerError = 2,
+            ContentNotDeleted = 2,
+
+            /// <summary>
+            /// The server threw an exception.
+            /// </summary>
+            ServerError = 3,
 
             /// <summary>
             /// The cause of the exception was unknown.
             /// </summary>
-            Error = 3
+            Error = 4
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
         /// </summary>
-        public DeleteResult(ContentHash contentHash, long evictedSize, long pinnedSize)
+        public DeleteResult(ResultCode resultCode, ContentHash contentHash, long evictedSize, long pinnedSize)
+            : base(IsSuccessfulResult(resultCode))
         {
-            Code = ResultCode.Success;
+            Code = resultCode;
             ContentHash = contentHash;
             EvictedSize = evictedSize;
             PinnedSize = pinnedSize;
@@ -91,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public override string ToString()
         {
             return Succeeded
-                ? $"Success Hash={ContentHash} Size={EvictedSize} Pinned={PinnedSize}"
+                ? $"Success Code={Code} Hash={ContentHash} Size={EvictedSize} Pinned={PinnedSize}"
                 : GetErrorString();
         }
     }

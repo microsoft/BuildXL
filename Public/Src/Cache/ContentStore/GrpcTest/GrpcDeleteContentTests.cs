@@ -37,6 +37,19 @@ namespace ContentStoreTest.Grpc
         }
 
         [Theory]
+        [InlineData(DeleteResult.ResultCode.ContentNotFound, true)]
+        [InlineData(DeleteResult.ResultCode.Success, true)]
+        [InlineData(DeleteResult.ResultCode.ContentNotDeleted, false)]
+        [InlineData(DeleteResult.ResultCode.ServerError, false)]
+        [InlineData(DeleteResult.ResultCode.Error, false)]
+        public void SuccessPerResult(DeleteResult.ResultCode code, bool succeeded)
+        {
+            var hash = ContentHash.Random(HashType.Vso0);
+            DeleteResult r = new DeleteResult(code, hash, 0L, 0L);
+            r.Succeeded.Should().Be(succeeded);
+        }
+
+        [Theory]
         [InlineData(10L)]
         [InlineData(1000L)]
         public Task SendReceiveDeletion(long size)
@@ -88,8 +101,8 @@ namespace ContentStoreTest.Grpc
 
                 // Delete content
                 var deleteResult = await rpcClient.DeleteContentAsync(context, contentHash);
-                deleteResult.ShouldBeError();
-                deleteResult.Code.Should().Be(DeleteResult.ResultCode.ContentNotDeleted);
+                deleteResult.ShouldBeSuccess();
+                deleteResult.Code.Should().Be(DeleteResult.ResultCode.ContentNotFound);
                 deleteResult.ContentHash.Equals(contentHash).Should().BeFalse();
                 deleteResult.EvictedSize.Should().Be(0L);
                 deleteResult.PinnedSize.Should().Be(0L);

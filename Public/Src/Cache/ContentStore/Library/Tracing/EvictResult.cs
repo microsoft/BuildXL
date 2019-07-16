@@ -97,20 +97,19 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// </summary>
         public DeleteResult ToDeleteResult(ContentHash contentHash)
         {
-            if (HasException)
+            if (HasException || !Succeeded)
             {
                 return new DeleteResult(DeleteResult.ResultCode.Error, Exception, ErrorMessage);
             }
-            else if (!SuccessfullyEvictedHash)
+
+            // !HasException && Succeeded
+            if (SuccessfullyEvictedHash)
             {
-                return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, $"Hash {contentHash.ToShortString()} was not found", ErrorMessage + " " + Diagnostics);
-            }
-            else if (!Succeeded)
-            {
-                return new DeleteResult(DeleteResult.ResultCode.ServerError, ErrorMessage, Diagnostics);
+                return new DeleteResult(EvictedSize == 0L ? DeleteResult.ResultCode.ContentNotFound : DeleteResult.ResultCode.Success, contentHash, EvictedSize, PinnedSize);
             }
 
-            return new DeleteResult(contentHash, EvictedSize, PinnedSize);
+            // !HasException && Succeeded && !SuccessfulyEvictedHash
+            return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, contentHash, EvictedSize, PinnedSize);
         }
 
         /// <inheritdoc />

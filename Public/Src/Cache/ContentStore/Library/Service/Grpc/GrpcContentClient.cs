@@ -381,11 +381,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 DeleteContentResponse response = await _client.DeleteAsync(request);
                 if (response.Header.Succeeded)
                 {
-                    return new DeleteResult(hash, response.EvictedSize, response.PinnedSize);
+                    return new DeleteResult((DeleteResult.ResultCode)response.Result, hash, response.EvictedSize, response.PinnedSize);
                 }
                 else
                 {
-                    return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, response.Header.ErrorMessage, response.Header.Diagnostics);
+                    return new DeleteResult((DeleteResult.ResultCode)response.Result, response.Header.ErrorMessage, response.Header.Diagnostics);
                 }
             }
             catch (RpcException r)

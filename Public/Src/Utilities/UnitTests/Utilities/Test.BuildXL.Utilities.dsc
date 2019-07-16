@@ -9,8 +9,6 @@ namespace Core {
         assemblyName: "Test.BuildXL.Utilities",
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
-        // TODO: remove once LKG is bulished
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,

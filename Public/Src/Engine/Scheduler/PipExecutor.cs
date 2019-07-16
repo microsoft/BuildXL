@@ -2130,7 +2130,7 @@ namespace BuildXL.Scheduler
 
                     if (maybeUsableCacheEntry.HasValue)
                     {
-                        usableDescriptor = await TryConvertToRunnableFromCacheResult(
+                        usableDescriptor = await TryConvertToRunnableFromCacheResultAsync(
                          processRunnable,
                          operationContext,
                          environment,
@@ -2248,6 +2248,7 @@ namespace BuildXL.Scheduler
             }
 
             var cacheHitData = TryCreatePipCacheDescriptorFromMetadata(
+                operationContext,
                 environment,
                 state,
                 pip,
@@ -2269,7 +2270,7 @@ namespace BuildXL.Scheduler
                 : RunnableFromCacheResult.CreateForMiss(executionResult.TwoPhaseCachingInfo.WeakFingerprint);
         }
 
-        private static async Task<RunnableFromCacheResult.CacheHitData> TryConvertToRunnableFromCacheResult(
+        private static async Task<RunnableFromCacheResult.CacheHitData> TryConvertToRunnableFromCacheResultAsync(
             ProcessRunnablePip processRunnable,
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
@@ -2310,6 +2311,7 @@ namespace BuildXL.Scheduler
                     if (maybeMetadata.Succeeded && maybeMetadata.Result != null)
                     {
                         maybeParsedDescriptor = TryCreatePipCacheDescriptorFromMetadata(
+                            operationContext,
                             environment,
                             state,
                             pip,
@@ -2808,6 +2810,7 @@ namespace BuildXL.Scheduler
         }
 
         private static RunnableFromCacheResult.CacheHitData TryCreatePipCacheDescriptorFromMetadata(
+            OperationContext operationContext,
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state,
             CacheablePip pip,
@@ -2849,18 +2852,32 @@ namespace BuildXL.Scheduler
             // Only the CanBeReferencedOrCached output will be saved in metadata.StaticOutputHashes
             // We looped metadata.StaticOutputHashes and meanwhile find the corresponding output in current executing pip.
             FileArtifactWithAttributes attributedOutput;
-            using (var poolStringFileArtifactWithAttributes = Pools.GetStringFileArtifactWithAttributesMap())
+            using (var poolAbsolutePathFileArtifactWithAttributes = Pools.GetAbsolutePathFileArtifactWithAttributesMap())
             {
-                Dictionary<string, FileArtifactWithAttributes> outputs = poolStringFileArtifactWithAttributes.Instance;
-                outputs.AddRange(pip.Outputs.ToDictionary(o => o.Path.ToString(pathTable), o => o));
-                for (int i = 0; i < metadata.StaticOutputHashes.Count; i++)
+                Dictionary<AbsolutePath, FileArtifactWithAttributes> outputs = poolAbsolutePathFileArtifactWithAttributes.Instance;
+                outputs.AddRange(pip.Outputs.Select(o => new KeyValuePair<AbsolutePath, FileArtifactWithAttributes>(o.Path, o)));
+
+                foreach (var staticOutputHashes in metadata.StaticOutputHashes)
                 {
-                    FileMaterializationInfo materializationInfo = metadata.StaticOutputHashes[i].Info.ToFileMaterializationInfo(pathTable);
-                    outputs.TryGetValue(metadata.StaticOutputHashes[i].AbsolutePath, out attributedOutput);
+                    // TODO: The code path that returns null looks dubious. Could they ever be reached? Should we write a contract here instead of silently concluding weak fingerprint miss?
+
+                    FileMaterializationInfo materializationInfo = staticOutputHashes.Info.ToFileMaterializationInfo(pathTable);
+                    AbsolutePath metadataPath = AbsolutePath.Create(pathTable, staticOutputHashes.AbsolutePath);
+
+                    if (!outputs.TryGetValue(metadataPath, out attributedOutput))
+                    {
+                        // Output in metadata is missing from the pip specification; entry is invalid.
+                        Logger.Log.InvalidMetadataStaticOutputNotFound(operationContext, pip.Description, staticOutputHashes.AbsolutePath);
+                        return null;
+                    }
+
+                    Contract.Assert(attributedOutput.IsValid);
+
                     FileArtifact output = attributedOutput.ToFileArtifact();
 
                     // Following logic should be in sync with StoreContentForProcess method.
                     bool isRequired = IsRequiredForCaching(attributedOutput);
+
                     if (materializationInfo.Hash != WellKnownContentHashes.AbsentFile)
                     {
                         cachedArtifactContentHashes.Add((output, materializationInfo));
@@ -2868,6 +2885,7 @@ namespace BuildXL.Scheduler
                     else if (isRequired)
                     {
                         // Required but looks absent; entry is invalid.
+                        Logger.Log.InvalidMetadataRequiredOutputIsAbsent(operationContext, pip.Description, staticOutputHashes.AbsolutePath);
                         return null;
                     }
                     else
@@ -4354,7 +4372,7 @@ namespace BuildXL.Scheduler
             };
 
             // Converge to the conflicting entry rather than ignoring and continuing.
-            var usableDescriptor = await TryConvertToRunnableFromCacheResult(
+            var usableDescriptor = await TryConvertToRunnableFromCacheResultAsync(
                 null,
                 operationContext,
                 environment,

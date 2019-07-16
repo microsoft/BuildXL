@@ -368,7 +368,8 @@ namespace BuildXL.Utilities.Tracing
         DirectoryFingerprintComputedFromGraph = 365,
         DirectoryFingerprintExercisedRule = 366,
         PathSetValidationTargetFailedAccessCheck = 367,
-        // was DirectoryFingerprintUsedSearchPathEnumeration = 368,
+        InvalidMetadataStaticOutputNotFound = 368,
+        InvalidMetadataRequiredOutputIsAbsent = 369,
 
         // Dynamic Module Activity
         // DEPRECATED 370,

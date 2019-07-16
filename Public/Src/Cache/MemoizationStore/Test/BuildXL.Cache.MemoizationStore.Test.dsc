@@ -34,6 +34,8 @@ namespace Test {
             InterfacesTest.dll,
             Library.dll,
 
+            ContentStore.Distributed.dll,
+
             importFrom("BuildXL.Utilities").dll,
             importFrom("System.Interactive.Async").pkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,

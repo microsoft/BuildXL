@@ -169,7 +169,7 @@ namespace BuildXL.FrontEnd.Nuget
             var libs = new MultiValueDictionary<NugetTargetFramework, RelativePath>();
             var assemblyToTargetFramework = new MultiValueDictionary<PathAtom, NugetTargetFramework>();
 
-            foreach (var relativePath in PackageOnDisk.Contents)
+            foreach (var relativePath in PackageOnDisk.Contents.OrderBy(path => path.ToString(stringTable)))
             {
                 // This is a dll. Check if it is in a lib folder or ref folder.
                 var atoms = relativePath.GetAtoms();
@@ -238,12 +238,6 @@ namespace BuildXL.FrontEnd.Nuget
                 var history = ForceFullFrameworkQualifiersOnly ?
                     NugetFrameworkMonikers.FullFrameworkVersionHistory :
                     NugetFrameworkMonikers.WellknownMonikers.ToList();
-
-                // TODO: Remove this once we have a LKG with ForceFullFrameworkQualifiersOnly on spec generation
-                if (Id.Equals("Bond.NET"))
-                {
-                    history = NugetFrameworkMonikers.FullFrameworkVersionHistory;
-                }
 
                 foreach (var moniker in history)
                 {

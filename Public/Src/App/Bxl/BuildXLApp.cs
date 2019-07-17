@@ -152,6 +152,9 @@ namespace BuildXL
 
         private readonly CrashCollectorMacOS m_crashCollector;
 
+        // Allow a longer Aria telemetry flush time in CloudBuild since we're more willing to wait at the tail of builds there
+        private TimeSpan TelemetryFlushTimeout => m_configuration.InCloudBuild() ? TimeSpan.FromMinutes(1) : AriaV2StaticState.DefaultShutdownTimeout;
+
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         public BuildXLApp(
@@ -951,9 +954,7 @@ namespace BuildXL
                         Stopwatch sw = Stopwatch.StartNew();
                         Exception telemetryShutdownException;
                         
-                        // Allow a longer Aria telemetry flush time in CloudBuild since we're more willing to wait at the tail of builds there
-                        TimeSpan telemetryFlushTimeout = m_configuration.InCloudBuild() ? TimeSpan.FromMinutes(1) : AriaV2StaticState.DefaultShutdownTimeout;
-                        var shutdownResult = AriaV2StaticState.TryShutDown(telemetryFlushTimeout, out telemetryShutdownException);
+                        var shutdownResult = AriaV2StaticState.TryShutDown(TelemetryFlushTimeout, out telemetryShutdownException);
                         switch (shutdownResult)
                         {
                             case AriaV2StaticState.ShutDownResult.Failure:

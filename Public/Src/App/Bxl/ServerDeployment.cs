@@ -149,17 +149,7 @@ namespace BuildXL
             Assembly rootAssembly = Assembly.GetEntryAssembly();
             Contract.Assert(rootAssembly != null, "Could not look up entry assembly");
 
-            string assemblyFullPath = Path.Combine(serverDeploymentRoot, new FileInfo(AssemblyHelper.GetAssemblyLocation(rootAssembly)).Name);
-
-#if FEATURE_CORECLR
-            var frameworkDeploymentExtension = ".dll";
-            var selfcontainedDeploymentExtension = ".exe";
-
-            if (assemblyFullPath.Contains(frameworkDeploymentExtension))
-            {
-                assemblyFullPath = assemblyFullPath.Replace(frameworkDeploymentExtension, selfcontainedDeploymentExtension);
-            }
-#endif
+            string assemblyFullPath = Path.Combine(serverDeploymentRoot, new FileInfo(AssemblyHelper.GetThisProgramExeLocation()).Name);
 
             // Try kill process using Process.Kill.
             var killProcessResult = TryKillProcess(assemblyFullPath);
@@ -238,7 +228,7 @@ namespace BuildXL
         }
 
         /// <summary>
-        /// Returns a calculated hash of the content of the BuildXL binaries deployment server cache directory.
+        /// Calculates a hash of the contents of the BuildXL binaries from the server deployment directory.
         /// </summary>
         public static string GetDeploymentCacheHash(string deploymentDir)
         {
@@ -246,6 +236,9 @@ namespace BuildXL
             return serverDeployment.TimestampBasedHash.ToHex();
         }
 
+        /// <summary>
+        /// Checks if the deployed server bits are still up-to-date.
+        /// </summary>
         public static bool IsServerDeploymentOutOfSync(string serverDeploymentRoot, AppDeployment clientApp, out string deploymentDir)
         {
             deploymentDir = ComputeDeploymentDir(serverDeploymentRoot);

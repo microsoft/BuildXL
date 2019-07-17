@@ -267,7 +267,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Func<List<ContentHashWithLastAccessTimeAndReplicaCount>, IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount>> query =
                 page => _localLocationStore.GetEffectiveLastAccessTimes(operationContext, page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime))).ThrowIfFailure();
 
-            // We make sure that we we select a set of the newer content, to ensure that we at least look at newer content to see if it should be
+            // We make sure that we select a set of the newer content, to ensure that we at least look at newer content to see if it should be
             // evicted first due to having a high number of replicas. We do this by looking at the start as well as at middle of the list.
             var localOldest = contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2).QueryAndOrderInPages(pageSize, comparer, query);
             var localMid = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).QueryAndOrderInPages(pageSize, comparer, query);

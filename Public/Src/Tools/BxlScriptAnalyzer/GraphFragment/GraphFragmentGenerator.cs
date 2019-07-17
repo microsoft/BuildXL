@@ -10,6 +10,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
@@ -28,6 +29,9 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
 
         /// <inheritdoc />
         public override AnalyzerKind Kind => AnalyzerKind.GraphFragment;
+
+        /// <inheritdoc />
+        public override EnginePhases RequiredPhases => EnginePhases.Schedule;
 
         /// <inheritdoc />
         public override bool HandleOption(CommandLineUtilities.Option opt)
@@ -94,30 +98,30 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             var serializer = new PipGraphFragmentSerializer();
 
             // TODO: topologically sort all pips.
-            serializer.Serialize(m_description, Context, new PipGraphFragmentContext(), m_absoluteOutputPath, TopSortGraph());
+            serializer.Serialize(m_description, Context, new PipGraphFragmentContext(), m_absoluteOutputPath, PipGraph.RetrieveScheduledPips().ToList());
 
             return base.FinalizeAnalysis();
         }
 
-        private IReadOnlyList<Pip> TopSortGraph()
-        {
-            Contract.Requires(PipGraph != null);
+        //private IReadOnlyList<Pip> TopSortGraph()
+        //{
+        //    Contract.Requires(PipGraph != null);
 
-            var nodesByHeight = PipGraph.DataflowGraph.TopSort();
-            var maxHeight = nodesByHeight.Count > 0 ? nodesByHeight.Keys.Max() : -1;
+        //    var nodesByHeight = PipGraph.DataflowGraph.TopSort();
+        //    var maxHeight = nodesByHeight.Count > 0 ? nodesByHeight.Keys.Max() : -1;
 
-            var topSortPips = new List<Pip>();
+        //    var topSortPips = new List<Pip>();
 
-            for (int i = 0; i <= maxHeight; ++i)
-            {
-                if (nodesByHeight.TryGetValue(i, out var nodes))
-                {
-                    topSortPips.AddRange(nodes.Select(n => PipGraph.PipTable.HydratePip(n.ToPipId(), Pips.PipQueryContext.PipGraphRetrieveAllPips)));
-                }
-            }
+        //    for (int i = 0; i <= maxHeight; ++i)
+        //    {
+        //        if (nodesByHeight.TryGetValue(i, out var nodes))
+        //        {
+        //            topSortPips.AddRange(nodes.Select(n => PipGraph.PipTable.HydratePip(n.ToPipId(), Pips.PipQueryContext.PipGraphRetrieveAllPips)));
+        //        }
+        //    }
 
-            return topSortPips;
-        }
+        //    return topSortPips;
+        //}
 
         private struct OptionName
         {

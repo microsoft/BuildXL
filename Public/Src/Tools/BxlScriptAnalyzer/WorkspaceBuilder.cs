@@ -13,12 +13,13 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Script.Analyzer.Analyzers;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Scheduler;
+using BuildXL.Pips;
 using BuildXL.Scheduler.Filter;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
@@ -113,7 +114,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             EventHandler<WorkspaceProgressEventArgs> progressHandler,
             out Workspace workspace,
             out FrontEndHostController frontEndHostController,
-            out PipGraph pipGraph,
+            out IPipGraph pipGraph,
             WorkspaceBuilderConfiguration configuration,
             FrontEndEngineAbstraction frontEndEngineAbstraction = null,
             bool collectMemoryAsSoonAsPossible = true)
@@ -161,7 +162,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 return false;
             }
 
-            IPipGraphBuilder pipGraphBuilder = null;
+            IPipGraph pipGraphBuilder = null;
 
             using (var cache = Task.FromResult<Possible<EngineCache>>(
                 new EngineCache(
@@ -189,15 +190,18 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                             5000,
                             false);
 
-                        pipGraphBuilder = new PipGraph.Builder(
-                            EngineSchedule.CreateEmptyPipTable(engineContext),
-                            engineContext,
-                            Scheduler.Tracing.Logger.Log,
-                            loggingContext,
-                            config,
-                            mountsTable.MountPathExpander,
-                            fingerprintSalt: config.Cache.CacheSalt,
-                            directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(config, engineContext.StringTable));
+                        pipGraphBuilder = new GraphFragmentBuilder(loggingContext, engineContext);
+
+                        // TODO: Think more if an analyzer wants to use the real pip graph builder.
+                        //pipGraphBuilder = new PipGraph.Builder(
+                        //    EngineSchedule.CreateEmptyPipTable(engineContext),
+                        //    engineContext,
+                        //    Scheduler.Tracing.Logger.Log,
+                        //    loggingContext,
+                        //    config,
+                        //    mountsTable.MountPathExpander,
+                        //    fingerprintSalt: config.Cache.CacheSalt,
+                        //    directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(config, engineContext.StringTable));
                     }
                     else
                     {
@@ -222,16 +226,18 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                         return false;
                     }
 
-                    if (pipGraphBuilder != null)
-                    {
-                        pipGraph = pipGraphBuilder.Build();
+                    pipGraph = pipGraphBuilder;
 
-                        if (pipGraph == null)
-                        {
-                            // Error has been reported already.
-                            return false;
-                        }
-                    }
+                    //if (pipGraphBuilder != null)
+                    //{
+                    //    pipGraph = pipGraphBuilder.Build();
+
+                    //    if (pipGraph == null)
+                    //    {
+                    //        // Error has been reported already.
+                    //        return false;
+                    //    }
+                    //}
                 }
             }
 
@@ -301,7 +307,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             string configFile,
             string filter,
             out Workspace workspace,
-            out PipGraph pipGraph,
+            out IPipGraph pipGraph,
             out IReadOnlyDictionary<AbsolutePath, ISourceFile> filesToAnalyze,
             out FrontEndContext context)
         {

@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// A store that is based on content locations for opaque file locations.
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class DistributedContentStore<T> : StartupShutdownBase, IContentStoreWithPostInitialization, IRepairStore, IDistributedLocationStore, IStreamStore
+    public class DistributedContentStore<T> : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore, IStreamStore
         where T : PathBase
     {
         private readonly byte[] _localMachineLocation;
@@ -311,7 +311,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             var contentHashesAndLocations = new List<ContentHashWithSizeAndLocations>();
             foreach (ContentHash contentHash in contentHashes)
             {
-                _tracer.Debug(context, $"[DistributedEviction] Re-adding local location for content hash {contentHash} because it was not evicted");
+                _tracer.Debug(context, $"[DistributedEviction] Re-adding local location for content hash {contentHash.ToShortString()} because it was not evicted");
                 contentHashesAndLocations.Add(new ContentHashWithSizeAndLocations(contentHash));
             }
 

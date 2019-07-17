@@ -9,15 +9,10 @@ namespace BuildXL.Processes.Internal
 {
     internal sealed class BinaryPaths
     {
-#pragma warning disable CA1823 // Unused field
-        private const string Debug = "Debug";
-        private const string Release = "Release";
-        private const string X86 = "X86";
-        private const string X64 = "X64";
-#pragma warning restore CA1823 // Unused field
-
         public readonly string DllNameX64;
         public readonly string DllNameX86;
+        public readonly string DllDirectoryX64;
+        public readonly string DllDirectoryX86;
 
         public BinaryPaths()
         {
@@ -28,13 +23,16 @@ namespace BuildXL.Processes.Internal
 
             VerifyFileExists(DllNameX86);
             VerifyFileExists(DllNameX64);
+
+            DllDirectoryX86 = Path.GetDirectoryName(DllNameX86);
+            DllDirectoryX64 = Path.GetDirectoryName(DllNameX64);
         }
 
         private static void VerifyFileExists(string fileName)
         {
             if (!File.Exists(fileName))
             {
-                throw new BuildXLException("Cannot find file needed to detour processes. Did you build all configurations? " + fileName, rootCause: ExceptionRootCause.MissingRuntimeDependency);
+                throw new BuildXLException($"Cannot find file '{fileName}' needed to detour processes. Did you build all configurations?", rootCause: ExceptionRootCause.MissingRuntimeDependency);
             }
         }
     }

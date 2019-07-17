@@ -117,7 +117,6 @@ namespace BuildXL.Scheduler.Tracing
         FingerprintStoreGarbageCollectCanceled = 5024,
 
         DependencyViolationWriteInUndeclaredSourceRead = 5025,
-        DependencyViolationWriteOnExistingFile = 5047,
         DependencyViolationWriteOnAbsentPathProbe = 5026,
         DependencyViolationAbsentPathProbeInsideUndeclaredOpaqueDirectory = 5027,
         RocksDbException = 5028,
@@ -135,10 +134,9 @@ namespace BuildXL.Scheduler.Tracing
         AllowedSameContentDoubleWrite = 5044,
 
         InitiateWorkerRelease = 5045,
-        WorkerReleasedEarly = 5046,
-
-        FailedToLoadPipGraphFragment = 5060,
-
+        WorkerReleasedEarly = 5046, 
+        DependencyViolationWriteOnExistingFile = 5047,
+        FailedToLoadPipGraphFragment = 5048
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

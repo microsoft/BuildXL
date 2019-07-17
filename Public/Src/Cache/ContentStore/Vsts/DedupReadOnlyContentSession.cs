@@ -21,7 +21,6 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -43,7 +42,14 @@ namespace BuildXL.Cache.ContentStore.Vsts
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
     public class DedupReadOnlyContentSession : ContentSessionBase
     {
+        private enum Counters
+        {
+            PinInlined,
+            PinIgnored
+        }
+
         private CounterCollection<BackingContentStore.SessionCounters> _counters { get; } = new CounterCollection<BackingContentStore.SessionCounters>();
+        private CounterCollection<Counters> _dedupCounters { get; } = new CounterCollection<Counters>();
 
         /// <summary>
         /// Default number of oustanding connections to throttle Artifact Services.
@@ -110,6 +116,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// </summary>
         protected readonly DateTime EndDateTime;
 
+        private readonly TimeSpan _pinInlineThreshold;
+
+        private readonly TimeSpan _ignorePinThreshold;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="BlobReadOnlyContentSession"/> class.
         /// </summary>
@@ -118,6 +128,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="implicitPin">Policy determining whether or not content should be automatically pinned on adds or gets.</param>
         /// <param name="dedupStoreHttpClient">Backing DedupStore http client.</param>
         /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
+        /// <param name="pinInlineThreshold">Maximum time-to-live to inline pin calls.</param>
+        /// <param name="ignorePinThreshold">Minimum time-to-live to ignore pin calls.</param>
         /// <param name="maxConnections">The maximum number of outboud connections to VSTS.</param>
         public DedupReadOnlyContentSession(
             IAbsFileSystem fileSystem,
@@ -125,6 +137,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             ImplicitPin implicitPin,
             IDedupStoreHttpClient dedupStoreHttpClient,
             TimeSpan timeToKeepContent,
+            TimeSpan pinInlineThreshold,
+            TimeSpan ignorePinThreshold,
             int maxConnections = DefaultMaxConnections)
             : base(name)
         {
@@ -138,6 +152,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
             TempDirectory = new DisposableDirectory(fileSystem);
             ConnectionGate = new SemaphoreSlim(maxConnections);
             EndDateTime = DateTime.UtcNow + timeToKeepContent;
+
+            _pinInlineThreshold = pinInlineThreshold;
+            _ignorePinThreshold = ignorePinThreshold;
         }
 
         /// <summary>
@@ -155,14 +172,63 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return new PinResult($"DedupStore client requires {RequiredHashType}. Cannot take HashType '{contentHash.HashType}'.");
             }
 
+            var pinResult = CheckPinInMemory(contentHash);
+            if (pinResult.Succeeded)
+            {
+                return pinResult;
+            }
+
+            // Since pinning the whole tree can be an expensive operation, we have optimized how we call it. Depending on the current
+            //  keepUntil of the root node, which is unexpensive to check, the operation will behave differently:
+            //      The pin operation will be ignored if it is greater than ignorePinThreshold, to reduce amount of calls
+            //      The pin operation will be inlined if it is lower than pinInlineThreshold, to make sure that we don't try to use
+            //          content that we pin in the background but has expired before we could complete the pin.
+            //      The pin operation will be done asynchronously and will return success otherwise. Most calls should follow this
+            //          behavior, to avoid waiting on a potentially long operation. We're confident returning a success because we
+            //          know that the content is there even though we still have to extend it's keepUntil
+
+            VstsBlobIdentifier blobId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier());
+            VstsDedupIdentifier dedupId = blobId.ToDedupIdentifier();
+            var keepUntilResult = await CheckNodeKeepUntilAsync(context, dedupId);
+            if (!keepUntilResult.Succeeded)
+            {
+                // Returned a service error. Fail fast.
+                return new PinResult(keepUntilResult);
+            }
+            else if (!keepUntilResult.Value.HasValue)
+            {
+                // Content not found.
+                return new PinResult(PinResult.ResultCode.ContentNotFound);
+            }
+
+            var timeLeft = keepUntilResult.Value.Value - DateTime.UtcNow;
+
+            if (timeLeft > _ignorePinThreshold)
+            {
+                Tracer.Debug(context, $"Pin was skipped bacause keepUntil has remaining time [{timeLeft}] that is greater than ignorePinThreshold=[{_ignorePinThreshold}]");
+                _dedupCounters[Counters.PinIgnored].Increment();
+                return PinResult.Success;
+            }
+
+            var pinTask = PinImplAsync(context, contentHash);
+
+            if (timeLeft < _pinInlineThreshold)
+            {
+                Tracer.Debug(context, $"Pin inlined bacause keepUntil has remaining time [{timeLeft}] that is less than pinInlineThreshold=[{_pinInlineThreshold}]");
+                _dedupCounters[Counters.PinInlined].Increment();
+                return await pinTask;
+            }
+
+            pinTask.FireAndForget(context);
+
+            return PinResult.Success;
+        }
+
+        private async Task<PinResult> PinImplAsync(OperationContext context, ContentHash contentHash)
+        {
             try
             {
-                var pinResult = CheckPinInMemory(contentHash);
-                if (pinResult.Succeeded)
-                {
-                    return pinResult;
-                }
-
+                PinResult pinResult;
                 var dedupId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier()).ToDedupIdentifier();
                 if (dedupId.AlgorithmId == Hashing.ChunkDedupIdentifier.ChunkAlgorithmId)
                 {
@@ -199,9 +265,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
             string tempFile = null;
             try
             {
-                if (ImplicitPin == ImplicitPin.PutAndGet)
+                if (ImplicitPin.HasFlag(ImplicitPin.Get))
                 {
-                    var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint).ConfigureAwait(false);
+                    var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint);
+
                     if (!pinResult.Succeeded)
                     {
                         if (pinResult.Code == PinResult.ResultCode.ContentNotFound)
@@ -276,7 +343,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists);
                 }
 
-                if (ImplicitPin == ImplicitPin.PutAndGet)
+                if (ImplicitPin.HasFlag(ImplicitPin.Get))
                 {
                     var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint).ConfigureAwait(false);
                     if (!pinResult.Succeeded)
@@ -312,21 +379,17 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         /// <inheritdoc />
-        protected override async Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(
+        protected override Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(
             OperationContext context, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
         {
             try
             {
-                return await Workflows.RunWithFallback(
-                    contentHashes,
-                    hashes => CheckInMemoryCache(hashes),
-                    hashes => UpdateDedupStoreAsync(context, hashes),
-                    result => result.Succeeded);
+                return Task.FromResult(contentHashes.Select(async (contentHash, i) => (await PinAsync(context, contentHash, context.Token, urgencyHint)).WithIndex(i)));
             }
             catch (Exception ex)
             {
                 context.TracingContext.Warning($"Exception when querying pins against the VSTS services {ex}");
-                return contentHashes.Select((_, index) => Task.FromResult(new PinResult(ex).WithIndex(index)));
+                return Task.FromResult(contentHashes.Select((_, index) => Task.FromResult(new PinResult(ex).WithIndex(index))));
             }
         }
 
@@ -376,46 +439,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
         }
 
-        private async Task<IEnumerable<Task<Indexed<PinResult>>>> UpdateDedupStoreAsync(
-            OperationContext context, IReadOnlyList<ContentHash> contentHashes)
-        {
-            if (!contentHashes.Any())
-            {
-                return (new List<Task<Indexed<PinResult>>>()).AsEnumerable();
-            }
-
-            var dedupIdentifiers = contentHashes.Select(c => ToVstsBlobIdentifier(c.ToBlobIdentifier()).ToDedupIdentifier());
-
-            var tryReferenceBlock = new TransformBlock<Indexed<VstsDedupIdentifier>, Indexed<PinResult>>(
-               async i =>
-               {
-                   PinResult pinResult;
-
-                   if (i.Item.AlgorithmId == Hashing.ChunkDedupIdentifier.ChunkAlgorithmId)
-                   {
-                       pinResult = await TryPinChunkAsync(context, i.Item);
-                   }
-                   else
-                   {
-                       pinResult = await TryPinNodeAsync(context, i.Item);
-                   }
-
-                   if (pinResult.Succeeded)
-                   {
-                       BackingContentStoreExpiryCache.Instance.AddExpiry(new ContentHash(HashType.DedupNodeOrChunk, i.Item.Value), EndDateTime);
-                   }
-
-                   return pinResult.WithIndex(i.Index);
-               },
-               new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = DefaultMaxParallelism });
-
-            tryReferenceBlock.PostAll(dedupIdentifiers.AsIndexed());
-            var results = await Task.WhenAll(Enumerable.Range(0, dedupIdentifiers.ToList().Count).Select(i => tryReferenceBlock.ReceiveAsync()));
-            tryReferenceBlock.Complete();
-
-            return results.AsTasks().ToList();
-        }
-
         private async Task<BoolResult> GetFileWithDedupAsync(OperationContext context, ContentHash contentHash, string path)
         {
             VstsBlobIdentifier blobId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier());
@@ -443,22 +466,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
 
             return BoolResult.Success;
-        }
-
-        private Task<IEnumerable<Task<Indexed<PinResult>>>> CheckInMemoryCache(IReadOnlyList<ContentHash> contentHashes)
-        {
-            return Task.FromResult(
-                        contentHashes
-                            .Select(c =>
-                            {
-                                if (c.HashType != RequiredHashType)
-                                {
-                                    return new PinResult($"DedupStore client requires {RequiredHashType}. Cannot take HashType '{c.HashType}'.");
-                                }
-
-                                return CheckPinInMemory(c);
-                            })
-                            .AsIndexedTasks());
         }
 
         private bool IsErrorFileExists(Exception e) => (Marshal.GetHRForException(e) & ((1 << 16) - 1)) == ErrorFileExists;
@@ -678,13 +685,52 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             return PinResult.Success;
         }
+
+        /// <summary>
+        ///     Checks the current keepUntil of a node. Returns null if the node is not found.
+        /// </summary>
+        protected async Task<Result<DateTime?>> CheckNodeKeepUntilAsync(OperationContext context, VstsDedupIdentifier dedupId)
+        {
+            TryReferenceNodeResponse referenceResult;
+            try
+            {
+                // Pinning with keepUntil of now means that, if the content is available, the call will always succeed.
+                referenceResult = await TryGatedArtifactOperationAsync(
+                    context,
+                    dedupId.ValueString,
+                    "TryKeepUntilReferenceNode",
+                    innerCts => DedupStoreClient.Client.TryKeepUntilReferenceNodeAsync(dedupId.CastToNodeDedupIdentifier(), new KeepUntilBlobReference(DateTime.UtcNow), null, innerCts));
+            }
+            catch (Exception ex)
+            {
+                return new Result<DateTime?>(ex);
+            }
+
+            DateTime? keepUntil = null;
+            referenceResult.Match(
+                (notFound) => { /* Do nothing */ },
+                (needAction) =>
+                {
+                    // For the reason explained above, this case where children need to be pinned should never happen.
+                    // However, as a best aproximation, we take the min of all the children, which always outlive the parent.
+                    keepUntil = needAction.Receipts.Select(r => r.Value.KeepUntil.KeepUntil).Min();
+                },
+                (added) =>
+                {
+                    keepUntil = added.Receipts[dedupId].KeepUntil.KeepUntil;
+                });
+
+            return new Result<DateTime?>(keepUntil);
+        }
+
         #endregion
 
         /// <inheritdoc />
         protected override CounterSet GetCounters()
         {
-            var set = base.GetCounters();
-            return set.Merge(_counters.ToCounterSet());
+            return base.GetCounters()
+                .Merge(_counters.ToCounterSet())
+                .Merge(_dedupCounters.ToCounterSet());
         }
     }
 }

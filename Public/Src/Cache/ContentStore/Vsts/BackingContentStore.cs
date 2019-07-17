@@ -39,6 +39,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
         private readonly IAbsFileSystem _fileSystem;
         private readonly IArtifactHttpClientFactory _artifactHttpClientFactory;
         private readonly TimeSpan _timeToKeepContent;
+        private readonly TimeSpan _pinInlineThreshold;
+        private readonly TimeSpan _ignorePinThreshold;
         private IArtifactHttpClient _artifactHttpClient;
         private readonly bool _useDedupStore;
 
@@ -53,12 +55,16 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="fileSystem">Filesystem used to read/write files.</param>
         /// <param name="artifactHttpClientFactory">Backing Store HTTP client factory.</param>
         /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
+        /// <param name="pinInlineThreshold">Maximum time-to-live to inline pin calls.</param>
+        /// <param name="ignorePinThreshold">Minimum time-to-live to ignore pin calls.</param>
         /// <param name="downloadBlobsThroughBlobStore">Flag for BlobStore: If enabled, gets blobs through BlobStore. If false, gets blobs from the Azure Uri.</param>
         /// <param name="useDedupStore">Determines whether or not DedupStore is used for content. Must be used in tandem with Dedup hashes.</param>
         public BackingContentStore(
             IAbsFileSystem fileSystem,
             IArtifactHttpClientFactory artifactHttpClientFactory,
             TimeSpan timeToKeepContent,
+            TimeSpan pinInlineThreshold,
+            TimeSpan ignorePinThreshold,
             bool downloadBlobsThroughBlobStore = false,
             bool useDedupStore = false)
         {
@@ -67,6 +73,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             _fileSystem = fileSystem;
             _artifactHttpClientFactory = artifactHttpClientFactory;
             _timeToKeepContent = timeToKeepContent;
+            _pinInlineThreshold = pinInlineThreshold;
+            _ignorePinThreshold = ignorePinThreshold;
             _downloadBlobsThroughBlobStore = downloadBlobsThroughBlobStore;
             _useDedupStore = useDedupStore;
         }
@@ -140,7 +148,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             if (_useDedupStore)
             {
                 return new CreateSessionResult<IReadOnlyContentSession>(new DedupReadOnlyContentSession(
-                    _fileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _timeToKeepContent));
+                    _fileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _timeToKeepContent, _pinInlineThreshold, _ignorePinThreshold));
             }
 
             return new CreateSessionResult<IReadOnlyContentSession>(new BlobReadOnlyContentSession(
@@ -154,7 +162,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             if (_useDedupStore)
             {
                 return new CreateSessionResult<IContentSession>(new DedupContentSession(
-                    context, _fileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _timeToKeepContent));
+                    context, _fileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _timeToKeepContent, _pinInlineThreshold, _ignorePinThreshold));
             }
 
             return new CreateSessionResult<IContentSession>(new BlobContentSession(
@@ -169,5 +177,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
         {
             throw new NotImplementedException();
         }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result) { }
     }
 }

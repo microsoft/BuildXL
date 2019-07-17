@@ -19,6 +19,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
+using static BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine.Cache.Artifacts
@@ -54,10 +55,12 @@ namespace BuildXL.Engine.Cache.Artifacts
     {
         private readonly PathTable m_pathTable;
         private readonly FileContentTable m_fileContentTable;
-        private readonly DirectoryTranslator m_directoryTranslator;
+        private readonly DirectoryTranslator m_pathToNormalizedPathTranslator;
+        private readonly DirectoryTranslator m_normalizedPathToRealPathTranslator;
         private readonly FileChangeTrackingSelector m_fileChangeTrackerSelector;
         private readonly SemaphoreSlim m_hashingSemaphore = new SemaphoreSlim(EngineEnvironmentSettings.HashingConcurrency);
         private readonly LoggingContext m_loggingContext;
+        private readonly string m_vfsCasRoot;
 
         /// <summary>
         /// Creates a store which tracks files and content with the provided <paramref name="fileContentTable"/> and <paramref name="fileChangeTracker"/>.
@@ -70,7 +73,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             FileContentTable fileContentTable,
             IFileChangeTrackingSubscriptionSource fileChangeTracker,
             DirectoryTranslator directoryTranslator = null,
-            FileChangeTrackingSelector changeTrackingFilter = null)
+            FileChangeTrackingSelector changeTrackingFilter = null,
+            AbsolutePath vfsCasRoot = default)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(pathTable != null);
@@ -80,8 +84,15 @@ namespace BuildXL.Engine.Cache.Artifacts
             m_loggingContext = loggingContext;
             m_pathTable = pathTable;
             m_fileContentTable = fileContentTable;
-            m_directoryTranslator = directoryTranslator;
+            m_pathToNormalizedPathTranslator = directoryTranslator;
+            m_normalizedPathToRealPathTranslator = directoryTranslator?.GetReverseTranslator();
             m_fileChangeTrackerSelector = changeTrackingFilter ?? FileChangeTrackingSelector.CreateAllowAllFilter(pathTable, fileChangeTracker);
+            m_vfsCasRoot = vfsCasRoot.IsValid ? vfsCasRoot.ToString(pathTable) : null;
+            if (m_vfsCasRoot != null && m_normalizedPathToRealPathTranslator != null)
+            {
+                // Resolve vfs cas root to actual path
+                m_vfsCasRoot = m_normalizedPathToRealPathTranslator.Translate(m_vfsCasRoot);
+            }
         }
 
         /// <nodoc />
@@ -107,9 +118,10 @@ namespace BuildXL.Engine.Cache.Artifacts
             using (Counters.StartStopwatch(LocalDiskContentStoreCounter.TryMaterializeTime))
             {
                 ExpandedAbsolutePath expandedPath = Expand(path);
+                bool virtualize = !(symlinkTarget.IsValid || reparsePointInfo?.IsActionableReparsePoint == true) && IsVirtualizedPath(expandedPath.ExpandedPath);
 
                 // Note we have to establish existence or TryGetKnownContentHashAsync would throw.
-                if (FileUtilities.FileExistsNoFollow(expandedPath.ExpandedPath))
+                if (!virtualize && FileUtilities.FileExistsNoFollow(expandedPath.ExpandedPath))
                 {
                     var openFlags = FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint;
 
@@ -198,6 +210,13 @@ namespace BuildXL.Engine.Cache.Artifacts
                     if (!possibleMaterialization.Succeeded)
                     {
                         return possibleMaterialization.Failure.Annotate("Try materialize file from cache failed");
+                    }
+                    else if (virtualize)
+                    {
+                        return possibleMaterialization.Then(p =>
+                            new ContentMaterializationResult(
+                                ContentMaterializationOrigin.DeployedFromCache,
+                                TrackedFileContentInfo.CreateUntrackedWithUnknownLength(contentHash, PathExistence.ExistsAsFile)));
                     }
                 }
                 else
@@ -358,7 +377,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 // For normal files, this flag is ignored.
                 | FileFlagsAndAttributes.FileFlagOpenReparsePoint
                 // Path can be directory symlink, and thus need FileFlagBackupSemantics otherwise access denied.
-                |   FileFlagsAndAttributes.FileFlagBackupSemantics;
+                | FileFlagsAndAttributes.FileFlagBackupSemantics;
 
             if (createHandleWithSequentialScan)
             {
@@ -640,15 +659,34 @@ namespace BuildXL.Engine.Cache.Artifacts
         }
 
         /// <summary>
+        /// Gets whether the given path is virtualized (i.e. under the vfs root)
+        /// </summary>
+        private bool IsVirtualizedPath(string filePath)
+        {
+            if (m_vfsCasRoot == null)
+            {
+                // Virtualization not enabled. Path is not virtualized
+                return false;
+            }
+
+            if (m_normalizedPathToRealPathTranslator != null)
+            {
+                filePath = m_normalizedPathToRealPathTranslator.Translate(filePath);
+            }
+
+            return filePath.IsPathWithin(m_vfsCasRoot);
+        }
+
+        /// <summary>
         /// Computes hash of a given file path.
         /// </summary>
         public ContentHash ComputePathHash(string filePath)
         {
             Contract.Requires(filePath != null);
 
-            if (m_directoryTranslator != null)
+            if (m_pathToNormalizedPathTranslator != null)
             {
-                filePath = m_directoryTranslator.Translate(filePath);
+                filePath = m_pathToNormalizedPathTranslator.Translate(filePath);
             }
 
             return ContentHashingUtilities.HashString(filePath.ToUpperInvariant());

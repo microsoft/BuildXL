@@ -9,9 +9,11 @@ using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
+using BuildXL.Pips;
 using BuildXL.Scheduler.Graph;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
@@ -58,7 +60,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <summary>
         /// Pip graph.
         /// </summary>
-        protected PipGraph PipGraph { get; private set; }
+        protected IPipGraph PipGraph { get; private set; }
 
         /// <summary>
         /// The logger
@@ -76,9 +78,14 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         protected bool Initializing { get; private set; }
 
         /// <summary>
+        /// Required engine phases.
+        /// </summary>
+        public virtual EnginePhases RequiredPhases { get; } = EnginePhases.AnalyzeWorkspace;
+
+        /// <summary>
         /// Helper that stores some shared state on the Analyzer
         /// </summary>
-        internal bool SetSharedState(Args arguments, FrontEndContext context, Logger logger, Workspace workspace, PipGraph pipGraph)
+        internal bool SetSharedState(Args arguments, FrontEndContext context, Logger logger, Workspace workspace, IPipGraph pipGraph)
         {
             m_arguments = arguments;
             Context = context;

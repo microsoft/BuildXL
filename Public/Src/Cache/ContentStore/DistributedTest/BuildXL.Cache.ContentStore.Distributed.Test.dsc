@@ -35,6 +35,7 @@ namespace DistributedTest {
                 InterfacesTest.dll,
                 Library.dll,
                 Test.dll,
+                importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
                 importFrom("BuildXL.Utilities").dll,
                 importFrom("BuildXL.Utilities").Collections.dll,
                 importFrom("BuildXL.Utilities").KeyValueStore.dll,

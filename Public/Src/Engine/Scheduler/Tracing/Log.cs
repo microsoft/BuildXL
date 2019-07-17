@@ -3,6 +3,7 @@
 
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.Tracing;
 using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Tracing;
@@ -10,11 +11,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
@@ -3402,6 +3398,24 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Tasks.Scheduler,
             Message = "{pipDescription} Strong fingerprint could not be computed because FileContentRead for '{path}' is not allowed for the pip because it is not a declared dependency. PathSet will not be usable")]
         public abstract void PathSetValidationTargetFailedAccessCheck(LoggingContext context, string pipDescription, string path);
+
+        [GeneratedEvent(
+            (int)EventId.InvalidMetadataStaticOutputNotFound,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message = "{pipDescription} Metadata entry is invalid because it contains static output '{path}' that is not in the pip specification")]
+        public abstract void InvalidMetadataStaticOutputNotFound(LoggingContext context, string pipDescription, string path);
+
+        [GeneratedEvent(
+            (int)EventId.InvalidMetadataRequiredOutputIsAbsent,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message = "{pipDescription} Metadata entry is invalid because it contains required static output '{path}' that has the absent content hash")]
+        public abstract void InvalidMetadataRequiredOutputIsAbsent(LoggingContext context, string pipDescription, string path);
 
         [GeneratedEvent(
             (int)EventId.DirectoryFingerprintComputedFromGraph,

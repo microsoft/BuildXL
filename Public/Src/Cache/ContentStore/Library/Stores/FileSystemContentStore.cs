@@ -223,7 +223,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
             else
             {
-                return new FileExistenceResult(FileExistenceResult.ResultCode.FileNotFound, $"{contentHash} wasn't found in the cache");
+                return new FileExistenceResult(FileExistenceResult.ResultCode.FileNotFound, $"{contentHash.ToShortString()} wasn't found in the cache");
             }
         }
 
@@ -232,5 +232,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             return Store.DeleteAsync(context, contentHash);
         }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result) { }
     }
 }

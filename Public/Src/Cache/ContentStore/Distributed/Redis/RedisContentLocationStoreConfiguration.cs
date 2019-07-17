@@ -77,6 +77,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public long MaxBlobCapacity { get; set; } = 1024 * 1024 * 1024;
 
         /// <summary>
+        /// Indicates the window size for executing eviction.
+        /// </summary>
+        public int EvictionWindowSize { get; set; } = 500;
+
+        /// <summary>
         /// Returns true if Redis can be used for storing small files.
         /// </summary>
         public bool AreBlobsSupported => BlobExpiryTimeMinutes > 0 && MaxBlobCapacity > 0 && MaxBlobSize > 0;

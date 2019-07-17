@@ -55,7 +55,8 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private AbsolutePath Root => m_resolverSettings.Root;
 
-        private readonly AbsolutePath m_msBuildExePath;
+        private readonly AbsolutePath m_msBuildPath;
+        private readonly AbsolutePath m_dotnetExePath;
         private readonly string m_frontEndName;
         private readonly IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
         private readonly IEnumerable<string> m_userDefinedPassthroughVariables;
@@ -81,7 +82,8 @@ namespace BuildXL.FrontEnd.MsBuild
             FrontEndHost frontEndHost,
             ModuleDefinition moduleDefinition,
             IMsBuildResolverSettings resolverSettings,
-            AbsolutePath pathToMsBuildExe,
+            AbsolutePath pathToMsBuild,
+            AbsolutePath pathToDotnetExe,
             string frontEndName,
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
             IEnumerable<string> userDefinedPassthroughVariables)
@@ -90,7 +92,8 @@ namespace BuildXL.FrontEnd.MsBuild
             Contract.Requires(frontEndHost != null);
             Contract.Requires(moduleDefinition != null);
             Contract.Requires(resolverSettings != null);
-            Contract.Requires(pathToMsBuildExe.IsValid);
+            Contract.Requires(pathToMsBuild.IsValid);
+            Contract.Requires(!resolverSettings.ShouldRunDotNetCoreMSBuild() || pathToDotnetExe.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
             Contract.Requires(userDefinedEnvironment != null);
             Contract.Requires(userDefinedPassthroughVariables != null);
@@ -99,7 +102,8 @@ namespace BuildXL.FrontEnd.MsBuild
             m_frontEndHost = frontEndHost;
             m_moduleDefinition = moduleDefinition;
             m_resolverSettings = resolverSettings;
-            m_msBuildExePath = pathToMsBuildExe;
+            m_msBuildPath = pathToMsBuild;
+            m_dotnetExePath = pathToDotnetExe;
             m_frontEndName = frontEndName;
             m_userDefinedEnvironment = userDefinedEnvironment;
             m_userDefinedPassthroughVariables = userDefinedPassthroughVariables;
@@ -767,7 +771,17 @@ namespace BuildXL.FrontEnd.MsBuild
             ProcessBuilder processBuilder,
             ProjectWithPredictions project)
         {
-            FileArtifact cmdExeArtifact = FileArtifact.CreateSourceFile(m_msBuildExePath);
+            // If we should use the dotnet core version of msbuild, the executable for the pip is dotnet.exe instead of msbuild.exe, and
+            // the first argument is msbuild.dll
+            FileArtifact cmdExeArtifact;
+            if (m_resolverSettings.ShouldRunDotNetCoreMSBuild())
+            {
+                cmdExeArtifact = FileArtifact.CreateSourceFile(m_dotnetExePath);
+                processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromAbsolutePath(m_msBuildPath));
+            }
+            else {
+                cmdExeArtifact = FileArtifact.CreateSourceFile(m_msBuildPath);
+            }
 
             processBuilder.Executable = cmdExeArtifact;
             processBuilder.AddInputFile(cmdExeArtifact);
@@ -779,8 +793,6 @@ namespace BuildXL.FrontEnd.MsBuild
             // the temp dir is generated in a consistent fashion between BuildXL runs to
             // ensure environment value (and hence pip hash) consistency.
             processBuilder.EnableTempDirectory();
-
-            AbsolutePath toolDir = m_msBuildExePath.GetParent(PathTable);
 
             processBuilder.ToolDescription = StringId.Create(m_context.StringTable, I($"{m_moduleDefinition.Descriptor.Name} - {project.FullPath.ToString(PathTable)}"));
 

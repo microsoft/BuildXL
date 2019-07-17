@@ -39,8 +39,6 @@ struct AriaEventProperty
     int64_t piiOrLongValue;
 };
 
-int WINAPI Get42();
-
 AriaLogger* WINAPI CreateAriaLogger(const char *, const char *);
 void WINAPI DisposeAriaLogger(const AriaLogger *);
 

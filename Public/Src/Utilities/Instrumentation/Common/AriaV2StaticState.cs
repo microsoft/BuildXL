@@ -8,14 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 
-// TODO: use AriaNative for full framework builds as well
-#if FEATURE_ARIA_TELEMETRY
-#if !FEATURE_CORECLR
-using Microsoft.Applications.Telemetry;
-using Microsoft.Applications.Telemetry.Desktop;
-#endif
-#endif
-
 namespace BuildXL.Utilities.Instrumentation.Common
 {
     /// <summary>
@@ -26,18 +18,13 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <nodoc />
         public const int AriaMaxPropertyLength = 100;
 
-        private static bool s_hasBeenInitialized;
         private static readonly object s_syncRoot = new object();
         private static readonly TimeSpan s_defaultShutdownTimeout = TimeSpan.FromSeconds(20);
-
-        private static string s_ariaTelemetryDBLocation;
-
-#if FEATURE_ARIA_TELEMETRY
-#if FEATURE_CORECLR
-        internal static IntPtr s_AriaLogger;
         private static readonly string s_ariaTelemetryDBName = "Aria.db";
-#endif
-#endif
+
+        private static bool s_hasBeenInitialized;
+        private static string s_ariaTelemetryDBLocation;
+        private static IntPtr s_ariaLogger;
 
         /// <summary>
         /// Used to determine whether AriaV2 logging should be enabled
@@ -50,8 +37,12 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public static void Enable(string tenantToken, string offlineTelemetryDBPath = "")
         {
             s_ariaTelemetryDBLocation = offlineTelemetryDBPath;
-            Initialize(tenantToken);
+#if FEATURE_ARIA_TELEMETRY
             IsEnabled = true;
+            Initialize(tenantToken);
+#else
+            IsEnabled = false;
+#endif
         }
 
         /// <summary>
@@ -69,18 +60,6 @@ namespace BuildXL.Utilities.Instrumentation.Common
                 // Initialization may only happen once per application lifetime so we need some static state to enforce this
                 if (!s_hasBeenInitialized)
                 {
-#if FEATURE_ARIA_TELEMETRY
-#if !FEATURE_CORECLR
-                    LogConfiguration configuration = new LogConfiguration()
-                    {
-                        PerformanceCounter = new PerformanceCounterConfiguration()
-                        {
-                            Enabled = false,
-                        }
-                    };
-
-                    LogManager.Initialize(tenantToken, configuration);
-#else
                     Contract.Requires(s_ariaTelemetryDBLocation != null);
                     if (s_ariaTelemetryDBLocation.Length > 0 && !Directory.Exists(s_ariaTelemetryDBLocation))
                     {
@@ -89,9 +68,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
                     // s_ariaTelemetryDBLocation is defaulting to an empty string when not passed when enabling telemetry, in that case
                     // this causes the DB to be created in the current working directory of the process
-                    s_AriaLogger = AriaNative.CreateAriaLogger(tenantToken, System.IO.Path.Combine(s_ariaTelemetryDBLocation, s_ariaTelemetryDBName));
-#endif
-#endif
+                    s_ariaLogger = AriaNative.CreateAriaLogger(tenantToken, Path.Combine(s_ariaTelemetryDBLocation, s_ariaTelemetryDBName));
                     s_hasBeenInitialized = true;
                 }
             }
@@ -113,6 +90,10 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public static ShutDownResult TryShutDown(TimeSpan timeout, out Exception exception)
         {
             exception = null;
+            if (!IsEnabled)
+            {
+                return ShutDownResult.Success;
+            }
 
             lock (s_syncRoot)
             {
@@ -124,14 +105,8 @@ namespace BuildXL.Utilities.Instrumentation.Common
                     {
                         try
                         {
-#if FEATURE_ARIA_TELEMETRY
-#if !FEATURE_CORECLR
-                            LogManager.FlushAndTearDown();
-#else
-                            AriaNative.DisposeAriaLogger(s_AriaLogger);
-                            s_AriaLogger = IntPtr.Zero;
-#endif
-#endif
+                            AriaNative.DisposeAriaLogger(s_ariaLogger);
+                            s_ariaLogger = IntPtr.Zero;
                             shutDownResult = ShutDownResult.Success;
                         }
                         catch (Exception ex)
@@ -154,6 +129,17 @@ namespace BuildXL.Utilities.Instrumentation.Common
             }
 
             return ShutDownResult.Success;
+        }
+
+        /// <nodoc />
+        internal static void LogEvent(string eventName, AriaNative.EventProperty[] eventProperties)
+        {
+            if (!IsEnabled)
+            {
+                return;
+            }
+
+            AriaNative.LogEvent(s_ariaLogger, eventName, eventProperties);
         }
 
         /// <summary>

@@ -7,12 +7,6 @@ using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-
-#else
-
-#endif
-
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
 

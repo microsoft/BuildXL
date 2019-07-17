@@ -39,20 +39,17 @@ namespace Test.BuildXL.Storage
             string openFile = Path.Combine(directory, "openfileDelDirContents.txt");
             using (Stream s = new FileStream(openFile, FileMode.Create))
             {
-                Exception exception = null;
                 s.Write(new byte[] { 1, 2, 3 }, 0, 3);
                 try
                 {
                     FileUtilities.DeleteDirectoryContents(directory);
+                    XAssert.IsTrue(false, "Unreachable");
                 }
                 catch (BuildXLException ex)
                 {
-                    exception = ex;
+                    XAssert.IsTrue(ex.LogEventMessage.Contains(FileUtilitiesMessages.FileDeleteFailed + NormalizeDirectoryPath(openFile)), ex.LogEventMessage);
+                    XAssert.IsTrue(ex.LogEventMessage.Contains("Handle was used by"), ex.LogEventMessage);
                 }
-
-                XAssert.IsNotNull(exception, "Expected failure since a handle to a contained file was still open");
-                XAssert.IsTrue(exception.Message.Contains(FileUtilitiesMessages.FileDeleteFailed + NormalizeDirectoryPath(openFile)), exception.Message);
-                XAssert.IsTrue(exception.Message.Contains("Handle was used by"), exception.Message);
             }
 
             // Try again with the handle closed. There should be no crash.

@@ -2,11 +2,13 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Logging;
+using Kusto.Data.Common;
 using Kusto.Ingest;
 
 namespace BuildXL.Cache.ContentStore.App
@@ -47,6 +49,7 @@ namespace BuildXL.Cache.ContentStore.App
         /// <param name="connectionString">Kusto connection string.</param>
         /// <param name="database">Database into which to ingest.</param>
         /// <param name="table">Table into which to ingest.</param>
+        /// <param name="csvMapping">Csv mapping that applies to all CSV files to be uploaded via <see cref="UploadSingleCsvFile"/></param>
         /// <param name="deleteFilesOnSuccess">Whether to delete files upon successful upload.</param>
         /// <param name="checkForIngestionErrors">
         ///     Whether to check for ingestion errors before disposing this object.
@@ -59,6 +62,7 @@ namespace BuildXL.Cache.ContentStore.App
             string connectionString,
             string database,
             string table,
+            IEnumerable<CsvColumnMapping> csvMapping,
             bool deleteFilesOnSuccess,
             bool checkForIngestionErrors,
             ILog log = null
@@ -71,8 +75,9 @@ namespace BuildXL.Cache.ContentStore.App
             _hasUploadErrors = false;
             _ingestionProperties = new KustoQueuedIngestionProperties(database, table)
             {
-                ReportLevel = IngestionReportLevel.FailuresOnly,
-                ReportMethod = IngestionReportMethod.Queue
+                CSVMapping   = csvMapping,
+                ReportLevel  = IngestionReportLevel.FailuresOnly,
+                ReportMethod = IngestionReportMethod.Queue,
             };
             _block = new ActionBlock<FileDescription>
                 (
@@ -155,7 +160,7 @@ namespace BuildXL.Cache.ContentStore.App
             }
 
             var start = DateTime.UtcNow;
-            var ingestionFailures = _client.PeekTopIngestionFailures().GetAwaiter().GetResult().ToList();
+            var ingestionFailures = _client.GetAndDiscardTopIngestionFailures().GetAwaiter().GetResult().ToList();
             var duration = DateTime.UtcNow.Subtract(start);
             Always("Checking for ingestion failures took {0} ms", duration.TotalMilliseconds);
 

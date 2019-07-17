@@ -127,7 +127,6 @@ config({
                 { id: "System.Data.SQLite.Linq", version: "1.0.102.0" },
                 { id: "System.Reflection.Metadata", version: "1.6.0" },
                 { id: "System.Threading.Tasks.Dataflow", version: "4.9.0" },
-                { id: "System.Threading.Tasks.Dataflow", version: "4.5.24", alias: "DataflowForMSBuildRuntime"},
 
                 // Nuget
                 { id: "NuGet.Commandline", version: "4.7.1" },
@@ -370,7 +369,6 @@ config({
                 { id: "System.Security.Principal.Windows", version: "4.6.0-preview5.19224.8" },
                 { id: "System.Security.SecureString", version: "4.3.0" },
                 { id: "System.Text.Encoding", version: "4.3.0" },
-                { id: "System.Text.Encoding.CodePages", version: "4.3.0" },
                 { id: "System.Text.Encoding.Extensions", version: "4.3.0" },
                 { id: "System.Text.RegularExpressions", version: "4.3.0" },
                 { id: "System.Threading", version: "4.3.0" },
@@ -443,9 +441,12 @@ config({
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
                 { id: "System.CodeDom", version: "4.4.0"},
+                { id: "System.Text.Encoding.CodePages", version: "4.5.1", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"]},
+                { id: "System.Threading.Tasks.Dataflow", version: "4.5.24", alias: "DataflowForMSBuild" },
+                { id: "Microsoft.NETCore.App", version: "2.1.0", alias: "Microsoft.NETCore.App.210" },
 
                 // Used for MSBuild input/output prediction
-                { id: "Microsoft.Build.Prediction", version: "0.2.0" },
+                { id: "Microsoft.Build.Prediction", version: "0.3.0" },
 
                 { id: "SharpZipLib", version: "1.1.0" },
 
@@ -482,6 +483,10 @@ config({
         importFile(f`config.microsoftInternal.dsc`).resolver,
 
         {
+            kind: "SourceResolver",
+            modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-External\module.config.dsc`],
+        },
+        {
             kind: "Download",
             downloads: [
                 // PowerShell.Core
@@ -506,24 +511,42 @@ config({
 
                 // DotNet Core Runtime
                 {
-                    moduleName: "DotNet-Runtime.win-x64",
+                    moduleName: "DotNet-Runtime.win-x64.3.0.0-preview5",
                     url: "https://download.visualstudio.microsoft.com/download/pr/9459ede1-e223-40c7-a4c5-2409e789121a/46d4eb6067bda9f412a472f7286ffd94/dotnet-runtime-3.0.0-preview5-27626-15-win-x64.zip",
                     hash: "VSO0:6DBFE7BC9FA24D33A46A3A0732164BD5A4F5984E8FCE091D305FA635CD876AA700",
                     archiveType: "zip",
                 },
                 {
-                    moduleName: "DotNet-Runtime.osx-x64",
+                    moduleName: "DotNet-Runtime.osx-x64.3.0.0-preview5",
                     url: "https://download.visualstudio.microsoft.com/download/pr/85024962-5dee-4f64-ab29-a903f3749f85/6178bfacc58f4d9a596b5e3facc767ab/dotnet-runtime-3.0.0-preview5-27626-15-osx-x64.tar.gz",
                     hash: "VSO0:C6AB5808D30BFF857263BC467FE8D818F35486763F673F79CA5A758727CEF3A900",
                     archiveType: "tgz",
                 },
                 {
-                    moduleName: "DotNet-Runtime.linux-x64",
+                    moduleName: "DotNet-Runtime.linux-x64.3.0.0-preview5",
                     url: "https://download.visualstudio.microsoft.com/download/pr/f15ad9ab-7bd2-4ff5-87b6-b1a08f062ea2/6fdd314c16c17ba22934cd0ac6b4d343/dotnet-runtime-3.0.0-preview5-27626-15-linux-x64.tar.gz",
-                    hash: "VSO0:C6AB5808D30BFF857263BC467FE8D818F35486763F673F79CA5A758727CEF3A900",
+                    hash: "VSO0:00F83B929904F647BD8FB22361052BB347A1E5FA9A3A32A67EE1569DE443D92700",
                     archiveType: "tgz",
                 },
-
+                // The following are needed for dotnet core MSBuild test deployments
+                {
+                    moduleName: "DotNet-Runtime.win-x64.2.2.2",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/b10d0a68-b720-48ae-bab8-4ac39bd1b5d3/f32b8b41dff5c1488c2b915a007fc4a6/dotnet-runtime-2.2.2-win-x64.zip",
+                    hash: "VSO0:6BBAE77F9BA0231C90ABD9EA720FF886E8613CE8EF29D8B657AF201E2982829600",
+                    archiveType: "zip",
+                },
+                {
+                    moduleName: "DotNet-Runtime.osx-x64.2.2.2",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/d1f0dfb3-b6bd-42ae-895f-f149bf1d90ca/9b1fb91a9692fc31d6fc83e97caba4cd/dotnet-runtime-2.2.2-osx-x64.tar.gz",
+                    hash: "VSO0:88B2B6E8CEF711E108FDE529E781F555516634CD442B3503B712D22947F0788700",
+                    archiveType: "tgz",
+                },
+                {
+                    moduleName: "DotNet-Runtime.linux-x64.2.2.2",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/97b97652-4f74-4866-b708-2e9b41064459/7c722daf1a80a89aa8c3dec9103c24fc/dotnet-runtime-2.2.2-linux-x64.tar.gz",
+                    hash: "VSO0:6E5172671364C65B06C9940468A62BAF70EE27392CB2CA8B2C8BFE058CCD088300",
+                    archiveType: "tgz",
+                },
                 // NodeJs
                 {
                     moduleName: "NodeJs.win-x64",

@@ -55,6 +55,9 @@ namespace Test.BuildXL.Scheduler
                 AbsolutePath.Create(pathTable, X("/M/hgf/sf4as/83afsd"));
                 AbsolutePath.Create(pathTable, X("/Z/bd/sfas/Cache"));
 
+                var abPath1 = AbsolutePath.Create(pathTable, X("/H/aslj/sfas/p1OUT.bin"));
+                var abPath2 = AbsolutePath.Create(pathTable, X("/H/aslj/sfas/P2.txt"));
+
                 var pathSet1 = ObservedPathSetTestUtilities.CreatePathSet(
                     pathTable,
                     X("/X/a/b/c"),
@@ -64,7 +67,14 @@ namespace Test.BuildXL.Scheduler
                 PipCacheDescriptorV2Metadata metadata1 =
                     new PipCacheDescriptorV2Metadata
                     {
-                        StaticOutputHashes = new List<BondFileMaterializationInfo> { new BondFileMaterializationInfo { FileName = "p1OUT.bin" } }
+                        StaticOutputHashes = new List<AbsolutePathFileMaterializationInfo>
+                                            {
+                                                new AbsolutePathFileMaterializationInfo
+                                                {
+                                                    AbsolutePath = abPath1.GetName(pathTable).ToString(context.StringTable),
+                                                    Info = new BondFileMaterializationInfo { FileName = "p1OUT.bin" }
+                                                }
+                                            }
                     };
 
                 var storedPathSet1 = await cache.TryStorePathSetAsync(pathSet1);
@@ -87,7 +97,14 @@ namespace Test.BuildXL.Scheduler
                 PipCacheDescriptorV2Metadata metadata2 =
                     new PipCacheDescriptorV2Metadata
                     {
-                        StaticOutputHashes = new List<BondFileMaterializationInfo> { new BondFileMaterializationInfo { FileName = "P2.txt" } },
+                        StaticOutputHashes = new List<AbsolutePathFileMaterializationInfo>
+                                            {
+                                                new AbsolutePathFileMaterializationInfo
+                                                {
+                                                    AbsolutePath = abPath2.ToString(pathTable),
+                                                    Info = new BondFileMaterializationInfo { FileName = abPath2.GetName(pathTable).ToString(context.StringTable) }
+                                                }
+                                            },
                         DynamicOutputs = new List<List<RelativePathFileMaterializationInfo>>
                                          {
                                          new List<RelativePathFileMaterializationInfo>
@@ -247,7 +264,7 @@ namespace Test.BuildXL.Scheduler
             Assert.Equal(metadata1.StaticOutputHashes.Count, metadata2.StaticOutputHashes.Count);
             for (int i = 0; i < metadata1.StaticOutputHashes.Count; i++)
             {
-                Assert.Equal(metadata1.StaticOutputHashes[i].FileName, metadata2.StaticOutputHashes[i].FileName);
+                Assert.Equal(metadata1.StaticOutputHashes[i].Info.FileName, metadata2.StaticOutputHashes[i].Info.FileName);
             }
 
             Assert.Equal(metadata1.DynamicOutputs.Count, metadata2.DynamicOutputs.Count);

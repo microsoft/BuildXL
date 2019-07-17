@@ -7,9 +7,11 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.ContentStore.Vfs.Provider;
 
 namespace BuildXL.Cache.ContentStore.Vfs
 {
@@ -19,29 +21,40 @@ namespace BuildXL.Cache.ContentStore.Vfs
     /// </summary>
     public class VirtualizedContentStore : StartupShutdownBase, IContentStore
     {
-        private IContentStore InnerStore { get; }
+        private readonly IContentStore _innerStore;
+        private readonly VfsCasConfiguration _configuration;
+        private readonly Logger _logger;
+        internal VfsTree Tree { get; }
+
+        private VfsProvider _provider;
+        private VfsContentManager _contentManager;
+        private IContentSession _vfsContentSession;
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(VirtualizedContentStore));
 
         /// <nodoc />
-        public VirtualizedContentStore(IContentStore innerStore)
+        public VirtualizedContentStore(IContentStore innerStore, Logger logger, VfsCasConfiguration configuration)
         {
-            InnerStore = innerStore;
+            _logger = logger;
+            _innerStore = innerStore;
+            _configuration = configuration;
+
+            Tree = new VfsTree(_configuration);
         }
 
         /// <inheritdoc />
         public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
         {
-            return CreateSession<IReadOnlyContentSession>(context, name, implicitPin);
+            return CreateSessionCore<IReadOnlyContentSession>(context, name, implicitPin);
         }
 
         /// <inheritdoc />
         public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
-            return CreateSession<IContentSession>(context, name, implicitPin);
+            return CreateSessionCore<IContentSession>(context, name, implicitPin);
         }
 
-        private CreateSessionResult<T> CreateSession<T>(Context context, string name, ImplicitPin implicitPin)
+        private CreateSessionResult<T> CreateSessionCore<T>(Context context, string name, ImplicitPin implicitPin)
             where T : class, IName
         {
             var operationContext = OperationContext(context);
@@ -49,22 +62,48 @@ namespace BuildXL.Cache.ContentStore.Vfs
                 Tracer,
                 () =>
                 {
-                    var innerSessionResult = InnerStore.CreateSession(context, name, implicitPin).ThrowIfFailure();
-                    var session = new VirtualizedContentSession(this, innerSessionResult.Session, name);
+                    var innerSessionResult = _innerStore.CreateSession(context, name, implicitPin).ThrowIfFailure();
+                    var session = new VirtualizedContentSession(this, innerSessionResult.Session, _contentManager, name);
                     return new CreateSessionResult<T>(session as T);
                 });
         }
 
         /// <inheritdoc />
-        public Task<GetStatsResult> GetStatsAsync(Context context)
+        public async Task<GetStatsResult> GetStatsAsync(Context context)
         {
-            return InnerStore.GetStatsAsync(context);
+            var result = await _innerStore.GetStatsAsync(context);
+            if (result.Succeeded)
+            {
+                var counters = result.CounterSet;
+                if (_contentManager != null)
+                {
+                    counters.Merge(_contentManager.Counters.ToCounterSet(), "Vfs.");
+                }
+
+                return new GetStatsResult(counters);
+            }
+            else
+            {
+                return result;
+            }
         }
 
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            await InnerStore.StartupAsync(context).ThrowIfFailure();
+            await _innerStore.StartupAsync(context).ThrowIfFailure();
+
+            // Create long-lived session to be used with overlay (ImplicitPin=None (i.e false) to avoid cache full errors)
+            _vfsContentSession = _innerStore.CreateSession(context, "VFSInner", ImplicitPin.None).ThrowIfFailure().Session;
+            await _vfsContentSession.StartupAsync(context).ThrowIfFailure();
+
+            _contentManager = new VfsContentManager(_logger, _configuration, Tree, _vfsContentSession);
+            _provider = new VfsProvider(_logger, _configuration, _contentManager, Tree);
+
+            if (!_provider.StartVirtualization())
+            {
+                return new BoolResult("Unable to start virtualizing");
+            }
 
             return await base.StartupCoreAsync(context);
         }
@@ -75,15 +114,17 @@ namespace BuildXL.Cache.ContentStore.Vfs
             // Close all sessions?
             var result = await base.ShutdownCoreAsync(context);
 
-            result &= await InnerStore.ShutdownAsync(context);
+            result &= await _vfsContentSession.ShutdownAsync(context);
+
+            result &= await _innerStore.ShutdownAsync(context);
 
             return result;
         }
 
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
-        {
-            throw new System.NotImplementedException();
-        }
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash) => _innerStore.DeleteAsync(context, contentHash);
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result) => _innerStore.PostInitializationCompleted(context, result);
     }
 }

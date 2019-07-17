@@ -129,12 +129,12 @@ export interface LinkResource {
 }
 
 @@public
-export function isBinary(item: Reference) : item is Binary {
+export function isBinary(item: any) : item is Binary {
     return item["binary"] !== undefined;
 }
 
 @@public
-export function isAssembly(item: Reference) : item is Assembly {
+export function isAssembly(item: any) : item is Assembly {
     return item["name"] !== undefined &&
            (item["compile"] !== undefined || item["runtime"] !== undefined) &&
            item["contents"] === undefined; // Exclude nuget packages

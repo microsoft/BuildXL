@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -20,11 +21,6 @@ using BuildXL.Storage;
 using BuildXL.Utilities;
 using Newtonsoft.Json;
 using BuildXL.Native.IO;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Cache.BasicFilesystem
 {
@@ -64,7 +60,12 @@ namespace BuildXL.Cache.BasicFilesystem
         /// <summary>
         /// Our event source.
         /// </summary>
-        public static readonly EventSource EventSource = new EventSource("BasicFilesystemEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
+        public static readonly EventSource EventSource = 
+#if NET_FRAMEWORK_451
+            new EventSource();
+#else
+            new EventSource("BasicFilesystemEvt", EventSourceSettings.EtwSelfDescribingEventFormat);
+#endif
 
         // m_cacheRoot is defined as the directory where it does all of its work - everything else is relative to that
         private readonly string m_cacheRoot;

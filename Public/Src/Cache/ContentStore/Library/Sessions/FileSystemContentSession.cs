@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            return Store.PutFileAsync(operationContext, path, realizationMode, hashType, MakePinRequest());
+            return Store.PutFileAsync(operationContext, path, realizationMode, hashType, MakePinRequest(ImplicitPin.Put));
         }
 
         /// <inheritdoc />
@@ -52,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            return Store.PutFileAsync(operationContext, path, realizationMode, contentHash, MakePinRequest());
+            return Store.PutFileAsync(operationContext, path, realizationMode, contentHash, MakePinRequest(ImplicitPin.Put));
         }
 
         /// <inheritdoc />
@@ -64,7 +64,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return Store.PutTrustedFileAsync(context, path, realizationMode, contentHash, MakePinRequest());
+            return Store.PutTrustedFileAsync(context, path, realizationMode, contentHash, MakePinRequest(ImplicitPin.Put));
         }
 
         /// <inheritdoc />
@@ -75,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            return Store.PutStreamAsync(operationContext, stream, hashType, MakePinRequest());
+            return Store.PutStreamAsync(operationContext, stream, hashType, MakePinRequest(ImplicitPin.Put));
         }
 
         /// <inheritdoc />
@@ -86,19 +86,19 @@ namespace BuildXL.Cache.ContentStore.Sessions
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            return Store.PutStreamAsync(operationContext, stream, contentHash, MakePinRequest());
+            return Store.PutStreamAsync(operationContext, stream, contentHash, MakePinRequest(ImplicitPin.Put));
         }
 
         /// <inheritdoc />
         public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, HashType hashType, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint, Func<Stream, Stream> wrapStream)
         {
-            return Store.PutFileAsync(context, path, hashType, realizationMode,  wrapStream, MakePinRequest());
+            return Store.PutFileAsync(context, path, hashType, realizationMode,  wrapStream, MakePinRequest(ImplicitPin.Put));
         }
 
         /// <inheritdoc />
         public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, ContentHash contentHash, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint, Func<Stream, Stream> wrapStream)
         {
-            return Store.PutFileAsync(context, path, contentHash, realizationMode, wrapStream, MakePinRequest());
+            return Store.PutFileAsync(context, path, contentHash, realizationMode, wrapStream, MakePinRequest(ImplicitPin.Put));
         }
     }
 }

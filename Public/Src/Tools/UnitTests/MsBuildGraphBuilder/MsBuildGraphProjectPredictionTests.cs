@@ -19,7 +19,7 @@ namespace Test.ProjectGraphBuilder
     /// <summary>
     /// Makes sure that project predictions are plumbed through and serialized into the project graph. The actual predictions are not tested here.
     /// </summary>
-    public class MsBuildGraphProjectPredictionTests : TemporaryStorageTestBase
+    public class MsBuildGraphProjectPredictionTests : GraphBuilderToolTestBase
     {
         public MsBuildGraphProjectPredictionTests(ITestOutputHelper output): base(output)
         {
@@ -44,11 +44,10 @@ namespace Test.ProjectGraphBuilder
 ");
 
             MsBuildGraphBuilder.BuildGraphAndSerialize(
-                new MSBuildGraphBuilderArguments(
+                GetStandardBuilderArguments(
                     new[] { entryPoint },
                     outputFile,
                     globalProperties: GlobalProperties.Empty,
-                    mSBuildSearchLocations: new[] { TestDeploymentDir },
                     entryPointTargets: new string[0],
                     requestedQualifiers: new GlobalProperties[] { GlobalProperties.Empty },
                     allowProjectsWithoutTargetProtocol: false));
@@ -72,17 +71,16 @@ namespace Test.ProjectGraphBuilder
 
             using (var reporter = new GraphBuilderReporter(Guid.NewGuid().ToString()))
             {
-                var arguments = new MSBuildGraphBuilderArguments(
+                var arguments = GetStandardBuilderArguments(
                     new[] { entryPoint },
                     outputFile,
                     globalProperties: GlobalProperties.Empty,
-                    mSBuildSearchLocations: new[] { TestDeploymentDir },
                     entryPointTargets: new string[0],
                     requestedQualifiers: new GlobalProperties[] { GlobalProperties.Empty },
                     allowProjectsWithoutTargetProtocol: false);
 
                 MsBuildGraphBuilder.BuildGraphAndSerializeForTesting(
-                    MsBuildAssemblyLoader.Instance,
+                    AssemblyLoader,
                     reporter,
                     arguments,
                     new IProjectPredictor[] { new ThrowOnPredictionPredictor() });

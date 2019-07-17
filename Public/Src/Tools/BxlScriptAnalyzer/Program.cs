@@ -4,18 +4,13 @@
 using System;
 using System.Linq;
 using System.Threading;
+using System.Diagnostics.Tracing;
 using BuildXL.FrontEnd.Script.Analyzer.Analyzers;
 using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
-using System.Diagnostics.ContractsLight;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.FrontEnd.Script.Analyzer
 {
@@ -74,9 +69,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 if (!WorkspaceBuilder.TryBuildWorkspaceAndCollectFilesToAnalyze(
                     logger,
                     pathTable,
-                    arguments.Analyzers.Any(a => a.Kind == AnalyzerKind.GraphFragment) 
-                        ? EnginePhases.Schedule 
-                        : EnginePhases.AnalyzeWorkspace,
+                    arguments.Analyzers.Max(a => a.RequiredPhases),
                     arguments.Config,
                     arguments.Filter,
                     out var workspace,

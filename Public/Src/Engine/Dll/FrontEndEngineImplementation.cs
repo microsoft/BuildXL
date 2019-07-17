@@ -146,7 +146,8 @@ namespace BuildXL.Engine
                 PathTable, 
                 m_getFileContentTable(), 
                 m_inputTracker.FileChangeTracker, 
-                directoryTranslator);
+                directoryTranslator,
+                vfsCasRoot: configuration.Cache.VfsCasRoot);
 
             m_localDiskContentStoreConcurrencyLimiter = new ActionBlockSlim<MaterializeFileRequest>(
                 Environment.ProcessorCount,

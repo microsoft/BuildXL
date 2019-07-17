@@ -82,16 +82,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Initializes a new instance of the <see cref="Fingerprint"/> struct.
         /// </summary>
-        public Fingerprint(BinaryReader reader)
-        {
-            Console.WriteLine(reader != null);
-            _length = reader.ReadByte();
-            _bytes = ReadOnlyFixedBytes.ReadFrom(reader, _length);
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="Fingerprint"/> struct.
-        /// </summary>
         public Fingerprint(int length, BinaryReader reader)
         {
             unchecked {
@@ -210,6 +200,17 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
             writer.Write(_length);
             _bytes.Serialize(writer, _length);
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="Fingerprint"/> struct.
+        /// </summary>
+        public static Fingerprint Deserialize(BinaryReader reader)
+        {
+            Contract.Requires(reader != null);
+            var length = reader.ReadByte();
+            var buffer = ReadOnlyFixedBytes.ReadFrom(reader, length);
+            return new Fingerprint(buffer, length);
         }
 
         /// <summary>

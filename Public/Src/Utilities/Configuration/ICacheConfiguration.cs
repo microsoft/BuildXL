@@ -126,5 +126,14 @@ namespace BuildXL.Utilities.Configuration
         /// When enabled, the cache will be responsible for replacing exisiting file during file materialization.
         /// </summary>
         bool ReplaceExistingFileOnMaterialization { get; }
+
+        /// <summary>
+        /// Path to the content addressable store used by the BuildXL virtual file system process.
+        /// </summary>
+        /// <remarks>
+        /// For virtualized files, symlinks are placed in target location which point to the content addressabe files under
+        /// this path.
+        /// </remarks>
+        AbsolutePath VfsCasRoot { get; }
     }
 }

@@ -34,13 +34,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         ///     Remove given content from all sessions.
         /// </summary>
         Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash);
-    }
 
-    /// <summary>
-    /// Special <see cref="IContentStore"/> version that supports notification about initialization completion.
-    /// </summary>
-    public interface IContentStoreWithPostInitialization : IContentStore
-    {
         /// <summary>
         /// Notifies that the post initialization step of the outer component is finished.
         /// </summary>

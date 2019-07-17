@@ -412,7 +412,10 @@ namespace BuildXL
                 if (remoteTelemetryEnabled)
                 {
                     stopWatch = Stopwatch.StartNew();
-                    AriaV2StaticState.Enable(AriaTenantToken.Key, m_configuration.Logging.LogsRootDirectory(m_pathTable).ToString(m_pathTable));
+                    AriaV2StaticState.Enable(
+                        AriaTenantToken.Key,
+                        m_configuration.Logging.LogsRootDirectory(m_pathTable).ToString(m_pathTable),
+                        TelemetryFlushTimeout);
                     stopWatch.Stop();
                 }
                 else

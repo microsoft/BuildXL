@@ -18,8 +18,10 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <nodoc />
         public const int AriaMaxPropertyLength = 100;
 
+        /// <nodoc />
+        public static readonly TimeSpan DefaultShutdownTimeout = TimeSpan.FromSeconds(20);
+
         private static readonly object s_syncRoot = new object();
-        private static readonly TimeSpan s_defaultShutdownTimeout = TimeSpan.FromSeconds(20);
         private static readonly string s_ariaTelemetryDBName = "Aria.db";
 
         private static bool s_hasBeenInitialized;
@@ -80,7 +82,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// </summary>
         public static ShutDownResult TryShutDown(out Exception exception)
         {
-            return TryShutDown(s_defaultShutdownTimeout, out exception);
+            return TryShutDown(DefaultShutdownTimeout, out exception);
         }
 
         /// <summary>

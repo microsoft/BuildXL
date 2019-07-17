@@ -950,8 +950,10 @@ namespace BuildXL
                     {
                         Stopwatch sw = Stopwatch.StartNew();
                         Exception telemetryShutdownException;
-
-                        var shutdownResult = AriaV2StaticState.TryShutDown(out telemetryShutdownException);
+                        
+                        // Allow a longer Aria telemetry flush time in CloudBuild since we're more willing to wait at the tail of builds there
+                        TimeSpan telemetryFlushTimeout = m_configuration.InCloudBuild() ? TimeSpan.FromMinutes(1) : AriaV2StaticState.DefaultShutdownTimeout;
+                        var shutdownResult = AriaV2StaticState.TryShutDown(telemetryFlushTimeout, out telemetryShutdownException);
                         switch (shutdownResult)
                         {
                             case AriaV2StaticState.ShutDownResult.Failure:

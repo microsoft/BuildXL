@@ -2,11 +2,13 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web.UI.WebControls;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
@@ -260,7 +262,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var operationContext = new OperationContext(context);
 
             var pageSize = _configuration.EvictionWindowSize;
-            var subPageSize = Math.Max(1, pageSize / 10);
 
             // Assume that EffectiveLastAccessTime will always have a value.
             var comparer = Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value));
@@ -270,136 +271,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // We make sure that we we select a set of the newer content, to ensure that we at least look at newer content to see if it should be
             // evicted first due to having a high number of replicas. We do this by looking at the start as well as at middle of the list.
-            var localOldest = QueryAndOrderInPages(contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2), pageSize, comparer, query);
-            var localMid = QueryAndOrderInPages(contentHashesWithInfo.Skip(contentHashesWithInfo.Count / 2), pageSize, comparer, query);
+            var localOldest = NuCacheCollectionUtilities.QueryAndOrderInPages(contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2), pageSize, comparer, query);
+            var localMid = NuCacheCollectionUtilities.QueryAndOrderInPages(contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2), pageSize, comparer, query);
 
-            var mergedEnumerables = MergeOrdered(localOldest, localMid, comparer);
-            return GetPages(mergedEnumerables, subPageSize);
-        }
-
-        private static IEnumerable<IReadOnlyList<T>> GetPages<T>(IEnumerable<T> enumerable, int pageSize)
-        {
-            var enumerator = enumerable.GetEnumerator();
-
-            while (true)
-            {
-                var page = new List<T>(pageSize);
-                for (var i = 0; i < pageSize && enumerator.MoveNext(); i++)
-                {
-                    page.Add(enumerator.Current);
-                }
-
-                if (page.Count == 0)
-                {
-                    yield break;
-                }
-
-                yield return page;
-            }
-        }
-
-        /// <summary>
-        /// Takes an enumerable and takes n=pageSize elements from it. Processess the elements with a query, and inserts
-        /// them into a priority queue. It will then continue yielding elements of the queue, until it has less than
-        /// n elements, at which point it will take another n elements from the original enumerable and repeat the
-        /// process, adding them to the same priority queue. This process repeats until the original enumerable has no
-        /// more elements.
-        /// </summary>
-        private static IEnumerable<T> QueryAndOrderInPages<T>(IEnumerable<T> original, int pageSize, Comparer<T> comparer, Func<List<T>, IEnumerable<T>> query)
-        {
-            var source = original.GetEnumerator();
-            var queue = new PriorityQueue<T>(pageSize * 2, comparer);
-            var shouldInjest = true;
-
-            while (true)
-            {
-                if (shouldInjest && queue.Count < pageSize)
-                {
-                    var itemsToQuery = new List<T>(pageSize);
-                    for (var i = 0; i < pageSize && source.MoveNext(); i++)
-                    {
-                        itemsToQuery.Add(source.Current);
-                    }
-
-                    if (itemsToQuery.Count > 0)
-                    {
-                        var results = query(itemsToQuery);
-
-                        foreach (var result in results)
-                        {
-                            queue.Push(result);
-                        }
-                    }
-                    else
-                    {
-                        shouldInjest = false;
-                    }
-                }
-
-                if (queue.Count == 0)
-                {
-                    yield break;
-                }
-
-                yield return queue.Top;
-                queue.Pop();
-            }
-        }
-
-        private static IEnumerable<T> MergeOrdered<T>(IEnumerable<T> items1, IEnumerable<T> items2, IComparer<T> comparer)
-        {
-            var enumerator1 = items1.GetEnumerator();
-            var enumerator2 = items2.GetEnumerator();
-
-            T current1 = default;
-            T current2 = default;
-
-            bool next1 = TryMoveNext(enumerator1, ref current1);
-            bool next2 = TryMoveNext(enumerator2, ref current2);
-
-            while (next1 || next2)
-            {
-                while (next1)
-                {
-                    if (!next2 || comparer.Compare(current1, current2) <= 0)
-                    {
-                        yield return current1;
-                    }
-                    else
-                    {
-                        break;
-                    }
-
-                    next1 = TryMoveNext(enumerator1, ref current1);
-                }
-
-                while (next2)
-                {
-                    if (!next1 || comparer.Compare(current1, current2) > 0)
-                    {
-                        yield return current2;
-                    }
-                    else
-                    {
-                        break;
-                    }
-
-                    next2 = TryMoveNext(enumerator2, ref current2);
-                }
-            }
-
-            bool TryMoveNext(IEnumerator<T> enumerator, ref T current)
-            {
-                if (enumerator.MoveNext())
-                {
-                    current = enumerator.Current;
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
+            var mergedEnumerables = NuCacheCollectionUtilities.MergeOrdered(localOldest, localMid, comparer);
+            return mergedEnumerables.Split(pageSize);
         }
 
         /// <inheritdoc />

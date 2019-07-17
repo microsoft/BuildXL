@@ -1,9 +1,10 @@
 syntax = "proto3";
 
 package BuildXL.Execution.Analyzer;
-
+//LALAL
 option csharp_namespace = "BuildXL.Execution.Analyzer";
 
-message test1{
+message Test1{
     string name = 1;
+    string danny = 99;
 }

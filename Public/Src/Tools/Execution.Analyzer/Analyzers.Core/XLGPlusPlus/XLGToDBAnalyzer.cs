@@ -16,18 +16,19 @@ namespace BuildXL.Execution.Analyzer
         public Analyzer InitializeXLGToDBAnalyzer()
         {
             string outputFilePath = null;
-            //foreach (var opt in AnalyzerOptions)
-            //{
-            //    if (opt.Name.Equals("outputFile", StringComparison.OrdinalIgnoreCase) ||
-            //       opt.Name.Equals("o", StringComparison.OrdinalIgnoreCase))
-            //    {
-            //        outputFilePath = ParseSingletonPathOption(opt, outputFilePath);
-            //    }
-            //    else
-            //    {
-            //        throw Error("Unknown option for event stats analysis: {0}", opt.Name);
-            //    }
-            //}
+
+            foreach (var opt in AnalyzerOptions)
+            {
+                if (opt.Name.Equals("outputFile", StringComparison.OrdinalIgnoreCase) ||
+                   opt.Name.Equals("o", StringComparison.OrdinalIgnoreCase))
+                {
+                    outputFilePath = ParseSingletonPathOption(opt, outputFilePath);
+                }
+                else
+                {
+                    throw Error("Unknown option for event stats analysis: {0}", opt.Name);
+                }
+            }
 
             return new XLGToDBAnalyzer(GetAnalysisInput())
             {
@@ -54,22 +55,24 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public string OutputFilePath;
 
-
         public XLGToDBAnalyzer(AnalysisInput input) : base(input)
         {
 
         }
 
-
         public override int Analyze()
         {
-            //using (var outputStream = File.Create(OutputFilePath, bufferSize: 64 << 10 /* 64 KB */))
-            //{
-            //    using (var writer = new StreamWriter(outputStream))
-            //    {
 
-            //    }
-            //}
+            using (var outputStream = File.Create(OutputFilePath, bufferSize: 64 << 10 /* 64 KB */))
+            {
+                using (var writer = new StreamWriter(outputStream))
+                {
+                    Test1 testProto = new Test1();
+                    testProto.Name = "Sahil";
+                    testProto.Danny = "Danny";
+                    testProto.WriteTo(outputStream);
+                }
+            }
             return 0;
         }
 
@@ -83,7 +86,5 @@ namespace BuildXL.Execution.Analyzer
             // return false to keep the event from being parsed?
             return false;
         }
-
-
     }
 }

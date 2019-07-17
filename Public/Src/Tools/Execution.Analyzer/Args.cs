@@ -143,7 +143,7 @@ namespace BuildXL.Execution.Analyzer
 
             // The fingerprint store based cache miss analyzer only uses graph information from the newer build,
             // so skip loading the graph for the earlier build
-            if (m_mode.Value != AnalysisMode.CacheMiss)
+            if (m_mode.Value != AnalysisMode.CacheMiss || m_mode.Value != AnalysisMode.DominoInvocationXLG)
             {
                 if (!m_analysisInput.LoadCacheGraph(cachedGraphDirectory))
                 {
@@ -324,6 +324,9 @@ namespace BuildXL.Execution.Analyzer
                     break;
                 case AnalysisMode.XlgToDb:
                     m_analyzer = InitializeXLGToDBAnalyzer();
+                    break;
+                case AnalysisMode.DominoInvocationXLG:
+                    m_analyzer = InitializeDominoInvocationAnalyzer();
                     break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
@@ -586,6 +589,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteXLGToDBHelp(writer);
+
+            writer.WriteLine("");
+            WriteDominoInvocationHelp(writer);
         }
 
         public void LogEventSummary()

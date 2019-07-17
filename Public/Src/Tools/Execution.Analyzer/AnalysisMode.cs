@@ -55,6 +55,7 @@ namespace BuildXL.Execution.Analyzer
         FailedPipsDump,
         PipFingerprint,
         CopyFile, 
-        XlgToDb
+        XlgToDb,
+        DominoInvocationXLG,
     }
 }

@@ -269,8 +269,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // We make sure that we we select a set of the newer content, to ensure that we at least look at newer content to see if it should be
             // evicted first due to having a high number of replicas. We do this by looking at the start as well as at middle of the list.
-            var localOldest = NuCacheCollectionUtilities.QueryAndOrderInPages(contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2), pageSize, comparer, query);
-            var localMid = NuCacheCollectionUtilities.QueryAndOrderInPages(contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2), pageSize, comparer, query);
+            var localOldest = contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2).QueryAndOrderInPages(pageSize, comparer, query);
+            var localMid = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).QueryAndOrderInPages(pageSize, comparer, query);
 
             var mergedEnumerables = NuCacheCollectionUtilities.MergeOrdered(localOldest, localMid, comparer);
             return mergedEnumerables.Split(pageSize);

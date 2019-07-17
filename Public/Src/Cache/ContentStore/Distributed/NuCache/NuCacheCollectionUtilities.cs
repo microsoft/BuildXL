@@ -263,7 +263,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// process, adding them to the same priority queue. This process repeats until the original enumerable has no
         /// more elements.
         /// </summary>
-        public static IEnumerable<T> QueryAndOrderInPages<T>(IEnumerable<T> original, int pageSize, Comparer<T> comparer, Func<List<T>, IEnumerable<T>> query)
+        public static IEnumerable<T> QueryAndOrderInPages<T>(this IEnumerable<T> original, int pageSize, Comparer<T> comparer, Func<List<T>, IEnumerable<T>> query)
         {
             var source = original.GetEnumerator();
             var queue = new PriorityQueue<T>(pageSize * 2, comparer);

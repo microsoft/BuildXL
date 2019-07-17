@@ -35,7 +35,8 @@ namespace BuildXL.FrontEnd.MsBuild
             FrontEndHost frontEndHost,
             ModuleDefinition moduleDefinition,
             IMsBuildResolverSettings resolverSettings,
-            AbsolutePath pathToMsBuildExe,
+            AbsolutePath pathToMsBuild,
+            AbsolutePath pathToDotnetExe,
             string frontEndName,
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
             IEnumerable<string> userDefinedPassthroughVariables)
@@ -44,14 +45,15 @@ namespace BuildXL.FrontEnd.MsBuild
             Contract.Requires(frontEndHost != null);
             Contract.Requires(moduleDefinition != null);
             Contract.Requires(resolverSettings != null);
-            Contract.Requires(pathToMsBuildExe.IsValid);
+            Contract.Requires(pathToMsBuild.IsValid);
+            Contract.Requires(!resolverSettings.ShouldRunDotNetCoreMSBuild() || pathToDotnetExe.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
             Contract.Requires(userDefinedEnvironment != null);
             Contract.Requires(userDefinedPassthroughVariables != null);
 
             m_context = context;
             m_frontEndHost = frontEndHost;
-            m_pipConstructor = new PipConstructor(context, frontEndHost, moduleDefinition, resolverSettings, pathToMsBuildExe, frontEndName, userDefinedEnvironment, userDefinedPassthroughVariables);
+            m_pipConstructor = new PipConstructor(context, frontEndHost, moduleDefinition, resolverSettings, pathToMsBuild, pathToDotnetExe, frontEndName, userDefinedEnvironment, userDefinedPassthroughVariables);
         }
 
         /// <summary>

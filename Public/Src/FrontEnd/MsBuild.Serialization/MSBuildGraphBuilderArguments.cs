@@ -59,6 +59,11 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// </remarks>
         public bool AllowProjectsWithoutTargetProtocol { get; }
 
+        /// <summary>
+        /// Whether the MSBuild runtime is DotNet core (as opposed to full framework)
+        /// </summary>
+        public bool MsBuildRuntimeIsDotNetCore { get; }
+
         /// <nodoc/>
         public MSBuildGraphBuilderArguments(
             IReadOnlyCollection<string> projectsToParse,
@@ -67,7 +72,8 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
             IReadOnlyCollection<string> mSBuildSearchLocations,
             IReadOnlyCollection<string> entryPointTargets,
             IReadOnlyCollection<GlobalProperties> requestedQualifiers,
-            bool allowProjectsWithoutTargetProtocol)
+            bool allowProjectsWithoutTargetProtocol,
+            bool msBuildRuntimeIsDotNetCore)
         {
             Contract.Requires(projectsToParse?.Count > 0);
             Contract.Requires(!string.IsNullOrEmpty(outputPath));
@@ -83,6 +89,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
             EntryPointTargets = entryPointTargets;
             RequestedQualifiers = requestedQualifiers;
             AllowProjectsWithoutTargetProtocol = allowProjectsWithoutTargetProtocol;
+            MsBuildRuntimeIsDotNetCore = msBuildRuntimeIsDotNetCore;
         }
 
         /// <inheritdoc/>
@@ -94,7 +101,8 @@ Serialized graph path: {OutputPath}
 Global properties: {string.Join(" ", GlobalProperties.Select(kvp => $"[{kvp.Key}]={kvp.Value}"))}
 Search locations: {string.Join(" ", MSBuildSearchLocations)}
 Requested qualifiers: {string.Join(" ", RequestedQualifiers.Select(qualifier => string.Join(";", qualifier.Select(kvp => $"[{kvp.Key}]={kvp.Value}"))))}
-Allow projects without target protocol: {AllowProjectsWithoutTargetProtocol}";
+Allow projects without target protocol: {AllowProjectsWithoutTargetProtocol}
+MSBuild runtime is DotNetCore: {MsBuildRuntimeIsDotNetCore}";
         }
     }
 }

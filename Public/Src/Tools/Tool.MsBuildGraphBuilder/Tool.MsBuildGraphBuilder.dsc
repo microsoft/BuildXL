@@ -6,10 +6,11 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import {Transformer} from "Sdk.Transformers";
 import * as Deployment from "Sdk.Deployment";
 import * as MSBuild from "Sdk.Selfhost.MSBuild";
+import * as Frameworks from "Sdk.Managed.Frameworks";
+import * as Shared from "Sdk.Managed.Shared";
 
 namespace MsBuildGraphBuilder {
-    // TODO: We want this to be netstandard too but since Build Prediction is not, we have to keep it net47 only
-    export declare const qualifier: MSBuild.MSBuildQualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const exe = BuildXLSdk.executable({
@@ -23,8 +24,8 @@ namespace MsBuildGraphBuilder {
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
-            importFrom("System.Collections.Immutable").pkg,
-            importFrom("DataflowForMSBuildRuntime").pkg,
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Threading.Tasks.Dataflow").pkg),
             importFrom("Microsoft.Build.Prediction").pkg,
             NetFx.System.Threading.Tasks.dll,
             ...MSBuild.msbuildReferences,
@@ -35,10 +36,30 @@ namespace MsBuildGraphBuilder {
         runtimeContentToSkip: [
             // don't add msbuild dlls because assembly resolvers will resolve msbuild from other MSBuild installations
             ...MSBuild.msbuildReferences,
-            importFrom("System.Threading.Tasks.Dataflow").pkg
         ],
         internalsVisibleTo: [
             "Test.Tool.ProjectGraphBuilder",
         ]
     });
+
+    @@public
+    export const deployment : Deployment.Definition = { contents: [{
+        subfolder: r`MsBuildGraphBuilder`,
+        contents: [
+            {
+                subfolder: r`net472`,
+                contents: [
+                        $.withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "net472"}))
+                        .MsBuildGraphBuilder.exe
+                    ]
+            },
+            {
+                subfolder: r`dotnetcore`,
+                contents: [
+                        $.withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "netcoreapp3.0"}))
+                        .MsBuildGraphBuilder.exe
+                    ]
+            }
+        ]
+    }]};
 }

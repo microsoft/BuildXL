@@ -122,6 +122,21 @@ interface MsBuildResolver {
     */
     msBuildSearchLocations?: Directory[];
 
+	 /**
+     * Whether to use the full framework or dotnet core version of MSBuild. Selected runtime is used both for build evaluation and execution.
+     * Default is full framework.
+     * Observe that using the full framework version means that msbuild.exe is expected to be found in msbuildSearchLocations 
+     * (or PATH if not specified). If using the dotnet core version, the same logic applies but to msbuild.dll
+     */
+    msBuildRuntime?: "FullFramework" | "DotNetCore";
+
+    /**
+     * Collection of directories to search for dotnet.exe, when DotNetCore is specified as the msBuildRuntime. If not 
+     * specified, locations in %PATH% are used.
+     * Locations are traversed in specification order.
+     */
+    dotNetSearchLocations?: Directory[];
+	
     /**
      * Targets to execute on the entry point project.
      * If not provided, the default targets are used.

@@ -3,6 +3,7 @@
 
 import * as Shared from "Sdk.Managed.Shared";
 import * as Csc    from "Sdk.Managed.Tools.Csc";
+import * as Deployment from "Sdk.Deployment";
 
 namespace Helpers {
 
@@ -53,11 +54,13 @@ namespace Helpers {
      * You can control whether to follow the compile or the runtime axis using the optional compile argument.
      */
     @@public
-    export function computeTransitiveReferenceClosure(framework: Shared.Framework, references: Shared.Reference[], compile?: boolean) : Shared.Binary[] {
+    export function computeTransitiveReferenceClosure(framework: Shared.Framework, references: Shared.Reference[], runtimeContentToSkip: Deployment.DeployableItem[], compile?: boolean) : Shared.Binary[] {
         return computeTransitiveClosure([
             ...references,
             ...framework.standardReferences
-        ], compile);
+        ], 
+        runtimeContentToSkip, 
+        compile);
     }
 
     /**
@@ -65,7 +68,7 @@ namespace Helpers {
      * You can control whether to follow the compile or the runtime axis using the optional compile argument.
      */
     @@public
-    export function computeTransitiveClosure(references: Shared.Reference[], compile?: boolean) : Shared.Binary[] {
+    export function computeTransitiveClosure(references: Shared.Reference[], referencesToSkip: Deployment.DeployableItem[], compile?: boolean) : Shared.Binary[] {
         let results = MutableSet.empty<Shared.Binary>();
         let visitedReferences = MutableSet.empty<Shared.Reference>();
 
@@ -75,14 +78,15 @@ namespace Helpers {
 
         for (let ref of allReferences)
         {
-            computeTransitiveReferenceClosureHelper(ref, results, visitedReferences, compile);
+            const referencesToSkipSet = Set.empty<Deployment.DeployableItem>().add(...(referencesToSkip ? referencesToSkip : []));
+            computeTransitiveReferenceClosureHelper(ref, referencesToSkipSet, results, visitedReferences, compile);
         }
 
         return results.toArray();
     }
 
-    function computeTransitiveReferenceClosureHelper(ref: Shared.Reference, results: MutableSet<Shared.Binary>, visitedReferences: MutableSet<Shared.Reference>, compile?: boolean) {
-        if (visitedReferences.contains(ref))
+    function computeTransitiveReferenceClosureHelper(ref: Shared.Reference, referencesToSkip: Set<Deployment.DeployableItem>,results: MutableSet<Shared.Binary>, visitedReferences: MutableSet<Shared.Reference>, compile?: boolean) {
+        if (visitedReferences.contains(ref) || referencesToSkip.contains(ref))
         {
             return;
         }
@@ -95,17 +99,17 @@ namespace Helpers {
         }
         else if (Shared.isAssembly(ref))
         {
-            if (compile && ref.compile) {
+            if (compile && ref.compile && !referencesToSkip.contains(ref.compile)) {
                 results.add(ref.compile);
             }
-            if (!compile && ref.runtime) {
+            if (!compile && ref.runtime && !referencesToSkip.contains(ref.runtime)) {
                 results.add(ref.runtime);
             }
             if (ref.references)
             {
                 for (let nestedRef of ref.references)
                 {
-                    computeTransitiveReferenceClosureHelper(nestedRef, results, visitedReferences, compile);
+                    computeTransitiveReferenceClosureHelper(nestedRef, referencesToSkip, results, visitedReferences, compile);
                 }
             }
         }
@@ -113,18 +117,18 @@ namespace Helpers {
         {
             if (compile)
             {
-                results.add(...ref.compile);
+                results.add(...ref.compile.filter(c => !referencesToSkip.contains(c)));
             }
             else
             {
-                results.add(...ref.runtime);
+                results.add(...ref.runtime.filter(c => !referencesToSkip.contains(c)));
             }
 
             for (let dependency of ref.dependencies)
             {
                 if (Shared.isManagedPackage(dependency))
                 {
-                    computeTransitiveReferenceClosureHelper(dependency, results, visitedReferences, compile);
+                    computeTransitiveReferenceClosureHelper(dependency, referencesToSkip, results, visitedReferences, compile);
                 }
             }
 

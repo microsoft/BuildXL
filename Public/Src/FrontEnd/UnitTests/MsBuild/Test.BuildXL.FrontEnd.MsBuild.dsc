@@ -3,9 +3,10 @@
 
 import * as Managed from "Sdk.Managed";
 import * as MSBuild from "Sdk.Selfhost.MSBuild";
+import * as Frameworks from "Sdk.Managed.Frameworks";
 
 namespace Test.MsBuild {
-    export declare const qualifier: MSBuild.MSBuildQualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const dll = BuildXLSdk.test({
@@ -38,21 +39,19 @@ namespace Test.MsBuild {
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             ...BuildXLSdk.tplPackages,
         ],
+        
+        // We need both the full framework and dotnet core versions of MSBuild, plus dotnet.exe for the dotnet core case
         runtimeContent: [
-            ...MSBuild.msbuildRuntimeContent,
-            ...MSBuild.msbuildReferences,
+            ...importFrom("Sdk.Selfhost.MSBuild").withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "net472"})).deployment,
+            ...importFrom("Sdk.Selfhost.MSBuild").withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "netcoreapp3.0"})).deployment,
+            {
+                subfolder: "dotnet",
+                contents: Frameworks.Helpers.getDotNetToolTemplate().dependencies
+            },
             {
                 subfolder: a`tools`,
-                contents: [{
-                    subfolder: a`MsBuildGraphBuilder`,
-                    contents: [
-                        importFrom("BuildXL.Tools").MsBuildGraphBuilder.exe,
-                    ]}
-                ]
+                contents: [importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment]
             }
         ],
-        runtimeContentToSkip : [
-            importFrom("System.Threading.Tasks.Dataflow").pkg
-        ]
     });
 }

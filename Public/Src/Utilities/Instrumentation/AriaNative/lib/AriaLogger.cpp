@@ -9,13 +9,13 @@
 
 //// Aria logger class definition
 
-AriaLogger::AriaLogger(const char* token, const char *dbPath)
+AriaLogger::AriaLogger(const char* token, const char *dbPath, int teardownTimeoutInSeconds)
 {
     token_ = token;
     dbPath_ = dbPath;
 
     auto& config = LogManager::GetLogConfiguration();
-    config[CFG_INT_MAX_TEARDOWN_TIME] = 15;
+    config[CFG_INT_MAX_TEARDOWN_TIME] = teardownTimeoutInSeconds;
     // config[CFG_STR_CACHE_FILE_PATH] = dbPath; // not necessary
 
     logger_ = LogManager::Initialize(token);
@@ -34,10 +34,9 @@ ILogger *AriaLogger::GetLogger() const
 
 //// External Interface
 
-AriaLogger* WINAPI CreateAriaLogger(const char *token, const char *dbPath)
+AriaLogger* WINAPI CreateAriaLogger(const char *token, const char *dbPath, int teardownTimeoutInSeconds)
 {
-    AriaLogger *arl = new AriaLogger(token, dbPath);
-    return arl;
+    return new AriaLogger(token, dbPath, teardownTimeoutInSeconds);
 }
 
 void WINAPI DisposeAriaLogger(const AriaLogger *logger)

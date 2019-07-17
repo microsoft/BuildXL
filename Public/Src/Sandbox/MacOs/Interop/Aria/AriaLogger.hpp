@@ -27,7 +27,7 @@ private:
 public:
 
     AriaLogger() = delete;
-    AriaLogger(const char* token, const char *dbPath);
+    AriaLogger(const char* token, const char *dbPath, int teardownTimeoutInSeconds);
 
     ~AriaLogger();
 
@@ -43,7 +43,7 @@ struct AriaEventProperty
 
 extern "C"
 {
-    extern __cdecl AriaLogger* CreateAriaLogger(const char *, const char *);
+    extern __cdecl AriaLogger* CreateAriaLogger(const char *token, const char *dbPath, int teardownTimeoutInSeconds);
     extern __cdecl void DisposeAriaLogger(const AriaLogger *);
     extern __cdecl void LogEvent(const AriaLogger *logger,
                                  const char *eventName,

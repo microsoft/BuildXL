@@ -15,7 +15,7 @@ AriaLogger::AriaLogger(const char* token, const char *dbPath)
     dbPath_ = dbPath;
 
     auto& config = LogManager::GetLogConfiguration();
-    config[CFG_INT_MAX_TEARDOWN_TIME] = 15;
+    config[CFG_INT_MAX_TEARDOWN_TIME] = 60;
     // config[CFG_STR_CACHE_FILE_PATH] = dbPath; // not necessary
 
     logger_ = LogManager::Initialize(token);

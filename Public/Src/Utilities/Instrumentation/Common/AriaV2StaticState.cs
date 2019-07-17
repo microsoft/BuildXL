@@ -41,7 +41,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
             s_ariaTelemetryDBLocation = offlineTelemetryDBPath;
 #if FEATURE_ARIA_TELEMETRY
             IsEnabled = true;
-            Initialize(tenantToken, teardownTimeout ?? s_defaultShutdownTimeout);
+            Initialize(tenantToken, teardownTimeout ?? DefaultShutdownTimeout);
 #else
             IsEnabled = false;
 #endif

@@ -4,10 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -258,60 +258,136 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             var pageSize = _configuration.EvictionWindowSize;
-
-            // Priority queue orders by least first. So we compare by last access time to get the least last access time (i.e. oldest) first.
-            var priorityQueue = new PriorityQueue<ContentHashWithLastAccessTimeAndReplicaCount>(
-                pageSize * 2,
-                // Assume that EffectiveLastAccessTime will always have a value.
-                Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value)));
-
-            var operationContext = new OperationContext(context);
-
             var subPageSize = Math.Max(1, pageSize / 10);
 
-            // Content is retrieved in batches of size, PageSize, and then returned in pages of subPageSize=PageSize/10 as long as the queue has >= PageSize elements.
-            // This ensures that we have PageSize amount of lookahead
-            // NOTE: We use RandomSplitInterleave to ensure we select a random set of the newer content. This ensure we at least look at newer content to see if it should be
-            // evicted first due to having a high number of replicas
-            foreach (var page in contentHashesWithInfo.RandomSplitInterleave().GetPages(pageSize))
+            var comparer = Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value));
+            var operationContext = new OperationContext(context);
+            Func<List<ContentHashWithLastAccessTimeAndReplicaCount>, IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount>> query =
+                page => _localLocationStore.GetEffectiveLastAccessTimes(operationContext, page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime))).ThrowIfFailure();
+
+            var localOldest = QueryAndOrderInPages(contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2), pageSize, comparer, query);
+            var localMid = QueryAndOrderInPages(contentHashesWithInfo.Skip(contentHashesWithInfo.Count / 2), pageSize, comparer, query);
+
+            var mergedEnumerables = MergeOrdered(localOldest, localMid, comparer);
+            return GetPages(mergedEnumerables, subPageSize);
+        }
+
+        private IEnumerable<IReadOnlyList<T>> GetPages<T>(IEnumerable<T> enumerable, int pageSize)
+        {
+            var enumerator = enumerable.GetEnumerator();
+
+            while (true)
             {
-                var pageWithEffectiveLastAccessTimeResult = _localLocationStore.GetEffectiveLastAccessTimes(operationContext, page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime)));
-                IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> lastAccessTimes = pageWithEffectiveLastAccessTimeResult.ThrowIfFailure();
-
-                for (int i = 0; i < page.Count; i++)
+                var page = new List<T>(pageSize);
+                for (var i = 0; i < pageSize && enumerator.MoveNext(); i++)
                 {
-                    priorityQueue.Push(lastAccessTimes[i]);
+                    page.Add(enumerator.Current);
                 }
 
-                if (page.Count != 0)
+                if (page.Count == 0)
                 {
-                    var first = page[0];
-                    var last = page[page.Count - 1];
-                    context.Debug($"GetLruPages page.First:(Hash={first.ContentHash.ToShortString()}, Age={first.Age}, EffectiveAge={first.EffectiveAge}), page.Last:(Hash={last.ContentHash.ToShortString()}, Age={last.Age}, EffectiveAge={last.EffectiveAge}), queue.Top:(Age={priorityQueue.Top.Age}, EffectiveAge={priorityQueue.Top.EffectiveAge})");
+                    yield break;
                 }
 
-                while (priorityQueue.Count >= pageSize)
-                {
-                    yield return GetPriorityPage(priorityQueue, subPageSize);
-                }
-            }
-
-            while (priorityQueue.Count != 0)
-            {
-                yield return GetPriorityPage(priorityQueue, subPageSize);
+                yield return page;
             }
         }
 
-        private IReadOnlyList<TItem> GetPriorityPage<TItem>(PriorityQueue<TItem> queue, int pageSize)
+        private static IEnumerable<T> QueryAndOrderInPages<T>(IEnumerable<T> original, int pageSize, Comparer<T> comparer, Func<List<T>, IEnumerable<T>> query)
         {
-            var page = new List<TItem>(pageSize);
-            for (int i = 0; i < pageSize && queue.Count != 0; i++)
+            var source = original.GetEnumerator();
+            var queue = new PriorityQueue<T>(pageSize, comparer);
+            var shouldInjest = true;
+
+            while (true)
             {
-                page.Add(queue.Top);
+                if (shouldInjest && queue.Count < pageSize)
+                {
+                    var itemsToQuery = new List<T>(pageSize);
+                    for (var i = 0; i < pageSize && source.MoveNext(); i++)
+                    {
+                        itemsToQuery.Add(source.Current);
+                    }
+
+                    if (itemsToQuery.Count > 0)
+                    {
+                        var results = query(itemsToQuery);
+
+                        foreach (var result in results)
+                        {
+                            queue.Push(result);
+                        }
+                    }
+                    else
+                    {
+                        shouldInjest = false;
+                    }
+                }
+
+                if (queue.Count == 0)
+                {
+                    yield break;
+                }
+
+                yield return queue.Top;
                 queue.Pop();
             }
+        }
 
-            return page;
+        private static IEnumerable<T> MergeOrdered<T>(IEnumerable<T> items1, IEnumerable<T> items2, IComparer<T> comparer)
+        {
+            var enumerator1 = items1.GetEnumerator();
+            var enumerator2 = items2.GetEnumerator();
+
+            T current1 = default;
+            T current2 = default;
+
+            bool next1 = TryMoveNext(enumerator1, ref current1);
+            bool next2 = TryMoveNext(enumerator2, ref current2);
+
+            while (next1 || next2)
+            {
+                while (next1)
+                {
+                    if (!next2 || comparer.Compare(current1, current2) <= 0)
+                    {
+                        yield return current1;
+                    }
+                    else
+                    {
+                        break;
+                    }
+
+                    next1 = TryMoveNext(enumerator1, ref current1);
+                }
+
+                while (next2)
+                {
+                    if (!next1 || comparer.Compare(current1, current2) > 0)
+                    {
+                        yield return current2;
+                    }
+                    else
+                    {
+                        break;
+                    }
+
+                    next2 = TryMoveNext(enumerator2, ref current2);
+                }
+            }
+
+            bool TryMoveNext(IEnumerator<T> enumerator, ref T current)
+            {
+                if (enumerator.MoveNext())
+                {
+                    current = enumerator.Current;
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
         }
 
         /// <inheritdoc />

@@ -325,35 +325,43 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             var storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
             // This would have failed earlier otherwise
-            Contract.Requires(storageSecretNames != null);
+            Contract.Assert(storageSecretNames != null);
 
             var credentials = new List<AzureBlobStorageCredentials>();
             foreach (var secretName in storageSecretNames)
             {
                 var secret = GetRequiredSecret(secrets, secretName);
 
-                if (!_distributedSettings.AzureBlobStorageUseSasTokens && secret is PlainTextSecret plainTextSecret)
+                if (_distributedSettings.AzureBlobStorageUseSasTokens)
                 {
-                    credentials.Add(new AzureBlobStorageCredentials(plainTextSecret.Secret));
-                }
-                else if (_distributedSettings.AzureBlobStorageUseSasTokens && secret is UpdatingSasToken updatingSasToken)
-                {
-                    var storageCredentials = new StorageCredentials(sasToken: updatingSasToken.Token.Token);
-                    updatingSasToken.TokenUpdated += (token, sasToken) =>
-                    {
-                        storageCredentials.UpdateSASToken(sasToken.Token);
-                    };
+                    var updatingSasToken = secret as UpdatingSasToken;
+                    Contract.Assert(!(updatingSasToken is null));
 
-                    // The account name should never actually be updated, so its OK to take it from the initial token
-                    credentials.Add(new AzureBlobStorageCredentials(storageCredentials, updatingSasToken.Token.StorageAccount));
+                    credentials.Add(CreateAzureBlobCredentialsFromSasToken(updatingSasToken));
                 }
                 else
                 {
-                    throw new NotSupportedException($"Unexpected secret kind retrieved for requested secret {secretName}");
+                    var plainTextSecret = secret as PlainTextSecret;
+                    Contract.Assert(!(plainTextSecret is null));
+
+                    credentials.Add(new AzureBlobStorageCredentials(plainTextSecret.Secret));
                 }
             }
 
             return credentials.ToArray();
+        }
+
+        private static AzureBlobStorageCredentials CreateAzureBlobCredentialsFromSasToken(UpdatingSasToken updatingSasToken)
+        {
+            var storageCredentials = new StorageCredentials(sasToken: updatingSasToken.Token.Token);
+            updatingSasToken.TokenUpdated += (token, sasToken) =>
+            {
+                storageCredentials.UpdateSASToken(sasToken.Token);
+            };
+
+            // The account name should never actually be updated, so its OK to take it from the initial token
+            var azureCredentials = new AzureBlobStorageCredentials(storageCredentials, updatingSasToken.Token.StorageAccount);
+            return azureCredentials;
         }
 
         private List<string> GetAzureStorageSecretNames(StringBuilder errorBuilder)
@@ -404,6 +412,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 return null;
             }
+
             var azureBlobStorageCredentialsKind = _distributedSettings.AzureBlobStorageUseSasTokens ? SecretKind.SasToken : SecretKind.PlainText;
             retrieveSecretsRequests.AddRange(storageSecretNames.Select(secretName => new RetrieveSecretsRequest(secretName, azureBlobStorageCredentialsKind)));
 

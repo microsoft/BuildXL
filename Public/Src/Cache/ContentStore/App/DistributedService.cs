@@ -146,7 +146,7 @@ namespace BuildXL.Cache.ContentStore.App
                             secret = CreateSasTokenSecret(request, secretValue);
                             break;
                         default:
-                            throw new NotSupportedException("It is expected that all supported credential kinds be handled when creating a DistributedService.");
+                            throw new NotSupportedException($"It is expected that all supported credential kinds be handled when creating a DistributedService. {request.Kind} is unhandled.");
                     }
 
                     Contract.Requires(secret != null);

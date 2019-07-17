@@ -21,18 +21,22 @@ namespace BuildXL.FrontEnd.MsBuild
         public ModuleDefinition ModuleDefinition { get; }
 
         /// <nodoc/>
-        public AbsolutePath MsBuildExeLocation { get; }
+        public AbsolutePath MsBuildLocation { get; }
 
         /// <nodoc/>
-        public ProjectGraphResult(ProjectGraphWithPredictions<AbsolutePath> projectGraphWithPredictions, ModuleDefinition moduleDefinition, AbsolutePath msBuildExeLocation)
+        public AbsolutePath DotNetExeLocation { get; }
+
+        /// <nodoc/>
+        public ProjectGraphResult(ProjectGraphWithPredictions<AbsolutePath> projectGraphWithPredictions, ModuleDefinition moduleDefinition, AbsolutePath msBuildLocation, AbsolutePath dotnetExeLocation)
         {
             Contract.Requires(projectGraphWithPredictions != null);
             Contract.Requires(moduleDefinition != null);
-            Contract.Requires(msBuildExeLocation.IsValid);
+            Contract.Requires(msBuildLocation.IsValid);
 
             ProjectGraph = projectGraphWithPredictions;
             ModuleDefinition = moduleDefinition;
-            MsBuildExeLocation = msBuildExeLocation;
+            MsBuildLocation = msBuildLocation;
+            DotNetExeLocation = dotnetExeLocation;
         }
     }
 }

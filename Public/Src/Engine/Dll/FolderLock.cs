@@ -50,7 +50,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Takes a file lock on the folder
         /// </summary>
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "stream is held by lock who is responsible for disposing.")]
+        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "Stream is held by lock who is responsible for disposing.")]
         public static FolderLock Take(LoggingContext loggingContext, string path, int retryDelayInSeconds, int totalWaitTimeMins)
         {
             Contract.Ensures(Contract.Result<FolderLock>().SuccessfullyCreatedLock || loggingContext.ErrorWasLogged);

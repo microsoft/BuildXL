@@ -43,7 +43,7 @@ namespace BuildXL.App.Tracing
         /// CAUTION!!
         ///
         /// WDG has Asimov telemetry listening to this event. Any change to an existing field will require a breaking change announcement
-        /// 
+        ///
         /// This event is only used for ETW and telemetry. The commandLine must be scrubbed so it doesn't overflow
         /// </summary>
         [GeneratedEvent(
@@ -51,7 +51,7 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventOpcode = (byte)EventOpcode.Start,
-            // Prevent this from going to the log. It is only for ETW and telemetry. DominoInvocationForLocalLog is for the log. 
+            // Prevent this from going to the log. It is only for ETW and telemetry. DominoInvocationForLocalLog is for the log.
             Keywords = (int)Keywords.SelectivelyEnabled,
             Message = AppInvocationMessage)]
         public abstract void DominoInvocation(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig);
@@ -351,16 +351,16 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Critical,
             Message = "Telemetry Only")]
-        public abstract void DominoCatastrophicFailure(LoggingContext context, 
-            string exception, 
-            BuildInfo buildInfo, 
-            ExceptionRootCause rootCause, 
-            bool wasServer, 
-            string firstUserError, 
-            string lastUserError, 
-            string firstInsfrastructureError, 
-            string lastInfrastructureError, 
-            string firstInternalError, 
+        public abstract void DominoCatastrophicFailure(LoggingContext context,
+            string exception,
+            BuildInfo buildInfo,
+            ExceptionRootCause rootCause,
+            bool wasServer,
+            string firstUserError,
+            string lastUserError,
+            string firstInsfrastructureError,
+            string lastInfrastructureError,
+            string firstInternalError,
             string lastInternalError);
 
         [GeneratedEvent(
@@ -548,15 +548,6 @@ namespace BuildXL.App.Tracing
             EventTask = (ushort)Tasks.HostApplication,
             Message = "Telemetry timed out after {0} milliseconds. This session will have incomplete telemetry data")]
         public abstract void TelemetryShutdownTimeout(LoggingContext context, long milliseconds);
-        
-        [GeneratedEvent(
-            (ushort)EventId.ServerDeploymentDirectoryHashMismatch,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.HostApplication,
-            Message = "ServerDeploymentDirectory hash mismatch: {ShortProductName} AppServer hash, {0} != ServerDeploymentDirectory hash, {1}. Re-running {ShortProductName} will fix the issue.")]
-        public abstract void ServerDeploymentDirectoryHashMismatch(LoggingContext context, string hashInMemory, string hashInFile);
 
         [GeneratedEvent(
             (ushort)EventId.EventCount,
@@ -749,12 +740,12 @@ namespace BuildXL.App.Tracing
         /// </summary>
         public static void LogDominoCompletion(LoggingContext context, int exitCode, ExitKind exitKind, ExitKind cloudBuildExitKind, string errorBucket, string bucketMessage, int processRunningTime, long utcTicks, bool inCloudBuild)
         {
-            Log.DominoCompletion(context, 
-                exitCode, 
-                exitKind.ToString(), 
-                errorBucket, 
+            Log.DominoCompletion(context,
+                exitCode,
+                exitKind.ToString(),
+                errorBucket,
                 // This isn't a command line but it should still be sanatized for sake of not overflowing in telemetry
-                ScrubCommandLine(bucketMessage, 1000, 1000), 
+                ScrubCommandLine(bucketMessage, 1000, 1000),
                 processRunningTime);
 
             // Sending a different event to CloudBuild ETW listener.

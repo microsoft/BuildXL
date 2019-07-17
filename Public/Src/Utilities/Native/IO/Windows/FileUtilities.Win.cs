@@ -476,28 +476,43 @@ namespace BuildXL.Native.IO.Windows
 
             if (!successfullyDeletedFile)
             {
-                // This may happen if RetryOnFailure wasn't able to wait long enough (currently it is 100 ms at most)
-                // to check that the file was actually deleted.
-                // IMPORTANT: Do not move or delete this branch:  deleteResult.CreateExceptionForError() below expects error result and
-                // successful result will cause a contract violation.
                 if (deleteResult.Succeeded)
                 {
-                    throw new BuildXLException(I($"Deleting file {path} failed: file deletion taking too long."));
+                    // This may happen if RetryOnFailure wasn't able to wait long enough (currently it is 100 ms at most)
+                    // to check that the file was actually deleted.
+                    // Or this can happen when posix deletion was invoked.
+                    // Try open for deletion again to allow for checking sharing violation or access denied.
+                    deleteResult = TryOpenForDeletion(path);
+
+                    if (deleteResult.Succeeded)
+                    {
+                        // Successful deletion.
+                        return;
+                    }
                 }
+
+                Contract.Assert(!deleteResult.Succeeded);
 
                 // TODO: Note that the inner exception here doesn't account for TryDeleteViaMoveReplacement;
                 // that is mostly adequate since we only try it when we have an 'access denied' status, which
                 // is a reasonable thing to report. But maybe that's misleading if temporary file creation failed.
-                string diagnosticInfo = string.Empty;
-                if (deleteResult.Status == OpenFileStatus.AccessDenied || deleteResult.Status == OpenFileStatus.SharingViolation)
+                if (deleteResult.Status == OpenFileStatus.AccessDenied)
                 {
-                    if (TryFindOpenHandlesToFile(path, out diagnosticInfo))
+                    // Try open for deletion again to understand if it is really access denied or sharing violation.
+                    // If it is sharing violation then CreateExceptionForError below will try to find the process
+                    // that holds the handle.
+                    deleteResult = TryOpenForDeletion(path);
+
+                    if (deleteResult.Succeeded)
                     {
-                        diagnosticInfo = ": " + diagnosticInfo;
+                        // Successful deletion.
+                        return;
                     }
                 }
 
-                throw new BuildXLException(FileUtilitiesMessages.FileDeleteFailed + path + diagnosticInfo, deleteResult.CreateExceptionForError());
+                Contract.Assert(!deleteResult.Succeeded);
+
+                throw new BuildXLException(FileUtilitiesMessages.FileDeleteFailed + path, deleteResult.CreateExceptionForError());
             }
         }
 

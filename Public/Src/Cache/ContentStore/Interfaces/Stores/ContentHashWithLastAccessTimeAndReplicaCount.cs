@@ -39,6 +39,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// </summary>
         public readonly DateTime? EffectiveLastAccessTime;
 
+        /// <nodoc />
+        public TimeSpan Age => DateTime.UtcNow - LastAccessTime;
+
+        /// <nodoc />
+        public TimeSpan? EffectiveAge => EffectiveLastAccessTime == null ? (TimeSpan?)null : DateTime.UtcNow - EffectiveLastAccessTime.Value;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ContentHashWithLastAccessTimeAndReplicaCount"/> struct.
         /// </summary>

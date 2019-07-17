@@ -4,7 +4,8 @@ namespace Helpers
 {
     export declare const qualifier : {};
 
-    function getToolTemplate() : Transformer.ExecuteArgumentsComposible {
+    @@public
+    export function getDotNetToolTemplate() : Transformer.ExecuteArgumentsComposible {
         const host = Context.getCurrentHost();
 
         Contract.assert(host.cpuArchitecture === "x64", "The current DotNetCore Runtime package only has x64 version of Node. Ensure this runs on a 64-bit OS -or- update PowerShell.Core package to have other architectures embedded and fix this logic");
@@ -40,7 +41,7 @@ namespace Helpers
         };
     }
 
-    const toolTemplate = getToolTemplate();
+    const toolTemplate = getDotNetToolTemplate();
 
     @@public
     export function wrapInDotNetExeForCurrentOs(args: Transformer.ExecuteArguments) : Transformer.ExecuteArguments {

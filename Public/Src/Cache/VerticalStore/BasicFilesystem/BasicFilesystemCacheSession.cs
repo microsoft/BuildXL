@@ -227,7 +227,6 @@ namespace BuildXL.Cache.BasicFilesystem
             return false;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:outputCanBeDoubleDisposed", Justification = "Tool is confused - No way to write this code without it complaining")]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
         private async Task<CasHash> HashStreamToFileAsync(Stream filestream, string filename)
         {

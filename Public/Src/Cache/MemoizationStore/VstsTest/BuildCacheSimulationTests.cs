@@ -105,6 +105,8 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
                 backingContentStoreHttpClientFactory,
                 BuildCacheServiceConfiguration.DefaultMaxFingerprintSelectorsToFetch,
                 TimeSpan.FromDays(BuildCacheServiceConfiguration.DefaultDaysToKeepUnreferencedContent),
+                TimeSpan.FromMinutes(BuildCacheServiceConfiguration.DefaultPinInlineThresholdMinutes),
+                TimeSpan.FromMinutes(BuildCacheServiceConfiguration.DefaultIgnorePinThresholdHours),
                 expiryMinimum.GetValueOrDefault(TimeSpan.FromDays(BuildCacheServiceConfiguration.DefaultDaysToKeepContentBags)),
                 expiryRange.GetValueOrDefault(TimeSpan.FromDays(BuildCacheServiceConfiguration.DefaultRangeOfDaysToKeepContentBags)),
                 logger,

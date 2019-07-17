@@ -919,6 +919,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_PinCachedOutputs" xml:space="preserve">
     <value>Indicates whether outputs should be pinned in CAS for cached pips. Defaults to on.</value>
   </data>
+  <data name="HelpText_DisplayHelp_VfsCasRoot" xml:space="preserve">
+    <value>Specifies the root of the virtualized CAS directory. This should be the same as the root passed to bvfs.exe.</value>
+  </data>
   <data name="HelpText_DisplayHelp_FileChangeTrackingExclusionRoot" xml:space="preserve">
     <value>Specifies one or more roots to be excluded from file change tracking. NOTE: This flag is not compatible with /incrementalScheduling which requires all paths to be tracked.</value>
   </data>

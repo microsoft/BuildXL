@@ -3400,6 +3400,24 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void PathSetValidationTargetFailedAccessCheck(LoggingContext context, string pipDescription, string path);
 
         [GeneratedEvent(
+            (int)EventId.InvalidMetadataStaticOutputNotFound,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message = "{pipDescription} Metadata entry is invalid because it contains static output '{path}' that is not in the pip specification")]
+        public abstract void InvalidMetadataStaticOutputNotFound(LoggingContext context, string pipDescription, string path);
+
+        [GeneratedEvent(
+            (int)EventId.InvalidMetadataRequiredOutputIsAbsent,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message = "{pipDescription} Metadata entry is invalid because it contains required static output '{path}' that has the absent content hash")]
+        public abstract void InvalidMetadataRequiredOutputIsAbsent(LoggingContext context, string pipDescription, string path);
+
+        [GeneratedEvent(
             (int)EventId.DirectoryFingerprintComputedFromGraph,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

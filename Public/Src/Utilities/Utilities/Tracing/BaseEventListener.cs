@@ -175,7 +175,7 @@ namespace BuildXL.Utilities.Tracing
         }
 
         /// <inheritdoc />
-        [SuppressMessage("Microsoft.Design", "CA1062:Validate arguments of public methods", MessageId = "0", Justification = "It IS indeed validated")]
+        [SuppressMessage("Microsoft.Design", "CA1062:Validate arguments of public methods", MessageId = "0", Justification = "It is indeed validated")]
         protected override void OnEventWritten(EventWrittenEventArgs eventData)
         {
             // Ensure this event which routes text log messages to ETW is not handled by

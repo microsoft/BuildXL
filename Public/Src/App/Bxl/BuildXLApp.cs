@@ -152,6 +152,9 @@ namespace BuildXL
 
         private readonly CrashCollectorMacOS m_crashCollector;
 
+        // Allow a longer Aria telemetry flush time in CloudBuild since we're more willing to wait at the tail of builds there
+        private TimeSpan TelemetryFlushTimeout => m_configuration.InCloudBuild() ? TimeSpan.FromMinutes(1) : AriaV2StaticState.DefaultShutdownTimeout;
+
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         public BuildXLApp(
@@ -230,7 +233,7 @@ namespace BuildXL
             // We store this to log it once the appropriate listeners are set up
             m_serverModeStatusAndPerf = serverModeStatusAndPerf;
 
-            m_crashCollector = OperatingSystemHelper.IsUnixOS 
+            m_crashCollector = OperatingSystemHelper.IsUnixOS
                 ? new CrashCollectorMacOS(new[] { CrashType.BuildXL, CrashType.Kernel })
                 : null;
         }
@@ -950,8 +953,8 @@ namespace BuildXL
                     {
                         Stopwatch sw = Stopwatch.StartNew();
                         Exception telemetryShutdownException;
-
-                        var shutdownResult = AriaV2StaticState.TryShutDown(out telemetryShutdownException);
+                        
+                        var shutdownResult = AriaV2StaticState.TryShutDown(TelemetryFlushTimeout, out telemetryShutdownException);
                         switch (shutdownResult)
                         {
                             case AriaV2StaticState.ShutDownResult.Failure:
@@ -968,21 +971,6 @@ namespace BuildXL
                     }
                 }))
             {
-                var appServer = m_appHost as AppServer;
-                if (appServer != null)
-                {
-                    // Verify the timestamp based hash.
-                    // Whether the hash in the file (ServerCacheDeployment.hash) is still same as the one that is passed during server creation.
-                    var hashInFile = ServerDeployment.GetDeploymentCacheHash(Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory));
-                    if (!string.Equals(hashInFile, appServer.TimestampBasedHash, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // If the hashes do not match, the server will be killed and the client will start its own server deployment again.
-                        // The client will not observe any failures, so the user as well.
-                        Logger.Log.ServerDeploymentDirectoryHashMismatch(m_appLoggingContext, appServer.TimestampBasedHash, hashInFile);
-                        return AppResult.Create(ExitKind.InfrastructureError, null, string.Empty, killServer: true);
-                    }
-                }
-
                 result = run(pm);
             }
 

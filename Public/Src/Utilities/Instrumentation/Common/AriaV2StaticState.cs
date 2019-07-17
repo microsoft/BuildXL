@@ -19,7 +19,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public const int AriaMaxPropertyLength = 100;
 
         private static readonly object s_syncRoot = new object();
-        private static readonly TimeSpan s_defaultShutdownTimeout = TimeSpan.FromSeconds(20);
+        private static readonly TimeSpan s_defaultShutdownTimeout = TimeSpan.FromMinutes(2);
         private static readonly string s_ariaTelemetryDBName = "Aria.db";
 
         private static bool s_hasBeenInitialized;

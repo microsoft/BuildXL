@@ -500,6 +500,7 @@ namespace BuildXL.Processes
         /// </summary>
         private bool PathContainsSymlinks(AbsolutePath path)
         {
+            Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsCheckedCount);
             if (!path.IsValid)
             {
                 return false;
@@ -518,6 +519,7 @@ namespace BuildXL.Processes
         /// </summary>
         private bool PathContainsSymlinksCached(AbsolutePath path)
         {
+            Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsQueriedCount);
             return m_isDirSymlinkCache.GetOrAdd(path, PathContainsSymlinks);
         }
 
@@ -567,9 +569,12 @@ namespace BuildXL.Processes
                     }
 
                     // discard paths relative to directory symlinks
-                    if (PathContainsSymlinksCached(path.GetParent(PathTable)))
+                    using (Counters.StartStopwatch(SandboxedProcessCounters.DirectorySymlinkCheckingDuration))
                     {
-                        return;
+                        if (PathContainsSymlinksCached(path.GetParent(PathTable)))
+                        {
+                            return;
+                        }
                     }
 
                     pathExists = false;

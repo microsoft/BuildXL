@@ -642,8 +642,10 @@ namespace BuildXL
 
             string uniqueAppName = GetStableAppServerName(lightConfig, clientApp.TimestampBasedHash, out variablesToPassThrough);
 
-            // First, try to connect to an already-running server.
-            NamedPipeClientStream clientStream = TryConnect(uniqueAppName);
+            // First, try to connect to an already-running server if its deployment is not out of date.
+            NamedPipeClientStream clientStream = ServerDeployment.IsServerDeploymentOutOfSync(serverDeploymentPath, clientApp, out _)
+                ? null
+                : TryConnect(uniqueAppName);
 
             // As a fallback, try starting a new server.
             if (clientStream == null)

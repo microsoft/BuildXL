@@ -230,7 +230,7 @@ namespace BuildXL
             // We store this to log it once the appropriate listeners are set up
             m_serverModeStatusAndPerf = serverModeStatusAndPerf;
 
-            m_crashCollector = OperatingSystemHelper.IsUnixOS 
+            m_crashCollector = OperatingSystemHelper.IsUnixOS
                 ? new CrashCollectorMacOS(new[] { CrashType.BuildXL, CrashType.Kernel })
                 : null;
         }
@@ -968,21 +968,6 @@ namespace BuildXL
                     }
                 }))
             {
-                var appServer = m_appHost as AppServer;
-                if (appServer != null)
-                {
-                    // Verify the timestamp based hash.
-                    // Whether the hash in the file (ServerCacheDeployment.hash) is still same as the one that is passed during server creation.
-                    var hashInFile = ServerDeployment.GetDeploymentCacheHash(Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory));
-                    if (!string.Equals(hashInFile, appServer.TimestampBasedHash, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // If the hashes do not match, the server will be killed and the client will start its own server deployment again.
-                        // The client will not observe any failures, so the user as well.
-                        Logger.Log.ServerDeploymentDirectoryHashMismatch(m_appLoggingContext, appServer.TimestampBasedHash, hashInFile);
-                        return AppResult.Create(ExitKind.InfrastructureError, null, string.Empty, killServer: true);
-                    }
-                }
-
                 result = run(pm);
             }
 

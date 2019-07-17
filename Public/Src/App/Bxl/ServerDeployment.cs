@@ -48,10 +48,8 @@ namespace BuildXL
         /// Throws if the copy fails</exception>
         public static ServerDeployment GetOrCreateServerDeploymentCache(string serverDeploymentRoot, AppDeployment clientApp)
         {
-            var deploymentDir = ComputeDeploymentDir(serverDeploymentRoot);
-
             ServerDeploymentCacheCreated? cacheCreated = null;
-            if (!Directory.Exists(deploymentDir) || clientApp.TimestampBasedHash.ToHex() != GetDeploymentCacheHash(deploymentDir))
+            if (IsServerDeploymentOutOfSync(serverDeploymentRoot, clientApp, out var deploymentDir))
             {
                 cacheCreated = CreateServerDeployment(deploymentDir, clientApp);
             }
@@ -65,13 +63,14 @@ namespace BuildXL
         {
             Stopwatch st = Stopwatch.StartNew();
 
+            // Check if the main server process is in use before attempting to delete the deployment, this way we avoid partially deleting files
+            // due to access permission issues. This is not completely bullet proof (there can be a race) but it is highly unlikely the
+            // process starts to be in use right after this check
+            KillServer(destDir);
+
             // Deletes the existing cache directory if it exists, so we avoid accumulating garbage.
             if (Directory.Exists(destDir))
             {
-                // Check if the main root process (likely bxl.exe) is in use before attempting to delete, so we avoid partially deleting files
-                // Not completely bullet proof (there can be a race) but it is highly unlikely the process starts to be in use right after this check
-                KillServer(destDir);
-
                 // Remove all files regardless of files being readonly
                 FileUtilities.DeleteDirectoryContents(destDir, true);
             }
@@ -146,11 +145,21 @@ namespace BuildXL
         internal static void KillServer(string serverDeploymentRoot)
         {
             // Check if the main root process (likely bxl.exe) is in use before attempting to delete, so we avoid partially deleting files
-            // Not completey bullet proof (there can be a race) but it is highly unlikely the process starts to be in use right after this check
+            // Not completely bullet proof (there can be a race) but it is highly unlikely the process starts to be in use right after this check
             Assembly rootAssembly = Assembly.GetEntryAssembly();
             Contract.Assert(rootAssembly != null, "Could not look up entry assembly");
 
             string assemblyFullPath = Path.Combine(serverDeploymentRoot, new FileInfo(AssemblyHelper.GetAssemblyLocation(rootAssembly)).Name);
+
+#if FEATURE_CORECLR
+            var frameworkDeploymentExtension = ".dll";
+            var selfcontainedDeploymentExtension = ".exe";
+
+            if (assemblyFullPath.Contains(frameworkDeploymentExtension))
+            {
+                assemblyFullPath = assemblyFullPath.Replace(frameworkDeploymentExtension, selfcontainedDeploymentExtension);
+            }
+#endif
 
             // Try kill process using Process.Kill.
             var killProcessResult = TryKillProcess(assemblyFullPath);
@@ -235,6 +244,12 @@ namespace BuildXL
         {
             AppDeployment serverDeployment = AppDeployment.ReadDeploymentManifest(deploymentDir, AppDeployment.ServerDeploymentManifestFileName);
             return serverDeployment.TimestampBasedHash.ToHex();
+        }
+
+        public static bool IsServerDeploymentOutOfSync(string serverDeploymentRoot, AppDeployment clientApp, out string deploymentDir)
+        {
+            deploymentDir = ComputeDeploymentDir(serverDeploymentRoot);
+            return !Directory.Exists(deploymentDir) || clientApp.TimestampBasedHash.ToHex() != GetDeploymentCacheHash(deploymentDir);
         }
     }
 }

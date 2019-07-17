@@ -257,14 +257,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 context.Debug($"GetLruPages start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age}, lastAge={last.Age}");
             }
 
+            var operationContext = new OperationContext(context);
+
             var pageSize = _configuration.EvictionWindowSize;
             var subPageSize = Math.Max(1, pageSize / 10);
 
+            // Assume that EffectiveLastAccessTime will always have a value.
             var comparer = Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value));
-            var operationContext = new OperationContext(context);
+
             Func<List<ContentHashWithLastAccessTimeAndReplicaCount>, IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount>> query =
                 page => _localLocationStore.GetEffectiveLastAccessTimes(operationContext, page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime))).ThrowIfFailure();
 
+            // We make sure that we we select a set of the newer content, to ensure that we at least look at newer content to see if it should be
+            // evicted first due to having a high number of replicas. We do this by looking at the start as well as at middle of the list.
             var localOldest = QueryAndOrderInPages(contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2), pageSize, comparer, query);
             var localMid = QueryAndOrderInPages(contentHashesWithInfo.Skip(contentHashesWithInfo.Count / 2), pageSize, comparer, query);
 
@@ -272,7 +277,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return GetPages(mergedEnumerables, subPageSize);
         }
 
-        private IEnumerable<IReadOnlyList<T>> GetPages<T>(IEnumerable<T> enumerable, int pageSize)
+        private static IEnumerable<IReadOnlyList<T>> GetPages<T>(IEnumerable<T> enumerable, int pageSize)
         {
             var enumerator = enumerable.GetEnumerator();
 
@@ -293,10 +298,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
+        /// <summary>
+        /// Takes an enumerable and takes n=pageSize elements from it. Processess the elements with a query, and inserts
+        /// them into a priority queue. It will then continue yielding elements of the queue, until it has less than
+        /// n elements, at which point it will take another n elements from the original enumerable and repeat the
+        /// process, adding them to the same priority queue. This process repeats until the original enumerable has no
+        /// more elements.
+        /// </summary>
         private static IEnumerable<T> QueryAndOrderInPages<T>(IEnumerable<T> original, int pageSize, Comparer<T> comparer, Func<List<T>, IEnumerable<T>> query)
         {
             var source = original.GetEnumerator();
-            var queue = new PriorityQueue<T>(pageSize, comparer);
+            var queue = new PriorityQueue<T>(pageSize * 2, comparer);
             var shouldInjest = true;
 
             while (true)

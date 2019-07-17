@@ -498,22 +498,27 @@ namespace BuildXL.Processes
         /// <summary>
         /// Returns true if any symlinks are found on a given path
         /// </summary>
+        private bool PathContainsSymlinks(AbsolutePath path)
+        {
+            if (!path.IsValid)
+            {
+                return false;
+            }
+
+            if (FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(PathTable)))
+            {
+                return true;
+            }
+
+            return PathContainsSymlinksCached(path.GetParent(PathTable));
+        }
+
+        /// <summary>
+        /// Same as <see cref="PathContainsSymlinks"/> but with caching around it.
+        /// </summary>
         private bool PathContainsSymlinksCached(AbsolutePath path)
         {
-            return m_isDirSymlinkCache.GetOrAdd(path, (p) =>
-            {
-                if (!p.IsValid)
-                {
-                    return false;
-                }
-
-                if (FileUtilities.IsDirectorySymlinkOrJunction(p.ToString(PathTable)))
-                {
-                    return true;
-                }
-
-                return PathContainsSymlinksCached(p.GetParent(PathTable));
-            });
+            return m_isDirSymlinkCache.GetOrAdd(path, PathContainsSymlinks);
         }
 
         /// <remarks>

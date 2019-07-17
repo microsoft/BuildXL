@@ -20,7 +20,6 @@ using BuildXL.Interop.MacOS;
 using static BuildXL.Interop.MacOS.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
-using System.Collections;
 
 namespace BuildXL.Processes
 {

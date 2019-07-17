@@ -123,7 +123,6 @@ namespace BuildXL
                     Console.WriteLine(Strings.App_ServerKilled);
                     return ExitCode.FromExitKind(ExitKind.BuildNotRequested);
                 case ServerMode.Reset:
-                    ServerDeployment.PoisonServerDeployment(lightConfig.ServerDeploymentDirectory);
                     break;
             }
 

@@ -978,9 +978,6 @@ namespace BuildXL
                                         }
                                     },
                                     ex => {
-                                        // Make sure to poison the server deployment if an exception is caught, this forces the server bits
-                                        // to be re-deployed and helps clean up a broken deployment state.
-                                        ServerDeployment.PoisonServerDeployment(serverDeploymentDirectory);
                                         throw new BuildXLException("Error while reading data from server process. Server will be redeployed in subsequent invocation. Inner exception reason: " + ex?.Message, ex);
                                     });
                             }

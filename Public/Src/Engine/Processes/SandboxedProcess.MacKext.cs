@@ -502,18 +502,16 @@ namespace BuildXL.Processes
         {
             if (!path.IsValid)
             {
-                m_isDirSymlinkCache[path] = false;
                 return false;
             }
 
             if (FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(PathTable)))
             {
-                m_isDirSymlinkCache[path] = true;
                 return true;
             }
 
             // the compiler will hopefully optimize this tail recursion
-            return PathContainsSymlinks(path.GetParent(PathTable));
+            return PathContainsSymlinksCached(path.GetParent(PathTable));
         }
 
         /// <summary>

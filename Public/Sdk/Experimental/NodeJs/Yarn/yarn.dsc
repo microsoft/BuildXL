@@ -114,34 +114,15 @@ export function install(args: Arguments) : Result {
 
             const qAuthMaterial = {
                 environmentVariables: [{name: "QAUTHMATERIALROOT", value: qAuthMaterialRoot.path}],
-                unsafe: {
-                    untrackedScopes: [
-                        qAuthMaterialRoot
-                    ],
-                },
             };
 
             credentialProviderArguments = credentialProviderArguments.merge(qAuthMaterial);
         }
 
         credentialProviderArguments = credentialProviderArguments.merge({
-            unsafe: {
-                untrackedPaths: [
-                    f`d:/app/autopilot.ini`,
-                ],
+            unsafe: {                
                 untrackedScopes: [
-                    d`d:/data/AutoPilotData`,
-                    d`d:/data/logs/AuthHelpers`,
-                    d`d:/data/Q/AuthHelpers`,
-                    d`d:/data/Q/QSecretsDPAPI`,
-                    d`d:/data/Q/RegionConfig`,
-                    d`d:/data/Q/TelemetryConfig`,
                     d`${Context.getMount("ProgramData").path}/Microsoft/Crypto`,
-                ],
-                passThroughEnvironmentVariables: [
-                    "__CLOUDBUILD_AUTH_HELPER_ROOT__",
-                    "__Q_DPAPI_Secrets_Dir",
-                    "__CREDENTIAL_PROVIDER_LOG_DIR",
                 ],
             }
         });

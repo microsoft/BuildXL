@@ -510,7 +510,6 @@ namespace BuildXL.Processes
                 return true;
             }
 
-            // the compiler will hopefully optimize this tail recursion
             return PathContainsSymlinksCached(path.GetParent(PathTable));
         }
 

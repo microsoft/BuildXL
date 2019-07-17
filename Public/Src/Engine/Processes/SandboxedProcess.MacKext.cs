@@ -594,13 +594,13 @@ namespace BuildXL.Processes
             // returns true if any symlinks are found on a given path
             bool PathContainsSymlinks(string path)
             {
+                if (string.IsNullOrWhiteSpace(path))
+                {
+                    return false; 
+                }
+
                 return m_isDirSymlinkCache.GetOrAdd(path, (p) =>
                 {
-                    if (string.IsNullOrWhiteSpace(p))
-                    {
-                        return false; 
-                    }
-
                     if (FileUtilities.IsDirectorySymlinkOrJunction(p))
                     {
                         return true;

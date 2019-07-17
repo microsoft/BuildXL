@@ -121,7 +121,7 @@ namespace BuildXL.Cache.ContentStore.App
             {
             }
 
-            public Task<Dictionary<string, Secret>> RetrieveKeyVaultSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
+            public Task<Dictionary<string, Secret>> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
             {
                 var secrets = new Dictionary<string, Secret>();
 

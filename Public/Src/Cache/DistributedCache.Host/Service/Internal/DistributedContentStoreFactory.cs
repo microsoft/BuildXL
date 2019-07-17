@@ -433,7 +433,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             // Ask the host for credentials
             var retryPolicy = CreateSecretsRetrievalRetryPolicy(_distributedSettings);
             var secrets = await retryPolicy.ExecuteAsync(
-                async () => await _arguments.Host.RetrieveKeyVaultSecretsAsync(retrieveSecretsRequests, token),
+                async () => await _arguments.Host.RetrieveSecretsAsync(retrieveSecretsRequests, token),
                 token);
             if (secrets == null)
             {

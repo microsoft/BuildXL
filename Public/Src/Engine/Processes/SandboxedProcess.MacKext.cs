@@ -502,11 +502,13 @@ namespace BuildXL.Processes
         {
             if (!path.IsValid)
             {
+                m_isDirSymlinkCache[path] = false;
                 return false;
             }
 
             if (FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(PathTable)))
             {
+                m_isDirSymlinkCache[path] = true;
                 return true;
             }
 

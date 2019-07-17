@@ -57,7 +57,7 @@ namespace Test.BuildXL.Storage
         /// </summary>
         /// <remarks>
         /// In the past we created a copy of the executable because CAS denies write attributes needed for hardlink creation
-        /// to the executable. CAS should no longer denies the write attributes. Also, by copying only the executable, dotnet
+        /// to the executable. CAS no longer denies the write attributes. Also, by copying only the executable, dotnet
         /// won't work.
         /// </remarks>
         public static string GetDummyWaiterExeLocation()

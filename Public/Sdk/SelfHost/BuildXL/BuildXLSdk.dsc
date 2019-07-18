@@ -155,6 +155,12 @@ namespace Flags {
      */
     @@public
     export const buildRequiredAdminPrivilegeTestInVm = Environment.getFlag("[Sdk.BuildXL]BuildRequiredAdminPrivilegeTestInVm");
+
+    /**
+     * Whether we deploy experimental tools.
+     */
+    @@public
+    export const deployExperimentalTools = Environment.getFlag("[Sdk.BuildXL]deployExperimentalTools");
 }
 
 @@public

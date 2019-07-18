@@ -64,32 +64,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
-        /// Splits the IEnumerable into partition with max size of <paramref name="batchSize"/>.
-        /// </summary>
-        public static IEnumerable<IReadOnlyList<TItem>> Split<TItem>(this IEnumerable<TItem> enumerable, int batchSize)
-        {
-            Contract.Requires(enumerable != null);
-            Contract.Requires(batchSize > 0);
-
-            var batch = new List<TItem>(batchSize);
-            foreach (var item in enumerable)
-            {
-                batch.Add(item);
-
-                if (batch.Count == batchSize)
-                {
-                    yield return batch;
-                    batch = new List<TItem>(batchSize);
-                }
-            }
-
-            if (batch.Count != 0)
-            {
-                yield return batch;
-            }
-        }
-
-        /// <summary>
         /// Returns a difference between <paramref name="leftItems"/> sequence and <paramref name="rightItems"/> sequence assuming that both sequences are sorted.
         /// </summary>
         public static IEnumerable<(T item, MergeMode mode)> DistinctDiffSorted<T, TComparable>(

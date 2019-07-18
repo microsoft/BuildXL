@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -273,7 +274,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var localMid = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).QueryAndOrderInPages(pageSize, comparer, query);
 
             var mergedEnumerables = NuCacheCollectionUtilities.MergeOrdered(localOldest, localMid, comparer);
-            return mergedEnumerables.Split(pageSize);
+            return mergedEnumerables.GetPages(pageSize);
         }
 
         /// <inheritdoc />

@@ -249,7 +249,7 @@ namespace BuildXL.Engine
         }
 
         /// <inheritdoc/>
-        public override async Task<ContentHash> GetFileContentHashAsync(string path, bool trackFile = true)
+        public override async Task<ContentHash> GetFileContentHashAsync(string path, bool trackFile = true, HashType hashType = HashType.Unknown)
         {
             // If the tracker knows about this file, then we already have the hash
             ContentHash hash;
@@ -274,13 +274,14 @@ namespace BuildXL.Engine
 
                 VersionedFileIdentityAndContentInfo? maybeKnownIdentityAndHash = fileContentTable.TryGetKnownContentHash(fs);
 
-                if (maybeKnownIdentityAndHash.HasValue)
+                if (maybeKnownIdentityAndHash.HasValue && 
+                    (hashType == HashType.Unknown || maybeKnownIdentityAndHash.Value.FileContentInfo.Hash.HashType == hashType))
                 {
                     return maybeKnownIdentityAndHash.Value.FileContentInfo.Hash;
                 }
 
                 // Finally, if all the above failed, compute the hash and record it for next time
-                hash = await ContentHashingUtilities.HashContentStreamAsync(fs);
+                hash = await ContentHashingUtilities.HashContentStreamAsync(fs, hashType);
                 maybeKnownIdentityAndHash = fileContentTable.RecordContentHash(fs, hash);
 
                 m_specCache?.AddFile(fs, maybeKnownIdentityAndHash.Value.FileContentInfo.Hash, path);

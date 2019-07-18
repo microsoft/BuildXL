@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
@@ -21,6 +22,23 @@ namespace BuildXL.Storage
         private static HashInfo s_hashingAlgorithm;
         private static IContentHasher s_contentHasher;
         private static ContentHash s_zeroHash;
+
+        private static ConcurrentDictionary<HashType, IContentHasher> s_contentHasherByHashType = new ConcurrentDictionary<HashType, IContentHasher>();
+
+        private static IContentHasher GetContentHasher(HashType hashType)
+        {
+            if (hashType == s_hashingAlgorithm.HashType || hashType == HashType.Unknown)
+            {
+                return s_contentHasher;
+            }
+
+            if (!s_contentHasherByHashType.ContainsKey(hashType))
+            {
+                s_contentHasherByHashType[hashType] = HashInfoLookup.Find(hashType).CreateContentHasher();
+            }
+
+            return s_contentHasherByHashType[hashType];
+        }
 
         /// <summary>
         /// Selected content hash information.
@@ -87,6 +105,8 @@ namespace BuildXL.Storage
         {
             s_hasher?.Dispose();
             s_hasher = HashInfo.CreateContentHasher();
+
+            s_contentHasherByHashType = new ConcurrentDictionary<HashType, IContentHasher>();
         }
 
         /// <summary>
@@ -221,10 +241,10 @@ namespace BuildXL.Storage
         /// <remarks>
         /// The stream is read from its current location until the end. The stream is not closed or disposed upon completion.
         /// </remarks>
-        public static async Task<ContentHash> HashContentStreamAsync(Stream content)
+        public static async Task<ContentHash> HashContentStreamAsync(Stream content, HashType hashType = HashType.Unknown)
         {
             var result = await ExceptionUtilities.HandleRecoverableIOException(
-                () => s_hasher.GetContentHashAsync(content),
+                () => GetContentHasher(hashType).GetContentHashAsync(content),
                 ex => { throw new BuildXLException(I($"Cannot read from stream '{content.ToString()}'"), ex); });
             Contract.Assert(result.HashType != HashType.Unknown);
             return result;

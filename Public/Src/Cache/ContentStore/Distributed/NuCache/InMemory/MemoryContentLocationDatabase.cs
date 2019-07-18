@@ -6,9 +6,11 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
@@ -58,10 +60,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         }
 
         /// <inheritdoc />
-        public override AddOrGetContentHashListResult AddOrGetContentHashList(
+        public override Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(
             OperationContext context,
             StrongFingerprint strongFingerprint,
-            ContentHashListWithDeterminism contentHashListWithDeterminism)
+            ContentHashListWithDeterminism contentHashListWithDeterminism,
+            IContentSession contentSession,
+            CancellationToken cts)
         {
             throw new NotImplementedException();
         }

@@ -88,9 +88,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 _clock.Increment();
                 await session.GetContentHashListAsync(context, strongFingerprint1, Token).ShouldBeSuccess();
                 _clock.Increment();
-
-                await ((SQLiteMemoizationStore)store).SyncAsync();
-
+                
                 List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToList();
                 Assert.Equal(2, getSelectorResults.Count);
 
@@ -102,40 +100,6 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 Assert.True(r2.Succeeded);
                 Assert.True(r2.Selector == selector2);
             });
-        }
-
-        [Theory]
-        [InlineData(DeterminismNone, DeterminismNone)]
-        [InlineData(DeterminismCache1, DeterminismNone)]
-        [InlineData(DeterminismCache1Expired, DeterminismNone)]
-        [InlineData(DeterminismTool, DeterminismTool)]
-        [InlineData(DeterminismSinglePhaseNon, DeterminismSinglePhaseNon)]
-        public async Task UpgradeFromBeforeSerializedDeterminism(int oldDeterminism, int shouldBecomeDeterminism)
-        {
-            var context = new Context(Logger);
-            var strongFingerprint = StrongFingerprint.Random();
-            var contentHashListWithDeterminism = new ContentHashListWithDeterminism(
-                ContentHashList.Random(), Determinism[oldDeterminism]);
-
-            using (var testDirectory = new DisposableDirectory(FileSystem))
-            {
-                await RunTestAsync(context, testDirectory, async (store, session) =>
-                {
-                    var result = await session.AddOrGetContentHashListAsync(
-                        context, strongFingerprint, contentHashListWithDeterminism, Token);
-                    Assert.True(result.Succeeded);
-
-                    await ((TestSQLiteMemoizationStore)store).DeleteColumnAsync("ContentHashLists", "SerializedDeterminism");
-                });
-
-                await RunTestAsync(context, testDirectory, async (store, session) =>
-                {
-                    var result = await session.GetContentHashListAsync(context, strongFingerprint, Token);
-                    Assert.Equal(
-                        new GetContentHashListResult(new ContentHashListWithDeterminism(
-                            contentHashListWithDeterminism.ContentHashList, Determinism[shouldBecomeDeterminism])), result);
-                });
-            }
         }
     }
 }

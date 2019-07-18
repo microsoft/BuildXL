@@ -647,7 +647,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public abstract GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint);
 
         /// <summary>
-        /// Store a ContentHashList
+        ///     Store a ContentHashList
         /// </summary>
         /// <param name="context">
         ///     Tracing context.
@@ -658,10 +658,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <param name="contentHashListWithDeterminism">
         ///     The value, and associated determinism guarantee, to store.
         /// </param>
+        /// <param name="contentSession">
+        ///     The content session over which this operation is happening
+        /// </param>
+        /// <param name="cts">
+        ///     A token that can signal this call should return as soon as possible.
+        /// </param>
         /// <returns>
         ///     Result providing the call's completion status.
         /// </returns>
-        public abstract AddOrGetContentHashListResult AddOrGetContentHashList(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism);
+        public abstract Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism, IContentSession contentSession,
+            CancellationToken cts);
 
         /// <summary>
         /// Gets known selectors for a given weak fingerprint.

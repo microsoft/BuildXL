@@ -178,10 +178,10 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         internal Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism, IContentSession contentSession, CancellationToken cts)
         {
-            var ctx = new OperationContext(context);
-            return AddOrGetContentHashListCall.RunAsync(Tracer, ctx, strongFingerprint, () => {
+            var ctx = new OperationContext(context, cts);
+            return AddOrGetContentHashListCall.RunAsync(Tracer, ctx, strongFingerprint, async () => {
                 // TODO: weave with content session for removing stuff
-                return Task.FromResult(_cldb.AddOrGetContentHashList(ctx, strongFingerprint, contentHashListWithDeterminism));
+                return await _cldb.AddOrGetContentHashListAsync(ctx, strongFingerprint, contentHashListWithDeterminism, contentSession, cts);
             });
         }
 

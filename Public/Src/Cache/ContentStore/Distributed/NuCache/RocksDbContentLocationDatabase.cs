@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
@@ -65,6 +66,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// to look up via a <see cref="Fingerprint"/>, or a <see cref="StrongFingerprint"/>. The only reason we
             /// can look up by <see cref="Fingerprint"/> is that it is stored as a prefix to the
             /// <see cref="StrongFingerprint"/>.
+            ///
+            /// What we effectively store is not a <see cref="ContentHashList"/>, but a <see cref="MetadataEntry"/>,
+            /// which contains all information relevant to the database.
             ///
             /// This serves all of CaChaaS' needs for storage, modulo garbage collection.
             /// </summary>
@@ -545,7 +549,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         {
                             if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
                             {
-                                result = DeserializeContentHashList(data);
+                                var metadata = DeserializeMetadataEntry(data);
+                                result = metadata.ContentHashListWithDeterminism;
+
+                                // Update the time, only if no one else has changed it in the mean time. We don't
+                                // really care if this succeeds or not, because if it doesn't it only means someone
+                                // else changed the stored value before this operation but after it was read.
+#pragma warning disable EPC13 // Suspiciously unobserved result.
+                                CompareExchange(context, strongFingerprint, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism);
+#pragma warning restore EPC13 // Suspiciously unobserved result.
+
                                 // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
                                 // hashes exist. Moreover, we can prune content.
                             }
@@ -569,9 +582,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Fine-grained locks that used for all operations that mutate Metadata records.
         /// </summary>
         private readonly object[] _metadataLocks = Enumerable.Range(0, byte.MaxValue + 1).Select(s => new object()).ToArray();
-
+        
         /// <summary>
-        /// Runs an atomic compare-exchange operation on content hash lists
+        /// Runs an atomic compare-exchange operation on content hash lists. The only reason this works is that it is
+        /// the entry point to the column family, and it keeps locks to avoid simultaneous writes.
         /// </summary>
         public Possible<bool> CompareExchange(
             OperationContext context,
@@ -588,15 +602,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
                         {
-                            var current = DeserializeContentHashList(data);
-
-                            if (!current.Equals(expected))
+                            var current = DeserializeMetadataEntry(data);
+                            if (!current.ContentHashListWithDeterminism.Equals(expected))
                             {
                                 return false;
                             }
                         }
-
-                        store.Put(key, SerializeContentHashList(replacement), nameof(Columns.Metadata));
+                        
+                        var replacementMetadata = new MetadataEntry(replacement, Clock.UtcNow.ToFileTimeUtc());
+                        store.Put(key, SerializeMetadataEntry(replacementMetadata), nameof(Columns.Metadata));
                     }
 
                     return true;
@@ -604,11 +618,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
         
         /// <inheritdoc />
-        public override AddOrGetContentHashListResult AddOrGetContentHashList(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism)
+        public override Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism, IContentSession contentSession,
+            CancellationToken cts)
         {
-            return context.PerformOperation(
+            return context.PerformOperationAsync(
                 Tracer,
-                () =>
+                async () =>
                 {
                     // We do multiple attempts here because we have a "CompareExchange" RocksDB in the heart
                     // of this implementation, and this may fail if the database is heavily contended.
@@ -621,7 +636,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         var contentHashList = contentHashListWithDeterminism.ContentHashList;
                         var determinism = contentHashListWithDeterminism.Determinism;
 
-                        // Load old value
+                        // Load old value. Notice that this get updates the time, regardless of whether we replace the value or not.
                         var oldContentHashListWithDeterminism = GetContentHashList(context, strongFingerprint);
                         var oldContentHashList = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.ContentHashList;
                         var oldDeterminism = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.Determinism;
@@ -634,7 +649,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
 
                         if (oldContentHashList is null || oldDeterminism.ShouldBeReplacedWith(determinism) ||
-                                    !IsContentAvailable(context, oldContentHashList))
+                                    !(await contentSession.EnsureContentIsAvailableAsync(context, oldContentHashList, cts).ConfigureAwait(false)))
                         {
                             // Replace if incoming has better determinism or some content for the existing
                             // entry is missing. The entry could have changed since we fetched the old value
@@ -690,6 +705,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     foreach (var kvp in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
                     {
+                        // TODO(jubayard): since this method only needs the keys and not the values, it wouldn't hurt
+                        // to make an alternative prefix search that doesn't even read the values from RocksDB.
                         var strongFingerprint = DeserializeStrongFingerprint(kvp.Key);
                         result.Add(StructResult.Create(strongFingerprint));
                     }
@@ -704,18 +721,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return result;
         }
-
-        private bool IsContentAvailable(OperationContext context, ContentHashList contentHashList)
-        {
-            // TODO(jubayard): implement. Since this needs to pin stuff, we need it to happen in a higher layer.
-            return true;
-        }
-
+        
         /// <inheritdoc />
         public override IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
         {
-            var result = new List<GetSelectorResult>();
-
+            var selectors = new List<(long, Selector)>();
             var status = _keyValueStore.Use(
                 store =>
                 {
@@ -726,10 +736,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     foreach (var kvp in store.PrefixSearch(key, columnFamilyName: nameof(Columns.Metadata)))
                     {
                         var strongFingerprint = DeserializeStrongFingerprint(kvp.Key);
-                        result.Add(new GetSelectorResult(strongFingerprint.Selector));
+                        var timeUtc = DeserializeMetadataLastAccessTimeUtc(kvp.Value);
+                        selectors.Add((timeUtc, strongFingerprint.Selector));
                     }
                 });
 
+            var result = new List<GetSelectorResult>(selectors
+                .OrderByDescending(entry => entry.Item1)
+                .Select(entry => new GetSelectorResult(entry.Item2)));
             if (!status.Succeeded)
             {
                 result.Add(new GetSelectorResult(status.Failure.CreateException()));
@@ -752,20 +766,66 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return DeserializeCore(bytes, reader => StrongFingerprint.Deserialize(reader));
         }
+        
+        private byte[] GetMetadataKey(StrongFingerprint strongFingerprint)
+        {
+            return SerializeStrongFingerprint(strongFingerprint);
+        }
 
-        private byte[] SerializeContentHashList(ContentHashListWithDeterminism value)
+        private byte[] SerializeMetadataEntry(MetadataEntry value)
         {
             return SerializeCore(value, (instance, writer) => instance.Serialize(writer));
         }
 
-        private ContentHashListWithDeterminism DeserializeContentHashList(byte[] data)
+        private MetadataEntry DeserializeMetadataEntry(byte[] data)
         {
-            return DeserializeCore(data, reader => ContentHashListWithDeterminism.Deserialize(reader));
+            return DeserializeCore(data, reader => MetadataEntry.Deserialize(reader));
         }
 
-        private byte[] GetMetadataKey(StrongFingerprint strongFingerprint)
+        private long DeserializeMetadataLastAccessTimeUtc(byte[] data)
         {
-            return SerializeStrongFingerprint(strongFingerprint);
+            return DeserializeCore(data, reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
+        }
+
+        /// <summary>
+        /// Metadata that is stored inside the <see cref="Columns.Metadata"/> column family.
+        /// </summary>
+        private readonly struct MetadataEntry
+        {
+            /// <summary>
+            /// Effective <see cref="ContentHashList"/> that we want to store, along with information about its cache
+            /// determinism.
+            /// </summary>
+            public ContentHashListWithDeterminism ContentHashListWithDeterminism { get; }
+
+            /// <summary>
+            /// Last update time, stored as output by <see cref="DateTime.ToFileTimeUtc"/>.
+            /// </summary>
+            public long LastAccessTimeUtc { get; }
+
+            public MetadataEntry(ContentHashListWithDeterminism contentHashListWithDeterminism, long lastAccessTimeUtc)
+            {
+                ContentHashListWithDeterminism = contentHashListWithDeterminism;
+                LastAccessTimeUtc = lastAccessTimeUtc;
+            }
+
+            public static MetadataEntry Deserialize(BuildXLReader reader)
+            {
+                var lastUpdateTimeUtc = reader.ReadInt64Compact();
+                var contentHashListWithDeterminism = ContentHashListWithDeterminism.Deserialize(reader);
+                return new MetadataEntry(contentHashListWithDeterminism, lastUpdateTimeUtc);
+            }
+
+            public static long DeserializeLastAccessTimeUtc(BuildXLReader reader)
+            {
+                return reader.ReadInt64Compact();
+            }
+            
+            public void Serialize(BuildXLWriter writer)
+            {
+                writer.WriteCompact(LastAccessTimeUtc);
+                ContentHashListWithDeterminism.Serialize(writer);
+            }
         }
 
         private class KeyValueStoreGuard : IDisposable

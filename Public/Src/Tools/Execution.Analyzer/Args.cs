@@ -340,7 +340,7 @@ namespace BuildXL.Execution.Analyzer
         public static void TruncatedXlgWarning()
         {
             ConsoleColor originalColor = Console.ForegroundColor;
-            Console.ForegroundColor = ConsoleColor.Red;
+            Console.ForegroundColor = ConsoleColor.Yellow;
             Console.Error.WriteLine("WARNING: Execution log file possibly truncated, results may be incomplete!");
             Console.ForegroundColor = originalColor;
         }

@@ -360,6 +360,14 @@ namespace Tool.DropDaemon
 
         #endregion
 
+        /// <summary>
+        /// The purpose of this ctor is to force 'predictable' initialization of static fields.
+        /// </summary>
+        static DropDaemon()
+        {
+            // noop
+        }
+
         /// <nodoc />
         public DropDaemon(IParser parser, DaemonConfig daemonConfig, DropConfig dropConfig, Task<IDropClient> dropClientTask, IIpcProvider rpcProvider = null, Client client = null)
             : base(parser,
@@ -386,7 +394,7 @@ namespace Tool.DropDaemon
 
             if (Commands.Count != numCommandsBase + numCommandsDropD)
             {
-                Contract.Assert(false, $"Commands were not properly initialized (# of initialized commands = {Commands.Count}; # of ServicePipDaemon commands = {numCommandsBase}; # of DropDaemon commands = {numCommandsDropD}");
+                Contract.Assert(false, $"The list of commands was not properly initialized (# of initialized commands = {Commands.Count}; # of ServicePipDaemon commands = {numCommandsBase}; # of DropDaemon commands = {numCommandsDropD})");
             }
         }
 

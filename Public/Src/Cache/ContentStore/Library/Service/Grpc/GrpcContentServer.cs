@@ -540,6 +540,39 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 errorMessage => new HeartbeatResponse { Header = ResponseHeader.Failure(startTime, errorMessage) });
         }
 
+        private async Task<DeleteContentResponse> DeleteAsync(DeleteContentRequest request, CancellationToken ct)
+        {
+            OperationStarted();
+
+            DateTime startTime = DateTime.UtcNow;
+            var cacheContext = new Context(new Guid(request.TraceId), _logger);
+            var contentHash = request.ContentHash.ToContentHash((HashType)request.HashType);
+
+            var deleteResults = await Task.WhenAll<DeleteResult>(_contentStoreByCacheName.Values.Select(store => store.DeleteAsync(cacheContext, contentHash)));
+
+            bool succeeded = true;
+            long evictedSize = 0L;
+            long pinnedSize = 0L;
+            int code = (int)DeleteResult.ResultCode.ContentNotFound;
+            foreach (var deleteResult in deleteResults)
+            {
+                succeeded &= deleteResult.Succeeded;
+                evictedSize += deleteResult.EvictedSize;
+                pinnedSize += deleteResult.PinnedSize;
+
+                // Return the most severe result code
+                code = Math.Max(code, (int)deleteResult.Code);
+            }
+
+            return new DeleteContentResponse
+            {
+                Header = succeeded ? ResponseHeader.Success(startTime) : ResponseHeader.Failure(startTime, string.Join(Environment.NewLine, deleteResults.Select(r => r.ToString()))),
+                EvictedSize = evictedSize,
+                PinnedSize = pinnedSize,
+                Result = code
+            };
+        }
+
         private void OperationStarted([CallerMemberName]string requestType = "Unknown")
         {
             // TODO: Add counter, but don't trace
@@ -598,6 +631,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             /// <inheritdoc />
             public override Task<CreateSessionResponse> CreateSession(CreateSessionRequest request, ServerCallContext context) => _contentServer.CreateSessionAsync(request, context.CancellationToken);
+
+            /// <inheritdoc />
+            public override Task<DeleteContentResponse> Delete(DeleteContentRequest request, ServerCallContext context) => _contentServer.DeleteAsync(request, context.CancellationToken);
 
             /// <inheritdoc />
             public override Task<PinResponse> Pin(PinRequest request, ServerCallContext context) => _contentServer.PinAsync(request, context.CancellationToken);

@@ -105,7 +105,11 @@ namespace BuildXL.Storage
         {
             s_hasher?.Dispose();
             s_hasher = HashInfo.CreateContentHasher();
-
+            
+            foreach (var hasher in s_contentHasherByHashType.Values)
+            {
+                hasher.Dispose();
+            }
             s_contentHasherByHashType = new ConcurrentDictionary<HashType, IContentHasher>();
         }
 

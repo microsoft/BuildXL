@@ -733,7 +733,7 @@ namespace BuildXL
                             (opt, sign) =>
                             loggingConfiguration.RemoteTelemetry =
                             CommandLineUtilities.ParseBoolEnumOption(opt, sign, RemoteTelemetry.EnabledAndNotify, RemoteTelemetry.Disabled),
-                            isEnabled: (() => loggingConfiguration.RemoteTelemetry != RemoteTelemetry.Disabled)),
+                            isEnabled: () => loggingConfiguration.RemoteTelemetry.HasValue && loggingConfiguration.RemoteTelemetry.Value != RemoteTelemetry.Disabled),
                         OptionHandlerFactory.CreateBoolOption(
                             "replaceExistingFileOnMaterialization",
                             sign => cacheConfiguration.ReplaceExistingFileOnMaterialization = sign),
@@ -1212,7 +1212,12 @@ namespace BuildXL
                 if (configuration.InCloudBuild())
                 {
                     configuration.Server = ServerMode.Disabled;
-                    loggingConfiguration.RemoteTelemetry = RemoteTelemetry.EnabledAndNotify;
+
+                    if (!loggingConfiguration.RemoteTelemetry.HasValue)
+                    {
+                        loggingConfiguration.RemoteTelemetry = RemoteTelemetry.EnabledAndNotify;
+                    }
+
                     cacheConfiguration.CacheGraph = true;
 
                     // Forcefully disable incremental scheduling in CB.

@@ -72,7 +72,7 @@ set SMDB.CACHE_TEMPLATE_PATH=%TEST_SOLUTION_ROOT%\Out\SharedCache
 set BuildXLExportFileDetails=1
 set BUILDXL_MASTER_ARGS=/maxProc:2 /replicateOutputsToWorkers %BUILDXL_MASTER_ARGS%
 set BUILDXL_WORKER_ARGS=/maxProc:6 %BUILDXL_WORKER_ARGS%
-set BUILDXL_COMMON_ARGS=/server- /inCloudBuild /redirectUserProfile- /distributeCacheLookups /enableAsyncLogging /historicMetadataCache "/storageRoot:{objectRoot}:\ " "/config:{sourceRoot}:\Config.dsc" "/cacheConfigFilePath:%SMDB.CACHE_CONFIG_OUTPUT_PATH%" "/rootMap:{sourceRoot}=%TEST_SOLUTION_ROOT%\TestSolution" "/rootMap:{objectRoot}=%TEST_SOLUTION_ROOT%\Out\M{machineNumber}" "/cacheDirectory:{objectRoot}:\Cache" "/p:TestCscToolPath=%ProgramFiles(x86)%\MSBuild\14.0\Bin" /verifyCacheLookupPin /disableProcessRetryOnResourceExhaustion+
+set BUILDXL_COMMON_ARGS=/server- /inCloudBuild /remoteTelemetry- /redirectUserProfile- /distributeCacheLookups /enableAsyncLogging /historicMetadataCache "/storageRoot:{objectRoot}:\ " "/config:{sourceRoot}:\Config.dsc" "/cacheConfigFilePath:%SMDB.CACHE_CONFIG_OUTPUT_PATH%" "/rootMap:{sourceRoot}=%TEST_SOLUTION_ROOT%\TestSolution" "/rootMap:{objectRoot}=%TEST_SOLUTION_ROOT%\Out\M{machineNumber}" "/cacheDirectory:{objectRoot}:\Cache" "/p:TestCscToolPath=%ProgramFiles(x86)%\MSBuild\14.0\Bin" /verifyCacheLookupPin /disableProcessRetryOnResourceExhaustion+
 
 REM Add subst source/target to ensure real path to logs are printed on console
 set BUILDXL_COMMON_ARGS=%BUILDXL_COMMON_ARGS% /substTarget:{objectRoot}:\  /substSource:"%TEST_SOLUTION_ROOT%\Out\M{machineNumber}"

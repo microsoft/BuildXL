@@ -197,7 +197,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// When enabled, sends telemetry information for remote collection. Defaults to false.
         /// </summary>
-        RemoteTelemetry RemoteTelemetry { get; }
+        RemoteTelemetry? RemoteTelemetry { get; }
 
         /// <summary>
         /// Attaches tracing information to the build. May be specified multiple times. Ex: /TraceInfo:Branch=MyBranch

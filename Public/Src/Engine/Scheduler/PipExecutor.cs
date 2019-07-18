@@ -1357,7 +1357,8 @@ namespace BuildXL.Scheduler
                                     buildEngineDirectory: configuration.Layout.BuildEngineDirectory,
                                     directoryTranslator: environment.DirectoryTranslator,
                                     remainingUserRetryCount: remainingUserRetries,
-                                    vmInitializer: environment.VmInitializer);
+                                    vmInitializer: environment.VmInitializer,
+                                    tempDirectoryCleaner: environment.TempCleaner);
 
                                 registerQueryRamUsageMb(
                                     () =>
@@ -2729,7 +2730,8 @@ namespace BuildXL.Scheduler
                 disableConHostSharing: configuration.Engine.DisableConHostSharing,
                 pipDataRenderer: pipDataRenderer,
                 directoryTranslator: environment.DirectoryTranslator,
-                vmInitializer: environment.VmInitializer);
+                vmInitializer: environment.VmInitializer,
+                tempDirectoryCleaner: environment.TempCleaner);
 
             if (!await executor.TryInitializeWarningRegexAsync())
             {

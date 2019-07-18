@@ -1,4 +1,7 @@
-﻿using System;
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
     using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
     using static CommandLineUtilities;
 
-    public class VfsProgram : ToolProgram<VfsCasConfiguration>
+    internal class VfsProgram : ToolProgram<VfsCasConfiguration>
     {
         public VfsProgram()
             : base("Bvfs")
@@ -55,7 +58,8 @@ namespace BuildXL.Cache.ContentStore.Vfs
                 {
                     var kvp = ParseKeyValuePair(opt);
                     config.VirtualizationMounts[kvp.Key] = new AbsolutePath(GetFullPath(kvp.Value, opt));
-                }),
+                },
+                required: false),
             }
             .SelectMany(handler => handler.Names.Select(name => (name, handler)))
             .ToDictionary(t => t.name, t => t.handler, StringComparer.OrdinalIgnoreCase);

@@ -14,7 +14,7 @@ using Xunit.Abstractions;
 
 namespace Test.ProjectGraphBuilder
 {
-    public class MsBuildGraphConstructionTests : TemporaryStorageTestBase
+    public class MsBuildGraphConstructionTests : GraphBuilderToolTestBase
     {
         private readonly MsBuildProjectBuilder m_builder;
 
@@ -233,14 +233,13 @@ namespace Test.ProjectGraphBuilder
         {
             string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
 
-            var arguments = new MSBuildGraphBuilderArguments(
-                    projectEntryPoints,
-                    outputFile,
-                    globalProperties: GlobalProperties.Empty,
-                    mSBuildSearchLocations: new[] {TestDeploymentDir},
-                    entryPointTargets: new string[0],
-                    requestedQualifiers: new GlobalProperties[] { GlobalProperties.Empty },
-                    allowProjectsWithoutTargetProtocol: true);
+            var arguments = GetStandardBuilderArguments(
+                projectEntryPoints,
+                outputFile,
+                GlobalProperties.Empty,
+                new string[0],
+                new GlobalProperties[] { GlobalProperties.Empty },
+                allowProjectsWithoutTargetProtocol: true);
 
             return BuildGraphAndDeserialize(arguments);
 
@@ -249,14 +248,14 @@ namespace Test.ProjectGraphBuilder
         private MSBuildGraphBuilderArguments CreateBuilderArguments(string entryPointPath, GlobalProperties[] requestedQualifiers = null, GlobalProperties globalProperties = null, bool allowProjectsWithoutTargetProtocol = true)
         {
             string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
-            var arguments = new MSBuildGraphBuilderArguments(
+            var arguments = GetStandardBuilderArguments(
                     new string[] { entryPointPath },
                     outputFile,
                     globalProperties: globalProperties ?? GlobalProperties.Empty,
-                    mSBuildSearchLocations: new[] { TestDeploymentDir },
                     entryPointTargets: new string[0],
                     requestedQualifiers: requestedQualifiers ?? new GlobalProperties[] { GlobalProperties.Empty },
                     allowProjectsWithoutTargetProtocol: allowProjectsWithoutTargetProtocol);
+
             return arguments;
         }
     }

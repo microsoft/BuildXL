@@ -97,7 +97,7 @@ namespace BuildXL.Utilities.Tracing
         PipTableStats = 75,
         PipWriterStats = 76,
         PipIpcFailedDueToInvalidInput = 77,
-        
+
         PipProcessStartExternalTool = 78,
         PipProcessFinishedExternalTool = 79,
         PipProcessStartExternalVm = 80,
@@ -368,7 +368,8 @@ namespace BuildXL.Utilities.Tracing
         DirectoryFingerprintComputedFromGraph = 365,
         DirectoryFingerprintExercisedRule = 366,
         PathSetValidationTargetFailedAccessCheck = 367,
-        // was DirectoryFingerprintUsedSearchPathEnumeration = 368,
+        InvalidMetadataStaticOutputNotFound = 368,
+        InvalidMetadataRequiredOutputIsAbsent = 369,
 
         // Dynamic Module Activity
         // DEPRECATED 370,
@@ -420,7 +421,7 @@ namespace BuildXL.Utilities.Tracing
         UnexpectedCondition = 472,
         // was TelemetryRecoverableException = 473,
         TelemetryShutDownException = 474,
-        ServerDeploymentDirectoryHashMismatch = 475,
+        // was ServerDeploymentDirectoryHashMismatch = 475,
         TelemetryShutdownTimeout = 476,
 
         PipProcessDisallowedNtCreateFileAccessWarning = 480,

@@ -472,17 +472,5 @@ namespace BuildXL.Utilities
         {
             return AbsolutePathFileArtifactWithAttributesMap.GetInstance();
         }
-
-        /// <summary>
-        /// Gets a mapping from string to <see cref="FileArtifactWithAttributes"/> from a common object pool.
-        /// </summary>
-        /// <remarks>
-        /// You are expected to call the Dispose method on the returned PooledObjectWrapper instance
-        /// when you are done with the set. Calling Dispose returns the set to the pool.
-        /// </remarks>
-        public static PooledObjectWrapper<Dictionary<string, FileArtifactWithAttributes>> GetStringFileArtifactWithAttributesMap()
-        {
-            return StringFileArtifactWithAttributesMap.GetInstance();
-        }
     }
 }

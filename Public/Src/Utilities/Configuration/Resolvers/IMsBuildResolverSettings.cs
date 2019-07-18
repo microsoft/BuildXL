@@ -57,6 +57,26 @@ namespace BuildXL.Utilities.Configuration
         IReadOnlyList<DirectoryArtifact> MsBuildSearchLocations { get; }
 
         /// <summary>
+        /// Whether to use the full framework or dotnet core version of MSBuild. 
+        /// </summary>
+        /// <remarks>
+        /// Selected runtime is used both for build evaluation and execution.
+        /// Default is full framework.
+        /// Observe that using the full framework version means that msbuild.exe is expected to be found in msbuildSearchLocations
+        /// (or PATH if not specified). If using the dotnet core version, the same logic applies but to msbuild.dll
+        /// </remarks>
+        string MsBuildRuntime { get; }
+
+        /// <summary>
+        /// Collection of directories to search for dotnet.exe, when DotNetCore is specified as the msBuildRuntime. 
+        /// </summary>
+        /// <remarks>
+        /// If not specified, locations in %PATH% are used.
+        /// Locations are traversed in specification order.
+        /// </remarks>
+        IReadOnlyList<DirectoryArtifact> DotNetSearchLocations { get; }
+
+        /// <summary>
         /// Optional file paths for the projects or solutions that should be used to start parsing. These are relative 
         /// paths with respect to the root traversal.
         /// </summary>
@@ -193,5 +213,14 @@ namespace BuildXL.Utilities.Configuration
             trackedEnv = trackedList;
             passthroughEnv = passthroughList;
         }
+
+        /// <summary>
+        /// Whether MSBuildRuntime is DotNetCore.
+        /// </summary>
+        /// <remarks>
+        /// Keep in sync with Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc
+        /// If not specified, the default is full framework, so this function returns false in that case.
+        /// </remarks>
+        public static bool ShouldRunDotNetCoreMSBuild(this IMsBuildResolverSettings msBuildResolverSettings) => msBuildResolverSettings.MsBuildRuntime == "DotNetCore";
     }
 }

@@ -161,7 +161,7 @@ namespace BuildXL
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode")]
-        [SuppressMessage("Microsoft.Performance", "CA1809", Justification = "Man up!")]
+        [SuppressMessage("Microsoft.Performance", "CA1809")]
         public bool TryParse(string[] args, PathTable pathTable, out ICommandLineConfiguration arguments)
         {
             try
@@ -1076,6 +1076,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "verifyCacheLookupPin",
                             sign => schedulingConfiguration.VerifyCacheLookupPin = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "vfsCasRoot",
+                            opt => cacheConfiguration.VfsCasRoot = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateOption(
                             "viewer",
                             opt => configuration.Viewer = CommandLineUtilities.ParseEnumOption<ViewerMode>(opt)),

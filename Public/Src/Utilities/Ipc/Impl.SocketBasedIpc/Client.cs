@@ -78,7 +78,7 @@ namespace BuildXL.Ipc.SocketBasedIpc
         /// throw; if indeed <paramref name="func"/> throws, the exit code of the result is
         /// <see cref="IpcResultStatus.TransmissionError"/>.
         /// </summary>
-        [SuppressMessage("Microsoft.Usage", "CA2202:stream disposed multiple times", Justification = "it's ok")]
+        [SuppressMessage("Microsoft.Usage", "CA2202:stream disposed multiple times", Justification = "False positive")]
         private async Task<IIpcResult> ConnectAndExecute(Func<Stream, Task<IIpcResult>> func)
         {
             Possible<TcpClient> maybeConnected = await Utils.ConnectAsync(

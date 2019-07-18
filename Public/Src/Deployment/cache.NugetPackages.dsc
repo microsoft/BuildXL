@@ -19,6 +19,8 @@ namespace Cache.NugetPackages {
     const WinX64MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" });
 
     const Net461DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ configuration: qualifier.configuration, targetFramework: "net461", targetRuntime: "win-x64" });
+    const Net472DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ configuration: qualifier.configuration, targetFramework: "net472", targetRuntime: "win-x64" });
+    const WinX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" });
 
     export const tools : Deployment.Definition = {
         contents: [
@@ -88,6 +90,14 @@ namespace Cache.NugetPackages {
             Nuget.createAssemblyLayout(Net461MemoizationStore.VstsInterfaces.dll),
             Nuget.createAssemblyLayout(Net472MemoizationStore.VstsInterfaces.dll),
             Nuget.createAssemblyLayout(WinX64MemoizationStore.VstsInterfaces.dll),
+
+            // BuildXL.Cache.Host.Services
+            Nuget.createAssemblyLayout(Net472DistributedCacheHost.Service.dll),
+            Nuget.createAssemblyLayout(WinX64DistributedCacheHost.Service.dll),
+
+            // BuildXL.Cache.Host.Configuration
+            Nuget.createAssemblyLayout(Net472DistributedCacheHost.Configuration.dll),
+            Nuget.createAssemblyLayout(WinX64DistributedCacheHost.Configuration.dll),
         ]
     };
 

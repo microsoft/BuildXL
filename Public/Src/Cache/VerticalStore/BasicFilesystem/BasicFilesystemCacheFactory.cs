@@ -10,11 +10,6 @@ using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
 
-[module: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812:AvoidUninstantiatedInternalClasses",
-    Scope = "type",
-    Target = "BuildXL.Cache.BasicFilesystem.BasicFilesystemCacheFactory+Config",
-    Justification = "Tool is confused - it is constructed generically")]
-
 namespace BuildXL.Cache.BasicFilesystem
 {
     /// <summary>

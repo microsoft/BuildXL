@@ -11,10 +11,6 @@ using BuildXL.Cache.MemoizationStoreAdapter;
 using BuildXL.Utilities;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
-[module: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812:AvoidUninstantiatedInternalClasses",
-    Scope = "type",
-    Target = "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory+Config",
-    Justification = "Tool is confused - it is constructed generically")]
 namespace BuildXL.Cache.BuildCacheAdapter
 {
     /// <summary>
@@ -54,6 +50,8 @@ namespace BuildXL.Cache.BuildCacheAdapter
         //     "DownloadBlobsThroughBlobStore":{25}
         //     "UseDedupStore":{26}
         //     "OverrideUnixFileAccessMode":{27}
+        //     "DefaultPinInlineThresholdMinutes":{28}
+        //     "DefaultIgnorePinThresholdHours":{29}
         // }
         private sealed class Config : BuildCacheCacheConfig
         {

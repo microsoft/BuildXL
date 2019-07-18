@@ -60,6 +60,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="backingContentStoreHttpClientFactory">Factory for creating a backing store http client.</param>
         /// <param name="maxFingerprintSelectorsToFetch">Maximum number of selectors to enumerate.</param>
         /// <param name="timeToKeepUnreferencedContent">Initial time-to-live for unreferenced content.</param>
+        /// <param name="pinInlineThreshold">Maximum time-to-live to inline pin calls.</param>
+        /// <param name="ignorePinThreshold">Minimum time-to-live to ignore pin calls.</param>
         /// <param name="minimumTimeToKeepContentHashLists">Minimum time-to-live for created or referenced ContentHashLists.</param>
         /// <param name="rangeOfTimeToKeepContentHashLists">Range of time beyond the minimum for the time-to-live of created or referenced ContentHashLists.</param>
         /// <param name="logger">A logger for tracing.</param>
@@ -79,6 +81,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             IArtifactHttpClientFactory backingContentStoreHttpClientFactory,
             int maxFingerprintSelectorsToFetch,
             TimeSpan timeToKeepUnreferencedContent,
+            TimeSpan pinInlineThreshold,
+            TimeSpan ignorePinThreshold,
             TimeSpan minimumTimeToKeepContentHashLists,
             TimeSpan rangeOfTimeToKeepContentHashLists,
             ILogger logger,
@@ -102,7 +106,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _tracer = new BuildCacheCacheTracer(logger, nameof(BuildCacheCache));
 
             _backingContentStore = new BackingContentStore(
-                fileSystem, backingContentStoreHttpClientFactory, timeToKeepUnreferencedContent, downloadBlobsThroughBlobStore, useDedupStore);
+                fileSystem, backingContentStoreHttpClientFactory, timeToKeepUnreferencedContent, pinInlineThreshold, ignorePinThreshold, downloadBlobsThroughBlobStore, useDedupStore);
 
             if (useDedupStore)
             {

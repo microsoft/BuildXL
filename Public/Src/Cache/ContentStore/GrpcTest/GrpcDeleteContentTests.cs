@@ -103,10 +103,9 @@ namespace ContentStoreTest.Grpc
                 var deleteResult = await rpcClient.DeleteContentAsync(context, contentHash);
                 deleteResult.ShouldBeSuccess();
                 deleteResult.Code.Should().Be(DeleteResult.ResultCode.ContentNotFound);
-                deleteResult.ContentHash.Equals(contentHash).Should().BeFalse();
+                deleteResult.ContentHash.Equals(contentHash).Should().BeTrue();
                 deleteResult.EvictedSize.Should().Be(0L);
                 deleteResult.PinnedSize.Should().Be(0L);
-                deleteResult.ErrorMessage.Should().Contain($"Hash {contentHash.ToShortString()} was not found");
             });
         }
 

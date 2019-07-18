@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using Tool.ServicePipDaemon;
 
 namespace Tool.DropDaemon
 {
@@ -69,29 +70,29 @@ namespace Tool.DropDaemon
         /// <summary>
         ///     FileInfo is not already computed, sends an IPC request to BuildXL to materialize the file;
         ///     if the request succeeds, returns a <see cref="FileInfo"/> corresponding to that file,
-        ///     otherwise throws a <see cref="DropDaemonException"/>.
+        ///     otherwise throws a <see cref="DaemonException"/>.
         /// </summary>
         public override async Task<FileInfo> EnsureMaterialized()
         {
             Possible<bool> maybeResult = await m_client.MaterializeFile(m_file, FullFilePath);
             if (!maybeResult.Succeeded)
             {
-                throw new DropDaemonException(maybeResult.Failure.Describe());
+                throw new DaemonException(maybeResult.Failure.Describe());
             }
 
             if (!maybeResult.Result)
             {
-                throw new DropDaemonException("File materialization failed");
+                throw new DaemonException("File materialization failed");
             }
 
             if (!File.Exists(FullFilePath))
             {
-                throw new DropDaemonException("File materialization succeeded, but file is not found on disk: " + FullFilePath);
+                throw new DaemonException("File materialization succeeded, but file is not found on disk: " + FullFilePath);
             }
 
             if (m_symlinkTester(FullFilePath))
             {
-                throw new DropDaemonException(MaterializationResultIsSymlinkErrorPrefix + FullFilePath);
+                throw new DaemonException(MaterializationResultIsSymlinkErrorPrefix + FullFilePath);
             }
 
 #if DEBUG

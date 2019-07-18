@@ -36,12 +36,12 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// Enables AriaV2 in the application. Will automatically initialize the pipeline if necessary
         /// </summary>
-        public static void Enable(string tenantToken, string offlineTelemetryDBPath = "")
+        public static void Enable(string tenantToken, string offlineTelemetryDBPath = "", TimeSpan? teardownTimeout = null)
         {
             s_ariaTelemetryDBLocation = offlineTelemetryDBPath;
 #if FEATURE_ARIA_TELEMETRY
             IsEnabled = true;
-            Initialize(tenantToken);
+            Initialize(tenantToken, teardownTimeout ?? DefaultShutdownTimeout);
 #else
             IsEnabled = false;
 #endif
@@ -55,7 +55,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
             IsEnabled = false;
         }
 
-        private static void Initialize(string tenantToken)
+        private static void Initialize(string tenantToken, TimeSpan teardownTimeout)
         {
             lock (s_syncRoot)
             {
@@ -70,7 +70,10 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
                     // s_ariaTelemetryDBLocation is defaulting to an empty string when not passed when enabling telemetry, in that case
                     // this causes the DB to be created in the current working directory of the process
-                    s_ariaLogger = AriaNative.CreateAriaLogger(tenantToken, Path.Combine(s_ariaTelemetryDBLocation, s_ariaTelemetryDBName));
+                    s_ariaLogger = AriaNative.CreateAriaLogger(
+                        tenantToken,
+                        Path.Combine(s_ariaTelemetryDBLocation, s_ariaTelemetryDBName),
+                        (int)teardownTimeout.TotalSeconds);
                     s_hasBeenInitialized = true;
                 }
             }

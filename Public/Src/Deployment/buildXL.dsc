@@ -62,19 +62,23 @@ namespace BuildXL {
                             }).exe
                         ]
                     },
-                    {
-                        subfolder: r`NinjaGraphBuilder`,
-                        contents: [
-                            importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
-                            importFrom("BuildXL.Tools.Ninjson").pkg.contents
-                        ]
-                    },
-                    {
-                        subfolder: r`CMakeRunner`,
-                        contents: [
-                            importFrom("BuildXL.Tools").CMakeRunner.exe,
-                        ]
-                    },
+                    ...(BuildXLSdk.Flags.deployExperimentalTools
+                        ? [
+                            {
+                                subfolder: r`NinjaGraphBuilder`,
+                                contents: [
+                                    importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
+                                    importFrom("BuildXL.Tools.Ninjson").pkg.contents
+                                ]
+                            },
+                            {
+                                subfolder: r`CMakeRunner`,
+                                contents: [
+                                    importFrom("BuildXL.Tools").CMakeRunner.exe,
+                                ]
+                            }
+                          ]
+                        : []),
                     {
                         subfolder: r`SandboxedProcessExecutor`,
                         contents: [

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -218,6 +219,119 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             else
             {
                 return CompareResult.LeftGreater;
+            }
+        }
+
+        public static IEnumerable<T> SkipOptimized<T>(this IReadOnlyList<T> original, int amountToSkip)
+        {
+            for (var i = amountToSkip; i < original.Count; i++)
+            {
+                yield return original[i];
+            }
+        }
+
+        /// <summary>
+        /// Takes an enumerable and takes n=pageSize elements from it. Processess the elements with a query, and inserts
+        /// them into a priority queue. It will then continue yielding elements of the queue, until it has less than
+        /// n elements, at which point it will take another n elements from the original enumerable and repeat the
+        /// process, adding them to the same priority queue. This process repeats until the original enumerable has no
+        /// more elements.
+        /// </summary>
+        public static IEnumerable<T> QueryAndOrderInPages<T>(this IEnumerable<T> original, int pageSize, Comparer<T> comparer, Func<List<T>, IEnumerable<T>> query)
+        {
+            var source = original.GetEnumerator();
+            var queue = new PriorityQueue<T>(pageSize * 2, comparer);
+            var sourceHasItems = true;
+
+            while (true)
+            {
+                if (sourceHasItems && queue.Count < pageSize)
+                {
+                    var itemsToQuery = new List<T>(pageSize);
+                    for (var i = 0; i < pageSize && source.MoveNext(); i++)
+                    {
+                        itemsToQuery.Add(source.Current);
+                    }
+
+                    if (itemsToQuery.Count > 0)
+                    {
+                        var results = query(itemsToQuery);
+
+                        foreach (var result in results)
+                        {
+                            queue.Push(result);
+                        }
+                    }
+                    else
+                    {
+                        // No more items in the original IEnumerable. Stop trying to queue more items.
+                        sourceHasItems = false;
+                    }
+                }
+
+                if (queue.Count == 0)
+                {
+                    yield break;
+                }
+
+                yield return queue.Top;
+                queue.Pop();
+            }
+        }
+
+        public static IEnumerable<T> MergeOrdered<T>(IEnumerable<T> items1, IEnumerable<T> items2, IComparer<T> comparer)
+        {
+            var enumerator1 = items1.GetEnumerator();
+            var enumerator2 = items2.GetEnumerator();
+
+            T current1 = default;
+            T current2 = default;
+
+            bool next1 = TryMoveNext(enumerator1, ref current1);
+            bool next2 = TryMoveNext(enumerator2, ref current2);
+
+            while (next1 || next2)
+            {
+                while (next1)
+                {
+                    if (!next2 || comparer.Compare(current1, current2) <= 0)
+                    {
+                        yield return current1;
+                    }
+                    else
+                    {
+                        break;
+                    }
+
+                    next1 = TryMoveNext(enumerator1, ref current1);
+                }
+
+                while (next2)
+                {
+                    if (!next1 || comparer.Compare(current1, current2) > 0)
+                    {
+                        yield return current2;
+                    }
+                    else
+                    {
+                        break;
+                    }
+
+                    next2 = TryMoveNext(enumerator2, ref current2);
+                }
+            }
+
+            bool TryMoveNext(IEnumerator<T> enumerator, ref T current)
+            {
+                if (enumerator.MoveNext())
+                {
+                    current = enumerator.Current;
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
             }
         }
     }

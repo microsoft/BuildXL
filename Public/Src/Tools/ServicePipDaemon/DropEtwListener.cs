@@ -7,7 +7,7 @@ using System.Diagnostics.Tracing;
 using BuildXL.Tracing;
 using BuildXL.Tracing.CloudBuild;
 
-namespace Tool.DropDaemon
+namespace Tool.ServicePipDaemon
 {
     /// <summary>
     /// Simple listener for Drop events.

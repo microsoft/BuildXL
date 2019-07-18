@@ -7,7 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using JetBrains.Annotations;
 
-namespace Tool.DropDaemon
+namespace Tool.ServicePipDaemon
 {
     /// <summary>
     /// Utility class for synchronizing request to "reload" (reconstruct) some underlying value.

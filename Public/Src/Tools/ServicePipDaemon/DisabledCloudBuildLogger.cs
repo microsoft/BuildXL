@@ -3,7 +3,7 @@
 
 using BuildXL.Tracing.CloudBuild;
 
-namespace Tool.DropDaemon
+namespace Tool.ServicePipDaemon
 {
     /// <summary>
     ///     Implementation of <see cref="ICloudBuildLogger"/> that doesn't do anything.

@@ -15,10 +15,10 @@ using Microsoft.VisualStudio.Services.Drop.App.Core;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.ItemStore.Common;
 
-namespace Tool.DropDaemon
+namespace Tool.ServicePipDaemon
 {
     /// <summary>
-    /// <see cref="IDropServiceClient"/> which will retrie every operation in case <see cref="Microsoft.VisualStudio.Services.Common.VssUnauthorizedException"/> is caught.
+    /// <see cref="IDropServiceClient"/> which will retry every operation in case <see cref="Microsoft.VisualStudio.Services.Common.VssUnauthorizedException"/> is caught.
     /// </summary>
     public sealed class ReloadingDropServiceClient : IDropServiceClient
     {

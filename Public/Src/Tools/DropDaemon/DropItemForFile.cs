@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Storage;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
+using Tool.ServicePipDaemon;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace Tool.DropDaemon
@@ -75,7 +76,7 @@ namespace Tool.DropDaemon
         {
             if (!File.Exists(FullFilePath))
             {
-                throw new DropDaemonException("File not found on disk: " + FullFilePath);
+                throw new DaemonException("File not found on disk: " + FullFilePath);
             }
 
             return Task.FromResult(new FileInfo(FullFilePath));
@@ -97,7 +98,7 @@ namespace Tool.DropDaemon
 
         /// <summary>
         ///     Checks if a given <see cref="BlobIdentifier"/> matches one computed from a file on disk
-        ///     (at <paramref name="filePath"/> location).  If it doesn't, throws <see cref="DropDaemonException"/>.
+        ///     (at <paramref name="filePath"/> location).  If it doesn't, throws <see cref="DaemonException"/>.
         /// </summary>
         /// <remarks>
         ///     This method should only be called from '#if DEBUG' blocks, because it's wasteful to recompute hashes all the time.
@@ -111,20 +112,20 @@ namespace Tool.DropDaemon
             var calculated = (await ComputeFileDescriptorFromFileAsync(filePath, chunkDedup, Path.GetFileName(filePath), cancellationToken)).BlobIdentifier;
             if (!precomputed.Equals(calculated))
             {
-                throw new DropDaemonException(I($"[{phase}] Given blob identifier ({precomputed}) differs from computed one ({calculated}) for file '{filePath}'."));
+                throw new DaemonException(I($"[{phase}] Given blob identifier ({precomputed}) differs from computed one ({calculated}) for file '{filePath}'."));
             }
 
             var actualFileLength = new FileInfo(filePath).Length;
             if (expectedFileLength > 0 && expectedFileLength != actualFileLength)
             {
-                throw new DropDaemonException(I($"[{phase}] Given file length ({expectedFileLength}) differs from the file size on disk({actualFileLength}) for file '{filePath}'."));
+                throw new DaemonException(I($"[{phase}] Given file length ({expectedFileLength}) differs from the file size on disk({actualFileLength}) for file '{filePath}'."));
             }
         }
 
         /// <summary>
         ///     Deserializes <see cref="BlobIdentifier"/> from a string.
         ///
-        ///     Throws <see cref="DropDaemonException"/> if the string cannot be parsed.
+        ///     Throws <see cref="DaemonException"/> if the string cannot be parsed.
         /// </summary>
         private static BlobIdentifier DeserializeBlobIdentifierFromHash(string serializedVsoHash)
         {
@@ -134,7 +135,7 @@ namespace Tool.DropDaemon
             BuildXL.Cache.ContentStore.Hashing.ContentHash contentHash;
             if (!BuildXL.Cache.ContentStore.Hashing.ContentHash.TryParse(serializedVsoHash, out contentHash))
             {
-                throw new DropDaemonException("Could not parse content hash: " + serializedVsoHash);
+                throw new DaemonException("Could not parse content hash: " + serializedVsoHash);
             }
 
             return new BlobIdentifier(contentHash.ToHashByteArray());

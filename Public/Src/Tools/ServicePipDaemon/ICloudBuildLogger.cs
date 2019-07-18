@@ -4,7 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.Tracing.CloudBuild;
 
-namespace Tool.DropDaemon
+namespace Tool.ServicePipDaemon
 {
     /// <summary>
     ///     Interface for sending ETW events.

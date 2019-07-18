@@ -592,6 +592,8 @@ namespace Test.BuildXL.Scheduler
             public ProcessInContainerManager ProcessInContainerManager { get; }
 
             public VmInitializer VmInitializer { get; }
+
+            public TempCleaner TempCleaner { get; }
         }
     }
 

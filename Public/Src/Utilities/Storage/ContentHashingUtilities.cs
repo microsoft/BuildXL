@@ -27,9 +27,9 @@ namespace BuildXL.Storage
 
         private static IContentHasher GetContentHasher(HashType hashType)
         {
-            if (hashType == s_hashingAlgorithm.HashType || hashType == HashType.Unknown)
+            if (hashType == HashInfo.HashType || hashType == HashType.Unknown)
             {
-                return s_contentHasher;
+                return s_hasher;
             }
 
             if (!s_contentHasherByHashType.ContainsKey(hashType))

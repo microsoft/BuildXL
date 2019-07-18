@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
@@ -257,61 +258,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 context.Debug($"GetLruPages start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age}, lastAge={last.Age}");
             }
 
-            var pageSize = _configuration.EvictionWindowSize;
-
-            // Priority queue orders by least first. So we compare by last access time to get the least last access time (i.e. oldest) first.
-            var priorityQueue = new PriorityQueue<ContentHashWithLastAccessTimeAndReplicaCount>(
-                pageSize * 2,
-                // Assume that EffectiveLastAccessTime will always have a value.
-                Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value)));
-
             var operationContext = new OperationContext(context);
 
-            var subPageSize = Math.Max(1, pageSize / 10);
+            var pageSize = _configuration.EvictionWindowSize;
 
-            // Content is retrieved in batches of size, PageSize, and then returned in pages of subPageSize=PageSize/10 as long as the queue has >= PageSize elements.
-            // This ensures that we have PageSize amount of lookahead
-            // NOTE: We use RandomSplitInterleave to ensure we select a random set of the newer content. This ensure we at least look at newer content to see if it should be
-            // evicted first due to having a high number of replicas
-            foreach (var page in contentHashesWithInfo.RandomSplitInterleave().GetPages(pageSize))
-            {
-                var pageWithEffectiveLastAccessTimeResult = _localLocationStore.GetEffectiveLastAccessTimes(operationContext, page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime)));
-                IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> lastAccessTimes = pageWithEffectiveLastAccessTimeResult.ThrowIfFailure();
+            // Assume that EffectiveLastAccessTime will always have a value.
+            var comparer = Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value));
 
-                for (int i = 0; i < page.Count; i++)
-                {
-                    priorityQueue.Push(lastAccessTimes[i]);
-                }
+            Func<List<ContentHashWithLastAccessTimeAndReplicaCount>, IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount>> query =
+                page => _localLocationStore.GetEffectiveLastAccessTimes(operationContext, page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime))).ThrowIfFailure();
 
-                if (page.Count != 0)
-                {
-                    var first = page[0];
-                    var last = page[page.Count - 1];
-                    context.Debug($"GetLruPages page.First:(Hash={first.ContentHash.ToShortString()}, Age={first.Age}, EffectiveAge={first.EffectiveAge}), page.Last:(Hash={last.ContentHash.ToShortString()}, Age={last.Age}, EffectiveAge={last.EffectiveAge}), queue.Top:(Age={priorityQueue.Top.Age}, EffectiveAge={priorityQueue.Top.EffectiveAge})");
-                }
+            // We make sure that we select a set of the newer content, to ensure that we at least look at newer content to see if it should be
+            // evicted first due to having a high number of replicas. We do this by looking at the start as well as at middle of the list.
+            var localOldest = contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2).QueryAndOrderInPages(pageSize, comparer, query);
+            var localMid = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).QueryAndOrderInPages(pageSize, comparer, query);
 
-                while (priorityQueue.Count >= pageSize)
-                {
-                    yield return GetPriorityPage(priorityQueue, subPageSize);
-                }
-            }
-
-            while (priorityQueue.Count != 0)
-            {
-                yield return GetPriorityPage(priorityQueue, subPageSize);
-            }
-        }
-
-        private IReadOnlyList<TItem> GetPriorityPage<TItem>(PriorityQueue<TItem> queue, int pageSize)
-        {
-            var page = new List<TItem>(pageSize);
-            for (int i = 0; i < pageSize && queue.Count != 0; i++)
-            {
-                page.Add(queue.Top);
-                queue.Pop();
-            }
-
-            return page;
+            var mergedEnumerables = NuCacheCollectionUtilities.MergeOrdered(localOldest, localMid, comparer);
+            return mergedEnumerables.GetPages(pageSize);
         }
 
         /// <inheritdoc />

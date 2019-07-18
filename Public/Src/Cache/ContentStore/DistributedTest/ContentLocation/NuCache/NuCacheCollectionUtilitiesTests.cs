@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using FluentAssertions;
 using Xunit;
+using System.Collections;
 
 namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 {
@@ -156,6 +157,85 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             }
 
             leftSet.Should().BeEquivalentTo(rightSet, "Diff operation should select out all elements which are different in sets");
+        }
+
+        [Fact]
+        public void TestSplit()
+        {
+            var original = Enumerable.Range(1, 10).ToList();
+            var pages = original.Split(batchSize: 4).ToList();
+
+            pages.Count().Should().Be(3);
+            pages[0].Count().Should().Be(4);
+            pages[1].Count().Should().Be(4);
+            pages[2].Count().Should().Be(2);
+        }
+
+        [Fact]
+        public void TestMergeOrdered()
+        {
+            var arr1 = new int[] { 1, 3, 4, 6, 7, 8 };
+            var arr2 = new int[] { 2, 5, 9, 10, 11 };
+
+            var merged = NuCacheCollectionUtilities.MergeOrdered(arr1, arr2, Comparer<int>.Default).ToList();
+            var i = 1;
+            merged.Count.Should().Be(11);
+            foreach (var element in merged)
+            {
+                element.Should().Be(i++);
+            }
+        }
+
+        [Fact]
+        public void TestQueryAndOrderInPages()
+        {
+            var comparer = Comparer<int>.Default;
+            var pageSize = 2;
+            var queries = 0;
+            Func<IEnumerable<int>, IEnumerable<int>> query = page => { queries++; return page; };
+            var elements = new int[] { 2, 4, 3, 5, 1, 6 };
+            var enumerable = elements.QueryAndOrderInPages(pageSize, comparer, query);
+            var e = enumerable.GetEnumerator();
+
+            // Expected:
+            // Takes 2, 4 and does one query    (Queue: 2,4)
+            // Yields 2                         (Queue: 4)
+            // Takes 3, 5 and does a query      (Queue: 3,4,5)
+            // Yields 3                         (Queue: 4,5)
+            // Yields 4                         (Queue: 5)
+            // Takes 1, 6 and does a query      (Queue: 1,5,6)
+            // Yields 1                         (Queue: 5,6)
+            // Yields 5                         (Queue: 6)
+            // Yields 6                         (Queue: Empty)
+
+            var expectedResult = new int[] { 2, 3, 4, 1, 5, 6 };
+            queries.Should().Be(0);
+
+            e.MoveNext();
+            queries.Should().Be(1);
+            e.Current.Should().Be(expectedResult[0]);
+
+            e.MoveNext();
+            queries.Should().Be(2);
+            e.Current.Should().Be(expectedResult[1]);
+
+            e.MoveNext();
+            queries.Should().Be(2);
+            e.Current.Should().Be(expectedResult[2]);
+
+            e.MoveNext();
+            queries.Should().Be(3);
+            e.Current.Should().Be(expectedResult[3]);
+
+            e.MoveNext();
+            queries.Should().Be(3);
+            e.Current.Should().Be(expectedResult[4]);
+
+            e.MoveNext();
+            queries.Should().Be(3);
+            e.Current.Should().Be(expectedResult[5]);
+
+            e.MoveNext().Should().Be(false);
         }
     }
 }

@@ -179,7 +179,7 @@ namespace BuildXL.Execution.Analyzer
             m_model = new AnalysisModel(CachedGraph);
         }
 
-        protected override void ReadEvents()
+        protected override bool ReadEvents()
         {
             // Do nothing. This analyzer does not read events.
         }

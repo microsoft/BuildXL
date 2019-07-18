@@ -296,7 +296,10 @@ namespace BuildXL.Execution.Analyzer
             simulator.ExecutionData.DataflowGraph = m_mutableGraph;
 
             simulator.OutputDirectory = OutputFilePath;
-            simulator.ReadExecutionLog();
+            if (!simulator.ReadExecutionLog())
+            {
+                Console.Error.WriteLine("ExecutionLog possibly truncated, results may be incomplete!");
+            }
 
             Console.WriteLine($"Simulating [Analyzing]");
             simulator.Analyze();

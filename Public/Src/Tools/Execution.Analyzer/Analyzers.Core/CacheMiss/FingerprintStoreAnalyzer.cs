@@ -179,9 +179,10 @@ namespace BuildXL.Execution.Analyzer
             m_model = new AnalysisModel(CachedGraph);
         }
 
-        protected override void ReadEvents()
+        protected override bool ReadEvents()
         {
             // Do nothing. This analyzer does not read events.
+            return true;
         }
 
         public static string GetStoreLocation(AnalysisInput analysisInput, string storeSuffix = "")
@@ -251,12 +252,12 @@ namespace BuildXL.Execution.Analyzer
 
             if (m_oldReader.StoreVersion != m_newReader.StoreVersion)
             {
-                WriteLine($"WARNING: Format version numbers of the fingerprint store do not match. Old: {m_oldReader.StoreVersion}, New: {m_newReader.StoreVersion}."); 
+                WriteLine($"WARNING: Format version numbers of the fingerprint store do not match. Old: {m_oldReader.StoreVersion}, New: {m_newReader.StoreVersion}.");
             }
 
             if (SemiStableHashToRun != -1)
             {
-                var firstMiss = cacheMissList.FirstOrDefault(x => PipTable.GetPipSemiStableHash(x.PipId) == SemiStableHashToRun);                
+                var firstMiss = cacheMissList.FirstOrDefault(x => PipTable.GetPipSemiStableHash(x.PipId) == SemiStableHashToRun);
                 if (firstMiss.CacheMissType == PipCacheMissType.Invalid)
                 {
                     foreach (var pipId in PipTable.StableKeys)
@@ -312,7 +313,7 @@ namespace BuildXL.Execution.Analyzer
         private void AnalyzePip(PipCacheMissInfo miss, Process pip, TextWriter writer)
         {
             string pipUniqueOutputHashStr = null;
-           
+
             if ((pip as Process).TryComputePipUniqueOutputHash(PathTable, out var pipUniqueOutputHash, m_model.CachedGraph.MountPathExpander))
             {
                 pipUniqueOutputHashStr = pipUniqueOutputHash.ToString();

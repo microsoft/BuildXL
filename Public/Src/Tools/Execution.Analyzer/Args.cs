@@ -337,6 +337,14 @@ namespace BuildXL.Execution.Analyzer
             }
         }
 
+        public static void TruncatedXlgWarning()
+        {
+            ConsoleColor originalColor = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Error.WriteLine("WARNING: Execution log file possibly truncated, results may be incomplete!");
+            Console.ForegroundColor = originalColor;
+        }
+
         public int Analyze()
         {
             if (m_analyzer == null)
@@ -345,14 +353,15 @@ namespace BuildXL.Execution.Analyzer
             }
 
             m_analyzer.Prepare();
+            bool dataIsComplete = true;
             if (m_analysisInput.ExecutionLogPath != null)
             {
                 // NOTE: We call Prepare above so we don't need to prepare as a part of reading the execution log
-                var reader = Task.Run(() => m_analyzer.ReadExecutionLog(prepare: false));
+                var reader = Task.Run(() => dataIsComplete &= m_analyzer.ReadExecutionLog(prepare: false));
                 if (m_mode == AnalysisMode.LogCompare)
                 {
                     m_analyzerOther.Prepare();
-                    var otherReader = Task.Run(() => m_analyzerOther.ReadExecutionLog());
+                    var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
                     otherReader.Wait();
                 }
 
@@ -360,7 +369,7 @@ namespace BuildXL.Execution.Analyzer
                 {
                     var start = DateTime.Now;
                     Console.WriteLine($"[{start}] Reading compare to Log");
-                    var otherReader = Task.Run(() => m_analyzerOther.ReadExecutionLog());
+                    var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
                     otherReader.Wait();
                     var duration = DateTime.Now - start;
                     Console.WriteLine($"Done reading compare to log : duration = [{duration}]");
@@ -371,13 +380,18 @@ namespace BuildXL.Execution.Analyzer
                 if (m_mode == AnalysisMode.CacheMissLegacy)
                 {
                     // First pass just to read in PipCacheMissType data
-                    var otherReader = Task.Run(() => m_analyzerOther.ReadExecutionLog());
+                    var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
                     otherReader.Wait();
 
                     // Second pass to do fingerprint differences analysis
-                    otherReader = Task.Run(() => m_analyzerOther.ReadExecutionLog());
+                    otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
                     otherReader.Wait();
                 }
+            }
+
+            if (!dataIsComplete)
+            {
+                TruncatedXlgWarning();
             }
 
             var exitCode = m_analyzer.Analyze();

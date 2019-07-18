@@ -583,6 +583,8 @@ namespace Test.BuildXL.Scheduler.Utils
 
         public VmInitializer VmInitializer { get; }
 
+        public TempCleaner TempCleaner { get; }
+
         public SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directory)
         {
             if (m_knownSealedSourceDirectoriesAllDirectories.Contains(directory.Path))

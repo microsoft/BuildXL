@@ -41,7 +41,8 @@ namespace BuildXL.Utilities.Instrumentation.Common
         [DllImport(AriaLibName)]
         public static extern IntPtr CreateAriaLogger(
             [MarshalAs(UnmanagedType.LPStr)] string token,
-            [MarshalAs(UnmanagedType.LPStr)] string db);
+            [MarshalAs(UnmanagedType.LPStr)] string db,
+            int teardownTimeoutInSeconds);
 
         /// <nodoc />
         [DllImport(AriaLibName)]

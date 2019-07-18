@@ -11,10 +11,9 @@ import { NetFx } from "Sdk.BuildXL";
 namespace ServicePipDaemon {
 
     @@public
-    export const dll = !BuildXLSdk.isDropToolingEnabled ? undefined : BuildXLSdk.library({
-        assemblyName: "ServicePipDaemon",
-        //rootNamespace: "Tool.ServicePipDaemon",
-        skipDocumentationGeneration: true,        
+    export const dll = !BuildXLSdk.isDaemonToolingEnabled ? undefined : BuildXLSdk.library({
+        assemblyName: "Tool.ServicePipDaemon",
+        rootNamespace: "Tool.ServicePipDaemon",        
         sources: globR(d`.`, "*.cs"),
         references:[
             importFrom("BuildXL.Engine").Scheduler.dll,

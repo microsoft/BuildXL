@@ -26,17 +26,19 @@ namespace Tool.DropDaemon
 
             try
             {
-                Console.WriteLine("DropDaemon started at " + DateTime.UtcNow);
+                Console.WriteLine(nameof(DropDaemon) + " started at " + DateTime.UtcNow);
                 Console.WriteLine(DropDaemon.DropDLogPrefix + "Command line arguments: ");
                 Console.WriteLine(string.Join(Environment.NewLine + DropDaemon.DropDLogPrefix, args));
                 Console.WriteLine();
 
-                ConfiguredCommand conf = ServicePipDaemon.ServicePipDaemon.ParseArgs(args, new UnixParser());
-                if (conf.Command.NeedsIpcClient)
+                DropDaemon.EnsureCommandsInitialized();
+
+                var confCommand = ServicePipDaemon.ServicePipDaemon.ParseArgs(args, new UnixParser());
+                if (confCommand.Command.NeedsIpcClient)
                 {
-                    using (var rpc = CreateClient(conf))
+                    using (var rpc = CreateClient(confCommand))
                     {
-                        var result = conf.Command.ClientAction(conf, rpc);
+                        var result = confCommand.Command.ClientAction(confCommand, rpc);
                         rpc.RequestStop();
                         rpc.Completion.GetAwaiter().GetResult();
                         return result;
@@ -44,7 +46,7 @@ namespace Tool.DropDaemon
                 }
                 else
                 {
-                    return conf.Command.ClientAction(conf, null);
+                    return confCommand.Command.ClientAction(confCommand, null);
                 }
             }
             catch (ArgumentException e)

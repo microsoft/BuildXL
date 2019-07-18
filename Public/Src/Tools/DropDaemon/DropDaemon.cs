@@ -3,28 +3,30 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Tracing.CloudBuild;
+using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Tool.ServicePipDaemon;
-using static Tool.ServicePipDaemon.Statics;
 using static BuildXL.Utilities.FormattableStringEx;
+using static Tool.ServicePipDaemon.Statics;
 
 namespace Tool.DropDaemon
 {
@@ -34,10 +36,6 @@ namespace Tool.DropDaemon
     public sealed class DropDaemon : ServicePipDaemon.ServicePipDaemon, IDisposable, IIpcOperationExecutor
     {
         private const int ServicePointParallelismForDrop = 200;
-        private static readonly int s_minIoThreadsForDrop = Environment.ProcessorCount * 10;
-        private static readonly int s_minWorkerThreadsForDrop = Environment.ProcessorCount * 10;
-
-        internal static readonly List<Option> DropConfigOptions = new List<Option>();
 
         private const string IncludeAllFilter = ".*";
 
@@ -49,6 +47,12 @@ namespace Tool.DropDaemon
         /// <nodoc/>
         public const string DropDLogPrefix = "(DropD) ";
 
+        private static readonly int s_minIoThreadsForDrop = Environment.ProcessorCount * 10;
+
+        private static readonly int s_minWorkerThreadsForDrop = Environment.ProcessorCount * 10;
+
+        internal static readonly List<Option> DropConfigOptions = new List<Option>();
+
         /// <summary>Drop configuration.</summary>
         public DropConfig DropConfig { get; }
 
@@ -59,287 +63,21 @@ namespace Tool.DropDaemon
 
         internal static IEnumerable<Command> SupportedCommands => Commands.Values;
 
-        /// <nodoc />
-        public DropDaemon(IParser parser, DaemonConfig daemonConfig, DropConfig dropConfig, Task<IDropClient> dropClientTask, IIpcProvider rpcProvider = null, Client client = null)
-            : base(parser, 
-                   daemonConfig,
-                   !string.IsNullOrWhiteSpace(dropConfig.LogDir) ? new FileLogger(dropConfig.LogDir, LogFileName, daemonConfig.Moniker, dropConfig.Verbose, DropDLogPrefix) : daemonConfig.Logger,
-                   rpcProvider,
-                   client)
+        #region Options and commands
+
+        internal static readonly StrOption DropServiceConfigFile = RegisterDaemonConfigOption(new StrOption("dropServiceConfigFile")
         {
-            Contract.Requires(dropConfig != null);
-
-            DropConfig = dropConfig;
-            m_logger.Info("Using DropDaemon config: " + JsonConvert.SerializeObject(Config));
-
-            m_dropClientTask = dropClientTask ?? Task.Run(() => (IDropClient)new VsoClient(m_logger, dropConfig));
-        }    
-
-        /// <summary>
-        /// Synchronous version of <see cref="CreateAsync"/>
-        /// </summary>
-        public IIpcResult Create()
-        {
-            return CreateAsync().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        ///     Creates the drop.  Handles drop-related exceptions by omitting their stack traces.
-        ///     In all cases emits an appropriate <see cref="DropCreationEvent"/> indicating the
-        ///     result of this operation.
-        /// </summary>
-        public async Task<IIpcResult> CreateAsync()
-        {
-            DropCreationEvent dropCreationEvent =
-                await SendDropEtwEvent(
-                    WrapDropErrorsIntoDropEtwEvent(InternalCreateAsync));
-
-            return dropCreationEvent.Succeeded
-                ? IpcResult.Success(I($"Drop {DropName} created."))
-                : new IpcResult(IpcResultStatus.ExecutionError, dropCreationEvent.ErrorMessage);
-        }
-
-        /// <summary>
-        ///     Invokes the 'drop addfile' operation by delegating to <see cref="IDropClient.AddFileAsync"/>.
-        ///     Handles drop-related exceptions by omitting their stack traces.
-        /// </summary>
-        public Task<IIpcResult> AddFileAsync(IDropItem dropItem)
-        {
-            return AddFileAsync(dropItem, IsSymLinkOrMountPoint);
-        }
-
-        internal async Task<IIpcResult> AddFileAsync(IDropItem dropItem, Func<string, bool> symlinkTester)
-        {
-            Contract.Requires(dropItem != null);
-
-            // Check if the file is a symlink, only if the file exists on disk at this point; if it is a symlink, reject it outright.
-            if (System.IO.File.Exists(dropItem.FullFilePath) && symlinkTester(dropItem.FullFilePath))
+            ShortName = "c",
+            HelpText = "Drop service configuration file",
+            DefaultValue = null,
+            Expander = (fileName) =>
             {
-                return new IpcResult(IpcResultStatus.ExecutionError, SymlinkAddErrorMessagePrefix + dropItem.FullFilePath);
-            }
+                var json = System.IO.File.ReadAllText(fileName);
+                var jObject = JObject.Parse(json);
+                return jObject.Properties().Select(prop => new ParsedOption(PrefixKind.Long, prop.Name, prop.Value.ToString()));
+            },
+        });
 
-            return await WrapDropErrorsIntoIpcResult(async () =>
-            {
-                IDropClient dropClient = await m_dropClientTask;
-                AddFileResult result = await dropClient.AddFileAsync(dropItem);
-                return IpcResult.Success(I($"File '{dropItem.FullFilePath}' {result} under '{dropItem.RelativeDropPath}' in drop '{DropName}'."));
-            });
-        }
-
-        /// <summary>
-        /// Synchronous version of <see cref="FinalizeAsync"/>
-        /// </summary>
-        public IIpcResult Finalize()
-        {
-            return FinalizeAsync().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Finalizes the drop.  Handles drop-related exceptions by omitting their stack traces.
-        /// In all cases emits an appropriate <see cref="DropFinalizationEvent"/> indicating the
-        /// result of this operation.
-        /// </summary>
-        public async Task<IIpcResult> FinalizeAsync()
-        {
-            var dropFinalizationEvent =
-                await SendDropEtwEvent(
-                    WrapDropErrorsIntoDropEtwEvent(InternalFinalizeAsync));
-
-            return dropFinalizationEvent.Succeeded
-                ? IpcResult.Success(I($"Drop {DropName} finalized"))
-                : new IpcResult(IpcResultStatus.ExecutionError, dropFinalizationEvent.ErrorMessage);
-        }
-
-        /// <inheritdoc />
-        public new void Dispose()
-        {
-            if (m_dropClientTask.IsCompleted && !m_dropClientTask.IsFaulted)
-            {
-                ReportStatisticsAsync().GetAwaiter().GetResult();
-
-                m_dropClientTask.Result.Dispose();
-            }
-
-            base.Dispose();
-        }
-
-        /// <summary>
-        /// Invokes the 'drop create' operation by delegating to <see cref="IDropClient.CreateAsync"/>.
-        ///
-        /// If successful, returns <see cref="DropCreationEvent"/> with <see cref="DropOperationBaseEvent.Succeeded"/>
-        /// set to true, <see cref="DropCreationEvent.DropExpirationInDays"/> set to drop expiration in days,
-        /// and <see cref="DropOperationBaseEvent.AdditionalInformation"/> set to the textual representation
-        /// of the returned <see cref="DropItem"/> object.
-        ///
-        /// Doesn't handle any exceptions.
-        /// </summary>
-        private async Task<DropCreationEvent> InternalCreateAsync()
-        {
-            IDropClient dropClient = await m_dropClientTask;
-            DropItem dropItem = await dropClient.CreateAsync();
-            return new DropCreationEvent()
-            {
-                Succeeded = true,
-                AdditionalInformation = DropItemToString(dropItem),
-                DropExpirationInDays = ComputeDropItemExpiration(dropItem),
-            };
-        }
-
-        /// <summary>
-        /// Invokes the 'drop finalize' operation by delegating to <see cref="IDropClient.FinalizeAsync"/>.
-        ///
-        /// If successful, returns <see cref="DropFinalizationEvent"/> with <see cref="DropOperationBaseEvent.Succeeded"/>
-        /// set to true.
-        ///
-        /// Doesn't handle any exceptions.
-        /// </summary>
-        private async Task<DropFinalizationEvent> InternalFinalizeAsync()
-        {
-            IDropClient dropClient = await m_dropClientTask;
-            await dropClient.FinalizeAsync();
-            return new DropFinalizationEvent()
-            {
-                Succeeded = true,
-            };
-        }
-
-        private async Task ReportStatisticsAsync()
-        {
-            IDropClient dropClient = await m_dropClientTask;
-            var stats = dropClient.GetStats();
-            if (stats != null && stats.Any())
-            {
-                // log stats
-                m_logger.Info("Statistics: ");
-                m_logger.Info(string.Join(Environment.NewLine, stats.Select(s => s.Key + " = " + s.Value)));
-
-                stats.Add(nameof(DropConfig) + nameof(DropConfig.MaxParallelUploads), DropConfig.MaxParallelUploads);
-                stats.Add(nameof(DropConfig) + nameof(DropConfig.NagleTime), (long)DropConfig.NagleTime.TotalMilliseconds);
-                stats.Add(nameof(DropConfig) + nameof(DropConfig.BatchSize), DropConfig.BatchSize);
-                stats.Add(nameof(DropConfig) + nameof(DropConfig.EnableChunkDedup), DropConfig.EnableChunkDedup ? 1 : 0);
-                stats.Add("DaemonConfig" + nameof(Config.MaxConcurrentClients), Config.MaxConcurrentClients);
-                stats.Add("DaemonConfig" + nameof(Config.ConnectRetryDelay), (long)Config.ConnectRetryDelay.TotalMilliseconds);
-                stats.Add("DaemonConfig" + nameof(Config.MaxConnectRetries), Config.MaxConnectRetries);
-
-                stats.AddRange(m_counters.AsStatistics());
-
-                // report stats to BuildXL (if m_client is specified)
-                if (ApiClient != null)
-                {
-                    var possiblyReported = await ApiClient.ReportStatistics(stats);
-                    if (possiblyReported.Succeeded && possiblyReported.Result)
-                    {
-                        m_logger.Info("Statistics successfully reported to BuildXL.");
-                    }
-                    else
-                    {
-                        var errorDescription = possiblyReported.Succeeded ? string.Empty : possiblyReported.Failure.Describe();
-                        m_logger.Warning("Reporting stats to BuildXL failed. " + errorDescription);
-                    }
-                }
-            }
-            else
-            {
-                m_logger.Info("No stats recorded by drop client of type " + dropClient.GetType().Name);
-            }
-        }
-
-        private static Task<IIpcResult> WrapDropErrorsIntoIpcResult(Func<Task<IIpcResult>> factory)
-        {
-            return HandleKnownErrors(
-                factory,
-                (errorMessage) => new IpcResult(IpcResultStatus.ExecutionError, errorMessage));
-        }
-
-        private static Task<TDropEvent> WrapDropErrorsIntoDropEtwEvent<TDropEvent>(Func<Task<TDropEvent>> factory) where TDropEvent : DropOperationBaseEvent
-        {
-            return HandleKnownErrors(
-                factory,
-                (errorMessage) =>
-                {
-                    var dropEvent = Activator.CreateInstance<TDropEvent>();
-                    dropEvent.Succeeded = false;
-                    dropEvent.ErrorMessage = errorMessage;
-                    return dropEvent;
-                });
-        }
-
-        private static async Task<TResult> HandleKnownErrors<TResult>(Func<Task<TResult>> factory, Func<string, TResult> errorValueFactory)
-        {
-            try
-            {
-                return await factory();
-            }
-            catch (VssUnauthorizedException e)
-            {
-                return errorValueFactory("[DROP AUTH ERROR] " + e.Message);
-            }
-            catch (DropServiceException e)
-            {
-                return errorValueFactory("[DROP SERVICE ERROR] " + e.Message);
-            }
-            catch (DaemonException e)
-            {
-                return errorValueFactory("[DAEMON ERROR] " + e.Message);
-            }
-        }
-
-        private static string DropItemToString(DropItem dropItem)
-        {
-            try
-            {
-                return dropItem?.ToJson().ToString();
-            }
-#pragma warning disable ERP022 // TODO: This should really handle specific errors
-            catch
-            {
-                return null;
-            }
-#pragma warning restore ERP022 // Unobserved exception in generic exception handler
-        }
-
-        private static int ComputeDropItemExpiration(DropItem dropItem)
-        {
-            DateTime? expirationDate;
-            return dropItem.TryGetExpirationTime(out expirationDate) || expirationDate.HasValue
-                ? (int)expirationDate.Value.Subtract(DateTime.UtcNow).TotalDays
-                : -1;
-        }
-
-        private async Task<T> SendDropEtwEvent<T>(Task<T> task) where T : DropOperationBaseEvent
-        {
-            long startTime = DateTime.UtcNow.Ticks;
-            T dropEvent = null;
-            try
-            {
-                dropEvent = await task;
-                return dropEvent;
-            }
-            finally
-            {
-                // if 'task' failed, create an event indicating an error
-                if (dropEvent == null)
-                {
-                    dropEvent = Activator.CreateInstance<T>();
-                    dropEvent.Succeeded = false;
-                    dropEvent.ErrorMessage = "internal error";
-                }
-
-                // common properties: execution time, drop type, drop url
-                dropEvent.ElapsedTimeTicks = DateTime.UtcNow.Ticks - startTime;
-                dropEvent.DropType = "VsoDrop";
-                if (m_dropClientTask.IsCompleted && !m_dropClientTask.IsFaulted)
-                {
-                    dropEvent.DropUrl = (await m_dropClientTask).DropUrl;
-                }
-
-                // send event
-                m_etwLogger.Log(dropEvent);
-            }
-        }
-
-        #region Config options and commands
-        
         internal static readonly StrOption DropNameOption = RegisterDropConfigOption(new StrOption("name")
         {
             ShortName = "n",
@@ -466,7 +204,7 @@ namespace Tool.DropDaemon
             HelpText = "Directory content filter (only files that match the filter will be added to drop).",
             DefaultValue = null,
             IsRequired = false,
-            IsMultiValue = false,
+            IsMultiValue = true,
         };
 
         internal static readonly Command StartNoDropCmd = RegisterCommand(
@@ -621,6 +359,299 @@ namespace Tool.DropDaemon
             });
 
         #endregion
+
+        /// <nodoc />
+        public DropDaemon(IParser parser, DaemonConfig daemonConfig, DropConfig dropConfig, Task<IDropClient> dropClientTask, IIpcProvider rpcProvider = null, Client client = null)
+            : base(parser,
+                   daemonConfig,
+                   !string.IsNullOrWhiteSpace(dropConfig.LogDir) ? new FileLogger(dropConfig.LogDir, LogFileName, daemonConfig.Moniker, dropConfig.Verbose, DropDLogPrefix) : daemonConfig.Logger,
+                   rpcProvider,
+                   client)
+        {
+            Contract.Requires(dropConfig != null);
+
+            DropConfig = dropConfig;
+            m_logger.Info("Using DropDaemon config: " + JsonConvert.SerializeObject(Config));
+
+            m_dropClientTask = dropClientTask ?? Task.Run(() => (IDropClient)new VsoClient(m_logger, dropConfig));
+        }
+
+        internal static void EnsureCommandsInitialized()
+        {
+            Contract.Assert(Commands != null);
+
+            // these operations are quite expensive, however, we expect to call this method only once per drop, so it should cause any perf downgrade
+            var numCommandsBase = typeof(ServicePipDaemon.ServicePipDaemon).GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static).Where(f => f.FieldType == typeof(Command)).Count();
+            var numCommandsDropD = typeof(DropDaemon).GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static).Where(f => f.FieldType == typeof(Command)).Count();
+
+            if (Commands.Count != numCommandsBase + numCommandsDropD)
+            {
+                Contract.Assert(false, $"Commands were not properly initialized (# of initialized commands = {Commands.Count}; # of ServicePipDaemon commands = {numCommandsBase}; # of DropDaemon commands = {numCommandsDropD}");
+            }
+        }
+
+        /// <summary>
+        /// Synchronous version of <see cref="CreateAsync"/>
+        /// </summary>
+        public IIpcResult Create()
+        {
+            return CreateAsync().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        ///     Creates the drop.  Handles drop-related exceptions by omitting their stack traces.
+        ///     In all cases emits an appropriate <see cref="DropCreationEvent"/> indicating the
+        ///     result of this operation.
+        /// </summary>
+        public async Task<IIpcResult> CreateAsync()
+        {
+            DropCreationEvent dropCreationEvent =
+                await SendDropEtwEvent(
+                    WrapDropErrorsIntoDropEtwEvent(InternalCreateAsync));
+
+            return dropCreationEvent.Succeeded
+                ? IpcResult.Success(I($"Drop {DropName} created."))
+                : new IpcResult(IpcResultStatus.ExecutionError, dropCreationEvent.ErrorMessage);
+        }
+
+        /// <summary>
+        ///     Invokes the 'drop addfile' operation by delegating to <see cref="IDropClient.AddFileAsync"/>.
+        ///     Handles drop-related exceptions by omitting their stack traces.
+        /// </summary>
+        public Task<IIpcResult> AddFileAsync(IDropItem dropItem)
+        {
+            return AddFileAsync(dropItem, IsSymLinkOrMountPoint);
+        }
+
+        internal async Task<IIpcResult> AddFileAsync(IDropItem dropItem, Func<string, bool> symlinkTester)
+        {
+            Contract.Requires(dropItem != null);
+
+            // Check if the file is a symlink, only if the file exists on disk at this point; if it is a symlink, reject it outright.
+            if (System.IO.File.Exists(dropItem.FullFilePath) && symlinkTester(dropItem.FullFilePath))
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, SymlinkAddErrorMessagePrefix + dropItem.FullFilePath);
+            }
+
+            return await WrapDropErrorsIntoIpcResult(async () =>
+            {
+                IDropClient dropClient = await m_dropClientTask;
+                AddFileResult result = await dropClient.AddFileAsync(dropItem);
+                return IpcResult.Success(I($"File '{dropItem.FullFilePath}' {result} under '{dropItem.RelativeDropPath}' in drop '{DropName}'."));
+            });
+        }
+
+        /// <summary>
+        /// Synchronous version of <see cref="FinalizeAsync"/>
+        /// </summary>
+        public IIpcResult Finalize()
+        {
+            return FinalizeAsync().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Finalizes the drop.  Handles drop-related exceptions by omitting their stack traces.
+        /// In all cases emits an appropriate <see cref="DropFinalizationEvent"/> indicating the
+        /// result of this operation.
+        /// </summary>
+        public async Task<IIpcResult> FinalizeAsync()
+        {
+            var dropFinalizationEvent =
+                await SendDropEtwEvent(
+                    WrapDropErrorsIntoDropEtwEvent(InternalFinalizeAsync));
+
+            return dropFinalizationEvent.Succeeded
+                ? IpcResult.Success(I($"Drop {DropName} finalized"))
+                : new IpcResult(IpcResultStatus.ExecutionError, dropFinalizationEvent.ErrorMessage);
+        }
+
+        /// <inheritdoc />
+        public new void Dispose()
+        {
+            if (m_dropClientTask.IsCompleted && !m_dropClientTask.IsFaulted)
+            {
+                ReportStatisticsAsync().GetAwaiter().GetResult();
+
+                m_dropClientTask.Result.Dispose();
+            }
+
+            base.Dispose();
+        }
+
+        /// <summary>
+        /// Invokes the 'drop create' operation by delegating to <see cref="IDropClient.CreateAsync"/>.
+        ///
+        /// If successful, returns <see cref="DropCreationEvent"/> with <see cref="DropOperationBaseEvent.Succeeded"/>
+        /// set to true, <see cref="DropCreationEvent.DropExpirationInDays"/> set to drop expiration in days,
+        /// and <see cref="DropOperationBaseEvent.AdditionalInformation"/> set to the textual representation
+        /// of the returned <see cref="DropItem"/> object.
+        ///
+        /// Doesn't handle any exceptions.
+        /// </summary>
+        private async Task<DropCreationEvent> InternalCreateAsync()
+        {
+            IDropClient dropClient = await m_dropClientTask;
+            DropItem dropItem = await dropClient.CreateAsync();
+            return new DropCreationEvent()
+            {
+                Succeeded = true,
+                AdditionalInformation = DropItemToString(dropItem),
+                DropExpirationInDays = ComputeDropItemExpiration(dropItem),
+            };
+        }
+
+        /// <summary>
+        /// Invokes the 'drop finalize' operation by delegating to <see cref="IDropClient.FinalizeAsync"/>.
+        ///
+        /// If successful, returns <see cref="DropFinalizationEvent"/> with <see cref="DropOperationBaseEvent.Succeeded"/>
+        /// set to true.
+        ///
+        /// Doesn't handle any exceptions.
+        /// </summary>
+        private async Task<DropFinalizationEvent> InternalFinalizeAsync()
+        {
+            IDropClient dropClient = await m_dropClientTask;
+            await dropClient.FinalizeAsync();
+            return new DropFinalizationEvent()
+            {
+                Succeeded = true,
+            };
+        }
+
+        private async Task ReportStatisticsAsync()
+        {
+            IDropClient dropClient = await m_dropClientTask;
+            var stats = dropClient.GetStats();
+            if (stats != null && stats.Any())
+            {
+                // log stats
+                m_logger.Info("Statistics: ");
+                m_logger.Info(string.Join(Environment.NewLine, stats.Select(s => s.Key + " = " + s.Value)));
+
+                stats.Add(nameof(DropConfig) + nameof(DropConfig.MaxParallelUploads), DropConfig.MaxParallelUploads);
+                stats.Add(nameof(DropConfig) + nameof(DropConfig.NagleTime), (long)DropConfig.NagleTime.TotalMilliseconds);
+                stats.Add(nameof(DropConfig) + nameof(DropConfig.BatchSize), DropConfig.BatchSize);
+                stats.Add(nameof(DropConfig) + nameof(DropConfig.EnableChunkDedup), DropConfig.EnableChunkDedup ? 1 : 0);
+                stats.Add(nameof(DaemonConfig) + nameof(Config.MaxConcurrentClients), Config.MaxConcurrentClients);
+                stats.Add(nameof(DaemonConfig) + nameof(Config.ConnectRetryDelay), (long)Config.ConnectRetryDelay.TotalMilliseconds);
+                stats.Add(nameof(DaemonConfig) + nameof(Config.MaxConnectRetries), Config.MaxConnectRetries);
+
+                stats.AddRange(m_counters.AsStatistics());
+
+                // report stats to BuildXL (if m_client is specified)
+                if (ApiClient != null)
+                {
+                    var possiblyReported = await ApiClient.ReportStatistics(stats);
+                    if (possiblyReported.Succeeded && possiblyReported.Result)
+                    {
+                        m_logger.Info("Statistics successfully reported to BuildXL.");
+                    }
+                    else
+                    {
+                        var errorDescription = possiblyReported.Succeeded ? string.Empty : possiblyReported.Failure.Describe();
+                        m_logger.Warning("Reporting stats to BuildXL failed. " + errorDescription);
+                    }
+                }
+            }
+            else
+            {
+                m_logger.Info("No stats recorded by drop client of type " + dropClient.GetType().Name);
+            }
+        }
+
+        private static Task<IIpcResult> WrapDropErrorsIntoIpcResult(Func<Task<IIpcResult>> factory)
+        {
+            return HandleKnownErrors(
+                factory,
+                (errorMessage) => new IpcResult(IpcResultStatus.ExecutionError, errorMessage));
+        }
+
+        private static Task<TDropEvent> WrapDropErrorsIntoDropEtwEvent<TDropEvent>(Func<Task<TDropEvent>> factory) where TDropEvent : DropOperationBaseEvent
+        {
+            return HandleKnownErrors(
+                factory,
+                (errorMessage) =>
+                {
+                    var dropEvent = Activator.CreateInstance<TDropEvent>();
+                    dropEvent.Succeeded = false;
+                    dropEvent.ErrorMessage = errorMessage;
+                    return dropEvent;
+                });
+        }
+
+        private static async Task<TResult> HandleKnownErrors<TResult>(Func<Task<TResult>> factory, Func<string, TResult> errorValueFactory)
+        {
+            try
+            {
+                return await factory();
+            }
+            catch (VssUnauthorizedException e)
+            {
+                return errorValueFactory("[DROP AUTH ERROR] " + e.Message);
+            }
+            catch (DropServiceException e)
+            {
+                return errorValueFactory("[DROP SERVICE ERROR] " + e.Message);
+            }
+            catch (DaemonException e)
+            {
+                return errorValueFactory("[DAEMON ERROR] " + e.Message);
+            }
+        }
+
+        private static string DropItemToString(DropItem dropItem)
+        {
+            try
+            {
+                return dropItem?.ToJson().ToString();
+            }
+#pragma warning disable ERP022 // TODO: This should really handle specific errors
+            catch
+            {
+                return null;
+            }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+        }
+
+        private static int ComputeDropItemExpiration(DropItem dropItem)
+        {
+            DateTime? expirationDate;
+            return dropItem.TryGetExpirationTime(out expirationDate) || expirationDate.HasValue
+                ? (int)expirationDate.Value.Subtract(DateTime.UtcNow).TotalDays
+                : -1;
+        }
+
+        private async Task<T> SendDropEtwEvent<T>(Task<T> task) where T : DropOperationBaseEvent
+        {
+            long startTime = DateTime.UtcNow.Ticks;
+            T dropEvent = null;
+            try
+            {
+                dropEvent = await task;
+                return dropEvent;
+            }
+            finally
+            {
+                // if 'task' failed, create an event indicating an error
+                if (dropEvent == null)
+                {
+                    dropEvent = Activator.CreateInstance<T>();
+                    dropEvent.Succeeded = false;
+                    dropEvent.ErrorMessage = "internal error";
+                }
+
+                // common properties: execution time, drop type, drop url
+                dropEvent.ElapsedTimeTicks = DateTime.UtcNow.Ticks - startTime;
+                dropEvent.DropType = "VsoDrop";
+                if (m_dropClientTask.IsCompleted && !m_dropClientTask.IsFaulted)
+                {
+                    dropEvent.DropUrl = (await m_dropClientTask).DropUrl;
+                }
+
+                // send event
+                m_etwLogger.Log(dropEvent);
+            }
+        }
 
         internal static DropConfig CreateDropConfig(ConfiguredCommand conf)
         {

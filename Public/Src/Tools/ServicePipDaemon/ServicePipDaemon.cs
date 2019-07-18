@@ -3,28 +3,20 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Threading;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
-using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
-using Microsoft.Diagnostics.Tracing;
-using Microsoft.Diagnostics.Tracing.Parsers;
-using Microsoft.Diagnostics.Tracing.Session;
-using Newtonsoft.Json.Linq;
-using static Tool.ServicePipDaemon.Statics;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace Tool.ServicePipDaemon
@@ -34,8 +26,11 @@ namespace Tool.ServicePipDaemon
     /// </summary>
     public abstract class ServicePipDaemon : IDisposable, IIpcOperationExecutor
     {
-        public static readonly IIpcProvider IpcProvider = IpcFactory.GetProvider();
-        internal static readonly List<Option> DaemonConfigOptions = new List<Option>();       
+        internal static readonly IIpcProvider IpcProvider = IpcFactory.GetProvider();
+        internal static readonly List<Option> DaemonConfigOptions = new List<Option>();
+
+        /// <summary>Initialized commands</summary>
+        protected static readonly Dictionary<string, Command> Commands = new Dictionary<string, Command>();
 
         private const string LogFileName = "ServiceDaemon";
 
@@ -52,14 +47,264 @@ namespace Tool.ServicePipDaemon
         [CanBeNull]
         public Client ApiClient { get; }
 
+        /// <nodoc />
         protected readonly ICloudBuildLogger m_etwLogger;
+
+        /// <nodoc />
         protected readonly IServer m_server;
+
+        /// <nodoc />
         protected readonly IParser m_parser;
 
+        /// <nodoc />
         protected readonly ILogger m_logger;
 
         /// <nodoc />
+        protected readonly CounterCollection<DaemonCounter> m_counters = new CounterCollection<DaemonCounter>();
+
+        /// <nodoc />
+        protected enum DaemonCounter
+        {
+            /// <nodoc/>
+            [CounterType(CounterType.Stopwatch)]
+            ParseArgsDuration,
+
+            /// <nodoc/>
+            [CounterType(CounterType.Stopwatch)]
+            ServerActionDuration,
+
+            /// <nodoc/>
+            QueueDurationMs,
+        }
+
+        /// <nodoc />
         public ILogger Logger => m_logger;
+
+        #region Options and commands 
+
+        /// <nodoc />
+        public static readonly StrOption Moniker = RegisterDaemonConfigOption(new StrOption("moniker")
+        {
+            ShortName = "m",
+            HelpText = "Moniker to identify client/server communication",
+        });
+
+        /// <nodoc />
+        public static readonly IntOption MaxConcurrentClients = RegisterDaemonConfigOption(new IntOption("maxConcurrentClients")
+        {
+            HelpText = "OBSOLETE due to the hardcoded config. (Maximum number of clients to serve concurrently)",
+            DefaultValue = DaemonConfig.DefaultMaxConcurrentClients,
+        });
+
+        /// <nodoc />
+        public static readonly IntOption MaxConnectRetries = RegisterDaemonConfigOption(new IntOption("maxConnectRetries")
+        {
+            HelpText = "Maximum number of retries to establish a connection with a running daemon",
+            DefaultValue = DaemonConfig.DefaultMaxConnectRetries,
+        });
+
+        /// <nodoc />
+        public static readonly IntOption ConnectRetryDelayMillis = RegisterDaemonConfigOption(new IntOption("connectRetryDelayMillis")
+        {
+            HelpText = "Delay between consecutive retries to establish a connection with a running daemon",
+            DefaultValue = (int)DaemonConfig.DefaultConnectRetryDelay.TotalMilliseconds,
+        });
+
+        /// <nodoc />
+        public static readonly BoolOption ShellExecute = RegisterDaemonConfigOption(new BoolOption("shellExecute")
+        {
+            HelpText = "Use shell execute to start the daemon process (a shell window will be created and displayed)",
+            DefaultValue = false,
+        });
+
+        /// <nodoc />
+        public static readonly BoolOption StopOnFirstFailure = RegisterDaemonConfigOption(new BoolOption("stopOnFirstFailure")
+        {
+            HelpText = "Daemon process should terminate after first failed operation (e.g., 'drop create' fails because the drop already exists).",
+            DefaultValue = DaemonConfig.DefaultStopOnFirstFailure,
+        });
+
+        /// <nodoc />
+        public static readonly BoolOption EnableCloudBuildIntegration = RegisterDaemonConfigOption(new BoolOption("enableCloudBuildIntegration")
+        {
+            ShortName = "ecb",
+            HelpText = "Enable logging ETW events for CloudBuild to pick up",
+            DefaultValue = DaemonConfig.DefaultEnableCloudBuildIntegration,
+        });
+
+        /// <nodoc />
+        public static readonly BoolOption Verbose = RegisterDaemonConfigOption(new BoolOption("verbose")
+        {
+            ShortName = "v",
+            HelpText = "Verbose logging",
+            IsRequired = false,
+            DefaultValue = false,
+        });
+
+        /// <nodoc />
+        public static readonly StrOption LogDir = RegisterDaemonConfigOption(new StrOption("logDir")
+        {
+            ShortName = "log",
+            HelpText = "Log directory",
+            IsRequired = false
+        });
+
+        /// <nodoc />
+        public static readonly StrOption File = new StrOption("file")
+        {
+            ShortName = "f",
+            HelpText = "File path",
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
+        /// <nodoc />
+        public static readonly StrOption IpcServerMonikerRequired = new StrOption("ipcServerMoniker")
+        {
+            ShortName = "dm",
+            HelpText = "IPC moniker identifying a running BuildXL IPC server",
+            IsRequired = true,
+        };
+
+        /// <nodoc />
+        public static readonly StrOption HelpNoNameOption = new StrOption(string.Empty)
+        {
+            HelpText = "Command name",
+        };
+
+        /// <nodoc />
+        public static readonly StrOption IpcServerMonikerOptional = new StrOption(longName: IpcServerMonikerRequired.LongName)
+        {
+            ShortName = IpcServerMonikerRequired.ShortName,
+            HelpText = IpcServerMonikerRequired.HelpText,
+            IsRequired = false,
+        };
+
+        /// <nodoc />
+        protected static T RegisterOption<T>(List<Option> options, T option) where T : Option
+        {
+            options.Add(option);
+            return option;
+        }
+
+        /// <nodoc />
+        protected static T RegisterDaemonConfigOption<T>(T option) where T : Option => RegisterOption(DaemonConfigOptions, option);
+
+        /// <remarks>
+        /// The <see cref="DaemonConfigOptions"/> options are added to every command.
+        /// A non-mandatory string option "name" is added as well, which operation
+        /// commands may want to use to explicitly specify a particular end point name
+        /// (e.g., the target drop name).
+        /// </remarks>
+        public static Command RegisterCommand(
+            string name,
+            IEnumerable<Option> options = null,
+            ServerAction serverAction = null,
+            ClientAction clientAction = null,
+            string description = null,
+            bool needsIpcClient = true,
+            bool addDaemonConfigOptions = true)
+        {
+            var opts = (options ?? new Option[0]).ToList();
+            if (addDaemonConfigOptions)
+            {
+                opts.AddRange(DaemonConfigOptions);
+            }
+
+            if (!opts.Exists(opt => opt.LongName == "name"))
+            {
+                opts.Add(new Option(longName: "name")
+                {
+                    ShortName = "n",
+                });
+            }
+
+            var cmd = new Command(name, opts, serverAction, clientAction, description, needsIpcClient);
+            Commands[cmd.Name] = cmd;
+            return cmd;
+        }
+
+        /// <nodoc />
+        protected static readonly Command HelpCmd = RegisterCommand(
+            name: "help",
+            description: "Prints a help message (usage).",
+            options: new[] { HelpNoNameOption },
+            needsIpcClient: false,
+            clientAction: (conf, rpc) =>
+            {
+                string cmdName = conf.Get(HelpNoNameOption);
+                bool cmdNotSpecified = string.IsNullOrWhiteSpace(cmdName);
+                if (cmdNotSpecified)
+                {
+                    Console.WriteLine(Usage());
+                    return 0;
+                }
+
+                Command requestedHelpForCommand;
+                var requestedCommandFound = Commands.TryGetValue(cmdName, out requestedHelpForCommand);
+                if (requestedCommandFound)
+                {
+                    Console.WriteLine(requestedHelpForCommand.Usage(conf.Config.Parser));
+                    return 0;
+                }
+                else
+                {
+                    Console.WriteLine(Usage());
+                    return 1;
+                }
+            });
+
+        /// <nodoc />
+        public static readonly Command StopDaemonCmd = RegisterCommand(
+            name: "stop",
+            description: "[RPC] Stops the daemon process running on specified port; fails if no such daemon is running.",
+            clientAction: AsyncRPCSend,
+            serverAction: (conf, daemon) =>
+            {
+                conf.Logger.Info("[STOP] requested");
+                daemon.RequestStop();
+                return Task.FromResult(IpcResult.Success());
+            });
+
+        /// <nodoc />
+        public static readonly Command CrashDaemonCmd = RegisterCommand(
+            name: "crash",
+            description: "[RPC] Stops the server process by crashing it.",
+            clientAction: AsyncRPCSend,
+            serverAction: (conf, daemon) =>
+            {
+                daemon.Logger.Info("[CRASH] requested");
+                Environment.Exit(-1);
+                return Task.FromResult(IpcResult.Success());
+            });
+
+        /// <nodoc />
+        public static readonly Command PingDaemonCmd = RegisterCommand(
+            name: "ping",
+            description: "[RPC] Pings the daemon process.",
+            clientAction: SyncRPCSend,
+            serverAction: (conf, daemon) =>
+            {
+                daemon.Logger.Info("[PING] received");
+                return Task.FromResult(IpcResult.Success("Alive!"));
+            });
+
+        /// <nodoc />
+        public static readonly Command TestReadFile = RegisterCommand(
+            name: "test-readfile",
+            description: "[RPC] Sends a request to the daemon to read a file.",
+            options: new Option[] { File },
+            clientAction: SyncRPCSend,
+            serverAction: (conf, daemon) =>
+            {
+                daemon.Logger.Info("[READFILE] received");
+                var result = IpcResult.Success(System.IO.File.ReadAllText(conf.Get(File)));
+                daemon.Logger.Info("[READFILE] succeeded");
+                return Task.FromResult(result);
+            });
+
+        #endregion
+
 
         /// <nodoc />
         public ServicePipDaemon(IParser parser, DaemonConfig daemonConfig, ILogger logger, IIpcProvider rpcProvider = null, Client client = null)
@@ -103,7 +348,7 @@ namespace Tool.ServicePipDaemon
         {
             RequestStop();
             return Completion;
-        }    
+        }
 
         /// <inheritdoc />
         public void Dispose()
@@ -111,22 +356,6 @@ namespace Tool.ServicePipDaemon
             m_server.Dispose();
             ApiClient?.Dispose();
             m_logger.Dispose();
-        }       
-
-        protected readonly CounterCollection<DaemonCounter> m_counters = new CounterCollection<DaemonCounter>();
-
-        protected enum DaemonCounter
-        {
-            /// <nodoc/>
-            [CounterType(CounterType.Stopwatch)]
-            ParseArgsDuration,
-
-            /// <nodoc/>
-            [CounterType(CounterType.Stopwatch)]
-            ServerActionDuration,
-
-            /// <nodoc/>
-            QueueDurationMs,
         }
 
         private async Task<IIpcResult> ParseAndExecuteCommand(IIpcOperation operation)
@@ -140,10 +369,11 @@ namespace Tool.ServicePipDaemon
             }
 
             IIpcResult result;
-            using (m_counters.StartStopwatch(DaemonCounter.ServerActionDuration))
+            using (var duration = m_counters.StartStopwatch(DaemonCounter.ServerActionDuration))
             {
-                 result = await conf.Command.ServerAction(conf, this);
-            }
+                result = await conf.Command.ServerAction(conf, this); 
+                result.ActionDuration = duration.Elapsed;
+            }            
 
             TimeSpan queueDuration = operation.Timestamp.Daemon_BeforeExecuteTime - operation.Timestamp.Daemon_AfterReceivedTime;
             m_counters.AddToCounter(DaemonCounter.QueueDurationMs, (long)queueDuration.TotalMilliseconds);
@@ -158,231 +388,17 @@ namespace Tool.ServicePipDaemon
             return ParseAndExecuteCommand(operation);
         }
 
-        #region Config options and commands 
-
-        protected static readonly Dictionary<string, Command> Commands = new Dictionary<string, Command>();
-
-        public static readonly StrOption Moniker = RegisterDaemonConfigOption(new StrOption("moniker")
-        {
-            ShortName = "m",
-            HelpText = "Moniker to identify client/server communication",
-        });
-
-        public static readonly IntOption MaxConcurrentClients = RegisterDaemonConfigOption(new IntOption("maxConcurrentClients")
-        {
-            HelpText = "OBSOLETE due to the hardcoded config. (Maximum number of clients to serve concurrently)",
-            DefaultValue = DaemonConfig.DefaultMaxConcurrentClients,
-        });
-
-        public static readonly IntOption MaxConnectRetries = RegisterDaemonConfigOption(new IntOption("maxConnectRetries")
-        {
-            HelpText = "Maximum number of retries to establish a connection with a running daemon",
-            DefaultValue = DaemonConfig.DefaultMaxConnectRetries,
-        });
-
-        public static readonly IntOption ConnectRetryDelayMillis = RegisterDaemonConfigOption(new IntOption("connectRetryDelayMillis")
-        {
-            HelpText = "Delay between consecutive retries to establish a connection with a running daemon",
-            DefaultValue = (int)DaemonConfig.DefaultConnectRetryDelay.TotalMilliseconds,
-        });
-
-        public static readonly BoolOption ShellExecute = RegisterDaemonConfigOption(new BoolOption("shellExecute")
-        {
-            HelpText = "Use shell execute to start the daemon process (a shell window will be created and displayed)",
-            DefaultValue = false,
-        });
-
-        public static readonly BoolOption StopOnFirstFailure = RegisterDaemonConfigOption(new BoolOption("stopOnFirstFailure")
-        {
-            HelpText = "Daemon process should terminate after first failed operation (e.g., 'drop create' fails because the drop already exists).",
-            DefaultValue = DaemonConfig.DefaultStopOnFirstFailure,
-        });
-
-        public static readonly BoolOption EnableCloudBuildIntegration = RegisterDaemonConfigOption(new BoolOption("enableCloudBuildIntegration")
-        {
-            ShortName = "ecb",
-            HelpText = "Enable logging ETW events for CloudBuild to pick up",
-            DefaultValue = DaemonConfig.DefaultEnableCloudBuildIntegration,
-        });
-
-        public static readonly BoolOption Verbose = RegisterDaemonConfigOption(new BoolOption("verbose")
-        {
-            ShortName = "v",
-            HelpText = "Verbose logging",
-            IsRequired = false,
-            DefaultValue = false,
-        });
-
-        public static readonly StrOption DropServiceConfigFile = RegisterDaemonConfigOption(new StrOption("dropServiceConfigFile")
-        {
-            ShortName = "c",
-            HelpText = "Drop service configuration file",
-            DefaultValue = null,
-            Expander = (fileName) =>
-            {
-                var json = System.IO.File.ReadAllText(fileName);
-                var jObject = JObject.Parse(json);
-                return jObject.Properties().Select(prop => new ParsedOption(PrefixKind.Long, prop.Name, prop.Value.ToString()));
-            },
-        });
-
-        public static readonly StrOption LogDir = RegisterDaemonConfigOption(new StrOption("logDir")
-        {
-            ShortName = "log",
-            HelpText = "Log directory",
-            IsRequired = false
-        });
-
-        public static readonly StrOption File = new StrOption("file")
-        {
-            ShortName = "f",
-            HelpText = "File path",
-            IsRequired = false,
-            IsMultiValue = true,
-        };
-
-        public static readonly StrOption IpcServerMonikerRequired = new StrOption("ipcServerMoniker")
-        {
-            ShortName = "dm",
-            HelpText = "IPC moniker identifying a running BuildXL IPC server",
-            IsRequired = true,
-        };
-
-        public static readonly StrOption HelpNoNameOption = new StrOption(string.Empty)
-        {
-            HelpText = "Command name",
-        };
-
-        public static readonly StrOption IpcServerMonikerOptional = new StrOption(
-            longName: IpcServerMonikerRequired.LongName)
-        {
-            ShortName = IpcServerMonikerRequired.ShortName,
-            HelpText = IpcServerMonikerRequired.HelpText,
-            IsRequired = false,
-        };
-
-        protected static T RegisterOption<T>(List<Option> options, T option) where T : Option
-        {
-            options.Add(option);
-            return option;
-        }
-
-        protected static T RegisterDaemonConfigOption<T>(T option) where T : Option => RegisterOption(DaemonConfigOptions, option);
-
-        /// <remarks>
-        /// The <see cref="DaemonConfigOptions"/> options are added to every command.
-        /// A non-mandatory string option "name" is added as well, which drop operation
-        /// commands may want to use to explicitly specify the target drop name.
-        /// </remarks>
-        public static Command RegisterCommand(
-            string name,
-            IEnumerable<Option> options = null,
-            ServerAction serverAction = null,
-            ClientAction clientAction = null,
-            string description = null,
-            bool needsIpcClient = true,
-            bool addDaemonConfigOptions = true)
-        {
-            var opts = (options ?? new Option[0]).ToList();
-            if (addDaemonConfigOptions)
-            {
-                opts.AddRange(DaemonConfigOptions);
-            }
-
-            if (!opts.Exists(opt => opt.LongName == "name"))
-            {
-                opts.Add(new Option(longName: "name")
-                {
-                    ShortName = "n",
-                });
-            }
-
-            var cmd = new Command(name, opts, serverAction, clientAction, description, needsIpcClient);
-            Commands[cmd.Name] = cmd;
-            return cmd;
-        }
-
-        protected static readonly Command HelpCmd = RegisterCommand(
-            name: "help",
-            description: "Prints a help message (usage).",
-            options: new[] { HelpNoNameOption },
-            needsIpcClient: false,
-            clientAction: (conf, rpc) =>
-            {
-                string cmdName = conf.Get(HelpNoNameOption);
-                bool cmdNotSpecified = string.IsNullOrWhiteSpace(cmdName);
-                if (cmdNotSpecified)
-                {
-                    Console.WriteLine(Usage());
-                    return 0;
-                }
-
-                Command requestedHelpForCommand;
-                var requestedCommandFound = Commands.TryGetValue(cmdName, out requestedHelpForCommand);
-                if (requestedCommandFound)
-                {
-                    Console.WriteLine(requestedHelpForCommand.Usage(conf.Config.Parser));
-                    return 0;
-                }
-                else
-                {
-                    Console.WriteLine(Usage());
-                    return 1;
-                }
-            });
-
-        public static readonly Command StopDaemonCmd = RegisterCommand(
-            name: "stop",
-            description: "[RPC] Stops the daemon process running on specified port; fails if no such daemon is running.",
-            clientAction: AsyncRPCSend,
-            serverAction: (conf, daemon) =>
-            {
-                conf.Logger.Info("[STOP] requested");
-                daemon.RequestStop();
-                return Task.FromResult(IpcResult.Success());
-            });
-
-        public static readonly Command CrashDaemonCmd = RegisterCommand(
-            name: "crash",
-            description: "[RPC] Stops the server process by crashing it.",
-            clientAction: AsyncRPCSend,
-            serverAction: (conf, daemon) =>
-            {
-                daemon.Logger.Info("[CRASH] requested");
-                Environment.Exit(-1);
-                return Task.FromResult(IpcResult.Success());
-            });
-
-        public static readonly Command PingDaemonCmd = RegisterCommand(
-            name: "ping",
-            description: "[RPC] Pings the daemon process.",
-            clientAction: SyncRPCSend,
-            serverAction: (conf, daemon) =>
-            {
-                daemon.Logger.Info("[PING] received");
-                return Task.FromResult(IpcResult.Success("Alive!"));
-            });
-
-        public static readonly Command TestReadFile = RegisterCommand(
-            name: "test-readfile",
-            description: "[RPC] Sends a request to the daemon to read a file.",
-            options: new Option[] { File },
-            clientAction: SyncRPCSend,
-            serverAction: (conf, daemon) =>
-            {
-                daemon.Logger.Info("[READFILE] received");
-                var result = IpcResult.Success(System.IO.File.ReadAllText(conf.Get(File)));
-                daemon.Logger.Info("[READFILE] succeeded");
-                return Task.FromResult(result);
-            });
-
-        #endregion
-
+        /// <summary>
+        /// Parses a string and returns a ConfiguredCommand.
+        /// </summary>        
         public static ConfiguredCommand ParseArgs(string allArgs, IParser parser, ILogger logger = null, bool ignoreInvalidOptions = false)
         {
             return ParseArgs(parser.SplitArgs(allArgs), parser, logger, ignoreInvalidOptions);
         }
 
+        /// <summary>
+        /// Parses a list of arguments and returns a ConfiguredCommand.
+        /// </summary>  
         public static ConfiguredCommand ParseArgs(string[] args, IParser parser, ILogger logger = null, bool ignoreInvalidOptions = false)
         {
             var usageMessage = Lazy.Create(() => "Usage:" + Environment.NewLine + Usage());
@@ -408,6 +424,9 @@ namespace Tool.ServicePipDaemon
             return new ConfiguredCommand(cmd, conf, logger);
         }
 
+        /// <summary>
+        /// Creates DaemonConfig using the values specified on the ConfiguredCommand
+        /// </summary>        
         public static DaemonConfig CreateDaemonConfig(ConfiguredCommand conf)
         {
             return new DaemonConfig(
@@ -419,6 +438,9 @@ namespace Tool.ServicePipDaemon
                 enableCloudBuildIntegration: conf.Get(EnableCloudBuildIntegration));
         }
 
+        /// <summary>
+        /// Creates anIPC client using the config from a ConfiguredCommand
+        /// </summary>        
         public static IClient CreateClient(ConfiguredCommand conf)
         {
             var daemonConfig = CreateDaemonConfig(conf);
@@ -437,10 +459,13 @@ namespace Tool.ServicePipDaemon
             return builder.ToString();
         }
 
+        /// <nodoc />
         protected static int SyncRPCSend(ConfiguredCommand conf, IClient rpc) => RPCSend(conf, rpc, true);
 
+        /// <nodoc />
         protected static int AsyncRPCSend(ConfiguredCommand conf, IClient rpc) => RPCSend(conf, rpc, false);
 
+        /// <nodoc />
         protected static int RPCSend(ConfiguredCommand conf, IClient rpc, bool isSync)
         {
             var rpcResult = RPCSendCore(conf, rpc, isSync);
@@ -473,66 +498,5 @@ namespace Tool.ServicePipDaemon
         ///     Reconstructs a full command line corresponding to a <see cref="ConfiguredCommand"/>.
         /// </summary>
         private static string ToPayload(ConfiguredCommand cmd) => ToPayload(cmd.Command.Name, cmd.Config);
-
-        public static int SubscribeAndProcessCloudBuildEvents()
-        {
-            if (!(TraceEventSession.IsElevated() ?? false))
-            {
-                Error("Not elevated; exiting");
-                return -1;
-            }
-
-            // BuildXL.Tracing.ETWLogger guid
-            if (!Guid.TryParse("43b71382-88db-5427-89d5-0b46476f8ef4", out Guid guid))
-            {
-                Error("Could not parse guid; exiting");
-                return -1;
-            }
-
-            Console.WriteLine("Listening for cloud build events");
-
-            // Create an unique session
-            string sessionName = "DropDaemon ETW Session";
-
-            // the null second parameter means 'real time session'
-            using (TraceEventSession traceEventSession = new TraceEventSession(sessionName, null))
-            {
-                // Note that sessions create a OS object (a session) that lives beyond the lifetime of the process
-                // that created it (like Files), thus you have to be more careful about always cleaning them up.
-                // An importantly way you can do this is to set the 'StopOnDispose' property which will cause
-                // the session to
-                // stop (and thus the OS object will die) when the TraceEventSession dies.   Because we used a 'using'
-                // statement, this means that any exception in the code below will clean up the OS object.
-                traceEventSession.StopOnDispose = true;
-                traceEventSession.EnableProvider(guid, matchAnyKeywords: (ulong)Keywords.CloudBuild);
-
-                // Prepare to read from the session, connect the ETWTraceEventSource to the session
-                using (ETWTraceEventSource etwTraceEventSource = new ETWTraceEventSource(
-                    sessionName,
-                    TraceEventSourceType.Session))
-                {
-                    DynamicTraceEventParser dynamicTraceEventParser = new DynamicTraceEventParser(etwTraceEventSource);
-                    dynamicTraceEventParser.All += traceEvent =>
-                    {
-                        Possible<CloudBuildEvent, Failure> possibleEvent = CloudBuildEvent.TryParse(traceEvent);
-
-                        if (!possibleEvent.Succeeded)
-                        {
-                            Error(possibleEvent.Failure.ToString());
-                            return;
-                        }
-
-                        CloudBuildEvent eventObj = possibleEvent.Result;
-                        Console.WriteLine("*** Event received: " + eventObj.Kind);
-                    };
-
-                    etwTraceEventSource.Process();
-                }
-            }
-
-            Console.WriteLine("FINISHED");
-            Thread.Sleep(100000);
-            return 0;
-        }
     }
 }

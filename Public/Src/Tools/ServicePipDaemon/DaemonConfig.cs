@@ -12,11 +12,13 @@ namespace Tool.ServicePipDaemon
     /// </summary>
     public sealed class DaemonConfig : IServerConfig, IClientConfig
     {
-        // <nodoc />
+        /// <nodoc/>
         public ILogger Logger { get; }
 
+        /// <inheritdoc/>
         ILogger IServerConfig.Logger => Logger;
 
+        /// <inheritdoc/>
         ILogger IClientConfig.Logger => Logger;
 
         #region ConfigOptions

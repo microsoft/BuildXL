@@ -86,15 +86,11 @@ export function install(args: Arguments) : Result {
 
     if (useAuthenticatedPackageFeed && Context.getCurrentHost().os === "win") {
 
-        if (Environment.hasVariable("NUGET_CREDENTIALPROVIDERS_PATH")) {
-            const nugetCredentialProviderPath = Environment.getDirectoryValue("NUGET_CREDENTIALPROVIDERS_PATH");
-        
+        if (Environment.hasVariable("NUGET_CREDENTIALPROVIDERS_PATH")) {       
             const nugetCredentialProviderArguments = {
                 arguments: [Cmd.argument(Artifact.input(f`yarnWithNugetCredentialProvider.js`))].prependWhenMerged(),
-                environmentVariables: [{name: "NUGET_CREDENTIALPROVIDERS_PATH", value: nugetCredentialProviderPath.path}],
                 unsafe: {
                     untrackedScopes: [
-                        nugetCredentialProviderPath,
                         d`${Context.getMount("ProgramData").path}/microsoft/netFramework`, // Most cred providers are managed code so need these folders... 
                         d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetFlushCache`, // Windows uses this location as a certificate cache
                         d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetUrlCache`,
@@ -107,16 +103,6 @@ export function install(args: Arguments) : Result {
             };
 
             credentialProviderArguments = credentialProviderArguments.merge(nugetCredentialProviderArguments);
-        }
-
-        if (Environment.hasVariable("QAUTHMATERIALROOT")) {
-            const qAuthMaterialRoot = Environment.getDirectoryValue("QAUTHMATERIALROOT");
-
-            const qAuthMaterial = {
-                environmentVariables: [{name: "QAUTHMATERIALROOT", value: qAuthMaterialRoot.path}],
-            };
-
-            credentialProviderArguments = credentialProviderArguments.merge(qAuthMaterial);
         }
 
         credentialProviderArguments = credentialProviderArguments.merge({

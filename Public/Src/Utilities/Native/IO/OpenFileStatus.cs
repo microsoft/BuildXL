@@ -101,5 +101,13 @@ namespace BuildXL.Native.IO
                 || status == OpenFileStatus.CannotAccessFile
                 || status == OpenFileStatus.BadPathname;
         }
+
+        /// <summary>
+        /// Whether the status is one that implies other process blocking the handle.
+        /// </summary>
+        public static bool ImpliesOtherProcessBlockingHandle(this OpenFileStatus status)
+        {
+            return status == OpenFileStatus.SharingViolation || status == OpenFileStatus.AccessDenied;
+        }
     }
 }

@@ -98,6 +98,7 @@ namespace BuildXL.Execution.Analyzer
         protected override bool ReadEvents()
         {
             // Do nothing. This analyzer does not read events.
+            return true;
         }
 
         /// <summary>

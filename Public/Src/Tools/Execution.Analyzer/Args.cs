@@ -337,6 +337,14 @@ namespace BuildXL.Execution.Analyzer
             }
         }
 
+        public static void TruncatedXlgWarning()
+        {
+            ConsoleColor originalColor = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Error.WriteLine("WARNING: Execution log file possibly truncated, results may be incomplete!");
+            Console.ForegroundColor = originalColor;
+        }
+
         public int Analyze()
         {
             if (m_analyzer == null)
@@ -383,7 +391,7 @@ namespace BuildXL.Execution.Analyzer
 
             if (!dataIsComplete)
             {
-                Console.Error.WriteLine("ExecutionLog possibly truncated, results may be incomplete!");
+                TruncatedXlgWarning();
             }
 
             var exitCode = m_analyzer.Analyze();

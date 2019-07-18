@@ -298,7 +298,7 @@ namespace BuildXL.Execution.Analyzer
             simulator.OutputDirectory = OutputFilePath;
             if (!simulator.ReadExecutionLog())
             {
-                Console.Error.WriteLine("ExecutionLog possibly truncated, results may be incomplete!");
+                Args.TruncatedXlgWarning();
             }
 
             Console.WriteLine($"Simulating [Analyzing]");

@@ -288,20 +288,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                 return maybePlaced.Failure.Annotate(diagnostic);
             }
 
-            return maybePlaced.Then(p => {
-                // TODO:58494: Occasionally we see odd behavior where materialization seems to succeed, but the file is not present in the file system
-                //             layer. This check tries to see if the file exits after successful materialization and fails if it doesn't.
-                if (!FileUtilities.FileExistsNoFollow(pathForCache))
-                {
-                    return new Failure<string>(string.Format(
-                                CultureInfo.InvariantCulture,
-                                "The file '{0}' with content hash '{1}' was materialzed successfully, but can't be found on disk",
-                                pathForCache,
-                                contentHash));
-                }
-
-                return new Possible<Unit, Failure>(Unit.Void);
-            });
+            return maybePlaced.Then(p => Unit.Void);
         }
 
         /// <inheritdoc />

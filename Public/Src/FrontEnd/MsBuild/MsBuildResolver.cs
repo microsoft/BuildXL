@@ -158,7 +158,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 m_host, 
                 result.ModuleDefinition, 
                 m_msBuildResolverSettings, 
-                result.MsBuildExeLocation, 
+                result.MsBuildLocation, 
+                result.DotNetExeLocation,
                 m_frontEndName, 
                 m_msBuildWorkspaceResolver.UserDefinedEnvironment, 
                 m_msBuildWorkspaceResolver.UserDefinedPassthroughVariables);

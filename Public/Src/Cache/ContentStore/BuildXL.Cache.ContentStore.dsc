@@ -4,6 +4,7 @@
 
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
+import * as MemoizationStore from "BuildXL.Cache.MemoizationStore";
 
 export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451;
 

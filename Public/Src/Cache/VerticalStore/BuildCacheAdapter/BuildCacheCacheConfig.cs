@@ -111,7 +111,10 @@ namespace BuildXL.Cache.BuildCacheAdapter
                 HttpSendTimeoutMinutes = HttpSendTimeoutMinutes,
                 DownloadBlobsThroughBlobStore = DownloadBlobsThroughBlobStore,
                 UseDedupStore = UseDedupStore,
-                OverrideUnixFileAccessMode = OverrideUnixFileAccessMode
+                OverrideUnixFileAccessMode = OverrideUnixFileAccessMode,
+                ImplicitPin = ImplicitPin,
+                IgnorePinThresholdHours = IgnorePinThresholdHours,
+                PinInlineThresholdMinutes = PinInlineThresholdMinutes
             };
         }
     }

@@ -15,13 +15,16 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.MemoizationStore.Interfaces.Results;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Threading;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using Unit = BuildXL.Utilities.Tasks.Unit;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -36,7 +39,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private const string ActiveStoreSlotFileName = "activeSlot.txt";
         private StoreSlot _activeSlot = StoreSlot.Slot1;
         private string _storeLocation;
-        private readonly string _activeSlotFilePath;
+        private readonly string _activeSlotFilePath;        
+
+        private static readonly byte[] EmptyBytes = CollectionUtilities.EmptyArray<byte>();
 
         private enum StoreSlot
         {
@@ -44,9 +49,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Slot2
         }
 
+        /// <summary>
+        /// There's multiple column families in this usage of RocksDB.
+        ///
+        /// The default column family is used to store a <see cref="ContentHash"/> to <see cref="ContentLocationEntry"/> mapping, which has been
+        /// the usage since this started.
+        ///
+        /// All others are documented below.
+        /// </summary>
         private enum Columns
         {
-            ClusterState
+            ClusterState,
+            /// <summary>
+            /// Stores mapping from <see cref="StrongFingerprint"/> to a <see cref="ContentHashList"/>. This allows us
+            /// to look up via a <see cref="Fingerprint"/>, or a <see cref="StrongFingerprint"/>. The only reason we
+            /// can look up by <see cref="Fingerprint"/> is that it is stored as a prefix to the
+            /// <see cref="StrongFingerprint"/>.
+            ///
+            /// This serves all of CaChaaS' needs for storage, modulo garbage collection.
+            /// </summary>
+            Metadata
         }
 
         private enum ClusterStateKeys
@@ -97,7 +119,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Info(context, $"Creating rocksdb store at '{storeLocation}'.");
 
                 var possibleStore = KeyValueStoreAccessor.Open(storeLocation,
-                    additionalColumns: new[] { nameof(ClusterState) });
+                    additionalColumns: new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) });
                 if (possibleStore.Succeeded)
                 {
                     var oldKeyValueStore = _keyValueStore;
@@ -326,7 +348,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     keyBuffer.Add(DeserializeKey(key));
                                     startValue = key;
 
-                                    if (keyBuffer.Count == KeysChunkSize )
+                                    if (keyBuffer.Count == KeysChunkSize)
                                     {
                                         cts.Cancel();
                                     }
@@ -338,7 +360,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
 
                     }).ThrowOnError();
-                
+
                 if (keyBuffer.Count == 0)
                 {
                     break;
@@ -362,7 +384,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             while (!token.IsCancellationRequested)
             {
                 keyBuffer.Clear();
-                
+
                 _keyValueStore.Use(
                     store =>
                     {
@@ -388,7 +410,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     byte[] value = null;
                                     if (filter != null && filter(value = iterator.Value()))
                                     {
-                                        keyBuffer.Add((DeserializeKey(key ?? iterator.Key()), Deserialize(value)));
+                                        keyBuffer.Add((DeserializeKey(key ?? iterator.Key()), DeserializeContentLocationEntry(value)));
                                     }
 
                                     if (keyBuffer.Count == KeysChunkSize)
@@ -436,7 +458,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ContentLocationEntry result = null;
             if (store.TryGetValue(db.GetKey(hash), out var data))
             {
-                result = db.Deserialize(data);
+                result = db.DeserializeContentLocationEntry(data);
             }
 
             return result;
@@ -465,7 +487,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             store.ApplyBatch(
                 pairs.Select(pair => db.GetKey(pair.Key)),
-                pairs.Select(pair => pair.Value != null ? db.Serialize(pair.Value) : null));
+                pairs.Select(pair => pair.Value != null ? db.SerializeContentLocationEntry(pair.Value) : null));
             return Unit.Void;
         }
 
@@ -478,7 +500,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         // NOTE: This should remain static to avoid allocations in Store
         private static Unit SaveToDbHelper(ShortHash hash, ContentLocationEntry entry, IBuildXLKeyValueStore store, RocksDbContentLocationDatabase db)
         {
-            var value = db.Serialize(entry);
+            var value = db.SerializeContentLocationEntry(entry);
             store.Put(db.GetKey(hash), value);
 
             return Unit.Void;
@@ -507,10 +529,250 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return hash.ToByteArray();
         }
 
+        // TODO(jubayard): garbage collection / removal in general
+
+        /// <inheritdoc />
+        public override GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
+        {
+            return context.PerformOperation(
+                Tracer,
+                () =>
+                {
+                    var key = GetMetadataKey(strongFingerprint);
+                    ContentHashListWithDeterminism? result = null;
+                    var status = _keyValueStore.Use(
+                        store =>
+                        {
+                            if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
+                            {
+                                result = DeserializeContentHashList(data);
+                                // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
+                                // hashes exist. Moreover, we can prune content.
+                            }
+                        });
+
+                    if (!status.Succeeded)
+                    {
+                        return new GetContentHashListResult(status.Failure.CreateException());
+                    }
+
+                    if (result is null)
+                    {
+                        return new GetContentHashListResult(EmptyContentHashList(CacheDeterminism.None));
+                    }
+
+                    return new GetContentHashListResult(result.Value);
+                }, Counters[ContentLocationDatabaseCounters.GetContentHashList]);
+        }
+
+        /// <summary>
+        /// Fine-grained locks that used for all operations that mutate Metadata records.
+        /// </summary>
+        private readonly object[] _metadataLocks = Enumerable.Range(0, byte.MaxValue + 1).Select(s => new object()).ToArray();
+
+        /// <summary>
+        /// Runs an atomic compare-exchange operation on content hash lists
+        /// </summary>
+        public Possible<bool> CompareExchange(
+            OperationContext context,
+            StrongFingerprint strongFingerprint,
+            ContentHashListWithDeterminism expected,
+            ContentHashListWithDeterminism replacement)
+        {
+            return _keyValueStore.Use(
+                store =>
+                {
+                    var key = GetMetadataKey(strongFingerprint);
+
+                    lock (_metadataLocks[key[0]])
+                    {
+                        if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
+                        {
+                            var current = DeserializeContentHashList(data);
+
+                            if (!current.Equals(expected))
+                            {
+                                return false;
+                            }
+                        }
+
+                        store.Put(key, SerializeContentHashList(replacement), nameof(Columns.Metadata));
+                    }
+
+                    return true;
+                });
+        }
+        
+        /// <inheritdoc />
+        public override AddOrGetContentHashListResult AddOrGetContentHashList(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism)
+        {
+            return context.PerformOperation(
+                Tracer,
+                () =>
+                {
+                    // We do multiple attempts here because we have a "CompareExchange" RocksDB in the heart
+                    // of this implementation, and this may fail if the database is heavily contended.
+                    // Unfortunately, there is not much we can do at the time of writing to avoid this
+                    // requirement.
+                    var maxAttempts = 5;
+                    while (maxAttempts-- >= 0)
+                    {
+                        // TODO(jubayard): RocksDB supports transactional semantics that would make this logic better
+                        var contentHashList = contentHashListWithDeterminism.ContentHashList;
+                        var determinism = contentHashListWithDeterminism.Determinism;
+
+                        // Load old value
+                        var oldContentHashListWithDeterminism = GetContentHashList(context, strongFingerprint);
+                        var oldContentHashList = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.ContentHashList;
+                        var oldDeterminism = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.Determinism;
+
+                        // Make sure we're not mixing SinglePhaseNonDeterminism records
+                        if (!(oldContentHashList is null) &&
+                                    oldDeterminism.IsSinglePhaseNonDeterministic != determinism.IsSinglePhaseNonDeterministic)
+                        {
+                            return AddOrGetContentHashListResult.SinglePhaseMixingError;
+                        }
+
+                        if (oldContentHashList is null || oldDeterminism.ShouldBeReplacedWith(determinism) ||
+                                    !IsContentAvailable(context, oldContentHashList))
+                        {
+                            // Replace if incoming has better determinism or some content for the existing
+                            // entry is missing. The entry could have changed since we fetched the old value
+                            // earlier, hence, we need to check it hasn't.
+                            var exchanged = CompareExchange(
+                                context,
+                                strongFingerprint,
+                                oldContentHashListWithDeterminism.ContentHashListWithDeterminism,
+                                contentHashListWithDeterminism).ThrowOnError();
+                            if (!exchanged)
+                            {
+                                // Our update lost, need to retry
+                                continue;
+                            }
+
+                            return new AddOrGetContentHashListResult(EmptyContentHashList(determinism));
+                        }
+
+                        // If we didn't accept the new value because it is the same as before, just with a not
+                        // necessarily better determinism, then let the user know.
+                        if (!(oldContentHashList is null) && oldContentHashList.Equals(contentHashList))
+                        {
+                            return new AddOrGetContentHashListResult(EmptyContentHashList(oldDeterminism));
+                        }
+
+                        // If we didn't accept a deterministic tool's data, then we're in an inconsistent state
+                        if (determinism.IsDeterministicTool)
+                        {
+                            return new AddOrGetContentHashListResult(
+                                AddOrGetContentHashListResult.ResultCode.InvalidToolDeterminismError,
+                                oldContentHashListWithDeterminism.ContentHashListWithDeterminism);
+                        }
+
+                        // If we did not accept the given value, return the value in the cache
+                        return new AddOrGetContentHashListResult(oldContentHashListWithDeterminism);
+                    }
+
+                    return new AddOrGetContentHashListResult("Hit too many races attempting to add content hash list into the cache");
+                }, Counters[ContentLocationDatabaseCounters.AddOrGetContentHashList]);
+        }
+        
+        private ContentHashListWithDeterminism EmptyContentHashList(CacheDeterminism determinism)
+        {
+            return new ContentHashListWithDeterminism(null, determinism);
+        }
+
+        /// <inheritdoc />
+        public override IEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context)
+        {
+            var result = new List<StructResult<StrongFingerprint>>();
+            var status = _keyValueStore.Use(
+                store =>
+                {
+                    foreach (var kvp in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
+                    {
+                        var strongFingerprint = DeserializeStrongFingerprint(kvp.Key);
+                        result.Add(StructResult.Create(strongFingerprint));
+                    }
+
+                    return result;
+                });
+
+            if (!status.Succeeded)
+            {
+                result.Add(new StructResult<StrongFingerprint>(status.Failure.CreateException()));
+            }
+
+            return result;
+        }
+
+        private bool IsContentAvailable(OperationContext context, ContentHashList contentHashList)
+        {
+            // TODO(jubayard): implement. Since this needs to pin stuff, we need it to happen in a higher layer.
+            return true;
+        }
+
+        /// <inheritdoc />
+        public override IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
+        {
+            var result = new List<GetSelectorResult>();
+
+            var status = _keyValueStore.Use(
+                store =>
+                {
+                    var key = SerializeWeakFingerprint(weakFingerprint);
+
+                    // This only works because the strong fingerprint serializes the weak fingerprint first. Hence,
+                    // we know that all keys here are strong fingerprints that match the weak fingerprint.
+                    foreach (var kvp in store.PrefixSearch(key, columnFamilyName: nameof(Columns.Metadata)))
+                    {
+                        var strongFingerprint = DeserializeStrongFingerprint(kvp.Key);
+                        result.Add(new GetSelectorResult(strongFingerprint.Selector));
+                    }
+                });
+
+            if (!status.Succeeded)
+            {
+                result.Add(new GetSelectorResult(status.Failure.CreateException()));
+            }
+
+            return result;
+        }
+
+        private byte[] SerializeWeakFingerprint(Fingerprint weakFingerprint)
+        {
+            return SerializeCore(weakFingerprint, (instance, writer) => instance.Serialize(writer));
+        }
+
+        private byte[] SerializeStrongFingerprint(StrongFingerprint strongFingerprint)
+        {
+            return SerializeCore(strongFingerprint, (instance, writer) => instance.Serialize(writer));
+        }
+
+        private StrongFingerprint DeserializeStrongFingerprint(byte[] bytes)
+        {
+            return DeserializeCore(bytes, reader => StrongFingerprint.Deserialize(reader));
+        }
+
+        private byte[] SerializeContentHashList(ContentHashListWithDeterminism value)
+        {
+            return SerializeCore(value, (instance, writer) => instance.Serialize(writer));
+        }
+
+        private ContentHashListWithDeterminism DeserializeContentHashList(byte[] data)
+        {
+            return DeserializeCore(data, reader => ContentHashListWithDeterminism.Deserialize(reader));
+        }
+
+        private byte[] GetMetadataKey(StrongFingerprint strongFingerprint)
+        {
+            return SerializeStrongFingerprint(strongFingerprint);
+        }
+
         private class KeyValueStoreGuard : IDisposable
         {
             private KeyValueStoreAccessor _accessor;
-            private readonly ReadWriteLock _rwLock = ReadWriteLock.Create();
+            private readonly ReadWriteLock _accessorLock = ReadWriteLock.Create();
+            private readonly SemaphoreSlim _writeLock = new SemaphoreSlim(1, 1);
 
             public KeyValueStoreGuard(KeyValueStoreAccessor accessor)
             {
@@ -519,7 +781,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public void Dispose()
             {
-                using (_rwLock.AcquireWriteLock())
+                using (_accessorLock.AcquireWriteLock())
                 {
                     _accessor.Dispose();
                 }
@@ -527,7 +789,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public void Replace(KeyValueStoreAccessor accessor)
             {
-                using (_rwLock.AcquireWriteLock())
+                using (_accessorLock.AcquireWriteLock())
                 {
                     _accessor.Dispose();
                     _accessor = accessor;
@@ -536,7 +798,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public Possible<TResult> Use<TState, TResult>(Func<IBuildXLKeyValueStore, TState, TResult> action, TState state)
             {
-                using (_rwLock.AcquireReadLock())
+                using (_accessorLock.AcquireReadLock())
                 {
                     return _accessor.Use(action, state);
                 }
@@ -544,7 +806,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public Possible<Unit> Use(Action<IBuildXLKeyValueStore> action)
             {
-                using (_rwLock.AcquireReadLock())
+                using (_accessorLock.AcquireReadLock())
+                {
+                    return _accessor.Use(action);
+                }
+            }
+
+            public Possible<TResult> Use<TResult>(Func<IBuildXLKeyValueStore, TResult> action)
+            {
+                using (_accessorLock.AcquireReadLock())
                 {
                     return _accessor.Use(action);
                 }

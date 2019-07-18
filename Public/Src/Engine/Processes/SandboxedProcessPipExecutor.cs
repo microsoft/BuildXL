@@ -18,6 +18,7 @@ using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
+using BuildXL.Processes.Internal;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -867,8 +868,6 @@ namespace BuildXL.Processes
                 TranslateHostSharedUncDrive(info);
             }
 
-            // Preparation should be finished.
-            sandboxPrepTime.Stop();
             ISandboxedProcess process = null;
 
             try
@@ -876,6 +875,14 @@ namespace BuildXL.Processes
                 var externalSandboxedProcessExecutor = new ExternalToolSandboxedProcessExecutor(Path.Combine(
                     m_layoutConfiguration.BuildEngineDirectory.ToString(m_context.PathTable),
                     ExternalToolSandboxedProcessExecutor.DefaultToolRelativePath));
+
+                foreach (var scope in externalSandboxedProcessExecutor.UntrackedScopes)
+                {
+                    AddUntrackedScopeToManifest(AbsolutePath.Create(m_pathTable, scope), info.FileAccessManifest);
+                }
+
+                // Preparation should be finished.
+                sandboxPrepTime.Stop();
 
                 if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalTool)
                 {
@@ -1607,7 +1614,7 @@ namespace BuildXL.Processes
             // Untrack the globally untracked paths specified in the configuration     
             foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
             {
-                // translate the path and untrack the translated one                
+                // Translate the path and untrack the translated one                
                 if (m_fileAccessManifest.DirectoryTranslator != null)
                 {
                     var pathString = path.ToString(m_pathTable);
@@ -1616,13 +1623,21 @@ namespace BuildXL.Processes
 
                     if (path != translatedPath)
                     {
-                        m_fileAccessManifest.AddScope(translatedPath, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                        AddUntrackedScopeToManifest(translatedPath);
                         Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString);
                     }
-                }               
+                }
 
-                // untrack the original path
-                m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                // Untrack the original path
+                AddUntrackedScopeToManifest(path);
+            }
+
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                var binaryPaths = new BinaryPaths();
+
+                AddUntrackedScopeToManifest(AbsolutePath.Create(m_pathTable, binaryPaths.DllDirectoryX64));
+                AddUntrackedScopeToManifest(AbsolutePath.Create(m_pathTable, binaryPaths.DllDirectoryX86));
             }
 
             // For some static system mounts (currently only for AppData\Roaming) we allow CreateDirectory requests for all processes.
@@ -1690,6 +1705,16 @@ namespace BuildXL.Processes
             return true;
         }
 
+        private void AddUntrackedScopeToManifest(AbsolutePath path, FileAccessManifest manifest = null) => (manifest ?? m_fileAccessManifest).AddScope(
+            path,
+            mask: m_excludeReportAccessMask,
+            values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+
+        private void AddUntrackedPathToManifest(AbsolutePath path, FileAccessManifest manifest = null) => (manifest ?? m_fileAccessManifest).AddPath(
+            path,
+            mask: m_excludeReportAccessMask,
+            values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+
         private void AllowCreateDirectoryForDirectoriesOnPath(AbsolutePath path, HashSet<AbsolutePath> processedPaths, bool startWithParent = true)
         {
             Contract.Assert(path.IsValid);
@@ -1756,20 +1781,20 @@ namespace BuildXL.Processes
                     // (they should never fail for untracked accesses, which should be invisible).
 
                     // We allow the real input timestamp to be seen for untracked paths. This is to preserve existing behavior, where the timestamp of untracked stuff is never modified.
-                    m_fileAccessManifest.AddPath(path, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps, mask: m_excludeReportAccessMask);
+                    AddUntrackedPathToManifest(path);
                     AllowCreateDirectoryForDirectoriesOnPath(path, processedPaths);
 
                     var correspondingPath = CreatePathForActualRedirectedUserProfilePair(path, userProfilePath, redirectedUserProfilePath);
                     if (correspondingPath.IsValid)
                     {
-                        m_fileAccessManifest.AddPath(correspondingPath, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps, mask: m_excludeReportAccessMask);
+                        AddUntrackedPathToManifest(correspondingPath);
                         AllowCreateDirectoryForDirectoriesOnPath(correspondingPath, processedPaths);
                     }
 
                     // Untrack real logs directory if the redirected one is untracked.
                     if (m_loggingConfiguration != null && m_loggingConfiguration.RedirectedLogsDirectory.IsValid && m_loggingConfiguration.RedirectedLogsDirectory == path)
                     {
-                        m_fileAccessManifest.AddPath(m_loggingConfiguration.LogsDirectory, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps, mask: m_excludeReportAccessMask);
+                        AddUntrackedPathToManifest(m_loggingConfiguration.LogsDirectory);
                         AllowCreateDirectoryForDirectoriesOnPath(m_loggingConfiguration.LogsDirectory, processedPaths);
                     }
                 }
@@ -1782,20 +1807,20 @@ namespace BuildXL.Processes
 
                     // The default mask for untracked scopes is to not report anything.
                     // We block input timestamp faking for untracked scopes. This is to preserve existing behavior, where the timestamp of untracked stuff is never modified.
-                    m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                    AddUntrackedScopeToManifest(path);
                     AllowCreateDirectoryForDirectoriesOnPath(path, processedPaths);
 
                     var correspondingPath = CreatePathForActualRedirectedUserProfilePair(path, userProfilePath, redirectedUserProfilePath);
                     if (correspondingPath.IsValid)
                     {
-                        m_fileAccessManifest.AddScope(correspondingPath, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps, mask: m_excludeReportAccessMask);
+                        AddUntrackedScopeToManifest(correspondingPath);
                         AllowCreateDirectoryForDirectoriesOnPath(correspondingPath, processedPaths);
                     }
 
                     // Untrack real logs directory if the redirected one is untracked.
                     if (m_loggingConfiguration != null && m_loggingConfiguration.RedirectedLogsDirectory.IsValid && m_loggingConfiguration.RedirectedLogsDirectory == path)
                     {
-                        m_fileAccessManifest.AddScope(m_loggingConfiguration.LogsDirectory, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                        AddUntrackedScopeToManifest(m_loggingConfiguration.LogsDirectory);
                         AllowCreateDirectoryForDirectoriesOnPath(m_loggingConfiguration.LogsDirectory, processedPaths);
                     }
                 }

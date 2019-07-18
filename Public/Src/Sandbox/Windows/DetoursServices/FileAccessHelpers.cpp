@@ -28,6 +28,7 @@ AccessCheckResult AccessCheckResult::DenyOrWarn(::RequestedAccess requestedAcces
         ReportAnyAccess(true) ? ReportLevel::Report : ReportLevel::Ignore);
 }
 
+// CODESYNC: BuildXL.Native.IO.Windows.FileSystemWin.IsHresultNonesixtent (in FileSystem.Win.cs)
 static bool IsPathNonexistent(DWORD error)
 {
     // The particular error depends on if a final or non-final path component was not found.
@@ -39,7 +40,8 @@ static bool IsPathNonexistent(DWORD error)
     return error == ERROR_PATH_NOT_FOUND ||
            error == ERROR_FILE_NOT_FOUND ||
            error == ERROR_NOT_READY ||
-           error == FVE_E_LOCKED_VOLUME;
+           error == FVE_E_LOCKED_VOLUME ||
+           error == ERROR_BAD_PATHNAME;
 }
 
 void FileReadContext::InferExistenceFromError(DWORD error) {

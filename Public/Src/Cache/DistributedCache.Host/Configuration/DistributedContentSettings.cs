@@ -171,6 +171,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public long MaxBlobCapacity { get; set; } = 1024 * 1024 * 1024;
 
+        /// <summary>
+        /// Indicates the window size for executing eviction.
+        /// </summary>
+        [DataMember]
+        public int EvictionWindowSize { get; set; } = 500;
+
         #region Grpc Copier
         /// <summary>
         /// Use GRPC for file copies between CASaaS.
@@ -357,6 +363,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public string AzureStorageSecretName { get; set; }
+
+        [DataMember]
+        public bool AzureBlobStorageUseSasTokens { get; set; } = false;
 
         [DataMember]
         public string EventHubEpoch { get; set; } = ".LLS_V1.2";

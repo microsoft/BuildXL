@@ -80,7 +80,7 @@ export class Pips extends AsyncBuildPage<BuildRouteParams, PipResults, LocalStat
     }
 
 
-    private _onSemiStableHashChanged = (newValue: string) => {
+    private _onSemiStableHashChanged = (ev: React.FormEvent<HTMLInputElement>, newValue: string) => {
         let local = this.state.local;
         if (local.filterSemiStableHash === newValue) {
             return;
@@ -93,7 +93,7 @@ export class Pips extends AsyncBuildPage<BuildRouteParams, PipResults, LocalStat
         });
     }
 
-    private _onDescriptionChanged = (newValue: string) => {
+    private _onDescriptionChanged = (ev: React.FormEvent<HTMLInputElement>, newValue: string) => {
         let local = this.state.local;
         if (local.filterDescription === newValue) {
             return;
@@ -128,7 +128,7 @@ export class Pips extends AsyncBuildPage<BuildRouteParams, PipResults, LocalStat
                             <TextField
                                 placeholder="SemiStableHash"
                                 value={this.state.local.filterSemiStableHash}
-                                onChanged={this._onSemiStableHashChanged}
+                                onChange={this._onSemiStableHashChanged}
                                 onKeyPress={this._onTextFieldKeyPress}
                                 onBlur={this._onTextFieldBlur}
                                 ariaLabel="Please enter the semi stable has to filter by here"
@@ -159,7 +159,7 @@ export class Pips extends AsyncBuildPage<BuildRouteParams, PipResults, LocalStat
                                 placeholder="Description"
                                 ariaLabel="Please enter the semi stable has to filter by here"
                                 value={this.state.local.filterDescription}
-                                onChanged={this._onDescriptionChanged}
+                                onChange={this._onDescriptionChanged}
                                 onKeyPress={this._onTextFieldKeyPress}
                                 onBlur={this._onTextFieldBlur}
                             />

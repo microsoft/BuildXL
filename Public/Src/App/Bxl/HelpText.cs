@@ -488,6 +488,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/vfsCasRoot<vfs cas root directory>",
+                Strings.HelpText_DisplayHelp_VfsCasRoot,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/enableDedupChunk[+|-]",
                 Strings.HelpText_DisplayHelp_EnableDedupChunk,
                 HelpLevel.Verbose);

@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
                 // Map junctions into VFS root
                 foreach (var mount in configuration.VirtualizationMounts)
                 {
-                    CreateJunction(context, source: mount.Value, target: configuration.VfsRootPath / mount.Key);
+                    CreateJunction(context, source: mount.Value, target: configuration.VfsMountRootPath / mount.Key);
                 }
 
                 var clientContentStore = new ServiceClientContentStore(
@@ -61,16 +61,15 @@ namespace BuildXL.Cache.ContentStore.Vfs
                     fileSystem,
                     logger,
                     scenario: "bvfs" + configuration.ServerGrpcPort,
-                    path => new VirtualizedContentStore(clientContentStore),
+                    path => new VirtualizedContentStore(clientContentStore, logger, configuration),
                     new LocalServerConfiguration(
                         configuration.DataRootPath,
                         new Dictionary<string, AbsolutePath>()
                         {
-                        { configuration.CacheName, configuration.ServerRootPath }
+                            { configuration.CacheName, configuration.ServerRootPath }
                         },
                         configuration.ServerGrpcPort)))
                 {
-
                     await server.StartupAsync(context).ThrowIfFailure();
 
                     await WaitForTerminationAsync(context);

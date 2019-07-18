@@ -5,6 +5,7 @@ import {Transformer} from "Sdk.Transformers";
 
 import * as Json from "Sdk.Json";
 import * as Shared from "Sdk.Managed.Shared";
+import * as Deployment from "Sdk.Deployment";
 
 namespace RuntimeConfigFiles {
 
@@ -18,6 +19,7 @@ namespace RuntimeConfigFiles {
         assemblyName: string, 
         runtimeBinary: Shared.Binary,
         references: Shared.Reference[], 
+        runtimeContentToSkip: Deployment.DeployableItem[], 
         appConfig: File, 
         testRunnerDeployment?: boolean
         ) : File[] {
@@ -44,7 +46,7 @@ namespace RuntimeConfigFiles {
                 }
 
                 return [
-                    createDependenciesJson(framework, assemblyName, runtimeBinary, references, testRunnerDeployment),
+                    createDependenciesJson(framework, assemblyName, runtimeBinary, references, runtimeContentToSkip, testRunnerDeployment),
                     createRuntimeConfigJson(framework, assemblyName, runtimeConfigFolder, testRunnerDeployment),
                 ];
             case "none":
@@ -68,12 +70,13 @@ namespace RuntimeConfigFiles {
         assemblyName: string,
         runtimeBinary: Shared.Binary,
         references: Shared.Reference[], 
+        runtimeContentToSkip: Deployment.DeployableItem[], 
         testRunnerDeployment?: boolean
         ): File {
 
         const specFileOutput = Context.getNewOutputDirectory("DotNetSpecFiles");
 
-        const runtimeReferences = Helpers.computeTransitiveReferenceClosure(framework, references, false);
+        const runtimeReferences = Helpers.computeTransitiveReferenceClosure(framework, references, runtimeContentToSkip, false);
 
         const dependencySpecExtension = `${assemblyName}.deps.json`;
         const dependencySpecPath = p`${specFileOutput}/${dependencySpecExtension}`;

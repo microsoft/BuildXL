@@ -642,8 +642,10 @@ namespace BuildXL
 
             string uniqueAppName = GetStableAppServerName(lightConfig, clientApp.TimestampBasedHash, out variablesToPassThrough);
 
-            // First, try to connect to an already-running server.
-            NamedPipeClientStream clientStream = TryConnect(uniqueAppName);
+            // First, try to connect to an already-running server if its deployment is not out of date.
+            NamedPipeClientStream clientStream = ServerDeployment.IsServerDeploymentOutOfSync(serverDeploymentPath, clientApp, out _)
+                ? null
+                : TryConnect(uniqueAppName);
 
             // As a fallback, try starting a new server.
             if (clientStream == null)
@@ -978,9 +980,6 @@ namespace BuildXL
                                         }
                                     },
                                     ex => {
-                                        // Make sure to poison the server deployment if an exception is caught, this forces the server bits
-                                        // to be re-deployed and helps clean up a broken deployment state.
-                                        ServerDeployment.PoisonServerDeployment(serverDeploymentDirectory);
                                         throw new BuildXLException("Error while reading data from server process. Server will be redeployed in subsequent invocation. Inner exception reason: " + ex?.Message, ex);
                                     });
                             }

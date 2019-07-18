@@ -381,19 +381,20 @@ namespace BuildXL.Native.IO.Windows
         /// Whether the hresult status is one that should be treated as a nonexistent file
         /// </summary>
         /// <remarks>
-        /// This must be in sync with the code in static bool IsPathNonexistent(DWORD error) function on the Detours side in FileAccessHelper.cpp.
+        /// CODESYNC: static bool IsPathNonexistent(DWORD error) function on the Detours side in FileAccessHelper.cpp.
+        /// CODESYNC: <see cref="OpenFileStatusExtensions.IsNonexistent(OpenFileStatus)"/>
         ///
-        /// Also keep this in sync with <see cref="OpenFileStatusExtensions.IsNonexistent(OpenFileStatus)"/>
         /// NotReadyDevice is treated as non-existent probe.
         /// BitLocker locked volume is treated as non-existent probe.
         /// </remarks>
-        public static bool IsHresultNonesixtent(int hr)
+        public static bool IsHresultNonexistent(int hr)
         {
             return hr == NativeIOConstants.ErrorFileNotFound
                 || hr == NativeIOConstants.ErrorPathNotFound
                 || hr == NativeIOConstants.ErrorNotReady
                 || hr == NativeIOConstants.FveLockedVolume
-                || hr == NativeIOConstants.ErrorCantAccessFile;
+                || hr == NativeIOConstants.ErrorCantAccessFile
+                || hr == NativeIOConstants.ErrorBadPathname;
         }
 
         /// <summary>
@@ -873,11 +874,12 @@ namespace BuildXL.Native.IO.Windows
             string lpFileName,
             FileAttributes dwFileAttributes);
 
+        /// <nodoc />
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.U4)]
         [SuppressMessage("Microsoft.Usage", "CA2205:UseManagedEquivalentsOfWin32Api",
             Justification = "We explicitly need to call the native GetFileAttributes as the managed one does not support long paths.")]
-        internal static extern uint GetFileAttributesW(
+        public static extern uint GetFileAttributesW(
             string lpFileName);
 
         /// <summary>
@@ -2918,7 +2920,7 @@ namespace BuildXL.Native.IO.Windows
         {
             if (!TryGetFileAttributesViaGetFileAttributes(path, out FileAttributes fileAttributes, out int hr))
             {
-                if (IsHresultNonesixtent(hr))
+                if (IsHresultNonexistent(hr))
                 {
                     return PathExistence.Nonexistent;
                 }
@@ -2931,7 +2933,7 @@ namespace BuildXL.Native.IO.Windows
                     // Thus, cache refuses to materialize the file
                     if (!TryGetFileAttributesViaFindFirstFile(path, out fileAttributes, out hr))
                     {
-                        if (IsHresultNonesixtent(hr))
+                        if (IsHresultNonexistent(hr))
                         {
                             return PathExistence.Nonexistent;
                         }

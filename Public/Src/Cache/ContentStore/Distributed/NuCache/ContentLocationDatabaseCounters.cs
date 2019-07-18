@@ -102,5 +102,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         TotalNumberOfCompletedCacheFlushes,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        AddOrGetContentHashList,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        GetContentHashList,
     }
 }

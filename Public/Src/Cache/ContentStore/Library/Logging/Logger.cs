@@ -149,6 +149,15 @@ namespace BuildXL.Cache.ContentStore.Logging
         }
 
         /// <inheritdoc />
+        public void Fatal(Exception exception, string messageFormat, params object[] messageArgs)
+        {
+            var messageIn = string.Format(CultureInfo.CurrentCulture, messageFormat, messageArgs);
+            var message = string.Format(CultureInfo.CurrentCulture, "{0}, Exception=[{1}]", messageIn, exception);
+            LogString(Severity.Fatal, message);
+            Flush();
+        }
+
+        /// <inheritdoc />
         public void Error(string messageFormat, params object[] messageArgs)
         {
             LogFormat(Severity.Error, messageFormat, messageArgs);

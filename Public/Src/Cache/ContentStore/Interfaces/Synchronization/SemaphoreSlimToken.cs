@@ -25,9 +25,20 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal
         /// </summary>
         /// <param name="semaphore">The semaphore to wait on</param>
         /// <returns>A token that, when disposed, calls Release() on the SemaphoreSlim</returns>
-        public static async Task<SemaphoreSlimToken> Wait(SemaphoreSlim semaphore)
+        public static async Task<SemaphoreSlimToken> WaitAsync(SemaphoreSlim semaphore)
         {
             await semaphore.WaitAsync().ConfigureAwait(false);
+            return new SemaphoreSlimToken(semaphore);
+        }
+
+        /// <summary>
+        ///     Wait on a SemaphoreSlim and return a token that, when disposed, calls Release() on the SemaphoreSlim
+        /// </summary>
+        /// <param name="semaphore">The semaphore to wait on</param>
+        /// <returns>A token that, when disposed, calls Release() on the SemaphoreSlim</returns>
+        public static SemaphoreSlimToken Wait(SemaphoreSlim semaphore)
+        {
+            semaphore.Wait();
             return new SemaphoreSlimToken(semaphore);
         }
 

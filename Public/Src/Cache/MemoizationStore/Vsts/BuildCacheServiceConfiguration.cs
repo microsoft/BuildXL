@@ -21,6 +21,16 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public const int DefaultDaysToKeepUnreferencedContent = 1;
 
         /// <summary>
+        /// Gets or sets the threshold to inline pin calls instead of doing them in the background.
+        /// </summary>
+        public const int DefaultPinInlineThresholdMinutes = 15;
+
+        /// <summary>
+        /// Gets or sets the threshold to ignore pin calls.
+        /// </summary>
+        public const int DefaultIgnorePinThresholdHours = 16;
+
+        /// <summary>
         /// Default minimum number of days to keep content bags and referenced content.
         /// </summary>
         public const int DefaultDaysToKeepContentBags = 7;
@@ -134,6 +144,18 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// </summary>
         [DataMember]
         public int DaysToKeepUnreferencedContent { get; set; } = DefaultDaysToKeepUnreferencedContent;
+
+        /// <summary>
+        /// Gets or sets the number of days to keep content before it is referenced by metadata.
+        /// </summary>
+        [DataMember]
+        public int PinInlineThresholdMinutes { get; set; } = DefaultPinInlineThresholdMinutes;
+
+        /// <summary>
+        /// Gets or sets the number of days to keep content before it is referenced by metadata.
+        /// </summary>
+        [DataMember]
+        public int IgnorePinThresholdHours { get; set; } = DefaultIgnorePinThresholdHours;
 
         /// <summary>
         /// Gets or sets the minimum number of days to keep content bags and referenced content.

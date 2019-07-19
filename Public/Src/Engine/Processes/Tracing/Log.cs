@@ -720,7 +720,7 @@ namespace BuildXL.Processes.Tracing
             (ushort)LogEventId.PipTempDirectoryCleanupError,
             EventLevel = Level.Error,
             EventGenerators = EventGenerators.LocalOnly,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Failed to clean temp directory at '{directory}'. Pip will not be executed. {exceptionMessage}")]
         public abstract void PipTempDirectoryCleanupError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);

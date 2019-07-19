@@ -50,34 +50,13 @@ export namespace DropDaemon {
         internalsVisibleTo: [
             "Test.Tool.DropDaemon",
         ]
-    });
-
-    const temporarySdkDropNextToEngineFolder = d`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Drop/bin`;
-    const temporaryDropDaemonTool : Transformer.ToolDefinition = {
-        exe: f`${temporarySdkDropNextToEngineFolder}/DropDaemon.exe`,
-        runtimeDirectoryDependencies: [
-            Transformer.sealSourceDirectory({
-                root: temporarySdkDropNextToEngineFolder,
-                include: "allDirectories",
-            }), 
-        ],
-        untrackedDirectoryScopes: [
-            Context.getUserHomeDirectory(),
-            d`${Context.getMount("ProgramData").path}`,
-        ],
-        dependsOnWindowsDirectories: true,
-        dependsOnAppDataDirectory: true,
-        prepareTempDirectory: true,
-    };
+    });    
 
     @@public
-    export const tool = !BuildXLSdk.isDropToolingEnabled 
-        ? undefined 
-        : temporaryDropDaemonTool;
-        // : BuildXLSdk.deployManagedTool({
-        // tool: exe,
-        // options: toolTemplate,
-        // });
+    export const tool = !BuildXLSdk.isDropToolingEnabled ? undefined : BuildXLSdk.deployManagedTool({
+        tool: exe,
+        options: toolTemplate,
+    });
 
     @@public
     export const deployment: Deployment.Definition = !BuildXLSdk.isDropToolingEnabled ? undefined : {

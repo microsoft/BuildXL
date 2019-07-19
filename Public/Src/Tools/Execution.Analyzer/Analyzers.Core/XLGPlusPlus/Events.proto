@@ -1,10 +1,23 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 syntax = "proto3";
 
 package BuildXL.Execution.Analyzer;
 //LALAL
 option csharp_namespace = "BuildXL.Execution.Analyzer";
 
-message Test1{
-    string name = 1;
-    string danny = 99;
+
+message DominoInvocationEvent{
+    string SubstSource = 1;
+    
+    string SubstTarget = 2;
+
+    bool IsSubstSourceValid = 3;
+    
+    bool IsSubstTargetValid = 4; 
+}
+
+message DominoInvocationEventList{
+    repeated DominoInvocationEvent DomInvEventList = 1;
 }

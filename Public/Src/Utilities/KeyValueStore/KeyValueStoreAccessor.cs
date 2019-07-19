@@ -642,6 +642,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         }
 
         /// <inheritdoc />
+        /// <summary>
+        /// Finishes up/cleans remaining RocksDB tasks and flushes DB to disk.
+        /// </summary>
         public void Dispose()
         {
             using (m_rwl.AcquireWriteLock())

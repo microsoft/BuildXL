@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -67,14 +68,28 @@ namespace BuildXL.Execution.Analyzer
 
         public override int Analyze()
         {
-            Test1 testProto;
+            DominoInvocationEventList domInvEveList;
             using (Stream stream = File.OpenRead(InputFilePath))
             {
-                testProto = Test1.Parser.ParseFrom(stream);
+                domInvEveList = DominoInvocationEventList.Parser.ParseFrom(stream);
             }
 
-            Console.WriteLine("The name in the file is {0}", testProto.Name);
-            Console.WriteLine("The other name in the file is {0}", testProto.Danny);
+            foreach (var domEvent in domInvEveList.DomInvEventList)
+            {
+                Console.WriteLine(domEvent.SubstSource);
+                Console.WriteLine(domEvent.SubstTarget);
+            }
+
+            var dataStore = new XLGppDataStore();
+            if (dataStore.OpenDatastore(storeDirectory: @".\testDir"))
+            {
+                var retVal = dataStore.GetStoredData();
+                Console.WriteLine("The returned value was {0}", retVal);
+            }
+            else
+            {
+                Console.WriteLine("Could not load RocksDB datastore. Exiting analyzer.");
+            }
             return 0;
         }
 

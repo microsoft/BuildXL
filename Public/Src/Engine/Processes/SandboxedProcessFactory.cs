@@ -68,24 +68,6 @@ namespace BuildXL.Processes
             /// </summary>
             [CounterType(CounterType.Numeric)]
             SandboxedProcessLifeTimeMs,
-
-            /// <summary>
-            /// Aggregate time spent checking paths for directory symlinks
-            /// </summary>
-            [CounterType(CounterType.Stopwatch)]
-            DirectorySymlinkCheckingDuration,
-
-            /// <summary>
-            /// Number of paths queried for directory symlinks
-            /// </summary>
-            [CounterType(CounterType.Numeric)]
-            DirectorySymlinkPathsQueriedCount,
-
-            /// <summary>
-            /// Number of paths checked for directory symlinks (cache misses)
-            /// </summary>
-            [CounterType(CounterType.Numeric)]
-            DirectorySymlinkPathsCheckedCount,
         }
 
         /// <summary>

@@ -17,7 +17,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using static BuildXL.Scheduler.Graph.PipGraph;
 
-namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
+namespace BuildXL.Scheduler.Graph
 {
     /// <summary>
     /// Class for building graph fragments.
@@ -53,6 +53,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
         private bool AddPip(Pip pip)
         {
             m_pips.Enqueue(pip);
+            pip.PipId = new PipId((uint)m_pips.Count);
             return true;
         }
 
@@ -77,6 +78,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
         /// <inheritdoc />
         public DirectoryArtifact AddSealDirectory([NotNull] SealDirectory sealDirectory, PipId valuePip)
         {
+            AddPip(sealDirectory);
             DirectoryArtifact artifactForNewSeal;
 
             if (sealDirectory.Kind == SealDirectoryKind.SharedOpaque)

@@ -202,6 +202,17 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                         //    mountsTable.MountPathExpander,
                         //    fingerprintSalt: config.Cache.CacheSalt,
                         //    directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(config, engineContext.StringTable));
+                        if (!AddConfigurationMountsAndCompleteInitialization(config, loggingContext, mountsTable))
+                        {
+                            return false;
+                        }
+
+                        IDictionary<ModuleId, MountsTable> moduleMountsTableMap;
+                        if (!mountsTable.PopulateModuleMounts(config.ModulePolicies.Values, out moduleMountsTableMap))
+                        {
+                            Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged after MountTable.PopulateModuleMounts()");
+                            return false;
+                        }
                     }
                     else
                     {
@@ -251,6 +262,23 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 frontEndContext.LoggingContext,
                 config.FrontEnd,
                 pathTable);
+
+            return true;
+        }
+
+        private static bool AddConfigurationMountsAndCompleteInitialization(IConfiguration config, LoggingContext loggingContext, MountsTable mountsTable)
+        {
+            // Add configuration mounts
+            foreach (var mount in config.Mounts)
+            {
+                mountsTable.AddResolvedMount(mount, new LocationData(config.Layout.PrimaryConfigFile, 0, 0));
+            }
+
+            if (!mountsTable.CompleteInitialization())
+            {
+                Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged after MountTable.CompleteInitialization()");
+                return false;
+            }
 
             return true;
         }

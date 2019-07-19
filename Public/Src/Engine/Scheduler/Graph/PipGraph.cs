@@ -396,6 +396,12 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
+        bool IQueryablePipDependencyGraph.IsReachableFrom(Pip from, Pip to)
+        {
+            return IsReachableFrom(from.PipId.ToNodeId(), to.PipId.ToNodeId());
+        }
+
+        /// <inheritdoc />
         public Pip TryFindProducer(AbsolutePath producedPath, VersionDisposition versionDisposition, DependencyOrderingFilter? maybeOrderingFilter)
         {
             PipId? matchedPipId = TryFindProducerPipId(producedPath, versionDisposition, maybeOrderingFilter);

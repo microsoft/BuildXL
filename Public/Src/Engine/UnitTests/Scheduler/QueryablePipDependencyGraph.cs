@@ -165,6 +165,12 @@ namespace Test.BuildXL.Scheduler
 
         #region IQueryablePipDependencyGraph Members
 
+        /// <inheritdoc />
+        public bool IsReachableFrom(Pip from, Pip to)
+        {
+            throw new NotImplementedException();
+        }
+
         public Pip HydratePip(PipId pipId, PipQueryContext queryContext)
         {
             return m_pips[pipId];

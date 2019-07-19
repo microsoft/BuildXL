@@ -1,7 +1,8 @@
-﻿using System;
-using System.Globalization;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System;
 using System.IO;
-using System.Linq;
 using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
@@ -15,7 +16,7 @@ namespace BuildXL.Execution.Analyzer
     {
         public Analyzer InitializeDominoInvocationAnalyzer()
         {
-            string inputFilePath = null;
+            string inputDirPath = null;
             string outputFilePath = null;
 
             foreach (var opt in AnalyzerOptions)
@@ -25,10 +26,10 @@ namespace BuildXL.Execution.Analyzer
                 {
                     outputFilePath = ParseSingletonPathOption(opt, outputFilePath);
                 }
-                else if (opt.Name.Equals("intputFile", StringComparison.OrdinalIgnoreCase) ||
+                else if (opt.Name.Equals("inputDir", StringComparison.OrdinalIgnoreCase) ||
                      opt.Name.Equals("i", StringComparison.OrdinalIgnoreCase))
                 {
-                    inputFilePath = ParseSingletonPathOption(opt, inputFilePath);
+                    inputDirPath = ParseSingletonPathOption(opt, inputDirPath);
                 }
                 else
                 {
@@ -38,7 +39,7 @@ namespace BuildXL.Execution.Analyzer
 
             return new DominoInvocationAnalyzer(GetAnalysisInput())
             {
-                InputFilePath = inputFilePath,
+                InputDirPath = inputDirPath,
                 OutputFilePath = outputFilePath
             };
         }
@@ -47,7 +48,7 @@ namespace BuildXL.Execution.Analyzer
         {
             writer.WriteBanner("Domino Invocation \"Analyzer\"");
             writer.WriteModeOption(nameof(AnalysisMode.DominoInvocationXLG), "Gets and outputs information related to domino invocation events from the database.");
-            writer.WriteOption("inputFile", "Required. The data file to read in", shortName: "i");
+            writer.WriteOption("inputDir", "Required. The directory to read the RocksDB database from", shortName: "i");
             writer.WriteOption("outputFile", "Required. The file where to write the results", shortName: "o");
         }
     }
@@ -58,7 +59,7 @@ namespace BuildXL.Execution.Analyzer
     internal sealed class DominoInvocationAnalyzer : Analyzer
     {
 
-        public string InputFilePath;
+        public string InputDirPath;
         public string OutputFilePath;
 
         public DominoInvocationAnalyzer(AnalysisInput input): base(input)
@@ -68,23 +69,10 @@ namespace BuildXL.Execution.Analyzer
 
         public override int Analyze()
         {
-            DominoInvocationEventList domInvEveList;
-            using (Stream stream = File.OpenRead(InputFilePath))
-            {
-                domInvEveList = DominoInvocationEventList.Parser.ParseFrom(stream);
-            }
-
-            foreach (var domEvent in domInvEveList.DomInvEventList)
-            {
-                Console.WriteLine(domEvent.SubstSource);
-                Console.WriteLine(domEvent.SubstTarget);
-            }
-
             var dataStore = new XLGppDataStore();
-            if (dataStore.OpenDatastore(storeDirectory: @".\testDir"))
+            if (dataStore.OpenDatastore(storeDirectory: InputDirPath))
             {
-                var retVal = dataStore.GetStoredData();
-                Console.WriteLine("The returned value was {0}", retVal);
+                dataStore.GetEventsByType((int)ExecutionEventId.DominoInvocation);
             }
             else
             {

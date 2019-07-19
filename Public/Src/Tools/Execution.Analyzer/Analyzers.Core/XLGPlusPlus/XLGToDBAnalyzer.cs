@@ -21,14 +21,14 @@ namespace BuildXL.Execution.Analyzer
     {
         public Analyzer InitializeXLGToDBAnalyzer()
         {
-            string outputFilePath = null;
-
+            string outputDirPath = null;
+            Debugger.Launch();
             foreach (var opt in AnalyzerOptions)
             {
-                if (opt.Name.Equals("outputFile", StringComparison.OrdinalIgnoreCase) ||
+                if (opt.Name.Equals("outputDir", StringComparison.OrdinalIgnoreCase) ||
                    opt.Name.Equals("o", StringComparison.OrdinalIgnoreCase))
                 {
-                    outputFilePath = ParseSingletonPathOption(opt, outputFilePath);
+                    outputDirPath = ParseSingletonPathOption(opt, outputDirPath);
                 }
                 else
                 {
@@ -38,7 +38,7 @@ namespace BuildXL.Execution.Analyzer
 
             return new XLGToDBAnalyzer(GetAnalysisInput())
             {
-                OutputFilePath = outputFilePath,
+                OutputDirPath = outputDirPath,
             };
         }
 
@@ -46,7 +46,7 @@ namespace BuildXL.Execution.Analyzer
         {
             writer.WriteBanner("XLG to DB \"Analyzer\"");
             writer.WriteModeOption(nameof(AnalysisMode.XlgToDb), "Dumps event data from the xlg into a database.");
-            writer.WriteOption("outputFile", "Required. The file where to write the results", shortName: "o");
+            writer.WriteOption("outputDir", "Required. The directory to write out the RocksDB database", shortName: "o");
         }
     }
 
@@ -57,27 +57,33 @@ namespace BuildXL.Execution.Analyzer
     internal sealed class XLGToDBAnalyzer : Analyzer
     {
         /// <summary>
-        /// The path to the output file
+        /// The path to the output directory
         /// </summary>
-        public string OutputFilePath;
+        public string OutputDirPath;
+        private bool m_accessorSucceeded = true;
 
         private DominoInvocationEventList m_domInvEveList = new DominoInvocationEventList();
         private KeyValueStoreAccessor Accessor { get; set; }
-        private readonly bool m_accessorSucceeded = true;
+        private uint WorkerID { get; set; }
 
         public XLGToDBAnalyzer(AnalysisInput input) : base(input)
         {
+           
+        }
+
+        public override void Prepare()
+        {
             try
             {
-                Directory.Delete(@".\testDir", true);
+                Directory.Delete(path: OutputDirPath, recursive: true);
             }
             catch (Exception e)
             {
-                Console.WriteLine("Could not delete directory with exception {0}, continuing to make Accessor", e);
+                Console.WriteLine("No such dir or could not delete dir with exception {0}.\nIf dir still exists, this analyzer will append data to existing DB.", e);
             }
 
             var dataStore = new XLGppDataStore();
-            if (dataStore.OpenDatastore(storeDirectory: @".\testDir"))
+            if (dataStore.OpenDatastore(storeDirectory: OutputDirPath))
             {
                 Accessor = dataStore.Accessor;
             }
@@ -95,24 +101,19 @@ namespace BuildXL.Execution.Analyzer
                 return 0;
             }
 
-            using (var outputStream = File.Create(OutputFilePath, bufferSize: 64 << 10 /* 64 KB */))
-            {
-                using (var writer = new StreamWriter(outputStream))
-                {
-                    m_domInvEveList.WriteTo(outputStream);
-                    writer.Flush();
-                }
-            }
-
             Analysis.IgnoreResult(
               Accessor.Use(database =>
               {
-                  database.Put("foo", "bar");
-                  database.Put("baz", "bar");
-                  database.Put("bazar", "bar");
-                  database.Put("bazsdf", "bar");
-                  database.Put("var", "bar");
-                  database.Put("log", "bar");
+                  foreach (var invEvent in m_domInvEveList.DomInvEventList)
+                  {
+                      var eq = new EventTypeQuery
+                      {
+                          EventTypeID = (int)ExecutionEventId.DominoInvocation,
+                          UUID = invEvent.UUID
+                      };
+
+                      database.Put(eq.ToByteArray(), invEvent.ToByteArray());
+                  }
               })
             );
 
@@ -125,11 +126,11 @@ namespace BuildXL.Execution.Analyzer
             if (eventId.Equals(ExecutionEventId.DominoInvocation))
             {
                 Console.WriteLine("Found a valid domino invocation event. The worker id is {0}, the timestamp is {1}, and the payload size is {2}.", workerId, timestamp, eventPayloadSize);
+                WorkerID = workerId; // store workerID to pass into protobuf object to identify this event
+
                 return true;
             }
-
-            // return false to keep the event from being parsed
-            return false;
+            return false; // return false to keep the event from being parsed
         }
 
         /// <summary>
@@ -141,15 +142,16 @@ namespace BuildXL.Execution.Analyzer
             var domInvEvent = new DominoInvocationEvent();
             var loggingConfig = data.Configuration.Logging;
 
+            var uuid = Guid.NewGuid().ToString();
+
+            domInvEvent.UUID = uuid;
+            domInvEvent.WorkerID = WorkerID;
             domInvEvent.SubstSource = loggingConfig.SubstSource.ToString(PathTable, PathFormat.HostOs);
             domInvEvent.SubstTarget = loggingConfig.SubstTarget.ToString(PathTable, PathFormat.HostOs);
             domInvEvent.IsSubstSourceValid = loggingConfig.SubstSource.IsValid;
             domInvEvent.IsSubstTargetValid = loggingConfig.SubstTarget.IsValid;
 
             m_domInvEveList.DomInvEventList.Add(domInvEvent);
-
-            Console.WriteLine(loggingConfig.SubstSource.ToString(PathTable, PathFormat.HostOs));
-            Console.WriteLine(loggingConfig.SubstTarget.ToString(PathTable, PathFormat.HostOs));
         }
     }
 }

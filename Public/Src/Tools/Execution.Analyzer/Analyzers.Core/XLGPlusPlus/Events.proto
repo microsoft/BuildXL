@@ -4,20 +4,35 @@
 syntax = "proto3";
 
 package BuildXL.Execution.Analyzer;
-//LALAL
+
 option csharp_namespace = "BuildXL.Execution.Analyzer";
 
-
 message DominoInvocationEvent{
-    string SubstSource = 1;
-    
-    string SubstTarget = 2;
+    string UUID = 1;
 
-    bool IsSubstSourceValid = 3;
+    uint32 WorkerID = 2;
+
+    string SubstSource = 3;
     
-    bool IsSubstTargetValid = 4; 
+    string SubstTarget = 4;
+
+    bool IsSubstSourceValid = 5;
+    
+    bool IsSubstTargetValid = 6; 
 }
 
 message DominoInvocationEventList{
     repeated DominoInvocationEvent DomInvEventList = 1;
+}
+
+message EventTypeQuery{
+    int32 EventTypeID = 1; // required
+    
+    /* Other ideas to keep in EventTypeQuery were as follows:
+        string (or int64) Path (or hash of path) = 2;
+        string RewriteContent = 3;
+        int WorkerID = 4;
+    */
+
+    string UUID = 99;   // This makes the key unique, required
 }

@@ -886,6 +886,15 @@ namespace BuildXL.Engine.Tracing
             Message = "DDB_DEBUG: {message}")]
         internal abstract void DistributionDebugMessage(LoggingContext loggingContext, string message);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.DistributionWorkerTimeoutAfterMasterExits,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "After we received exit request from the master, there is a timeout for a master-related call (e.g., attach, send response).")]
+        public abstract void DistributionWorkerTimeoutAfterMasterExits(LoggingContext context);
+
         #endregion
 
         [GeneratedEvent(

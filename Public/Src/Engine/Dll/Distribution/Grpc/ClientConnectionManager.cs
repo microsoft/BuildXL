@@ -27,6 +27,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly string m_buildId;
         private readonly Task m_monitorConnectionTask;
         public event EventHandler OnConnectionTimeOutAsync;
+        private volatile bool m_isShutdownInitiated;
 
         private string GenerateLog(string traceId, string status, uint numTry, string description)
         {
@@ -82,7 +83,12 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         public async Task CloseAsync()
         {
-            await Channel.ShutdownAsync();
+            if (!m_isShutdownInitiated)
+            {
+                m_isShutdownInitiated = true;
+                await Channel.ShutdownAsync();
+            }
+
             await m_monitorConnectionTask;
         }
 
@@ -143,8 +149,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                     failure = state == RpcCallResultState.Failed ? new RecoverableExceptionFailure(new BuildXLException(e.Message)) : null;
                     Logger.Log.GrpcTrace(m_loggingContext, GenerateFailLog(traceId.ToString(), numTry, watch.ElapsedMilliseconds, e.Message));
 
-                    // If the call is NOT cancelled, retry the call.
-                    if (state == RpcCallResultState.Cancelled)
+                    // If the call is cancelled or channel is shutdown, then do not retry the call.
+                    if (state == RpcCallResultState.Cancelled || m_isShutdownInitiated)
                     {
                         break;
                     }

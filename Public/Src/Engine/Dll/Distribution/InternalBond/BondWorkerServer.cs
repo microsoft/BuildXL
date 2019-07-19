@@ -90,7 +90,7 @@ namespace BuildXL.Engine.Distribution.InternalBond
         /// </summary>
         public override void Exit(Request<BuildEndData, Void> call)
         {
-            m_workerService.BeforeExit();
+            m_workerService.ExitCallReceivedFromMaster();
 
             call.Dispatch(new Void());
 

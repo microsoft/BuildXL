@@ -105,6 +105,11 @@ namespace BuildXL.Engine.Distribution
 
         private bool m_hasFailures = false;
 
+        /// <summary>
+        /// Whether master is done with the worker by sending a message to worker.
+        /// </summary>
+        private volatile bool m_isMasterExited;
+
         private LoggingContext m_appLoggingContext;
         private ExecutionResultSerializer m_resultSerializer;
         private PipTable m_pipTable;
@@ -305,8 +310,9 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <nodoc/>
-        public void BeforeExit()
+        public void ExitCallReceivedFromMaster()
         {
+            m_isMasterExited = true;
             Logger.Log.DistributionExitReceived(m_appLoggingContext);
 
             // Dispose the notify master execution log target to ensure all message are sent to master.
@@ -353,6 +359,13 @@ namespace BuildXL.Engine.Distribution
                 // Only log the error, if this thread set exit response
                 Logger.Log.DistributionWorkerExitFailure(m_appLoggingContext, failure);
                 m_hasFailures = true;
+            }
+
+            if (timedOut && m_isMasterExited)
+            {
+                // If the worker experiences time-out for any operation (e.g., attach, call to master)
+                // after master exits the build, we should log a message to keep track of the frequency.
+                Logger.Log.DistributionWorkerTimeoutAfterMasterExits(m_appLoggingContext);
             }
 
             m_exitCompletionSource.TrySetResult(reportSuccess);
@@ -447,8 +460,7 @@ namespace BuildXL.Engine.Distribution
 
             if (!attachCompletionResult.Succeeded)
             {
-                Logger.Log.DistributionInactiveMaster(m_appLoggingContext, (int)attachCompletionResult.Duration.TotalMinutes);
-                Exit(timedOut: true, "Failed to attach to master");
+                Exit(timedOut: true, $"Failed to attach to master. Duration: {(int)attachCompletionResult.Duration.TotalMinutes}");
                 return true;
             }
             else

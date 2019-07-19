@@ -154,6 +154,7 @@ namespace BuildXL.Engine.Tracing
         // Double defined in EventId.cs
         //DistributionWorkerForwardedError = 7015,
         DistributionWorkerForwardedWarning = 7016,
+        DistributionWorkerTimeoutAfterMasterExits = 7017,
 
         DistributionWorkerExecutePipRequest = 7019,
         DistributionWorkerFinishedPipRequest = 7020,

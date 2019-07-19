@@ -2780,22 +2780,41 @@ namespace BuildXL.Processes
             return false;
         }
 
+        private Dictionary<AbsolutePath, bool> m_isDirSymlinkCache = new Dictionary<AbsolutePath, bool>();
+
+        /// <summary>
+        /// Returns true if any symlinks are found on a given path
+        /// </summary>
         private bool PathContainsSymlinks(AbsolutePath path)
         {
+            Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsCheckedCount);
+            if (!path.IsValid)
+            {
+                return false;
+            }
+
+            if (FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(m_context.PathTable)))
+            {
+                return true;
+            }
+
+            return PathContainsSymlinksCached(path.GetParent(m_context.PathTable));
+        }
+
+        /// <summary>
+        /// Same as <see cref="PathContainsSymlinks"/> but with caching around it.
+        /// </summary>
+        private bool PathContainsSymlinksCached(AbsolutePath path)
+        {
             Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsQueriedCount);
+            return m_isDirSymlinkCache.GetOrAdd(path, PathContainsSymlinks);
+        }
+
+        private bool CheckIfPathContainsSymlinks(AbsolutePath path)
+        {
             using (Counters.StartStopwatch(SandboxedProcessCounters.DirectorySymlinkCheckingDuration))
             {
-                while (path.IsValid)
-                {
-                    if (FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(m_context.PathTable)))
-                    {
-                        return true;
-                    }
-
-                    path = path.GetParent(m_context.PathTable);
-                }
-
-                return false;
+                return PathContainsSymlinksCached(path);
             }
         }
 
@@ -2933,7 +2952,7 @@ namespace BuildXL.Processes
                             entry.Value.Count == 1 &&
                             firstAccess.Operation == ReportedFileOperation.MacLookup &&
                             firstAccess.ManifestPath.IsValid &&
-                            PathContainsSymlinks(firstAccess.ManifestPath.GetParent(m_context.PathTable)))
+                            CheckIfPathContainsSymlinks(firstAccess.ManifestPath.GetParent(m_context.PathTable)))
                         {
                             Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsDiscardedCount);
                             continue;

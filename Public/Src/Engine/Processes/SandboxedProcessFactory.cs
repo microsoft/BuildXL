@@ -82,6 +82,12 @@ namespace BuildXL.Processes
             DirectorySymlinkPathsQueriedCount,
 
             /// <summary>
+            /// Number of paths checked for directory symlinks (cache misses)
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            DirectorySymlinkPathsCheckedCount,
+
+            /// <summary>
             /// Number of paths with directory symlinks that were discarded
             /// </summary>
             [CounterType(CounterType.Numeric)]

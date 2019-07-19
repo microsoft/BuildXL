@@ -79,7 +79,13 @@ namespace BuildXL.Processes
             /// Number of paths queried for directory symlinks
             /// </summary>
             [CounterType(CounterType.Numeric)]
-            DirectorySymlinkPathsQueriedCount
+            DirectorySymlinkPathsQueriedCount,
+
+            /// <summary>
+            /// Number of paths with directory symlinks that were discarded
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            DirectorySymlinkPathsDiscardedCount
         }
 
         /// <summary>

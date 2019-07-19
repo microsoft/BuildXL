@@ -2935,6 +2935,7 @@ namespace BuildXL.Processes
                             firstAccess.ManifestPath.IsValid &&
                             PathContainsSymlinks(firstAccess.ManifestPath.GetParent(m_context.PathTable)))
                         {
+                            Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsDiscardedCount);
                             continue;
                         }
 

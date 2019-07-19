@@ -493,39 +493,6 @@ namespace BuildXL.Processes
             m_sumOfReportQueueTimesUs += (long) (stats.DequeueTime - stats.EnqueueTime) / 1000;
         }
 
-        private Dictionary<AbsolutePath, bool> m_isDirSymlinkCache = new Dictionary<AbsolutePath, bool>();
-
-        /// <summary>
-        /// Returns true if any symlinks are found on a given path
-        /// </summary>
-        private bool PathContainsSymlinks(AbsolutePath path)
-        {
-            Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsCheckedCount);
-            if (!path.IsValid)
-            {
-                return false;
-            }
-
-            if (FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(PathTable)))
-            {
-                return true;
-            }
-
-            return PathContainsSymlinksCached(path.GetParent(PathTable));
-        }
-
-        /// <summary>
-        /// Same as <see cref="PathContainsSymlinks"/> but with caching around it.
-        /// </summary>
-        private bool PathContainsSymlinksCached(AbsolutePath path)
-        {
-            Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsQueriedCount);
-            return m_isDirSymlinkCache.GetOrAdd(path, PathContainsSymlinks);
-        }
-
-        /// <remarks>
-        /// MUST NOT be called concurrently
-        /// </remarks>
         private void HandleKextReport(AccessReport report)
         {
             if (ProcessInfo.FileAccessManifest.ReportFileAccesses)
@@ -552,33 +519,18 @@ namespace BuildXL.Processes
 
                 // special handling for MAC_LOOKUP:
                 //   - don't report for existent paths (because for those paths other reports will follow)
-                //   - this is the only kext report that may contains paths with intermediate directory symlinks; those must be discarded
                 //   - otherwise, set report.RequestAccess to Probe (because the Sandbox reports 'Lookup', but hat BXL expects 'Probe'),
                 if (report.Operation == FileOperation.OpMacLookup)
                 {
-                    // discard MAC_LOOKUP reports for existing paths
-                    if (FileUtilities.Exists(reportPath))
+                    pathExists = FileUtilities.Exists(reportPath);
+                    if (pathExists)
                     {
                         return;
                     }
-
-                    // discard bogus paths
-                    if (!AbsolutePath.TryCreate(PathTable, reportPath, out var path))
+                    else
                     {
-                        return;
+                        report.RequestedAccess = (uint)RequestedAccess.Probe;
                     }
-
-                    // discard paths relative to directory symlinks
-                    using (Counters.StartStopwatch(SandboxedProcessCounters.DirectorySymlinkCheckingDuration))
-                    {
-                        if (PathContainsSymlinksCached(path.GetParent(PathTable)))
-                        {
-                            return;
-                        }
-                    }
-
-                    pathExists = false;
-                    report.RequestedAccess = (uint)RequestedAccess.Probe;
                 }
                 // special handling for directory rename:
                 //   - scenario: a pip writes a bunch of files into a directory (e.g., 'out.tmp') and then renames that directory (e.g., to 'out')

@@ -25,6 +25,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public const uint DiskFull = 0x80070070;
 
+        /// <nodoc />
         public static bool HasHresult(this Exception e, uint hresult) => ((uint)e.HResult) == hresult;
     }
 }

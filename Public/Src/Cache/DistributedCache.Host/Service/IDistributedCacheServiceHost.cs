@@ -4,7 +4,6 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -37,6 +36,6 @@ namespace BuildXL.Cache.Host.Service
         /// <summary>
         /// Retrieves secrets from key vault
         /// </summary>
-        Task<Dictionary<string, Secret>> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token);
+        Task<Dictionary<string, string>> RetrieveKeyVaultSecretsAsync(List<string> secrets, CancellationToken token);
     }
 }

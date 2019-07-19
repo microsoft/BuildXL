@@ -76,7 +76,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         public override Task<RpcResponse> Exit(BuildEndData message, ServerCallContext context)
         {
             m_workerService.ExitCallReceivedFromMaster();
-            m_workerService.Exit(timedOut: false, failure: message.Failure);
+            m_workerService.Exit(failure: message.Failure);
 
             return Task.FromResult(new RpcResponse());
         }

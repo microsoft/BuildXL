@@ -94,7 +94,7 @@ namespace BuildXL.Engine.Distribution.InternalBond
 
             call.Dispatch(new Void());
 
-            m_workerService.Exit(timedOut: false, failure: call.RequestObject.Failure);
+            m_workerService.Exit(failure: call.RequestObject.Failure);
         }
 
         /// <nodoc/>

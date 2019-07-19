@@ -887,13 +887,13 @@ namespace BuildXL.Engine.Tracing
         internal abstract void DistributionDebugMessage(LoggingContext loggingContext, string message);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DistributionWorkerTimeoutAfterMasterExits,
+            (ushort)LogEventId.DistributionWorkerUnexpectedFailureAfterMasterExits,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Distribution,
-            Message = "After we received exit request from the master, there is a timeout for a master-related call (e.g., attach, send response).")]
-        public abstract void DistributionWorkerTimeoutAfterMasterExits(LoggingContext context);
+            Message = "After we received an exit request from the master, worker exits with an unexpected reason due to a failure in one of the master-related calls (e.g., attach, notify).")]
+        public abstract void DistributionWorkerUnexpectedFailureAfterMasterExits(LoggingContext context);
 
         #endregion
 

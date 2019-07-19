@@ -223,7 +223,7 @@ namespace BuildXL.Engine.Distribution
                     {
                         // Fire-forget exit call with failure.
                         // If we fail to send notification to master, the worker should fail.
-                        ExitAsync(timedOut: false, failure: "Notify event failed to send to master");
+                        ExitAsync(failure: "Notify event failed to send to master", isUnexpected: true);
                         break;
                     }
                 }
@@ -295,7 +295,7 @@ namespace BuildXL.Engine.Distribution
             {
                 if ((TimestampUtilities.Timestamp - m_lastHeartbeatTimestamp) > EngineEnvironmentSettings.WorkerAttachTimeout)
                 {
-                    Exit(timedOut: true, failure: "Timed out waiting for attach request from master");
+                    Exit(failure: "Timed out waiting for attach request from master", isUnexpected: true);
                     return false;
                 }
             }
@@ -323,17 +323,15 @@ namespace BuildXL.Engine.Distribution
         /// <nodoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
-        public async void ExitAsync(bool timedOut, string failure)
+        public async void ExitAsync(string failure, bool isUnexpected = false)
         {
             await Task.Yield();
-            Exit(timedOut, failure);
+            Exit(failure, isUnexpected);
         }
 
         /// <nodoc/>
-        public void Exit(bool timedOut, string failure)
+        public void Exit(string failure, bool isUnexpected = false)
         {
-            Analysis.IgnoreArgument(timedOut);
-
             m_buildResults.CompleteAdding();
             if (m_sendThread.IsAlive)
             {
@@ -361,11 +359,11 @@ namespace BuildXL.Engine.Distribution
                 m_hasFailures = true;
             }
 
-            if (timedOut && m_isMasterExited)
+            if (isUnexpected && m_isMasterExited)
             {
-                // If the worker experiences time-out for any operation (e.g., attach, call to master)
-                // after master exits the build, we should log a message to keep track of the frequency.
-                Logger.Log.DistributionWorkerTimeoutAfterMasterExits(m_appLoggingContext);
+                // If the worker unexpectedly exits the build after master exits the build, 
+                // we should log a message to keep track of the frequency.
+                Logger.Log.DistributionWorkerUnexpectedFailureAfterMasterExits(m_appLoggingContext);
             }
 
             m_exitCompletionSource.TrySetResult(reportSuccess);
@@ -442,7 +440,7 @@ namespace BuildXL.Engine.Distribution
                     cacheValidationContentHash.ToHex(),
                     possiblyStored.Failure.DescribeIncludingInnerFailures());
 
-                Exit(timedOut: true, "Failed to validate retrieve content from master via cache");
+                Exit("Failed to validate retrieve content from master via cache", isUnexpected: true);
                 return false;
             }
 
@@ -460,7 +458,7 @@ namespace BuildXL.Engine.Distribution
 
             if (!attachCompletionResult.Succeeded)
             {
-                Exit(timedOut: true, $"Failed to attach to master. Duration: {(int)attachCompletionResult.Duration.TotalMinutes}");
+                Exit($"Failed to attach to master. Duration: {(int)attachCompletionResult.Duration.TotalMinutes}", isUnexpected: true);
                 return true;
             }
             else
@@ -478,7 +476,7 @@ namespace BuildXL.Engine.Distribution
             // Unblock caller to make it a fire&forget event handler.
             await Task.Yield();
             Logger.Log.DistributionInactiveMaster(m_appLoggingContext, (int)EngineEnvironmentSettings.DistributionInactiveTimeout.Value.TotalMinutes);
-            ExitAsync(timedOut: true, "Connection timed out");
+            ExitAsync("Connection timed out", isUnexpected: true);
         }
 
         internal void SetLastHeartbeatTimestamp()

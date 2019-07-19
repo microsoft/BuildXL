@@ -346,7 +346,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Not trying another replica.");
-                                return (result: new ErrorResult(copyFileResult).AsResult<PutResult>(), retry: !(copyFileResult.Exception?.HasHresult(Hresult.DiskFull) ?? true));
+                                return (result: new ErrorResult(copyFileResult).AsResult<PutResult>(), retry: !copyFileResult.Exception?.HasHresult(Hresult.DiskFull) ?? true);
                             case CopyFileResult.ResultCode.CopyTimeoutError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult}";
                                 Tracer.Warning(

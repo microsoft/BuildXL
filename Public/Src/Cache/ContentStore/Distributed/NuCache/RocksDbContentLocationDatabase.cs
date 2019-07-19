@@ -555,9 +555,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 // Update the time, only if no one else has changed it in the mean time. We don't
                                 // really care if this succeeds or not, because if it doesn't it only means someone
                                 // else changed the stored value before this operation but after it was read.
-#pragma warning disable EPC13 // Suspiciously unobserved result.
-                                CompareExchange(context, strongFingerprint, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism);
-#pragma warning restore EPC13 // Suspiciously unobserved result.
+                                Analysis.IgnoreResult(CompareExchange(context, strongFingerprint, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism));
 
                                 // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
                                 // hashes exist. Moreover, we can prune content.
@@ -571,7 +569,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (result is null)
                     {
-                        return new GetContentHashListResult(EmptyContentHashList(CacheDeterminism.None));
+                        return new GetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
                     }
 
                     return new GetContentHashListResult(result.Value);
@@ -582,12 +580,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Fine-grained locks that used for all operations that mutate Metadata records.
         /// </summary>
         private readonly object[] _metadataLocks = Enumerable.Range(0, byte.MaxValue + 1).Select(s => new object()).ToArray();
-        
-        /// <summary>
-        /// Runs an atomic compare-exchange operation on content hash lists. The only reason this works is that it is
-        /// the entry point to the column family, and it keeps locks to avoid simultaneous writes.
-        /// </summary>
-        public Possible<bool> CompareExchange(
+
+        /// <inheritdoc />
+        public override Possible<bool> CompareExchange(
             OperationContext context,
             StrongFingerprint strongFingerprint,
             ContentHashListWithDeterminism expected,
@@ -615,85 +610,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     return true;
                 });
-        }
-        
-        /// <inheritdoc />
-        public override Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism, IContentSession contentSession,
-            CancellationToken cts)
-        {
-            return context.PerformOperationAsync(
-                Tracer,
-                async () =>
-                {
-                    // We do multiple attempts here because we have a "CompareExchange" RocksDB in the heart
-                    // of this implementation, and this may fail if the database is heavily contended.
-                    // Unfortunately, there is not much we can do at the time of writing to avoid this
-                    // requirement.
-                    var maxAttempts = 5;
-                    while (maxAttempts-- >= 0)
-                    {
-                        // TODO(jubayard): RocksDB supports transactional semantics that would make this logic better
-                        var contentHashList = contentHashListWithDeterminism.ContentHashList;
-                        var determinism = contentHashListWithDeterminism.Determinism;
-
-                        // Load old value. Notice that this get updates the time, regardless of whether we replace the value or not.
-                        var oldContentHashListWithDeterminism = GetContentHashList(context, strongFingerprint);
-                        var oldContentHashList = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.ContentHashList;
-                        var oldDeterminism = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.Determinism;
-
-                        // Make sure we're not mixing SinglePhaseNonDeterminism records
-                        if (!(oldContentHashList is null) &&
-                                    oldDeterminism.IsSinglePhaseNonDeterministic != determinism.IsSinglePhaseNonDeterministic)
-                        {
-                            return AddOrGetContentHashListResult.SinglePhaseMixingError;
-                        }
-
-                        if (oldContentHashList is null || oldDeterminism.ShouldBeReplacedWith(determinism) ||
-                                    !(await contentSession.EnsureContentIsAvailableAsync(context, oldContentHashList, cts).ConfigureAwait(false)))
-                        {
-                            // Replace if incoming has better determinism or some content for the existing
-                            // entry is missing. The entry could have changed since we fetched the old value
-                            // earlier, hence, we need to check it hasn't.
-                            var exchanged = CompareExchange(
-                                context,
-                                strongFingerprint,
-                                oldContentHashListWithDeterminism.ContentHashListWithDeterminism,
-                                contentHashListWithDeterminism).ThrowOnError();
-                            if (!exchanged)
-                            {
-                                // Our update lost, need to retry
-                                continue;
-                            }
-
-                            return new AddOrGetContentHashListResult(EmptyContentHashList(determinism));
-                        }
-
-                        // If we didn't accept the new value because it is the same as before, just with a not
-                        // necessarily better determinism, then let the user know.
-                        if (!(oldContentHashList is null) && oldContentHashList.Equals(contentHashList))
-                        {
-                            return new AddOrGetContentHashListResult(EmptyContentHashList(oldDeterminism));
-                        }
-
-                        // If we didn't accept a deterministic tool's data, then we're in an inconsistent state
-                        if (determinism.IsDeterministicTool)
-                        {
-                            return new AddOrGetContentHashListResult(
-                                AddOrGetContentHashListResult.ResultCode.InvalidToolDeterminismError,
-                                oldContentHashListWithDeterminism.ContentHashListWithDeterminism);
-                        }
-
-                        // If we did not accept the given value, return the value in the cache
-                        return new AddOrGetContentHashListResult(oldContentHashListWithDeterminism);
-                    }
-
-                    return new AddOrGetContentHashListResult("Hit too many races attempting to add content hash list into the cache");
-                }, Counters[ContentLocationDatabaseCounters.AddOrGetContentHashList]);
-        }
-        
-        private ContentHashListWithDeterminism EmptyContentHashList(CacheDeterminism determinism)
-        {
-            return new ContentHashListWithDeterminism(null, determinism);
         }
 
         /// <inheritdoc />
@@ -725,7 +641,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public override IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
         {
-            var selectors = new List<(long, Selector)>();
+            var selectors = new List<(long TimeUtc, Selector Selector)>();
             var status = _keyValueStore.Use(
                 store =>
                 {
@@ -742,8 +658,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 });
 
             var result = new List<GetSelectorResult>(selectors
-                .OrderByDescending(entry => entry.Item1)
-                .Select(entry => new GetSelectorResult(entry.Item2)));
+                .OrderByDescending(entry => entry.TimeUtc)
+                .Select(entry => new GetSelectorResult(entry.Selector)));
             if (!status.Succeeded)
             {
                 result.Add(new GetSelectorResult(status.Failure.CreateException()));

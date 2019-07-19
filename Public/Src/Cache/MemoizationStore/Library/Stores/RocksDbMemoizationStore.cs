@@ -15,7 +15,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
@@ -27,31 +29,21 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// <summary>
     ///     An IMemoizationStore implementation using RocksDb.
     /// </summary>
-    public class RocksDbMemoizationStore : IMemoizationStore
+    public class RocksDbMemoizationStore : StartupShutdownBase, IMemoizationStore
     {
         private const string Component = nameof(RocksDbMemoizationStore);
-
-        private bool _disposed;
+        
         private IClock _clock;
         private RocksDbContentLocationDatabaseConfiguration _config;
-        private RocksDbContentLocationDatabase _cldb;
+        private RocksDbContentLocationDatabase _database;
 
         /// <summary>
         ///     Store tracer.
         /// </summary>
-        private readonly RocksDbMemoizationStoreTracer Tracer;
+        private readonly MemoizationStoreTracer _tracer;
 
         /// <inheritdoc />
-        public bool StartupStarted { get; private set; }
-
-        /// <inheritdoc />
-        public bool StartupCompleted { get; private set; }
-
-        /// <inheritdoc />
-        public bool ShutdownStarted { get; private set; }
-
-        /// <inheritdoc />
-        public bool ShutdownCompleted { get; private set; }
+        protected override Tracer Tracer => _tracer;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="RocksDbMemoizationStore"/> class.
@@ -62,10 +54,10 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             Contract.Requires(config != null);
             Contract.Requires(clock != null);
 
-            Tracer = new RocksDbMemoizationStoreTracer(logger, Component);
+            _tracer = new MemoizationStoreTracer(logger, Component);
             _clock = clock;
             _config = config;
-            _cldb = new RocksDbContentLocationDatabase(clock, config, () => new MachineId[] { });
+            _database = new RocksDbContentLocationDatabase(clock, config, () => new MachineId[] { });
         }
 
         /// <inheritdoc />
@@ -96,80 +88,116 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> StartupAsync(Context context)
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            StartupStarted = true;
-
-            var cldbStartup = await _cldb.StartupAsync(context);
+            var cldbStartup = await _database.StartupAsync(context);
             if (!cldbStartup.Succeeded)
             {
                 return cldbStartup;
             }
 
-            StartupCompleted = true;
             return BoolResult.Success;
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> ShutdownAsync(Context context)
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            ShutdownStarted = true;
-
-            var cldbShutdown = await _cldb.ShutdownAsync(context);
+            var cldbShutdown = await _database.ShutdownAsync(context);
             if (!cldbShutdown.Succeeded)
             {
                 return cldbShutdown;
             }
 
-            ShutdownCompleted = true;
             return BoolResult.Success;
-        }
-
-        /// <inheritdoc />
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            Dispose(true);
-            GC.SuppressFinalize(this);
-
-            _disposed = true;
-        }
-
-        /// <inheritdoc />
-        public void Dispose(bool disposing)
-        {
-            if (disposing && !_disposed)
-            {
-                _disposed = true;
-            }
         }
 
         /// <inheritdoc />
         public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             var ctx = new OperationContext(context);
-            return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable<StructResult<StrongFingerprint>>(() => Task.FromResult(_cldb.EnumerateStrongFingerprints(ctx)));
+            return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable<StructResult<StrongFingerprint>>(() => Task.FromResult(_database.EnumerateStrongFingerprints(ctx)));
         }
 
         internal Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts)
         {
-            // TODO: tracer
             var ctx = new OperationContext(context);
-            return GetContentHashListCall.RunAsync(Tracer, context, strongFingerprint, () => {
-                return Task.FromResult(_cldb.GetContentHashList(ctx, strongFingerprint));
+            return GetContentHashListCall.RunAsync(_tracer, context, strongFingerprint, () => {
+                return Task.FromResult(_database.GetContentHashList(ctx, strongFingerprint));
             });
         }
 
         internal Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism, IContentSession contentSession, CancellationToken cts)
         {
             var ctx = new OperationContext(context, cts);
-            return AddOrGetContentHashListCall.RunAsync(Tracer, ctx, strongFingerprint, async () => {
-                // TODO: weave with content session for removing stuff
-                return await _cldb.AddOrGetContentHashListAsync(ctx, strongFingerprint, contentHashListWithDeterminism, contentSession, cts);
+            return AddOrGetContentHashListCall.RunAsync(_tracer, ctx, strongFingerprint, async () => {
+                return await ctx.PerformOperationAsync(
+               _tracer,
+               async () =>
+               {
+                   // We do multiple attempts here because we have a "CompareExchange" RocksDB in the heart
+                   // of this implementation, and this may fail if the database is heavily contended.
+                   // Unfortunately, there is not much we can do at the time of writing to avoid this
+                   // requirement.
+                   var maxAttempts = 5;
+                   while (maxAttempts-- >= 0)
+                   {
+                       var contentHashList = contentHashListWithDeterminism.ContentHashList;
+                       var determinism = contentHashListWithDeterminism.Determinism;
+
+                       // Load old value. Notice that this get updates the time, regardless of whether we replace the value or not.
+                       var oldContentHashListWithDeterminism = _database.GetContentHashList(ctx, strongFingerprint);
+                       var oldContentHashList = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.ContentHashList;
+                       var oldDeterminism = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.Determinism;
+
+                       // Make sure we're not mixing SinglePhaseNonDeterminism records
+                       if (!(oldContentHashList is null) &&
+                                  oldDeterminism.IsSinglePhaseNonDeterministic != determinism.IsSinglePhaseNonDeterministic)
+                       {
+                           return AddOrGetContentHashListResult.SinglePhaseMixingError;
+                       }
+
+                       if (oldContentHashList is null || oldDeterminism.ShouldBeReplacedWith(determinism) ||
+                                   !(await contentSession.EnsureContentIsAvailableAsync(ctx, oldContentHashList, ctx.Token).ConfigureAwait(false)))
+                       {
+                           // Replace if incoming has better determinism or some content for the existing
+                           // entry is missing. The entry could have changed since we fetched the old value
+                           // earlier, hence, we need to check it hasn't.
+                           var exchanged = _database.CompareExchange(
+                              ctx,
+                              strongFingerprint,
+                              oldContentHashListWithDeterminism.ContentHashListWithDeterminism,
+                              contentHashListWithDeterminism).ThrowOnError();
+                           if (!exchanged)
+                           {
+                               // Our update lost, need to retry
+                               continue;
+                           }
+
+                           return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, determinism));
+                       }
+
+                       // If we didn't accept the new value because it is the same as before, just with a not
+                       // necessarily better determinism, then let the user know.
+                       if (!(oldContentHashList is null) && oldContentHashList.Equals(contentHashList))
+                       {
+                           return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, oldDeterminism));
+                       }
+
+                       // If we didn't accept a deterministic tool's data, then we're in an inconsistent state
+                       if (determinism.IsDeterministicTool)
+                       {
+                           return new AddOrGetContentHashListResult(
+                               AddOrGetContentHashListResult.ResultCode.InvalidToolDeterminismError,
+                               oldContentHashListWithDeterminism.ContentHashListWithDeterminism);
+                       }
+
+                       // If we did not accept the given value, return the value in the cache
+                       return new AddOrGetContentHashListResult(oldContentHashListWithDeterminism);
+                   }
+
+                   return new AddOrGetContentHashListResult("Hit too many races attempting to add content hash list into the cache");
+                   // TODO(jubayard): decouple the counters from the ContentLocationDatabase
+               }, _database.Counters[ContentLocationDatabaseCounters.AddOrGetContentHashList]);
             });
         }
 
@@ -178,7 +206,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             var results = new List<Selector>();
 
             var ctx = new OperationContext(context);
-            foreach (var result in _cldb.GetSelectors(ctx, weakFingerprint))
+            foreach (var result in _database.GetSelectors(ctx, weakFingerprint))
             {
                 if (!result.Succeeded)
                 {

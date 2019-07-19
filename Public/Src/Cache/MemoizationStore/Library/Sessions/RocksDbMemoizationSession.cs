@@ -54,7 +54,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return Task.FromResult(BoolResult.Success);
+            return BoolResult.SuccessTask;
         }
     }
 }

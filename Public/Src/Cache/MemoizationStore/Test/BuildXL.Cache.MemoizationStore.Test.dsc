@@ -23,6 +23,7 @@ namespace Test {
                 // Gets around issue of 461 needed netstandard 2.0 lib
                 : [importFrom("System.Data.SQLite.Core").pkg]
             ),
+            ContentStore.Distributed.dll,
             ContentStore.Hashing.dll,
             ContentStore.UtilitiesCore.dll,
             ContentStore.Interfaces.dll,
@@ -33,8 +34,6 @@ namespace Test {
             Interfaces.dll,
             InterfacesTest.dll,
             Library.dll,
-
-            ContentStore.Distributed.dll,
 
             importFrom("BuildXL.Utilities").dll,
             importFrom("System.Interactive.Async").pkg,

@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
 {
@@ -53,23 +54,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
             _map.AddOrUpdate(hash, key => entry, (key, old) => entry);
         }
 
+
+        /// <inheritdoc />
+        public override Possible<bool> CompareExchange(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <inheritdoc />
         public override GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
         {
             throw new NotImplementedException();
         }
-
-        /// <inheritdoc />
-        public override Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(
-            OperationContext context,
-            StrongFingerprint strongFingerprint,
-            ContentHashListWithDeterminism contentHashListWithDeterminism,
-            IContentSession contentSession,
-            CancellationToken cts)
-        {
-            throw new NotImplementedException();
-        }
-
+        
         /// <inheritdoc />
         public override IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
         {
@@ -103,19 +100,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         }
 
         /// <inheritdoc />
-        protected override BoolResult SaveCheckpointCore(OperationContext context, AbsolutePath checkpointDirectory)
+        protected override BoolResult SaveCheckpointCore(OperationContext context, Interfaces.FileSystem.AbsolutePath checkpointDirectory)
         {
             return BoolResult.Success;
         }
 
         /// <inheritdoc />
-        protected override BoolResult RestoreCheckpointCore(OperationContext context, AbsolutePath checkpointDirectory)
+        protected override BoolResult RestoreCheckpointCore(OperationContext context, Interfaces.FileSystem.AbsolutePath checkpointDirectory)
         {
             return BoolResult.Success;
         }
 
         /// <inheritdoc />
-        public override bool IsImmutable(AbsolutePath dbFile)
+        public override bool IsImmutable(Interfaces.FileSystem.AbsolutePath dbFile)
         {
             return false;
         }

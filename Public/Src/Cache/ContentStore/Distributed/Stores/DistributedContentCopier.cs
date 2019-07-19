@@ -318,6 +318,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         return reportCancellationRequested();
                     }
 
+                    if (copyFileResult.Code == CopyFileResult.ResultCode.DestinationPathError && copyFileResult.HasException && IsSourceError(copyFileResult.Exception))
+                    {
+                        copyFileResult = new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, copyFileResult);
+                    }
+
                     if (copyFileResult != null)
                     {
                         switch (copyFileResult.Code)
@@ -346,7 +351,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Not trying another replica.");
-                                return (result: new ErrorResult(copyFileResult).AsResult<PutResult>(), retry: !copyFileResult.Exception?.HasHresult(Hresult.DiskFull) ?? true);
+                                return (result: new ErrorResult(copyFileResult).AsResult<PutResult>(), retry: false);
                             case CopyFileResult.ResultCode.CopyTimeoutError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to copy timeout: {copyFileResult}";
                                 Tracer.Warning(
@@ -451,6 +456,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
 
             return (new PutResult(hashInfo.ContentHash, $"Unable to copy file{lastErrorMessage}"), retry: true);
+        }
+
+        private static bool IsSourceError(Exception e)
+        {
+            // Several IOExceptions have the code 0x80131620, and they all have a message related to a closed or cancelled connection.
+            return e.HasHresult(0x80131620);
         }
 
         private async Task<CopyFileResult> CopyFileAsync(

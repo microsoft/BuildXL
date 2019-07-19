@@ -1169,7 +1169,7 @@ namespace BuildXL.FrontEnd.Script
 
             // We populate the package moduleId, so the workspace will use it when projecting packages into module descriptors
             // TODO: The moduleId is later overridden at evaluation time! Consider removing the dependency on the env
-            package.ModuleId = ModuleIdProvider.GetNextId();
+            package.ModuleId = new ModuleId(id.Name);
 
             UpdatePackageMap(package);
         }

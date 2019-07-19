@@ -397,7 +397,7 @@ createExpression(" + spec + ");");
             var moduleRootDirectory = specPath.GetParent(context.PathTable);
             var moduleDefinition = ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(
                 new ModuleDescriptor(
-                    id: new ModuleId(1),
+                    id:  new ModuleId(StringId.Create(context.StringTable, moduleName)),
                     name: moduleName,
                     displayName: moduleName,
                     version: "1.0.0", 

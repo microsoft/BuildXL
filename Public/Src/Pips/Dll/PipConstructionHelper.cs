@@ -195,7 +195,7 @@ namespace BuildXL.Pips
                 redirectedRoot ?? AbsolutePath.Create(context.PathTable, "d:\\test\\redirected"),
                 tempRoot ?? objectRoot ?? AbsolutePath.Create(context.PathTable, "d:\\test\\tmp"),
                 pipGraph,
-                new ModuleId(1),
+                ModuleId.UnsafeCreate(1),
                 moduleName ?? "TestModule",
                 RelativePath.Create(context.StringTable, specRelativePath ?? "spec"),
                 FullSymbol.Create(context.SymbolTable, symbol ?? "testValue"),

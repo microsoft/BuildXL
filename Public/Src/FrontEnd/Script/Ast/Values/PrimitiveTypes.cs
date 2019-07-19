@@ -157,12 +157,15 @@ namespace BuildXL.FrontEnd.Script.Values
         /// </summary>
         public Type IpcMonikerType { get; }
 
+        public ModuleId ScriptModuleId { get; }
+
         /// <nodoc />
         public PrimitiveTypes(StringTable stringTable)
         {
             Contract.Requires(stringTable != null);
 
             StringTable = stringTable;
+            ScriptModuleId = new ModuleId(StringId.Create(StringTable, "<DominoScript>"));
 
             PathType = CreateNamedTypeReference("Path");
             PathAtomType = CreateNamedTypeReference("PathAtom");

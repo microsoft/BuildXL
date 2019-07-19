@@ -645,7 +645,7 @@ namespace BuildXL.FrontEnd.Nuget
                     return possiblePackage.Failure;
                 }
 
-                var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(packageName, this);
+                var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(m_context.StringTable, packageName, this);
 
                 generatedProjectsByPackageDescriptor[moduleDescriptor] = possiblePackage.Result;
                 generatedProjectsByPath[possiblePackage.Result] = moduleDescriptor;

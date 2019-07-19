@@ -272,7 +272,7 @@ namespace BuildXL.FrontEnd.Download
         {
             var name = downloadData.Settings.ModuleName;
 
-            var moduleId = new ModuleId(ModuleIdProvider.GetNextId().Value, name);
+            var moduleId = new ModuleId(StringId.Create(m_context.StringTable, name));
             var descriptor = new ModuleDescriptor(moduleId, name, name, string.Empty, Kind, Name);
 
             var definition = ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(

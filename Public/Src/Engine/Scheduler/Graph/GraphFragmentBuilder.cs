@@ -28,6 +28,7 @@ namespace BuildXL.Scheduler.Graph
         private readonly PipExecutionContext m_pipExecutionContext;
         private readonly SealedDirectoryTable m_sealDirectoryTable;
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
+        private readonly ConcurrentDictionary<ModuleId, ModulePip> m_modules = new ConcurrentDictionary<ModuleId, ModulePip>();
         private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
         private WindowsOsDefaults m_windowsOsDefaults;
         private MacOsDefaults m_macOsDefaults;
@@ -64,7 +65,11 @@ namespace BuildXL.Scheduler.Graph
         public bool AddIpcPip([NotNull] IpcPip ipcPip, PipId valuePip) => AddPip(ipcPip);
 
         /// <inheritdoc />
-        public bool AddModule([NotNull] ModulePip module) => AddPip(module);
+        public bool AddModule([NotNull] ModulePip module)
+        {
+            m_modules[module.Module] = module;
+            return AddPip(module);
+        }
 
         /// <inheritdoc />
         public bool AddModuleModuleDependency(ModuleId moduleId, ModuleId dependency) => true;

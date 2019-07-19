@@ -495,7 +495,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             var descriptorName = Names.ConfigModuleName;
             var id = StringId.Create(PathTable.StringTable, descriptorName);
             var mdsc = new ModuleDescriptor(
-                id: new ModuleId(id.Value, friendlyNameForDebugging: descriptorName),
+                id: new ModuleId(id),
                 name: descriptorName,
                 displayName: descriptorName,
                 version: "0.0",

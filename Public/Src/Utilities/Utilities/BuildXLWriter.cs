@@ -488,10 +488,10 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Writes a ModuleId
         /// </summary>
-        public void Write(ModuleId value)
+        public virtual void Write(ModuleId value)
         {
             Start<ModuleId>();
-            WriteCompact(value.Value);
+            Write(value.Value);
             End();
         }
 

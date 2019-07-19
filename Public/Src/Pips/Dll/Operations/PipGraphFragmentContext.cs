@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -49,6 +50,24 @@ namespace BuildXL.Pips.Operations
         /// This is populated by whomever creates the pip graph fragment so that multiple fragments can all reference the same pip id, without having to know exactly which pip id to use.
         /// </summary>
         private ConcurrentBigMap<uint, FullSymbol> m_pipIdValueToVariableNameMap = new ConcurrentBigMap<uint, FullSymbol>();
+
+        private ConcurrentDictionary<ModuleId, StringId> m_moduleIdentities = new ConcurrentDictionary<ModuleId, StringId>();
+
+        /// <summary>
+        /// Adds a mapping from module id to module string identity
+        /// </summary>
+        public void AddModuleIdentity(ModuleId module, StringId identity)
+        {
+            m_moduleIdentities.Add(module, identity);
+        }
+
+        /// <summary>
+        /// Gets the string identity for a given module id
+        /// </summary>
+        internal StringId GetModuleIdentity(ModuleId module)
+        {
+            return m_moduleIdentities[module];
+        }
 
         /// <summary>
         /// Add directory mapping, so all pips using the old directory artifact get mapped to the new one.

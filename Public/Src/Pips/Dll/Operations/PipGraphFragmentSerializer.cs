@@ -68,6 +68,16 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public void Serialize(string fragmentDescription, PipExecutionContext context, PipGraphFragmentContext pipFragmentContext, AbsolutePath filePath, IReadOnlyCollection<Pip> pipsToSerialize)
         {
+            // Populate module identities
+            foreach (var pip in pipsToSerialize)
+            {
+                if (pip.PipType == PipType.Module)
+                {
+                    var modulePip = (ModulePip)pip;
+                    pipFragmentContext.AddModuleIdentity(modulePip.Module, modulePip.Identity);
+                }
+            }
+
             FragmentDescription = fragmentDescription;
             PipsSerialized = 0;
             string fileName = filePath.ToString(context.PathTable);

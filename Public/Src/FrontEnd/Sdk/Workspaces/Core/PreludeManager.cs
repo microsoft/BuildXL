@@ -109,7 +109,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
             ModuleDefinition preludeModuleDefinition = ModuleDefinition.CreateModuleDefinitionWithExplicitReferencesWithEmptyQualifierSpace(
                 descriptor: new ModuleDescriptor(
-                    id: ModuleIdProvider.GetNextId(), 
+                    id: ModuleId.Create(m_pathTable.StringTable, moduleName), 
                     name: moduleName, 
                     displayName: moduleName,
                     version: "0", 

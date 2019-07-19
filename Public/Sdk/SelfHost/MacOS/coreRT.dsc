@@ -17,7 +17,7 @@ export namespace CoreRT {
     @@public
     export function compileToNative(asm: Shared.Assembly): NativeExecutableResult {
         /** Compile to native object file */
-        const referencesClosure = Managed.Helpers.computeTransitiveClosure(asm.references, /*compile*/ false);
+        const referencesClosure = Managed.Helpers.computeTransitiveClosure(asm.references, asm.runtimeContentToSkip, /*compile*/ false);
         const ilcResult = Ilc.compile({
             out: `${asm.name}.o`,
             inputs: [ 

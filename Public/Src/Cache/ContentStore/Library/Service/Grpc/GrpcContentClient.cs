@@ -366,6 +366,41 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 (sessionContext, tempFile) => PutFileAsync(sessionContext, hashType, tempFile, FileRealizationMode.HardLink));
         }
 
+        /// <inheritdoc />
+        public async Task<DeleteResult> DeleteContentAsync(Context context, ContentHash hash)
+        {
+            try
+            {
+                DeleteContentRequest request = new DeleteContentRequest()
+                {
+                    TraceId = context.Id.ToString(),
+                    HashType = (int)hash.HashType,
+                    ContentHash = hash.ToByteString()
+                };
+
+                DeleteContentResponse response = await _client.DeleteAsync(request);
+                if (response.Header.Succeeded)
+                {
+                    return new DeleteResult((DeleteResult.ResultCode)response.Result, hash, response.EvictedSize, response.PinnedSize);
+                }
+                else
+                {
+                    return new DeleteResult((DeleteResult.ResultCode)response.Result, response.Header.ErrorMessage, response.Header.Diagnostics);
+                }
+            }
+            catch (RpcException r)
+            {
+                if (r.StatusCode == StatusCode.Unavailable)
+                {
+                    return new DeleteResult(DeleteResult.ResultCode.ServerError, r);
+                }
+                else
+                {
+                    return new DeleteResult(DeleteResult.ResultCode.Error, r);
+                }
+            }
+        }
+
         private async Task<PutResult> PutStreamInternalAsync(Context context, Stream stream, ContentHash contentHash, Func<SessionContext, AbsolutePath, Task<PutResult>> putFileFunc)
         {
             var sessionContextResult = await CreateSessionContextAsync(context);

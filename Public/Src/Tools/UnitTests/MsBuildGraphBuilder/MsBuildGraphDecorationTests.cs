@@ -16,7 +16,7 @@ namespace Test.ProjectGraphBuilder
     /// <summary>
     /// Tests related to the decorations associated to the project graph (e.g. failures, location of assemblies, etc.)
     /// </summary>
-    public class MsBuildGraphDecorationTests : TemporaryStorageTestBase
+    public class MsBuildGraphDecorationTests : GraphBuilderToolTestBase
     {
         public MsBuildGraphDecorationTests(ITestOutputHelper output): base(output)
         {
@@ -56,13 +56,13 @@ namespace Test.ProjectGraphBuilder
             // We expect the result to succeed
             Assert.True(projectGraphWithPredictionsResult.Succeeded);
             // The locations for MSBuild.exe and its assemblies should be properly set
-            Assert.Contains(TestDeploymentDir, projectGraphWithPredictionsResult.PathToMsBuildExe);
+            Assert.Contains(TestDeploymentDir, projectGraphWithPredictionsResult.PathToMsBuild);
             Assert.All(projectGraphWithPredictionsResult.MsBuildAssemblyPaths.Values, assemblyPath => assemblyPath.Contains(TestDeploymentDir));
         }
 
         private ProjectGraphWithPredictionsResult<string> BuildGraphAndDeserialize(string projectEntryPointContent = null)
         {
-            return BuildGraphAndDeserialize(MsBuildAssemblyLoader.Instance, projectEntryPointContent);
+            return BuildGraphAndDeserialize(AssemblyLoader, projectEntryPointContent);
         }
 
         private ProjectGraphWithPredictionsResult<string> BuildGraphAndDeserialize(IMsBuildAssemblyLoader assemblyLoader, string projectEntryPointContent = null)
@@ -77,11 +77,10 @@ namespace Test.ProjectGraphBuilder
 
             using (var reporter = new GraphBuilderReporter(Guid.NewGuid().ToString()))
             {
-                var arguments = new MSBuildGraphBuilderArguments(
+                var arguments = GetStandardBuilderArguments(
                     new[] { entryPoint },
                     outputFile,
                     globalProperties: GlobalProperties.Empty,
-                    mSBuildSearchLocations: new string[] {TestDeploymentDir},
                     entryPointTargets: new string[0],
                     requestedQualifiers: new GlobalProperties[] { GlobalProperties.Empty},
                     allowProjectsWithoutTargetProtocol: false);

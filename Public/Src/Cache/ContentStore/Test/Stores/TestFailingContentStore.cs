@@ -69,7 +69,7 @@ namespace ContentStoreTest.Stores
         /// <inheritdoc />
         public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
         {
-            return Task.FromResult(new DeleteResult(FailureMessage));
+            return Task.FromResult(new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, FailureMessage));
         }
 
         /// <inheritdoc />

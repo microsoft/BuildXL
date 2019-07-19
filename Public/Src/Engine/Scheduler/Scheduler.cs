@@ -145,7 +145,7 @@ namespace BuildXL.Scheduler
         /// <see cref="FingerprintStore"/> directory name.
         /// </summary>
         public const string FingerprintStoreDirectory = "FingerprintStore";
-        
+
         #endregion Constants
 
         #region State
@@ -252,7 +252,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Cleans temp directories in background
         /// </summary>
-        private readonly TempCleaner m_tempCleaner;
+        public TempCleaner TempCleaner { get; }
 
         /// <summary>
         /// The pip graph
@@ -1095,7 +1095,7 @@ namespace BuildXL.Scheduler
             // is complete. GetDummyProvenance may be called during execution (after the schedule phase)
             GetDummyProvenance();
 
-            m_tempCleaner = tempCleaner;
+            TempCleaner = tempCleaner;
 
             // Ensure that when the cancellationToken is signaled, we respond with the
             // internal cancellation process.
@@ -2621,7 +2621,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(runnablePip.PipType == PipType.Process);
             Contract.Requires(runnablePip.Result.HasValue);
             // Only allow this to be null in testing
-            if (m_tempCleaner == null)
+            if (TempCleaner == null)
             {
                 Contract.Assert(m_testHooks != null);
                 return;
@@ -2642,7 +2642,7 @@ namespace BuildXL.Scheduler
             // temp directories are not considered as outputs.
             if (process.TempDirectory.IsValid)
             {
-                m_tempCleaner.RegisterDirectoryToDelete(process.TempDirectory.ToString(Context.PathTable), deleteRootDirectory: true);
+                TempCleaner.RegisterDirectoryToDelete(process.TempDirectory.ToString(Context.PathTable), deleteRootDirectory: true);
             }
 
             foreach (var additionalTempDirectory in process.AdditionalTempDirectories)
@@ -2650,7 +2650,7 @@ namespace BuildXL.Scheduler
                 // Unlike process.TempDirectory, which is invalid for pips without temp directories,
                 // AdditionalTempDirectories should not have invalid paths added
                 Contract.Requires(additionalTempDirectory.IsValid);
-                m_tempCleaner.RegisterDirectoryToDelete(additionalTempDirectory.ToString(Context.PathTable), deleteRootDirectory: true);
+                TempCleaner.RegisterDirectoryToDelete(additionalTempDirectory.ToString(Context.PathTable), deleteRootDirectory: true);
             }
 
             // Only for successful run scheduling temporary outputs for deletion
@@ -2661,7 +2661,7 @@ namespace BuildXL.Scheduler
                 // CanBeReferencedOrCached() is false for e.g. 'intermediate' outputs, and deleting them proactively can be a nice space saving
                 if (!output.CanBeReferencedOrCached())
                 {
-                    m_tempCleaner.RegisterFileToDelete(output.Path.ToString(Context.PathTable));
+                    TempCleaner.RegisterFileToDelete(output.Path.ToString(Context.PathTable));
                 }
             }
         }
@@ -4845,7 +4845,7 @@ namespace BuildXL.Scheduler
                 incrementalSchedulingStateFactory = new IncrementalSchedulingStateFactory(
                     loggingContext,
                     analysisMode: false,
-                    tempDirectoryCleaner: m_tempCleaner);
+                    tempDirectoryCleaner: TempCleaner);
             }
 
             if (m_fileChangeTracker.IsBuildingInitialChangeTrackingSet)

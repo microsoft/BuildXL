@@ -115,11 +115,17 @@ export const restrictTestRunToDebugNet461OnWindows =
     (qualifier.targetFramework !== "netcoreapp3.0" && qualifier.targetFramework !== "net472") ||
     (Context.isWindowsOS() && qualifier.targetRuntime === "osx-x64");
 
+@@public
+/***
+* Whether service pip daemon tooling is included with the BuildXL deployment
+*/
+export const isDaemonToolingEnabled = Flags.isMicrosoftInternal && isFullFramework;
+
 /***
 * Whether drop tooling is included with the BuildXL deployment
 */
 @@public
-export const isDropToolingEnabled = Flags.isMicrosoftInternal && isFullFramework;
+export const isDropToolingEnabled = isDaemonToolingEnabled && Flags.isMicrosoftInternal && isFullFramework;
 
 namespace Flags {
     export declare const qualifier: {};
@@ -155,6 +161,12 @@ namespace Flags {
      */
     @@public
     export const buildRequiredAdminPrivilegeTestInVm = Environment.getFlag("[Sdk.BuildXL]BuildRequiredAdminPrivilegeTestInVm");
+
+    /**
+     * Whether we deploy experimental tools.
+     */
+    @@public
+    export const deployExperimentalTools = Environment.getFlag("[Sdk.BuildXL]deployExperimentalTools");
 }
 
 @@public

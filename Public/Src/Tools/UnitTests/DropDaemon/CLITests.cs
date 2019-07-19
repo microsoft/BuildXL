@@ -11,9 +11,11 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.CLI;
 using Test.BuildXL.TestUtilities.Xunit;
 using Tool.DropDaemon;
+using Tool.ServicePipDaemon;
 using Xunit;
 using Xunit.Abstractions;
-using static Tool.DropDaemon.Program;
+using static Tool.DropDaemon.DropDaemon;
+using static Tool.ServicePipDaemon.ServicePipDaemon;
 
 namespace Test.Tool.DropDaemon
 {
@@ -69,18 +71,18 @@ namespace Test.Tool.DropDaemon
 
         public static IEnumerable<object[]> ValidCommandLinesTestData()
         {
-            yield return new object[] { "start", new Option[] { DropName, DropEndpoint }, new[] { "mydrop", "http://xyz" } };
-            yield return new object[] { "start", new Option[] { DropName, DropEndpoint, EnableCloudBuildIntegration }, new[] { "mydrop", "http://xyz", "True" } };
-            yield return new object[] { "create", new Option[] { DropName, DropEndpoint }, new[] { "mydrop", "http://xyz" } };
-            yield return new object[] { "addfile", new[] { File, DropName }, new[] { @"""c:\x\y.txt""", "mydrop" } };
+            yield return new object[] { "start", new Option[] { DropNameOption, DropEndpoint }, new[] { "mydrop", "http://xyz" } };
+            yield return new object[] { "start", new Option[] { DropNameOption, DropEndpoint, EnableCloudBuildIntegration }, new[] { "mydrop", "http://xyz", "True" } };
+            yield return new object[] { "create", new Option[] { DropNameOption, DropEndpoint }, new[] { "mydrop", "http://xyz" } };
+            yield return new object[] { "addfile", new[] { File, DropNameOption }, new[] { @"""c:\x\y.txt""", "mydrop" } };
             yield return new object[] { "addfile", new[] { File }, new[] { @"""c:\x\y.txt""" } };
             yield return new object[] { "addfile", new[] { File, RelativeDropPath }, new[] { @"""c:\x\y.txt""", "a/b/c.txt" } };
             yield return new object[] { "addfile", new[] { File, RelativeDropPath }, new[] { @"""c:\x\y.txt""", @"a\\b\\c.txt" } };
             yield return new object[] { "addfile", new[] { File, RelativeDropPath }, new[] { @"""c:\x\y.txt""", "\"a\\b\\c.txt\"" } };
             yield return new object[] { "finalize", new Option[0], new string[0] };
-            yield return new object[] { "finalize", new[] { DropName }, new[] { "mydrop" } };
+            yield return new object[] { "finalize", new[] { DropNameOption }, new[] { "mydrop" } };
             yield return new object[] { "stop", new Option[0], new string[0] };
-            yield return new object[] { "stop", new[] { DropName }, new[] { "mydrop" } };
+            yield return new object[] { "stop", new[] { DropNameOption }, new[] { "mydrop" } };
             yield return new object[] { "addartifacts", new[] { IpcServerMonikerRequired, Directory, DirectoryId, RelativeDirectoryDropPath }, new[] { "moniker_string", @"c:\dir", "123:1:12345", "/remote/" } };
             yield return new object[] { "addartifacts", new[] { IpcServerMonikerRequired, File, FileId, HashOptional, RelativeDropPath }, new[] { "moniker_string", @"c:\dir\f.txt", "id1", "123:1:12345", "/remote/f.txt" } };
         }
@@ -109,11 +111,11 @@ namespace Test.Tool.DropDaemon
 
         public static IEnumerable<object[]> OptionOverrideTestData()
         {
-            yield return new object[] { DropName, "a", "b", "c" };
-            yield return new object[] { DropName, "a", "b", null };
-            yield return new object[] { DropName, "a", null, "c" };
-            yield return new object[] { DropName, null, "b", "c" };
-            yield return new object[] { DropName, null, "b", null };
+            yield return new object[] { DropNameOption, "a", "b", "c" };
+            yield return new object[] { DropNameOption, "a", "b", null };
+            yield return new object[] { DropNameOption, "a", null, "c" };
+            yield return new object[] { DropNameOption, null, "b", "c" };
+            yield return new object[] { DropNameOption, null, "b", null };
         }
 
         /// <summary>
@@ -133,7 +135,8 @@ namespace Test.Tool.DropDaemon
 
         public static IEnumerable<object[]> ParseArgsRequiredOptionMissingTestData()
         {
-            foreach (var cmd in Commands.Values)
+            // TODO: this only iterates over DropDaemon & ServicePipDaemon commands => add symbols commands
+            foreach (var cmd in SupportedCommands)
             {
                 var requiredSwitches = cmd.Options.Where(opt => opt.IsRequired).Select(opt => opt.LongName).ToList();
                 if (!requiredSwitches.Any())
@@ -169,8 +172,8 @@ namespace Test.Tool.DropDaemon
 
             // get either DaemonConfig or DropConfig object from the parsed command line, based on given 'property'
             object configObject =
-                property.DeclaringType == typeof(DaemonConfig) ? (object)CreateDaemonConfig(cliConfig) :
-                property.DeclaringType == typeof(DropConfig) ? (object)CreateDropConfig(cliConfig) :
+                property.DeclaringType == typeof(DaemonConfig) ? (object)ServicePipDaemon.CreateDaemonConfig(cliConfig) :
+                property.DeclaringType == typeof(DropConfig) ? (object)global::Tool.DropDaemon.DropDaemon.CreateDropConfig(cliConfig) :
                 null;
 
             // assert the value of that property is what we expect.
@@ -204,7 +207,7 @@ namespace Test.Tool.DropDaemon
             var cmd = StartCmd;
             var cmdline = cmd.Name + " --name 123 --service http://xyz "; // prepend required flags in all cases
 
-            foreach (var prop in confType.GetProperties().Where(p => !p.Name.StartsWith("Default") && !p.Name.StartsWith("MaxConcurrentClients")))
+            foreach (var prop in confType.GetProperties().Where(p => !p.Name.StartsWith("Default") && !p.Name.StartsWith("MaxConcurrentClients") && !p.Name.StartsWith("Logger")))
             {
                 // For current 'prop', try to find a corresponding option ('opt') in 'cmd.Options' and pick a
                 // representative value (according to its type) include in the command line.
@@ -327,7 +330,7 @@ namespace Test.Tool.DropDaemon
         private ConfiguredCommand ParseArgs(string fullCmdLine, bool ignoreInvalidOptions = false)
         {
             var logger = new LambdaLogger((level, format, args) => Output.WriteLine(format, args));
-            return Program.ParseArgs(fullCmdLine, UnixParser.Instance, logger, ignoreInvalidOptions: ignoreInvalidOptions);
+            return global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(fullCmdLine, UnixParser.Instance, logger, ignoreInvalidOptions: ignoreInvalidOptions);
         }
     }
 }

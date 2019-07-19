@@ -183,6 +183,12 @@ namespace BuildXL.Storage
         public bool HasKnownLength => m_lengthAndExistence.IsKnownLength && IsValidLength(m_lengthAndExistence.Length, Hash);
 
         /// <summary>
+        /// Checks if the hash type of the file matches the specified type.
+        /// </summary>
+        public bool MatchesHashType(HashType hashType)
+            => hashType == HashType.Unknown /* unknown matches everything */ || Hash.HashType == hashType;
+
+        /// <summary>
         /// The file length. If <see cref="HasKnownLength"/> is false, this returns zero.
         /// </summary>
         public long Length => IsValidLength(m_lengthAndExistence.Length, Hash) ? m_lengthAndExistence.Length : 0;

@@ -189,6 +189,11 @@ namespace BuildXL.Scheduler
         /// VM initializer.
         /// </summary>
         VmInitializer VmInitializer { get; }
+
+        /// <summary>
+        /// Temp directory cleaner
+        /// </summary>
+        TempCleaner TempCleaner { get; }
     }
 
     /// <summary>

@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using Microsoft.Build.Tasks;
 
 namespace MsBuildGraphBuilderTool
 {
@@ -31,12 +32,29 @@ namespace MsBuildGraphBuilderTool
         private const string SystemCollectionsImmutable = "System.Collections.Immutable.dll";
         private const string SystemThreadingDataflow = "System.Threading.Tasks.Dataflow.dll";
 
-        // MsBuild.exe is not a required to be loaded but is required to be found
-        private const string MsBuildExe = "MsBuild.exe";
+        // MsBuild is not a required to be loaded but is required to be found
+        // Under DotNetCore there is not an msbuild.exe but a msbuild.dll
+        private string m_msbuild;
 
-        private static readonly string[] s_assemblyNamesToLoad = new[]
+        private readonly string[] m_assemblyNamesToLoad;
+
+        /// <summary>
+        /// The expected public token for each required assembly
+        /// </summary>
+        private readonly Dictionary<string, string> m_assemblyPublicTokens;
+
+        private static ResolveEventHandler s_msBuildHandler;
+
+        // Assembly resolution is multi-threaded
+        private readonly ConcurrentDictionary<string, Assembly> m_loadedAssemblies;
+
+        public MsBuildAssemblyLoader(bool msBuildRuntimeIsDotNetCore)
+        {
+            m_msbuild = msBuildRuntimeIsDotNetCore ? "MSBuild.dll" : "MSBuild.exe";
+
+            m_assemblyNamesToLoad = new[]
             {
-                MsBuildExe,
+                m_msbuild,
                 MicrosoftBuild,
                 MicrosoftBuildFramework,
                 MicrosoftBuildUtilities,
@@ -44,35 +62,26 @@ namespace MsBuildGraphBuilderTool
                 SystemThreadingDataflow
             };
 
-        /// <summary>
-        /// The expected public token for each required assembly
-        /// </summary>
-        private static readonly Dictionary<string, string> s_assemblyPublicTokens = new Dictionary<string, string>
-        {
-            [MsBuildExe] = MSBuildPublicKeyToken,
-            [MicrosoftBuild] = MSBuildPublicKeyToken,
-            [MicrosoftBuildFramework] = MSBuildPublicKeyToken,
-            [MicrosoftBuildUtilities] = MSBuildPublicKeyToken,
-            [SystemCollectionsImmutable] = DotNetPublicToken,
-            [SystemThreadingDataflow] = DotNetPublicToken,
-        };
+            m_assemblyPublicTokens = new Dictionary<string, string>
+            {
+                [m_msbuild] = MSBuildPublicKeyToken,
+                [MicrosoftBuild] = MSBuildPublicKeyToken,
+                [MicrosoftBuildFramework] = MSBuildPublicKeyToken,
+                [MicrosoftBuildUtilities] = MSBuildPublicKeyToken,
+                [SystemCollectionsImmutable] = DotNetPublicToken,
+                [SystemThreadingDataflow] = DotNetPublicToken,
+            };
 
-        private static ResolveEventHandler s_msBuildHandler;
-
-        // Assembly resolution is multi-threaded
-        private readonly ConcurrentDictionary<string, Assembly> m_loadedAssemblies = new ConcurrentDictionary<string, Assembly>(5, s_assemblyNamesToLoad.Length, StringComparer.OrdinalIgnoreCase);
-
-        private static readonly Lazy<MsBuildAssemblyLoader> s_singleton = new Lazy<MsBuildAssemblyLoader>(() => new MsBuildAssemblyLoader());
-
-        private MsBuildAssemblyLoader()
-        {
+            m_loadedAssemblies = new ConcurrentDictionary<string, Assembly>(5, m_assemblyNamesToLoad.Length, StringComparer.OrdinalIgnoreCase);
         }
 
-        /// <nodoc/>
-        public static MsBuildAssemblyLoader Instance => s_singleton.Value;
-
         /// <inheritdoc/>
-        public bool TryLoadMsBuildAssemblies(IEnumerable<string> searchLocations, GraphBuilderReporter reporter, out string failureReason, out IReadOnlyDictionary<string, string> locatedAssemblyPaths, out string locatedMsBuildExePath)
+        public bool TryLoadMsBuildAssemblies(
+            IEnumerable<string> searchLocations, 
+            GraphBuilderReporter reporter, 
+            out string failureReason, 
+            out IReadOnlyDictionary<string, string> locatedAssemblyPaths, 
+            out string locatedMsBuildExePath)
         {
             // We want to make sure the provided locations actually contain all the needed assemblies
             if (!TryGetAssemblyLocations(searchLocations, reporter, out locatedAssemblyPaths, out IReadOnlyDictionary<string, string> missingAssemblyNames, out locatedMsBuildExePath))
@@ -104,7 +113,7 @@ namespace MsBuildGraphBuilderTool
 
                     // Automatically un-register the handler once all supported assemblies have been loaded.
                     // No need to synchronize threads here, if the handler was already removed, nothing bad happens
-                    if (m_loadedAssemblies.Count == s_assemblyNamesToLoad.Length)
+                    if (m_loadedAssemblies.Count == m_assemblyNamesToLoad.Length)
                     {
                         AppDomain.CurrentDomain.AssemblyResolve -= s_msBuildHandler;
                     }
@@ -128,10 +137,10 @@ namespace MsBuildGraphBuilderTool
             out IReadOnlyDictionary</* assembly name */ string, /* not found reason */ string> missingAssemblies, 
             out string locatedMsBuildExePath)
         {
-            var foundAssemblies = new Dictionary<string, string>(s_assemblyNamesToLoad.Length, StringComparer.OrdinalIgnoreCase);
-            var notFoundAssemblies = new Dictionary<string, string>(s_assemblyNamesToLoad.Length, StringComparer.OrdinalIgnoreCase);
+            var foundAssemblies = new Dictionary<string, string>(m_assemblyNamesToLoad.Length, StringComparer.OrdinalIgnoreCase);
+            var notFoundAssemblies = new Dictionary<string, string>(m_assemblyNamesToLoad.Length, StringComparer.OrdinalIgnoreCase);
 
-            var assembliesToFind = new HashSet<string>(s_assemblyNamesToLoad, StringComparer.OrdinalIgnoreCase);
+            var assembliesToFind = new HashSet<string>(m_assemblyNamesToLoad, StringComparer.OrdinalIgnoreCase);
             locatedMsBuildExePath = string.Empty;
 
             foreach (var location in locations)
@@ -142,7 +151,7 @@ namespace MsBuildGraphBuilderTool
                 try
                 {
                     var dlls = Directory.EnumerateFiles(location, "*.dll", SearchOption.TopDirectoryOnly);
-                    var msBuildExe = Directory.EnumerateFiles(location, MsBuildExe, SearchOption.TopDirectoryOnly);
+                    var msBuildExe = Directory.EnumerateFiles(location, m_msbuild, SearchOption.TopDirectoryOnly);
 
                     foreach (string fullPath in dlls.Union(msBuildExe))
                     {
@@ -158,7 +167,7 @@ namespace MsBuildGraphBuilderTool
 
                                 // If the file found is msbuild.exe, we update the associated location but don't store the path
                                 // in foundAssemblies, since this is not an assembly we really want to load
-                                if (file.Equals(MsBuildExe, StringComparison.OrdinalIgnoreCase))
+                                if (file.Equals(m_msbuild, StringComparison.OrdinalIgnoreCase))
                                 {
                                     locatedMsBuildExePath = fullPath;
                                 }
@@ -222,7 +231,7 @@ namespace MsBuildGraphBuilderTool
             return assembliesToFind.Count == 0;
         }
 
-        private static bool IsMsBuildAssembly(AssemblyName assemblyName, string fullPathToAssembly, out string notFoundReason)
+        private bool IsMsBuildAssembly(AssemblyName assemblyName, string fullPathToAssembly, out string notFoundReason)
         {
             if (string.Equals($"{assemblyName.Name}.dll", MicrosoftBuild, StringComparison.OrdinalIgnoreCase))
             {
@@ -258,7 +267,7 @@ namespace MsBuildGraphBuilderTool
                 sb.Append($"{b:x2}");
             }
 
-            if (s_assemblyPublicTokens.TryGetValue(assemblyName.Name, out string publicToken) && !sb.ToString().Equals(publicToken, StringComparison.OrdinalIgnoreCase))
+            if (m_assemblyPublicTokens.TryGetValue(assemblyName.Name, out string publicToken) && !sb.ToString().Equals(publicToken, StringComparison.OrdinalIgnoreCase))
             {
                 notFoundReason = $"The assembly under '{fullPathToAssembly}' is expected to contain public token '{publicToken}' but '{sb}' was found.";
                 return false;

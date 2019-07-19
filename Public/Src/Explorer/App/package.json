@@ -16,37 +16,34 @@
   },
   "dependencies": {
     "find-free-port": "2.0.0",
-    "luxon": "1.4.2",
-    "office-ui-fabric-react": "6.63.0",
-    "react": "16.4.2",
-    "react-dom": "16.4.2",
-    "react-router-dom": "4.3.1",
-    "request": "2.34",
-    "request-promise-native": "1.0.5",
+    "luxon": "1.17.1",
+    "office-ui-fabric-react": "7.10.0",
+    "react": "16.8.6",
+    "react-dom": "16.8.6",
+    "react-router-dom": "5.0.1",
+    "request": "2.88",
+    "request-promise-native": "1.0.7",
     "userhome": "1.0.0"
   },
   "devDependencies": {
-    "@types/luxon": "1.2.2",
-    "@types/react": "16.4.11",
-    "@types/react-dom": "16.0.7",
-    "@types/react-router-dom": "4.3.1",
-    "@types/request-promise-native": "1.0.15",
-    "asar": "0.14.5",
-    "electron-prebuilt-compile": "3.0.6",
-    "rcedit": "1.1.1",
-    "typescript": "2.9.2"
+    "@types/luxon": "1.15.2",
+    "@types/react": "16.8.23",
+    "@types/react-dom": "16.8.4",
+    "@types/react-router-dom": "4.3.4",
+    "@types/request-promise-native": "1.0.16",
+    "asar": "2.0.1",
+    "electron-prebuilt-compile": "4.0.0",
+    "rcedit": "2.0.0",
+    "typescript": "3.5.3"
   },
   "resolutions": {
     "constantinople": "~3.1.2",
-    "decompress-zip": "~0.3.2",
-    "qs": "~1.0.0",
     "uglify-js": "~2.8.29",
     "cryptiles": "~4.1.3",
     "hawk": "^7.0.10",
     "http-signature": "^1.2.0",
     "mime": "^2.4.0",
     "request": "~2.88.0",
-    "tunnel-agent": "~0.6.0",
-    "form-data": "^2.3.3"
+    "form-data": "^2.5.0"
   }
 }

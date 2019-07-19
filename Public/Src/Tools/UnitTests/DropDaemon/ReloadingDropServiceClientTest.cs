@@ -15,7 +15,7 @@ using Microsoft.VisualStudio.Services.Drop.App.Core;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.ItemStore.Common;
 using Test.BuildXL.TestUtilities.Xunit;
-using Tool.DropDaemon;
+using Tool.ServicePipDaemon;
 using Xunit;
 using Xunit.Abstractions;
 

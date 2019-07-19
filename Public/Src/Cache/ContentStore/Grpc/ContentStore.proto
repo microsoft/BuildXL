@@ -27,6 +27,8 @@ service ContentServer {
     rpc CopyFile(CopyFileRequest) returns (stream CopyFileResponse) {}
 
     rpc CheckFileExists(ExistenceRequest) returns (ExistenceResponse) {}
+
+    rpc Delete(DeleteContentRequest) returns (DeleteContentResponse) {}
 }
 
 // Defines an interface of a cache server
@@ -197,6 +199,20 @@ message ExistenceRequest {
 
 message ExistenceResponse {
     ResponseHeader Header = 1;
+}
+
+// Delete
+message DeleteContentRequest {
+    string traceId = 1;
+    int32 hashType = 2;
+    bytes contentHash = 3;
+}
+
+message DeleteContentResponse {
+    ResponseHeader header = 1;
+    int32 result = 2;
+    int64 evictedSize = 3;
+    int64 pinnedSize = 4;
 }
 
 // AddOrGetContentHashList

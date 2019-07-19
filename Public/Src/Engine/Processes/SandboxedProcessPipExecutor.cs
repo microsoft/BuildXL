@@ -25,6 +25,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.VmCommandProxy;
+using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.BuildParameters;
 
 namespace BuildXL.Processes
@@ -2779,6 +2780,44 @@ namespace BuildXL.Processes
             return false;
         }
 
+        private Dictionary<AbsolutePath, bool> m_isDirSymlinkCache = new Dictionary<AbsolutePath, bool>();
+
+        /// <summary>
+        /// Returns true if any symlinks are found on a given path
+        /// </summary>
+        private bool PathContainsSymlinks(AbsolutePath path)
+        {
+            Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsCheckedCount);
+            if (!path.IsValid)
+            {
+                return false;
+            }
+
+            if (FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(m_context.PathTable)))
+            {
+                return true;
+            }
+
+            return PathContainsSymlinksCached(path.GetParent(m_context.PathTable));
+        }
+
+        /// <summary>
+        /// Same as <see cref="PathContainsSymlinks"/> but with caching around it.
+        /// </summary>
+        private bool PathContainsSymlinksCached(AbsolutePath path)
+        {
+            Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsQueriedCount);
+            return m_isDirSymlinkCache.GetOrAdd(path, PathContainsSymlinks);
+        }
+
+        private bool CheckIfPathContainsSymlinks(AbsolutePath path)
+        {
+            using (Counters.StartStopwatch(SandboxedProcessCounters.DirectorySymlinkCheckingDuration))
+            {
+                return PathContainsSymlinksCached(path);
+            }
+        }
+
         /// <summary>
         /// Creates an <see cref="ObservedFileAccess"/> for each unique path accessed.
         /// The returned array is sorted by the expanded path and additionally contains no duplicates.
@@ -2904,7 +2943,20 @@ namespace BuildXL.Processes
                         // There is always at least one access for reported path by construction
                         // Since the set of accesses occur on the same path, the manifest path is
                         // the same for all of them. We only need to query one of them.
-                        ReportedFileAccess firstAccess = accessesByPath[entry.Key].First();
+                        ReportedFileAccess firstAccess = entry.Value.First();
+
+                        // Discard entries that have a single MacLookup report on a path that contains an intermediate directory symlink.
+                        // Reason: observed accesses computed here should only contain fully expanded paths to avoid ambiguity;
+                        //         on Mac, all access reports except for MacLookup report fully expanded paths, so only MacLookup paths need to be curated
+                        if (
+                            entry.Value.Count == 1 &&
+                            firstAccess.Operation == ReportedFileOperation.MacLookup &&
+                            firstAccess.ManifestPath.IsValid &&
+                            CheckIfPathContainsSymlinks(firstAccess.ManifestPath.GetParent(m_context.PathTable)))
+                        {
+                            Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsDiscardedCount);
+                            continue;
+                        }
 
                         bool isPathCandidateToBeOwnedByASharedOpaque = false;
                         foreach (var access in entry.Value)
@@ -2937,12 +2989,14 @@ namespace BuildXL.Processes
 
                         // if the path is still a candidate to be part of a shared opaque, that means there was at least a write to that path. If the path is then
                         // in the cone of a shared opaque, then it is a dynamic write access
+                        bool? isAccessUnderASharedOpaque = null;
                         if (isPathCandidateToBeOwnedByASharedOpaque && IsAccessUnderASharedOpaque(
                                 firstAccess,
                                 dynamicWriteAccesses,
                                 out AbsolutePath sharedDynamicDirectoryRoot))
                         {
                             dynamicWriteAccesses[sharedDynamicDirectoryRoot].Add(entry.Key);
+                            isAccessUnderASharedOpaque = true;
                             // This is a known output, so don't store it
                             continue;
                         }
@@ -2955,7 +3009,8 @@ namespace BuildXL.Processes
                             // If the access occurred under any of the pip shared opaque outputs, and the access is not happening on any known input paths (neither dynamic nor static)
                             // then we just skip reporting the access. Together with the above step, this means that no accesses under shared opaques that represent outputs are actually
                             // reported as observed accesses. This matches the same behavior that occurs on static outputs.
-                            if (!allInputPathsUnderSharedOpaques.Contains(entry.Key) && IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out _))
+                            if (!allInputPathsUnderSharedOpaques.Contains(entry.Key) && 
+                                (isAccessUnderASharedOpaque == true || IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out _)))
                             {
                                 continue;
                             }

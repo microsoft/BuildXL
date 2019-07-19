@@ -47,6 +47,7 @@ const xunitNetStandardRuntimeConfigFiles: File[] = Managed.RuntimeConfigFiles.cr
     "xunit.console",
     Managed.Factory.createBinary(xunitNetCoreConsolePackage, r`/lib/netcoreapp2.0/xunit.console.dll`),
     xunitReferences,
+    undefined, // runtimeContentToSkip
     undefined, // appconfig
     true);
 
@@ -62,6 +63,7 @@ function additionalRuntimeContent(args: Managed.TestArguments) : Deployment.Depl
                 "xunit.console",
                 Managed.Factory.createBinary(xunitNetCoreConsolePackage, r`/lib/netcoreapp2.0/xunit.console.dll`),
                 xunitReferences,
+                args.runtimeContentToSkip, 
                 undefined, // appConfig
                 true)),
         xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.utility.netcoreapp10.dll`),

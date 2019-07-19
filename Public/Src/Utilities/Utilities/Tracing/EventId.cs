@@ -97,7 +97,7 @@ namespace BuildXL.Utilities.Tracing
         PipTableStats = 75,
         PipWriterStats = 76,
         PipIpcFailedDueToInvalidInput = 77,
-        
+
         PipProcessStartExternalTool = 78,
         PipProcessFinishedExternalTool = 79,
         PipProcessStartExternalVm = 80,
@@ -421,7 +421,7 @@ namespace BuildXL.Utilities.Tracing
         UnexpectedCondition = 472,
         // was TelemetryRecoverableException = 473,
         TelemetryShutDownException = 474,
-        ServerDeploymentDirectoryHashMismatch = 475,
+        // was ServerDeploymentDirectoryHashMismatch = 475,
         TelemetryShutdownTimeout = 476,
 
         PipProcessDisallowedNtCreateFileAccessWarning = 480,

@@ -3,7 +3,7 @@
 
 namespace GrpcTest {
     @@public
-    export const dll = BuildXLSdk.isDotNetCoreBuild ? undefined : BuildXLSdk.cacheTest({
+    export const dll = BuildXLSdk.cacheTest({
         assemblyName: "Microsoft.ContentStore.Grpc.Test",
         sources: globR(d`.`,"*.cs"),
         runTestArgs: {

@@ -157,7 +157,9 @@ namespace BuildXL.Engine
 
             // Sort the list by path so the hash computed is consistent run to run on the same machine.
             result.Sort();
-            return result;
+
+            // Lets sanitize if we are on Unix based systems and make sure the paths are correct
+            return OperatingSystemHelper.IsUnixOS ? result.Select(entry => NormalizePath(entry)) : result;
         }
 
         private Tuple<Fingerprint, string> ComputeTimestampBasedHashInternal(bool skipManifestCheckTestHook)
@@ -246,14 +248,9 @@ namespace BuildXL.Engine
                 return m_computedContentHashBasedFingerprint.Value;
             }
 
-            // Currently we build and bootstrap on Windows, thus the relative paths in the deployment manifest will contain
-            // backslashes as directory seperators, lets sanitize if we are on Unix based systems and make sure the paths are correct
-            var relevantPaths = GetRelevantRelativePaths(forServerDeployment: false);
-            var relativePaths = OperatingSystemHelper.IsUnixOS
-                ? relevantPaths.Select(entry => NormalizePath(entry)).ToArray()
-                : relevantPaths.ToArray();
-
+            var relativePaths = GetRelevantRelativePaths(forServerDeployment: false).ToArray();
             var hashes = new ContentHash[relativePaths.Length];
+
             Parallel.For(
                 0,
                 relativePaths.Length,

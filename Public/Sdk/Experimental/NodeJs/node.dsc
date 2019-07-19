@@ -13,10 +13,26 @@ namespace Node {
 
     @@public
     export function run(args: Transformer.ExecuteArguments) : Transformer.ExecuteResult {
+        // Node code can access any of the following user specific environment variables.
+        const userSpecificEnvrionmentVariables = [
+            "APPDATA",
+            "LOCALAPPDATA",
+            "USERPROFILE",
+            "USERNAME",
+            "HOMEDRIVE",
+            "HOMEPATH",
+            "INTERNETCACHE",
+            "INTERNETHISTORY",
+            "INETCOOKIES",
+            "LOCALLOW",
+        ];
         const execArgs = Object.merge<Transformer.ExecuteArguments>(
             {
                 tool: tool,
                 workingDirectory: tool.exe.parent,
+                unsafe: {
+                    passThroughEnvironmentVariables: userSpecificEnvrionmentVariables
+                }
             },
             args
         );
@@ -56,6 +72,7 @@ namespace Node {
             ],
             prepareTempDirectory: true,
             dependsOnWindowsDirectories: true,
+            dependsOnAppDataDirectory: true,
         };
     }
 

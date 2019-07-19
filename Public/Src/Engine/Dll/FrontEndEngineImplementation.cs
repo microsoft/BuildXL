@@ -274,8 +274,7 @@ namespace BuildXL.Engine
 
                 VersionedFileIdentityAndContentInfo? maybeKnownIdentityAndHash = fileContentTable.TryGetKnownContentHash(fs);
 
-                if (maybeKnownIdentityAndHash.HasValue && 
-                    (hashType == HashType.Unknown || maybeKnownIdentityAndHash.Value.FileContentInfo.Hash.HashType == hashType))
+                if (maybeKnownIdentityAndHash?.FileContentInfo.MatchesHashType(hashType) ?? false)
                 {
                     return maybeKnownIdentityAndHash.Value.FileContentInfo.Hash;
                 }

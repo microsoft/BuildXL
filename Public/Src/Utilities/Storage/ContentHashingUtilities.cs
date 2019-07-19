@@ -32,12 +32,7 @@ namespace BuildXL.Storage
                 return s_hasher;
             }
 
-            if (!s_contentHasherByHashType.ContainsKey(hashType))
-            {
-                s_contentHasherByHashType[hashType] = HashInfoLookup.Find(hashType).CreateContentHasher();
-            }
-
-            return s_contentHasherByHashType[hashType];
+            return s_contentHasherByHashType.GetOrAdd(hashType, (_) => HashInfoLookup.Find(hashType).CreateContentHasher());
         }
 
         /// <summary>

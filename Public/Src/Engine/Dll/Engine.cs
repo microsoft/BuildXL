@@ -1132,7 +1132,6 @@ namespace BuildXL.Engine
                         {
                             download.Hash = newHash;
                         }
-
                     }
                 }
             }

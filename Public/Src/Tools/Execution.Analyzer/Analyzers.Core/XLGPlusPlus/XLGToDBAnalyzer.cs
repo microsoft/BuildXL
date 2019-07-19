@@ -22,7 +22,6 @@ namespace BuildXL.Execution.Analyzer
         public Analyzer InitializeXLGToDBAnalyzer()
         {
             string outputDirPath = null;
-            Debugger.Launch();
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("outputDir", StringComparison.OrdinalIgnoreCase) ||
@@ -36,6 +35,13 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
+
+            if (string.IsNullOrEmpty(outputDirPath))
+            {
+                throw Error("/outputDir parameter is required");
+            }
+
+
             return new XLGToDBAnalyzer(GetAnalysisInput())
             {
                 OutputDirPath = outputDirPath,
@@ -45,7 +51,6 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// Write the help message when the analyzer is invoked with the /help flag
         /// </summary>
-        /// <param name="writer"></param>
         private static void WriteXLGToDBHelp(HelpWriter writer)
         {
             writer.WriteBanner("XLG to DB \"Analyzer\"");
@@ -60,15 +65,12 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     internal sealed class XLGToDBAnalyzer : Analyzer
     {
-        /// <summary>
-        /// The path to the output directory
-        /// </summary>
         public string OutputDirPath;
         private bool m_accessorSucceeded = true;
-
-        private DominoInvocationEventList m_domInvEveList = new DominoInvocationEventList();
+        private BXLInvocationEventList m_bXLInvEveList = new BXLInvocationEventList();
         private KeyValueStoreAccessor Accessor { get; set; }
         private uint WorkerID { get; set; }
+
 
         public XLGToDBAnalyzer(AnalysisInput input) : base(input)
         {
@@ -110,7 +112,7 @@ namespace BuildXL.Execution.Analyzer
             Analysis.IgnoreResult(
               Accessor.Use(database =>
               {
-                  foreach (var invEvent in m_domInvEveList.DomInvEventList)
+                  foreach (var invEvent in m_bXLInvEveList.BXLInvEventList)
                   {
                       var eq = new EventTypeQuery
                       {
@@ -143,10 +145,9 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// Override the DominoInvocationEvent to capture its data and store it in the protobuf 
         /// </summary>
-        /// <param name="data"></param>
         public override void DominoInvocation(DominoInvocationEventData data)
         {
-            var domInvEvent = new DominoInvocationEvent();
+            var domInvEvent = new BXLInvocationEvent();
             var loggingConfig = data.Configuration.Logging;
 
             var uuid = Guid.NewGuid().ToString();
@@ -158,7 +159,7 @@ namespace BuildXL.Execution.Analyzer
             domInvEvent.IsSubstSourceValid = loggingConfig.SubstSource.IsValid;
             domInvEvent.IsSubstTargetValid = loggingConfig.SubstTarget.IsValid;
 
-            m_domInvEveList.DomInvEventList.Add(domInvEvent);
+            m_bXLInvEveList.BXLInvEventList.Add(domInvEvent);
         }
     }
 }

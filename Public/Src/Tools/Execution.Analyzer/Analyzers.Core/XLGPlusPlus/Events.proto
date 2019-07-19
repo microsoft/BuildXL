@@ -7,32 +7,46 @@ package BuildXL.Execution.Analyzer;
 
 option csharp_namespace = "BuildXL.Execution.Analyzer";
 
-message DominoInvocationEvent{
+// Event query should be of this format. It also serves as the key to the DB
+message EventTypeQuery{
+    
+    // ID of the Event - required
+    int32 EventTypeID = 1; 
+    
+    // Other ideas to keep in EventTypeQuery were as follows:
+    // string (or int64) Path (or hash of path) = 2;
+    // string RewriteContent = 3;
+    // int32 WorkerID = 4;
+    
+    // UUID to make the key unique - required
+    string UUID = 99;   
+}
+
+// The BXL Invocation Event message
+message BXLInvocationEvent{
+
+    // Unique identifier for the event - required
     string UUID = 1;
 
+    // Identifies the worker which invoked this event
     uint32 WorkerID = 2;
 
+    // Identifies the source that called this event
     string SubstSource = 3;
     
+    // Identifies the target of this event
     string SubstTarget = 4;
 
+    // Whether the source is valid
     bool IsSubstSourceValid = 5;
     
+    // Whether the target is valid
     bool IsSubstTargetValid = 6; 
 }
 
-message DominoInvocationEventList{
-    repeated DominoInvocationEvent DomInvEventList = 1;
-}
+// Contains a list of BXL Invocation Events
+message BXLInvocationEventList{
 
-message EventTypeQuery{
-    int32 EventTypeID = 1; // required
-    
-    /* Other ideas to keep in EventTypeQuery were as follows:
-        string (or int64) Path (or hash of path) = 2;
-        string RewriteContent = 3;
-        int WorkerID = 4;
-    */
-
-    string UUID = 99;   // This makes the key unique, required
+    // List of different BXL Invocation events
+    repeated BXLInvocationEvent BXLInvEventList = 1;
 }

@@ -37,7 +37,13 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
-            return new DominoInvocationAnalyzer(GetAnalysisInput())
+
+            if (string.IsNullOrEmpty(inputDirPath))
+            {
+                throw Error("/inputDir parameter is required");
+            }
+
+            return new BXLInvocationAnalyzer(GetAnalysisInput())
             {
                 InputDirPath = inputDirPath,
                 OutputFilePath = outputFilePath
@@ -47,26 +53,25 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// Write the help message when the analyzer is invoked with the /help flag
         /// </summary>
-        /// <param name="writer"></param>
         private static void WriteDominoInvocationHelp(HelpWriter writer)
         {
             writer.WriteBanner("Domino Invocation \"Analyzer\"");
-            writer.WriteModeOption(nameof(AnalysisMode.DominoInvocationXLG), "Gets and outputs information related to domino invocation events from the database.");
+            writer.WriteModeOption(nameof(AnalysisMode.BXLInvocationXLG), "Gets and outputs information related to domino invocation events from the database.");
             writer.WriteOption("inputDir", "Required. The directory to read the RocksDB database from", shortName: "i");
             writer.WriteOption("outputFile", "Required. The file where to write the results", shortName: "o");
         }
     }
 
     /// <summary>
-    /// Analyzer to examine Domino Invocation events that have been dumped into the db
+    /// Analyzer to examine BXL Invocation events that have been dumped into the db
     /// </summary>
-    internal sealed class DominoInvocationAnalyzer : Analyzer
+    internal sealed class BXLInvocationAnalyzer : Analyzer
     {
 
         public string InputDirPath;
         public string OutputFilePath;
 
-        public DominoInvocationAnalyzer(AnalysisInput input): base(input)
+        public BXLInvocationAnalyzer(AnalysisInput input): base(input)
         {
 
         }
@@ -81,7 +86,7 @@ namespace BuildXL.Execution.Analyzer
             }
             else
             {
-                Console.WriteLine("Could not load RocksDB datastore. Exiting analyzer.");
+                Console.WriteLine("Could not access RocksDB datastore. Exiting analyzer.");
             }
             return 0;
         }

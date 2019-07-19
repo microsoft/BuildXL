@@ -58,5 +58,15 @@ namespace BuildXL.Utilities.Configuration
         /// Minimum number of workers that BuildXL needs to connect within a fixed time; otherwise BuildXL will fail.
         /// </summary>
         int MinimumWorkers { get; }
+
+        /// <summary>
+        /// Indicates whether the remote workers should be released early in case of insufficient amount of work. 
+        /// </summary>
+        bool EarlyWorkerRelease { get; }
+
+        /// <summary>
+        /// Specifies the capacity multiplier when we start releasing the workers.
+        /// </summary>
+        double EarlyWorkerReleaseMultiplier { get; }
     }
 }

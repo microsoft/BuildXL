@@ -309,11 +309,11 @@ namespace BuildXL
                             opt => loggingConfiguration.Diagnostic |= CommandLineUtilities.ParseEnumOption<DiagnosticLevels>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
                             "earlyWorkerRelease",
-                            sign => schedulingConfiguration.EarlyWorkerRelease = sign),
+                            sign => distributionConfiguration.EarlyWorkerRelease = sign),
                         OptionHandlerFactory.CreateOption(
                             "earlyWorkerReleaseMultiplier",
                             opt =>
-                            schedulingConfiguration.EarlyWorkerReleaseMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 5)),
+                            distributionConfiguration.EarlyWorkerReleaseMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 5)),
                         OptionHandlerFactory.CreateBoolOption(
                             "enforceAccessPoliciesOnDirectoryCreation",
                             sign => sandboxConfiguration.EnforceAccessPoliciesOnDirectoryCreation = sign),

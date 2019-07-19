@@ -2057,7 +2057,7 @@ namespace BuildXL.Scheduler
                     m_pipQueue.AdjustIOParallelDegree(m_perfInfo);
                 }
 
-                if (m_scheduleConfiguration.EarlyWorkerRelease && IsDistributedMaster)
+                if (m_configuration.Distribution.EarlyWorkerRelease && IsDistributedMaster)
                 {
                     PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
                 }

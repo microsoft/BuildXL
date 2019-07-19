@@ -44,6 +44,10 @@ namespace BuildXL.Execution.Analyzer
             };
         }
 
+        /// <summary>
+        /// Write the help message when the analyzer is invoked with the /help flag
+        /// </summary>
+        /// <param name="writer"></param>
         private static void WriteDominoInvocationHelp(HelpWriter writer)
         {
             writer.WriteBanner("Domino Invocation \"Analyzer\"");
@@ -67,6 +71,7 @@ namespace BuildXL.Execution.Analyzer
 
         }
 
+        /// <inheritdoc/>
         public override int Analyze()
         {
             var dataStore = new XLGppDataStore();

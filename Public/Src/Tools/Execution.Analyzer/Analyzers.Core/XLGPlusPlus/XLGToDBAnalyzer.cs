@@ -42,6 +42,10 @@ namespace BuildXL.Execution.Analyzer
             };
         }
 
+        /// <summary>
+        /// Write the help message when the analyzer is invoked with the /help flag
+        /// </summary>
+        /// <param name="writer"></param>
         private static void WriteXLGToDBHelp(HelpWriter writer)
         {
             writer.WriteBanner("XLG to DB \"Analyzer\"");
@@ -71,6 +75,7 @@ namespace BuildXL.Execution.Analyzer
            
         }
 
+        /// <inheritdoc/>
         public override void Prepare()
         {
             try
@@ -94,6 +99,7 @@ namespace BuildXL.Execution.Analyzer
             }
         }
 
+        /// <inheritdoc/>
         public override int Analyze()
         {
             if (!m_accessorSucceeded)
@@ -121,6 +127,7 @@ namespace BuildXL.Execution.Analyzer
             return 0;
         }
 
+        /// <inheritdoc/>
         public override bool CanHandleEvent(ExecutionEventId eventId, uint workerId, long timestamp, int eventPayloadSize)
         {
             if (eventId.Equals(ExecutionEventId.DominoInvocation))

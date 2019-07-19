@@ -13,6 +13,9 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
 {
     public class XLGppDataStore
     {
+        /// <summary>
+        /// Rocks DB Accessor for XLG++ data
+        /// </summary>
         public KeyValueStoreAccessor Accessor { get; set; }
 
         public XLGppDataStore()
@@ -20,6 +23,18 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
 
         }
 
+        /// <summary>
+        /// Open the datastore and populate the KeyValueStoreAccessor for the XLG++ DB
+        /// </summary>
+        /// <param name="storeDirectory"></param>
+        /// <param name="defaultColumnKeyTracked"></param>
+        /// <param name="additionalColumns"></param>
+        /// <param name="additionalKeyTrackedColumns"></param>
+        /// <param name="failureHandler"></param>
+        /// <param name="openReadOnly"></param>
+        /// <param name="dropMismatchingColumns"></param>
+        /// <param name="onFailureDeleteExistingStoreAndRetry"></param>
+        /// <returns>Boolean if datastore was opened successfully</returns>
         public bool OpenDatastore(string storeDirectory,
             bool defaultColumnKeyTracked = false,
             IEnumerable<string> additionalColumns = null,
@@ -50,6 +65,11 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
             }
         }
 
+        /// <summary>
+        /// Gets all the events of a certain type from the DB
+        /// </summary>
+        /// <param name="eventTypeID"></param>
+        /// <returns>List of event objects recovered from DB </returns>
         public List<string> GetEventsByType(int eventTypeID)
         {
             var storedEvents = new List<string>();
@@ -63,6 +83,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
                     foreach (var kvp in database.PrefixSearch(eventQuery.ToByteArray()))
                     {
                         Console.WriteLine(DominoInvocationEvent.Parser.ParseFrom(kvp.Value));
+                        storedEvents.Add(DominoInvocationEvent.Parser.ParseFrom(kvp.Value).ToString());
                     }
                 })
             );

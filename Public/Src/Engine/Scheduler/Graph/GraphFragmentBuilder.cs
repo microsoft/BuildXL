@@ -22,7 +22,7 @@ namespace BuildXL.Scheduler.Graph
     /// <summary>
     /// Class for building graph fragments.
     /// </summary>
-    internal class GraphFragmentBuilder : IPipGraph
+    public class GraphFragmentBuilder : IPipGraph
     {
         private readonly LoggingContext m_loggingContext;
         private readonly PipExecutionContext m_pipExecutionContext;

@@ -190,7 +190,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // XAssert.IsFalse(File.Exists(ToString(unconsumedOutputInOpaque)));
         }
 
-        [Fact]
+        //[Fact]
         public void AbsentFileProbeFollowedByWriteInExclusiveOpaqueIsBlocked()
         {
             var opaqueDir = Path.Combine(ObjectRoot, "opaquedir");
@@ -220,7 +220,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(EventId.FileMonitoringError);
         }
 
-        [Fact]
+        //[Fact]
         public void AbsentFileProbeFollowedByWriteInExclusiveOpaqueIsBlockedOnProbeCacheReplay()
         {
             var opaqueDir = Path.Combine(ObjectRoot, "opaquedir");

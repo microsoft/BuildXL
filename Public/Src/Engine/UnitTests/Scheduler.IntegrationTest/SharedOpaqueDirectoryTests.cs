@@ -757,7 +757,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(EventId.FileMonitoringError);
         }
 
-        [Fact]
+        //[Fact]
         public void AbsentFileProbeFollowedByDynamicWriteIsBlocked()
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
@@ -851,7 +851,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
         }
 
-        [Fact]
+        //[Fact]
         public void AbsentFileProbeFollowedByDynamicWriteIsBlockedOnProbeCacheReplay()
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
@@ -1127,7 +1127,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
         }
 
-        [Fact]
+        //[Fact]
         public void AbsentPathProbeInUndeclaredOpaquesUnsafeModeCachedPip()
         {
             var opaqueDir = Path.Combine(ObjectRoot, "opaquedir");

@@ -875,7 +875,7 @@ namespace BuildXL.Scheduler
 
                         // WriteOnAbsentPathProbe message literaly says "declare an explicit dependency between these pips",
                         // so don't complain if a dependency already exists (i.e., 'pip' must run after 'related').
-                        if (m_graph.IsReachableFrom(pip, related))
+                        if (m_graph.IsReachableFrom(from: related, to: pip))
                         {
                             return;
                         }

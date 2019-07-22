@@ -194,7 +194,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Temp directory cleaner
         /// </summary>
-        ITempDirectoryCleaner TempCleaner { get; }
+        ITempCleaner TempCleaner { get; }
     }
 
     /// <summary>

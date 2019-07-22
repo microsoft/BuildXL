@@ -594,7 +594,7 @@ namespace Test.BuildXL.Scheduler
 
             public VmInitializer VmInitializer { get; }
 
-            public ITempDirectoryCleaner TempCleaner { get; }
+            public ITempCleaner TempCleaner { get; }
         }
     }
 

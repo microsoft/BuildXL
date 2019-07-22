@@ -56,7 +56,7 @@ namespace Test.BuildXL.Scheduler
             IConfiguration configuration,
             FileAccessWhitelist fileAccessWhitelist,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules = null,
-            ITempDirectoryCleaner tempCleaner = null,
+            ITempCleaner tempCleaner = null,
             PipRuntimeTimeTable runningTimeTable = null,
             JournalState journalState = null,
             PerformanceCollector performanceCollector = null,

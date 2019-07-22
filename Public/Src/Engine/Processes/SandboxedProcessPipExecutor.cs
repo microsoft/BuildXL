@@ -151,7 +151,7 @@ namespace BuildXL.Processes
 
         private readonly int m_remainingUserRetryCount;
 
-        private readonly ITempDirectoryCleaner m_tempDirectoryCleaner;
+        private readonly ITempCleaner m_tempDirectoryCleaner;
 
         private readonly ReadOnlyHashSet<AbsolutePath> m_sharedOpaqueDirectoryRoots;
 
@@ -187,7 +187,7 @@ namespace BuildXL.Processes
             PipEnvironment pipEnvironment,
             bool validateDistribution,
             IDirectoryArtifactContext directoryArtifactContext,
-            ITempDirectoryCleaner tempDirectoryCleaner,
+            ITempCleaner tempDirectoryCleaner,
             ISandboxedProcessLogger logger = null,
             Action<int> processIdListener = null,
             PipFragmentRenderer pipDataRenderer = null,

@@ -584,7 +584,7 @@ namespace Test.BuildXL.Scheduler.Utils
 
         public VmInitializer VmInitializer { get; }
 
-        public ITempDirectoryCleaner TempCleaner => new TestMoveDeleteCleaner(Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "moveDeletionTemp"));
+        public ITempCleaner TempCleaner => new TestMoveDeleteCleaner(Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "moveDeletionTemp"));
 
         public SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directory)
         {

@@ -317,7 +317,7 @@ namespace Test.BuildXL.Scheduler
         /// Runs the scheduler using the instance member PipGraph and Configuration objects. This will also carry over
         /// any state from any previous run such as the cache
         /// </summary>
-        public ScheduleRunResult RunScheduler(SchedulerTestHooks testHooks = null, SchedulerState schedulerState = null, RootFilter filter = null, ITempDirectoryCleaner tempCleaner = null, IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
+        public ScheduleRunResult RunScheduler(SchedulerTestHooks testHooks = null, SchedulerState schedulerState = null, RootFilter filter = null, ITempCleaner tempCleaner = null, IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
         {
             if (m_graphWasModified || m_lastGraph == null)
             {
@@ -351,7 +351,7 @@ namespace Test.BuildXL.Scheduler
         /// </summary>
         public ScheduleRunResult RunSchedulerSpecific(
             PipGraph graph,
-            ITempDirectoryCleaner tempCleaner,
+            ITempCleaner tempCleaner,
             SchedulerTestHooks testHooks = null, 
             SchedulerState schedulerState = null,
             RootFilter filter = null,

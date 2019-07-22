@@ -252,7 +252,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Cleans temp directories in background
         /// </summary>
-        public ITempDirectoryCleaner TempCleaner { get; }
+        public ITempCleaner TempCleaner { get; }
 
         /// <summary>
         /// The pip graph
@@ -994,7 +994,7 @@ namespace BuildXL.Scheduler
             LoggingContext loggingContext,
             string buildEngineFingerprint,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules = null,
-            ITempDirectoryCleaner tempCleaner = null,
+            ITempCleaner tempCleaner = null,
             Task<PipRuntimeTimeTable> runningTimeTableTask = null,
             PerformanceCollector performanceCollector = null,
             string fingerprintSalt = null,

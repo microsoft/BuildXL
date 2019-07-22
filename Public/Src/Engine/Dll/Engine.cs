@@ -208,7 +208,7 @@ namespace BuildXL.Engine
 
         /// <summary>
         /// TempCleaner responsible for cleaning registered directories or files in the background.
-        /// This is owned by the outermost layer that calls <see cref="FileUtilities.DeleteFile(string, bool, ITempDirectoryCleaner)"/>, the engine.
+        /// This is owned by the outermost layer that calls <see cref="FileUtilities.DeleteFile(string, bool, ITempCleaner)"/>, the engine.
         /// </summary>
         private TempCleaner m_tempCleaner;
 

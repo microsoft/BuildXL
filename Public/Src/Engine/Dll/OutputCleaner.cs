@@ -28,7 +28,7 @@ namespace BuildXL.Engine
             Func<DirectoryArtifact, bool> isOutputDir,
             IList<FileOrDirectoryArtifact> filesOrDirectoriesToDelete,
             PathTable pathTable,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             int fileFailCount = 0;
             int fileSuccessCount = 0;

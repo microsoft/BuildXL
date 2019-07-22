@@ -10,7 +10,7 @@ namespace BuildXL.Native.IO
     /// Some attempt to clean <see cref="TempDirectory"/> should occur by the time 
     /// class instance is disposed. 
     /// </summary>
-    public interface ITempDirectoryCleaner : IDisposable
+    public interface ITempCleaner : IDisposable
     {
         /// <summary>
         /// Returns the path to a temporary directory owned and cleaned by the implementor

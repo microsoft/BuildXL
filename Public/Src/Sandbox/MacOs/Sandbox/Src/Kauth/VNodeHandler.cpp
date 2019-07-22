@@ -1,12 +1,17 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#include <AvailabilityMacros.h>
 #include <sys/vnode.h>
 #include "VNodeHandler.hpp"
 #include "OpNames.hpp"
 
 typedef struct {
+#if MAC_OS_X_VERSION_MAX_ALLOWED > MAC_OS_X_VERSION_10_14_4
+    uint action;
+#else
     int action;
+#endif
     char *nameIfFile;
     char *nameIfDir;
 } VNodeMetaInfo;

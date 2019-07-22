@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Execution.Analyzer;
 using BuildXL.Scheduler.Tracing;
@@ -12,16 +13,42 @@ using Google.Protobuf;
 
 namespace BuildXL.Analyzers.Core.XLGPlusPlus
 {
-    public class XLGppDataStore
+    public class XLGppDataStore: IDisposable
     {
         /// <summary>
         /// Rocks DB Accessor for XLG++ data
         /// </summary>
-        public KeyValueStoreAccessor Accessor { get; set; }
+        private KeyValueStoreAccessor Accessor { get; set; }
 
-        public XLGppDataStore()
+        /// <summary>
+        /// Open the datastore and populate the KeyValueStoreAccessor for the XLG++ DB
+        /// </summary>
+        public XLGppDataStore(string storeDirectory,
+            bool defaultColumnKeyTracked = false,
+            IEnumerable<string> additionalColumns = null,
+            IEnumerable<string> additionalKeyTrackedColumns = null,
+            Action<Failure> failureHandler = null,
+            bool openReadOnly = false,
+            bool dropMismatchingColumns = false,
+            bool onFailureDeleteExistingStoreAndRetry = false)
         {
+            var accessor = KeyValueStoreAccessor.Open(storeDirectory,
+               defaultColumnKeyTracked,
+               additionalColumns,
+               additionalKeyTrackedColumns,
+               failureHandler,
+               openReadOnly,
+               dropMismatchingColumns,
+               onFailureDeleteExistingStoreAndRetry);
 
+            if (accessor.Succeeded)
+            {
+                Accessor = accessor.Result;
+            }
+            else
+            {
+                Accessor = null;
+            }
         }
 
         /// <summary>
@@ -62,7 +89,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// Gets all the events of a certain type from the DB
         /// </summary>
         /// <returns>List of event objects recovered from DB </returns>
-        public List<string> GetEventsByType(int eventTypeID)
+        public IEnumerable<string> GetEventsByType(int eventTypeID)
         {
             Contract.Assert(Accessor != null, "XLGppStore must be initialized via OpenDatastore first");
 
@@ -106,6 +133,13 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
                 })
             );
             return value;
+        }
+
+        public void Dispose()
+        {
+            Contract.Assert(Accessor != null, "XLGppStore must be initialized via OpenDatastore first");
+
+            Accessor.Dispose();
         }
     }
 }

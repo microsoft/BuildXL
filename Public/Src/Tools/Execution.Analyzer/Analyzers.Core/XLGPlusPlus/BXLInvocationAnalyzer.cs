@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Text;
 using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
@@ -43,6 +44,11 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("/inputDir parameter is required");
             }
 
+            if (string.IsNullOrEmpty(outputFilePath))
+            {
+                throw Error("/outputFile parameter is required");
+            }
+
             return new BXLInvocationAnalyzer(GetAnalysisInput())
             {
                 InputDirPath = inputDirPath,
@@ -67,29 +73,19 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     internal sealed class BXLInvocationAnalyzer : Analyzer
     {
-
         public string InputDirPath;
         public string OutputFilePath;
 
-        public BXLInvocationAnalyzer(AnalysisInput input): base(input)
-        {
-
-        }
+        public BXLInvocationAnalyzer(AnalysisInput input) : base(input) { }
 
         /// <inheritdoc/>
         public override int Analyze()
         {
-            var dataStore = new XLGppDataStore();
-            if (dataStore.OpenDatastore(storeDirectory: InputDirPath))
-            {
-                dataStore.GetEventsByType((int)ExecutionEventId.DominoInvocation);
-            }
-            else
-            {
-                Console.WriteLine("Could not access RocksDB datastore. Exiting analyzer.");
-            }
+            var dataStore = new XLGppDataStore(storeDirectory: InputDirPath);
+
+            File.WriteAllLines(OutputFilePath, dataStore.GetEventsByType((int)ExecutionEventId.DominoInvocation));
+
             return 0;
         }
-
     }
 }

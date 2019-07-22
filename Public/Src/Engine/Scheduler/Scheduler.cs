@@ -2057,7 +2057,7 @@ namespace BuildXL.Scheduler
                     m_pipQueue.AdjustIOParallelDegree(m_perfInfo);
                 }
 
-                if (m_scheduleConfiguration.EarlyWorkerRelease && IsDistributedMaster)
+                if (m_configuration.Distribution.EarlyWorkerRelease && IsDistributedMaster)
                 {
                     PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
                 }
@@ -2081,7 +2081,7 @@ namespace BuildXL.Scheduler
 
             // If the available remote workers perform at that multiplier capacity in future, how many process pips we can concurrently execute:
             int totalProcessSlots = LocalWorker.TotalProcessSlots +
-               (int)Math.Ceiling(m_scheduleConfiguration.EarlyWorkerReleaseMultiplier * Workers.Where(a => a.IsRemote && a.IsAvailable).Sum(a => a.TotalProcessSlots));
+               (int)Math.Ceiling(m_configuration.Distribution.EarlyWorkerReleaseMultiplier * Workers.Where(a => a.IsRemote && a.IsAvailable).Sum(a => a.TotalProcessSlots));
 
             // Release worker if numProcessPipsWaiting can be satisfied by remaining workers
             if (numProcessPipsWaiting > 0 && (numProcessPipsWaiting < totalProcessSlots - workerToReleaseCandidate.TotalProcessSlots))

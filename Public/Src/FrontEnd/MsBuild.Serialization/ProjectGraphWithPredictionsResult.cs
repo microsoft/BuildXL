@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using Newtonsoft.Json;
@@ -48,12 +49,17 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// <nodoc/>
         public bool Succeeded { get; }
 
+        /// <summary>
+        /// A sorted list of the names of environment variables that could affect the build.
+        /// </summary>
+        public IEnumerable<string> EnvironmentVariablesAffectingBuild { get; }
+
         /// <nodoc/>
-        public static ProjectGraphWithPredictionsResult<TPathType> CreateSuccessfulGraph(ProjectGraphWithPredictions<TPathType> projectGraphWithPredictions, IReadOnlyDictionary<string, TPathType> assemblyPathsToLoad, TPathType pathToMsBuild)
+        public static ProjectGraphWithPredictionsResult<TPathType> CreateSuccessfulGraph(ProjectGraphWithPredictions<TPathType> projectGraphWithPredictions, IReadOnlyDictionary<string, TPathType> assemblyPathsToLoad, TPathType pathToMsBuild, IEnumerable<string> environmentVariablesAffectingBuild)
         {
             Contract.Requires(projectGraphWithPredictions != null);
             Contract.Requires(assemblyPathsToLoad != null);
-            return new ProjectGraphWithPredictionsResult<TPathType>(projectGraphWithPredictions, failure: default, msBuildAssemblyPaths: assemblyPathsToLoad, pathToMsBuild: pathToMsBuild, pathToDotNetExe: default(TPathType), succeeded: true);
+            return new ProjectGraphWithPredictionsResult<TPathType>(projectGraphWithPredictions, failure: default, msBuildAssemblyPaths: assemblyPathsToLoad, pathToMsBuild: pathToMsBuild, pathToDotNetExe: default(TPathType), succeeded: true, environmentVariablesAffectingBuild);
         }
 
         /// <nodoc/>
@@ -61,7 +67,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         {
             Contract.Requires(failure != null);
             Contract.Requires(assemblyPathsToLoad != null);
-            return new ProjectGraphWithPredictionsResult<TPathType>(default, failure, assemblyPathsToLoad, pathToMsBuild, pathToDotNetExe: default(TPathType), succeeded: false);
+            return new ProjectGraphWithPredictionsResult<TPathType>(default, failure, assemblyPathsToLoad, pathToMsBuild, pathToDotNetExe: default(TPathType), succeeded: false, environmentVariablesAffectingBuild: null);
         }
 
         /// <summary>
@@ -69,11 +75,11 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// </summary>
         public ProjectGraphWithPredictionsResult<TPathType> WithPathToDotNetExe(TPathType pathToDotNetExe)
         {
-            return new ProjectGraphWithPredictionsResult<TPathType>(Result, Failure, MsBuildAssemblyPaths, PathToMsBuild, pathToDotNetExe, Succeeded);
+            return new ProjectGraphWithPredictionsResult<TPathType>(Result, Failure, MsBuildAssemblyPaths, PathToMsBuild, pathToDotNetExe, Succeeded, EnvironmentVariablesAffectingBuild);
         }
 
         [JsonConstructor]
-        private ProjectGraphWithPredictionsResult(ProjectGraphWithPredictions<TPathType> result, GraphConstructionError failure, IReadOnlyDictionary<string, TPathType> msBuildAssemblyPaths, TPathType pathToMsBuild, TPathType pathToDotNetExe, bool succeeded)
+        private ProjectGraphWithPredictionsResult(ProjectGraphWithPredictions<TPathType> result, GraphConstructionError failure, IReadOnlyDictionary<string, TPathType> msBuildAssemblyPaths, TPathType pathToMsBuild, TPathType pathToDotNetExe, bool succeeded, IEnumerable<string> environmentVariablesAffectingBuild)
         {
             Result = result;
             Failure = failure;
@@ -81,6 +87,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
             PathToMsBuild = pathToMsBuild;
             PathToDotNetExe = pathToDotNetExe;
             MsBuildAssemblyPaths = msBuildAssemblyPaths;
+            EnvironmentVariablesAffectingBuild = environmentVariablesAffectingBuild;
         }
     }
 }

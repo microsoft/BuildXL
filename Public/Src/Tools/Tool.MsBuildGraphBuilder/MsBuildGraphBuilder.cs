@@ -24,6 +24,8 @@ using ProjectGraphWithPredictionsResult = BuildXL.FrontEnd.MsBuild.Serialization
 using ProjectGraphWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectGraphWithPredictions<string>;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<string>;
 using BuildXL.Utilities.Collections;
+using Microsoft.Build.Framework;
+using ProjectGraphBuilder;
 
 namespace MsBuildGraphBuilderTool
 {
@@ -144,10 +146,12 @@ namespace MsBuildGraphBuilderTool
                         locatedMsBuildPath);
                 }
 
+                var environmentVariablesLogger = new PropertyTrackingLogger();
+
                 var projectGraph = new ProjectGraph(
                     entryPoints,
                     // The project collection doesn't need any specific global properties, since entry points already contain all the ones that are needed, and the project graph will merge them
-                    new ProjectCollection(),
+                    new ProjectCollection(globalProperties: null, loggers: new ILogger[]{ environmentVariablesLogger }, ToolsetDefinitionLocations.Default),
                     (projectPath, globalProps, projectCollection) => ProjectInstanceFactory(projectPath, globalProps, projectCollection, projectInstanceToProjectCache));
 
                 // This is a defensive check to make sure the assembly loader actually honored the search locations provided by the user. The path of the assembly where ProjectGraph
@@ -182,7 +186,11 @@ namespace MsBuildGraphBuilderTool
                         locatedMsBuildPath);
                 }
 
-                return ProjectGraphWithPredictionsResult.CreateSuccessfulGraph(projectGraphWithPredictions, assemblyPathsToLoad, locatedMsBuildPath);
+                return ProjectGraphWithPredictionsResult.CreateSuccessfulGraph(
+                    projectGraphWithPredictions, 
+                    assemblyPathsToLoad, 
+                    locatedMsBuildPath, 
+                    environmentVariablesLogger.PotentialEnvironmentVariablesReads.OrderBy(s => s));
             }
             catch (InvalidProjectFileException e)
             {

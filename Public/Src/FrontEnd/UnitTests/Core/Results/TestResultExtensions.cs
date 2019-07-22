@@ -161,7 +161,7 @@ namespace Test.BuildXL.FrontEnd.Core
         }
 
         /// <nodoc />
-        public static void ExpectErrorCode(this IEnumerable<Diagnostic> diagnostics, LogEventId code)
+        public static void ExpectErrorCode(this IEnumerable<Diagnostic> diagnostics, global::BuildXL.FrontEnd.Script.Tracing.LogEventId code)
         {
             Contract.Requires(diagnostics != null);
 

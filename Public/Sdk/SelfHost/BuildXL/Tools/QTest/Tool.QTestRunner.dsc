@@ -173,7 +173,7 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
         Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset"),
         Cmd.option("--testSourceDir ", args.testSourceDir),
-        Cmd.option("--buildSystem", "BuildXL")
+        Cmd.option("--buildSystem ", "BuildXL")
     ];          
 
     let unsafeOptions = {

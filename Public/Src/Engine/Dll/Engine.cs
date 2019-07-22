@@ -1104,7 +1104,36 @@ namespace BuildXL.Engine
             // When replicating outputs to workers, workers cannot be released early.
             if (mutableConfig.Distribution.ReplicateOutputsToWorkers == true)
             {
-                mutableConfig.Schedule.EarlyWorkerRelease = false;
+                mutableConfig.Distribution.EarlyWorkerRelease = false;
+            }
+
+            // HACK HACK HACK
+            // To deal with using Dedup hash while config still uses VSO hash
+            // HACK HACK HACK
+            if (mutableConfig.Cache.UseDedupStore)
+            {
+                var x = mutableConfig.Resolvers.Where(r => r.Kind == "Download").FirstOrDefault() as DownloadResolverSettings;
+                if (x != null)
+                {
+                    var translations = new Dictionary<string, string>
+                        {
+                            { "VSO0:F836344F3D3FEBCD50976B5F33FC2DA64D0753C242C68F61B5908F59CD49B0AB00","DEDUPNODEORCHUNK:7A4CB5F8FD1FE070E48229D14CE6590E8F4D04837DB69BA232E903984062426002" },
+                            { "VSO0:00F83B929904F647BD8FB22361052BB347A1E5FA9A3A32A67EE1569DE443D92700","DEDUPNODEORCHUNK:A61ABA76CDFA73EB049B7411D9C7936F5DC48362FBED0A2681C2D8999E32EFBE02" },
+                            { "VSO0:6E5172671364C65B06C9940468A62BAF70EE27392CB2CA8B2C8BFE058CCD088300","DEDUPNODEORCHUNK:F78BA699A420853858CD19EF7C6306EA94EF508D240C497A68172AA7785E4CC302" },
+                            { "VSO0:88B2B6E8CEF711E108FDE529E781F555516634CD442B3503B712D22947F0788700","DEDUPNODEORCHUNK:2D8F42CEE0294AA0F612675454BB8ED540657CC33E3CF60A4CF5BB91FD24E36602" },
+                            { "VSO0:6DBFE7BC9FA24D33A46A3A0732164BD5A4F5984E8FCE091D305FA635CD876AA700","DEDUPNODEORCHUNK:565B91A12F72B94139F6D7DB21C04986C06CC3AE56FB43E6EDA8E6B496198F0B02" },
+                            { "VSO0:C6AB5808D30BFF857263BC467FE8D818F35486763F673F79CA5A758727CEF3A900","DEDUPNODEORCHUNK:1D9CED63701BC0F2E5D3063BA7889F8687537CB78B155858FCB7EE56A78A6C8102" },
+                            { "VSO0:6BBAE77F9BA0231C90ABD9EA720FF886E8613CE8EF29D8B657AF201E2982829600","DEDUPNODEORCHUNK:1A350CECC53CAE31EE3699BDA53270E91951A81E6353EABC878BA8D8B16F8E9202" },
+                        };
+
+                    foreach (var download in x.Downloads.Cast<DownloadFileSettings>())
+                    {
+                        if (translations.TryGetValue(download.Hash, out var newHash))
+                        {
+                            download.Hash = newHash;
+                        }
+                    }
+                }
             }
 
             return success;

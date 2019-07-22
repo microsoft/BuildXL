@@ -1408,18 +1408,6 @@ namespace BuildXL.Engine
         }
 
         /// <summary>
-        /// Returns true if at least one pip failure is caused by a lost connectivity with a worker.
-        /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-        public bool HasInfrastructureFailures
-        {
-            get
-            {
-                return m_masterService != null && m_masterService.HasInfrastructureFailures;
-            }
-        }
-
-        /// <summary>
         /// Perf counter collector for the session. This may be null if perf counter collection is not enabled
         /// </summary>
         private readonly PerformanceCollector m_collector;

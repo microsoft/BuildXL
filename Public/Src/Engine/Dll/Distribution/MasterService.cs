@@ -48,7 +48,6 @@ namespace BuildXL.Engine.Distribution
         private IPipExecutionEnvironment m_environment;
         private ExecutionResultSerializer m_resultSerializer;
         private PipGraphCacheDescriptor m_cachedGraphDescriptor;
-        private bool m_hasInfrastructureFailures;
         private readonly ushort m_buildServicePort;
         private readonly bool m_isGrpcEnabled;
 
@@ -120,23 +119,6 @@ namespace BuildXL.Engine.Distribution
         /// Content hash of symlink file.
         /// </summary>
         public ContentHash SymlinkFileContentHash { get; set; } = WellKnownContentHashes.AbsentFile;
-
-        /// <summary>
-        /// Remote workers set this flag if they lose connection with remote machines and have to fail pips.
-        /// </summary>
-        internal bool HasInfrastructureFailures
-        {
-            get
-            {
-                return m_hasInfrastructureFailures;
-            }
-
-            set
-            {
-                Contract.Requires(value, "The value can only be set to true.");
-                m_hasInfrastructureFailures = value;
-            }
-        }
 
         /// <summary>
         /// Prepares the master for pips execution

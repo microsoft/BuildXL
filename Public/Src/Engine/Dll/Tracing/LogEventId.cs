@@ -155,7 +155,7 @@ namespace BuildXL.Engine.Tracing
         //DistributionWorkerForwardedError = 7015,
         DistributionWorkerForwardedWarning = 7016,
         DistributionWorkerUnexpectedFailureAfterMasterExits = 7017,
-
+        DistributionWorkerFinish = 7018,
         DistributionWorkerExecutePipRequest = 7019,
         DistributionWorkerFinishedPipRequest = 7020,
         DistributionWorkerCouldNotLoadGraph = 7021,

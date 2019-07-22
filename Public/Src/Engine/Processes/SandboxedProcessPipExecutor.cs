@@ -187,6 +187,7 @@ namespace BuildXL.Processes
             PipEnvironment pipEnvironment,
             bool validateDistribution,
             IDirectoryArtifactContext directoryArtifactContext,
+            ITempDirectoryCleaner tempDirectoryCleaner,
             ISandboxedProcessLogger logger = null,
             Action<int> processIdListener = null,
             PipFragmentRenderer pipDataRenderer = null,
@@ -195,7 +196,6 @@ namespace BuildXL.Processes
             int remainingUserRetryCount = 0,
             bool isQbuildIntegrated = false,
             VmInitializer vmInitializer = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null,
             SubstituteProcessExecutionInfo shimInfo = null)
         {
             Contract.Requires(pip != null);
@@ -206,6 +206,8 @@ namespace BuildXL.Processes
             Contract.Requires(pipEnvironment != null);
             Contract.Requires(directoryArtifactContext != null);
             Contract.Requires(processInContainerManager != null);
+            // The tempDirectoryCleaner must not be null since it is relied upon for robust file deletion
+            Contract.Requires(tempDirectoryCleaner != null);
 
             m_context = context;
             m_loggingContext = loggingContext;

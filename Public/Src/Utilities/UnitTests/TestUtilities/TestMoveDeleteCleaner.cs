@@ -39,5 +39,17 @@ namespace Test.BuildXL.TestUtilities
         {
             FileUtilities.DeleteDirectoryContents(TempDirectory, deleteRootDirectory: true);
         }
+
+        /// <inheritdoc />
+        public void RegisterDirectoryToDelete(string path, bool deleteRootDirectory)
+        {
+            // noop
+        }
+
+        /// <inheritdoc />
+        public void RegisterFileToDelete(string path)
+        {
+            // noop
+        }
     }
 }

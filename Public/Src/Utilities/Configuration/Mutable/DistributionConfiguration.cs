@@ -19,9 +19,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             // Local worker is always connected.
             MinimumWorkers = 1;
 
-#if FEATURE_CORECLR
             IsGrpcEnabled = true;
-#endif
+            EarlyWorkerRelease = true;
+            EarlyWorkerReleaseMultiplier = 0.5;
         }
 
         /// <nodoc />
@@ -38,6 +38,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DistributeCacheLookups = template.DistributeCacheLookups;
             MinimumWorkers = template.MinimumWorkers;
             IsGrpcEnabled = template.IsGrpcEnabled;
+            EarlyWorkerRelease = template.EarlyWorkerRelease;
+            EarlyWorkerReleaseMultiplier = template.EarlyWorkerReleaseMultiplier;
         }
 
         /// <inhertidoc />
@@ -70,5 +72,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inhertidoc />
         public int MinimumWorkers { get; set; }
+
+        /// <inheritdoc />
+        public bool EarlyWorkerRelease { get; set; }
+
+        /// <inheritdoc />
+        public double EarlyWorkerReleaseMultiplier { get; set; }
     }
 }

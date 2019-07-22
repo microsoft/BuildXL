@@ -2,7 +2,7 @@ You can run BuildXL by running bxl.exe on the folder you want to run. You can ge
 
 The help text should help you understand what the options mean. Please look at the sub pages of this topic to learn more about some of the commands that require additional explanation.
 
-[Console Output](./How-To-Run-BuildXL/Console-Output.md) <br>
+[Console Output](./How-To-Run-BuildXL/Console-output.md) <br>
 [Logging Options](./How-To-Run-BuildXL/Logging-Options.md) <br>
 [Filtering](./How-To-Run-BuildXL/Filtering.md) <br>
 [Cancellation (Ctrl-C)](./How-To-Run-BuildXL/Cancellation-(CtrlC).md) <br>

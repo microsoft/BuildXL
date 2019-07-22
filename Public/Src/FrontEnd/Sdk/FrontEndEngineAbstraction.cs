@@ -179,7 +179,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Returns the hash of a file in an efficient way
         /// </summary>
-        public abstract Task<ContentHash> GetFileContentHashAsync(string path, bool trackFile = true);
+        public abstract Task<ContentHash> GetFileContentHashAsync(string path, bool trackFile = true, HashType hashType = HashType.Unknown);
 
         /// <summary>
         /// Whether the engine state (path, string, symbol tables and pip graph) have been reloaded

@@ -21,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     public class GrpcDistributedPathTransformer : IAbsolutePathTransformer
     {
         private readonly IReadOnlyDictionary<AbsolutePath, AbsolutePath> _junctionsByDirectory;
-        private static readonly string _localMachineName = Environment.MachineName;
+        private static readonly string _localMachineName = System.Net.Dns.GetHostName();
         internal const string BlobFileExtension = ".blob";
 
         /// <nodoc />

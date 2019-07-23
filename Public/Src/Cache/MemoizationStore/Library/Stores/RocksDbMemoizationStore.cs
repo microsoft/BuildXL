@@ -18,6 +18,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -84,7 +85,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <inheritdoc />
         public Task<GetStatsResult> GetStatsAsync(Context context)
         {
-             return Task.FromResult(new GetStatsResult(_tracer.GetCounters()));
+            return GetStatsCall<MemoizationStoreTracer>.RunAsync(_tracer, new OperationContext(context), () =>
+            {
+                var counters = new CounterSet();
+                counters.Merge(_tracer.GetCounters(), $"{Component}.");
+                return Task.FromResult(new GetStatsResult(counters));
+            });
         }
 
         /// <inheritdoc />

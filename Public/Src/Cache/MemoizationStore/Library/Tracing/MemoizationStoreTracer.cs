@@ -221,8 +221,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
                 return;
             }
 
-            var ms = (long)duration.TotalMilliseconds;
-            Debug(context, $"{Name}.GetSelectors() stop {ms}ms");
+            Debug(context, $"{Name}.GetSelectors() stop {duration.TotalMilliseconds}ms");
         }
 
         public void GetContentHashListStart(Context context, StrongFingerprint fingerprint)
@@ -270,7 +269,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
 
             if (context.IsEnabled)
             {
-                Debug(context, $"{Name}.GetContentHashList() stop {result.DurationMs}ms result=[{result}]");
+                Debug(context, $"{Name}.GetContentHashList() stop {result.Duration.TotalMilliseconds}ms result=[{result}]");
             }
         }
 
@@ -319,7 +318,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
 
             if (context.IsEnabled)
             {
-                Debug(context, $"{Name}.AddOrGetContentHashList() stop {result.DurationMs}ms result=[{result}]");
+                Debug(context, $"{Name}.AddOrGetContentHashList() stop {result.Duration.TotalMilliseconds}ms result=[{result}]");
             }
         }
 
@@ -349,7 +348,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
 
             if (context.IsEnabled)
             {
-                Debug(context, $"{Name}.IncorporateStrongFingerprints() stop {result.DurationMs}ms result=[{result}]");
+                Debug(context, $"{Name}.IncorporateStrongFingerprints() stop {result.Duration.TotalMilliseconds}ms result=[{result}]");
             }
         }
 
@@ -378,8 +377,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
                 return;
             }
 
-            var ms = (long)duration.TotalMilliseconds;
-            Debug(context, $"{Name}.Touch() stop {ms}ms");
+            Debug(context, $"{Name}.Touch() stop {duration.TotalMilliseconds}ms");
         }
 
         public void PurgeStart(Context context, int count)
@@ -407,8 +405,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
                 return;
             }
 
-            var ms = (long)duration.TotalMilliseconds;
-            Debug(context, $"{Name}.Purge({count}) stop {ms}ms");
+            Debug(context, $"{Name}.Purge({count}) stop {duration.TotalMilliseconds}ms");
         }
 
         private void Trace(Severity severity, Context context, string message)

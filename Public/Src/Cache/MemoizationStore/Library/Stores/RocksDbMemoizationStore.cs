@@ -5,6 +5,7 @@ extern alias Async;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
@@ -119,9 +120,9 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         internal Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts)
         {
-            var ctx = new OperationContext(context);
-            return GetContentHashListCall.RunAsync(_tracer, context, strongFingerprint, () => {
-                return Task.FromResult(_database.GetContentHashList(ctx, strongFingerprint));
+            var ctx = new OperationContext(context, cts);
+            return GetContentHashListCall.RunAsync(_tracer, ctx, strongFingerprint, async () => {
+                return await Task.FromResult(_database.GetContentHashList(ctx, strongFingerprint));
             });
         }
 
@@ -202,20 +203,38 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         internal Task<Result<Selector[]>> GetSelectorsCoreAsync(Context context, Fingerprint weakFingerprint)
         {
-            var results = new List<Selector>();
-
             var ctx = new OperationContext(context);
-            foreach (var result in _database.GetSelectors(ctx, weakFingerprint))
+
+            var stopwatch = new Stopwatch();
+            try
             {
-                if (!result.Succeeded)
+                _tracer.GetSelectorsStart(ctx, weakFingerprint);
+                stopwatch.Start();
+
+                var getSelectorsResult = new List<Selector>();
+                foreach (var result in _database.GetSelectors(ctx, weakFingerprint))
                 {
-                    return Task.FromResult(Result.FromError<Selector[]>(result));
+                    if (!result.Succeeded)
+                    {
+                        return Task.FromResult(Result.FromError<Selector[]>(result));
+                    }
+
+                    getSelectorsResult.Add(result.Selector);
                 }
 
-                results.Add(result.Selector);
+                _tracer.GetSelectorsCount(ctx, weakFingerprint, getSelectorsResult.Count);
+                return Task.FromResult(Result.Success(getSelectorsResult.ToArray()));
             }
-
-            return Task.FromResult(Result.Success(results.ToArray()));
+            catch (Exception exception)
+            {
+                _tracer.Debug(ctx, $"{Component}.GetSelectors() error=[{exception}]");
+                return Task.FromResult(Result.FromException<Selector[]>(exception));
+            }
+            finally
+            {
+                stopwatch.Stop();
+                _tracer.GetSelectorsStop(ctx, stopwatch.Elapsed);
+            }
         }
     }
 }

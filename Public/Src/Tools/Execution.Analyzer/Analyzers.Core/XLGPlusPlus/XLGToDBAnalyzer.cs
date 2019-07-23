@@ -95,7 +95,7 @@ namespace BuildXL.Execution.Analyzer
             }
             else
             {
-                Console.WriteLine("Could not access RocksDB datastore. Exiting analyzer.");
+                Console.Error.WriteLine("Could not access RocksDB datastore. Exiting analyzer.");
             }
         }
 
@@ -132,9 +132,7 @@ namespace BuildXL.Execution.Analyzer
         {
             if (eventId.Equals(ExecutionEventId.DominoInvocation))
             {
-                Console.WriteLine("Found a valid domino invocation event. The worker id is {0}, the timestamp is {1}, and the payload size is {2}.", workerId, timestamp, eventPayloadSize);
                 WorkerID = workerId; // store workerID to pass into protobuf object to identify this event
-
                 return true;
             }
             return false; // return false to keep the event from being parsed

@@ -15,7 +15,7 @@ namespace BuildXL.Execution.Analyzer
 
     internal partial class Args
     {
-        public Analyzer InitializeDominoInvocationAnalyzer()
+        public Analyzer InitializeBXLInvocationAnalyzer()
         {
             string inputDirPath = null;
             string outputFilePath = null;
@@ -61,8 +61,8 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         private static void WriteDominoInvocationHelp(HelpWriter writer)
         {
-            writer.WriteBanner("Domino Invocation \"Analyzer\"");
-            writer.WriteModeOption(nameof(AnalysisMode.BXLInvocationXLG), "Gets and outputs information related to domino invocation events from the database.");
+            writer.WriteBanner("BXL Invocation \"Analyzer\"");
+            writer.WriteModeOption(nameof(AnalysisMode.BXLInvocationXLG), "Gets and outputs information related to BXL invocation events from the database.");
             writer.WriteOption("inputDir", "Required. The directory to read the RocksDB database from", shortName: "i");
             writer.WriteOption("outputFile", "Required. The file where to write the results", shortName: "o");
         }

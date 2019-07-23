@@ -178,6 +178,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return pinResult;
             }
 
+            VstsBlobIdentifier blobId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier());
+            VstsDedupIdentifier dedupId = blobId.ToDedupIdentifier();
+
+            if (dedupId.AlgorithmId == Hashing.ChunkDedupIdentifier.ChunkAlgorithmId)
+            {
+                // No need to optimize since pinning a chunk is always a fast operation.
+                return await PinImplAsync(context, contentHash);
+            }
+
             // Since pinning the whole tree can be an expensive operation, we have optimized how we call it. Depending on the current
             //  keepUntil of the root node, which is unexpensive to check, the operation will behave differently:
             //      The pin operation will be ignored if it is greater than ignorePinThreshold, to reduce amount of calls
@@ -187,8 +196,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
             //          behavior, to avoid waiting on a potentially long operation. We're confident returning a success because we
             //          know that the content is there even though we still have to extend it's keepUntil
 
-            VstsBlobIdentifier blobId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier());
-            VstsDedupIdentifier dedupId = blobId.ToDedupIdentifier();
             var keepUntilResult = await CheckNodeKeepUntilAsync(context, dedupId);
             if (!keepUntilResult.Succeeded)
             {
@@ -711,9 +718,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 (notFound) => { /* Do nothing */ },
                 (needAction) =>
                 {
-                    // For the reason explained above, this case where children need to be pinned should never happen.
-                    // However, as a best aproximation, we take the min of all the children, which always outlive the parent.
-                    keepUntil = needAction.Receipts.Select(r => r.Value.KeepUntil.KeepUntil).Min();
+                        // For the reason explained above, this case where children need to be pinned should never happen.
+                        // However, as a best aproximation, we take the min of all the children, which always outlive the parent.
+                        keepUntil = needAction.Receipts.Select(r => r.Value.KeepUntil.KeepUntil).Min();
                 },
                 (added) =>
                 {

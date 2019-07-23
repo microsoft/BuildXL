@@ -9,6 +9,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,6 +59,9 @@ namespace BuildXL.FrontEnd.Nuget
 
         private const int MaxRetryCount = 2;
         private const int RetryDelayMs = 100;
+
+        private const int SpecGenerationFormatVersion = 1;
+        private const string SpecGenerationVersionFileSuffix = ".version";
 
         private NugetFrameworkMonikers m_nugetFrameworkMonikers;
 
@@ -918,14 +922,50 @@ namespace BuildXL.FrontEnd.Nuget
         {
             var packageDsc = GetPackageDscFile(analyzedPackage).ToString(PathTable);
 
-            if (analyzedPackage.Source == PackageSource.Disk &&
-                analyzedPackage.PackageOnDisk.PackageDownloadResult.SpecsFormatIsUpToDate &&
-                File.Exists(packageDsc))
+            var state = ReadPackageStateFile(packageDsc + SpecGenerationVersionFileSuffix);
+            if (state.fileFormat == SpecGenerationFormatVersion &&
+                state.fingerprint != null &&
+                state.fingerprint == analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash && 
+                File.Exists(packageDsc) &&
+                File.Exists(GetPackageConfigDscFile(analyzedPackage).ToString(PathTable)))
             {
                 return true;
             }
 
             return false;
+        }
+
+        private static (int fileFormat, string fingerprint) ReadPackageStateFile(string path)
+        {
+            if(File.Exists(path))
+            {
+                int fileFormat;
+                string[] lines = File.ReadAllLines(path);
+                if(lines.Length == 2)
+                {
+                    if (int.TryParse(lines[0], out fileFormat))
+                    {
+                        string fingerprint = lines[1];
+                        return (fileFormat, fingerprint);
+                    }
+                }
+            }
+
+            // Error
+            return (-1, null);
+        }
+
+        private static void WritePackageStateFile(string path, (int fileFormat, string fingerprint) data)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+
+            if(File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            File.WriteAllLines(path, new string[] { data.fileFormat.ToString(), data.fingerprint });
+            return;
         }
 
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly")]
@@ -951,10 +991,17 @@ namespace BuildXL.FrontEnd.Nuget
                 return possibleProjectFile.Failure;
             }
 
-            return TryWriteSourceFile(
+            var writeResult = TryWriteSourceFile(
                 analyzedPackage.PackageOnDisk.Package,
                 GetPackageConfigDscFile(analyzedPackage),
                 nugetSpecGenerator.CreatePackageConfig());
+
+            if (writeResult.Succeeded && possibleProjectFile.Succeeded)
+            {
+                WritePackageStateFile(possibleProjectFile.Result.ToString(PathTable) + SpecGenerationVersionFileSuffix, (SpecGenerationFormatVersion, analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash));
+            }
+
+            return writeResult;
         }
 
         internal Possible<NugetAnalyzedPackage> AnalyzeNugetPackage(

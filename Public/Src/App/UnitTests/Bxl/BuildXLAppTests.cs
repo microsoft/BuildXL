@@ -48,7 +48,7 @@ namespace Test.BuildXL
                 listener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
                 listener.RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
                 global::BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFromCacheFailure(loggingContext, "ArbitraryPip", "ArbitraryMessage");
-                global::BuildXL.Engine.Tracing.Logger.Log.DistributionExecutePipFailedNetworkFailure(loggingContext, "ArbitraryPip", "ArbitraryWorker", "ArbitraryMessage", "ArbitraryStep");
+                global::BuildXL.Engine.Tracing.Logger.Log.DistributionExecutePipFailedNetworkFailure(loggingContext, "ArbitraryPip", "ArbitraryWorker", "ArbitraryMessage", "ArbitraryStep", "ArbitraryCaller");
                 global::BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFromCacheFailure(loggingContext, "ArbitraryPip", "ArbitraryMessage");
 
                 var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(listener);

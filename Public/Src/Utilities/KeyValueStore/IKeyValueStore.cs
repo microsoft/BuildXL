@@ -85,7 +85,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
         /// <summary>
         /// Applies a batch Put and Delete operations. Useful only in the case when a large number of operations have 
-        /// to be performed on the store. May or may be atomic.
+        /// to be performed on the store. May or may not be atomic.
         /// </summary>
         /// <param name="keys">
         /// The key of each entry.

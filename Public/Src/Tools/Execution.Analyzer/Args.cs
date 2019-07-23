@@ -141,9 +141,10 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("Additional executionLog to compare parameter is required");
             }
 
-            // The fingerprint store based cache miss analyzer only uses graph information from the newer build,
-            // so skip loading the graph for the earlier build
-            if (m_mode.Value != AnalysisMode.CacheMiss)
+            // The fingerprint store based cache miss analyzer and the bxl invocation analyzer
+            // only use graph information from the newer build, so skip loading the graph for the earlier build
+            // TODO: To avoid large "||" statements, convert this to a list or enum or struct and check if the mode is "in" that data structure
+            if (m_mode.Value != AnalysisMode.CacheMiss || m_mode.Value != AnalysisMode.BXLInvocationXLG)
             {
                 if (!m_analysisInput.LoadCacheGraph(cachedGraphDirectory))
                 {
@@ -321,6 +322,12 @@ namespace BuildXL.Execution.Analyzer
                     break;
                 case AnalysisMode.CopyFile:
                     m_analyzer = InitializeCopyFilesAnalyzer();
+                    break;
+                case AnalysisMode.XlgToDb:
+                    m_analyzer = InitializeXLGToDBAnalyzer();
+                    break;
+                case AnalysisMode.BXLInvocationXLG:
+                    m_analyzer = InitializeBXLInvocationAnalyzer();
                     break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
@@ -594,6 +601,13 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteCopyFilesAnalyzerHelp(writer);
+
+            // TODO: Uncomment out help messages when analyzers are more polished.
+            //writer.WriteLine("");
+            //WriteXLGToDBHelp(writer);
+
+            //writer.WriteLine("");
+            //WriteDominoInvocationHelp(writer);
         }
 
         public void LogEventSummary()

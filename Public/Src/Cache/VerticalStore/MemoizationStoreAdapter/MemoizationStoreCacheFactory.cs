@@ -360,29 +360,29 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         {
             if (config.UseRocksDbMemoizationStore)
             {
-                var rocksDbConfig = new RocksDbMemoizationStoreConfiguration() {
-                    Database = new RocksDbContentLocationDatabaseConfiguration(cacheRoot / "rocksdb"),
+                return new RocksDbMemoizationStoreConfiguration() {
+                    Database = new RocksDbContentLocationDatabaseConfiguration(cacheRoot / "RocksDbMemoizationStore"),
+                };
+            }
+            else
+            {
+                var memoConfig = new SQLiteMemoizationStoreConfiguration(cacheRoot)
+                {
+                    MaxRowCount = config.MaxStrongFingerprints,
+                    SingleInstanceTimeoutSeconds = (int)configCore.SingleInstanceTimeoutInSeconds,
+                    WaitForLruOnShutdown = WaitForLruOnShutdown
                 };
 
-                return rocksDbConfig;
+                memoConfig.Database.BackupDatabase = config.BackupLKGCache;
+                memoConfig.Database.VerifyIntegrityOnStartup = config.CheckCacheIntegrityOnStartup;
+
+                if (!string.IsNullOrEmpty(config.SynchronizationMode))
+                {
+                    memoConfig.Database.SyncMode = (SynchronizationMode)Enum.Parse(typeof(SynchronizationMode), config.SynchronizationMode, ignoreCase: true);
+                }
+
+                return memoConfig;
             }
-
-            var sqliteConfig = new SQLiteMemoizationStoreConfiguration(cacheRoot)
-            {
-                MaxRowCount = config.MaxStrongFingerprints,
-                SingleInstanceTimeoutSeconds = (int)configCore.SingleInstanceTimeoutInSeconds,
-                WaitForLruOnShutdown = WaitForLruOnShutdown
-            };
-
-            sqliteConfig.Database.BackupDatabase = config.BackupLKGCache;
-            sqliteConfig.Database.VerifyIntegrityOnStartup = config.CheckCacheIntegrityOnStartup;
-
-            if (!string.IsNullOrEmpty(config.SynchronizationMode))
-            {
-                sqliteConfig.Database.SyncMode = (SynchronizationMode)Enum.Parse(typeof(SynchronizationMode), config.SynchronizationMode, ignoreCase: true);
-            }
-
-            return sqliteConfig;
         }
 
         private static LocalCache CreateLocalCacheWithSingleCas(Config config, DisposeLogger logger)

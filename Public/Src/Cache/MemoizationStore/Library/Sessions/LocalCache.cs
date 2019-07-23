@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -140,6 +141,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
         private static Func<IMemoizationStore> CreateMemoizationStoreFactory(ILogger logger, IClock clock, MemoizationStoreConfiguration config)
         {
+            Contract.Requires(config != null);
+
             if (config is SQLiteMemoizationStoreConfiguration sqliteConfig)
             {
                 return () => new SQLiteMemoizationStore(
@@ -156,7 +159,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             }
             else
             {
-                throw new NotSupportedException($"Configuration type for memoization store is unhandled.");
+                throw new NotSupportedException($"Configuration type '{config.GetType()}' for memoization store is unhandled.");
             }
         }
 

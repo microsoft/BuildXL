@@ -50,3 +50,7 @@ message BXLInvocationEventList{
     // List of different BXL Invocation events
     repeated BXLInvocationEvent BXLInvEventList = 1;
 }
+
+message EventCount{
+    uint32 Value = 1;
+}

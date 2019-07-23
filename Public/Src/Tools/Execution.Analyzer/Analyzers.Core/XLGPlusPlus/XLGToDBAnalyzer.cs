@@ -66,10 +66,23 @@ namespace BuildXL.Execution.Analyzer
     internal sealed class XLGToDBAnalyzer : Analyzer
     {
         public string OutputDirPath;
+
+        /// <summary>
+        /// Whetherthe initializing the accessor succeeded or not
+        /// </summary>
         private bool m_accessorSucceeded;
-        private BXLInvocationEventList m_invocationEventList = new BXLInvocationEventList();
+        private readonly BXLInvocationEventList m_invocationEventList = new BXLInvocationEventList();
         private KeyValueStoreAccessor Accessor { get; set; }
+
+        /// <summary>
+        /// Store workerID to pass into protobuf object to identify this event
+        /// </summary>
         private uint WorkerID { get; set; }
+
+        /// <summary>
+        /// Count thetotal number of events processed
+        /// </summary>
+        private uint EventCount { get; set; }
 
 
         public XLGToDBAnalyzer(AnalysisInput input) : base(input) { }
@@ -97,6 +110,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 Console.Error.WriteLine("Could not access RocksDB datastore. Exiting analyzer.");
             }
+            EventCount = 0;
         }
 
         /// <inheritdoc/>
@@ -127,19 +141,125 @@ namespace BuildXL.Execution.Analyzer
             return 0;
         }
 
+        public override void Dispose()
+        {
+            Analysis.IgnoreResult(
+                Accessor.Use(database =>
+                {
+                    database.Put("NumEvents", EventCount.ToString());
+                })
+            );
+        }
+
         /// <inheritdoc/>
         public override bool CanHandleEvent(ExecutionEventId eventId, uint workerId, long timestamp, int eventPayloadSize)
         {
-            if (eventId.Equals(ExecutionEventId.DominoInvocation))
-            {
-                WorkerID = workerId; // store workerID to pass into protobuf object to identify this event
-                return true;
-            }
-            return false; // return false to keep the event from being parsed
+            EventCount++;
+            WorkerID = workerId;
+            return true;
+        }
+
+
+
+        /// <summary>
+        /// Override event to capture its data and store it in the protobuf 
+        /// </summary>
+        public override void FileArtifactContentDecided(FileArtifactContentDecidedEventData data)
+        {
+            base.FileArtifactContentDecided(data);
         }
 
         /// <summary>
-        /// Override the DominoInvocationEvent to capture its data and store it in the protobuf 
+        /// Override event to capture its data and store it in the protobuf 
+        /// </summary>
+        public override void WorkerList(WorkerListEventData data)
+        {
+            base.WorkerList(data);
+        }
+
+        /// <summary>
+        /// Override event to capture its data and store it in the protobuf 
+        /// </summary>
+        public override void PipExecutionPerformance(PipExecutionPerformanceEventData data)
+        {
+            base.PipExecutionPerformance(data);
+        }
+
+        /// <summary>
+        /// Override event to capture its data and store it in the protobuf 
+        /// </summary>
+        public override void DirectoryMembershipHashed(DirectoryMembershipHashedEventData data)
+        {
+            base.DirectoryMembershipHashed(data);
+        }
+
+        /// <summary>
+        /// Override event to capture its data and store it in the protobuf 
+        /// </summary>
+        public override void ProcessExecutionMonitoringReported(ProcessExecutionMonitoringReportedEventData data)
+        {
+            base.ProcessExecutionMonitoringReported(data);
+        }
+
+        /// <summary>
+        /// Override event to capture its data and store it in the protobuf 
+        /// </summary>
+        public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
+        {
+            base.ProcessFingerprintComputed(data);
+        }
+
+        /// <summary>
+        /// Override event to capture its data and store it in the protobuf 
+        /// </summary>
+        public override void ExtraEventDataReported(ExtraEventData data)
+        {
+            base.ExtraEventDataReported(data);
+        }
+
+        /// <summary>
+        /// Override event to capture its data and store it in the protobuf 
+        /// </summary>
+        public override void DependencyViolationReported(DependencyViolationEventData data)
+        {
+            base.DependencyViolationReported(data);
+        }
+
+        /// <summary>
+        /// Override event to capture its data and store it in the protobuf 
+        /// </summary>
+        public override void PipExecutionStepPerformanceReported(PipExecutionStepPerformanceEventData data)
+        {
+            base.PipExecutionStepPerformanceReported(data);
+        }
+
+        /// <summary>
+        /// Override event to capture its data and store it in the protobuf 
+        /// </summary>
+        public override void PipCacheMiss(PipCacheMissEventData data)
+        {
+            base.PipCacheMiss(data);
+        }
+
+        /// <summary>
+        /// Override event to capture its data and store it in the protobuf 
+        /// </summary>
+        public override void StatusReported(StatusEventData data)
+        {
+            base.StatusReported(data);
+        }
+
+        /// <summary>
+        /// Override event to capture its data and store it in the protobuf 
+        /// </summary>
+        public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
+        {
+            base.PipExecutionDirectoryOutputs(data);
+        }
+
+
+        /// <summary>
+        /// Override event to capture its data and store it in the protobuf 
         /// </summary>
         public override void DominoInvocation(DominoInvocationEventData data)
         {

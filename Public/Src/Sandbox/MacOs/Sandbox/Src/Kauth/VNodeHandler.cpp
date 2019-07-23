@@ -7,7 +7,7 @@
 #include "OpNames.hpp"
 
 typedef struct {
-#if MAC_OS_X_VERSION_MAX_ALLOWED > MAC_OS_X_VERSION_10_14_4
+#ifdef MAC_OS_X_VERSION_10_15
     uint action;
 #else
     int action;

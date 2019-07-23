@@ -66,16 +66,13 @@ namespace BuildXL.Execution.Analyzer
     internal sealed class XLGToDBAnalyzer : Analyzer
     {
         public string OutputDirPath;
-        private bool m_accessorSucceeded = true;
-        private BXLInvocationEventList m_bXLInvEveList = new BXLInvocationEventList();
+        private bool m_accessorSucceeded;
+        private BXLInvocationEventList m_invocationEventList = new BXLInvocationEventList();
         private KeyValueStoreAccessor Accessor { get; set; }
         private uint WorkerID { get; set; }
 
 
-        public XLGToDBAnalyzer(AnalysisInput input) : base(input)
-        {
-           
-        }
+        public XLGToDBAnalyzer(AnalysisInput input) : base(input) { }
 
         /// <inheritdoc/>
         public override void Prepare()
@@ -89,15 +86,16 @@ namespace BuildXL.Execution.Analyzer
                 Console.WriteLine("No such dir or could not delete dir with exception {0}.\nIf dir still exists, this analyzer will append data to existing DB.", e);
             }
 
-            var dataStore = new XLGppDataStore();
-            if (dataStore.OpenDatastore(storeDirectory: OutputDirPath))
+            var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath);
+
+            if (accessor.Succeeded)
             {
-                Accessor = dataStore.Accessor;
+                Accessor = accessor.Result;
+                m_accessorSucceeded = true;
             }
             else
             {
                 Console.WriteLine("Could not access RocksDB datastore. Exiting analyzer.");
-                m_accessorSucceeded = false;
             }
         }
 
@@ -112,7 +110,7 @@ namespace BuildXL.Execution.Analyzer
             Analysis.IgnoreResult(
               Accessor.Use(database =>
               {
-                  foreach (var invEvent in m_bXLInvEveList.BXLInvEventList)
+                  foreach (var invEvent in m_invocationEventList.BXLInvEventList)
                   {
                       var eq = new EventTypeQuery
                       {
@@ -159,7 +157,7 @@ namespace BuildXL.Execution.Analyzer
             domInvEvent.IsSubstSourceValid = loggingConfig.SubstSource.IsValid;
             domInvEvent.IsSubstTargetValid = loggingConfig.SubstTarget.IsValid;
 
-            m_bXLInvEveList.BXLInvEventList.Add(domInvEvent);
+            m_invocationEventList.BXLInvEventList.Add(domInvEvent);
         }
     }
 }

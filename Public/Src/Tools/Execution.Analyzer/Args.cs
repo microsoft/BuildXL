@@ -141,8 +141,8 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("Additional executionLog to compare parameter is required");
             }
 
-            // The fingerprint store based cache miss analyzer only uses graph information from the newer build,
-            // so skip loading the graph for the earlier build
+            // The fingerprint store based cache miss analyzer and the bxl invocation analyzer
+            // only use graph information from the newer build, so skip loading the graph for the earlier build
             if (m_mode.Value != AnalysisMode.CacheMiss || m_mode.Value != AnalysisMode.BXLInvocationXLG)
             {
                 if (!m_analysisInput.LoadCacheGraph(cachedGraphDirectory))

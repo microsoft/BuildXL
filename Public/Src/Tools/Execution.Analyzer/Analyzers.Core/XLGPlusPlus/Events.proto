@@ -18,14 +18,14 @@ message EventTypeQuery{
     // string RewriteContent = 3;
     // int32 WorkerID = 4;
     
-    // UUID to make the key unique - required
+    // UUID to make the key unique. TODO: remove once a minimal key is formulated and decided upon
     string UUID = 99;   
 }
 
 // The BXL Invocation Event message
 message BXLInvocationEvent{
 
-    // Unique identifier for the event - required
+    // Unique identifier for the event - required, TODO: Remove as it may not be needed.
     string UUID = 1;
 
     // Identifies the worker which invoked this event

@@ -718,9 +718,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 (notFound) => { /* Do nothing */ },
                 (needAction) =>
                 {
-                        // For the reason explained above, this case where children need to be pinned should never happen.
-                        // However, as a best aproximation, we take the min of all the children, which always outlive the parent.
-                        keepUntil = needAction.Receipts.Select(r => r.Value.KeepUntil.KeepUntil).Min();
+                    // For the reason explained above, this case where children need to be pinned should never happen.
+                    // However, as a best aproximation, we take the min of all the children, which always outlive the parent.
+                    keepUntil = needAction.Receipts.Select(r => r.Value.KeepUntil.KeepUntil).Min();
                 },
                 (added) =>
                 {

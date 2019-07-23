@@ -48,40 +48,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
             else
             {
                 Accessor = null;
-            }
-        }
-
-        /// <summary>
-        /// Open the datastore and populate the KeyValueStoreAccessor for the XLG++ DB
-        /// </summary>
-        /// <returns>Boolean if datastore was opened successfully</returns>
-        public bool OpenDatastore(string storeDirectory,
-            bool defaultColumnKeyTracked = false,
-            IEnumerable<string> additionalColumns = null,
-            IEnumerable<string> additionalKeyTrackedColumns = null,
-            Action<Failure> failureHandler = null,
-            bool openReadOnly = false,
-            bool dropMismatchingColumns = false,
-            bool onFailureDeleteExistingStoreAndRetry = false)
-        {
-
-            var accessor = KeyValueStoreAccessor.Open(storeDirectory, 
-                defaultColumnKeyTracked, 
-                additionalColumns, 
-                additionalKeyTrackedColumns, 
-                failureHandler, 
-                openReadOnly, 
-                dropMismatchingColumns, 
-                onFailureDeleteExistingStoreAndRetry);
-
-            if (accessor.Succeeded)
-            {
-                Accessor = accessor.Result;
-                return true;
-            }
-            else
-            {
-                return false;
+                Console.Error.WriteLine("Could not create an accessor for RocksDB. Accessor is null");
             }
         }
 

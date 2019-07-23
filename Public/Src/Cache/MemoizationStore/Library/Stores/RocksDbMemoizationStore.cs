@@ -34,7 +34,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         private const string Component = nameof(RocksDbMemoizationStore);
         
         private IClock _clock;
-        private RocksDbContentLocationDatabaseConfiguration _config;
+        
         private RocksDbContentLocationDatabase _database;
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         ///     Initializes a new instance of the <see cref="RocksDbMemoizationStore"/> class.
         /// </summary>
-        public RocksDbMemoizationStore(ILogger logger, IClock clock, RocksDbContentLocationDatabaseConfiguration config)
+        public RocksDbMemoizationStore(ILogger logger, IClock clock, RocksDbMemoizationStoreConfiguration config)
         {
             Contract.Requires(logger != null);
             Contract.Requires(config != null);
@@ -56,8 +56,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
             _tracer = new MemoizationStoreTracer(logger, Component);
             _clock = clock;
-            _config = config;
-            _database = new RocksDbContentLocationDatabase(clock, config, () => new MachineId[] { });
+            _database = new RocksDbContentLocationDatabase(clock, config.Database, () => new MachineId[] { });
         }
 
         /// <inheritdoc />
@@ -84,7 +83,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <inheritdoc />
         public Task<GetStatsResult> GetStatsAsync(Context context)
         {
-            throw new NotImplementedException();
+             return Task.FromResult(new GetStatsResult(_tracer.GetCounters()));
         }
 
         /// <inheritdoc />

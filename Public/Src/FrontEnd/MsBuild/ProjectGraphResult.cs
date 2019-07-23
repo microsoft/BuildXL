@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.FrontEnd.Workspaces.Core;
@@ -27,7 +28,10 @@ namespace BuildXL.FrontEnd.MsBuild
         public AbsolutePath DotNetExeLocation { get; }
 
         /// <nodoc/>
-        public ProjectGraphResult(ProjectGraphWithPredictions<AbsolutePath> projectGraphWithPredictions, ModuleDefinition moduleDefinition, AbsolutePath msBuildLocation, AbsolutePath dotnetExeLocation)
+        public IEnumerable<string> EnvironmentVariablesAffectingBuild { get; }
+
+        /// <nodoc/>
+        public ProjectGraphResult(ProjectGraphWithPredictions<AbsolutePath> projectGraphWithPredictions, ModuleDefinition moduleDefinition, AbsolutePath msBuildLocation, AbsolutePath dotnetExeLocation, IEnumerable<string> environmentVariablesAffectingBuild)
         {
             Contract.Requires(projectGraphWithPredictions != null);
             Contract.Requires(moduleDefinition != null);
@@ -37,6 +41,7 @@ namespace BuildXL.FrontEnd.MsBuild
             ModuleDefinition = moduleDefinition;
             MsBuildLocation = msBuildLocation;
             DotNetExeLocation = dotnetExeLocation;
+            EnvironmentVariablesAffectingBuild = environmentVariablesAffectingBuild;
         }
     }
 }

@@ -424,7 +424,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 allowedModuleDependencies: null, // no module policies
                 cyclicalFriendModules: null); // no whitelist of cycles
 
-            return new ProjectGraphResult(projectGraph, moduleDefinition, projectGraphResult.PathToMsBuild, projectGraphResult.PathToDotNetExe);
+            return new ProjectGraphResult(projectGraph, moduleDefinition, projectGraphResult.PathToMsBuild, projectGraphResult.PathToDotNetExe, projectGraphResult.EnvironmentVariablesAffectingBuild);
         }
 
         private void DeleteGraphBuilderRelatedFiles(AbsolutePath outputFile, AbsolutePath responseFile)

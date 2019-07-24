@@ -14,6 +14,8 @@ using BuildXL.Native.IO;
 using System.Diagnostics;
 using BuildXL.Execution.Analyzer.Model;
 using BuildXL.Analyzers.Core.XLGPlusPlus;
+using System.Text;
+using BuildXL.Pips;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -71,7 +73,6 @@ namespace BuildXL.Execution.Analyzer
         /// Whetherthe initializing the accessor succeeded or not
         /// </summary>
         private bool m_accessorSucceeded;
-        private readonly BXLInvocationEventList m_invocationEventList = new BXLInvocationEventList();
         private KeyValueStoreAccessor Accessor { get; set; }
 
         /// <summary>
@@ -116,37 +117,19 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override int Analyze()
         {
-            if (!m_accessorSucceeded)
-            {
-                return 0;
-            }
-
-            Analysis.IgnoreResult(
-              Accessor.Use(database =>
-              {
-                  foreach (var invEvent in m_invocationEventList.BXLInvEventList)
-                  {
-                      var eq = new EventTypeQuery
-                      {
-                          EventTypeID = (int)ExecutionEventId.DominoInvocation,
-                          UUID = invEvent.UUID
-                      };
-
-                      database.Put(eq.ToByteArray(), invEvent.ToByteArray());
-                  }
-              })
-            );
-
             Accessor.Dispose();
             return 0;
         }
 
+        /// <inheritdoc/>
         public override void Dispose()
         {
             Analysis.IgnoreResult(
                 Accessor.Use(database =>
                 {
-                    database.Put("NumEvents", EventCount.ToString());
+                    var ec = new EventCount();
+                    ec.Value = EventCount;
+                    database.Put(Encoding.ASCII.GetBytes("EventCount"), ec.ToByteArray());
                 })
             );
         }
@@ -154,11 +137,14 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override bool CanHandleEvent(ExecutionEventId eventId, uint workerId, long timestamp, int eventPayloadSize)
         {
-            EventCount++;
-            WorkerID = workerId;
-            return true;
+            if (m_accessorSucceeded)
+            {
+                EventCount++;
+                WorkerID = workerId;
+                return true;
+            }
+            return false;
         }
-
 
 
         /// <summary>
@@ -166,7 +152,7 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void FileArtifactContentDecided(FileArtifactContentDecidedEventData data)
         {
-            base.FileArtifactContentDecided(data);
+            var x = 0;
         }
 
         /// <summary>
@@ -182,7 +168,26 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void PipExecutionPerformance(PipExecutionPerformanceEventData data)
         {
-            base.PipExecutionPerformance(data);
+            var pipExecPerfEvent = new PipExecutionPerformanceEvent();
+            var uuid = Guid.NewGuid().ToString();
+
+            // TODO: Work with timestamp and other random structs
+            pipExecPerfEvent.UUID = uuid;
+            pipExecPerfEvent.PipID = data.PipId.Value;
+            pipExecPerfEvent.PipExecutionLevel = (int)data.ExecutionPerformance.ExecutionLevel;
+            pipExecPerfEvent.WorkerID = data.ExecutionPerformance.WorkerId;
+
+            var innerProcesPipPerf = new PipExecutionPerformanceEvent.Types.ProcessPipExecutionPerformance();
+            var performance = data.ExecutionPerformance as ProcessPipExecutionPerformance;
+            if (performance != null)
+            {
+                innerProcesPipPerf.PeakMemoryUsage = performance.PeakMemoryUsage;
+                innerProcesPipPerf.PeakMemoryUsageMb = performance.PeakMemoryUsageMb;
+                innerProcesPipPerf.NumberOfProcesses = performance.NumberOfProcesses;
+                innerProcesPipPerf.CacheDescriptorId = performance.CacheDescriptorId.Value;
+            }
+
+            pipExecPerfEvent.ProcessPipExecutionPerformance = innerProcesPipPerf;
         }
 
         /// <summary>
@@ -263,19 +268,30 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void DominoInvocation(DominoInvocationEventData data)
         {
-            var domInvEvent = new BXLInvocationEvent();
+            var bxlInvEvent = new BXLInvocationEvent();
             var loggingConfig = data.Configuration.Logging;
 
             var uuid = Guid.NewGuid().ToString();
 
-            domInvEvent.UUID = uuid;
-            domInvEvent.WorkerID = WorkerID;
-            domInvEvent.SubstSource = loggingConfig.SubstSource.ToString(PathTable, PathFormat.HostOs);
-            domInvEvent.SubstTarget = loggingConfig.SubstTarget.ToString(PathTable, PathFormat.HostOs);
-            domInvEvent.IsSubstSourceValid = loggingConfig.SubstSource.IsValid;
-            domInvEvent.IsSubstTargetValid = loggingConfig.SubstTarget.IsValid;
+            bxlInvEvent.UUID = uuid;
+            bxlInvEvent.WorkerID = WorkerID;
+            bxlInvEvent.SubstSource = loggingConfig.SubstSource.ToString(PathTable, PathFormat.HostOs);
+            bxlInvEvent.SubstTarget = loggingConfig.SubstTarget.ToString(PathTable, PathFormat.HostOs);
+            bxlInvEvent.IsSubstSourceValid = loggingConfig.SubstSource.IsValid;
+            bxlInvEvent.IsSubstTargetValid = loggingConfig.SubstTarget.IsValid;
 
-            m_invocationEventList.BXLInvEventList.Add(domInvEvent);
+            Analysis.IgnoreResult(
+              Accessor.Use(database =>
+              {
+                  var eq = new EventTypeQuery
+                  {
+                      EventTypeID = (int)ExecutionEventId.DominoInvocation,
+                      UUID = uuid
+                  };
+
+                  database.Put(eq.ToByteArray(), bxlInvEvent.ToByteArray());
+              })
+            );
         }
     }
 }

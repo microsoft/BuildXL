@@ -56,11 +56,11 @@ namespace Execution.Analyzer {
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("Google.Protobuf").pkg,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("Microsoft.TeamFoundationServer.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
-            importFrom("Google.Protobuf").pkg,
         ],
         internalsVisibleTo: [
             "Test.Tool.Analyzers",

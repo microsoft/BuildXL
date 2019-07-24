@@ -3,9 +3,16 @@
 
 syntax = "proto3";
 
+// import "tools/google/protobuf/timestamp.proto";
+
 package BuildXL.Execution.Analyzer;
 
 option csharp_namespace = "BuildXL.Execution.Analyzer";
+
+// Message that keeps track of total number of events processed
+message EventCount{
+    uint32 Value = 1;
+}
 
 // Event query should be of this format. It also serves as the key to the DB
 message EventTypeQuery{
@@ -22,35 +29,111 @@ message EventTypeQuery{
     string UUID = 99;   
 }
 
+message FileArtifactContentDecidedEvent{
+    string UUID = 99;
+
+    message FileArtifact{
+    
+    }
+
+    message FileContentInfo{
+    
+    }
+
+    FileArtifact _FileArtifact = 1;
+
+    FileContentInfo _FileContentInfo = 2;
+
+    int32 OutputOrigin = 3;
+}
+
+message PipExecutionPerformanceEvent{
+
+    string UUID = 99;
+
+    uint32 PipID = 1;
+
+    int32 PipExecutionLevel = 2;
+
+    //google.protobuf.Timestamp ExecutionStart = 3;
+    
+    //google.protobuf.Timestamp ExecutionStop = 4;
+
+    message ProcessPipExecutionPerformance{
+        // Duration ProcessExecutionTime = 1;
+        
+        // IOCounter IO = 2;
+        
+        // Duration UserTime = 3;
+
+        // DUration KernelTime = 4;
+
+        uint64 PeakMemoryUsage = 5;
+
+        int32 PeakMemoryUsageMb = 6;
+
+        uint32 NumberOfProcesses = 7;
+
+        // FileMonitoringViolationCounters = 8;
+
+        // Fingerprint Fingerprint = 9;
+
+        uint64 CacheDescriptorId = 10;
+    }
+    
+    uint32 WorkerID = 3;
+
+    ProcessPipExecutionPerformance _ProcessPipExecutionPerformance = 4;
+}
+
+message ExtraEvent{
+    string UUID = 99;
+
+    bool DisableDetours = 1;
+    bool IgnoreReparsePoints = 2;
+    bool IgnorePreloadedDlls = 3;
+    bool ExistingDirectoryProbesAsEnumerations = 4;
+    bool NtFileCreateMonitored = 5;
+    bool ZwFileCreateOpenMonitored = 6;
+    bool IgnoreZwRenameFileInformation = 7;
+    bool IgnoreZwOtherFileInformation = 8;
+    bool IgnoreNonCreateFileReparsePoints = 9;
+    bool IgnoreSetFileInformationByHandle = 10;
+    bool IgnoreGetFinalPathNameByHandle = 11;
+
+    int32 FingerprintVersion = 12;
+    string FingerprintSalt = 13;
+
+    //??
+
+    bool UnexpectedFileAccessesAreErrors = 15;
+    bool MonitorFileAccesses = 16;
+    bool MaskUntrackedAccesses = 17;
+    bool NormalizeReadTimestamps = 18;
+    bool PipWarningsPromotedToErrors = 19;
+    bool ValidateDistribution = 19;
+    string RequiredKextVersionNumber = 20;
+
+}
+
 // The BXL Invocation Event message
 message BXLInvocationEvent{
 
     // Unique identifier for the event - required, TODO: Remove as it may not be needed.
-    string UUID = 1;
+    string UUID = 99;
 
     // Identifies the worker which invoked this event
-    uint32 WorkerID = 2;
+    uint32 WorkerID = 1;
 
     // Identifies the source that called this event
-    string SubstSource = 3;
+    string SubstSource = 2;
     
     // Identifies the target of this event
-    string SubstTarget = 4;
+    string SubstTarget = 3;
 
     // Whether the source is valid
-    bool IsSubstSourceValid = 5;
+    bool IsSubstSourceValid = 4;
     
     // Whether the target is valid
-    bool IsSubstTargetValid = 6; 
-}
-
-// Contains a list of BXL Invocation Events
-message BXLInvocationEventList{
-
-    // List of different BXL Invocation events
-    repeated BXLInvocationEvent BXLInvEventList = 1;
-}
-
-message EventCount{
-    uint32 Value = 1;
+    bool IsSubstTargetValid = 5; 
 }

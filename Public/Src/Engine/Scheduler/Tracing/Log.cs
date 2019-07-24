@@ -3401,7 +3401,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (int)EventId.InvalidMetadataStaticOutputNotFound,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
@@ -3410,7 +3410,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (int)EventId.InvalidMetadataRequiredOutputIsAbsent,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
@@ -3844,7 +3844,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.UnexpectedlySmallObservedInputCount,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
@@ -3968,7 +3968,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.CreateSymlinkFromSymlinkMap,
-            EventGenerators = EventGenerators.LocalAndTelemetryAndStatistic,
+            EventGenerators = EventGenerators.LocalOnly | Generators.Statistics,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,

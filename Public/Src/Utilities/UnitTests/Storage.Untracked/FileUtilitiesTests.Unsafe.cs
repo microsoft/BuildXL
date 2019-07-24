@@ -558,8 +558,11 @@ namespace Test.BuildXL.Storage
         [Fact]
         public void MoveTempDeletionCanReplaceRunningExecutable()
         {
-            string exeCopy = GetFullPath("DummyWaiterCopy");
-            File.Copy(DummyWaiter.GetDummyWaiterExeLocation(), exeCopy);
+            // Make a copy of DummyWaiter.exe to use as the test subject for deleting a running executable.
+            // Keep the copy in the same directory as the original since it will need runtime dlls
+            string dummyWaiterLocation = DummyWaiter.GetDummyWaiterExeLocation();
+            string exeCopy = dummyWaiterLocation + ".copy.exe";
+            File.Copy(dummyWaiterLocation, exeCopy);
 
             using (var waiter = DummyWaiter.RunAndWait(exeCopy))
             {

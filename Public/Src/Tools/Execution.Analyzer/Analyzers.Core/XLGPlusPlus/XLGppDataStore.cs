@@ -56,12 +56,12 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// Gets all the events of a certain type from the DB
         /// </summary>
         /// <returns>List of event objects recovered from DB </returns>
-        public IEnumerable<string> GetEventsByType(int eventTypeID)
+        public IEnumerable<string> GetEventsByType_V0(ExecutionEventId_XLGpp eventTypeID)
         {
             Contract.Assert(Accessor != null, "XLGppStore must be initialized via OpenDatastore first");
 
             var storedEvents = new List<string>();
-            var eventQuery = new EventTypeQuery
+            var eventQuery = new EventTypeQuery_XLGpp
             {
                 EventTypeID = eventTypeID,
             };
@@ -70,8 +70,8 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
                 {
                     foreach (var kvp in database.PrefixSearch(eventQuery.ToByteArray()))
                     {
-                        Console.WriteLine(BXLInvocationEvent.Parser.ParseFrom(kvp.Value));
-                        storedEvents.Add(BXLInvocationEvent.Parser.ParseFrom(kvp.Value).ToString());
+                        Console.WriteLine(BXLInvocationEvent_XLGpp.Parser.ParseFrom(kvp.Value));
+                        storedEvents.Add(BXLInvocationEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
                     }
                 })
             );
@@ -84,7 +84,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// NOTE: For internal testing/Debugging only!
         /// </summary>
         /// <returns>Stored data in string format</returns>
-        public string GetStoredData()
+        public string GetStoredData_V0()
         {
             Contract.Assert(Accessor != null, "XLGppStore must be initialized via OpenDatastore first");
 

@@ -9,18 +9,22 @@ package BuildXL.Execution.Analyzer;
 
 option csharp_namespace = "BuildXL.Execution.Analyzer";
 
+/////////////////////////////////////////////////////
+////     Generic Event Info (key, count, etc)    ////
+/////////////////////////////////////////////////////
+
 // Message that keeps track of total number of events processed
-message EventCount{
+message EventCount_XLGpp{
     uint32 Value = 1;
 }
 
 // Event query should be of this format. It also serves as the key to the DB
-message EventTypeQuery{
+message EventTypeQuery_XLGpp{
     
     // ID of the Event - required
-    int32 EventTypeID = 1; 
+    ExecutionEventId_XLGpp EventTypeID = 1; 
     
-    // Other ideas to keep in EventTypeQuery were as follows:
+    // Other ideas to keep in EventTypeQuery_XLGpp were as follows:
     // string (or int64) Path (or hash of path) = 2;
     // string RewriteContent = 3;
     // int32 WorkerID = 4;
@@ -29,25 +33,50 @@ message EventTypeQuery{
     string UUID = 99;   
 }
 
-message FileArtifactContentDecidedEvent{
+/////////////////////////////////////////////////////
+////        Enums and Helper Structs             ////
+/////////////////////////////////////////////////////
+
+enum ExecutionEventId_XLGpp{
+        FileArtifactContentDecided = 0;
+        WorkerList = 1;
+        PipExecutionPerformance = 2;
+        DirectoryMembershipHashed = 3;
+        ObservedInputs = 4;
+        ProcessExecutionMonitoringReported = 5;
+        ExtraEventDataReported = 6;
+        DependencyViolationReported = 7;
+        PipExecutionStepPerformanceReported = 8;
+        ResourceUsageReported = 9;
+        ProcessFingerprintComputation = 10;
+        PipCacheMiss = 11;
+        PipExecutionDirectoryOutputs = 12;
+        DominoInvocation = 13;
+}
+
+message FileArtifact_XLGpp{
+
+}
+
+message FileContentInfo_XLGpp{
+    
+}
+
+/////////////////////////////////////////////////////
+////                Event Data                   ////
+/////////////////////////////////////////////////////
+
+message FileArtifactContentDecidedEvent_XLGpp{
     string UUID = 99;
 
-    message FileArtifact{
-    
-    }
+    FileArtifact_XLGpp FileArtifact = 1;
 
-    message FileContentInfo{
-    
-    }
-
-    FileArtifact _FileArtifact = 1;
-
-    FileContentInfo _FileContentInfo = 2;
+    FileContentInfo_XLGpp FileContentInfo = 2;
 
     int32 OutputOrigin = 3;
 }
 
-message PipExecutionPerformanceEvent{
+message PipExecutionPerformanceEvent_XLGpp{
 
     string UUID = 99;
 
@@ -86,7 +115,7 @@ message PipExecutionPerformanceEvent{
     ProcessPipExecutionPerformance _ProcessPipExecutionPerformance = 4;
 }
 
-message ExtraEvent{
+message ExtraEvent_XLGpp{
     string UUID = 99;
 
     bool DisableDetours = 1;
@@ -111,13 +140,13 @@ message ExtraEvent{
     bool MaskUntrackedAccesses = 17;
     bool NormalizeReadTimestamps = 18;
     bool PipWarningsPromotedToErrors = 19;
-    bool ValidateDistribution = 19;
-    string RequiredKextVersionNumber = 20;
+    bool ValidateDistribution = 20;
+    string RequiredKextVersionNumber = 21;
 
 }
 
 // The BXL Invocation Event message
-message BXLInvocationEvent{
+message BXLInvocationEvent_XLGpp{
 
     // Unique identifier for the event - required, TODO: Remove as it may not be needed.
     string UUID = 99;

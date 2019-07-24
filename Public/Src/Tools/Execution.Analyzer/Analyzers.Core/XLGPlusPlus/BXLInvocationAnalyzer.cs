@@ -83,7 +83,7 @@ namespace BuildXL.Execution.Analyzer
         {
             var dataStore = new XLGppDataStore(storeDirectory: InputDirPath);
 
-            File.WriteAllLines(OutputFilePath, dataStore.GetEventsByType((int)ExecutionEventId.DominoInvocation));
+            File.WriteAllLines(OutputFilePath, dataStore.GetEventsByType_V0(ExecutionEventId_XLGpp.DominoInvocation));
 
             return 0;
         }

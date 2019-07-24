@@ -127,7 +127,7 @@ namespace BuildXL.Execution.Analyzer
             Analysis.IgnoreResult(
                 Accessor.Use(database =>
                 {
-                    var ec = new EventCount();
+                    var ec = new EventCount_XLGpp();
                     ec.Value = EventCount;
                     database.Put(Encoding.ASCII.GetBytes("EventCount"), ec.ToByteArray());
                 })
@@ -168,7 +168,7 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void PipExecutionPerformance(PipExecutionPerformanceEventData data)
         {
-            var pipExecPerfEvent = new PipExecutionPerformanceEvent();
+            var pipExecPerfEvent = new PipExecutionPerformanceEvent_XLGpp();
             var uuid = Guid.NewGuid().ToString();
 
             // TODO: Work with timestamp and other random structs
@@ -177,14 +177,14 @@ namespace BuildXL.Execution.Analyzer
             pipExecPerfEvent.PipExecutionLevel = (int)data.ExecutionPerformance.ExecutionLevel;
             pipExecPerfEvent.WorkerID = data.ExecutionPerformance.WorkerId;
 
-            var innerProcesPipPerf = new PipExecutionPerformanceEvent.Types.ProcessPipExecutionPerformance();
+            var innerProcesPipPerf = new PipExecutionPerformanceEvent_XLGpp.Types.ProcessPipExecutionPerformance();
             var performance = data.ExecutionPerformance as ProcessPipExecutionPerformance;
             if (performance != null)
             {
                 innerProcesPipPerf.PeakMemoryUsage = performance.PeakMemoryUsage;
                 innerProcesPipPerf.PeakMemoryUsageMb = performance.PeakMemoryUsageMb;
                 innerProcesPipPerf.NumberOfProcesses = performance.NumberOfProcesses;
-                innerProcesPipPerf.CacheDescriptorId = performance.CacheDescriptorId.Value;
+                //innerProcesPipPerf.CacheDescriptorId = performance.CacheDescriptorId.Value;
             }
 
             pipExecPerfEvent.ProcessPipExecutionPerformance = innerProcesPipPerf;
@@ -268,25 +268,15 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void DominoInvocation(DominoInvocationEventData data)
         {
-            var bxlInvEvent = new BXLInvocationEvent();
-            var loggingConfig = data.Configuration.Logging;
-
-            var uuid = Guid.NewGuid().ToString();
-
-            bxlInvEvent.UUID = uuid;
-            bxlInvEvent.WorkerID = WorkerID;
-            bxlInvEvent.SubstSource = loggingConfig.SubstSource.ToString(PathTable, PathFormat.HostOs);
-            bxlInvEvent.SubstTarget = loggingConfig.SubstTarget.ToString(PathTable, PathFormat.HostOs);
-            bxlInvEvent.IsSubstSourceValid = loggingConfig.SubstSource.IsValid;
-            bxlInvEvent.IsSubstTargetValid = loggingConfig.SubstTarget.IsValid;
-
+            var bxlInvEvent = data.ToBXLInvocationEvent_XLGpp(WorkerID, PathTable);
+            
             Analysis.IgnoreResult(
               Accessor.Use(database =>
               {
-                  var eq = new EventTypeQuery
+                  var eq = new EventTypeQuery_XLGpp
                   {
-                      EventTypeID = (int)ExecutionEventId.DominoInvocation,
-                      UUID = uuid
+                      EventTypeID = ExecutionEventId_XLGpp.DominoInvocation,
+                      UUID = bxlInvEvent.UUID
                   };
 
                   database.Put(eq.ToByteArray(), bxlInvEvent.ToByteArray());

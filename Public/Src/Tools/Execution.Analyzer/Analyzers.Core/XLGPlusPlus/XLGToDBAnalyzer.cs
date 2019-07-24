@@ -118,6 +118,7 @@ namespace BuildXL.Execution.Analyzer
         public override int Analyze()
         {
             Accessor.Dispose();
+            Console.WriteLine("Num events ingested = {0}", EventCount);
             return 0;
         }
 
@@ -137,7 +138,7 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override bool CanHandleEvent(ExecutionEventId eventId, uint workerId, long timestamp, int eventPayloadSize)
         {
-            if (m_accessorSucceeded)
+            if (m_accessorSucceeded && (eventId == ExecutionEventId.FileArtifactContentDecided))
             {
                 EventCount++;
                 WorkerID = workerId;
@@ -152,7 +153,20 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void FileArtifactContentDecided(FileArtifactContentDecidedEventData data)
         {
-            var x = 0;
+            var fileArtifactContentDecidedEvent = data.ToFileArtifactContentDecidedEvent_XLGpp(PathTable);
+
+            Analysis.IgnoreResult(
+              Accessor.Use(database =>
+              {
+                  var eq = new EventTypeQuery_XLGpp
+                  {
+                      EventTypeID = ExecutionEventId_XLGpp.FileArtifactContentDecided,
+                      UUID = fileArtifactContentDecidedEvent.UUID
+                  };
+
+                  database.Put(eq.ToByteArray(), fileArtifactContentDecidedEvent.ToByteArray());
+              })
+            );
         }
 
         /// <summary>
@@ -257,15 +271,6 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// Override event to capture its data and store it in the protobuf 
         /// </summary>
-        public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
-        {
-            base.PipExecutionDirectoryOutputs(data);
-        }
-
-
-        /// <summary>
-        /// Override event to capture its data and store it in the protobuf 
-        /// </summary>
         public override void DominoInvocation(DominoInvocationEventData data)
         {
             var bxlInvEvent = data.ToBXLInvocationEvent_XLGpp(WorkerID, PathTable);
@@ -283,5 +288,14 @@ namespace BuildXL.Execution.Analyzer
               })
             );
         }
+
+        /// <summary>
+        /// Override event to capture its data and store it in the protobuf 
+        /// </summary>
+        public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
+        {
+            base.PipExecutionDirectoryOutputs(data);
+        }
+
     }
 }

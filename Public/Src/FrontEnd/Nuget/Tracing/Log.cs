@@ -350,6 +350,15 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
         public abstract void NugetFailedGenerationResultFromDownloadedPackage(LoggingContext context, string package, string message);
 
         [GeneratedEvent(
+            (ushort)LogEventId.NugetFailedToWriteGeneratedSpecStateFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
+            Message = "Nuget resolver failed to write generated spec state file. Spec will be regenerated on future invocations: {message}")]
+        public abstract void NugetFailedToWriteGeneratedSpecStateFile(LoggingContext context, string message);
+
+        [GeneratedEvent(
             (ushort)LogEventId.NugetConcurrencyLevel,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

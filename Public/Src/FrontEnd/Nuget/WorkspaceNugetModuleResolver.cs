@@ -921,11 +921,19 @@ namespace BuildXL.FrontEnd.Nuget
         private bool CanReuseSpecFromDisk(NugetAnalyzedPackage analyzedPackage)
         {
             var packageDsc = GetPackageDscFile(analyzedPackage).ToString(PathTable);
+            
+            // This file contains some state from the last time the spec file was generated. It includes
+            // the fingerprint of the package (name, version, etc) and the version of the spec generator.
+            // It is stored next to the primary generated spec file
+            var (fileFormat, fingerprint) = ReadGeneratedSpecStateFile(packageDsc + SpecGenerationVersionFileSuffix);
 
-            var state = ReadPackageStateFile(packageDsc + SpecGenerationVersionFileSuffix);
-            if (state.fileFormat == SpecGenerationFormatVersion &&
-                state.fingerprint != null &&
-                state.fingerprint == analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash && 
+            // We can reuse the already generated spec file if all of the following are true:
+            //  * The spec generator is of the same format as when the spec was generated
+            //  * The package fingerprint is the same. This means the binaries are the same
+            //  * Both the generated spec and package config file exist on disk
+            // NOTE: This is not resilient to the specs being modified by other entities than the build engine.
+            if (fileFormat == SpecGenerationFormatVersion &&
+                fingerprint != null && fingerprint == analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash && 
                 File.Exists(packageDsc) &&
                 File.Exists(GetPackageConfigDscFile(analyzedPackage).ToString(PathTable)))
             {
@@ -935,7 +943,7 @@ namespace BuildXL.FrontEnd.Nuget
             return false;
         }
 
-        private static (int fileFormat, string fingerprint) ReadPackageStateFile(string path)
+        private static (int fileFormat, string fingerprint) ReadGeneratedSpecStateFile(string path)
         {
             if(File.Exists(path))
             {
@@ -955,17 +963,23 @@ namespace BuildXL.FrontEnd.Nuget
             return (-1, null);
         }
 
-        private static void WritePackageStateFile(string path, (int fileFormat, string fingerprint) data)
+        private void WriteGeneratedSpecStateFile(string path, (int fileFormat, string fingerprint) data)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
-
-            if(File.Exists(path))
+            try
             {
-                File.Delete(path);
-            }
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
 
-            File.WriteAllLines(path, new string[] { data.fileFormat.ToString(), data.fingerprint });
-            return;
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+
+                File.WriteAllLines(path, new string[] { data.fileFormat.ToString(), data.fingerprint });
+            }
+            catch (IOException ex)
+            {
+                Logger.Log.NugetFailedToWriteGeneratedSpecStateFile(m_context.LoggingContext, ex.Message);
+            }
         }
 
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly")]
@@ -998,7 +1012,7 @@ namespace BuildXL.FrontEnd.Nuget
 
             if (writeResult.Succeeded && possibleProjectFile.Succeeded)
             {
-                WritePackageStateFile(possibleProjectFile.Result.ToString(PathTable) + SpecGenerationVersionFileSuffix, (SpecGenerationFormatVersion, analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash));
+                WriteGeneratedSpecStateFile(possibleProjectFile.Result.ToString(PathTable) + SpecGenerationVersionFileSuffix, (SpecGenerationFormatVersion, analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash));
             }
 
             return writeResult;

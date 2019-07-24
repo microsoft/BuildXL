@@ -320,7 +320,8 @@ int main(int argc, const char * argv[])
                    << endl
                    << endl;
             output << "Config     :: "
-                   << "Report Queue Size: " << kextCfg->reportQueueSizeMB << " MB"
+                   << "Catalina Data Partition filtering: " << (kextCfg->enableCatalinaDataPartitionFiltering ? "YES" : "NO")
+                   << ", Report Queue Size: " << kextCfg->reportQueueSizeMB << " MB"
                    << endl;
             output << "Thresholds :: "
                    << "Min Available RAM: " << thresholds->minAvailableRamMB << " MB"

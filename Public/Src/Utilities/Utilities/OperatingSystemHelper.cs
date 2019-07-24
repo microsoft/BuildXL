@@ -71,7 +71,8 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Indicates if Catalina (10.15) or a higher macOS version is running on the host
         /// </summary>
-        public static readonly bool IsMacOSCatalinaOrHigher = GetOSVersionMacOS().CompareTo("macOS 10.15.0") < 0;
+        public static readonly bool IsMacOSCatalinaOrHigher = GetOSVersionMacOS().CompareTo("macOS 10.15.0") <= 0;
+        
 
         private static readonly Tuple<string, string> ProcessorNameAndIdentifierMacOS =
             IsMacOS ? GetProcessorNameAndIdentifierMacOS() : Tuple.Create(String.Empty, String.Empty);

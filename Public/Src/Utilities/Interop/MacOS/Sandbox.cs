@@ -138,10 +138,10 @@ namespace BuildXL.Interop.MacOS
             public bool EnableReportBatching;
 
             /// <nodoc />
-            public bool EnableCatalinaDataPartitionFiltering;
-
-            /// <nodoc />
             public ResourceThresholds ResourceThresholds;
+            
+            /// <nodoc />
+            public bool EnableCatalinaDataPartitionFiltering;
         }
 
         /// <nodoc />

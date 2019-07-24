@@ -189,8 +189,8 @@ typedef struct {
 typedef struct {
     uint reportQueueSizeMB;
     bool enableReportBatching;
-    bool enableCatalinaDataPartitionFiltering;
     ResourceThresholds resourceThresholds;
+    bool enableCatalinaDataPartitionFiltering;
 } KextConfig;
 
 #define kMaxReportedPips 30

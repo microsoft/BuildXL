@@ -45,6 +45,8 @@ private:
         }
     }
 
+    const char *IgnoreCatalinaDataPartitionPrefix(const char* path);
+
 protected:
 
     BuildXLSandbox* GetSandbox()   const { return sandbox_; }

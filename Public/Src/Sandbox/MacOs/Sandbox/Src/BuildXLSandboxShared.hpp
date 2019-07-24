@@ -189,6 +189,7 @@ typedef struct {
 typedef struct {
     uint reportQueueSizeMB;
     bool enableReportBatching;
+    bool enableCatalinaDataPartitionFiltering;
     ResourceThresholds resourceThresholds;
 } KextConfig;
 

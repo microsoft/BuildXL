@@ -175,7 +175,8 @@ namespace BuildXL.SandboxExec
                         KextConfig = new Sandbox.KextConfig
                         {
                             ReportQueueSizeMB = m_options.ReportQueueSizeMB,
-                            EnableReportBatching = m_options.EnableReportBatching
+                            EnableReportBatching = m_options.EnableReportBatching,
+                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
                         },
                     })
                 : null;

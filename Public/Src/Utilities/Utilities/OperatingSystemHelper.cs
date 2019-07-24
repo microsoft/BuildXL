@@ -68,6 +68,11 @@ namespace BuildXL.Utilities
         /// </summary>
         public static readonly bool IsMacOS = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 
+        /// <summary>
+        /// Indicates if Catalina (10.15) or a higher macOS version is running on the host
+        /// </summary>
+        public static readonly bool IsMacOSCatalinaOrHigher = GetOSVersionMacOS().CompareTo("macOS 10.15.0") < 0;
+
         private static readonly Tuple<string, string> ProcessorNameAndIdentifierMacOS =
             IsMacOS ? GetProcessorNameAndIdentifierMacOS() : Tuple.Create(String.Empty, String.Empty);
 
@@ -322,7 +327,7 @@ namespace BuildXL.Utilities
                 {
                     result = "4.5";
                 }
-                
+
                 // This code should never execute. A non-null release key should mean
                 // that 4.5 or later is installed.
                 return result != null;
@@ -352,7 +357,7 @@ namespace BuildXL.Utilities
                                     Version version = Version.Parse(versionString);
                                     if (version.Major > 10 || (version.Major == 10 && version.Minor >= 13))
                                     {
-                                        return string.Format("macOS High Sierra Version {0}.{1}.{2}", version.Major, version.Minor, version.Build);
+                                        return string.Format("macOS {0}.{1}.{2}", version.Major, version.Minor, version.Build);
                                     }
                                 }
                             }

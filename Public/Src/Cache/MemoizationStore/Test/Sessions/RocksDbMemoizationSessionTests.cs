@@ -33,7 +33,12 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         protected override IMemoizationStore CreateStore(DisposableDirectory testDirectory)
         {
-            return new RocksDbMemoizationStore(Logger, _clock, new RocksDbContentLocationDatabaseConfiguration(testDirectory.Path));
+            var memoConfig = new RocksDbMemoizationStoreConfiguration()
+            {
+                Database = new RocksDbContentLocationDatabaseConfiguration(testDirectory.Path)
+            };
+
+            return new RocksDbMemoizationStore(Logger, _clock, memoConfig);
         }
 
         [Fact]

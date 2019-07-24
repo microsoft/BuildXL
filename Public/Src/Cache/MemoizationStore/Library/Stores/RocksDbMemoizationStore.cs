@@ -5,6 +5,7 @@ extern alias Async;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,6 +18,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -34,7 +36,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         private const string Component = nameof(RocksDbMemoizationStore);
         
         private IClock _clock;
-        private RocksDbContentLocationDatabaseConfiguration _config;
+        
         private RocksDbContentLocationDatabase _database;
 
         /// <summary>
@@ -48,7 +50,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         ///     Initializes a new instance of the <see cref="RocksDbMemoizationStore"/> class.
         /// </summary>
-        public RocksDbMemoizationStore(ILogger logger, IClock clock, RocksDbContentLocationDatabaseConfiguration config)
+        public RocksDbMemoizationStore(ILogger logger, IClock clock, RocksDbMemoizationStoreConfiguration config)
         {
             Contract.Requires(logger != null);
             Contract.Requires(config != null);
@@ -56,8 +58,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
             _tracer = new MemoizationStoreTracer(logger, Component);
             _clock = clock;
-            _config = config;
-            _database = new RocksDbContentLocationDatabase(clock, config, () => new MachineId[] { });
+            _database = new RocksDbContentLocationDatabase(clock, config.Database, () => new MachineId[] { });
         }
 
         /// <inheritdoc />
@@ -84,7 +85,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <inheritdoc />
         public Task<GetStatsResult> GetStatsAsync(Context context)
         {
-            throw new NotImplementedException();
+            return GetStatsCall<MemoizationStoreTracer>.RunAsync(_tracer, new OperationContext(context), () =>
+            {
+                var counters = new CounterSet();
+                counters.Merge(_tracer.GetCounters(), $"{Component}.");
+                return Task.FromResult(new GetStatsResult(counters));
+            });
         }
 
         /// <inheritdoc />
@@ -120,9 +126,9 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         internal Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts)
         {
-            var ctx = new OperationContext(context);
-            return GetContentHashListCall.RunAsync(_tracer, context, strongFingerprint, () => {
-                return Task.FromResult(_database.GetContentHashList(ctx, strongFingerprint));
+            var ctx = new OperationContext(context, cts);
+            return GetContentHashListCall.RunAsync(_tracer, ctx, strongFingerprint, async () => {
+                return await Task.FromResult(_database.GetContentHashList(ctx, strongFingerprint));
             });
         }
 
@@ -203,20 +209,38 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         internal Task<Result<Selector[]>> GetSelectorsCoreAsync(Context context, Fingerprint weakFingerprint)
         {
-            var results = new List<Selector>();
-
             var ctx = new OperationContext(context);
-            foreach (var result in _database.GetSelectors(ctx, weakFingerprint))
+
+            var stopwatch = new Stopwatch();
+            try
             {
-                if (!result.Succeeded)
+                _tracer.GetSelectorsStart(ctx, weakFingerprint);
+                stopwatch.Start();
+
+                var getSelectorsResult = new List<Selector>();
+                foreach (var result in _database.GetSelectors(ctx, weakFingerprint))
                 {
-                    return Task.FromResult(Result.FromError<Selector[]>(result));
+                    if (!result.Succeeded)
+                    {
+                        return Task.FromResult(Result.FromError<Selector[]>(result));
+                    }
+
+                    getSelectorsResult.Add(result.Selector);
                 }
 
-                results.Add(result.Selector);
+                _tracer.GetSelectorsCount(ctx, weakFingerprint, getSelectorsResult.Count);
+                return Task.FromResult(Result.Success(getSelectorsResult.ToArray()));
             }
-
-            return Task.FromResult(Result.Success(results.ToArray()));
+            catch (Exception exception)
+            {
+                _tracer.Debug(ctx, $"{Component}.GetSelectors() error=[{exception}]");
+                return Task.FromResult(Result.FromException<Selector[]>(exception));
+            }
+            finally
+            {
+                stopwatch.Stop();
+                _tracer.GetSelectorsStop(ctx, stopwatch.Elapsed);
+            }
         }
     }
 }

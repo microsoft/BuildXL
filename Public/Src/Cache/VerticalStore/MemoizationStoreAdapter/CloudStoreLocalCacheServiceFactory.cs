@@ -192,14 +192,15 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 var memoConfig = new SQLiteMemoizationStoreConfiguration(rootPath)
                                  {
                                      MaxRowCount = cacheConfig.MaxStrongFingerprints,
-                                     BackupDatabase = cacheConfig.BackupLKGCache,
-                                     VerifyIntegrityOnStartup = cacheConfig.CheckCacheIntegrityOnStartup,
                                      SingleInstanceTimeoutSeconds = (int)cacheConfig.SingleInstanceTimeoutInSeconds
                                  };
 
+                memoConfig.Database.BackupDatabase = cacheConfig.BackupLKGCache;
+                memoConfig.Database.VerifyIntegrityOnStartup = cacheConfig.CheckCacheIntegrityOnStartup;
+
                 if (!string.IsNullOrEmpty(cacheConfig.SynchronizationMode))
                 {
-                    memoConfig.SyncMode = (SynchronizationMode)Enum.Parse(typeof(SynchronizationMode), cacheConfig.SynchronizationMode, ignoreCase: true);
+                    memoConfig.Database.SyncMode = (SynchronizationMode)Enum.Parse(typeof(SynchronizationMode), cacheConfig.SynchronizationMode, ignoreCase: true);
                 }
 
                 var localCache = new LocalCache(

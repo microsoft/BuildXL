@@ -190,7 +190,7 @@ namespace MsBuildGraphBuilderTool
                     projectGraphWithPredictions, 
                     assemblyPathsToLoad, 
                     locatedMsBuildPath, 
-                    environmentVariablesLogger.PotentialEnvironmentVariablesReads.OrderBy(s => s));
+                    environmentVariablesLogger.PotentialEnvironmentVariablesReads);
             }
             catch (InvalidProjectFileException e)
             {

@@ -1,4 +1,7 @@
-﻿using System;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Utilities.Collections;
@@ -6,7 +9,7 @@ using Microsoft.Build.Framework;
 
 namespace ProjectGraphBuilder
 {
-    internal class PropertyTrackingLogger : ILogger
+    internal sealed class PropertyTrackingLogger : ILogger
     {
         private readonly HashSet<string> _variablesRead = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private bool _nonTrackingSdkResolversExist = false;

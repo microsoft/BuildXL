@@ -50,7 +50,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         public bool Succeeded { get; }
 
         /// <summary>
-        /// A sorted list of the names of environment variables that could affect the build.
+        /// A list of the names of environment variables that could affect the build.
         /// </summary>
         public IEnumerable<string> EnvironmentVariablesAffectingBuild { get; }
 

@@ -4739,7 +4739,7 @@ namespace BuildXL.Scheduler
                             {
                                 ReportQueueSizeMB = m_configuration.Sandbox.KextReportQueueSizeMb,
                                 EnableReportBatching = m_configuration.Sandbox.KextEnableReportBatching,
-#if FEATURE_CORECLR
+#if PLATFORM_OSX
                                 EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher,
 #endif
                                 ResourceThresholds = new Sandbox.ResourceThresholds

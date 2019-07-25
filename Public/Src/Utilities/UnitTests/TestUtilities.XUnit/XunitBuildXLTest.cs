@@ -38,10 +38,12 @@ namespace Test.BuildXL.TestUtilities.Xunit
                         {
                             XAssert.Fail($"Kernel extension failed.  Status: {status}.  Description: {description}");
                         },
+#if PLATFORM_OSX                        
                         KextConfig = new KextConfig
                         {
                             EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
                         }   
+#endif
                     })
                 : null);
 

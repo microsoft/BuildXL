@@ -213,9 +213,9 @@ const char* AccessHandler::IgnoreCatalinaDataPartitionPrefix(const char* path)
     }
 
     const char *marker = path;
-    if (strprefix(marker, "/System/Volumes/Data/"))
+    if (strprefix(marker, kCatalinaDataPartitionPrefix))
     {
-        marker = marker + strlen("/System/Volumes/Data");
+        marker += kAdjustedCatalinaPrefixLength;
     }
 
     return marker;

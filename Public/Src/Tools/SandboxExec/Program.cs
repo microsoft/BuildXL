@@ -176,7 +176,9 @@ namespace BuildXL.SandboxExec
                         {
                             ReportQueueSizeMB = m_options.ReportQueueSizeMB,
                             EnableReportBatching = m_options.EnableReportBatching,
+#if PLATFORM_OSX
                             EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
+#endif
                         },
                     })
                 : null;

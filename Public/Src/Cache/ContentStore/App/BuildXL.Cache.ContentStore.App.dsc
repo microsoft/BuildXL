@@ -39,7 +39,7 @@ namespace App {
             importFrom("Grpc.Core").pkg,
             importFrom("Google.Protobuf").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
-            importFrom("Newtonsoft.Json").pkg,
+            importFrom("Newtonsoft.Json.v10").pkg,
 
             ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
         ],
@@ -50,6 +50,7 @@ namespace App {
         },
         runtimeContent: [
             importFrom("Sdk.SelfHost.Sqlite").runtimeLibs,
-        ]
+        ],
+        runtimeContentToSkip: [ importFrom("Newtonsoft.Json.v10").pkg ]
     });
 }

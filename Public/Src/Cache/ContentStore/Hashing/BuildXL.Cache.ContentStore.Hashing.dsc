@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Deployment from "Sdk.Deployment";
-import * as ILRepack from "Sdk.Managed.Tools.ILRepack";
 import * as Shared from "Sdk.Managed.Shared";
 
 namespace Hashing {

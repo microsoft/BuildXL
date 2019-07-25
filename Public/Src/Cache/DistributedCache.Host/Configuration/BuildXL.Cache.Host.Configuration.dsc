@@ -3,20 +3,22 @@
 
 namespace Configuration {
 
-    @@public
+    export const references = [
+        ...addIf(BuildXLSdk.isFullFramework,
+            NetFx.System.Runtime.Serialization.dll
+        ),
+
+        importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
+        importFrom("Newtonsoft.Json.v10").pkg,
+    ];
+
+@@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.Host.Configuration",
         sources: globR(d`.`,"*.cs"),
-        references: [
-            ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.System.Runtime.Serialization.dll
-            ),
-
-            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
-            importFrom("Newtonsoft.Json").pkg,
-        ],
+        references: references,
         skipDocumentationGeneration: true,
-
-        allowUnsafeBlocks: false
+        allowUnsafeBlocks: false,
+        runtimeContentToSkip: [ importFrom("Newtonsoft.Json.v10").pkg ]
     });
 }

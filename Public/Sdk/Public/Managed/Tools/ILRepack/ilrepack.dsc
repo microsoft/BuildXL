@@ -56,6 +56,8 @@ export function repack(inputArgs: Arguments) : Shared.Binary {
 
         Cmd.option("/out:",      Artifact.output(outputAssemblyPath)),
 
+        ...(args.libs.map(l => Cmd.option("/lib:", Artifact.input(l)))),
+
         Cmd.files([args.primaryBinary.binary]),
         Cmd.files(args.otherAssemblies.map(a => a.binary))
     ];
@@ -123,6 +125,8 @@ export interface Arguments extends Transformer.RunnerArguments {
     primaryBinary: Shared.Binary;
     /** assemblies to merge in */
     otherAssemblies: Shared.Binary[];
+    /** set of referenced assemblies */
+    libs?: File[];
 }
 
 @@public

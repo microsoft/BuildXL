@@ -45,6 +45,7 @@ namespace VstsTest {
             ...addIf(BuildXLSdk.isFullFramework,
                 importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg
             ),
+            importFrom("Newtonsoft.Json.v10").pkg
         ],
     });
 }

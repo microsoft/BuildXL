@@ -1139,7 +1139,7 @@ namespace Test.BuildXL.Scheduler
                     disableFilesystemEnumeration: true,
                     fileIgnoreWildcards: new string[] { });
 
-            ModuleId testModule = new ModuleId(2, "test");
+            ModuleId testModule = ModuleId.UnsafeCreate(2, "test");
             ModuleConfiguration moduleConfig = new ModuleConfiguration { ModuleId = testModule };
 
             DirectoryMembershipFingerprinterRuleSet parentRuleSet = new DirectoryMembershipFingerprinterRuleSet(

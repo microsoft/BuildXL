@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Utilities
@@ -32,28 +33,26 @@ namespace BuildXL.Utilities
         /// The only other reasonable usage would be for temporary serialization (e.g. to a child process).
         /// </remarks>
         [SuppressMessage("Microsoft.Performance", "CA1801")]
-        public ModuleId(StringId value, string friendlyNameForDebugging = null)
+        private ModuleId(StringId value, string friendlyNameForDebugging = null)
         {
             Analysis.IgnoreArgument(friendlyNameForDebugging);
             Value = value;
         }
 
         /// <nodoc />
-        public static ModuleId Create(StringTable table, string identity, string version = null)
+        public static ModuleId Create(StringTable table, string identity, string version = null, string friendlyNameForDebugging = null) => Create(StringId.Create(table, identity), StringId.Invalid, friendlyNameForDebugging);
+
+        /// <nodoc />
+        public static ModuleId Create(StringId identity, StringId version = default, string friendlyNameForDebugging = null)
         {
-            return new ModuleId(StringId.Create(table, identity));
+            Contract.Requires(identity.IsValid);
+            return new ModuleId(identity, friendlyNameForDebugging);
         }
 
         /// <nodoc />
-        public static ModuleId UnsafeCreate(int stringIdValue)
+        public static ModuleId UnsafeCreate(int stringIdValue, string friendlyNameForDebugging = null)
         {
-            return new ModuleId(new StringId(stringIdValue));
-        }
-
-        /// <nodoc />
-        public static ModuleId CreateForTesting(string identity)
-        {
-            return new ModuleId(new StringId(identity.GetHashCode()));
+            return new ModuleId(new StringId(stringIdValue), friendlyNameForDebugging);
         }
 
         /// <summary>
@@ -105,6 +104,16 @@ namespace BuildXL.Utilities
         {
             return !left.Equals(right);
         }
+
+        /// <summary>
+        /// Deserializes <see cref="ModuleId"/>.
+        /// </summary>
+        public static ModuleId Deserialize(BuildXLReader reader) => new ModuleId(reader.ReadStringId());
+
+        /// <summary>
+        /// Serialzies this instance.
+        /// </summary>
+        public void Serialize(BuildXLWriter writer) => writer.Write(Value);
 
         /// <summary>
         /// Returns a string to be displayed as the debugger representation of this value.

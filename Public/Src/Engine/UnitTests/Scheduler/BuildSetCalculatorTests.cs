@@ -750,8 +750,8 @@ namespace Test.BuildXL.Scheduler
         {
             var graph = new MutableDirectedGraph();
             var buildSetCalculator = new TestBuildSetCalculator(graph);
-            var m1 = new ModuleId(1);
-            var m2 = new ModuleId(2);
+            var m1 = ModuleId.UnsafeCreate(1);
+            var m2 = ModuleId.UnsafeCreate(2);
             var n1 = buildSetCalculator.AddProcess(moduleId: m1);
             var n2 = buildSetCalculator.AddProcess(moduleId: m1, files: new[] { buildSetCalculator.CreateFile(exists: true) });
             var n3 = buildSetCalculator.AddProcess(moduleId: m2, files: new[] { buildSetCalculator.CreateFile(exists: false, sourceFile: false, producer: n2) });

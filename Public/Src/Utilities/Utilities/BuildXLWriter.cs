@@ -491,7 +491,7 @@ namespace BuildXL.Utilities
         public virtual void Write(ModuleId value)
         {
             Start<ModuleId>();
-            Write(value.Value);
+            value.Serialize(this);
             End();
         }
 

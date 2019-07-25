@@ -293,7 +293,7 @@ namespace BuildXL.Utilities
         public virtual ModuleId ReadModuleId()
         {
             Start<ModuleId>();
-            var value = new ModuleId(ReadStringId());
+            var value = ModuleId.Deserialize(this);
             End();
             return value;
         }

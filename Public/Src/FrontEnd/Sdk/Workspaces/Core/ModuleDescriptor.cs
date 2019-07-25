@@ -138,7 +138,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// </remarks>
         public static ModuleDescriptor CreateForTesting(string moduleName, string version = null, string resolverName = null)
         {
-            var id = ModuleId.CreateForTesting(moduleName);
+            var id = ModuleId.UnsafeCreate(moduleName.GetHashCode());
             return new ModuleDescriptor(
                 id: id,
                 name: moduleName,

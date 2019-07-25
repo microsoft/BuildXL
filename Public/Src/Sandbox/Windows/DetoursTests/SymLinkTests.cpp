@@ -449,3 +449,55 @@ int CallDetouredNtCreateFileThatAccessesChainOfSymlinks()
 
     return (int)RtlNtStatusToDosError(status);
 }
+
+int CallDetouredCreateFileWForSymlinkProbeOnly(bool withReparsePointFlag)
+{
+    DWORD flagsAndAttributes = FILE_FLAG_BACKUP_SEMANTICS;
+    flagsAndAttributes = withReparsePointFlag
+        ? flagsAndAttributes | FILE_FLAG_OPEN_REPARSE_POINT
+        : flagsAndAttributes;
+
+    HANDLE hFile = CreateFileW(
+        L"input\\CreateFileWForProbingOnly.lnk",
+        0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        flagsAndAttributes,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    hFile = CreateFileW(
+        L"input\\CreateFileWForProbingOnly.lnk",
+        FILE_READ_ATTRIBUTES | FILE_READ_EA,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        flagsAndAttributes,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    return (int)GetLastError();
+}
+
+int CallDetouredCreateFileWForSymlinkProbeOnlyWithReparsePointFlag()
+{
+    return CallDetouredCreateFileWForSymlinkProbeOnly(true);
+}
+
+int CallDetouredCreateFileWForSymlinkProbeOnlyWithoutReparsePointFlag()
+{
+    return CallDetouredCreateFileWForSymlinkProbeOnly(false);
+}

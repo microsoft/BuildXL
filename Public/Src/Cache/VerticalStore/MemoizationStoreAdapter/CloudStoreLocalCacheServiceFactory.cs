@@ -153,7 +153,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             [DefaultValue(false)]
             public bool ReplaceExistingOnPlaceFile { get; set; }
 
-            [DefaultValue(true)]
+            [DefaultValue(false)]
             public bool UseRocksDbMemoizationStore { get; set; }
         }
 

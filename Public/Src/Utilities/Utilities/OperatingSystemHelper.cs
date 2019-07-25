@@ -67,7 +67,7 @@ namespace BuildXL.Utilities
         /// Indicates if BuildXL is running on macOS
         /// </summary>
         public static readonly bool IsMacOS = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-        
+
         private static readonly Version CurrentMacOSVersion = GetOSVersionMacOS();
 
 #if PLATFORM_OSX
@@ -75,7 +75,7 @@ namespace BuildXL.Utilities
         /// Indicates if Catalina (10.15) or a higher macOS version is running on the host
         /// </summary>
         public static readonly bool IsMacOSCatalinaOrHigher = CurrentMacOSVersion.Major >= 10 && CurrentMacOSVersion.Minor >= 15;
-#endif        
+#endif
 
         private static readonly Tuple<string, string> ProcessorNameAndIdentifierMacOS =
             IsMacOS ? GetProcessorNameAndIdentifierMacOS() : Tuple.Create(String.Empty, String.Empty);
@@ -371,7 +371,8 @@ namespace BuildXL.Utilities
             }
 #pragma warning restore ERP022
 
-            return default(Version);
+            // Fallback is version 0.0
+            return new Version();
         }
 
         // This could potentially be replaced by a C wrapper querying the system information, the sysctl is just more convinient currently

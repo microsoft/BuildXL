@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Security;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,6 +26,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using Microsoft.Practices.TransientFaultHandling;
+using Microsoft.WindowsAzure.Storage.Auth;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -268,13 +270,13 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.IsReconciliationEnabled, value => configuration.EnableReconciliation = value);
             ApplyIfNotNull(_distributedSettings.UseIncrementalCheckpointing, value => configuration.Checkpoint.UseIncrementalCheckpointing = value);
 
-            configuration.RedisGlobalStoreConnectionString = GetRequiredSecret(secrets, _distributedSettings.GlobalRedisSecretName);
+            configuration.RedisGlobalStoreConnectionString = ((PlainTextSecret) GetRequiredSecret(secrets, _distributedSettings.GlobalRedisSecretName)).Secret;
 
             if (_distributedSettings.SecondaryGlobalRedisSecretName != null)
             {
-                configuration.RedisGlobalStoreSecondaryConnectionString = GetRequiredSecret(
+                configuration.RedisGlobalStoreSecondaryConnectionString = ((PlainTextSecret) GetRequiredSecret(
                     secrets,
-                    _distributedSettings.SecondaryGlobalRedisSecretName);
+                    _distributedSettings.SecondaryGlobalRedisSecretName)).Secret;
             }
 
             ApplyIfNotNull(
@@ -286,8 +288,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, value => configuration.LocationEntryExpiry = TimeSpan.FromMinutes(value));
 
             var storageCredentials = GetStorageCredentials(secrets, errorBuilder);
-            // We already retrieved storage connection strings, so the result should not be null.
-            Contract.Assert(storageCredentials != null);
+            Contract.Assert(storageCredentials != null && storageCredentials.Length > 0);
 
             var blobStoreConfiguration = new BlobCentralStoreConfiguration(
                 credentials: storageCredentials,
@@ -313,7 +314,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var eventStoreConfiguration = new EventHubContentLocationEventStoreConfiguration(
                 eventHubName: "eventhub",
-                eventHubConnectionString: GetRequiredSecret(secrets, _distributedSettings.EventHubSecretName),
+                eventHubConnectionString: ((PlainTextSecret)GetRequiredSecret(secrets, _distributedSettings.EventHubSecretName)).Secret,
                 consumerGroupName: "$Default",
                 epoch: _keySpace + _distributedSettings.EventHubEpoch);
 
@@ -323,43 +324,74 @@ namespace BuildXL.Cache.Host.Service.Internal
                 value => eventStoreConfiguration.MaxEventProcessingConcurrency = value);
         }
 
-        private AzureBlobStorageCredentials[] GetStorageCredentials(Dictionary<string, string> settings, StringBuilder errorBuilder)
+        private AzureBlobStorageCredentials[] GetStorageCredentials(Dictionary<string, Secret> secrets, StringBuilder errorBuilder)
         {
             var storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
-            if (storageSecretNames == null)
+            // This would have failed earlier otherwise
+            Contract.Assert(storageSecretNames != null);
+
+            var credentials = new List<AzureBlobStorageCredentials>();
+            foreach (var secretName in storageSecretNames)
             {
-                return null;
+                var secret = GetRequiredSecret(secrets, secretName);
+
+                if (_distributedSettings.AzureBlobStorageUseSasTokens)
+                {
+                    var updatingSasToken = secret as UpdatingSasToken;
+                    Contract.Assert(!(updatingSasToken is null));
+
+                    credentials.Add(CreateAzureBlobCredentialsFromSasToken(updatingSasToken));
+                }
+                else
+                {
+                    var plainTextSecret = secret as PlainTextSecret;
+                    Contract.Assert(!(plainTextSecret is null));
+
+                    credentials.Add(new AzureBlobStorageCredentials(plainTextSecret.Secret));
+                }
             }
 
-            return storageSecretNames.Select(name => {
-                return new AzureBlobStorageCredentials(GetRequiredSecret(settings, name));
-            }).ToArray();
+            return credentials.ToArray();
+        }
+
+        private static AzureBlobStorageCredentials CreateAzureBlobCredentialsFromSasToken(UpdatingSasToken updatingSasToken)
+        {
+            var storageCredentials = new StorageCredentials(sasToken: updatingSasToken.Token.Token);
+            updatingSasToken.TokenUpdated += (token, sasToken) =>
+            {
+                storageCredentials.UpdateSASToken(sasToken.Token);
+            };
+
+            // The account name should never actually be updated, so its OK to take it from the initial token
+            var azureCredentials = new AzureBlobStorageCredentials(storageCredentials, updatingSasToken.Token.StorageAccount);
+            return azureCredentials;
         }
 
         private List<string> GetAzureStorageSecretNames(StringBuilder errorBuilder)
         {
-            List<string> secretNames = new List<string>();
-            if (_distributedSettings.AzureStorageSecretName != null)
+            var secretNames = new List<string>();
+            if (_distributedSettings.AzureStorageSecretName != null && !string.IsNullOrEmpty(_distributedSettings.AzureStorageSecretName))
             {
                 secretNames.Add(_distributedSettings.AzureStorageSecretName);
             }
 
-            if (_distributedSettings.AzureStorageSecretNames != null)
+            if (_distributedSettings.AzureStorageSecretNames != null && !_distributedSettings.AzureStorageSecretNames.Any(string.IsNullOrEmpty))
             {
                 secretNames.AddRange(_distributedSettings.AzureStorageSecretNames);
             }
 
-            if (secretNames.Count == 0)
+            if (secretNames.Count > 0)
             {
-                errorBuilder.Append(
-                    $"Unable to configure Azure Storage. {nameof(DistributedContentSettings.AzureStorageSecretName)} or {nameof(DistributedContentSettings.AzureStorageSecretNames)} configuration options should be provided. ");
-                return null;
+                return secretNames;
             }
 
-            return secretNames;
+            errorBuilder.Append(
+                $"Unable to configure Azure Storage. {nameof(DistributedContentSettings.AzureStorageSecretName)} or {nameof(DistributedContentSettings.AzureStorageSecretNames)} configuration options should be provided. ");
+            return null;
+
         }
 
-        private async Task<Dictionary<string, string>> TryRetrieveSecretsAsync(CancellationToken token, StringBuilder errorBuilder)
+        private async Task<Dictionary<string, Secret>> TryRetrieveSecretsAsync(CancellationToken token, StringBuilder errorBuilder)
         {
             _logger.Debug(
                 $"{nameof(_distributedSettings.EventHubSecretName)}: {_distributedSettings.EventHubSecretName}, " +
@@ -375,32 +407,68 @@ namespace BuildXL.Cache.Host.Service.Internal
                 return null;
             }
 
+            // Create the credentials requests
+            var retrieveSecretsRequests = new List<RetrieveSecretsRequest>();
+
             var storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
             if (storageSecretNames == null)
             {
                 return null;
             }
 
-            if (_distributedSettings.EventHubSecretName != null &&
-                _distributedSettings.GlobalRedisSecretName != null)
+            var azureBlobStorageCredentialsKind = _distributedSettings.AzureBlobStorageUseSasTokens ? SecretKind.SasToken : SecretKind.PlainText;
+            retrieveSecretsRequests.AddRange(storageSecretNames.Select(secretName => new RetrieveSecretsRequest(secretName, azureBlobStorageCredentialsKind)));
+
+            if (string.IsNullOrEmpty(_distributedSettings.EventHubSecretName) ||
+                string.IsNullOrEmpty(_distributedSettings.GlobalRedisSecretName))
             {
-                var retryPolicy = CreateSecretsRetrievalRetryPolicy(_distributedSettings);
-                return await retryPolicy.ExecuteAsync(
-                    async () =>
-                    {
-                        return await _arguments.Host.RetrieveKeyVaultSecretsAsync(
-                            new List<string>(storageSecretNames)
-                            {
-                                _distributedSettings.EventHubSecretName,
-                                _distributedSettings.GlobalRedisSecretName,
-                                _distributedSettings.SecondaryGlobalRedisSecretName
-                            }.Where(s => s != null).ToList(),
-                            token);
-                    },
-                    token);
+                return null;
             }
 
-            return null;
+            retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.EventHubSecretName, SecretKind.PlainText));
+
+            retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.GlobalRedisSecretName, SecretKind.PlainText));
+            if (!string.IsNullOrEmpty(_distributedSettings.SecondaryGlobalRedisSecretName))
+            {
+                retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.SecondaryGlobalRedisSecretName, SecretKind.PlainText));
+            }
+
+            // Ask the host for credentials
+            var retryPolicy = CreateSecretsRetrievalRetryPolicy(_distributedSettings);
+            var secrets = await retryPolicy.ExecuteAsync(
+                async () => await _arguments.Host.RetrieveSecretsAsync(retrieveSecretsRequests, token),
+                token);
+            if (secrets == null)
+            {
+                return null;
+            }
+
+            // Validate requests match as expected
+            foreach (var request in retrieveSecretsRequests)
+            {
+                if (secrets.TryGetValue(request.Name, out var secret))
+                {
+                    bool typeMatch = true;
+                    switch (request.Kind)
+                    {
+                        case SecretKind.PlainText:
+                            typeMatch = secret is PlainTextSecret;
+                            break;
+                        case SecretKind.SasToken:
+                            typeMatch = secret is UpdatingSasToken;
+                            break;
+                        default:
+                            throw new NotSupportedException("The requested kind is missing support for secret request matching");
+                    }
+
+                    if (!typeMatch)
+                    {
+                        throw new SecurityException($"The credentials produced by the host for secret named {request.Name} do not match the expected kind");
+                    }
+                }
+            }
+
+            return secrets;
 
             bool appendIfNull(object value, string propertyName)
             {
@@ -430,9 +498,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private static string GetRequiredSecret(Dictionary<string, string> secrets, string secretName)
+        private static Secret GetRequiredSecret(Dictionary<string, Secret> secrets, string secretName)
         {
-            if (!secrets.TryGetValue(secretName, out var value) || string.IsNullOrEmpty(value))
+            if (!secrets.TryGetValue(secretName, out var value))
             {
                 throw new KeyNotFoundException($"Missing secret: {secretName}");
             }

@@ -389,6 +389,9 @@ namespace BuildXL.Cache.Host.Configuration
         public string AzureStorageSecretName { get; set; }
 
         [DataMember]
+        public bool AzureBlobStorageUseSasTokens { get; set; } = false;
+
+        [DataMember]
         public string EventHubEpoch { get; set; } = ".LLS_V1.2";
 
         [DataMember]

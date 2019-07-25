@@ -19,9 +19,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             // Local worker is always connected.
             MinimumWorkers = 1;
 
-#if FEATURE_CORECLR
             IsGrpcEnabled = true;
-#endif
         }
 
         /// <nodoc />

@@ -149,7 +149,7 @@ namespace Test.BuildXL.FingerprintStore
 
             var counters = testHooks.FingerprintStoreTestHooks.Counters;
             XAssert.AreEqual(1, counters.GetCounterValue(FingerprintStoreCounters.NumPathSetEntriesPut));
-            XAssert.AreEqual(1, counters.GetCounterValue(FingerprintStoreCounters.NumDirectoryMembershipEntriesPut));
+            XAssert.IsTrue(counters.GetCounterValue(FingerprintStoreCounters.NumDirectoryMembershipEntriesPut) >= 1);
         }
 
         /// <summary>
@@ -244,7 +244,7 @@ namespace Test.BuildXL.FingerprintStore
             // Make sure there are unique puts for each path set and directory membership
             // The FingerprintStore will not double-put the same content hash
             XAssert.AreEqual(2, counters.GetCounterValue(FingerprintStoreCounters.NumPathSetEntriesPut));
-            XAssert.AreEqual(2, counters.GetCounterValue(FingerprintStoreCounters.NumDirectoryMembershipEntriesPut));
+            XAssert.IsTrue(counters.GetCounterValue(FingerprintStoreCounters.NumDirectoryMembershipEntriesPut) >= 2);
         }
 
         /// <summary>
@@ -330,7 +330,7 @@ namespace Test.BuildXL.FingerprintStore
             // Pip unique output hash entry
             XAssert.AreEqual(1, testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipUniqueOutputHashEntriesGarbageCollected));
             // 1 pathset entry, 1 directory membership fingerprint entry
-            XAssert.AreEqual(2, testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumContentHashEntriesGarbageCollected));
+            XAssert.IsTrue(testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumContentHashEntriesGarbageCollected) >= 2);
 
             FingerprintStoreSession(ResultToStoreDirectory(build2), store =>
             {

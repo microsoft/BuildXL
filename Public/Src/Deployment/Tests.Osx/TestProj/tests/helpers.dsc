@@ -81,6 +81,7 @@ function runSingleXunitInstance(args: Arguments): DerivedFile[] {
             dependencies: [
                 ...globR(d`${args.testAssembly.parent}`, "*"),
                 f`/bin/sh`,
+                f`/bin/bash`,
                 f`/bin/ls`,
                 f`/bin/cat`,
             ],

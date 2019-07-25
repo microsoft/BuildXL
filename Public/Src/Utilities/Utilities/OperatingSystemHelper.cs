@@ -68,6 +68,15 @@ namespace BuildXL.Utilities
         /// </summary>
         public static readonly bool IsMacOS = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 
+        private static readonly Version CurrentMacOSVersion = GetOSVersionMacOS();
+
+#if PLATFORM_OSX
+        /// <summary>
+        /// Indicates if Catalina (10.15) or a higher macOS version is running on the host
+        /// </summary>
+        public static readonly bool IsMacOSCatalinaOrHigher = CurrentMacOSVersion.Major >= 10 && CurrentMacOSVersion.Minor >= 15;
+#endif
+
         private static readonly Tuple<string, string> ProcessorNameAndIdentifierMacOS =
             IsMacOS ? GetProcessorNameAndIdentifierMacOS() : Tuple.Create(String.Empty, String.Empty);
 
@@ -90,7 +99,7 @@ namespace BuildXL.Utilities
 #if FEATURE_CORECLR
             else if (IsMacOS)
             {
-                return GetOSVersionMacOS();
+                return string.Format("macOS {0}.{1}.{2}", CurrentMacOSVersion.Major, CurrentMacOSVersion.Minor, CurrentMacOSVersion.Build);
             }
 #endif
             // Extend this once we start supporting Linux etc.
@@ -322,7 +331,7 @@ namespace BuildXL.Utilities
                 {
                     result = "4.5";
                 }
-                
+
                 // This code should never execute. A non-null release key should mean
                 // that 4.5 or later is installed.
                 return result != null;
@@ -330,9 +339,9 @@ namespace BuildXL.Utilities
         }
 
         #region macOS Helpers
-#if FEATURE_CORECLR
 
-        private static string GetOSVersionMacOS()
+#if FEATURE_CORECLR
+        private static Version GetOSVersionMacOS()
         {
             try
             {
@@ -349,11 +358,7 @@ namespace BuildXL.Utilities
                                 string versionString = stringElement.Value;
                                 if (versionString != null)
                                 {
-                                    Version version = Version.Parse(versionString);
-                                    if (version.Major > 10 || (version.Major == 10 && version.Minor >= 13))
-                                    {
-                                        return string.Format("macOS High Sierra Version {0}.{1}.{2}", version.Major, version.Minor, version.Build);
-                                    }
+                                    return Version.Parse(versionString);
                                 }
                             }
                         }
@@ -366,7 +371,8 @@ namespace BuildXL.Utilities
             }
 #pragma warning restore ERP022
 
-            return String.Empty;
+            // Fallback is version 0.0
+            return new Version();
         }
 
         // This could potentially be replaced by a C wrapper querying the system information, the sysctl is just more convinient currently

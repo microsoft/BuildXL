@@ -449,3 +449,77 @@ int CallDetouredNtCreateFileThatAccessesChainOfSymlinks()
 
     return (int)RtlNtStatusToDosError(status);
 }
+
+int CallDetouredCreateFileWForSymlinkProbeOnlyWithReparsePointFlag()
+{
+    HANDLE hFile = CreateFileW(
+        L"input\\CreateFileWForProbingOnly.lnk",
+        0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    hFile = CreateFileW(
+        L"input\\CreateFileWForProbingOnly.lnk",
+        FILE_READ_ATTRIBUTES | FILE_READ_EA,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    return (int)GetLastError();
+}
+
+int CallDetouredCreateFileWForSymlinkProbeOnlyWithoutReparsePointFlag()
+{
+    HANDLE hFile = CreateFileW(
+        L"input\\CreateFileWForProbingOnly.lnk",
+        0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    hFile = CreateFileW(
+        L"input\\CreateFileWForProbingOnly.lnk",
+        FILE_READ_ATTRIBUTES | FILE_READ_EA,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    return (int)GetLastError();
+}

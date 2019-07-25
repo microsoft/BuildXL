@@ -3,19 +3,12 @@
 
 using System;
 using System.IO;
+using System.Text;
+using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using Google.Protobuf;
-using BuildXL.Engine.Cache;
-using BuildXL.Engine.Cache.KeyValueStores;
-using BuildXL.Engine.Cache.Serialization;
-using BuildXL.Native.IO;
-using System.Diagnostics;
-using BuildXL.Execution.Analyzer.Model;
-using BuildXL.Analyzers.Core.XLGPlusPlus;
-using System.Text;
-using BuildXL.Pips;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -138,7 +131,7 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override bool CanHandleEvent(ExecutionEventId eventId, uint workerId, long timestamp, int eventPayloadSize)
         {
-            if (m_accessorSucceeded && (eventId == ExecutionEventId.FileArtifactContentDecided))
+            if (m_accessorSucceeded && eventId != ExecutionEventId.ObservedInputs)
             {
                 EventCount++;
                 WorkerID = workerId;
@@ -153,7 +146,7 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void FileArtifactContentDecided(FileArtifactContentDecidedEventData data)
         {
-            var fileArtifactContentDecidedEvent = data.ToFileArtifactContentDecidedEvent_XLGpp(PathTable);
+            var fileArtifactContentDecidedEvent = data.ToFileArtifactContentDecidedEvent_XLGpp(WorkerID, PathTable);
 
             Analysis.IgnoreResult(
               Accessor.Use(database =>
@@ -174,7 +167,19 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void WorkerList(WorkerListEventData data)
         {
-            base.WorkerList(data);
+            var workerListEvent = data.ToWorkerListEvent_XLGpp(WorkerID);
+            Analysis.IgnoreResult(
+              Accessor.Use(database =>
+              {
+                  var eq = new EventTypeQuery_XLGpp
+                  {
+                      EventTypeID = ExecutionEventId_XLGpp.WorkerList,
+                      UUID = workerListEvent.UUID
+                  };
+
+                  database.Put(eq.ToByteArray(), workerListEvent.ToByteArray());
+              })
+            );
         }
 
         /// <summary>
@@ -182,26 +187,19 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void PipExecutionPerformance(PipExecutionPerformanceEventData data)
         {
-            var pipExecPerfEvent = new PipExecutionPerformanceEvent_XLGpp();
-            var uuid = Guid.NewGuid().ToString();
+            var pipExecPerfEvent = data.ToPipExecutionPerformanceEvent_XLGpp();
+            Analysis.IgnoreResult(
+              Accessor.Use(database =>
+              {
+                  var eq = new EventTypeQuery_XLGpp
+                  {
+                      EventTypeID = ExecutionEventId_XLGpp.PipExecutionPerformance,
+                      UUID = pipExecPerfEvent.UUID
+                  };
 
-            // TODO: Work with timestamp and other random structs
-            pipExecPerfEvent.UUID = uuid;
-            pipExecPerfEvent.PipID = data.PipId.Value;
-            pipExecPerfEvent.PipExecutionLevel = (int)data.ExecutionPerformance.ExecutionLevel;
-            pipExecPerfEvent.WorkerID = data.ExecutionPerformance.WorkerId;
-
-            var innerProcesPipPerf = new PipExecutionPerformanceEvent_XLGpp.Types.ProcessPipExecutionPerformance();
-            var performance = data.ExecutionPerformance as ProcessPipExecutionPerformance;
-            if (performance != null)
-            {
-                innerProcesPipPerf.PeakMemoryUsage = performance.PeakMemoryUsage;
-                innerProcesPipPerf.PeakMemoryUsageMb = performance.PeakMemoryUsageMb;
-                innerProcesPipPerf.NumberOfProcesses = performance.NumberOfProcesses;
-                //innerProcesPipPerf.CacheDescriptorId = performance.CacheDescriptorId.Value;
-            }
-
-            pipExecPerfEvent.ProcessPipExecutionPerformance = innerProcesPipPerf;
+                  database.Put(eq.ToByteArray(), pipExecPerfEvent.ToByteArray());
+              })
+            );
         }
 
         /// <summary>
@@ -217,7 +215,19 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void ProcessExecutionMonitoringReported(ProcessExecutionMonitoringReportedEventData data)
         {
-            base.ProcessExecutionMonitoringReported(data);
+            var processExecMonitoringReportedEvent = data.ToProcessExecutionMonitoringReportedEvent_XLGpp(WorkerID, PathTable);
+            Analysis.IgnoreResult(
+              Accessor.Use(database =>
+              {
+                  var eq = new EventTypeQuery_XLGpp
+                  {
+                      EventTypeID = ExecutionEventId_XLGpp.ProcessExecutionMonitoringReported,
+                      UUID = processExecMonitoringReportedEvent.UUID
+                  };
+
+                  database.Put(eq.ToByteArray(), processExecMonitoringReportedEvent.ToByteArray());
+              })
+            );
         }
 
         /// <summary>
@@ -233,7 +243,20 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void ExtraEventDataReported(ExtraEventData data)
         {
-            base.ExtraEventDataReported(data);
+            var extraEvent = data.ToExtraEventDataReported_XLGpp(WorkerID);
+
+            Analysis.IgnoreResult(
+              Accessor.Use(database =>
+              {
+                  var eq = new EventTypeQuery_XLGpp
+                  {
+                      EventTypeID = ExecutionEventId_XLGpp.ExtraEventDataReported,
+                      UUID = extraEvent.UUID
+                  };
+
+                  database.Put(eq.ToByteArray(), extraEvent.ToByteArray());
+              })
+            );
         }
 
         /// <summary>
@@ -241,7 +264,20 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void DependencyViolationReported(DependencyViolationEventData data)
         {
-            base.DependencyViolationReported(data);
+            var dependencyViolationEvent = data.ToDependencyViolationReportedEvent_XLGpp(WorkerID, PathTable);
+
+            Analysis.IgnoreResult(
+              Accessor.Use(database =>
+              {
+                  var eq = new EventTypeQuery_XLGpp
+                  {
+                      EventTypeID = ExecutionEventId_XLGpp.DependencyViolationReported,
+                      UUID = dependencyViolationEvent.UUID
+                  };
+
+                  database.Put(eq.ToByteArray(), dependencyViolationEvent.ToByteArray());
+              })
+            );
         }
 
         /// <summary>
@@ -249,7 +285,20 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void PipExecutionStepPerformanceReported(PipExecutionStepPerformanceEventData data)
         {
-            base.PipExecutionStepPerformanceReported(data);
+            var pipExecStepPerformanceEvent = data.ToPipExecutionStepPerformanceReportedEvent_XLGpp(WorkerID);
+
+            Analysis.IgnoreResult(
+              Accessor.Use(database =>
+              {
+                  var eq = new EventTypeQuery_XLGpp
+                  {
+                      EventTypeID = ExecutionEventId_XLGpp.PipExecutionStepPerformanceReported,
+                      UUID = pipExecStepPerformanceEvent.UUID
+                  };
+
+                  database.Put(eq.ToByteArray(), pipExecStepPerformanceEvent.ToByteArray());
+              })
+            );
         }
 
         /// <summary>
@@ -257,7 +306,20 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void PipCacheMiss(PipCacheMissEventData data)
         {
-            base.PipCacheMiss(data);
+            var pipCacheMissEvent = data.ToPipCacheMissEvent_XLGpp(WorkerID);
+
+            Analysis.IgnoreResult(
+              Accessor.Use(database =>
+              {
+                  var eq = new EventTypeQuery_XLGpp
+                  {
+                      EventTypeID = ExecutionEventId_XLGpp.PipCacheMiss,
+                      UUID = pipCacheMissEvent.UUID
+                  };
+
+                  database.Put(eq.ToByteArray(), pipCacheMissEvent.ToByteArray());
+              })
+            );
         }
 
         /// <summary>
@@ -265,7 +327,20 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void StatusReported(StatusEventData data)
         {
-            base.StatusReported(data);
+            var statusReportedEvent = data.ToResourceUsageReportedEvent_XLGpp(WorkerID);
+
+            Analysis.IgnoreResult(
+              Accessor.Use(database =>
+              {
+                  var eq = new EventTypeQuery_XLGpp
+                  {
+                      EventTypeID = ExecutionEventId_XLGpp.ResourceUsageReported,
+                      UUID = statusReportedEvent.UUID
+                  };
+
+                  database.Put(eq.ToByteArray(), statusReportedEvent.ToByteArray());
+              })
+            );
         }
 
         /// <summary>

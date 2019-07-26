@@ -261,7 +261,7 @@ export function executable(args: Arguments): Managed.Assembly {
                 publicKeyToken: "30ad4fe6b2a6aeed",
                 culture: "neutral",
                 oldVersion: "0.0.0.0-11.0.0.0",
-                newVersion: "11.0.0.0",
+                newVersion: "10.0.0.0",
             },
             {
                 name: "Microsoft.VstsContentStore",

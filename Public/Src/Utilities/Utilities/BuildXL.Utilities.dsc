@@ -23,7 +23,7 @@ export const dll = BuildXLSdk.library({
             importFrom("Microsoft.Win32.Registry").pkg,
         ]),
         ...BuildXLSdk.tplPackages,
-        importFrom("Newtonsoft.Json").pkg,
+        importFrom("Newtonsoft.Json.v10").pkg,
         ...addIf(BuildXLSdk.isDotNetCoreBuild, 
                 importFrom("System.Security.Cryptography.ProtectedData").withQualifier({targetFramework: "netstandard2.0"}).pkg
         ),

@@ -21,12 +21,10 @@ export const dll = BuildXLSdk.library({
         importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
         ...addIfLazy(BuildXLSdk.isDotNetCoreBuild, () => [
             importFrom("Microsoft.Win32.Registry").pkg,
+            importFrom("System.Security.Cryptography.ProtectedData").pkg
         ]),
         ...BuildXLSdk.tplPackages,
         importFrom("Newtonsoft.Json").pkg,
-        ...addIf(BuildXLSdk.isDotNetCoreBuild, 
-                importFrom("System.Security.Cryptography.ProtectedData").withQualifier({targetFramework: "netstandard2.0"}).pkg
-        ),
     ],
     defineConstants: qualifier.configuration === "debug" ? ["DebugStringTable"] : [],
     internalsVisibleTo: [

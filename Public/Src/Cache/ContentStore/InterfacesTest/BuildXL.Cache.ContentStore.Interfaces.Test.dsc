@@ -7,7 +7,7 @@ namespace InterfacesTest {
     export const dll = BuildXLSdk.test({
         assemblyName: "BuildXL.Cache.ContentStore.Interfaces.Test",
         sources: globR(d`.`,"*.cs"),
-        skipTestRun: BuildXLSdk.restrictTestRunToDebugNet461OnWindows,
+        skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         references: [
             UtilitiesCore.dll,
             Hashing.dll,

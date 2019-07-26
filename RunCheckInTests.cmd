@@ -142,7 +142,7 @@ endlocal && exit /b 0
     call :StatusMessage !stepName!
         echo Running BuildXL on the CoreCLR, preparing a few things...
         robocopy %ENLISTMENTROOT%\Out\Bin\debug\win-x64 %NETCOREROOT% /E /MT:8 /NS /NC /NFL /NDL /NP
-        call :RunBxlCoreClr /p:[Sdk.BuildXL]microsoftInternal=1 /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Collections\*' /c:%ENLISTMENTROOT%\config.dsc /server- /cacheGraph-
+        call :RunBxlCoreClr /p:[Sdk.BuildXL]microsoftInternal=1 /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Collections\*' /c:%ENLISTMENTROOT%\config.dsc /server- /cacheGraph- /logsToRetain:20
         set CORECLR_ERRORLEVEL=%ERRORLEVEL%
         rmdir /s /q %NETCOREROOT%
         if !CORECLR_ERRORLEVEL! NEQ 0 (exit /b 1)

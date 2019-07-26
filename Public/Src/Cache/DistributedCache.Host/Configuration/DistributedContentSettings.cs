@@ -181,8 +181,8 @@ namespace BuildXL.Cache.Host.Configuration
         /// Delays for retries for file copies
         /// </summary>
         [DataMember]
-        public IReadOnlyList<int> RetryIntervalForCopiesMs { get; set; } =
-            new List<int>()
+        public int[] RetryIntervalForCopiesMs { get; set; } =
+            new int[]
             {
                 // retry the first 2 times quickly.
                 20,

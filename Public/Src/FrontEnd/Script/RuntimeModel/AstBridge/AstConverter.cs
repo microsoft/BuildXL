@@ -2591,7 +2591,10 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         private ImportAliasExpression CreateImportAliasExpression(Expression pathSpecifier, in UniversalLocation location)
         {
             var absolutePathSpecifier = pathSpecifier as PathLiteral;
-            Contract.Assert(absolutePathSpecifier != null, I($"pathSpecifier should be of PathLiteral type but was '{pathSpecifier.GetType()}'."));
+            if (absolutePathSpecifier == null)
+            {
+                Contract.Assert(false, I($"pathSpecifier should be of PathLiteral type but was '{pathSpecifier.GetType()}'."));
+            }
 
             if (!m_workspace.ContainsSpec(absolutePathSpecifier.Value))
             {

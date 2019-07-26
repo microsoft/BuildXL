@@ -177,30 +177,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int EvictionWindowSize { get; set; } = 500;
 
-        /// <summary>
-        /// Delays for retries for file copies
-        /// </summary>
-        [DataMember]
-        public IReadOnlyList<int> RetryIntervalForCopiesMs { get; set; } =
-            new List<int>()
-            {
-                // retry the first 2 times quickly.
-                20,
-                200,
-
-                // then back-off exponentially.
-                1000,
-                5000,
-                10000,
-                30000,
-
-                // Borrowed from Empirical CacheV2 determined to be appropriate for general remote server restarts.
-                60000,
-                120000,
-            };
-
-        public IReadOnlyList<TimeSpan> RetryIntervalForCopies => RetryIntervalForCopiesMs.Select(ms => TimeSpan.FromMilliseconds(ms)).ToList();
-
         #region Grpc Copier
         /// <summary>
         /// Use GRPC for file copies between CASaaS.

@@ -74,7 +74,7 @@ namespace BuildXL.Native.IO
             string path, 
             bool deleteRootDirectory, 
             Func<string, bool> shouldDelete, 
-            ITempDirectoryCleaner tempDirectoryCleaner = null, 
+            ITempCleaner tempDirectoryCleaner = null, 
             CancellationToken? cancellationToken = default);
 
         /// <summary>
@@ -184,7 +184,7 @@ namespace BuildXL.Native.IO
         /// <exception cref="BuildXLException">
         /// Thrown if the file deletion fails in a recoverable manner (e.g. access denied).
         /// </exception>
-        void DeleteFile(string path, bool waitUntilDeletionFinished, ITempDirectoryCleaner tempDirectoryCleaner = null);
+        void DeleteFile(string path, bool waitUntilDeletionFinished, ITempCleaner tempDirectoryCleaner = null);
 
         /// <summary>
         /// Controls the applicability of POSIX delete.
@@ -194,7 +194,7 @@ namespace BuildXL.Native.IO
         /// <summary>
         /// Variant of <see cref="DeleteFile"/> returning a <see cref="Possible{TResult,TOtherwise}"/> rather than throwing.
         /// </summary>
-        Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished, ITempDirectoryCleaner tempDirectoryCleaner = null);
+        Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished, ITempCleaner tempDirectoryCleaner = null);
 
         /// <summary>
         /// Attempts to move file to a temporary directory that will be garbage collected in the future.

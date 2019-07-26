@@ -47,9 +47,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         public Result(T result, bool isNullAllowed)
         {
-            if (!isNullAllowed)
+            if (!isNullAllowed && result == null)
             {
-                Contract.Requires(result != null);
+                throw new ArgumentNullException(nameof(result));
             }
             
             _result = result;

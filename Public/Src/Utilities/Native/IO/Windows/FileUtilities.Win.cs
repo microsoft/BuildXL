@@ -279,7 +279,7 @@ namespace BuildXL.Native.IO.Windows
                             // Deletion is successful when the child directories/files count matches the expected count
                             return actualRemainingChildCount == remainingChildCount;
                         },
-                        rethrowExceptions: true /* exceptions thrown in work() will occur again on retry, so just rethrow them */);
+                        onException: e => throw e /* exceptions thrown in work() will occur again on retry, so just rethrow them */);
                 }
 
                 if (!success)

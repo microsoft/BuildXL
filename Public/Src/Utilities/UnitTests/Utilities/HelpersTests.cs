@@ -88,5 +88,76 @@ namespace Test.BuildXL.Utilities
 
             XAssert.IsTrue(!possibleResult.Succeeded && attemptCount == MaxAttempts);
         }
+
+        [Fact]
+        public void RetryOnExceptionTest()
+        {
+            const int MaxAttempts = 3;
+            int attemptCount = 0;
+            bool result = Helpers.RetryOnFailure(
+                lastAttempt =>
+                {
+                    attemptCount++;
+                    throw new BuildXLException(string.Empty);
+                },
+                numberOfAttempts: MaxAttempts, initialTimeoutMs: 100, postTimeoutMultiplier: 1);
+            XAssert.IsFalse(result);
+            XAssert.IsTrue(attemptCount == MaxAttempts);
+
+            attemptCount = 0;
+            Possible<string> possibleResult = Helpers.RetryOnFailure<string>(
+                lastAttempt =>
+                {
+                    attemptCount++;
+                    throw new BuildXLException(string.Empty);
+                },
+                numberOfAttempts: MaxAttempts, initialTimeoutMs: 100, postTimeoutMultiplier: 1);
+
+            XAssert.IsTrue(!possibleResult.Succeeded && attemptCount == MaxAttempts);
+        }
+
+        [Fact]
+        public void RetryOnExceptionButRethrowTest()
+        {
+            const int MaxAttempts = 3;
+            int attemptCount = 0;
+
+            try
+            {
+                bool result = Helpers.RetryOnFailure(
+                    lastAttempt =>
+                    {
+                        attemptCount++;
+                        throw new BuildXLException(string.Empty);
+                    },
+                    onException: e => throw e,
+                    numberOfAttempts: MaxAttempts, initialTimeoutMs: 100, postTimeoutMultiplier: 1);
+
+                XAssert.IsTrue(false, "Should be unreachable");
+            }
+            catch (BuildXLException)
+            {
+                XAssert.AreEqual(1, attemptCount);
+            }
+
+            try
+            {
+                attemptCount = 0;
+                Possible<string> possibleResult = Helpers.RetryOnFailure<string>(
+                    lastAttempt =>
+                    {
+                        attemptCount++;
+                        throw new BuildXLException(string.Empty);
+                    },
+                    onException: e => throw e,
+                    numberOfAttempts: MaxAttempts, initialTimeoutMs: 100, postTimeoutMultiplier: 1);
+
+                XAssert.IsTrue(false, "Should be unreachable");
+            }
+            catch (BuildXLException)
+            {
+                XAssert.AreEqual(1, attemptCount);
+            }
+        }
     }
 }

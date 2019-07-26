@@ -44,9 +44,7 @@ namespace BuildXL.Native.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Storage,
-            Keywords = (int)Keywords.UserMessage,
-            // TODO: demote this to a diagnostics level once we sort out our file deletion woes as well as materialization failure (FailIfExist)
-            // Keywords = (int)((Keywords.UserMessage) | Keywords.Diagnostics),
+            Keywords = (int)((Keywords.UserMessage) | Keywords.Diagnostics),
             Message = "Retry attempt failed with exception. {exception}")]
         public abstract void RetryOnFailureException(LoggingContext context, string exception);
 

@@ -203,7 +203,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 await Channel.ConnectAsync(DateTime.UtcNow.Add(timeout));
                 Logger.Log.GrpcTrace(m_loggingContext, $"Connected to {Channel.Target}. ChannelState {Channel.State}. Duration {watch.ElapsedMilliseconds}ms");
             }
-            catch (OperationCanceledException e)
+            catch (Exception e)
             {
                 Logger.Log.GrpcTrace(m_loggingContext, $"Failed to connect to {Channel.Target}. Duration {watch.ElapsedMilliseconds}ms. ChannelState {Channel.State}. Failure {e.Message}");
                 return false;

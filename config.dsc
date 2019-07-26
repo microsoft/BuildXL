@@ -193,7 +193,7 @@ config({
                 { id: "Grpc", version: "1.18.0" },
                 { id: "Grpc.Core", version: "1.18.0" },
                 { id: "Grpc.Tools", version: "1.18.0" },
-                { id: "Google.Protobuf", version: "3.7.0" },
+                { id: "Google.Protobuf", version: "3.6.1" }, // Changing this conflicts with AzDevOps
                 { id: "Redis-64", version: "3.0.503" },
 
                 // Testing

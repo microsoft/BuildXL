@@ -364,6 +364,7 @@ endlocal && exit /b 0
     REM BUG: 1199393: Temporary have to hack the generated nuspecs since the coreclr run doesn't run under b:
     rmdir /s/q %ENLISTMENTROOT%\Out\frontend\Nuget\specs
     set cmd=%NETCOREROOT%\bxl.exe %*
+    set NUGET_CREDENTIALPROVIDERS_PATH=%ENLISTMENTROOT%\Shared\Tools
     echo %cmd%
     call %cmd%
     if %ERRORLEVEL% NEQ 0 (

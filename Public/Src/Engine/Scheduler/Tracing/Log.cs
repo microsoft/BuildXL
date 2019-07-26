@@ -3401,7 +3401,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (int)EventId.InvalidMetadataStaticOutputNotFound,
-            EventGenerators = EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalOnly, 
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,

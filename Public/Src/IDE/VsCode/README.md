@@ -14,7 +14,7 @@ The recompilation can be triggered by manually running <b>buildVsix.bat</b>, and
 Step by step:
 > Install NPM (https://www.npmjs.com/get-npm)
 
-> code Public\Src\FrontEnd\IDE\VsCode\client
+> code Public\Src\IDE\VsCode\client
 
 > Hit F5
 (it opens Extension Development Window, where you can open folder, open .dsc files etc). No need to ever install vsix for debugging

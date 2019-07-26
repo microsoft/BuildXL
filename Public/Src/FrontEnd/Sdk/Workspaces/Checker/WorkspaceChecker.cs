@@ -95,7 +95,10 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             {
                 var path = AbsolutePath.Create(m_pathTable, fileName);
 
-                Contract.Assert(m_workspace.ContainsSpec(path), fileName + " is not contained in the collection of parsed files");
+                if (!m_workspace.ContainsSpec(path))
+                {
+                    Contract.Assert(false, fileName + " is not contained in the collection of parsed files");
+                }
 
                 return m_workspace.GetSourceFile(path);
             }

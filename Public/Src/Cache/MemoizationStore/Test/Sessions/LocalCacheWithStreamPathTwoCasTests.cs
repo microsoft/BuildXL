@@ -51,7 +51,9 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             configuration1.Write(FileSystem, rootPathForStream).Wait();
             configuration2.Write(FileSystem, rootPathForPath).Wait();
 
-            return new LocalCache(Logger, rootPathForStream, rootPathForPath, new SQLiteMemoizationStoreConfiguration(rootPathForPath) { MaxRowCount = MaxContentHashListItems, JournalMode = ContentStore.SQLite.JournalMode.OFF }, clock: Clock);
+            var memoConfig = new SQLiteMemoizationStoreConfiguration(rootPathForPath) { MaxRowCount = MaxContentHashListItems };
+            memoConfig.Database.JournalMode = ContentStore.SQLite.JournalMode.OFF;
+            return new LocalCache(Logger, rootPathForStream, rootPathForPath, memoConfig, clock: Clock);
         }
 
         [Fact]

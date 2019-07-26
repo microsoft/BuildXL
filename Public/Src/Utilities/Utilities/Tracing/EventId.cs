@@ -97,7 +97,7 @@ namespace BuildXL.Utilities.Tracing
         PipTableStats = 75,
         PipWriterStats = 76,
         PipIpcFailedDueToInvalidInput = 77,
-        
+
         PipProcessStartExternalTool = 78,
         PipProcessFinishedExternalTool = 79,
         PipProcessStartExternalVm = 80,
@@ -421,7 +421,7 @@ namespace BuildXL.Utilities.Tracing
         UnexpectedCondition = 472,
         // was TelemetryRecoverableException = 473,
         TelemetryShutDownException = 474,
-        ServerDeploymentDirectoryHashMismatch = 475,
+        // was ServerDeploymentDirectoryHashMismatch = 475,
         TelemetryShutdownTimeout = 476,
 
         PipProcessDisallowedNtCreateFileAccessWarning = 480,
@@ -581,8 +581,8 @@ namespace BuildXL.Utilities.Tracing
         WarnToNotUsePackagesButModules = 937,
         WarnToNotUseProjectsField = 938,
 
-        // FREE SLOT
-        // FREE SLOT
+        // RESERVED TO [950, 960] (BuildXL.Frontend.Sdk)
+
         // Reserved = 1005,
         // Reserved = 1006,
 
@@ -1011,7 +1011,6 @@ namespace BuildXL.Utilities.Tracing
         // reserved 11200 .. 11300 for the FrontEndHost
         // reserved 11300 .. 11400 for the Nuget FrontEnd
         // reserved 11400 .. 11500 for the MsBuild FrontEnd
-        // reserved 11600 .. 11700 for the Download FrontEnd
 
         // CloudBuild events
         DominoCompletedEvent = 11500,
@@ -1023,6 +1022,9 @@ namespace BuildXL.Utilities.Tracing
         DropCreationEvent = 11506,
         DropFinalizationEvent = 11507,
         DominoContinuousStatisticsEvent = 11508,
+
+        // reserved 11550 .. 11600 for ninja
+        // reserved 11600 .. 11700 for the Download FrontEnd
 
         // Service pip scheduling
         ServicePipStarting = 12000,

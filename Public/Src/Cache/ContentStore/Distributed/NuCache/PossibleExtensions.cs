@@ -7,7 +7,8 @@ using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    internal static class PossibleExtensions
+    /// <nodoc />
+    public static class PossibleExtensions
     {
         /// <summary>
         /// Convert BuildXL "possible" into a cache "possible".

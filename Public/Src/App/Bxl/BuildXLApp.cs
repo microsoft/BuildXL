@@ -138,7 +138,6 @@ namespace BuildXL
 
         private readonly DateTime m_startTimeUtc;
         private readonly IReadOnlyCollection<string> m_commandLineArguments;
-        private bool m_hasInfrastructureFailures;
 
         // If server mode was requested but cannot be started, here is the reason
         private readonly ServerModeStatusAndPerf? m_serverModeStatusAndPerf;
@@ -233,7 +232,7 @@ namespace BuildXL
             // We store this to log it once the appropriate listeners are set up
             m_serverModeStatusAndPerf = serverModeStatusAndPerf;
 
-            m_crashCollector = OperatingSystemHelper.IsUnixOS 
+            m_crashCollector = OperatingSystemHelper.IsUnixOS
                 ? new CrashCollectorMacOS(new[] { CrashType.BuildXL, CrashType.Kernel })
                 : null;
         }
@@ -412,7 +411,10 @@ namespace BuildXL
                 if (remoteTelemetryEnabled)
                 {
                     stopWatch = Stopwatch.StartNew();
-                    AriaV2StaticState.Enable(AriaTenantToken.Key, m_configuration.Logging.LogsRootDirectory(m_pathTable).ToString(m_pathTable));
+                    AriaV2StaticState.Enable(
+                        AriaTenantToken.Key,
+                        m_configuration.Logging.LogsRootDirectory(m_pathTable).ToString(m_pathTable),
+                        TelemetryFlushTimeout);
                     stopWatch.Stop();
                 }
                 else
@@ -971,21 +973,6 @@ namespace BuildXL
                     }
                 }))
             {
-                var appServer = m_appHost as AppServer;
-                if (appServer != null)
-                {
-                    // Verify the timestamp based hash.
-                    // Whether the hash in the file (ServerCacheDeployment.hash) is still same as the one that is passed during server creation.
-                    var hashInFile = ServerDeployment.GetDeploymentCacheHash(Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory));
-                    if (!string.Equals(hashInFile, appServer.TimestampBasedHash, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // If the hashes do not match, the server will be killed and the client will start its own server deployment again.
-                        // The client will not observe any failures, so the user as well.
-                        Logger.Log.ServerDeploymentDirectoryHashMismatch(m_appLoggingContext, appServer.TimestampBasedHash, hashInFile);
-                        return AppResult.Create(ExitKind.InfrastructureError, null, string.Empty, killServer: true);
-                    }
-                }
-
                 result = run(pm);
             }
 
@@ -1927,9 +1914,6 @@ namespace BuildXL
                 Contract.Assert(
                     trackingEventListener.HasFailures && loggingContext.ErrorWasLogged,
                     I($"The build has failed but the logging infrastructure has not encountered an error. TrackingEventListener has errors:[{trackingEventListener.HasFailures}.] LoggingContext has errors:[{string.Join(", ", loggingContext.ErrorsLoggedById.ToArray())}]"));
-
-                // Remember if we have network problems.
-                m_hasInfrastructureFailures = engine.HasInfrastructureFailures;
             }
 
             var engineRunDuration = (int)(DateTime.UtcNow - m_startTimeUtc).TotalMilliseconds;

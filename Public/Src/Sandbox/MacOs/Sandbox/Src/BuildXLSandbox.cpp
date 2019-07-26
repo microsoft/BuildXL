@@ -21,6 +21,7 @@ static KextConfig sDefaultConfig =
 {
     .reportQueueSizeMB    = kSharedDataQueueSizeDefault,
     .enableReportBatching = false,
+    .enableCatalinaDataPartitionFiltering = false,
     .resourceThresholds   =
     {
         .cpuUsageBlock     = 0,

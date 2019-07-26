@@ -139,6 +139,9 @@ namespace BuildXL.Interop.MacOS
 
             /// <nodoc />
             public ResourceThresholds ResourceThresholds;
+            
+            /// <nodoc />
+            public bool EnableCatalinaDataPartitionFiltering;
         }
 
         /// <nodoc />

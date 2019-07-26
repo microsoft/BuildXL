@@ -11,9 +11,11 @@ using BuildXL.Ipc.Common.Multiplexing;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.CLI;
 using Test.BuildXL.TestUtilities.Xunit;
-using Tool.DropDaemon;
+using Tool.ServicePipDaemon;
 using Xunit;
 using Xunit.Abstractions;
+using static Tool.DropDaemon.DropDaemon;
+using static Tool.ServicePipDaemon.ServicePipDaemon;
 
 namespace Test.Tool.DropDaemon
 {
@@ -42,18 +44,18 @@ namespace Test.Tool.DropDaemon
                 .ToList();
 
             var serverThreads = ipcMonikers
-                .Select(moniker => CreateThreadForCommand($"{Program.StartNoDropCmd.Name} --{Program.Moniker.LongName} " + moniker, null))
+                .Select(moniker => CreateThreadForCommand($"{StartNoDropCmd.Name} --{Moniker.LongName} " + moniker, null))
                 .ToList();
             Start(serverThreads);
 
             Thread.Sleep(100);
 
-            var clientThreads = GetClientThreads(ipcProvider, ipcMonikers, numServices, numRequestsPerService, $"{Program.PingDaemonCmd.Name} --{Program.Moniker.LongName} <moniker>");
+            var clientThreads = GetClientThreads(ipcProvider, ipcMonikers, numServices, numRequestsPerService, $"{PingDaemonCmd.Name} --{Moniker.LongName} <moniker>");
 
             Start(clientThreads);
             Join(clientThreads);
 
-            var serverShutdownThreads = GetClientThreads(ipcProvider, ipcMonikers, numServices, 1, $"{Program.StopDaemonCmd.Name} --{Program.Moniker.LongName} <moniker>");
+            var serverShutdownThreads = GetClientThreads(ipcProvider, ipcMonikers, numServices, 1, $"{StopDaemonCmd.Name} --{Moniker.LongName} <moniker>");
             Start(serverShutdownThreads);
             Join(serverShutdownThreads);
 
@@ -98,7 +100,7 @@ namespace Test.Tool.DropDaemon
                     Console.WriteLine(format);
                     Output.WriteLine(format);
                 });
-                ConfiguredCommand conf = Program.ParseArgs(cmdLine, UnixParser.Instance, logger);
+                ConfiguredCommand conf = ParseArgs(cmdLine, UnixParser.Instance, logger);
                 var exitCode = conf.Command.ClientAction(conf, client);
                 Assert.Equal(0, exitCode);
             });

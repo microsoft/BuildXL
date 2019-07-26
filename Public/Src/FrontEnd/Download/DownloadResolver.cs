@@ -80,9 +80,11 @@ namespace BuildXL.FrontEnd.Download
         public Task<bool> InitResolverAsync([NotNull] IResolverSettings resolverSettings, object workspaceResolver)
         {
             m_workspaceResolver = workspaceResolver as DownloadWorkspaceResolver;
-            Contract.Assert(
-                m_workspaceResolver != null,
-                I($"Wrong type for resolver, expected {nameof(DownloadWorkspaceResolver)} but got {nameof(workspaceResolver.GetType)}"));
+
+            if (m_workspaceResolver == null)
+            {
+                Contract.Assert(false, I($"Wrong type for resolver, expected {nameof(DownloadWorkspaceResolver)} but got {nameof(workspaceResolver.GetType)}"));
+            }
 
             Name = resolverSettings.Name;
 
@@ -244,8 +246,12 @@ namespace BuildXL.FrontEnd.Download
                 // Check if the file already exists and matches the exected hash.
                 if (File.Exists(downloadFilePath))
                 {
+                    var expectedHashType = downloadData.ContentHash.HasValue 
+                        ? downloadData.ContentHash.Value.HashType 
+                        : HashType.Unknown;
+
                     // Compare actual hash to compare if we need to download again.
-                    var actualHash = await GetContentHashAsync(downloadData.DownloadedFilePath);
+                    var actualHash = await GetContentHashAsync(downloadData.DownloadedFilePath, expectedHashType);
 
                     // Compare against the static hash value.
                     if (downloadData.ContentHash.HasValue && actualHash == downloadData.ContentHash.Value)
@@ -750,12 +756,13 @@ namespace BuildXL.FrontEnd.Download
             return Task.FromResult<bool?>(true);
         }
 
-        private async Task<ContentHash> GetContentHashAsync(AbsolutePath path)
+        private async Task<ContentHash> GetContentHashAsync(AbsolutePath path, HashType hashType = HashType.Unknown)
         {
             m_frontEndHost.Engine.RecordFrontEndFile(path, Name);
             var actualHash = await m_frontEndHost.Engine.GetFileContentHashAsync(
                 path.ToString(m_context.PathTable),
-                trackFile: false);
+                trackFile: false,
+                hashType);
             return actualHash;
         }
 

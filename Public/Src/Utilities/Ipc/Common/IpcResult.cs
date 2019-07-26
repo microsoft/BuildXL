@@ -50,23 +50,32 @@ namespace BuildXL.Ipc.Common
         /// <nodoc />
         public IpcResultTimestamp Timestamp { get; }
 
+        /// <inheritdoc/>
+        public TimeSpan ActionDuration { get; set; }
+
         /// <summary>
         /// Creates a result representing a successful IPC operation.
         /// </summary>
         public static IIpcResult Success(string payload = null) => new IpcResult(IpcResultStatus.Success, payload);
 
         /// <nodoc />
-        public IpcResult(IpcResultStatus status, string payload)
+        public IpcResult(IpcResultStatus status, string payload) : this(status, payload, TimeSpan.Zero)
+        {
+        }
+
+        /// <nodoc />
+        public IpcResult(IpcResultStatus status, string payload, TimeSpan actionDuraion)
         {
             m_exitCode = status;
             m_payload = payload ?? string.Empty;
             Timestamp = new IpcResultTimestamp();
+            ActionDuration = actionDuraion;
         }
 
         /// <inheritdoc/>
         public override string ToString()
         {
-            return I($"{{succeeded: {Succeeded}, payload: '{Payload}'}}");
+            return I($"{{succeeded: {Succeeded}, payload: '{Payload}', ActionDuration: {ActionDuration}}}");
         }
 
         /// <summary>
@@ -90,6 +99,7 @@ namespace BuildXL.Ipc.Common
         {
             await Utils.WriteByteAsync(stream, (byte)result.ExitCode, token);
             await Utils.WriteStringAsync(stream, result.Payload, token);
+            await Utils.WriteLongAsync(stream, result.ActionDuration.Ticks, token);
             await stream.FlushAsync(token);
         }
 
@@ -104,7 +114,9 @@ namespace BuildXL.Ipc.Common
             byte statusByte = await Utils.ReadByteAsync(stream, token);
             Utils.CheckSerializationFormat(Enum.IsDefined(typeof(IpcResultStatus), statusByte), "unknown IpcResult.Status byte: {0}", statusByte);
             string payload = await Utils.ReadStringAsync(stream, token);
-            return new IpcResult((IpcResultStatus)statusByte, payload);
+            long actionDuration = await Utils.ReadLongAsync(stream, token);
+
+            return new IpcResult((IpcResultStatus)statusByte, payload, TimeSpan.FromTicks(actionDuration));
         }
 
         /// <summary>
@@ -120,7 +132,7 @@ namespace BuildXL.Ipc.Common
                 lhs.Succeeded && !rhs.Succeeded ? rhs.ExitCode :
                 !lhs.Succeeded && rhs.Succeeded ? lhs.ExitCode :
                 IpcResultStatus.GenericError;
-            return new IpcResult(mergedStatus, lhs.Payload + Environment.NewLine + rhs.Payload);
+            return new IpcResult(mergedStatus, lhs.Payload + Environment.NewLine + rhs.Payload, lhs.ActionDuration + rhs.ActionDuration);
         }
 
         /// <summary>

@@ -36,12 +36,7 @@ namespace BuildXL.Execution.Analyzer
                 }
                 else if (opt.Name.Equals(PipHashOption, StringComparison.OrdinalIgnoreCase))
                 {
-                    string sshAsString = ParseStringOption(opt);
-                    if (!sshAsString.StartsWith(Pip.SemiStableHashPrefix, StringComparison.OrdinalIgnoreCase))
-                    {
-                        throw Error($"Invalid pip:{sshAsString}. Id must be a semistable hash that starts with the prefix '{Pip.SemiStableHashPrefix}' i.e.: {Pip.SemiStableHashPrefix}C623BCE303738C69");
-                    }
-                    filters.PipSemiStableHash = Convert.ToInt64(sshAsString.Substring(3), 16);
+                    filters.PipSemiStableHash = ParseSemistableHash(opt);
                 }
                 else if (opt.Name.Equals(PipTypeOption, StringComparison.OrdinalIgnoreCase))
                 {

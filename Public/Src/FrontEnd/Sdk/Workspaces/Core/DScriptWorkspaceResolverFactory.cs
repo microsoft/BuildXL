@@ -85,7 +85,12 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public Possible<IWorkspaceModuleResolver> TryGetResolver(IResolverSettings resolverSettings)
         {
             Contract.Requires(resolverSettings != null);
-            Contract.Assert(IsRegistered(resolverSettings.Kind), "Kind '" + resolverSettings.Kind + "' is not registered.");
+
+            if (!IsRegistered(resolverSettings.Kind))
+            {
+                Contract.Assert(false, "Kind '" + resolverSettings.Kind + "' is not registered.");
+            }
+
             Contract.Assert(IsInitialized);
 
             // Check if there is an already instantiated resolver for this settings

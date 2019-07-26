@@ -62,8 +62,7 @@ namespace BuildXL.Engine.Distribution
         private bool m_everAvailable;
         public override bool EverAvailable => Volatile.Read(ref m_everAvailable);
 
-        private bool m_isConnectionLost;
-        public bool IsConnectionLost => Volatile.Read(ref m_isConnectionLost);
+        private volatile bool m_isConnectionLost;
 
         private readonly TaskSourceSlim<bool> m_attachCompletion;
         private readonly TaskSourceSlim<bool> m_executionBlobCompletion;
@@ -178,11 +177,11 @@ namespace BuildXL.Engine.Distribution
                     using (var watch = m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_BuildRequestSendDuration))
                     {
                         callResult = m_workerClient.ExecutePipsAsync(new PipBuildRequest
-                        {
-                            Pips = m_buildRequestList,
-                            Hashes = m_hashList
-                        },
-                        m_pipCompletionTaskList.Select(a => a.Pip.SemiStableHash).ToList()).GetAwaiter().GetResult();
+                            {
+                                Pips = m_buildRequestList,
+                                Hashes = m_hashList
+                            },
+                            m_pipCompletionTaskList.Select(a => a.Pip.SemiStableHash).ToList()).GetAwaiter().GetResult();
 
                         sendDuration = watch.Elapsed;
                     }
@@ -193,7 +192,7 @@ namespace BuildXL.Engine.Distribution
                         {
                             FailRemotePip(
                                 task,
-                                callResult.LastFailure?.DescribeIncludingInnerFailures() ?? "Unknown");
+                                callResult.LastFailure?.DescribeIncludingInnerFailures() ?? "Connection was lost");
                         }
 
                         // TODO: We could not send the hashes; so it is hard to determine what files and directories are added to AvailableHashes.
@@ -318,7 +317,7 @@ namespace BuildXL.Engine.Distribution
             // Unblock caller to make it a fire&forget event handler.
             await Task.Yield();
 
-            Volatile.Write(ref m_isConnectionLost, true);
+            m_isConnectionLost = true;
             await FinishAsync(null);
         }
 
@@ -368,8 +367,8 @@ namespace BuildXL.Engine.Distribution
 
                 if (callResult.State != RpcCallResultState.Succeeded)
                 {
-                    // Change to stopped state since we failed to attach
-                    ChangeStatus(WorkerNodeStatus.Starting, WorkerNodeStatus.Stopped);
+                    m_isConnectionLost = true;
+                    await FinishAsync(null);
                 }
                 else
                 {
@@ -400,8 +399,14 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <inheritdoc />
-        public override async Task FinishAsync(string buildFailure)
+        public override async Task FinishAsync(string buildFailure, [CallerMemberName] string callerName = null)
         {
+            Logger.Log.DistributionWorkerFinish(
+                m_appLoggingContext,
+                m_serviceLocation.IpAddress,
+                m_serviceLocation.Port,
+                callerName);
+
             if (TryInitiateStop())
             {
                 await DisconnectAsync(buildFailure);
@@ -457,7 +462,10 @@ namespace BuildXL.Engine.Distribution
 
         private async Task DisconnectAsync(string buildFailure = null)
         {
-            Contract.Assert(Status == WorkerNodeStatus.Stopping, $"Disconnect cannot be called for {Status} status");
+            if (Status != WorkerNodeStatus.Stopping)
+            {
+                Contract.Assert(false, $"Disconnect cannot be called for {Status} status");
+            }
 
             // Before we disconnect the worker, we mark it as 'stopping'; 
             // so it does not accept any requests. We can safely close the 
@@ -478,7 +486,7 @@ namespace BuildXL.Engine.Distribution
             }
 
             // If we still have a connection with the worker, we should send a message to worker to make it exit. 
-            if (!IsConnectionLost)
+            if (!m_isConnectionLost)
             {
                 var buildEndData = new BuildEndData()
                 {
@@ -601,9 +609,7 @@ namespace BuildXL.Engine.Distribution
 
             if (!attachCompletionResult)
             {
-                FailRemotePip(
-                    pipCompletionTask,
-                    "Worker did not attach");
+                FailRemotePip(pipCompletionTask, "Worker did not attach");
                 return;
             }
 
@@ -624,7 +630,7 @@ namespace BuildXL.Engine.Distribution
             }
             catch (InvalidOperationException)
             {
-                if (IsConnectionLost)
+                if (m_isConnectionLost)
                 {
                     // We cannot send the pip build request as the connection has been lost with the worker. 
 
@@ -633,15 +639,12 @@ namespace BuildXL.Engine.Distribution
                     // and before we add those build requests to blocking collection(m_buildRequests), 
                     // we will try to add the build request to the blocking colletion which is marked as completed 
                     // It will throw InvalidOperationException. 
-                    FailRemotePip(
-                        pipCompletionTask,
-                        "Connection was lost");
+                    FailRemotePip(pipCompletionTask, "Connection was lost");
                     return;
                 }
 
                 throw;
             }
-
         }
 
         private void ExtractHashes(RunnablePip runnable, List<FileArtifactKeyedHash> hashes)
@@ -732,15 +735,17 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        private void FailRemotePip(PipCompletionTask pipCompletionTask, string errorMessage)
+        /// <summary>
+        /// Fail the pip due to connection issues.
+        /// </summary>
+        private void FailRemotePip(PipCompletionTask pipCompletionTask, string errorMessage, [CallerMemberName] string callerName = null)
         {
-            var result = LogAndGetNetworkFailureResult(pipCompletionTask, errorMessage);
+            if (pipCompletionTask.Completion.Task.IsCompleted)
+            {
+                // If we already set the result for the given completionTask, do nothing.
+                return;
+            }
 
-            pipCompletionTask.Set(result);
-        }
-
-        private ExecutionResult LogAndGetNetworkFailureResult(PipCompletionTask pipCompletionTask, string errorMessage)
-        {
             var runnablePip = pipCompletionTask.RunnablePip;
             var operationContext = runnablePip.OperationContext;
 
@@ -759,27 +764,28 @@ namespace BuildXL.Engine.Distribution
                     runnablePip.Description,
                     Name,
                     errorMessage: errorMessage,
-                    step: runnablePip.Step.AsString());
+                    step: runnablePip.Step.AsString(),
+                    callerName: callerName);
 
                 // Return success result
                 result = new ExecutionResult();
                 result.SetResult(operationContext, PipResultStatus.NotMaterialized);
                 result.Seal();
-                pipCompletionTask.Set(result);
+
+                pipCompletionTask.TrySet(result);
+                return;
             }
-            else
-            {
-                Logger.Log.DistributionExecutePipFailedNetworkFailure(
+
+            Logger.Log.DistributionExecutePipFailedNetworkFailure(
                     operationContext,
                     runnablePip.Description,
                     Name,
                     errorMessage: errorMessage,
-                    step: runnablePip.Step.AsString());
+                    step: runnablePip.Step.AsString(),
+                    callerName: callerName);
 
-                result = ExecutionResult.GetFailureNotRunResult(operationContext);
-            }
-
-            return result;
+            result = ExecutionResult.GetFailureNotRunResult(operationContext);
+            pipCompletionTask.TrySet(result);
         }
 
         public async Task<ExecutionResult> AwaitRemoteResult(OperationContext operationContext, RunnablePip runnable)
@@ -793,7 +799,7 @@ namespace BuildXL.Engine.Distribution
 
             using (operationContext.StartOperation(PipExecutorCounter.AwaitRemoteResultDuration))
             {
-                executionResult = (await m_pipCompletionTasks[pipId].Completion.Task).Value;
+                executionResult = await m_pipCompletionTasks[pipId].Completion.Task;
             }
 
             PipCompletionTask pipCompletionTask;
@@ -974,7 +980,7 @@ namespace BuildXL.Engine.Distribution
                     pipCompletionData.ResultBlob,
                     WorkerId);
 
-                pipCompletionTask.Set(result);
+                pipCompletionTask.TrySet(result);
             }
         }
 
@@ -1032,37 +1038,10 @@ namespace BuildXL.Engine.Distribution
                     break;
                 }
 
-                var context = m_masterService.Environment.Context;
-
+                // Here, we fail the pips which we sent the build request to the worker but did not hear back and receive the result.
                 foreach (PipCompletionTask pipCompletionTask in pipCompletionTasks)
                 {
-                    Func<ExecutionResult> executionResultFactory;
-
-                    // The worker goes in a stopped state either by a scheduler request or because it lost connection with the
-                    // remote machine. Check which one applies.
-                    if (IsConnectionLost)
-                    {
-                        // Remember that we have an infrastructure error so we can report it at the end.
-                        // Do not set the flag if the lost connection doesn't affect any pip execution.
-                        m_masterService.HasInfrastructureFailures = true;
-                        executionResultFactory = () =>
-                        {
-                            return LogAndGetNetworkFailureResult(pipCompletionTask, "No result was received and connection was lost");
-                        };
-                    }
-                    else
-                    {
-                        // This one can happen if the user presses CTRL+C
-                        executionResultFactory = () =>
-                        {
-                            var result = new ExecutionResult();
-                            result.SetResult(m_appLoggingContext, PipResultStatus.Canceled);
-                            result.Seal();
-                            return result;
-                        };
-                    }
-
-                    pipCompletionTask.Set(executionResultFactory);
+                    FailRemotePip(pipCompletionTask, "No result was received because connection was lost");
                 }
             }
         }
@@ -1108,7 +1087,7 @@ namespace BuildXL.Engine.Distribution
             public Pip Pip => RunnablePip.Pip;
 
             public readonly OperationContext OperationContext;
-            public readonly TaskSourceSlim<Lazy<ExecutionResult>> Completion;
+            public readonly TaskSourceSlim<ExecutionResult> Completion;
             public readonly DateTime QueuedTime;
             public TimeSpan SendRequestDuration { get; private set; }
             public TimeSpan QueueRequestDuration { get; private set; }
@@ -1121,7 +1100,7 @@ namespace BuildXL.Engine.Distribution
             {
                 RunnablePip = pip;
                 OperationContext = operationContext;
-                Completion = TaskSourceSlim.Create<Lazy<ExecutionResult>>();
+                Completion = TaskSourceSlim.Create<ExecutionResult>();
                 QueuedTime = DateTime.UtcNow;
             }
 
@@ -1131,14 +1110,9 @@ namespace BuildXL.Engine.Distribution
                 QueueTicks = queueTicks;
             }
 
-            public bool Set(ExecutionResult executionResult)
+            public bool TrySet(ExecutionResult executionResult)
             {
-                return Set(() => executionResult);
-            }
-
-            public bool Set(Func<ExecutionResult> executionResultFactory)
-            {
-                return Completion.TrySetResult(new Lazy<ExecutionResult>(executionResultFactory));
+                return Completion.TrySetResult(executionResult);
             }
 
             internal void SetRequestDuration(DateTime dateTimeBeforeSend, TimeSpan sendDuration)

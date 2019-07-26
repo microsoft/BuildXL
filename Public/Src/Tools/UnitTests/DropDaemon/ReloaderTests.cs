@@ -5,7 +5,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using Test.BuildXL.TestUtilities.Xunit;
-using Tool.DropDaemon;
+using Tool.ServicePipDaemon;
 using Xunit;
 using Xunit.Abstractions;
 

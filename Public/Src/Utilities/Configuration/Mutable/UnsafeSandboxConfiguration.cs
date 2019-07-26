@@ -26,7 +26,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreGetFinalPathNameByHandle = false;
             MonitorZwCreateOpenQueryFile = true;
             IgnoreDynamicWritesOnAbsentProbes = false;
-            IgnoreUndeclaredAccessesUnderSharedOpaques = true;
+            IgnoreUndeclaredAccessesUnderSharedOpaques = false;
             // Make sure to update SafeOptions below if necessary when new flags are added
         }
 
@@ -36,8 +36,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// </summary>
         public static readonly IUnsafeSandboxConfiguration SafeOptions = new UnsafeSandboxConfiguration()
         {
-            IgnorePreloadedDlls = false,
-            IgnoreUndeclaredAccessesUnderSharedOpaques = false,
+            IgnorePreloadedDlls = false,            
         };
 
         /// <nodoc />

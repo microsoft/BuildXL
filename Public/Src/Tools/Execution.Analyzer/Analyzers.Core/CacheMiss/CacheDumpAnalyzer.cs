@@ -31,7 +31,7 @@ namespace BuildXL.Execution.Analyzer
                 else if (opt.Name.StartsWith("pip", StringComparison.OrdinalIgnoreCase) ||
                     opt.Name.StartsWith("p", StringComparison.OrdinalIgnoreCase))
                 {
-                    semistableHash = Convert.ToInt64(ParseStringOption(opt).ToUpperInvariant().Replace("PIP", ""), 16);
+                    semistableHash = ParseSemistableHash(opt);
                 }
                 else
                 {

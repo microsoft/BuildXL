@@ -518,11 +518,12 @@ namespace Test.BuildXL.Storage
             Contract.Requires(table != null);
 
             using (
-                FileStream fs = File.Open(
+                FileStream fs = FileUtilities.CreateFileStream(
                     path.ToString(m_pathTable),
                     FileMode.Open,
                     strict ? FileAccess.ReadWrite : FileAccess.Read,
-                    FileShare.Read | FileShare.Delete))
+                    FileShare.Read | FileShare.Delete,
+                    FileOptions.Asynchronous, true))
             {
                 var info = table.RecordContentHash(fs, hash, strict: strict);
                 XAssert.AreEqual(hash, info.FileContentInfo.Hash);

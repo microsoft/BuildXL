@@ -21,7 +21,6 @@ namespace BuildXL.Execution.Analyzer
         public Analyzer InitializeFingerprintStoreAnalyzer(AnalysisInput oldAnalysisInput, AnalysisInput newAnalysisInput)
         {
             string outputDirectory = null;
-            string sshString = null;
             bool allPips = false;
             bool noBanner = false;
             long sshValue = -1;
@@ -35,7 +34,7 @@ namespace BuildXL.Execution.Analyzer
                 else if(opt.Name.Equals("pip", StringComparison.OrdinalIgnoreCase) ||
                     opt.Name.Equals("p", StringComparison.OrdinalIgnoreCase))
                 {
-                    sshString = ParseStringOption(opt);
+                    sshValue = ParseSemistableHash(opt);
                 }
                 else if (opt.Name.StartsWith("allPips", StringComparison.OrdinalIgnoreCase))
                 {
@@ -56,19 +55,9 @@ namespace BuildXL.Execution.Analyzer
                 throw new Exception("'outputDirectory' is required.");
             }
 
-            if (allPips && sshString != null)
+            if (allPips && sshValue != -1)
             {
                 throw new Exception("'allPips' can't be true if pipId is set.");
-            }
-
-            if (sshString != null)
-            {
-                if (!sshString.StartsWith(Pip.SemiStableHashPrefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new Exception(string.Format("Invalid pip: '{0}'. Id must be a semistable hash that starts with Pip i.e.: PipC623BCE303738C69", sshString));
-                }
-
-                sshValue = Convert.ToInt64(sshString.Substring(3), 16);
             }
 
             return new FingerprintStoreAnalyzer(oldAnalysisInput, newAnalysisInput)
@@ -179,9 +168,10 @@ namespace BuildXL.Execution.Analyzer
             m_model = new AnalysisModel(CachedGraph);
         }
 
-        protected override void ReadEvents()
+        protected override bool ReadEvents()
         {
             // Do nothing. This analyzer does not read events.
+            return true;
         }
 
         public static string GetStoreLocation(AnalysisInput analysisInput, string storeSuffix = "")
@@ -251,12 +241,12 @@ namespace BuildXL.Execution.Analyzer
 
             if (m_oldReader.StoreVersion != m_newReader.StoreVersion)
             {
-                WriteLine($"WARNING: Format version numbers of the fingerprint store do not match. Old: {m_oldReader.StoreVersion}, New: {m_newReader.StoreVersion}."); 
+                WriteLine($"WARNING: Format version numbers of the fingerprint store do not match. Old: {m_oldReader.StoreVersion}, New: {m_newReader.StoreVersion}.");
             }
 
             if (SemiStableHashToRun != -1)
             {
-                var firstMiss = cacheMissList.FirstOrDefault(x => PipTable.GetPipSemiStableHash(x.PipId) == SemiStableHashToRun);                
+                var firstMiss = cacheMissList.FirstOrDefault(x => PipTable.GetPipSemiStableHash(x.PipId) == SemiStableHashToRun);
                 if (firstMiss.CacheMissType == PipCacheMissType.Invalid)
                 {
                     foreach (var pipId in PipTable.StableKeys)
@@ -312,7 +302,7 @@ namespace BuildXL.Execution.Analyzer
         private void AnalyzePip(PipCacheMissInfo miss, Process pip, TextWriter writer)
         {
             string pipUniqueOutputHashStr = null;
-           
+
             if ((pip as Process).TryComputePipUniqueOutputHash(PathTable, out var pipUniqueOutputHash, m_model.CachedGraph.MountPathExpander))
             {
                 pipUniqueOutputHashStr = pipUniqueOutputHash.ToString();

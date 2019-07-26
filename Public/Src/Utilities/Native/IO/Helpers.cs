@@ -37,6 +37,9 @@ namespace BuildXL.Native.IO
         /// The <code>work</code> function is invoked a few times; its parameter indicates if the invocation is the last one before
         /// finally giving up; its return value indicates if all work has finished successfully and no further attempt is needed.
         /// </param>
+        /// <param name="rethrowException">
+        /// Whether exception unhandled by the caller should be re-thrown, breaking the retry loop. By default, exception will be ignored and work() will be retried.
+        /// </param>
         /// <param name="onException">
         /// Handle exception. By default, exceptions will be ignored and work() will be retried.
         /// </param>
@@ -54,6 +57,7 @@ namespace BuildXL.Native.IO
         /// </remarks>
         public static bool RetryOnFailure(
             Func<bool, bool> work, 
+            bool rethrowException = false,
             Action<Exception> onException = null,
             int numberOfAttempts = DefaultNumberOfAttempts,
             int initialTimeoutMs = DefaultInitialTimeoutMs,
@@ -78,6 +82,11 @@ namespace BuildXL.Native.IO
                 }
                 catch (Exception e)
                 {
+                    if (rethrowException)
+                    {
+                        throw;
+                    }
+
                     onException?.Invoke(e);
 
                     // For diagnostic purpose.
@@ -93,6 +102,7 @@ namespace BuildXL.Native.IO
         /// </summary>
         public static async Task<bool> RetryOnFailureAsync(
             Func<bool, Task<bool>> work,
+            bool rethrowException = false,
             Action<Exception> onException = null,
             int numberOfAttempts = DefaultNumberOfAttempts,
             int initialTimeoutMs = DefaultInitialTimeoutMs,
@@ -117,6 +127,11 @@ namespace BuildXL.Native.IO
                 }
                 catch (Exception e)
                 {
+                    if (rethrowException)
+                    {
+                        throw;
+                    }
+
                     onException?.Invoke(e);
 
                     // For diagnostic purpose.
@@ -132,6 +147,7 @@ namespace BuildXL.Native.IO
         /// </summary>
         public static Possible<TResult, Failure> RetryOnFailure<TResult>(
           Func<bool, Possible<TResult, Failure>> work,
+          bool rethrowException = false,
           Action<Exception> onException = null,
           int numberOfAttempts = DefaultNumberOfAttempts,
           int initialTimeoutMs = DefaultInitialTimeoutMs,
@@ -148,6 +164,7 @@ namespace BuildXL.Native.IO
                     possiblyResult = work(isLastRetry);
                     return possiblyResult.Value.Succeeded;
                 },
+                rethrowException: rethrowException,
                 onException: e =>
                 {
                     onException?.Invoke(e);
@@ -167,6 +184,7 @@ namespace BuildXL.Native.IO
         /// </summary>
         public static async Task<Possible<TResult, Failure>> RetryOnFailureAsync<TResult>(
             Func<bool, Task<Possible<TResult, Failure>>> work,
+            bool rethrowException = false,
             Action<Exception> onException = null,
             int numberOfAttempts = DefaultNumberOfAttempts,
             int initialTimeoutMs = DefaultInitialTimeoutMs,
@@ -183,6 +201,7 @@ namespace BuildXL.Native.IO
                     possiblyResult = await work(isLastRetry);
                     return possiblyResult.Value.Succeeded;
                 },
+                rethrowException: rethrowException,
                 onException: e =>
                 {
                     onException?.Invoke(e);

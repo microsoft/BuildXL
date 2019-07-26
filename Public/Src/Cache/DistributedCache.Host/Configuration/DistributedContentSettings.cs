@@ -19,6 +19,24 @@ namespace BuildXL.Cache.Host.Configuration
     {
         private const int DefaultMaxConcurrentCopyOperations = 512;
 
+        internal static readonly int[] DefaultRetryIntervalForCopiesMs = 
+            new int[]
+            {
+                // retry the first 2 times quickly.
+                20,
+                200,
+
+                // then back-off exponentially.
+                1000,
+                5000,
+                10000,
+                30000,
+
+                // Borrowed from Empirical CacheV2 determined to be appropriate for general remote server restarts.
+                60000,
+                120000,
+            };
+
         [JsonConstructor]
         private DistributedContentSettings()
         {
@@ -177,11 +195,7 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int EvictionWindowSize { get; set; } = 500;
 
-        /// <summary>
-        /// Delays for retries for file copies
-        /// </summary>
-        [DataMember]
-        public int[] RetryIntervalForCopiesMs { get; set; } =
+        private int[] _retryIntervalForCopiesMs =
             new int[]
             {
                 // retry the first 2 times quickly.
@@ -198,6 +212,16 @@ namespace BuildXL.Cache.Host.Configuration
                 60000,
                 120000,
             };
+
+        /// <summary>
+        /// Delays for retries for file copies
+        /// </summary>
+        [DataMember]
+        public int[] RetryIntervalForCopiesMs
+        {
+            get => _retryIntervalForCopiesMs ?? DefaultRetryIntervalForCopiesMs;
+            set => _retryIntervalForCopiesMs = value;
+        }
 
         public IReadOnlyList<TimeSpan> RetryIntervalForCopies => RetryIntervalForCopiesMs.Select(ms => TimeSpan.FromMilliseconds(ms)).ToList();
 

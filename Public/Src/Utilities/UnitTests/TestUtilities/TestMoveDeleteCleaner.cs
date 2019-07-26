@@ -8,12 +8,12 @@ using BuildXL.Native.IO;
 namespace Test.BuildXL.TestUtilities
 {
     /// <summary>
-    /// This is minimal implementation of <see cref="ITempDirectoryCleaner"/> for unit tests or test bases
-    /// This can be passed into <see cref="FileUtilities.DeleteDirectoryContents(string, bool, System.Func{string, bool}, ITempDirectoryCleaner, CancellationToken?)"/>
-    /// and <see cref="FileUtilities.DeleteFile(string, bool, ITempDirectoryCleaner)"/> to enable move-deletes,
+    /// This is minimal implementation of <see cref="ITempCleaner"/> for unit tests or test bases
+    /// This can be passed into <see cref="FileUtilities.DeleteDirectoryContents(string, bool, System.Func{string, bool}, ITempCleaner, CancellationToken?)"/>
+    /// and <see cref="FileUtilities.DeleteFile(string, bool, ITempCleaner)"/> to enable move-deletes,
     /// which are more reliable and less prone to unexected exceptions than Windows delete.
     /// </summary>
-    public class TestMoveDeleteCleaner : ITempDirectoryCleaner
+    public class TestMoveDeleteCleaner : ITempCleaner
     {
         /// <summary>
         /// Suggested name for <see cref="TempDirectory"/>
@@ -38,6 +38,18 @@ namespace Test.BuildXL.TestUtilities
         public void Dispose()
         {
             FileUtilities.DeleteDirectoryContents(TempDirectory, deleteRootDirectory: true);
+        }
+
+        /// <inheritdoc />
+        public void RegisterDirectoryToDelete(string path, bool deleteRootDirectory)
+        {
+            // noop
+        }
+
+        /// <inheritdoc />
+        public void RegisterFileToDelete(string path)
+        {
+            // noop
         }
     }
 }

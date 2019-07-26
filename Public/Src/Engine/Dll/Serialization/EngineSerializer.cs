@@ -64,7 +64,7 @@ namespace BuildXL.Engine
         private object m_correlationId;
         private readonly bool m_useCompression;
         private readonly FileSystemStreamProvider m_readStreamProvider;
-        private readonly ITempDirectoryCleaner m_tempDirectoryCleaner;
+        private readonly ITempCleaner m_tempDirectoryCleaner;
 
         /// <summary>
         /// Constructor
@@ -77,7 +77,7 @@ namespace BuildXL.Engine
             bool debug = false,
             bool readOnly = false,
             FileSystemStreamProvider readStreamProvider = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(engineCacheLocation != null);

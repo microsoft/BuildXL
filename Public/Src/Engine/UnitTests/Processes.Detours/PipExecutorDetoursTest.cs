@@ -149,7 +149,8 @@ namespace Test.BuildXL.Processes.Detours
                 directoryArtifactContext: TestDirectoryArtifactContext.Empty,
                 buildEngineDirectory: binDirectory,
                 directoryTranslator: directoryTranslator,
-                isQbuildIntegrated: isQuickBuildIntegrated).RunAsync(sandboxedKextConnection: GetSandboxedKextConnection());
+                isQbuildIntegrated: isQuickBuildIntegrated,
+                tempDirectoryCleaner: MoveDeleteCleaner).RunAsync(sandboxedKextConnection: GetSandboxedKextConnection());
         }
 
         [Fact]

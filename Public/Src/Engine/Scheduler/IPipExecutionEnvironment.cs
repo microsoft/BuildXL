@@ -6,6 +6,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
@@ -193,7 +194,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Temp directory cleaner
         /// </summary>
-        TempCleaner TempCleaner { get; }
+        ITempCleaner TempCleaner { get; }
     }
 
     /// <summary>

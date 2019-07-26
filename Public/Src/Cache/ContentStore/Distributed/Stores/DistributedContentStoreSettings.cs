@@ -130,10 +130,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public int ParallelCopyFilesLimit { get; set; } = DefaultParallelCopyFilesLimit;
 
+        private IReadOnlyList<TimeSpan> _retryIntervalForCopies = CacheCopierDefaultRetryIntervals;
+
         /// <summary>
         /// Delays for retries for file copies
         /// </summary>
-        public IReadOnlyList<TimeSpan> RetryIntervalForCopies { get; set; } = CacheCopierDefaultRetryIntervals;
+        public IReadOnlyList<TimeSpan> RetryIntervalForCopies
+        {
+            get => _retryIntervalForCopies ?? CacheCopierDefaultRetryIntervals;
+            set => _retryIntervalForCopies = value;
+        }
 
         /// <summary>
         /// Defines pinning behavior

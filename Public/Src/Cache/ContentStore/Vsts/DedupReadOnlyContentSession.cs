@@ -727,7 +727,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     keepUntil = added.Receipts[dedupId].KeepUntil.KeepUntil;
                 });
 
-            return new Result<DateTime?>(keepUntil);
+            return new Result<DateTime?>(keepUntil, isNullAllowed: true);
         }
 
         #endregion

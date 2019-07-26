@@ -6,7 +6,7 @@ namespace Test {
     export const dll = BuildXLSdk.test({
         assemblyName: "BuildXL.Cache.Host.Test",
         sources: globR(d`.`,"*.cs"),
-        skipTestRun: BuildXLSdk.restrictTestRunToDebugNet461OnWindows,
+        skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         references: [
             Configuration.dll,
             Service.dll,

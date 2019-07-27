@@ -29,11 +29,6 @@ namespace Execution.Analyzer {
                 NetFx.System.Net.Http.dll,
                 NetFx.System.Runtime.Serialization.dll
             ),
-            ...(BuildXLSdk.isDotNetCoreBuild 
-                // There is a bug in the dotnetcore generation of this package
-                ? [importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").withQualifier({targetFramework: "netstandard1.3"}).pkg]
-                : [importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg]
-            ),
             importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
@@ -57,6 +52,7 @@ namespace Execution.Analyzer {
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("Newtonsoft.Json").pkg,
+            importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("Microsoft.TeamFoundationServer.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,

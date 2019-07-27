@@ -55,8 +55,8 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public void AddPipIdValueMapping(uint oldPipIdValue, uint mappedPipIdValue)
         {
-            Contract.Assert(!m_pipIdValueMap.ContainsKey(oldPipIdValue), "Cannot map the pip id value \'" + oldPipIdValue + "\' to more than one pip id value");
-            m_pipIdValueMap[oldPipIdValue] = mappedPipIdValue;
+            bool added = m_pipIdValueMap.TryAdd(oldPipIdValue, mappedPipIdValue);
+            Contract.Assert(added);
         }
 
         /// <summary>
@@ -64,8 +64,8 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public void AddDirectoryMapping(DirectoryArtifact oldDirectory, DirectoryArtifact mappedDirectory)
         {
-            Contract.Assert(!m_directoryMap.ContainsKey(oldDirectory), "Cannot map the directory \'" + oldDirectory + "\' to more than one directory");
-            m_directoryMap[oldDirectory] = mappedDirectory;
+            bool added = m_directoryMap.TryAdd(oldDirectory, mappedDirectory);
+            Contract.Assert(added);
         }
 
         /// <summary>
@@ -131,10 +131,11 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         internal void AddDirectoryMapping(FullSymbol directoryVariableName, DirectoryArtifact mappedDirectory)
         {
-            Contract.Assert(!m_variableNameToDirectoryMap.ContainsKey(directoryVariableName), "Cannot assign the variable name \'" + directoryVariableName + "\' to more than one directory");
-            m_variableNameToDirectoryMap[directoryVariableName] = mappedDirectory;
-            Contract.Assert(!m_directoryToVariableNameMap.ContainsKey(mappedDirectory), "Cannot assign more than one variable name to directory \'" + mappedDirectory + "\'");
-            m_directoryToVariableNameMap[mappedDirectory] = directoryVariableName;
+            bool added = m_variableNameToDirectoryMap.TryAdd(directoryVariableName, mappedDirectory);
+            Contract.Assert(added);
+
+            added = m_directoryToVariableNameMap.TryAdd(mappedDirectory, directoryVariableName);
+            Contract.Assert(added);
         }
 
         /// <summary>
@@ -142,10 +143,10 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         internal void AddPipIdValueMapping(FullSymbol pipIdVariableName, uint pipIdValue)
         {
-            Contract.Assert(!m_variableNameToPipIdValueMap.ContainsKey(pipIdVariableName), "Cannot assign the variable name \'" + pipIdVariableName + "\' to more than one pip");
-            m_variableNameToPipIdValueMap[pipIdVariableName] = pipIdValue;
-            Contract.Assert(!m_pipIdValueToVariableNameMap.ContainsKey(pipIdValue), "Cannot assign more than one variable name to pip id value \'" + pipIdValue + "\'");
-            m_pipIdValueToVariableNameMap[pipIdValue] = pipIdVariableName;
+            bool added = m_variableNameToPipIdValueMap.TryAdd(pipIdVariableName, pipIdValue);
+            Contract.Assert(added);
+            added = m_pipIdValueToVariableNameMap.TryAdd(pipIdValue, pipIdVariableName);
+            Contract.Assert(added);
         }
     }
 }

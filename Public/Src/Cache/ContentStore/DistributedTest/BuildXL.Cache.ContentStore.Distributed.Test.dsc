@@ -13,7 +13,7 @@ namespace DistributedTest {
                     untrackTestDirectory: true,
                     parallelBucketCount: 8,
                 },
-            skipTestRun: BuildXLSdk.restrictTestRunToDebugNet461OnWindows,
+            skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
             references: [
                 ...addIf(BuildXLSdk.isFullFramework,
                     NetFx.System.IO.dll,

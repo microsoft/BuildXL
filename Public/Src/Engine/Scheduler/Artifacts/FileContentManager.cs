@@ -69,7 +69,7 @@ namespace BuildXL.Scheduler.Artifacts
     public sealed class FileContentManager : IQueryableFileContentManager
     {
         private const int MAX_SYMLINK_TRAVERSALS = 100;
-        private readonly ITempDirectoryCleaner m_tempDirectoryCleaner;
+        private readonly ITempCleaner m_tempDirectoryCleaner;
 
         #region Internal State
 
@@ -241,7 +241,7 @@ namespace BuildXL.Scheduler.Artifacts
             IFileContentManagerHost host,
             IOperationTracker operationTracker,
             SymlinkDefinitions symlinkDefinitions = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             m_host = host;
             ArtifactContentCache = new ElidingArtifactContentCacheWrapper(host.ArtifactContentCache);

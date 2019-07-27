@@ -44,7 +44,7 @@ namespace BuildXL.Pips.Operations
             PipsDeserialized = 0;
             string fileName = filePath.ToString(context.PathTable);
             using (FileStream stream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
-            using (RemapReader reader = new RemapReader(pipFragmentContext, stream, context))
+            using (PipRemapReader reader = new PipRemapReader(pipFragmentContext, stream, context))
             {
                 TotalPips = reader.ReadInt32();
                 for(int i = 0; i < TotalPips; i++)
@@ -82,7 +82,7 @@ namespace BuildXL.Pips.Operations
             PipsSerialized = 0;
             string fileName = filePath.ToString(context.PathTable);
             using (FileStream stream = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            using (RemapWriter writer = new RemapWriter(stream, context, pipFragmentContext))
+            using (PipRemapWriter writer = new PipRemapWriter(stream, context, pipFragmentContext))
             {
                 writer.Write(pipsToSerialize.Count);
                 foreach (var pip in pipsToSerialize)

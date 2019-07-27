@@ -9,21 +9,23 @@ namespace BuildXL.Pips.Operations
 {
     /// <summary>
     /// Writes absolute paths, string ids, and pipdataentries so the values of each item are present inline in the stream.
-    /// Format should be read by the <see cref="RemapReader"/>.
+    /// Format should be read by the <see cref="PipRemapReader"/>.
     /// </summary>
-    internal class RemapWriter : PipWriter
+    internal class PipRemapWriter : PipWriter
     {
-        private InliningWriter m_inliningWriter;
-        private SymbolTable m_symbolTable;
-        private PipGraphFragmentContext m_context;
+        private readonly InliningWriter m_inliningWriter;
+        private readonly PipDataEntriesPointerInlineWriter m_pipDataEntriesPointerInlineWriter;
+        private readonly SymbolTable m_symbolTable;
+        private readonly PipGraphFragmentContext m_context;
 
         /// <summary>
         /// Creates a new RemapWriter
         /// </summary>
-        public RemapWriter(Stream stream, PipExecutionContext context, PipGraphFragmentContext pipGraphFragmentContext, bool debug = false, bool leaveOpen = true, bool logStats = false)
+        public PipRemapWriter(Stream stream, PipExecutionContext context, PipGraphFragmentContext pipGraphFragmentContext, bool debug = false, bool leaveOpen = true, bool logStats = false)
             : base(debug, stream, leaveOpen, logStats)
         {
-            m_inliningWriter = new InnerInliningWriter(stream, context.PathTable, debug, leaveOpen, logStats);
+            m_inliningWriter = new InliningWriter(stream, context.PathTable, debug, leaveOpen, logStats);
+            m_pipDataEntriesPointerInlineWriter = new PipDataEntriesPointerInlineWriter(stream, context.PathTable, debug, leaveOpen, logStats);
             m_symbolTable = context.SymbolTable;
             m_context = pipGraphFragmentContext;
         }
@@ -93,9 +95,9 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Writes a pip data id
         /// </summary>
-        public override void WritePipDataId(in StringId value)
+        public override void WritePipDataEntriesPointer(in StringId value)
         {
-            m_inliningWriter.WriteAndGetIndex(value, InlinedStringKind.PipData);
+            m_pipDataEntriesPointerInlineWriter.Write(value);
         }
 
         /// <summary>
@@ -106,28 +108,21 @@ namespace BuildXL.Pips.Operations
             Write(value.ToString(m_symbolTable));
         }
 
-        private class InnerInliningWriter : InliningWriter
+        private class PipDataEntriesPointerInlineWriter : InliningWriter
         {
-            public InnerInliningWriter(Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true, bool logStats = false)
+            public PipDataEntriesPointerInlineWriter(Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true, bool logStats = false)
                 : base(stream, pathTable, debug, leaveOpen, logStats)
             {
             }
 
-            public override void WriteStringIdValue(in StringId stringId, InlinedStringKind kind)
+            protected override void WriteBinaryStringSegment(in StringId stringId)
             {
-                if (kind == InlinedStringKind.PipData)
+                var binaryString = PathTable.StringTable.GetBinaryString(stringId);
+                var entries = new PipDataEntryList(binaryString.UnderlyingBytes);
+                WriteCompact(entries.Count);
+                foreach (var e in entries)
                 {
-                    var binaryString = PathTable.StringTable.GetBinaryString(stringId);
-                    var entries = new PipDataEntryList(binaryString.UnderlyingBytes);
-                    WriteCompact(entries.Count);
-                    foreach (var e in entries)
-                    {
-                        e.Serialize(this);
-                    }
-                }
-                else
-                {
-                    base.WriteStringIdValue(stringId, kind);
+                    e.Serialize(this);
                 }
             }
         }

@@ -11,25 +11,28 @@ namespace BuildXL.Pips.Operations
     /// <summary>
     /// Reads in pips written with RemapWriter and remaps absolute paths, string ids from the value present in the stream to the value in the given for the same path/string in the given context.
     /// </summary>
-    internal class RemapReader : PipReader
+    internal class PipRemapReader : PipReader
     {
         /// <summary>
         /// RemapReader PipGraphFragmentContext
         /// </summary>
         public readonly PipGraphFragmentContext Context;
+
         private readonly PipExecutionContext m_executionContext;
-        private SymbolTable m_symbolTable;
-        private InliningReader m_inliningReader;
+        private readonly SymbolTable m_symbolTable;
+        private readonly InliningReader m_inliningReader;
+        private readonly PipDataEntriesPointerInlineReader m_pipDataEntriesPointerInlineReader;
 
         /// <summary>
         /// Create a new RemapReader
         /// </summary>
-        public RemapReader(PipGraphFragmentContext fragmentContext, Stream stream, PipExecutionContext context, bool debug = false, bool leaveOpen = true)
+        public PipRemapReader(PipGraphFragmentContext fragmentContext, Stream stream, PipExecutionContext context, bool debug = false, bool leaveOpen = true)
             : base(debug, context.StringTable, stream, leaveOpen)
         {
             Context = fragmentContext;
             m_executionContext = context;
-            m_inliningReader = new InnerInliningReader(stream, context.PathTable, debug, leaveOpen);
+            m_inliningReader = new InliningReader(stream, context.PathTable, debug, leaveOpen);
+            m_pipDataEntriesPointerInlineReader = new PipDataEntriesPointerInlineReader(stream, context.PathTable, debug, leaveOpen);
             m_symbolTable = context.SymbolTable;
         }
 
@@ -91,11 +94,11 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// Reads a pip data id
+        /// Reads a pip data entries pointer.
         /// </summary>
-        public override StringId ReadPipDataId()
+        public override StringId ReadPipDataEntriesPointer()
         {
-            return m_inliningReader.ReadStringId(InlinedStringKind.PipData);
+            return m_pipDataEntriesPointerInlineReader.ReadStringId();
         }
 
         /// <summary>
@@ -123,34 +126,27 @@ namespace BuildXL.Pips.Operations
             return Context.RemapPipIdValue(pipIdValue);
         }
 
-        private class InnerInliningReader : InliningReader
+        private class PipDataEntriesPointerInlineReader : InliningReader
         {
             private byte[] m_pipDatabuffer = new byte[1024];
 
-            public InnerInliningReader(Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true)
+            public PipDataEntriesPointerInlineReader(Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true)
                 : base(stream, pathTable, debug, leaveOpen)
             {
             }
 
-            public override BinaryStringSegment ReadStringIdValue(InlinedStringKind kind, ref byte[] buffer)
+            protected override BinaryStringSegment ReadBinaryStringSegment(ref byte[] buffer)
             {
-                if (kind == InlinedStringKind.PipData)
+                int count = ReadInt32Compact();
+
+                return PipDataBuilder.WriteEntries(GetEntries(), count, ref m_pipDatabuffer);
+
+                IEnumerable<PipDataEntry> GetEntries()
                 {
-                    int count = ReadInt32Compact();
-
-                    return PipDataBuilder.WriteEntries(GetEntries(), count, ref m_pipDatabuffer);
-
-                    IEnumerable<PipDataEntry> GetEntries()
+                    for (int i = 0; i < count; i++)
                     {
-                        for (int i = 0; i < count; i++)
-                        {
-                            yield return PipDataEntry.Deserialize(this);
-                        }
+                        yield return PipDataEntry.Deserialize(this);
                     }
-                }
-                else
-                {
-                    return base.ReadStringIdValue(kind, ref buffer);
                 }
             }
         }

@@ -113,8 +113,8 @@ namespace BuildXL.Pips.Operations
         /// Returns the current value as a string id.
         /// </summary>
         /// <remarks>
-        /// You can only call this function for instances where <see cref="EntryType" /> is equal to <see cref="PipDataEntryType.StringLiteral" /> or
-        /// <see cref="PipDataEntryType.NestedDataHeader" />.
+        /// You can only call this function for instances where <see cref="EntryType" /> is equal to <see cref="PipDataEntryType.StringLiteral" />,
+        /// <see cref="PipDataEntryType.NestedDataHeader" /> or <see cref="PipDataEntryType.IpcMoniker" />.
         /// </remarks>
         /// <returns>Value as string id</returns>
         [Pure]

@@ -107,17 +107,8 @@ namespace BuildXL.Native.IO
             bool success = Helpers.RetryOnFailure(
                 finalRound =>
                 {
-                    try
-                    {
-                        CreateDirectory(path);
-                        return true;
-                    }
-#pragma warning disable ERP022 // TODO: This should handle proper exceptions
-                    catch
-                    {
-                        return false;
-                    }
-#pragma warning restore ERP022
+                    CreateDirectory(path);
+                    return true;
                 });
 
             if (!success)

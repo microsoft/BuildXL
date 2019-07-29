@@ -317,7 +317,7 @@ namespace Test.BuildXL.Scheduler
         /// Runs the scheduler using the instance member PipGraph and Configuration objects. This will also carry over
         /// any state from any previous run such as the cache
         /// </summary>
-        public ScheduleRunResult RunScheduler(SchedulerTestHooks testHooks = null, SchedulerState schedulerState = null, RootFilter filter = null, TempCleaner tempCleaner = null, IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
+        public ScheduleRunResult RunScheduler(SchedulerTestHooks testHooks = null, SchedulerState schedulerState = null, RootFilter filter = null, ITempCleaner tempCleaner = null, IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
         {
             if (m_graphWasModified || m_lastGraph == null)
             {
@@ -326,7 +326,10 @@ namespace Test.BuildXL.Scheduler
             }
             
             m_graphWasModified = false;
-            return RunSchedulerSpecific(m_lastGraph, testHooks, schedulerState, filter, tempCleaner, constraintExecutionOrder);
+            
+            return RunSchedulerSpecific(m_lastGraph, 
+                (tempCleaner != null ? tempCleaner : MoveDeleteCleaner),
+                testHooks, schedulerState, filter , constraintExecutionOrder);
         }
         
         public NodeId GetProducerNode(FileArtifact file) => PipGraphBuilder.GetProducerNode(file);
@@ -347,11 +350,11 @@ namespace Test.BuildXL.Scheduler
         /// Runs the scheduler allowing various options to be specifically set
         /// </summary>
         public ScheduleRunResult RunSchedulerSpecific(
-            PipGraph graph, 
+            PipGraph graph,
+            ITempCleaner tempCleaner,
             SchedulerTestHooks testHooks = null, 
             SchedulerState schedulerState = null,
             RootFilter filter = null,
-            TempCleaner tempCleaner = null,
             IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
         {
             // This is a new logging context to be used just for this instantiation of the scheduler. That way it can

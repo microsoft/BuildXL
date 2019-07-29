@@ -21,7 +21,7 @@ namespace Ide {
             {
                 file: importFrom("BuildXL.Ide").withQualifier({
                     configuration: qualifier.configuration,
-                    targetFramework:"net472",
+                    targetFramework:"netcoreapp3.0",
                     targetRuntime: "win-x64"}
                     ).LanguageService.Server.vsix,
                 targetFileName: a`BuildXL.vscode.win.vsix`,

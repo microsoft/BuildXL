@@ -20,7 +20,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MinimumWorkers = 1;
 
             IsGrpcEnabled = true;
-            EarlyWorkerRelease = true;
             EarlyWorkerReleaseMultiplier = 0.5;
         }
 

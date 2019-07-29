@@ -6,7 +6,7 @@ namespace DistributedTest {
     export const dll = BuildXLSdk.isDotNetCoreBuild ? undefined : BuildXLSdk.test({
         assemblyName: "BuildXL.Cache.MemoizationStore.Distributed.Test",
         sources: globR(d`.`,"*.cs"),
-        skipTestRun: BuildXLSdk.restrictTestRunToDebugNet461OnWindows,
+        skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Xml.dll,

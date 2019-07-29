@@ -19,11 +19,11 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static FileArtifactContentDecidedEvent_XLGpp ToFileArtifactContentDecidedEvent_XLGpp(this FileArtifactContentDecidedEventData data, uint workerID, PathTable pathTable)
         {
-            var uuid = Guid.NewGuid().ToString();
+            var Uuid = Guid.NewGuid().ToString();
 
             return new FileArtifactContentDecidedEvent_XLGpp()
             {
-                UUID = uuid,
+                UUID = Uuid,
                 WorkerID = workerID,
                 FileArtifact = data.FileArtifact.ToFileArtifact_XLGpp(pathTable),
                 FileContentInfo = new FileContentInfo_XLGpp
@@ -38,11 +38,11 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static WorkerListEvent_XLGpp ToWorkerListEvent_XLGpp(this WorkerListEventData data, uint workerID)
         {
-            var uuid = Guid.NewGuid().ToString();
+            var Uuid = Guid.NewGuid().ToString();
 
             var workerListEvent = new WorkerListEvent_XLGpp
             {
-                UUID = uuid
+                UUID = Uuid
             };
 
             foreach (var worker in data.Workers)
@@ -56,7 +56,7 @@ namespace BuildXL.Execution.Analyzer
         public static PipExecutionPerformanceEvent_XLGpp ToPipExecutionPerformanceEvent_XLGpp(this PipExecutionPerformanceEventData data)
         {
             var pipExecPerfEvent = new PipExecutionPerformanceEvent_XLGpp();
-            var uuid = Guid.NewGuid().ToString();
+            var Uuid = Guid.NewGuid().ToString();
 
             var pipExecPerformance = new PipExecutionPerformance_XLGpp();
             pipExecPerformance.PipExecutionLevel = (int)data.ExecutionPerformance.ExecutionLevel;
@@ -107,7 +107,7 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
-            pipExecPerfEvent.UUID = uuid;
+            pipExecPerfEvent.UUID = Uuid;
             pipExecPerfEvent.WorkerID = data.ExecutionPerformance.WorkerId;
             pipExecPerfEvent.PipID = data.PipId.Value;
             pipExecPerfEvent.PipExecutionPerformance = pipExecPerformance;
@@ -118,11 +118,11 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static DirectoryMembershipHashedEvent_XLGpp ToDirectoryMembershipHashedEvent_XLGpp(this DirectoryMembershipHashedEventData data, uint workerID, PathTable pathTable)
         {
-            var uuid = Guid.NewGuid().ToString();
+            var Uuid = Guid.NewGuid().ToString();
 
             var directoryMembershipEvent = new DirectoryMembershipHashedEvent_XLGpp()
             {
-                UUID = uuid,
+                UUID = Uuid,
                 WorkerID = workerID,
                 DirectoryFingerprint = new DirectoryFingerprint_XLGpp()
                 {
@@ -146,11 +146,11 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static ProcessExecutionMonitoringReportedEvent_XLGpp ToProcessExecutionMonitoringReportedEvent_XLGpp(this ProcessExecutionMonitoringReportedEventData data, uint workerID, PathTable pathTable)
         {
-            var uuid = Guid.NewGuid().ToString();
+            var Uuid = Guid.NewGuid().ToString();
 
             var processExecutionMonitoringReportedEvent = new ProcessExecutionMonitoringReportedEvent_XLGpp
             {
-                UUID = uuid,
+                UUID = Uuid,
                 WorkerID = workerID,
                 PipID = data.PipId.Value
             };
@@ -194,11 +194,11 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static ProcessFingerprintComputationEvent_XLGpp ToProcessFingerprintComputationEvent_XLGpp(this ProcessFingerprintComputationEventData data, uint workerID, PathTable pathTable)
         {
-            var uuid = Guid.NewGuid().ToString();
+            var Uuid = Guid.NewGuid().ToString();
 
             var processFingerprintComputationEvent = new ProcessFingerprintComputationEvent_XLGpp
             {
-                UUID = uuid,
+                UUID = Uuid,
                 WorkerID = workerID,
                 Kind = (FingerprintComputationKind_XLGpp)data.Kind,
                 PipID = data.PipId.Value,
@@ -273,11 +273,11 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static ExtraEventDataReported_XLGpp ToExtraEventDataReported_XLGpp(this ExtraEventData data, uint workerID)
         {
-            var uuid = Guid.NewGuid().ToString();
+            var Uuid = Guid.NewGuid().ToString();
 
             return new ExtraEventDataReported_XLGpp
             {
-                UUID = uuid,
+                UUID = Uuid,
                 WorkerID = workerID,
                 DisableDetours = data.DisableDetours,
                 IgnoreReparsePoints = data.IgnoreReparsePoints,
@@ -306,10 +306,10 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static DependencyViolationReportedEvent_XLGpp ToDependencyViolationReportedEvent_XLGpp(this DependencyViolationEventData data, uint workerID, PathTable pathTable)
         {
-            var uuid = Guid.NewGuid().ToString();
+            var Uuid = Guid.NewGuid().ToString();
             return new DependencyViolationReportedEvent_XLGpp()
             {
-                UUID = uuid,
+                UUID = Uuid,
                 WorkerID = workerID,
                 ViolatorPipID = data.ViolatorPipId.Value,
                 RelatedPipID = data.RelatedPipId.Value,
@@ -322,11 +322,11 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static PipExecutionStepPerformanceReportedEvent_XLGpp ToPipExecutionStepPerformanceReportedEvent_XLGpp(this PipExecutionStepPerformanceEventData data, uint workerID)
         {
-            var uuid = Guid.NewGuid().ToString();
+            var Uuid = Guid.NewGuid().ToString();
 
             var pipExecStepPerformanceEvent = new PipExecutionStepPerformanceReportedEvent_XLGpp
             {
-                UUID = uuid,
+                UUID = Uuid,
                 WorkerID = workerID,
                 PipID = data.PipId.Value,
                 StartTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.StartTime),
@@ -341,10 +341,10 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static PipCacheMissEvent_XLGpp ToPipCacheMissEvent_XLGpp(this PipCacheMissEventData data, uint workerID)
         {
-            var uuid = Guid.NewGuid().ToString();
+            var Uuid = Guid.NewGuid().ToString();
             return new PipCacheMissEvent_XLGpp()
             {
-                UUID = uuid,
+                UUID = Uuid,
                 WorkerID = workerID,
                 PipID = data.PipId.Value,
                 CacheMissType = (PipCacheMissType_XLGpp)data.CacheMissType
@@ -354,11 +354,11 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static StatusReportedEvent_XLGpp ToResourceUsageReportedEvent_XLGpp(this StatusEventData data, uint workerID)
         {
-            var uuid = Guid.NewGuid().ToString();
+            var Uuid = Guid.NewGuid().ToString();
 
             var statusReportedEvent = new StatusReportedEvent_XLGpp()
             {
-                UUID = uuid,
+                UUID = Uuid,
                 WorkerID = workerID,
                 Time = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.Time),
                 CpuPercent = data.CpuPercent,
@@ -404,11 +404,11 @@ namespace BuildXL.Execution.Analyzer
         public static BXLInvocationEvent_XLGpp ToBXLInvocationEvent_XLGpp(this DominoInvocationEventData data, uint workerID, PathTable pathTable)
         {
             var loggingConfig = data.Configuration.Logging;
-            var uuid = Guid.NewGuid().ToString();
+            var Uuid = Guid.NewGuid().ToString();
 
             var bxlInvEvent = new BXLInvocationEvent_XLGpp
             {
-                UUID = uuid,
+                UUID = Uuid,
                 WorkerID = workerID,
                 SubstSource = loggingConfig.SubstSource.ToAbsolutePath_XLGpp(pathTable),
                 SubstTarget = loggingConfig.SubstTarget.ToAbsolutePath_XLGpp(pathTable),
@@ -422,10 +422,10 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static PipExecutionDirectoryOutputsEvent_XLGpp ToPipExecutionDirectoryOutputsEvent_XLGpp(this PipExecutionDirectoryOutputs data, uint workerID, PathTable pathTable)
         {
-            var uuid = Guid.NewGuid().ToString();
+            var Uuid = Guid.NewGuid().ToString();
 
             var pipExecDirectoryOutputEvent = new PipExecutionDirectoryOutputsEvent_XLGpp();
-            pipExecDirectoryOutputEvent.UUID = uuid;
+            pipExecDirectoryOutputEvent.UUID = Uuid;
             pipExecDirectoryOutputEvent.WorkerID = workerID;
 
             foreach (var (directoryArtifact, fileArtifactArray) in data.DirectoryOutputs)

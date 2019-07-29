@@ -140,9 +140,9 @@ namespace BuildXL.Execution.Analyzer
             {
                 Directory.Delete(path: OutputDirPath, recursive: true);
             }
-            catch 
+            catch (Exception e)
             {
-                Console.WriteLine("Directory entered does not exist, creating directory for DB.");
+                Console.WriteLine("Directory entered does not exist, creating directory for DB.", e);
             }
 
             var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath);

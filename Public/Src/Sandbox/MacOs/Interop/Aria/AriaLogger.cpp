@@ -7,14 +7,14 @@
 
 #pragma mark Aria logger class definition
 
-AriaLogger::AriaLogger(const char* token, const char *dbPath)
+AriaLogger::AriaLogger(const char* token, const char *dbPath, int teardownTimeoutInSeconds)
 {
     token_ = token;
     dbPath_ = dbPath;
 
     config_.minimumTraceLevel = ACTTraceLevel_None; // Usefull for debugging
     config_.cacheFileSizeLimitInBytes = 1024 * 1024 * 64; // 64 MB
-    config_.maxTeardownUploadTimeInSec = 5;
+    config_.maxTeardownUploadTimeInSec = teardownTimeoutInSeconds;
     config_.cacheFilePath = dbPath_;
 
     logManager_ = dynamic_cast<LogManager *>(LogManager::Initialize(token, config_));
@@ -35,9 +35,9 @@ ILogger *AriaLogger::GetLogger() const
 
 #pragma mark External Interface
 
-AriaLogger* CreateAriaLogger(const char *token, const char *dbPath)
+AriaLogger* CreateAriaLogger(const char *token, const char *dbPath, int teardownTimeoutInSeconds)
 {
-    return new AriaLogger(token, dbPath);
+    return new AriaLogger(token, dbPath, teardownTimeoutInSeconds);
 }
 
 void DisposeAriaLogger(const AriaLogger *logger)

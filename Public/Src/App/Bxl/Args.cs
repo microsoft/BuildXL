@@ -161,7 +161,7 @@ namespace BuildXL
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode")]
-        [SuppressMessage("Microsoft.Performance", "CA1809", Justification = "Man up!")]
+        [SuppressMessage("Microsoft.Performance", "CA1809")]
         public bool TryParse(string[] args, PathTable pathTable, out ICommandLineConfiguration arguments)
         {
             try
@@ -309,11 +309,11 @@ namespace BuildXL
                             opt => loggingConfiguration.Diagnostic |= CommandLineUtilities.ParseEnumOption<DiagnosticLevels>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
                             "earlyWorkerRelease",
-                            sign => schedulingConfiguration.EarlyWorkerRelease = sign),
+                            sign => distributionConfiguration.EarlyWorkerRelease = sign),
                         OptionHandlerFactory.CreateOption(
                             "earlyWorkerReleaseMultiplier",
                             opt =>
-                            schedulingConfiguration.EarlyWorkerReleaseMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 5)),
+                            distributionConfiguration.EarlyWorkerReleaseMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 5)),
                         OptionHandlerFactory.CreateBoolOption(
                             "enforceAccessPoliciesOnDirectoryCreation",
                             sign => sandboxConfiguration.EnforceAccessPoliciesOnDirectoryCreation = sign),
@@ -733,7 +733,7 @@ namespace BuildXL
                             (opt, sign) =>
                             loggingConfiguration.RemoteTelemetry =
                             CommandLineUtilities.ParseBoolEnumOption(opt, sign, RemoteTelemetry.EnabledAndNotify, RemoteTelemetry.Disabled),
-                            isEnabled: (() => loggingConfiguration.RemoteTelemetry != RemoteTelemetry.Disabled)),
+                            isEnabled: () => loggingConfiguration.RemoteTelemetry.HasValue && loggingConfiguration.RemoteTelemetry.Value != RemoteTelemetry.Disabled),
                         OptionHandlerFactory.CreateBoolOption(
                             "replaceExistingFileOnMaterialization",
                             sign => cacheConfiguration.ReplaceExistingFileOnMaterialization = sign),
@@ -1077,6 +1077,9 @@ namespace BuildXL
                             "verifyCacheLookupPin",
                             sign => schedulingConfiguration.VerifyCacheLookupPin = sign),
                         OptionHandlerFactory.CreateOption(
+                            "vfsCasRoot",
+                            opt => cacheConfiguration.VfsCasRoot = CommandLineUtilities.ParsePathOption(opt, pathTable)),
+                        OptionHandlerFactory.CreateOption(
                             "viewer",
                             opt => configuration.Viewer = CommandLineUtilities.ParseEnumOption<ViewerMode>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
@@ -1209,7 +1212,12 @@ namespace BuildXL
                 if (configuration.InCloudBuild())
                 {
                     configuration.Server = ServerMode.Disabled;
-                    loggingConfiguration.RemoteTelemetry = RemoteTelemetry.EnabledAndNotify;
+
+                    if (!loggingConfiguration.RemoteTelemetry.HasValue)
+                    {
+                        loggingConfiguration.RemoteTelemetry = RemoteTelemetry.EnabledAndNotify;
+                    }
+
                     cacheConfiguration.CacheGraph = true;
 
                     // Forcefully disable incremental scheduling in CB.

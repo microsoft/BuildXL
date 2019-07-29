@@ -136,7 +136,9 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                             runInContainer: false, 
                             environment: environment, 
                             globalProperties: null,
-                            filenameEntryPoint: pathToTestProj1)
+                            filenameEntryPoint: pathToTestProj1,
+                            msBuildRuntime: null,
+                            dotnetSearchLocations: null)
                     .AddSpec(pathToTestProj1, CreateWriteFileTestProject("MyFile"))
                     .PersistSpecsAndGetConfiguration();
 

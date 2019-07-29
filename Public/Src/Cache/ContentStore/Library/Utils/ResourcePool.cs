@@ -132,7 +132,10 @@ namespace BuildXL.Cache.ContentStore.Utils
                     if (kvp.Value.TryMarkForShutdown(force, earliestLastUseTime))
                     {
                         bool removed = _resourceDict.TryRemove(kvp.Key, out _);
-                        Contract.Assert(removed, $"Unable to remove resource with key {kvp.Key} which was marked for shutdown.");
+                        if (!removed)
+                        {
+                            Contract.Assert(false, $"Unable to remove resource with key {kvp.Key} which was marked for shutdown.");
+                        }
 
                         // Cannot await within a lock
                         shutdownTasks.Add(resourceValue.ShutdownAsync(_context));

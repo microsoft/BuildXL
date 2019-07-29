@@ -91,6 +91,30 @@ static bool IsActionableReparsePointType(_In_ const DWORD reparsePointType)
 }
 
 /// <summary>
+/// Checks if flags or attributes has reparse point.
+/// </summary>
+
+static bool AttributesHasReparsePoint(_In_ DWORD dwFlagsAndAttributes)
+{
+    return ((dwFlagsAndAttributes & FILE_FLAG_OPEN_REPARSE_POINT) != 0)
+        || ((dwFlagsAndAttributes & FILE_OPEN_REPARSE_POINT) != 0);
+}
+
+/// <summary>
+/// Checks if Detours should follow symlink chain.
+/// </summary>
+static bool ShouldFollowSymlinkChain(
+    _In_     LPCWSTR               lpFileName,
+    _In_     DWORD                 dwDesiredAccess,
+    _In_     DWORD                 dwFlagsAndAttributes)
+{
+    return !IgnoreReparsePoints() // Reparse point should not be ignored.
+        && IsReparsePoint(lpFileName) // File is a reparse point.
+        && (!WantsProbeOnlyAccess(dwDesiredAccess) // It's not probe-only access.
+            || !AttributesHasReparsePoint(dwFlagsAndAttributes)); // It's a probe-only access, but no reparse point flag is passed.
+}
+
+/// <summary>
 /// Gets the final full path by handle.
 /// </summary>
 /// <remarks>
@@ -691,7 +715,6 @@ static bool EnforceReparsePointAccess(
         return false;
     }
 
-    // Enforce the access only we are not doing directory probing/enumeration.
     if (enforceAccess)
     {
         if (WantsWriteAccess(dwDesiredAccess))
@@ -706,7 +729,7 @@ static bool EnforceReparsePointAccess(
             }
         }
 
-        if (WantsReadAccess(dwDesiredAccess))
+        if (WantsReadAccess(dwDesiredAccess) || WantsProbeOnlyAccess(dwDesiredAccess))
         {
             FileReadContext readContext;
             WIN32_FIND_DATA findData;
@@ -727,7 +750,8 @@ static bool EnforceReparsePointAccess(
                 (readContext.FileExistence == FileExistence::Existent) 
                 && IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, fullPath.c_str(), false);
 
-            accessCheck = AccessCheckResult::Combine(accessCheck, policyResult.CheckReadAccess(RequestedReadAccess::Read, readContext));
+            RequestedReadAccess requestedReadAccess = WantsProbeOnlyAccess(dwDesiredAccess) ? RequestedReadAccess::Probe : RequestedReadAccess::Read;
+            accessCheck = AccessCheckResult::Combine(accessCheck, policyResult.CheckReadAccess(requestedReadAccess, readContext));
         }
 
         if (accessCheck.ShouldDenyAccess())
@@ -2118,11 +2142,8 @@ HANDLE WINAPI Detoured_CreateFileW(
 
     error = GetLastError();
 
-    if (!IgnoreReparsePoints() && IsReparsePoint(lpFileName) && !WantsProbeOnlyAccess(dwDesiredAccess))
+    if (ShouldFollowSymlinkChain(lpFileName, dwDesiredAccess, dwFlagsAndAttributes))
     {
-        // (1) Reparse point should not be ignored.
-        // (2) File/Directory is a reparse point.
-        // (3) Desired access is not probe only.
         // Note that handle can be invalid because users can CreateFileW of a symlink whose target is non-existent.
 
         // Even though the process CreateFile the file with FILE_FLAG_OPEN_REPARSE_POINT, we need to follow the chain of symlinks
@@ -5226,11 +5247,8 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
         return result;
     }
 
-    if (!IgnoreReparsePoints() && IsReparsePoint(path.GetPathString()) && !WantsProbeOnlyAccess(opContext.DesiredAccess))
+    if (ShouldFollowSymlinkChain(path.GetPathString(), opContext.DesiredAccess, FileAttributes))
     {
-        // (1) Reparse point should not be ignored.
-        // (2) File/Directory is a reparse point.
-        // (3) Desired access is not probe only.
         // Note that handle can be invalid because users can CreateFileW of a symlink whose target is non-existent.
         NTSTATUS ntStatus;
 
@@ -5522,7 +5540,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
         return result;
     }
 
-    if (!IgnoreReparsePoints() && IsReparsePoint(path.GetPathString()) && !WantsProbeOnlyAccess(opContext.DesiredAccess))
+    if (ShouldFollowSymlinkChain(path.GetPathString(), opContext.DesiredAccess, FileAttributes))
     {
         // (1) Reparse point should not be ignored.
         // (2) File/Directory is a reparse point.
@@ -5792,7 +5810,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
         return result;
     }
 
-    if (!IgnoreReparsePoints() && IsReparsePoint(path.GetPathString()) && !WantsProbeOnlyAccess(opContext.DesiredAccess))
+    if (ShouldFollowSymlinkChain(path.GetPathString(), opContext.DesiredAccess, OpenOptions))
     {
         // (1) Reparse point should not be ignored.
         // (2) File/Directory is a reparse point.

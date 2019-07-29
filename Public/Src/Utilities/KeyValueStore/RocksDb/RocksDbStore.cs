@@ -715,6 +715,73 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             {
                 return new RocksDbStore(this);
             }
+
+            /// <inheritdoc />
+            public IEnumerable<KeyValuePair<string, string>> PrefixSearch(string prefix, string columnFamilyName = null)
+            {
+                return PrefixSearch(StringToBytes(prefix), columnFamilyName).Select(kvp => new KeyValuePair<string, string>(BytesToString(kvp.Key), BytesToString(kvp.Value)));
+            }
+
+            /// <inheritdoc />
+            public IEnumerable<KeyValuePair<byte[], byte[]>> PrefixSearch(byte[] prefix = null, string columnFamilyName = null)
+            {
+                // TODO(jubayard): there are multiple ways to implement prefix search in RocksDB. In particular, they 
+                // have a prefix seek API (see: https://github.com/facebook/rocksdb/wiki/Prefix-Seek-API-Changes ).
+                // However, it requires certain options to be set on the column family, so it could be problematic. We
+                // just use a simpler way. Could change if any performance issues arise out of this decision.
+                var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
+                var readOptions = new ReadOptions();
+                readOptions.SetTotalOrderSeek(true);
+
+                using (var iterator = m_store.NewIterator(columnFamilyInfo.Handle, readOptions))
+                {
+                    if (prefix == null || prefix.Length == 0)
+                    {
+                        iterator.SeekToFirst();
+                    }
+                    else
+                    {
+                        iterator.Seek(prefix);
+                    }
+
+                    while (iterator.Valid())
+                    {
+                        var key = iterator.Key();
+                        if (!StartsWith(prefix, key))
+                        {
+                            break;
+                        }
+
+                        yield return new KeyValuePair<byte[], byte[]>(key, iterator.Value());
+
+                        iterator.Next();
+                    }
+                }
+            }
+
+            /// <nodoc />
+            private static bool StartsWith(byte[] prefix, byte[] key)
+            {
+                if (prefix == null || prefix.Length == 0)
+                {
+                    return true;
+                }
+
+                if (prefix.Length > key.Length)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < prefix.Length; ++i)
+                {
+                    if (key[i] != prefix[i])
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
         } // RocksDbStore
     } // KeyValueStoreAccessor
 }

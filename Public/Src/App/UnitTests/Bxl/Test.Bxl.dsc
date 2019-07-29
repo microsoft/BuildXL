@@ -6,7 +6,11 @@ namespace UnitTests.Bxl {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.Bxl",
         sources: globR(d`.`, "*.cs"),
-        references: [
+         references: [
+                ...addIf(BuildXLSdk.isFullFramework,
+                NetFx.System.Xml.dll,
+                NetFx.System.Xml.Linq.dll
+            ),
             Main.exe,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Branding.dll,

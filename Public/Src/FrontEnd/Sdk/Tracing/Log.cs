@@ -2,8 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Qualifier;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
 
@@ -22,7 +20,7 @@ namespace BuildXL.FrontEnd.Sdk.Tracing
         public static Logger Log => m_log;
 
         [GeneratedEvent(
-            2809,
+            (int)LogEventId.ErrorUnsupportedQualifierValue,
             EventGenerators = Generators.ManifestedEventSource,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
@@ -31,7 +29,7 @@ namespace BuildXL.FrontEnd.Sdk.Tracing
         public abstract void ErrorUnsupportedQualifierValue(LoggingContext context, Location location, string qualifierKey, string invalidValue, string legalValues);
 
         [GeneratedEvent(
-            2810,
+            (int)LogEventId.DuplicateFrontEndRegistration,
             EventGenerators = Generators.ManifestedEventSource,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
@@ -40,7 +38,7 @@ namespace BuildXL.FrontEnd.Sdk.Tracing
         public abstract void DuplicateFrontEndRegistration(LoggingContext context, string frontEndType);
 
         [GeneratedEvent(
-            2811,
+            (int)LogEventId.DuplicateResolverRegistration,
             EventGenerators = Generators.ManifestedEventSource,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,

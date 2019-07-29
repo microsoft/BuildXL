@@ -13,18 +13,18 @@ namespace BuildXL.FrontEnd.Ninja.Tracing
     {
         None = 0,
 
-        // reserved 11500 .. 11600 for ninja
-        InvalidResolverSettings = 11500,
-        ProjectRootDirectoryDoesNotExist = 11501,
-        NinjaSpecFileDoesNotExist = 11502,
-        GraphConstructionInternalError = 11503,
-        GraphConstructionFinishedSuccessfullyButWithWarnings = 11504,
-        InvalidExecutablePath = 11505,
-        PipSchedulingFailed = 11506,
-        UnexpectedPipConstructorException = 11507,
-        CouldNotDeleteToolArgumentsFile = 11508,
-        CouldNotComputeRelativePathToSpec = 11609,
-        LeftGraphToolOutputAt = 11610,
+        // reserved 11550 .. 11600 for ninja
+        InvalidResolverSettings = 11550,
+        ProjectRootDirectoryDoesNotExist = 11551,
+        NinjaSpecFileDoesNotExist = 11552,
+        GraphConstructionInternalError = 11553,
+        GraphConstructionFinishedSuccessfullyButWithWarnings = 11554,
+        InvalidExecutablePath = 11555,
+        PipSchedulingFailed = 11556,
+        UnexpectedPipConstructorException = 11557,
+        CouldNotDeleteToolArgumentsFile = 11558,
+        CouldNotComputeRelativePathToSpec = 11659,
+        LeftGraphToolOutputAt = 11560,
 
     }
 }

@@ -81,10 +81,9 @@ param(
     [Parameter(Mandatory=$false)]
     [switch]$DeployStandaloneTest = $false,
 
-    # Task 544796 to enable this
     [Parameter(Mandatory=$false)]
     [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
-    [string]$SharedCacheMode = "Disable",
+    [string]$SharedCacheMode = "Consume",
 
     [Parameter(Mandatory=$false)]
     [string]$DefaultConfig,

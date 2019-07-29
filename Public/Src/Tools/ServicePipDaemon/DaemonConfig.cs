@@ -5,18 +5,20 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Ipc.Interfaces;
 
-namespace Tool.DropDaemon
+namespace Tool.ServicePipDaemon
 {
     /// <summary>
     ///     Daemon configuration.
     /// </summary>
     public sealed class DaemonConfig : IServerConfig, IClientConfig
     {
-        // <nodoc />
-        internal ILogger Logger { get; }
+        /// <nodoc/>
+        public ILogger Logger { get; }
 
+        /// <inheritdoc/>
         ILogger IServerConfig.Logger => Logger;
 
+        /// <inheritdoc/>
         ILogger IClientConfig.Logger => Logger;
 
         #region ConfigOptions

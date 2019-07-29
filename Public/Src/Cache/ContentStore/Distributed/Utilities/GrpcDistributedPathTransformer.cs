@@ -5,11 +5,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Text;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Utils;
 
@@ -21,23 +23,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     public class GrpcDistributedPathTransformer : IAbsolutePathTransformer
     {
         private readonly IReadOnlyDictionary<AbsolutePath, AbsolutePath> _junctionsByDirectory;
-        private static readonly string _localMachineName = Environment.MachineName;
+        private readonly string _localMachineName;
         internal const string BlobFileExtension = ".blob";
 
         /// <nodoc />
-        public GrpcDistributedPathTransformer()
+        public GrpcDistributedPathTransformer(ILogger logger)
         {
+            try
+            {
+                _localMachineName = System.Net.Dns.GetHostName();
+            }
+            catch (Exception e)
+            {
+                logger.Warning($"Failed to get machine name from `Dns.GetHostName`. Falling back to `Environment.MachineName`. {e.ToString()}");
+                _localMachineName = Environment.MachineName;
+            }
+
             _junctionsByDirectory = new Dictionary<AbsolutePath, AbsolutePath>();
         }
 
         /// <nodoc />
-        public GrpcDistributedPathTransformer(IReadOnlyDictionary<string, string> junctionsByDirectory)
+        public GrpcDistributedPathTransformer(IReadOnlyDictionary<string, string> junctionsByDirectory, ILogger logger) : this(logger)
         {
             _junctionsByDirectory = junctionsByDirectory.ToDictionary(kvp => new AbsolutePath(kvp.Key), kvp => new AbsolutePath(kvp.Value));
         }
 
         /// <nodoc />
-        public GrpcDistributedPathTransformer(IReadOnlyDictionary<AbsolutePath, AbsolutePath> junctionsByDirectory)
+        public GrpcDistributedPathTransformer(IReadOnlyDictionary<AbsolutePath, AbsolutePath> junctionsByDirectory, ILogger logger) : this(logger)
         {
             _junctionsByDirectory = junctionsByDirectory;
         }

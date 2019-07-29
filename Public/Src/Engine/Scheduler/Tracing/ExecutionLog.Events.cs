@@ -43,7 +43,7 @@ namespace BuildXL.Scheduler.Tracing
     public interface IExecutionLogTarget : IDisposable
     {
         /// <summary>
-        /// Gets whether the target can handle the given evnet
+        /// Gets whether the target can handle the given event
         /// </summary>
         bool CanHandleEvent(ExecutionEventId eventId, uint workerId, long timestamp, int eventPayloadSize);
 

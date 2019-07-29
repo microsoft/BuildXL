@@ -106,16 +106,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             Interfaces.FileSystem.AbsolutePath workingDirectory)
         {
             Contract.Requires(configuration != null);
-
-            switch (configuration)
-            {
-                case EventHubContentLocationEventStoreConfiguration eventHub:
-                    return new EventHubContentLocationEventStore(eventHub, eventHandler, localMachineName, centralStorage, workingDirectory);
-                case MemoryContentLocationEventStoreConfiguration inMemory:
-                    return new MemoryContentLocationEventStore(inMemory, eventHandler, centralStorage, workingDirectory);
-                default:
-                    throw new InvalidOperationException($"Unknown EventStore type '{configuration.GetType()}'.");
-            }
+            return new EventHubContentLocationEventStore(configuration, eventHandler, localMachineName, centralStorage, workingDirectory);
         }
 
         /// <summary>

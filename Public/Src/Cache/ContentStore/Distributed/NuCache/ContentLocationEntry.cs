@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -99,6 +100,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return FromRedisValue(data, lastAccessTime);
+        }
+
+        /// <summary>
+        /// Serializes an instance into a binary stream.
+        /// </summary>
+        public void Serialize(BuildXLWriter writer)
+        {
+            writer.WriteCompact(ContentSize);
+            Locations.Serialize(writer);
+            writer.Write(CreationTimeUtc);
+            long lastAccessTimeOffset = LastAccessTimeUtc.Value - CreationTimeUtc.Value;
+            writer.WriteCompact(lastAccessTimeOffset);
+        }
+
+        /// <summary>
+        /// Builds an instance from a binary stream.
+        /// </summary>
+        public static ContentLocationEntry Deserialize(BuildXLReader reader)
+        {
+            var size = reader.ReadInt64Compact();
+            var locations = MachineIdSet.Deserialize(reader);
+            var creationTimeUtc = reader.ReadUnixTime();
+            var lastAccessTimeOffset = reader.ReadInt64Compact();
+            var lastAccessTime = new UnixTime(creationTimeUtc.Value + lastAccessTimeOffset);
+            return Create(locations, size, lastAccessTime, creationTimeUtc);
         }
 
         /// <nodoc />

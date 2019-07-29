@@ -13,7 +13,7 @@ namespace DistributedTest {
                     untrackTestDirectory: true,
                     parallelBucketCount: 8,
                 },
-            skipTestRun: BuildXLSdk.restrictTestRunToDebugNet461OnWindows,
+            skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
             references: [
                 ...addIf(BuildXLSdk.isFullFramework,
                     NetFx.System.IO.dll,
@@ -35,6 +35,7 @@ namespace DistributedTest {
                 InterfacesTest.dll,
                 Library.dll,
                 Test.dll,
+                importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
                 importFrom("BuildXL.Utilities").dll,
                 importFrom("BuildXL.Utilities").Collections.dll,
                 importFrom("BuildXL.Utilities").KeyValueStore.dll,

@@ -8,7 +8,7 @@ if NOT DEFINED ENLISTMENTROOT (
 echo =======================================================
 echo  Building BuildXL
 echo =======================================================
-call %ENLISTMENTROOT%\bxl.cmd -deploy dev /server- /f:output='Out\Bin\debug\net472\*'
+call %ENLISTMENTROOT%\bxl.cmd -deploydev /server- 
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo ERROR: BuildXL build failed.
@@ -16,7 +16,7 @@ if %ERRORLEVEL% NEQ 0 (
     endlocal && exit /b 1
 )
 
-set BUILDXL_BIN_DIRECTORY=%ENLISTMENTROOT%\Out\Bin\Debug\net472
+set BUILDXL_BIN_DIRECTORY=%ENLISTMENTROOT%\Out\Bin\Debug\win-x64
 
 if NOT DEFINED TF_ROLLING_DROPNAME (
     set TF_ROLLING_DROPNAME=%USERNAME%-%random%

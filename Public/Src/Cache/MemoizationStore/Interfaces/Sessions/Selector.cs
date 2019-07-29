@@ -2,9 +2,13 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics.ContractsLight;
+using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities;
+using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
@@ -38,6 +42,28 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public bool Equals(Selector other)
         {
             return ContentHash.Equals(other.ContentHash) && ByteArrayComparer.ArraysEqual(Output, other.Output);
+        }
+
+        /// <summary>
+        ///     Serialize whole value to a binary writer.
+        /// </summary>
+        public void Serialize(BuildXLWriter writer)
+        {
+            ContentHash.Serialize(writer);
+            ContentHashList.WriteNullableArray(Output, writer);
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="Selector" /> struct.
+        /// </summary>
+        public static Selector Deserialize(BuildXLReader reader)
+        {
+            Contract.Requires(reader != null);
+
+            var contentHash = new ContentHash(reader);
+            var output = ContentHashList.ReadNullableArray(reader);
+
+            return new Selector(contentHash, output);
         }
 
         /// <inheritdoc />

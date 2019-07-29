@@ -69,6 +69,11 @@ namespace BuildXL.Native.IO
         CannotAccessFile,
 
         /// <summary>
+        /// The specified path is invalid. (from 'winerror.h')
+        /// </summary>
+        BadPathname,
+
+        /// <summary>
         /// See <see cref="OpenFileResult.NativeErrorCode"/>
         /// </summary>
         UnknownError,
@@ -85,7 +90,7 @@ namespace BuildXL.Native.IO
         /// Whether the status is one that should be treated as a nonexistent file
         /// </summary>
         /// <remarks>
-        /// Keep this in sync with IsHresultNonesixtent(int) inside of <see cref="BuildXL.Native.IO.Windows.FileSystemWin"/> 
+        /// CODESYNC: <see cref="Windows.FileSystemWin.IsHresultNonexistent(int)"/>
         /// </remarks>
         public static bool IsNonexistent(this OpenFileStatus status)
         {
@@ -93,7 +98,16 @@ namespace BuildXL.Native.IO
                 || status == OpenFileStatus.PathNotFound
                 || status == OpenFileStatus.ErrorNotReady
                 || status == OpenFileStatus.FveLockedVolume
-                || status == OpenFileStatus.CannotAccessFile;
+                || status == OpenFileStatus.CannotAccessFile
+                || status == OpenFileStatus.BadPathname;
+        }
+
+        /// <summary>
+        /// Whether the status is one that implies other process blocking the handle.
+        /// </summary>
+        public static bool ImpliesOtherProcessBlockingHandle(this OpenFileStatus status)
+        {
+            return status == OpenFileStatus.SharingViolation || status == OpenFileStatus.AccessDenied;
         }
     }
 }

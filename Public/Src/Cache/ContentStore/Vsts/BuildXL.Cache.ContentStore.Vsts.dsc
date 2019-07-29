@@ -18,7 +18,9 @@ namespace Vsts {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("WindowsAzure.Storage").pkg,
-            ...addIf(BuildXLSdk.isDotNetCoreBuild, importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg),
+            ...addIf(BuildXLSdk.isDotNetCoreBuild, 
+                importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg
+            ),
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,

@@ -2,11 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Diagnostics.ContractsLight;
-using System.Globalization;
 using BuildXL.Native.IO;
 
-namespace Tool.DropDaemon
+namespace Tool.ServicePipDaemon
 {
     /// <summary>
     ///     Various helper method, typically to be imported with "using static".
@@ -14,24 +12,14 @@ namespace Tool.DropDaemon
     public static class Statics
     {
         /// <summary>
-        ///     String format with <see cref="CultureInfo.InvariantCulture"/>.
-        /// </summary>
-        public static string Inv(string format, params object[] args)
-        {
-            Contract.Requires(format != null);
-
-            return string.Format(CultureInfo.InvariantCulture, format, args);
-        }
-
-        /// <summary>
         ///     Logs an error as a line of text.  Currently prints out to <code>Console.Error</code>.
         ///     to use whatever other
         /// </summary>
-        public static void Error(string format, params object[] args)
+        public static void Error(string error)
         {
-            if (format != null)
+            if (error != null)
             {
-                Console.Error.WriteLine(Inv(format, args));
+                Console.Error.WriteLine(error); 
             }
         }
 

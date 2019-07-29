@@ -5,12 +5,13 @@ using System;
 using System.Linq;
 using MsBuildGraphBuilderTool;
 using Test.BuildXL.TestUtilities.Xunit;
+using Test.ProjectGraphBuilder.Utilities;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Test.ProjectGraphBuilder
 {
-    public class MsBuildAssemblyLoaderTests : XunitBuildXLTest
+    public class MsBuildAssemblyLoaderTests : GraphBuilderToolTestBase
     {
         public MsBuildAssemblyLoaderTests(ITestOutputHelper output): base(output)
         {
@@ -21,8 +22,7 @@ namespace Test.ProjectGraphBuilder
         {
             using (var reporter = new GraphBuilderReporter(Guid.NewGuid().ToString()))
             {
-                var assemblyLoader = MsBuildAssemblyLoader.Instance;
-                var succeed = assemblyLoader.TryLoadMsBuildAssemblies(
+                var succeed = AssemblyLoader.TryLoadMsBuildAssemblies(
                     // The test deployment dir should have all assemblies needed by the loader
                     new [] {TestDeploymentDir},
                     reporter,
@@ -44,8 +44,7 @@ namespace Test.ProjectGraphBuilder
         {
             using (var reporter = new GraphBuilderReporter(Guid.NewGuid().ToString()))
             {
-                var assemblyLoader = MsBuildAssemblyLoader.Instance;
-                var succeed = assemblyLoader.TryLoadMsBuildAssemblies(
+                var succeed = AssemblyLoader.TryLoadMsBuildAssemblies(
                     // An empty location should result in not finding any of the required assemblies
                     new string[] {},
                     reporter,

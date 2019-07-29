@@ -30,7 +30,7 @@ namespace BuildXL.Execution.Analyzer
                 else if (opt.Name.Equals("pip", StringComparison.OrdinalIgnoreCase) ||
                    opt.Name.Equals("p", StringComparison.OrdinalIgnoreCase))
                 {
-                    targetPip = Convert.ToInt64(ParseStringOption(opt), 16);
+                    targetPip = ParseSemistableHash(opt);
                 }
                 else if (opt.Name.TrimEnd('-', '+').Equals("sortPaths", StringComparison.OrdinalIgnoreCase))
                 {

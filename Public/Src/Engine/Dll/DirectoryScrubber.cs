@@ -32,7 +32,7 @@ namespace BuildXL.Engine
         private readonly HashSet<string> m_blockedPaths;
         private readonly int m_maxDegreeParallelism;
         private readonly MountPathExpander m_mountPathExpander;
-        private readonly ITempDirectoryCleaner m_tempDirectoryCleaner;
+        private readonly ITempCleaner m_tempDirectoryCleaner;
 
         // Directories that can be scrubbed but cannot be deleted.
         private readonly HashSet<string> m_nonDeletableRootDirectories;
@@ -64,7 +64,7 @@ namespace BuildXL.Engine
             IEnumerable<string> nonDeletableRootDirectories,
             MountPathExpander mountPathExpander,
             int maxDegreeParallelism,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             m_loggingContext = loggingContext;
             m_loggingConfiguration = loggingConfiguration;

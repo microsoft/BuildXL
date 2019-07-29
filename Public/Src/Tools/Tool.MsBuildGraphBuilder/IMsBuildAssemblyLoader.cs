@@ -19,6 +19,11 @@ namespace MsBuildGraphBuilderTool
         /// <param name="searchLocations">A collection of full paths to directories, representing search locations on disk</param>
         /// <param name="failureReason">On failure, the reason for why the assemblies were not found</param>
         /// <param name="locatedAssemblyPaths">A dictionary from assembly names to paths to the required assemblies that were found. May not be complete if the invocation failed.</param>
-        bool TryLoadMsBuildAssemblies(IEnumerable<string> searchLocations, GraphBuilderReporter reporter, out string failureReason, out IReadOnlyDictionary<string, string> locatedAssemblyPaths, out string locatedMsBuildExePath);
+        bool TryLoadMsBuildAssemblies(
+            IEnumerable<string> searchLocations, 
+            GraphBuilderReporter reporter, 
+            out string failureReason, 
+            out IReadOnlyDictionary<string, string> locatedAssemblyPaths, 
+            out string locatedMsBuildExePath);
     }
 }

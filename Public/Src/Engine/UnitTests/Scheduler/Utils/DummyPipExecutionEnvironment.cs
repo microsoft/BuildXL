@@ -37,6 +37,7 @@ using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using KextConnection = BuildXL.Processes.KextConnection;
 using BuildXL.Utilities.VmCommandProxy;
+using Test.BuildXL.TestUtilities;
 
 namespace Test.BuildXL.Scheduler.Utils
 {
@@ -582,6 +583,8 @@ namespace Test.BuildXL.Scheduler.Utils
         public ProcessInContainerManager ProcessInContainerManager { get; }
 
         public VmInitializer VmInitializer { get; }
+
+        public ITempCleaner TempCleaner => new TestMoveDeleteCleaner(Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "moveDeletionTemp"));
 
         public SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directory)
         {

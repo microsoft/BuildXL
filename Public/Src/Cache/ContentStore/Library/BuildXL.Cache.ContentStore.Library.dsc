@@ -10,15 +10,10 @@ namespace Library {
         assemblyName: "BuildXL.Cache.ContentStore",
         sources: globR(d`.`,"*.cs"),
         references: [
-            ...(BuildXLSdk.isDotNetCoreBuild ? [
-                // TODO: This is to get a .Net Core build, but it may not pass tests
-                importFrom("System.Data.SQLite.Core").withQualifier({targetFramework: "net461"}).pkg,
-            ] :
-            [
-                importFrom("System.Data.SQLite.Core").pkg,
+            ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Data.dll,
-                NetFx.System.Runtime.Serialization.dll,
-            ]),
+                NetFx.System.Runtime.Serialization.dll
+            ),
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             UtilitiesCore.dll,
             Hashing.dll,
@@ -30,6 +25,7 @@ namespace Library {
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("Grpc.Core").pkg,
             importFrom("Google.Protobuf").pkg,
+            importFrom("System.Data.SQLite.Core").pkg,
             importFrom("System.Interactive.Async").pkg,
 
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),

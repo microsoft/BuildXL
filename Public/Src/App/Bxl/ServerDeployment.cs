@@ -32,11 +32,6 @@ namespace BuildXL
         // Folder name for the deployment cache, a subfolder of the running client app folder
         private const string ServerDeploymentDirectoryCache = "BuildXLServerDeploymentCache";
 
-        /// <summary>
-        /// Filename where the hash of the server deployment is stored
-        /// </summary>
-        public const string ServerDeploymentHashFilename = "ServerCacheDeployment.hash";
-
         private const string KillBuildXLServerCommandLine = "wmic";
         private const string KillBuildXLServerCommandLineArgs = @"process where ""ExecutablePath like '%{0}%'"" delete";
 
@@ -53,10 +48,8 @@ namespace BuildXL
         /// Throws if the copy fails</exception>
         public static ServerDeployment GetOrCreateServerDeploymentCache(string serverDeploymentRoot, AppDeployment clientApp)
         {
-            var deploymentDir = ComputeDeploymentDir(serverDeploymentRoot);
-
             ServerDeploymentCacheCreated? cacheCreated = null;
-            if (!Directory.Exists(deploymentDir) || clientApp.TimestampBasedHash.ToHex() != GetDeploymentCacheHash(deploymentDir))
+            if (IsServerDeploymentOutOfSync(serverDeploymentRoot, clientApp, out var deploymentDir))
             {
                 cacheCreated = CreateServerDeployment(deploymentDir, clientApp);
             }
@@ -70,21 +63,14 @@ namespace BuildXL
         {
             Stopwatch st = Stopwatch.StartNew();
 
-            // Every time the server cache gets created, a file with the result of GetDeploymentHash is created, so we avoid computing this again
-            // The assumption is that nobody but this process modifies the server cache folder
-            string serverDeploymentHashFile = Path.Combine(destDir, ServerDeploymentHashFilename);
+            // Check if the main server process is in use before attempting to delete the deployment, this way we avoid partially deleting files
+            // due to access permission issues. This is not completely bullet proof (there can be a race) but it is highly unlikely the
+            // process starts to be in use right after this check
+            KillServer(destDir);
 
             // Deletes the existing cache directory if it exists, so we avoid accumulating garbage.
             if (Directory.Exists(destDir))
             {
-                // Check if the main root process (likely bxl.exe) is in use before attempting to delete, so we avoid partially deleting files
-                // Not completely bullet proof (there can be a race) but it is highly unlikely the process starts to be in use right after this check
-                KillServer(destDir);
-
-                // Delete the deployment hash file first to make sure the deployment cache cannot be used in case the
-                // cleanup of the other files is interrupted.
-                PoisonServerDeployment(destDir);
-
                 // Remove all files regardless of files being readonly
                 FileUtilities.DeleteDirectoryContents(destDir, true);
             }
@@ -127,30 +113,15 @@ namespace BuildXL
             var destExe = Path.Combine(destDir, System.AppDomain.CurrentDomain.FriendlyName);
 
             // queue:1 means it runs in the background
-            var ngenArgs = "install " + destExe + " /queue:1";
-            bool runNgen = File.Exists(ngenExe);
-            if (runNgen)
+            if (File.Exists(ngenExe))
             {
+                var ngenArgs = "install " + destExe + " /queue:1";
                 ProcessStartInfo startInfo = new ProcessStartInfo(ngenExe, ngenArgs);
                 startInfo.UseShellExecute = false;
                 startInfo.CreateNoWindow = true;
                 Process.Start(startInfo);
             }
 #endif
-            using (var file = new StreamWriter(File.OpenWrite(serverDeploymentHashFile)))
-            {
-                file.WriteLine(clientApp.TimestampBasedHash);
-
-                // This isn't actually consumed. It is only used for debugging
-                file.WriteLine("Debug info:");
-#if !FEATURE_CORECLR
-                if (runNgen)
-                {
-                    file.WriteLine("Ran Ngen: " + ngenExe + " " + ngenArgs);
-                }
-#endif
-                file.WriteLine(clientApp.TimestampBasedHashDebug);
-            }
 
             ServerDeploymentCacheCreated cacheCreated = default(ServerDeploymentCacheCreated);
             cacheCreated.TimeToCreateServerCacheMilliseconds = st.ElapsedMilliseconds;
@@ -174,11 +145,11 @@ namespace BuildXL
         internal static void KillServer(string serverDeploymentRoot)
         {
             // Check if the main root process (likely bxl.exe) is in use before attempting to delete, so we avoid partially deleting files
-            // Not completey bullet proof (there can be a race) but it is highly unlikely the process starts to be in use right after this check
+            // Not completely bullet proof (there can be a race) but it is highly unlikely the process starts to be in use right after this check
             Assembly rootAssembly = Assembly.GetEntryAssembly();
             Contract.Assert(rootAssembly != null, "Could not look up entry assembly");
 
-            string assemblyFullPath = Path.Combine(serverDeploymentRoot, new FileInfo(AssemblyHelper.GetAssemblyLocation(rootAssembly)).Name);
+            string assemblyFullPath = Path.Combine(serverDeploymentRoot, new FileInfo(AssemblyHelper.GetThisProgramExeLocation()).Name);
 
             // Try kill process using Process.Kill.
             var killProcessResult = TryKillProcess(assemblyFullPath);
@@ -257,48 +228,21 @@ namespace BuildXL
         }
 
         /// <summary>
-        /// Poisons the server deployment to cause it to be redeployed
+        /// Calculates a hash of the contents of the BuildXL binaries from the server deployment directory.
         /// </summary>
-        internal static void PoisonServerDeployment(string serverDeploymentRoot)
+        public static string GetDeploymentCacheHash(string deploymentDir)
         {
-            FileUtilities.DeleteFile(Path.Combine(ComputeDeploymentDir(serverDeploymentRoot), ServerDeploymentHashFilename), true);
+            AppDeployment serverDeployment = AppDeployment.ReadDeploymentManifest(deploymentDir, AppDeployment.ServerDeploymentManifestFileName);
+            return serverDeployment.TimestampBasedHash.ToHex();
         }
 
         /// <summary>
-        /// Returns a hash of the content of the BuildXL binaries deployment cache directory.
-        /// The deployment cache has to be created before calling this function
+        /// Checks if the deployed server bits are still up-to-date.
         /// </summary>
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "StreamReader/StreamWriter takes ownership for disposal.")]
-        public static string GetDeploymentCacheHash(string deploymentDir)
+        public static bool IsServerDeploymentOutOfSync(string serverDeploymentRoot, AppDeployment clientApp, out string deploymentDir)
         {
-            const string UnknownHash = "ServerUnknown";
-            string filename = Path.Combine(deploymentDir, ServerDeploymentHashFilename);
-            if (!File.Exists(filename))
-            {
-                return UnknownHash;
-            }
-
-            try
-            {
-                using (var file = new StreamReader(File.Open(filename, FileMode.Open, FileAccess.Read, FileShare.Delete)))
-                {
-                    string hash = file.ReadLine();
-                    return hash;
-                }
-            }
-            catch (FileNotFoundException)
-            {
-                return UnknownHash;
-            }
-            catch (DirectoryNotFoundException)
-            {
-                return UnknownHash;
-            }
-            catch (IOException)
-            {
-                return UnknownHash;
-            }
+            deploymentDir = ComputeDeploymentDir(serverDeploymentRoot);
+            return !Directory.Exists(deploymentDir) || clientApp.TimestampBasedHash.ToHex() != GetDeploymentCacheHash(deploymentDir);
         }
     }
 }

@@ -36,6 +36,16 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         // By default the engine runs e2e
         protected virtual EnginePhases Phase => EnginePhases.Execute;
 
+        // Keep the paths below in sync with Public\Src\FrontEnd\UnitTests\MsBuild\Test.BuildXL.FrontEnd.MsBuild.dsc
+        /// <nodoc/>
+        protected string RelativePathToFullframeworkMSBuild => "msbuild/net472";
+        
+        /// <nodoc/>
+        protected string RelativePathToDotnetCoreMSBuild => "msbuild/dotnetcore";
+        
+        /// <nodoc/>
+        protected string RelativePathToDotnetExe => "dotnet";
+
         protected MsBuildPipExecutionTestBase(ITestOutputHelper output) : base(output, true)
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
@@ -59,19 +69,40 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             return base.Build().Configuration(DefaultMsBuildPrelude(runInContainer: false, environment));
         }
 
-        protected SpecEvaluationBuilder Build(bool runInContainer = false, Dictionary<string, string> environment = null, Dictionary<string, string> globalProperties = null, string filenameEntryPoint = null)
+        protected SpecEvaluationBuilder Build(
+            bool runInContainer = false, 
+            Dictionary<string, string> environment = null, 
+            Dictionary<string, string> globalProperties = null, 
+            string filenameEntryPoint = null,
+            string msBuildRuntime = null,
+            string dotnetSearchLocations = null)
         {
             return Build(runInContainer, 
                 environment != null? environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)) : null, 
                 globalProperties,
-                filenameEntryPoint);
+                filenameEntryPoint,
+                msBuildRuntime,
+                dotnetSearchLocations);
         }
 
         /// <inheritdoc/>
-        protected SpecEvaluationBuilder Build(bool runInContainer, Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment, Dictionary<string, string> globalProperties, string filenameEntryPoint)
+        protected SpecEvaluationBuilder Build(
+            bool runInContainer, 
+            Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment, 
+            Dictionary<string, string> globalProperties, 
+            string filenameEntryPoint, 
+            string msBuildRuntime,
+            string dotnetSearchLocations)
         {
             // Let's explicitly pass an empty environment, so the process environment won't affect tests by default
-            return base.Build().Configuration(DefaultMsBuildPrelude(runInContainer, environment: environment ?? new Dictionary<string, DiscriminatingUnion<string, UnitValue>>(), globalProperties, filenameEntryPoint: filenameEntryPoint));
+            return base.Build().Configuration(
+                DefaultMsBuildPrelude(
+                    runInContainer, 
+                    environment: environment ?? new Dictionary<string, DiscriminatingUnion<string, UnitValue>>(), 
+                    globalProperties, 
+                    filenameEntryPoint: filenameEntryPoint, 
+                    msBuildRuntime: msBuildRuntime,
+                    dotnetSearchLocations: dotnetSearchLocations));
         }
 
         /// <inheritdoc/>
@@ -109,6 +140,18 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
                 return engineResult;
             }
+        }
+
+        /// <summary>
+        /// Returns an empty project
+        /// </summary>
+        protected string CreateEmptyProject()
+        {
+            return
+$@"<?xml version='1.0' encoding='utf-8'?>
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003'>
+    <Target Name='Build'/>
+</Project>";
         }
 
         /// <summary>
@@ -180,7 +223,7 @@ $@"<?xml version='1.0' encoding='utf-8'?>
         private string GetWriteFileTask()
         {
             return
-$@"<UsingTask TaskName='WriteFile' TaskFactory='CodeTaskFactory' AssemblyFile='{TestDeploymentDir}\Microsoft.Build.Tasks.Core.dll'>
+$@"<UsingTask TaskName='WriteFile' TaskFactory='CodeTaskFactory' AssemblyFile='{TestDeploymentDir}\{RelativePathToFullframeworkMSBuild}\Microsoft.Build.Tasks.Core.dll'>
     <ParameterGroup>
         <Path ParameterType='System.String' Required='true' />
         <Content ParameterType ='System.String' Required='true' />
@@ -229,14 +272,16 @@ $@"<?xml version='1.0' encoding='utf-8'?>
             bool enableEngineTracing = false,
             string logVerbosity = null,
             bool allowProjectsToNotSpecifyTargetProtocol = true,
-            string filenameEntryPoint = null) => $@"
+            string filenameEntryPoint = null,
+            string msBuildRuntime = null,
+            string dotnetSearchLocations = null) => $@"
 config({{
     disableDefaultSourceResolver: true,
     resolvers: [
         {{
             kind: 'MsBuild',
             moduleName: 'Test',
-            msBuildSearchLocations: [d`{TestDeploymentDir}`],
+            msBuildSearchLocations: [d`{TestDeploymentDir}/{(msBuildRuntime == "DotNetCore" ? RelativePathToDotnetCoreMSBuild : RelativePathToFullframeworkMSBuild)}`],
             root: d`.`,
             allowProjectsToNotSpecifyTargetProtocol: {(allowProjectsToNotSpecifyTargetProtocol ? "true" : "false")},
             runInContainer: {(runInContainer ? "true" : "false")},
@@ -246,6 +291,8 @@ config({{
             enableEngineTracing: {(enableEngineTracing? "true" : "false")},
             {(logVerbosity != null ? $"logVerbosity: {logVerbosity}," : string.Empty)}
             {(filenameEntryPoint != null ? $"fileNameEntryPoints: [r`{filenameEntryPoint}`]," : string.Empty)}
+            {(msBuildRuntime != null ? $"msBuildRuntime: \"{msBuildRuntime}\"," : string.Empty)}
+            {(dotnetSearchLocations != null ? $"dotNetSearchLocations: {dotnetSearchLocations}," : string.Empty)}
         }},
     ],
 }});";
@@ -258,7 +305,7 @@ config({{
         {{
             kind: 'MsBuild',
             moduleName: 'Test',
-            msBuildSearchLocations: [d`{TestDeploymentDir}`],
+            msBuildSearchLocations: [d`{TestDeploymentDir}/{RelativePathToFullframeworkMSBuild}`],
             root: d`.`,
             allowProjectsToNotSpecifyTargetProtocol: true,
             {DictionaryToExpression("environment", new Dictionary<string, string>())}

@@ -14,6 +14,7 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
+using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using static BuildXL.Native.IO.Windows.FileUtilitiesWin;
@@ -39,20 +40,17 @@ namespace Test.BuildXL.Storage
             string openFile = Path.Combine(directory, "openfileDelDirContents.txt");
             using (Stream s = new FileStream(openFile, FileMode.Create))
             {
-                Exception exception = null;
                 s.Write(new byte[] { 1, 2, 3 }, 0, 3);
                 try
                 {
                     FileUtilities.DeleteDirectoryContents(directory);
+                    XAssert.IsTrue(false, "Unreachable");
                 }
                 catch (BuildXLException ex)
                 {
-                    exception = ex;
+                    XAssert.IsTrue(ex.LogEventMessage.Contains(FileUtilitiesMessages.FileDeleteFailed + NormalizeDirectoryPath(openFile)), ex.LogEventMessage);
+                    XAssert.IsTrue(ex.LogEventMessage.Contains("Handle was used by"), ex.LogEventMessage);
                 }
-
-                XAssert.IsNotNull(exception, "Expected failure since a handle to a contained file was still open");
-                XAssert.IsTrue(exception.Message.Contains(FileUtilitiesMessages.FileDeleteFailed + NormalizeDirectoryPath(openFile)), exception.Message);
-                XAssert.IsTrue(exception.Message.Contains("Handle was used by"), exception.Message);
             }
 
             // Try again with the handle closed. There should be no crash.
@@ -551,6 +549,50 @@ namespace Test.BuildXL.Storage
                 {
                     XAssert.AreEqual(0, fs.Length);
                 }
+            }
+        }
+
+        /// <remarks>
+        /// BuildXL's CreateHardlink method relies on CreateHardlinkW, which requires WriteAttributes access on the file.
+        /// </remarks>
+        [Fact]
+        public void MoveTempDeletionCanReplaceRunningExecutable()
+        {
+            // Make a copy of DummyWaiter.exe to use as the test subject for deleting a running executable.
+            // Keep the copy in the same directory as the original since it will need runtime dlls
+            string dummyWaiterLocation = DummyWaiter.GetDummyWaiterExeLocation();
+            string exeCopy = dummyWaiterLocation + ".copy.exe";
+            File.Copy(dummyWaiterLocation, exeCopy);
+
+            using (var waiter = DummyWaiter.RunAndWait(exeCopy))
+            {
+                BuildXLException caughtException = null;
+                try
+                {
+                    FileUtilities.DeleteFile(exeCopy);
+                }
+                catch (BuildXLException ex)
+                {
+                    caughtException = ex;
+                }
+
+                XAssert.IsNotNull(caughtException, "Expected deletion without a tempCleaner to fail");
+                XAssert.IsTrue(File.Exists(exeCopy));
+
+                caughtException = null;
+
+
+                try
+                {
+                    FileUtilities.DeleteFile(exeCopy, tempDirectoryCleaner: MoveDeleteCleaner);
+                }
+                catch (BuildXLException ex)
+                {
+                    caughtException = ex;
+                }
+
+                XAssert.IsNull(caughtException, "Expected deletion with a MoveDeleteCleaner to succeed");
+                XAssert.IsFalse(File.Exists(exeCopy));
             }
         }
 

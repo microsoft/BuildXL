@@ -6,11 +6,16 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.MemoizationStore.Interfaces.Results;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
 {
@@ -49,6 +54,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
             _map.AddOrUpdate(hash, key => entry, (key, old) => entry);
         }
 
+
+        /// <inheritdoc />
+        public override Possible<bool> CompareExchange(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        public override GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
+        {
+            throw new NotImplementedException();
+        }
+        
+        /// <inheritdoc />
+        public override IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        public override IEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <inheritdoc />
         protected override IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(CancellationToken token)
         {
@@ -62,7 +92,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         {
             foreach (var kvp in _map)
             {
-                if (filter == null || filter(Serialize(kvp.Value)))
+                if (filter == null || filter(SerializeContentLocationEntry(kvp.Value)))
                 {
                     yield return (kvp.Key, kvp.Value);
                 }
@@ -70,19 +100,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         }
 
         /// <inheritdoc />
-        protected override BoolResult SaveCheckpointCore(OperationContext context, AbsolutePath checkpointDirectory)
+        protected override BoolResult SaveCheckpointCore(OperationContext context, Interfaces.FileSystem.AbsolutePath checkpointDirectory)
         {
             return BoolResult.Success;
         }
 
         /// <inheritdoc />
-        protected override BoolResult RestoreCheckpointCore(OperationContext context, AbsolutePath checkpointDirectory)
+        protected override BoolResult RestoreCheckpointCore(OperationContext context, Interfaces.FileSystem.AbsolutePath checkpointDirectory)
         {
             return BoolResult.Success;
         }
 
         /// <inheritdoc />
-        public override bool IsImmutable(AbsolutePath dbFile)
+        public override bool IsImmutable(Interfaces.FileSystem.AbsolutePath dbFile)
         {
             return false;
         }

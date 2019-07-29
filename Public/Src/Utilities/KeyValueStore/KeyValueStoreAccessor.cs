@@ -576,6 +576,21 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <summary>
         /// Provides access to the underlying store.
         /// </summary>
+        /// <returns>
+        /// On success, <see cref="Unit.Void"/>;
+        /// on failure, a <see cref="Failure"/>.
+        /// </returns>
+        [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] // allows catching exceptions from unmanaged code
+        public Possible<TResult> Use<TResult>(Func<IBuildXLKeyValueStore, TResult> use)
+        {
+            return Use(
+                (store, propagatedUse) => propagatedUse(store),
+                use);
+        }
+
+        /// <summary>
+        /// Provides access to the underlying store.
+        /// </summary>
         /// <param name="use">
         /// Function that take the store as a parameter.
         /// </param>
@@ -626,7 +641,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             return result;
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Finishes up/cleans remaining RocksDB tasks and flushes DB to disk.
+        /// </summary>
         public void Dispose()
         {
             using (m_rwl.AcquireWriteLock())

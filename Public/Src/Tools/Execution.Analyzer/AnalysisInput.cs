@@ -18,7 +18,7 @@ namespace BuildXL.Execution.Analyzer
     /// <summary>
     /// Represents the inputs to an analysis (ie cached graph and execution log)
     /// </summary>
-    [SuppressMessage("Microsoft.Performance", "CA1815:ShouldOverrideEquals", Justification="Not an issue")]
+    [SuppressMessage("Microsoft.Performance", "CA1815:ShouldOverrideEquals", Justification = "Not an issue")]
     public struct AnalysisInput
     {
         /// <summary>
@@ -107,15 +107,17 @@ namespace BuildXL.Execution.Analyzer
             return true;
         }
 
-        public void ReadExecutionLog(IExecutionLogTarget analyzer)
+        public bool ReadExecutionLog(IExecutionLogTarget analyzer)
         {
             using (var disposableLogReader = LoadExecutionLog(analyzer))
             {
                 if (disposableLogReader?.Value != null)
                 {
-                    disposableLogReader.Value.ReadAllEvents();
+                    return disposableLogReader.Value.ReadAllEvents();
                 }
             }
+
+            return false;
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]

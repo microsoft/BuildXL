@@ -17,9 +17,6 @@ namespace BuildXL {
             // primary
             importFrom("BuildXL.App").deployment,
             importFrom("BuildXL.App").serverDeployment,
-            ...(qualifier.targetFramework !== "net472" ? [] : [
-                importFrom("BuildXL.Cache.ContentStore").VfsApplication.exe,
-            ]),
 
             // analyzers
             importFrom("BuildXL.Tools").Execution.Analyzer.exe,
@@ -48,27 +45,40 @@ namespace BuildXL {
                                     ).exe
                                 ]
                             } ] ),
+                    importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment,
                     {
-                        subfolder: r`MsBuildGraphBuilder`,
-                        contents: BuildXLSdk.isDotNetCoreBuild ? [] : [
+                        subfolder: r`bvfs`,
+                        contents: qualifier.targetRuntime !== "win-x64" ? [] : [
                             // If the current qualifier is full framework, this tool has to be built with 472
-                            importFrom("BuildXL.Tools").MsBuildGraphBuilder.withQualifier(
-                                Object.merge<(typeof qualifier) & {targetFramework: "net472"}>(qualifier, {targetFramework: "net472"})).exe
+                            importFrom("BuildXL.Cache.ContentStore").VfsApplication.withQualifier({
+                                configuration: qualifier.configuration,
+                                targetFramework: "net472",
+                                targetRuntime: "win-x64"
+                            }).exe,
+                            importFrom("BuildXL.Cache.ContentStore").App.withQualifier({
+                                configuration: qualifier.configuration,
+                                targetFramework: "net472",
+                                targetRuntime: "win-x64"
+                            }).exe
                         ]
                     },
-                    {
-                        subfolder: r`NinjaGraphBuilder`,
-                        contents: [
-                            importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
-                            importFrom("BuildXL.Tools.Ninjson").pkg.contents
-                        ]
-                    },
-                    {
-                        subfolder: r`CMakeRunner`,
-                        contents: [
-                            importFrom("BuildXL.Tools").CMakeRunner.exe,
-                        ]
-                    },
+                    ...(BuildXLSdk.Flags.deployExperimentalTools
+                        ? [
+                            {
+                                subfolder: r`NinjaGraphBuilder`,
+                                contents: [
+                                    importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
+                                    importFrom("BuildXL.Tools.Ninjson").pkg.contents
+                                ]
+                            },
+                            {
+                                subfolder: r`CMakeRunner`,
+                                contents: [
+                                    importFrom("BuildXL.Tools").CMakeRunner.exe,
+                                ]
+                            }
+                          ]
+                        : []),
                     {
                         subfolder: r`SandboxedProcessExecutor`,
                         contents: [

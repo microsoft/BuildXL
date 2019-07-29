@@ -28,43 +28,42 @@ namespace Test.BuildXL.Storage
             m_executablePath = exePath;
         }
 
-        public static DummyWaiter RunAndWait()
+        public static DummyWaiter RunAndWait(string exePath = null)
         {
-            string exePath = GetDummyWaiterExeLocation();
+            exePath = !string.IsNullOrEmpty(exePath) ? exePath : GetDummyWaiterExeLocation();
             if (!File.Exists(exePath))
             {
                 throw new BuildXLException("Expected to find DummyWaiter.exe at " + exePath);
             }
 
-            var startInfo = new ProcessStartInfo(exePath)
-                            {
-                                CreateNoWindow = true,
-                                RedirectStandardInput = true,
-                                UseShellExecute = false
-                            };
-            Process process = Process.Start(startInfo);
+            Process process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    CreateNoWindow = true,
+                    RedirectStandardInput = true,
+                    UseShellExecute = false
+                }
+            };
+
+            process.Start();
+
             return new DummyWaiter(exePath, process);
         }
 
         /// <summary>
-        /// Creates and returns the location of a COPY of the exe deployed with <see cref="ExecutableName"/>.
-        /// The copy can be mutated or have its file permissions changed, unlike the actual exe which will be a hardlink
-        /// into the CAS.
+        /// Returns the location of the exe deployed with <see cref="ExecutableName"/>.
         /// </summary>
+        /// <remarks>
+        /// In the past we created a copy of the executable because CAS denies write attributes needed for hardlink creation
+        /// to the executable. CAS no longer denies the write attributes. Also, by copying only the executable, dotnet
+        /// won't work.
+        /// </remarks>
         public static string GetDummyWaiterExeLocation()
         {
             string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(typeof(DummyWaiter).GetTypeInfo().Assembly));
-            Contract.Assume(currentCodeFolder != null);
-
-            string dummyWaiterExecutableCopy = Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "Copied" + ExecutableName);
-
-            if (!File.Exists(dummyWaiterExecutableCopy))
-            {
-                string dummyWaiterExeLocation = Path.GetFullPath(Path.Combine(currentCodeFolder, ExecutableName));
-                File.Copy(dummyWaiterExeLocation, dummyWaiterExecutableCopy);
-            }
-
-            return dummyWaiterExecutableCopy;
+            return Path.GetFullPath(Path.Combine(currentCodeFolder, ExecutableName));
         }
 
         public void Dispose()

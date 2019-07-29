@@ -43,7 +43,10 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         private IMemoizationStore CreateSQLiteMemoizationStore(AbsolutePath path, SynchronizationMode syncMode = SQLiteMemoizationStore.DefaultSyncMode)
         {
-            return new TestSQLiteMemoizationStore(Logger, _clock, new SQLiteMemoizationStoreConfiguration(path) {MaxRowCount = MaxRowCount, SyncMode = syncMode, JournalMode = JournalMode.OFF});
+            var memoConfig = new SQLiteMemoizationStoreConfiguration(path) { MaxRowCount = MaxRowCount };
+            memoConfig.Database.SyncMode = syncMode;
+            memoConfig.Database.JournalMode = JournalMode.OFF;
+            return new TestSQLiteMemoizationStore(Logger, _clock, memoConfig);
         }
 
         [Fact]
@@ -264,7 +267,11 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         private Task RunTestWithIntegrityCheckAtStartupAsync(Context context, DisposableDirectory testDirectory, System.Func<IMemoizationStore, IMemoizationSession, Task> funcAsync)
         {
-            return RunTestAsync(context, testDirectory, funcAsync, _ => new TestSQLiteMemoizationStore(Logger, _clock, new SQLiteMemoizationStoreConfiguration(testDirectory.Path) {MaxRowCount = MaxRowCount, VerifyIntegrityOnStartup = true}));
+            return RunTestAsync(context, testDirectory, funcAsync, _ => {
+                var memoConfig = new SQLiteMemoizationStoreConfiguration(testDirectory.Path) { MaxRowCount = MaxRowCount };
+                memoConfig.Database.VerifyIntegrityOnStartup = true;
+                return new TestSQLiteMemoizationStore(Logger, _clock, memoConfig);
+            });
         }
 
         private async Task BloatDbAsync(Context context, IMemoizationSession session)

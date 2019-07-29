@@ -45,6 +45,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseLegacyProjectIsolation = resolverSettings.UseLegacyProjectIsolation;
             DoubleWritePolicy = resolverSettings.DoubleWritePolicy;
             AllowProjectsToNotSpecifyTargetProtocol = resolverSettings.AllowProjectsToNotSpecifyTargetProtocol;
+            MsBuildRuntime = resolverSettings.MsBuildRuntime;
+            DotNetSearchLocations = resolverSettings.DotNetSearchLocations;
         }
 
         /// <inheritdoc/>
@@ -109,5 +111,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool? AllowProjectsToNotSpecifyTargetProtocol { get; set; }
+
+        /// <inheritdoc/>
+        public string MsBuildRuntime { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<DirectoryArtifact> DotNetSearchLocations { get; set; }
     }
 }

@@ -13,6 +13,7 @@ using BuildXL.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Xunit.Abstractions;
+using static BuildXL.Interop.MacOS.Sandbox;
 
 namespace Test.BuildXL.TestUtilities.Xunit
 {
@@ -36,7 +37,13 @@ namespace Test.BuildXL.TestUtilities.Xunit
                         FailureCallback = (status, description) =>
                         {
                             XAssert.Fail($"Kernel extension failed.  Status: {status}.  Description: {description}");
-                        }
+                        },
+#if PLATFORM_OSX                        
+                        KextConfig = new KextConfig
+                        {
+                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
+                        }   
+#endif
                     })
                 : null);
 

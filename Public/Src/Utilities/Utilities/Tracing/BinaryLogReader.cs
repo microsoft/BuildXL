@@ -224,7 +224,11 @@ namespace BuildXL.Utilities.Tracing
                         Contract.Assert(LogStream.Position <= (position + header.EventPayloadSize), "Event handler read beyond the event payload");
                     }
 
-                    m_logStreamReader.ReadBytes((int)(m_nextReadPosition.Value - LogStream.Position));
+                    if (LogStream.Position != m_nextReadPosition.Value)
+                    {
+                        LogStream.Seek(m_nextReadPosition.Value, SeekOrigin.Begin);
+                    }
+
                     return EventReadResult.Success;
                 }
             }

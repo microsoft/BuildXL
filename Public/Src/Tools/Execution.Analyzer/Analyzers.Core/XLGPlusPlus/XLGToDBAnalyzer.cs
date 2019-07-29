@@ -2,12 +2,15 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using BuildXL.Utilities.ParallelAlgorithms;
 using Google.Protobuf;
 
 namespace BuildXL.Execution.Analyzer
@@ -30,12 +33,10 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
-
             if (string.IsNullOrEmpty(outputDirPath))
             {
                 throw Error("/outputDir parameter is required");
             }
-
 
             return new XLGToDBAnalyzer(GetAnalysisInput())
             {
@@ -54,32 +55,85 @@ namespace BuildXL.Execution.Analyzer
         }
     }
 
+    internal sealed class XLGToDBAnalyzer : Analyzer
+    {
+        private XLGToDBAnalyzerInner m_inner;
+        private ActionBlockSlim<Action> m_actionBlock;
+        public string OutputDirPath
+        {
+            set => m_inner.OutputDirPath = value;
+        }
+
+        public XLGToDBAnalyzer(AnalysisInput input)
+            : base(input)
+        {
+            m_inner = new XLGToDBAnalyzerInner(input);
+            m_actionBlock = new ActionBlockSlim<Action>(1, action => action());
+        }
+
+        public override bool CanHandleEvent(ExecutionEventId eventId, uint workerId, long timestamp, int eventPayloadSize)
+        {
+            return m_inner.CanHandleEvent(eventId, workerId, timestamp, eventPayloadSize);
+        }
+
+        protected override void ReportUnhandledEvent<TEventData>(TEventData data)
+        {
+            m_actionBlock.Post(() =>
+            {
+                m_inner.WorkerID.Value = CurrentEventWorkerId;
+                data.Metadata.LogToTarget(data, m_inner);
+            });
+        }
+
+        public override void Prepare()
+        {
+            m_inner.Prepare();
+        }
+
+        public override int Analyze()
+        {
+            m_actionBlock.Complete();
+            return m_inner.Analyze();
+        }
+
+        public override void Dispose()
+        {
+            m_inner.Dispose();
+        }
+    }
+
 
     /// <summary>
     /// Analyzer to dump xlg events and other data into RocksDB
     /// </summary>
-    internal sealed class XLGToDBAnalyzer : Analyzer
+    internal sealed class XLGToDBAnalyzerInner : Analyzer
     {
         public string OutputDirPath;
 
         /// <summary>
-        /// Whetherthe initializing the accessor succeeded or not
+        /// Whether initializing the accessor succeeded or not
         /// </summary>
         private bool m_accessorSucceeded;
         private KeyValueStoreAccessor Accessor { get; set; }
 
-        /// <summary>
-        /// Store workerID to pass into protobuf object to identify this event
-        /// </summary>
-        private uint WorkerID { get; set; }
+        private Stopwatch m_stopWatch;
 
         /// <summary>
-        /// Count thetotal number of events processed
+        /// Store WorkerID.Value to pass into protobuf object to identify this event
+        /// </summary>
+        public ThreadLocal<uint> WorkerID = new ThreadLocal<uint>();
+
+        /// <summary>
+        /// Count the total number of events processed
         /// </summary>
         private uint EventCount { get; set; }
 
 
-        public XLGToDBAnalyzer(AnalysisInput input) : base(input) { }
+        public XLGToDBAnalyzerInner(AnalysisInput input) : base(input)
+        {
+            m_stopWatch = new Stopwatch();
+            m_stopWatch.Start();
+        }
 
         /// <inheritdoc/>
         public override void Prepare()
@@ -88,9 +142,9 @@ namespace BuildXL.Execution.Analyzer
             {
                 Directory.Delete(path: OutputDirPath, recursive: true);
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                Console.WriteLine("No such dir or could not delete dir with exception {0}.\nIf dir still exists, this analyzer will append data to existing DB.", e);
+                Console.WriteLine("Directory entered does not exist, creating directory for DB.");
             }
 
             var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath);
@@ -112,20 +166,18 @@ namespace BuildXL.Execution.Analyzer
         {
             Accessor.Dispose();
             Console.WriteLine("Num events ingested = {0}", EventCount);
+            Console.WriteLine("Total time elapsed: {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
             return 0;
         }
 
         /// <inheritdoc/>
         public override void Dispose()
         {
-            Analysis.IgnoreResult(
-                Accessor.Use(database =>
-                {
-                    var ec = new EventCount_XLGpp();
-                    ec.Value = EventCount;
-                    database.Put(Encoding.ASCII.GetBytes("EventCount"), ec.ToByteArray());
-                })
-            );
+            var ec = new EventCount_XLGpp
+            {
+                Value = EventCount
+            };
+            WriteToDb(Encoding.ASCII.GetBytes("EventCount"), ec.ToByteArray());
         }
 
         /// <inheritdoc/>
@@ -134,32 +186,31 @@ namespace BuildXL.Execution.Analyzer
             if (m_accessorSucceeded && eventId != ExecutionEventId.ObservedInputs)
             {
                 EventCount++;
-                WorkerID = workerId;
+                WorkerID.Value = workerId;
+
+                if (EventCount % 10000 == 0)
+                {
+                    Console.WriteLine("Processed {0} events so far.", EventCount);
+                    Console.WriteLine("Total time elapsed: {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
+                }
                 return true;
             }
             return false;
         }
-
 
         /// <summary>
         /// Override event to capture its data and store it in the protobuf 
         /// </summary>
         public override void FileArtifactContentDecided(FileArtifactContentDecidedEventData data)
         {
-            var fileArtifactContentDecidedEvent = data.ToFileArtifactContentDecidedEvent_XLGpp(WorkerID, PathTable);
+            var fileArtifactContentDecidedEvent = data.ToFileArtifactContentDecidedEvent_XLGpp(WorkerID.Value, PathTable);
+            var eq = new EventTypeQuery_XLGpp
+            {
+                EventTypeID = ExecutionEventId_XLGpp.FileArtifactContentDecided,
+                UUID = fileArtifactContentDecidedEvent.UUID
+            };
 
-            Analysis.IgnoreResult(
-              Accessor.Use(database =>
-              {
-                  var eq = new EventTypeQuery_XLGpp
-                  {
-                      EventTypeID = ExecutionEventId_XLGpp.FileArtifactContentDecided,
-                      UUID = fileArtifactContentDecidedEvent.UUID
-                  };
-
-                  database.Put(eq.ToByteArray(), fileArtifactContentDecidedEvent.ToByteArray());
-              })
-            );
+            WriteToDb(eq.ToByteArray(), fileArtifactContentDecidedEvent.ToByteArray());
         }
 
         /// <summary>
@@ -167,19 +218,14 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void WorkerList(WorkerListEventData data)
         {
-            var workerListEvent = data.ToWorkerListEvent_XLGpp(WorkerID);
-            Analysis.IgnoreResult(
-              Accessor.Use(database =>
-              {
-                  var eq = new EventTypeQuery_XLGpp
-                  {
-                      EventTypeID = ExecutionEventId_XLGpp.WorkerList,
-                      UUID = workerListEvent.UUID
-                  };
+            var workerListEvent = data.ToWorkerListEvent_XLGpp(WorkerID.Value);
+            var eq = new EventTypeQuery_XLGpp
+            {
+                EventTypeID = ExecutionEventId_XLGpp.WorkerList,
+                UUID = workerListEvent.UUID
+            };
 
-                  database.Put(eq.ToByteArray(), workerListEvent.ToByteArray());
-              })
-            );
+            WriteToDb(eq.ToByteArray(), workerListEvent.ToByteArray());
         }
 
         /// <summary>
@@ -188,18 +234,13 @@ namespace BuildXL.Execution.Analyzer
         public override void PipExecutionPerformance(PipExecutionPerformanceEventData data)
         {
             var pipExecPerfEvent = data.ToPipExecutionPerformanceEvent_XLGpp();
-            Analysis.IgnoreResult(
-              Accessor.Use(database =>
-              {
-                  var eq = new EventTypeQuery_XLGpp
-                  {
-                      EventTypeID = ExecutionEventId_XLGpp.PipExecutionPerformance,
-                      UUID = pipExecPerfEvent.UUID
-                  };
+            var eq = new EventTypeQuery_XLGpp
+            {
+                EventTypeID = ExecutionEventId_XLGpp.PipExecutionPerformance,
+                UUID = pipExecPerfEvent.UUID
+            };
 
-                  database.Put(eq.ToByteArray(), pipExecPerfEvent.ToByteArray());
-              })
-            );
+            WriteToDb(eq.ToByteArray(), pipExecPerfEvent.ToByteArray());
         }
 
         /// <summary>
@@ -207,7 +248,14 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void DirectoryMembershipHashed(DirectoryMembershipHashedEventData data)
         {
-            base.DirectoryMembershipHashed(data);
+            var directoryMembershipEvent = data.ToDirectoryMembershipHashedEvent_XLGpp(WorkerID.Value, PathTable);
+            var eq = new EventTypeQuery_XLGpp
+            {
+                EventTypeID = ExecutionEventId_XLGpp.DirectoryMembershipHashed,
+                UUID = directoryMembershipEvent.UUID
+            };
+
+            WriteToDb(eq.ToByteArray(), directoryMembershipEvent.ToByteArray());
         }
 
         /// <summary>
@@ -215,19 +263,14 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void ProcessExecutionMonitoringReported(ProcessExecutionMonitoringReportedEventData data)
         {
-            var processExecMonitoringReportedEvent = data.ToProcessExecutionMonitoringReportedEvent_XLGpp(WorkerID, PathTable);
-            Analysis.IgnoreResult(
-              Accessor.Use(database =>
-              {
-                  var eq = new EventTypeQuery_XLGpp
-                  {
-                      EventTypeID = ExecutionEventId_XLGpp.ProcessExecutionMonitoringReported,
-                      UUID = processExecMonitoringReportedEvent.UUID
-                  };
+            var processExecMonitoringReportedEvent = data.ToProcessExecutionMonitoringReportedEvent_XLGpp(WorkerID.Value, PathTable);
+            var eq = new EventTypeQuery_XLGpp
+            {
+                EventTypeID = ExecutionEventId_XLGpp.ProcessExecutionMonitoringReported,
+                UUID = processExecMonitoringReportedEvent.UUID
+            };
 
-                  database.Put(eq.ToByteArray(), processExecMonitoringReportedEvent.ToByteArray());
-              })
-            );
+            WriteToDb(eq.ToByteArray(), processExecMonitoringReportedEvent.ToByteArray());
         }
 
         /// <summary>
@@ -235,7 +278,14 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
         {
-            base.ProcessFingerprintComputed(data);
+            var processFingerprintComputedEvent = data.ToProcessFingerprintComputationEvent_XLGpp(WorkerID.Value, PathTable);
+            var eq = new EventTypeQuery_XLGpp
+            {
+                EventTypeID = ExecutionEventId_XLGpp.ProcessFingerprintComputation,
+                UUID = processFingerprintComputedEvent.UUID
+            };
+
+            WriteToDb(eq.ToByteArray(), processFingerprintComputedEvent.ToByteArray());
         }
 
         /// <summary>
@@ -243,20 +293,14 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void ExtraEventDataReported(ExtraEventData data)
         {
-            var extraEvent = data.ToExtraEventDataReported_XLGpp(WorkerID);
+            var extraEvent = data.ToExtraEventDataReported_XLGpp(WorkerID.Value);
+            var eq = new EventTypeQuery_XLGpp
+            {
+                EventTypeID = ExecutionEventId_XLGpp.ExtraEventDataReported,
+                UUID = extraEvent.UUID
+            };
 
-            Analysis.IgnoreResult(
-              Accessor.Use(database =>
-              {
-                  var eq = new EventTypeQuery_XLGpp
-                  {
-                      EventTypeID = ExecutionEventId_XLGpp.ExtraEventDataReported,
-                      UUID = extraEvent.UUID
-                  };
-
-                  database.Put(eq.ToByteArray(), extraEvent.ToByteArray());
-              })
-            );
+            WriteToDb(eq.ToByteArray(), extraEvent.ToByteArray());
         }
 
         /// <summary>
@@ -264,20 +308,14 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void DependencyViolationReported(DependencyViolationEventData data)
         {
-            var dependencyViolationEvent = data.ToDependencyViolationReportedEvent_XLGpp(WorkerID, PathTable);
+            var dependencyViolationEvent = data.ToDependencyViolationReportedEvent_XLGpp(WorkerID.Value, PathTable);
+            var eq = new EventTypeQuery_XLGpp
+            {
+                EventTypeID = ExecutionEventId_XLGpp.DependencyViolationReported,
+                UUID = dependencyViolationEvent.UUID
+            };
 
-            Analysis.IgnoreResult(
-              Accessor.Use(database =>
-              {
-                  var eq = new EventTypeQuery_XLGpp
-                  {
-                      EventTypeID = ExecutionEventId_XLGpp.DependencyViolationReported,
-                      UUID = dependencyViolationEvent.UUID
-                  };
-
-                  database.Put(eq.ToByteArray(), dependencyViolationEvent.ToByteArray());
-              })
-            );
+            WriteToDb(eq.ToByteArray(), dependencyViolationEvent.ToByteArray());
         }
 
         /// <summary>
@@ -285,20 +323,14 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void PipExecutionStepPerformanceReported(PipExecutionStepPerformanceEventData data)
         {
-            var pipExecStepPerformanceEvent = data.ToPipExecutionStepPerformanceReportedEvent_XLGpp(WorkerID);
+            var pipExecStepPerformanceEvent = data.ToPipExecutionStepPerformanceReportedEvent_XLGpp(WorkerID.Value);
+            var eq = new EventTypeQuery_XLGpp
+            {
+                EventTypeID = ExecutionEventId_XLGpp.PipExecutionStepPerformanceReported,
+                UUID = pipExecStepPerformanceEvent.UUID
+            };
 
-            Analysis.IgnoreResult(
-              Accessor.Use(database =>
-              {
-                  var eq = new EventTypeQuery_XLGpp
-                  {
-                      EventTypeID = ExecutionEventId_XLGpp.PipExecutionStepPerformanceReported,
-                      UUID = pipExecStepPerformanceEvent.UUID
-                  };
-
-                  database.Put(eq.ToByteArray(), pipExecStepPerformanceEvent.ToByteArray());
-              })
-            );
+            WriteToDb(eq.ToByteArray(), pipExecStepPerformanceEvent.ToByteArray());
         }
 
         /// <summary>
@@ -306,20 +338,14 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void PipCacheMiss(PipCacheMissEventData data)
         {
-            var pipCacheMissEvent = data.ToPipCacheMissEvent_XLGpp(WorkerID);
+            var pipCacheMissEvent = data.ToPipCacheMissEvent_XLGpp(WorkerID.Value);
+            var eq = new EventTypeQuery_XLGpp
+            {
+                EventTypeID = ExecutionEventId_XLGpp.PipCacheMiss,
+                UUID = pipCacheMissEvent.UUID
+            };
 
-            Analysis.IgnoreResult(
-              Accessor.Use(database =>
-              {
-                  var eq = new EventTypeQuery_XLGpp
-                  {
-                      EventTypeID = ExecutionEventId_XLGpp.PipCacheMiss,
-                      UUID = pipCacheMissEvent.UUID
-                  };
-
-                  database.Put(eq.ToByteArray(), pipCacheMissEvent.ToByteArray());
-              })
-            );
+            WriteToDb(eq.ToByteArray(), pipCacheMissEvent.ToByteArray());
         }
 
         /// <summary>
@@ -327,20 +353,14 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void StatusReported(StatusEventData data)
         {
-            var statusReportedEvent = data.ToResourceUsageReportedEvent_XLGpp(WorkerID);
+            var statusReportedEvent = data.ToResourceUsageReportedEvent_XLGpp(WorkerID.Value);
+            var eq = new EventTypeQuery_XLGpp
+            {
+                EventTypeID = ExecutionEventId_XLGpp.ResourceUsageReported,
+                UUID = statusReportedEvent.UUID
+            };
 
-            Analysis.IgnoreResult(
-              Accessor.Use(database =>
-              {
-                  var eq = new EventTypeQuery_XLGpp
-                  {
-                      EventTypeID = ExecutionEventId_XLGpp.ResourceUsageReported,
-                      UUID = statusReportedEvent.UUID
-                  };
-
-                  database.Put(eq.ToByteArray(), statusReportedEvent.ToByteArray());
-              })
-            );
+            WriteToDb(eq.ToByteArray(), statusReportedEvent.ToByteArray());
         }
 
         /// <summary>
@@ -348,20 +368,14 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void DominoInvocation(DominoInvocationEventData data)
         {
-            var bxlInvEvent = data.ToBXLInvocationEvent_XLGpp(WorkerID, PathTable);
-            
-            Analysis.IgnoreResult(
-              Accessor.Use(database =>
-              {
-                  var eq = new EventTypeQuery_XLGpp
-                  {
-                      EventTypeID = ExecutionEventId_XLGpp.DominoInvocation,
-                      UUID = bxlInvEvent.UUID
-                  };
+            var bxlInvEvent = data.ToBXLInvocationEvent_XLGpp(WorkerID.Value, PathTable);
+            var eq = new EventTypeQuery_XLGpp
+            {
+                EventTypeID = ExecutionEventId_XLGpp.DominoInvocation,
+                UUID = bxlInvEvent.UUID
+            };
 
-                  database.Put(eq.ToByteArray(), bxlInvEvent.ToByteArray());
-              })
-            );
+            WriteToDb(eq.ToByteArray(), bxlInvEvent.ToByteArray());
         }
 
         /// <summary>
@@ -369,8 +383,25 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
         {
-            base.PipExecutionDirectoryOutputs(data);
+            var pipExecDirectoryOutputEvent = data.ToPipExecutionDirectoryOutputsEvent_XLGpp(WorkerID.Value, PathTable);
+            var eq = new EventTypeQuery_XLGpp
+            {
+                EventTypeID = ExecutionEventId_XLGpp.PipExecutionDirectoryOutputs,
+                UUID = pipExecDirectoryOutputEvent.UUID
+            };
+
+            WriteToDb(eq.ToByteArray(), pipExecDirectoryOutputEvent.ToByteArray());
         }
 
+        public void WriteToDb(byte[] key, byte[] value)
+        {
+            Console.WriteLine("Processing Event {0}", EventCount);
+            Analysis.IgnoreResult(
+              Accessor.Use(database =>
+              {
+                  database.Put(key, value);
+              })
+            );
+        }
     }
 }

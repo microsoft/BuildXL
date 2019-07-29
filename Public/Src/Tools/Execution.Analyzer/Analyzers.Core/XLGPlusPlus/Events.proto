@@ -51,8 +51,9 @@ message EventTypeQuery_XLGpp{
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Note that enum values use C++ scoping rules, meaning that enum values are siblings of their type, 
-// not children of it.  Therefore, Names must be unique within "BuildXL.Execution.Analyzer", not 
-// just within a particular enum.
+// not children of it. Therefore, enum values must be unique within "BuildXL.Execution.Analyzer", not 
+// just within a particular enum. If there are conflicting enum values, append the name of the enum in front.
+// ie: ChooseWorkerCpu ---> PipExecutionStep_ChooseWorkerCpu
 
 enum ExecutionEventId_XLGpp{
         FileArtifactContentDecided = 0;
@@ -347,10 +348,8 @@ message FileArtifact_XLGpp{
 
     int32 RewriteCount = 2;
 
-    // RewriteCount == 0
     bool IsSourceFile = 3; 
 
-    //RewriteCount > 0
     bool IsOutputFile = 4;
 }
 
@@ -370,7 +369,6 @@ message PipExecutionPerformance_XLGpp{
 }
 
 message ProcessPipExecutionPerformance_XLGpp{
-
     google.protobuf.Duration ProcessExecutionTime = 1;
     
     IOTypeCounters_XLGpp ReadCounters = 2;
@@ -507,7 +505,7 @@ message StrongContentFingerPrint_XLGpp{
 }
 
 message ObservedPathEntry_XLGpp{
-    string Path = 1;
+    AbsolutePath_XLGpp Path = 1;
 
     string EnumeratePatternRegex = 2;
 }
@@ -565,7 +563,7 @@ message ObservedInput_XLGpp{
 
     ObservedPathEntry_XLGpp PathEntry = 3;
 
-    string Path = 4;
+    AbsolutePath_XLGpp Path = 4;
 
     bool IsSearchPath = 5;
 
@@ -579,7 +577,7 @@ message ObservedPathSet_XLGpp{
 
     repeated StringId_XLGpp ObservedAccessedFileNames = 2;
 
-    repeated UnsafeOptions_XLGpp UnsafeOptions = 3;
+    UnsafeOptions_XLGpp UnsafeOptions = 3;
 }
 
 message ProcessStrongFingerprintComputationData_XLGpp{
@@ -603,6 +601,26 @@ message ProcessStrongFingerprintComputationData_XLGpp{
 
     repeated ObservedInput_XLGpp ObservedInputs = 10;
 }
+
+message DirectoryFingerprint_XLGpp{
+    ContentHash_XLGpp Hash = 1;
+}
+
+message DirectoryOutput_XLGpp{
+    DirectoryArtifact_XLGpp DirectoryArtifact = 1;
+    
+    repeated FileArtifact_XLGpp fileArtifactArray = 2;
+}
+
+message DirectoryArtifact_XLGpp{
+    bool IsValid = 1;
+
+    AbsolutePath_XLGpp Path = 2;
+
+    uint32 PartialSealID = 3;
+
+    bool IsSharedOpaque = 4;
+}
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -613,10 +631,10 @@ message ProcessStrongFingerprintComputationData_XLGpp{
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// The FileArtifactContentDecided Event message
 message FileArtifactContentDecidedEvent_XLGpp{
     string UUID = 99;
 
-    // Identifies the worker which invoked this event
     uint32 WorkerID = 1;
 
     FileArtifact_XLGpp FileArtifact = 2;
@@ -626,20 +644,20 @@ message FileArtifactContentDecidedEvent_XLGpp{
     PipOutputOrigin_XLGpp OutputOrigin = 4;
 }
 
+// The WorkerList Event message
 message WorkerListEvent_XLGpp{
     string UUID = 99;
 
-    // Identifies the worker which invoked this event
     uint32 WorkerID = 1;
 
     repeated string Workers = 2;
 }
 
+// The PipExecutionPerformance Event message
 message PipExecutionPerformanceEvent_XLGpp{
 
     string UUID = 99;
 
-    // Identifies the worker which invoked this event
     uint32 WorkerID = 1;
 
     uint32 PipID = 2;
@@ -649,17 +667,32 @@ message PipExecutionPerformanceEvent_XLGpp{
     ProcessPipExecutionPerformance_XLGpp ProcessPipExecutionPerformance = 4;
 }
 
+// The DirectoryMembershipHashed Event message
 message DirectoryMembershipHashedEvent_XLGpp{
     string UUID = 99;
 
-    // Identifies the worker which invoked this event
     uint32 WorkerID = 1;
+
+    DirectoryFingerprint_XLGpp DirectoryFingerprint = 3;
+
+    AbsolutePath_XLGpp Directory = 4;
+
+    bool IsStatic = 5;
+
+    bool IsSearchPath = 6;
+
+    uint32 PipID = 7;
+
+    repeated AbsolutePath_XLGpp Members = 8;
+
+    string EnumeratePatternRegex = 9;
+
 }
 
+// The ProcessExecutionMonitoringReported Event message
 message ProcessExecutionMonitoringReportedEvent_XLGpp{
     string UUID = 99;
 
-    // Identifies the worker which invoked this event
     uint32 WorkerID = 1;
 
     uint32 PipID = 2;
@@ -673,10 +706,10 @@ message ProcessExecutionMonitoringReportedEvent_XLGpp{
     repeated ProcessDetouringStatusData_XLGpp ProcessDetouringStatuses = 6;
 }
 
+// The ExtraEventDataReported Event message
 message ExtraEventDataReported_XLGpp{
     string UUID = 99;
 
-    // Identifies the worker which invoked this event
     uint32 WorkerID = 1;
 
     bool DisableDetours = 2;
@@ -722,10 +755,10 @@ message ExtraEventDataReported_XLGpp{
     string RequiredKextVersionNumber = 22;
 }
 
+// The DependencyViolationReported Event message
 message DependencyViolationReportedEvent_XLGpp{
     string UUID = 99;
 
-    // Identifies the worker which invoked this event
     uint32 WorkerID = 1;
 
     uint32 ViolatorPipID = 2;
@@ -736,13 +769,13 @@ message DependencyViolationReportedEvent_XLGpp{
 
     FileMonitoringViolationAnalyzer_AccessLevel_XLGpp AccessLevel = 5;
 
-    string Path = 6;
+    AbsolutePath_XLGpp Path = 6;
 }
 
+// The PipExecutionStepPerformanceReported Event message
 message PipExecutionStepPerformanceReportedEvent_XLGpp{
     string UUID = 99;
 
-    // Identifies the worker which invoked this event
     uint32 WorkerID = 1;
 
     uint32 PipID = 2;
@@ -756,10 +789,10 @@ message PipExecutionStepPerformanceReportedEvent_XLGpp{
     WorkDispatcher_DispatcherKind_XLGpp Dispatcher = 6;
 }
 
+// The StatusReported Event message
 message StatusReportedEvent_XLGpp{
     string UUID = 99;
 
-    // Identifies the worker which invoked this event
     uint32 WorkerID = 1;
 
     google.protobuf.Timestamp Time = 2;
@@ -810,11 +843,10 @@ message StatusReportedEvent_XLGpp{
     int64 ProcessPipsAllocatedSlots = 24;
 }
 
-// TODO: important one first
+// The ProcessFingerprintComputation Event message
 message ProcessFingerprintComputationEvent_XLGpp{
     string UUID = 99;
 
-    // Identifies the worker which invoked this event
     uint32 WorkerID = 1;
     
     FingerprintComputationKind_XLGpp Kind = 2;
@@ -824,14 +856,12 @@ message ProcessFingerprintComputationEvent_XLGpp{
     WeakContentFingerPrint_XLGpp WeakFingerprint = 4;
 
     repeated ProcessStrongFingerprintComputationData_XLGpp StrongFingerprintComputations = 5;
-
-
 }
 
+// The PipCacheMiss Event message
 message PipCacheMissEvent_XLGpp{
     string UUID = 99;
 
-    // Identifies the worker which invoked this event
     uint32 WorkerID = 1;
 
     uint32 PipID = 2;
@@ -839,31 +869,27 @@ message PipCacheMissEvent_XLGpp{
     PipCacheMissType_XLGpp CacheMissType = 3;
 }
 
+// The PipExecutionDirectoryOutputs Event message
 message PipExecutionDirectoryOutputsEvent_XLGpp{
     string UUID = 99;
 
-    // Identifies the worker which invoked this event
     uint32 WorkerID = 1;
+
+    repeated DirectoryOutput_XLGpp DirectoryOutput = 2;
 }
 
-// The BXL Invocation Event message
+// The BXLInvocation Event message
 message BXLInvocationEvent_XLGpp{
-
     // Unique identifier for the event - required, TODO: Remove as it may not be needed.
     string UUID = 99;
 
-    // Identifies the worker which invoked this event
     uint32 WorkerID = 1;
 
-    // Identifies the source that called this event
-    string SubstSource = 2;
+    AbsolutePath_XLGpp SubstSource = 2;
     
-    // Identifies the target of this event
-    string SubstTarget = 3;
+    AbsolutePath_XLGpp SubstTarget = 3;
 
-    // Whether the source is valid
     bool IsSubstSourceValid = 4;
     
-    // Whether the target is valid
     bool IsSubstTargetValid = 5; 
 }

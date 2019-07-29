@@ -9,6 +9,7 @@ namespace Test {
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         references: [
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
+                NetFx.System.Runtime.Serialization.dll,
                 NetFx.System.Xml.dll
             ]),
             Configuration.dll,

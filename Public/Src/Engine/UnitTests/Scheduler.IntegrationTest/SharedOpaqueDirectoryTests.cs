@@ -1194,8 +1194,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
         }
 
-        //[Fact]
-        public void AbsentPathProbeInUndeclaredOpaquesUnsafeModeCachedPip()
+        [Theory]
+        [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
+        [InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+        public void AbsentPathProbeInUndeclaredOpaquesUnsafeModeCachedPip(bool forceDependency)
         {
             var opaqueDir = Path.Combine(ObjectRoot, "opaquedir");
             AbsolutePath opaqueDirPath = AbsolutePath.Create(Context.PathTable, opaqueDir);
@@ -1207,38 +1209,47 @@ namespace IntegrationTest.BuildXL.Scheduler
                                                 Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
                                             });
             builderA.AbsentPathProbeUnderOpaquesMode = Process.AbsentPathProbeInUndeclaredOpaquesMode.Unsafe;
-            var resA = SchedulePipBuilder(builderA);
-
+            var pipA = SchedulePipBuilder(builderA);
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFiles().First();
             var builderB = CreatePipBuilder(new Operation[]
                                             {
-                                                Operation.ReadFile(resA.ProcessOutputs.GetOutputFiles().First()), // force a dependency
+                                                forceDependency
+                                                    ? Operation.ReadFile(pipAoutput)                                // force a BuildXL dependency
+                                                    : Operation.WaitUntilFileExists(pipAoutput, doNotInfer: true),  // force that writing to 'absentFile' happens after pipA
                                                 Operation.WriteFile(absentFile, doNotInfer: true),
                                                 Operation.DeleteFile(absentFile, doNotInfer: true),
                                                 Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
                                             });
             builderB.AddOutputDirectory(opaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderB.AddUntrackedFile(pipAoutput);
             SchedulePipBuilder(builderB);
 
-            // first run -- cache pipA, pipB should fail
-            RunScheduler().AssertFailure();
-            AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
-            AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
-
-            // second run -- in Unsafe mode, the outcome of the build (pass/fail) currently depends on
-            // the fact whether a pip was incrementally skipped or not: 
-            var result = RunScheduler();
-            if (Configuration.Schedule.IncrementalScheduling)
+            if (forceDependency)
             {
-                result.AssertSuccess();
-                result.AssertCacheHit(resA.Process.PipId);
+                RunScheduler().AssertSuccess();
             }
             else
             {
-                result.AssertFailure();
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                // first run -- cache pipA, pipB should fail
+                RunScheduler().AssertFailure();
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
                 AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory);
+                AssertErrorEventLogged(EventId.FileMonitoringError);
+
+                // second run -- in Unsafe mode, the outcome of the build (pass/fail) currently depends on
+                // the fact whether a pip was incrementally skipped or not: 
+                var result = RunScheduler();
+                if (Configuration.Schedule.IncrementalScheduling)
+                {
+                    result.AssertSuccess();
+                    result.AssertCacheHit(pipA.Process.PipId);
+                }
+                else
+                {
+                    result.AssertFailure();
+                    AssertErrorEventLogged(EventId.FileMonitoringError);
+                    AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
+                }
             }
         }
 

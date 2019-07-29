@@ -20,7 +20,8 @@
   "main": "./out/src/extension",
   "activationEvents": [
     "onLanguage:DScript",
-    "onCommand:DScript.reloadWorkspace"
+    "onCommand:DScript.reloadWorkspace",
+    "workspaceContains:config.dsc"
   ],
   "contributes": {
     "commands": [

@@ -6,7 +6,7 @@ import * as Shared from "Sdk.Managed.Shared";
 import * as SysMng from "System.Management";
 
 namespace Processes {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet461;
+    export declare const qualifier : BuildXLSdk.DefaultQualifier;
 
     @@public
     export const dll = BuildXLSdk.library({

@@ -1009,10 +1009,8 @@ namespace BuildXL.Engine.Cache.Artifacts
                             return new Possible<TrackedFileContentInfo, Failure>(attempt.Result);
                         }
 
-                        return new Failure<string>($"TryOpenAndTrackPathAsync() failed to establish identity and track file: {path.ExpandedPath}");
-                    },
-                    logExceptions: true
-                );
+                        return new Failure<string>($"{nameof(TrackChangesToFile)} failed to establish identity and track file: {path.ExpandedPath}");
+                    });
         }
 
         private Possible<TrackedFileContentInfo> TrackChangesToFile(

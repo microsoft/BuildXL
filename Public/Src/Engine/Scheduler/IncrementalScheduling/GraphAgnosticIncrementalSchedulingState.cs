@@ -213,7 +213,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         /// <summary>
         /// Cleaner that can register directories or files to be cleaned in the background
         /// </summary>
-        private readonly ITempDirectoryCleaner m_tempDirectoryCleaner;
+        private readonly ITempCleaner m_tempDirectoryCleaner;
 
         /// <summary>
         /// Envelope for serialization
@@ -268,7 +268,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             bool pipGraphChanged,
             PipGraphSequenceNumber pipGraphSequenceNumber,
             int indexToGraphLogs,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(atomicSaveToken.IsValid);
@@ -316,7 +316,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             PipGraph pipGraph,
             IConfiguration configuration,
             ContentHash preserveOutputSalt,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(atomicSaveToken.IsValid);
@@ -1275,7 +1275,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         }
 
         /// <inheritdoc />
-        public IIncrementalSchedulingState Reuse(LoggingContext loggingContext, PipGraph pipGraph, IConfiguration configuration, ContentHash preserveOutputSalt, ITempDirectoryCleaner tempDirectoryCleaner = null)
+        public IIncrementalSchedulingState Reuse(LoggingContext loggingContext, PipGraph pipGraph, IConfiguration configuration, ContentHash preserveOutputSalt, ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(loggingContext != null);
 
@@ -1326,7 +1326,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             ContentHash preserveOutputSalt,
             string incrementalSchedulingStatePath,
             bool analysisModeOnly = false,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(analysisModeOnly || atomicSaveToken.IsValid);

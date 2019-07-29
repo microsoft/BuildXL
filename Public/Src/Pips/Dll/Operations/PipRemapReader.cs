@@ -32,7 +32,7 @@ namespace BuildXL.Pips.Operations
             Context = fragmentContext;
             m_executionContext = context;
             m_inliningReader = new InliningReader(stream, context.PathTable, debug, leaveOpen);
-            m_pipDataEntriesPointerInlineReader = new PipDataEntriesPointerInlineReader(stream, context.PathTable, debug, leaveOpen);
+            m_pipDataEntriesPointerInlineReader = new PipDataEntriesPointerInlineReader(m_inliningReader, stream, context.PathTable, debug, leaveOpen);
             m_symbolTable = context.SymbolTable;
         }
 
@@ -129,10 +129,12 @@ namespace BuildXL.Pips.Operations
         private class PipDataEntriesPointerInlineReader : InliningReader
         {
             private byte[] m_pipDatabuffer = new byte[1024];
+            private readonly InliningReader m_baseInliningReader;
 
-            public PipDataEntriesPointerInlineReader(Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true)
+            public PipDataEntriesPointerInlineReader(InliningReader baseInliningReader, Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true)
                 : base(stream, pathTable, debug, leaveOpen)
             {
+                m_baseInliningReader = baseInliningReader;
             }
 
             protected override BinaryStringSegment ReadBinaryStringSegment(ref byte[] buffer)
@@ -145,7 +147,7 @@ namespace BuildXL.Pips.Operations
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        yield return PipDataEntry.Deserialize(this);
+                        yield return PipDataEntry.Deserialize(m_baseInliningReader);
                     }
                 }
             }

@@ -25,7 +25,7 @@ namespace BuildXL.Pips.Operations
             : base(debug, stream, leaveOpen, logStats)
         {
             m_inliningWriter = new InliningWriter(stream, context.PathTable, debug, leaveOpen, logStats);
-            m_pipDataEntriesPointerInlineWriter = new PipDataEntriesPointerInlineWriter(stream, context.PathTable, debug, leaveOpen, logStats);
+            m_pipDataEntriesPointerInlineWriter = new PipDataEntriesPointerInlineWriter(m_inliningWriter, stream, context.PathTable, debug, leaveOpen, logStats);
             m_symbolTable = context.SymbolTable;
             m_context = pipGraphFragmentContext;
         }
@@ -110,9 +110,12 @@ namespace BuildXL.Pips.Operations
 
         private class PipDataEntriesPointerInlineWriter : InliningWriter
         {
-            public PipDataEntriesPointerInlineWriter(Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true, bool logStats = false)
+            private readonly InliningWriter m_baseInliningWriter;
+
+            public PipDataEntriesPointerInlineWriter(InliningWriter baseInliningWriter, Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true, bool logStats = false)
                 : base(stream, pathTable, debug, leaveOpen, logStats)
             {
+                m_baseInliningWriter = baseInliningWriter;
             }
 
             protected override void WriteBinaryStringSegment(in StringId stringId)
@@ -122,7 +125,9 @@ namespace BuildXL.Pips.Operations
                 WriteCompact(entries.Count);
                 foreach (var e in entries)
                 {
-                    e.Serialize(this);
+                    // Use base inlining writer for serializing the entries because
+                    // this writer is only for serializing pip data entries pointer.
+                    e.Serialize(m_baseInliningWriter);
                 }
             }
         }

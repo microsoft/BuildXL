@@ -197,6 +197,15 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     .SetBlockBasedTableFactory(blockBasedTableOptions)
                     .SetPrefixExtractor(SliceTransform.CreateNoOp());
 
+                // Maximum number of information log files
+                m_defaults.DbOptions.SetKeepLogFileNum(1000);
+
+                // Do not rotate information logs based on file size
+                m_defaults.DbOptions.SetMaxLogFileSize(0);
+
+                // How long before we rotate the current information log file
+                m_defaults.DbOptions.SetLogFileTimeToRoll((ulong)TimeSpan.FromHours(1).Seconds);
+
                 m_columns = new Dictionary<string, ColumnFamilyInfo>();
 
                 additionalColumns = additionalColumns ?? CollectionUtilities.EmptyArray<string>();

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using Microsoft.Build.Framework;
 
@@ -15,7 +16,7 @@ namespace ProjectGraphBuilder
     internal sealed class PropertyTrackingLogger : ILogger
     {
         private readonly HashSet<string> m_variablesRead = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private bool m_nonTrackingSdkResolversExist = false;
+        private readonly HashSet<string> m_sdkResolversNotTrackingEnvVars = new HashSet<string>();
 
         public IEnumerable<string> PotentialEnvironmentVariablesReads
         {
@@ -47,10 +48,12 @@ namespace ProjectGraphBuilder
                                                       m_variablesRead.Add(upArgs.PropertyName);
                                                   }
                                               }
-                                              else if (args is BuildWarningEventArgs warnArgs && warnArgs.Code == "MSB4263")
+                                              else if (args is SdkResolverDoesNotTrackEnvironmentVariablesEventArgs trackArgs)
                                               {
-                                                  // We just want to know whether or not we can trust the above tracking data.
-                                                  m_nonTrackingSdkResolversExist = true;
+                                                  lock (m_sdkResolversNotTrackingEnvVars)
+                                                  {
+                                                      m_sdkResolversNotTrackingEnvVars.Add(trackArgs.SdkResolverName);
+                                                  }
                                               }
                                           };
         }
@@ -63,21 +66,31 @@ namespace ProjectGraphBuilder
 
         public string Parameters { get; set; }
 
-        public IReadOnlyCollection<string> BuildAffectingEnvironmentVariables
+        public Possible<IReadOnlyCollection<string>> PotentialEnvironmentVariableReads
         {
             get
             {
-                string[] copy;
-
-                lock(m_variablesRead)
+                if (m_sdkResolversNotTrackingEnvVars.Count == 0)
                 {
-                    copy = m_variablesRead.ToArray();
+                    string[] copy;
+
+                    lock (m_variablesRead)
+                    {
+                        copy = m_variablesRead.ToArray();
+                    }
+
+                    return new Possible<IReadOnlyCollection<string>>(copy);
                 }
 
-                return copy;
+                string errorMessage = null;
+
+                lock (m_sdkResolversNotTrackingEnvVars)
+                {
+                    errorMessage = $"Unreliable environment variable tracking due to SdkResolvers not participating in tracking. Offenders: {string.Join(",", m_sdkResolversNotTrackingEnvVars)}";
+                }
+
+                return new Failure<string>(errorMessage);
             }
         }
-
-        public bool NonTrackingSdkResolversExist => m_nonTrackingSdkResolversExist;
     }
 }

@@ -12,6 +12,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.MsBuild.Serialization;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Build.Definition;
 using Microsoft.Build.Evaluation;
@@ -186,11 +187,17 @@ namespace MsBuildGraphBuilderTool
                         locatedMsBuildPath);
                 }
 
+                var envVarResult = environmentVariablesLogger.PotentialEnvironmentVariableReads;
+                if (!envVarResult.Succeeded)
+                {
+                    reporter.ReportMessage(envVarResult.Failure.Describe());
+                }
+
                 return ProjectGraphWithPredictionsResult.CreateSuccessfulGraph(
                     projectGraphWithPredictions, 
                     assemblyPathsToLoad, 
-                    locatedMsBuildPath, 
-                    environmentVariablesLogger.PotentialEnvironmentVariablesReads);
+                    locatedMsBuildPath,
+                    envVarResult.Result);
             }
             catch (InvalidProjectFileException e)
             {

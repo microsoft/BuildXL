@@ -8,6 +8,9 @@ namespace Test {
         sources: globR(d`.`,"*.cs"),
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         references: [
+            ...addIfLazy(BuildXLSdk.isFullFramework, () => [
+                NetFx.System.Xml.dll
+            ]),
             Configuration.dll,
             Service.dll,
         ]

@@ -166,7 +166,7 @@ namespace Test.BuildXL.Scheduler
         #region IQueryablePipDependencyGraph Members
 
         /// <inheritdoc />
-        public bool IsReachableFrom(Pip from, Pip to)
+        public bool IsReachableFrom(PipId from, PipId to)
         {
             throw new NotImplementedException();
         }

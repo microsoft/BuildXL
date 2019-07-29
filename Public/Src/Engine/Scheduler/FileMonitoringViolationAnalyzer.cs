@@ -875,7 +875,7 @@ namespace BuildXL.Scheduler
 
                         // WriteOnAbsentPathProbe message literaly says "declare an explicit dependency between these pips",
                         // so don't complain if a dependency already exists (i.e., 'pip' must run after 'related').
-                        if (m_graph.IsReachableFrom(from: related, to: pip))
+                        if (m_graph.IsReachableFrom(from: related.PipId, to: pip.PipId))
                         {
                             return;
                         }
@@ -977,8 +977,11 @@ namespace BuildXL.Scheduler
                     pip,
                     (accessKey, producer) => (DynamicFileAccessType.AbsentPathProbe, producer.PipId, s_absentFileInfo));
 
+
                 // Equivalent logic than the one used on ReportAllowedUndeclaredReadViolations, see details there.
-                if (result.IsFound && result.Item.Value.accessType == DynamicFileAccessType.Write)
+                if (result.IsFound &&
+                    result.Item.Value.accessType == DynamicFileAccessType.Write &&
+                    !m_graph.IsReachableFrom(from: result.Item.Value.processPip, to: pip.PipId))
                 {
                     // The writer is always reported as the violator
                     var writer = (Process) m_graph.HydratePip(result.Item.Value.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);

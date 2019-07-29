@@ -24,6 +24,7 @@ namespace Test.BuildXL.Executables.TestProcess
     {
         private const int NumArgsExpected = 6;
         private const int ERROR_ALREADY_EXISTS = 183;
+        private const int ERROR_ACCESS_DENIED = 5;
         private const string StdErrMoniker = "stderr";
         private const string WaitToFinishMoniker = "wait";
         private const string AllUppercasePath = "allUpper";
@@ -185,6 +186,11 @@ namespace Test.BuildXL.Executables.TestProcess
             /// Process that fails on first invocation and then succeeds on the second invocation
             /// </summary>
             SucceedOnRetry,
+
+            /// <summary>
+            /// Waits until a given file is found on disk
+            /// </summary>
+            WaitUntilFileExists
         }
 
         /// <summary>
@@ -429,6 +435,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.SucceedOnRetry:
                         DoSucceedOnRetry();
+                        return;
+                    case Type.WaitUntilFileExists:
+                        DoWaitUntilFileExists();
                         return;
                 }
             }
@@ -698,6 +707,14 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation LaunchDebugger()
         {
             return new Operation(Type.LaunchDebugger);
+        }
+
+        /// <summary>
+        /// Waits until <paramref name="path"/> exists on disk.
+        /// </summary>
+        public static Operation WaitUntilFileExists(FileArtifact path, bool doNotInfer = false)
+        {
+            return new Operation(Type.WaitUntilFileExists, path, doNotInfer: doNotInfer);
         }
 
         /*** FILESYSTEM OPERATION FUNCTIONS ***/
@@ -1058,6 +1075,21 @@ namespace Test.BuildXL.Executables.TestProcess
             {
                 File.WriteAllText(PathAsString, "0");
                 Environment.Exit(int.Parse(Content));
+            }
+        }
+
+        private void DoWaitUntilFileExists()
+        {
+            while (true)
+            {
+                var maybeExistence = FileUtilities.TryProbePathExistence(PathAsString, followSymlink: false);
+                if ((maybeExistence.Succeeded && maybeExistence.Result == PathExistence.ExistsAsFile) ||
+                    (!maybeExistence.Succeeded && maybeExistence.Failure.NativeErrorCode == ERROR_ACCESS_DENIED))
+                {
+                    return;
+                }
+
+                Thread.Sleep(TimeSpan.FromMilliseconds(500));
             }
         }
 

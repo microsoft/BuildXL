@@ -396,9 +396,9 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        bool IQueryablePipDependencyGraph.IsReachableFrom(Pip from, Pip to)
+        bool IQueryablePipDependencyGraph.IsReachableFrom(PipId from, PipId to)
         {
-            return IsReachableFrom(from.PipId.ToNodeId(), to.PipId.ToNodeId());
+            return IsReachableFrom(from.ToNodeId(), to.ToNodeId());
         }
 
         /// <inheritdoc />

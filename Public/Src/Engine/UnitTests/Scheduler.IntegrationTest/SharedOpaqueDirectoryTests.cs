@@ -765,16 +765,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             FileArtifact absentFile = CreateOutputFileArtifact(sharedOpaqueDir);
-
+            var dummyOut = CreateOutputFileArtifact(prefix: "dummyOut");
             var builderA = CreatePipBuilder(new Operation[]
                                                    {
                                                        Operation.Probe(absentFile, doNotInfer: true),
-                                                       Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+                                                       Operation.WriteFile(dummyOut) // dummy output
                                                    });
             var pipA = SchedulePipBuilder(builderA);
 
             // PipB writes absentFile into a shared opaque directory sharedopaquedir.
-            var pipAoutput = pipA.ProcessOutputs.GetOutputFiles().First();
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
             var builderB = CreatePipBuilder(new Operation[]
                                                    {
                                                        forceDependency
@@ -809,20 +809,21 @@ namespace IntegrationTest.BuildXL.Scheduler
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             FileArtifact absentFile = CreateOutputFileArtifact(sharedOpaqueDir);
+            var dummyOut = CreateOutputFileArtifact(prefix: "dummyOut");
 
             // Write and delete 'absentFile' under a shared opaque.
             var builderA = CreatePipBuilder(new Operation[]
                                             {
                                                 Operation.WriteFile(absentFile, doNotInfer: true),
                                                 Operation.DeleteFile(absentFile, doNotInfer: true),
-                                                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+                                                Operation.WriteFile(dummyOut) // dummy output
                                             },
                                             description: "PipA");
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             var pipA = SchedulePipBuilder(builderA);
 
             // Probe the absent file. Even though it was deleted by the previous pip, we should get a absent file probe violation
-            var pipAoutput = pipA.ProcessOutputs.GetOutputFiles().First();
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
             var builderB = CreatePipBuilder(new Operation[]
                                             {
                                                 forceDependency
@@ -889,18 +890,18 @@ namespace IntegrationTest.BuildXL.Scheduler
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             FileArtifact absentFileUnderSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
-            var filePipA = CreateOutputFileArtifact();
+            var dummyOut = CreateOutputFileArtifact(prefix: "dummyOut");
 
             // PipA probes absentFileUnderSharedOpaque under an opaque directory.
             var builderA = CreatePipBuilder(new Operation[]
                 {
                     Operation.Probe(absentFileUnderSharedOpaque, doNotInfer: true),
-                    Operation.WriteFile(filePipA) // dummy output
+                    Operation.WriteFile(dummyOut) // dummy output
                 });
             var pipA = SchedulePipBuilder(builderA);
 
             // PipB writes absentFileUnderSharedOpaque into a shared opaque directory sharedopaquedir.
-            var pipAoutput = pipA.ProcessOutputs.GetOutputFiles().First();
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
             var builderB = CreatePipBuilder(new Operation[] 
                 {
                     forceDependency
@@ -948,17 +949,17 @@ namespace IntegrationTest.BuildXL.Scheduler
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             FileArtifact absentFileUnderSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
-            
+            var dummyOut = CreateOutputFileArtifact(prefix: "dummy-out");
             var builderA = CreatePipBuilder(new Operation[]
                                             {
                                                 Operation.WriteFile(absentFileUnderSharedOpaque, doNotInfer: true),
                                                 Operation.DeleteFile(absentFileUnderSharedOpaque, doNotInfer: true),
-                                                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+                                                Operation.WriteFile(dummyOut) // dummy output
                                             },
                                             description: "PipA");
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             var pipA = SchedulePipBuilder(builderA);
-            var pipAoutput = pipA.ProcessOutputs.GetOutputFiles().First();
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
 
             // Probe the absent file. Even though it was deleted by the previous pip, we should get a absent file probe violation
             var builderB = CreatePipBuilder(new Operation[]
@@ -1202,15 +1203,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             var opaqueDir = Path.Combine(ObjectRoot, "opaquedir");
             AbsolutePath opaqueDirPath = AbsolutePath.Create(Context.PathTable, opaqueDir);
             FileArtifact absentFile = CreateOutputFileArtifact(opaqueDir);
+            var dummyOut = CreateOutputFileArtifact(prefix: "dummyOut");
 
             var builderA = CreatePipBuilder(new Operation[]
                                             {
                                                 Operation.Probe(absentFile, doNotInfer: true),
-                                                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+                                                Operation.WriteFile(dummyOut)
                                             });
             builderA.AbsentPathProbeUnderOpaquesMode = Process.AbsentPathProbeInUndeclaredOpaquesMode.Unsafe;
             var pipA = SchedulePipBuilder(builderA);
-            var pipAoutput = pipA.ProcessOutputs.GetOutputFiles().First();
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
             var builderB = CreatePipBuilder(new Operation[]
                                             {
                                                 forceDependency

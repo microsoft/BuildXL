@@ -198,17 +198,18 @@ namespace IntegrationTest.BuildXL.Scheduler
             var opaqueDir = Path.Combine(ObjectRoot, "opaquedir");
             AbsolutePath opaqueDirPath = AbsolutePath.Create(Context.PathTable, opaqueDir);
             FileArtifact absentFile = CreateOutputFileArtifact(opaqueDir);
+            var dummyOut = CreateOutputFileArtifact(prefix: "dummyOut");
 
             // PipA probes absentFile (which is absent at the time0
             var builderA = CreatePipBuilder(new Operation[]
                                             {
                                                 Operation.Probe(absentFile, doNotInfer: true),
-                                                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+                                                Operation.WriteFile(dummyOut) // dummy output
                                             });
             var pipA = SchedulePipBuilder(builderA);
 
             // PipB writes to absentFile into an exclusive opaque directory
-            var pipAoutput = pipA.ProcessOutputs.GetOutputFiles().First();
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
             var builderB = CreatePipBuilder(new Operation[]
                                             {
                                                 forceDependency
@@ -242,17 +243,18 @@ namespace IntegrationTest.BuildXL.Scheduler
             AbsolutePath opaqueDirPath = AbsolutePath.Create(Context.PathTable, opaqueDir);
             FileArtifact absentFile = CreateOutputFileArtifact(opaqueDir);
             FileArtifact outputFilePipA = CreateOutputFileArtifact();
+            var dummyOut = CreateOutputFileArtifact(prefix: "dummyOut");
 
             // Probe the absent file, run and cache the pip.
             var builderA = CreatePipBuilder(new Operation[]
                                             {
                                                 Operation.Probe(absentFile, doNotInfer: true),
-                                                Operation.WriteFile(outputFilePipA) // dummy output
+                                                Operation.WriteFile(dummyOut) // dummy output
                                             });
             var pipA = SchedulePipBuilder(builderA);
 
             // PipB writes absentFile into an exclusive opaque directory opaqueDir.
-            var pipAoutput = pipA.ProcessOutputs.GetOutputFiles().First();
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
             var builderB = CreatePipBuilder(new Operation[]
                                             {
                                                 forceDependency

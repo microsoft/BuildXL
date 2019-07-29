@@ -222,7 +222,7 @@ IOReturn BuildXLSandboxClient::sDebugCheck(BuildXLSandboxClient *target, void *r
 
 IOReturn BuildXLSandboxClient::sConfigure(BuildXLSandboxClient *target, void *reference, IOExternalMethodArguments *arguments)
 {
-    KextConfig *config = (KextConfig*)arguments->structureInput;
+    KextConfig *config = (KextConfig *) arguments->structureInput;
     target->sandbox_->Configure(config);
     return kIOReturnSuccess;
 }

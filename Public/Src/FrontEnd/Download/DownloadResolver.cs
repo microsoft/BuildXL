@@ -80,9 +80,11 @@ namespace BuildXL.FrontEnd.Download
         public Task<bool> InitResolverAsync([NotNull] IResolverSettings resolverSettings, object workspaceResolver)
         {
             m_workspaceResolver = workspaceResolver as DownloadWorkspaceResolver;
-            Contract.Assert(
-                m_workspaceResolver != null,
-                I($"Wrong type for resolver, expected {nameof(DownloadWorkspaceResolver)} but got {nameof(workspaceResolver.GetType)}"));
+
+            if (m_workspaceResolver == null)
+            {
+                Contract.Assert(false, I($"Wrong type for resolver, expected {nameof(DownloadWorkspaceResolver)} but got {nameof(workspaceResolver.GetType)}"));
+            }
 
             Name = resolverSettings.Name;
 

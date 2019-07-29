@@ -21,7 +21,6 @@ namespace BuildXL.Execution.Analyzer
         public Analyzer InitializeFingerprintStoreAnalyzer(AnalysisInput oldAnalysisInput, AnalysisInput newAnalysisInput)
         {
             string outputDirectory = null;
-            string sshString = null;
             bool allPips = false;
             bool noBanner = false;
             long sshValue = -1;
@@ -35,7 +34,7 @@ namespace BuildXL.Execution.Analyzer
                 else if(opt.Name.Equals("pip", StringComparison.OrdinalIgnoreCase) ||
                     opt.Name.Equals("p", StringComparison.OrdinalIgnoreCase))
                 {
-                    sshString = ParseStringOption(opt);
+                    sshValue = ParseSemistableHash(opt);
                 }
                 else if (opt.Name.StartsWith("allPips", StringComparison.OrdinalIgnoreCase))
                 {
@@ -56,19 +55,9 @@ namespace BuildXL.Execution.Analyzer
                 throw new Exception("'outputDirectory' is required.");
             }
 
-            if (allPips && sshString != null)
+            if (allPips && sshValue != -1)
             {
                 throw new Exception("'allPips' can't be true if pipId is set.");
-            }
-
-            if (sshString != null)
-            {
-                if (!sshString.StartsWith(Pip.SemiStableHashPrefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new Exception(string.Format("Invalid pip: '{0}'. Id must be a semistable hash that starts with Pip i.e.: PipC623BCE303738C69", sshString));
-                }
-
-                sshValue = Convert.ToInt64(sshString.Substring(3), 16);
             }
 
             return new FingerprintStoreAnalyzer(oldAnalysisInput, newAnalysisInput)

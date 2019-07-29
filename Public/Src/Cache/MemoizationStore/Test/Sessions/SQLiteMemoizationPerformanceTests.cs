@@ -34,14 +34,19 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
                 testDirectory => new SQLiteMemoizationStore(
                     logger,
                     SystemClock.Instance,
-                    new SQLiteMemoizationStoreConfiguration(testDirectory.Path)
-                    {
-                        MaxRowCount = maxRowCount,
-                        SyncMode = syncMode,
-                        // Having the journal disabled won't be indicative of real world performance. It is disabled so the tests run faster
-                        JournalMode = JournalMode.OFF
-                    }))
+                    GenerateMemoizationConfiguration(maxRowCount, syncMode, testDirectory)))
         {
+        }
+
+        private static SQLiteMemoizationStoreConfiguration GenerateMemoizationConfiguration(long maxRowCount, SynchronizationMode syncMode, DisposableDirectory testDirectory)
+        {
+            var memoConfig = new SQLiteMemoizationStoreConfiguration(testDirectory.Path) { MaxRowCount = maxRowCount };
+
+            memoConfig.Database.SyncMode = syncMode;
+            // Having the journal disabled won't be indicative of real world performance. It is disabled so the tests run faster
+            memoConfig.Database.JournalMode = JournalMode.OFF;
+
+            return memoConfig;
         }
     }
 

@@ -32,7 +32,9 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         protected override IMemoizationStore CreateStore(DisposableDirectory testDirectory)
         {
-            return new SQLiteMemoizationStore(Logger, _clock, new SQLiteMemoizationStoreConfiguration(testDirectory.Path) { MaxRowCount = MaxRowCount, JournalMode = ContentStore.SQLite.JournalMode.OFF });
+            var memoConfig = new SQLiteMemoizationStoreConfiguration(testDirectory.Path) { MaxRowCount = MaxRowCount };
+            memoConfig.Database.JournalMode = ContentStore.SQLite.JournalMode.OFF;
+            return new SQLiteMemoizationStore(Logger, _clock, memoConfig);
         }
 
         [Fact]

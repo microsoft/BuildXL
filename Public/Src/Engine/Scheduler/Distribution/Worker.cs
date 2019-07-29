@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips;
@@ -281,7 +282,7 @@ namespace BuildXL.Scheduler.Distribution
         /// Signals that build is finished and that worker should exit
         /// </summary>
 #pragma warning disable 1998 // Disable the warning for "This async method lacks 'await'"
-        public virtual async Task FinishAsync(string buildFailure)
+        public virtual async Task FinishAsync(string buildFailure, [CallerMemberName] string callerName = null)
         {
             Status = WorkerNodeStatus.Stopped;
         }

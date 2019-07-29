@@ -138,7 +138,6 @@ namespace BuildXL
 
         private readonly DateTime m_startTimeUtc;
         private readonly IReadOnlyCollection<string> m_commandLineArguments;
-        private bool m_hasInfrastructureFailures;
 
         // If server mode was requested but cannot be started, here is the reason
         private readonly ServerModeStatusAndPerf? m_serverModeStatusAndPerf;
@@ -1915,9 +1914,6 @@ namespace BuildXL
                 Contract.Assert(
                     trackingEventListener.HasFailures && loggingContext.ErrorWasLogged,
                     I($"The build has failed but the logging infrastructure has not encountered an error. TrackingEventListener has errors:[{trackingEventListener.HasFailures}.] LoggingContext has errors:[{string.Join(", ", loggingContext.ErrorsLoggedById.ToArray())}]"));
-
-                // Remember if we have network problems.
-                m_hasInfrastructureFailures = engine.HasInfrastructureFailures;
             }
 
             var engineRunDuration = (int)(DateTime.UtcNow - m_startTimeUtc).TotalMilliseconds;

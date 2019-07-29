@@ -252,7 +252,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Cleans temp directories in background
         /// </summary>
-        public TempCleaner TempCleaner { get; }
+        public ITempCleaner TempCleaner { get; }
 
         /// <summary>
         /// The pip graph
@@ -994,7 +994,7 @@ namespace BuildXL.Scheduler
             LoggingContext loggingContext,
             string buildEngineFingerprint,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules = null,
-            TempCleaner tempCleaner = null,
+            ITempCleaner tempCleaner = null,
             Task<PipRuntimeTimeTable> runningTimeTableTask = null,
             PerformanceCollector performanceCollector = null,
             string fingerprintSalt = null,
@@ -1265,18 +1265,18 @@ namespace BuildXL.Scheduler
             m_serviceManager.Start(loggingContext, OperationTracker);
             m_apiServer?.Start(loggingContext);
             m_chooseWorkerCpu = new ChooseWorkerCpu(
-                loggingContext, 
-                m_configuration.Schedule.MaxChooseWorkerCpu, 
+                loggingContext,
+                m_configuration.Schedule.MaxChooseWorkerCpu,
                 m_workers,
-                m_pipQueue, 
-                PipGraph, 
+                m_pipQueue,
+                PipGraph,
                 m_fileContentManager);
 
             m_chooseWorkerCacheLookup = new ChooseWorkerCacheLookup(
-                loggingContext, 
-                m_configuration.Schedule.MaxChooseWorkerCacheLookup, 
-                m_configuration.Distribution.DistributeCacheLookups, 
-                m_workers, 
+                loggingContext,
+                m_configuration.Schedule.MaxChooseWorkerCacheLookup,
+                m_configuration.Distribution.DistributeCacheLookups,
+                m_workers,
                 m_pipQueue);
 
             ExecutionLog?.DominoInvocation(new DominoInvocationEventData(m_configuration));
@@ -2790,11 +2790,11 @@ namespace BuildXL.Scheduler
             ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo ? RunningTimeTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents : (ushort)0;
 
             var runnablePip = RunnablePip.Create(
-                m_executePhaseLoggingContext, 
-                this, 
-                pipId, 
-                pipType, 
-                priority ?? GetPipPriority(pipId), 
+                m_executePhaseLoggingContext,
+                this,
+                pipId,
+                pipType,
+                priority ?? GetPipPriority(pipId),
                 m_executePipFunc,
                 cpuUsageInPercent);
 
@@ -2973,7 +2973,7 @@ namespace BuildXL.Scheduler
             if (runnablePip.AcquiredResourceWorker != null)
             {
                 // These steps run on the chosen worker so don't release the resources until they are completed.
-                // MaterializeOutputs can be also run on the workers; but we can release resources before that. 
+                // MaterializeOutputs can be also run on the workers; but we can release resources before that.
                 if (nextStep != PipExecutionStep.CacheLookup &&
                     nextStep != PipExecutionStep.ExecuteNonProcessPip &&
                     nextStep != PipExecutionStep.ExecuteProcess &&
@@ -4739,6 +4739,9 @@ namespace BuildXL.Scheduler
                             {
                                 ReportQueueSizeMB = m_configuration.Sandbox.KextReportQueueSizeMb,
                                 EnableReportBatching = m_configuration.Sandbox.KextEnableReportBatching,
+#if PLATFORM_OSX
+                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher,
+#endif
                                 ResourceThresholds = new Sandbox.ResourceThresholds
                                 {
                                     CpuUsageBlockPercent = m_configuration.Sandbox.KextThrottleCpuUsageBlockThresholdPercent,

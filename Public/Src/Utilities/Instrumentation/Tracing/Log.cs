@@ -31,7 +31,7 @@ namespace BuildXL.Tracing
         /// </summary>
         [GeneratedEvent(
             (ushort)EventId.Statistic,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.CommonInfrastructure,
             Message = "{statistic.Name}={statistic.Value}",
@@ -67,7 +67,7 @@ namespace BuildXL.Tracing
         /// </remarks>
         [GeneratedEvent(
             (ushort)EventId.BulkStatistic,
-            EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
+            EventGenerators = Generators.Statistics,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.CommonInfrastructure,
             Message = "N/A",

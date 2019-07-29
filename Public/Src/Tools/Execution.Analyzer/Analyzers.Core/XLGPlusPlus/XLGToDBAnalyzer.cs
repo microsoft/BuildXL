@@ -108,25 +108,23 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     internal sealed class XLGToDBAnalyzerInner : Analyzer
     {
-        public string OutputDirPath;
-
         /// <summary>
-        /// Whether initializing the accessor succeeded or not
+        /// Output directory path
         /// </summary>
-        private bool m_accessorSucceeded;
-        private KeyValueStoreAccessor Accessor { get; set; }
-
-        private Stopwatch m_stopWatch;
+        public string OutputDirPath;
 
         /// <summary>
         /// Store WorkerID.Value to pass into protobuf object to identify this event
         /// </summary>
         public ThreadLocal<uint> WorkerID = new ThreadLocal<uint>();
 
-        /// <summary>
-        /// Count the total number of events processed
-        /// </summary>
-        private uint EventCount { get; set; }
+        private bool m_accessorSucceeded;
+
+        private KeyValueStoreAccessor m_accessor;
+
+        private Stopwatch m_stopWatch;
+
+        private uint m_eventCount;
 
 
         public XLGToDBAnalyzerInner(AnalysisInput input) : base(input)
@@ -142,7 +140,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 Directory.Delete(path: OutputDirPath, recursive: true);
             }
-            catch (Exception)
+            catch 
             {
                 Console.WriteLine("Directory entered does not exist, creating directory for DB.");
             }
@@ -151,21 +149,21 @@ namespace BuildXL.Execution.Analyzer
 
             if (accessor.Succeeded)
             {
-                Accessor = accessor.Result;
+                m_accessor = accessor.Result;
                 m_accessorSucceeded = true;
             }
             else
             {
                 Console.Error.WriteLine("Could not access RocksDB datastore. Exiting analyzer.");
             }
-            EventCount = 0;
+            m_eventCount = 0;
         }
 
         /// <inheritdoc/>
         public override int Analyze()
         {
-            Accessor.Dispose();
-            Console.WriteLine("Num events ingested = {0}", EventCount);
+            m_accessor.Dispose();
+            Console.WriteLine("Num events ingested = {0}", m_eventCount);
             Console.WriteLine("Total time elapsed: {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
             return 0;
         }
@@ -175,7 +173,7 @@ namespace BuildXL.Execution.Analyzer
         {
             var ec = new EventCount_XLGpp
             {
-                Value = EventCount
+                Value = m_eventCount
             };
             WriteToDb(Encoding.ASCII.GetBytes("EventCount"), ec.ToByteArray());
         }
@@ -185,12 +183,12 @@ namespace BuildXL.Execution.Analyzer
         {
             if (m_accessorSucceeded && eventId != ExecutionEventId.ObservedInputs)
             {
-                EventCount++;
+                m_eventCount++;
                 WorkerID.Value = workerId;
 
-                if (EventCount % 10000 == 0)
+                if (m_eventCount % 10000 == 0)
                 {
-                    Console.WriteLine("Processed {0} events so far.", EventCount);
+                    Console.WriteLine("Processed {0} events so far.", m_eventCount);
                     Console.WriteLine("Total time elapsed: {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
                 }
                 return true;
@@ -395,9 +393,9 @@ namespace BuildXL.Execution.Analyzer
 
         public void WriteToDb(byte[] key, byte[] value)
         {
-            Console.WriteLine("Processing Event {0}", EventCount);
+            Console.WriteLine("Processing Event {0}", m_eventCount);
             Analysis.IgnoreResult(
-              Accessor.Use(database =>
+              m_accessor.Use(database =>
               {
                   database.Put(key, value);
               })

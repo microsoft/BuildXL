@@ -208,7 +208,7 @@ namespace BuildXL.Engine
 
         /// <summary>
         /// TempCleaner responsible for cleaning registered directories or files in the background.
-        /// This is owned by the outermost layer that calls <see cref="FileUtilities.DeleteFile(string, bool, ITempDirectoryCleaner)"/>, the engine.
+        /// This is owned by the outermost layer that calls <see cref="FileUtilities.DeleteFile(string, bool, ITempCleaner)"/>, the engine.
         /// </summary>
         private TempCleaner m_tempCleaner;
 
@@ -1405,18 +1405,6 @@ namespace BuildXL.Engine
             }
 
             return success;
-        }
-
-        /// <summary>
-        /// Returns true if at least one pip failure is caused by a lost connectivity with a worker.
-        /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-        public bool HasInfrastructureFailures
-        {
-            get
-            {
-                return m_masterService != null && m_masterService.HasInfrastructureFailures;
-            }
         }
 
         /// <summary>

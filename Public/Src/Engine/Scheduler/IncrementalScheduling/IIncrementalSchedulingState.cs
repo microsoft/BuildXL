@@ -77,6 +77,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         /// A logging context needs to be given because the logging context maintained by this instance of <see cref="IIncrementalSchedulingState"/> can be
         /// associated with some previous build.
         /// </remarks>
-        IIncrementalSchedulingState Reuse(LoggingContext loggingContext, PipGraph pipGraph, IConfiguration configuration, ContentHash preserveOutputSalt, ITempDirectoryCleaner tempDirectoryCleaner);
+        IIncrementalSchedulingState Reuse(LoggingContext loggingContext, PipGraph pipGraph, IConfiguration configuration, ContentHash preserveOutputSalt, ITempCleaner tempDirectoryCleaner);
     }
 }

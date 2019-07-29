@@ -4,10 +4,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -15,6 +16,8 @@ using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using CLAP;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Auth;
 using Newtonsoft.Json;
 
 // ReSharper disable once UnusedMember.Global
@@ -77,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.App
                             useCompression: useCompressionForCopies,
                             bufferSize: bufferSizeForGrpcCopies)
                         : (IAbsolutePathFileCopier)new DistributedCopier(),
-                    pathTransformer: useDistributedGrpc ? new GrpcDistributedPathTransformer() : (IAbsolutePathTransformer)new DistributedPathTransformer(),
+                    pathTransformer: useDistributedGrpc ? new GrpcDistributedPathTransformer(_logger) : (IAbsolutePathTransformer)new DistributedPathTransformer(),
                     dcs: dcs,
                     host: host,
                     cacheName: cacheName,
@@ -118,9 +121,80 @@ namespace BuildXL.Cache.ContentStore.App
             {
             }
 
-            public Task<Dictionary<string, string>> RetrieveKeyVaultSecretsAsync(List<string> secrets, CancellationToken token)
+            public Task<Dictionary<string, Secret>> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
             {
-                return Task.FromResult(secrets.ToDictionary(s => GetSecretStoreValue(s)));
+                var secrets = new Dictionary<string, Secret>();
+
+                foreach (var request in requests)
+                {
+                    Secret secret = null;
+
+                    var secretValue = GetSecretStoreValue(request.Name);
+                    if (string.IsNullOrEmpty(secretValue))
+                    {
+                        // Environment variables are null by default. Skip if that's the case
+                        continue;
+                    }
+
+                    switch (request.Kind)
+                    {
+                        case SecretKind.PlainText:
+                            // In this case, the value is expected to be an entire connection string
+                            secret = new PlainTextSecret(secretValue);
+                            break;
+                        case SecretKind.SasToken:
+                            secret = CreateSasTokenSecret(request, secretValue);
+                            break;
+                        default:
+                            throw new NotSupportedException($"It is expected that all supported credential kinds be handled when creating a DistributedService. {request.Kind} is unhandled.");
+                    }
+
+                    Contract.Requires(secret != null);
+                    secrets[request.Name] = secret;
+                }
+
+                return Task.FromResult(secrets);
+            }
+
+            private Secret CreateSasTokenSecret(RetrieveSecretsRequest request, string secretValue)
+            {
+                var resourceTypeVariableName = $"{request.Name}_ResourceType";
+                var resourceType = GetSecretStoreValue(resourceTypeVariableName);
+                if (string.IsNullOrEmpty(resourceType))
+                {
+                    throw new ArgumentNullException($"Missing environment variable {resourceTypeVariableName} that stores the resource type for secret {request.Name}");
+                }
+
+                switch (resourceType.ToLowerInvariant())
+                {
+                    case "storagekey":
+                        return CreateAzureStorageSasTokenSecret(request, secretValue);
+                    default:
+                        throw new NotSupportedException($"Unknown resource type {resourceType} for secret named {request.Name}. Check environment variable {resourceTypeVariableName} has a valid value.");
+                }
+            }
+
+            private Secret CreateAzureStorageSasTokenSecret(RetrieveSecretsRequest request, string secretValue)
+            {
+                // In this case, the environment variable is expected to hold an Azure Storage connection string
+                var cloudStorageAccount = CloudStorageAccount.Parse(secretValue);
+
+                // Create a godlike SAS token for the account, so that we don't need to reimplement the Central Secrets Service.
+                var sasToken = cloudStorageAccount.GetSharedAccessSignature(new SharedAccessAccountPolicy
+                {
+                    SharedAccessExpiryTime = null,
+                    Permissions = SharedAccessAccountPermissions.Add | SharedAccessAccountPermissions.Create | SharedAccessAccountPermissions.Delete | SharedAccessAccountPermissions.List | SharedAccessAccountPermissions.ProcessMessages | SharedAccessAccountPermissions.Read | SharedAccessAccountPermissions.Update | SharedAccessAccountPermissions.Write,
+                    Services = SharedAccessAccountServices.Blob,
+                    ResourceTypes = SharedAccessAccountResourceTypes.Object | SharedAccessAccountResourceTypes.Container | SharedAccessAccountResourceTypes.Service,
+                    Protocols = SharedAccessProtocol.HttpsOnly,
+                    IPAddressOrRange = null,
+                });
+
+                var internalSasToken = new SasToken() {
+                    Token = sasToken,
+                    StorageAccount = cloudStorageAccount.Credentials.AccountName,
+                };
+                return new UpdatingSasToken(internalSasToken);
             }
         }
     }

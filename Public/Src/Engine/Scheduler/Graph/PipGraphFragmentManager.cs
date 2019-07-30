@@ -57,11 +57,18 @@ namespace BuildXL.Scheduler.Graph
         /// </summary>
         public Task<bool> AddFragmentFileToGraph(int id, AbsolutePath filePath, int[] dependencyIds, string description)
         {
-            var deserializer = new PipGraphFragmentSerializer();
+            var deserializer = new PipGraphFragmentSerializer(m_context, m_fragmentContext);
+
             Task<bool> readFragmentTask = Task.Run(() =>
             {
                 Task.WaitAll(dependencyIds.Select(dependencyId => m_readFragmentTasks[dependencyId].Item2).ToArray());
-                return deserializer.Deserialize(description, m_context, m_fragmentContext, filePath, pip => AddPipToGraph(description, pip));
+
+                if (dependencyIds.Any(dependencyId => !m_readFragmentTasks[dependencyId].Item2.Result))
+                {
+                    return false;
+                }
+
+                return deserializer.Deserialize(filePath, pip => AddPipToGraph(description, pip), description);
             });
 
             m_readFragmentTasks[id] = (deserializer, readFragmentTask);

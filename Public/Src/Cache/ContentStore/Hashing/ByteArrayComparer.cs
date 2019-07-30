@@ -204,7 +204,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         ///     Static comparison method for when the caller does not want to create an instance
         ///     of this class.
         /// </summary>
-#if FEATURE_CORECLR
+#if NET_COREAPP_30
         public static bool ArraysEqual(byte[] x, byte[] y)
         {
             return x.AsSpan().SequenceEqual(y.AsSpan());

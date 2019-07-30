@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Serialization;
@@ -13,27 +14,25 @@ namespace BuildXL.Pips.Operations
     /// </summary>
     internal class PipRemapReader : PipReader
     {
-        /// <summary>
-        /// RemapReader PipGraphFragmentContext
-        /// </summary>
-        public readonly PipGraphFragmentContext Context;
-
-        private readonly PipExecutionContext m_executionContext;
-        private readonly SymbolTable m_symbolTable;
+        private readonly PipGraphFragmentContext m_pipGraphFragmentContext;
+        private readonly PipExecutionContext m_pipExecutionContext;
         private readonly InliningReader m_inliningReader;
         private readonly PipDataEntriesPointerInlineReader m_pipDataEntriesPointerInlineReader;
 
         /// <summary>
         /// Create a new RemapReader
         /// </summary>
-        public PipRemapReader(PipGraphFragmentContext fragmentContext, Stream stream, PipExecutionContext context, bool debug = false, bool leaveOpen = true)
-            : base(debug, context.StringTable, stream, leaveOpen)
+        public PipRemapReader(PipExecutionContext pipExecutionContext, PipGraphFragmentContext pipGraphFragmentContext, Stream stream, bool debug = false, bool leaveOpen = true)
+            : base(debug, pipExecutionContext.StringTable, stream, leaveOpen)
         {
-            Context = fragmentContext;
-            m_executionContext = context;
-            m_inliningReader = new InliningReader(stream, context.PathTable, debug, leaveOpen);
-            m_pipDataEntriesPointerInlineReader = new PipDataEntriesPointerInlineReader(stream, context.PathTable, debug, leaveOpen);
-            m_symbolTable = context.SymbolTable;
+            Contract.Requires(pipExecutionContext != null);
+            Contract.Requires(pipGraphFragmentContext != null);
+            Contract.Requires(stream != null);
+
+            m_pipExecutionContext = pipExecutionContext;
+            m_pipGraphFragmentContext = pipGraphFragmentContext;
+            m_inliningReader = new InliningReader(stream, pipExecutionContext.PathTable, debug, leaveOpen);
+            m_pipDataEntriesPointerInlineReader = new PipDataEntriesPointerInlineReader(m_inliningReader, stream, pipExecutionContext.PathTable, debug, leaveOpen);
         }
 
         /// <summary>
@@ -47,10 +46,10 @@ namespace BuildXL.Pips.Operations
             {
                 var directoryArtifactVariableName = base.ReadFullSymbol();
                 var serializedDirectoryArtifact = base.ReadDirectoryArtifact();
-                if (!Context.TryGetDirectoryArtifactForVariableName(directoryArtifactVariableName, out directoryArtifact))
+                if (!m_pipGraphFragmentContext.TryGetDirectoryArtifactForVariableName(directoryArtifactVariableName, out directoryArtifact))
                 {
                     directoryArtifact = serializedDirectoryArtifact;
-                    Context.AddDirectoryMapping(directoryArtifactVariableName, directoryArtifact);
+                    m_pipGraphFragmentContext.AddDirectoryMapping(directoryArtifactVariableName, directoryArtifact);
                 }
             }
             else
@@ -58,7 +57,7 @@ namespace BuildXL.Pips.Operations
                 directoryArtifact = base.ReadDirectoryArtifact();
             }
 
-            return Context.RemapDirectory(directoryArtifact);
+            return m_pipGraphFragmentContext.RemapDirectory(directoryArtifact);
         }
 
         /// <summary>
@@ -90,7 +89,7 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public override FullSymbol ReadFullSymbol()
         {
-            return FullSymbol.Create(m_symbolTable, ReadString());
+            return FullSymbol.Create(m_pipExecutionContext.SymbolTable, ReadString());
         }
 
         /// <summary>
@@ -112,10 +111,10 @@ namespace BuildXL.Pips.Operations
             {
                 var pipIdValueVariableName = base.ReadFullSymbol();
                 var serializedPipIdValue = base.ReadPipIdValue();
-                if (!Context.TryGetPipIdValueForVariableName(pipIdValueVariableName, out pipIdValue))
+                if (!m_pipGraphFragmentContext.TryGetPipIdValueForVariableName(pipIdValueVariableName, out pipIdValue))
                 {
                     pipIdValue = serializedPipIdValue;
-                    Context.AddPipIdValueMapping(pipIdValueVariableName, pipIdValue);
+                    m_pipGraphFragmentContext.AddPipIdValueMapping(pipIdValueVariableName, pipIdValue);
                 }
             }
             else
@@ -123,16 +122,18 @@ namespace BuildXL.Pips.Operations
                 pipIdValue = base.ReadPipIdValue();
             }
 
-            return Context.RemapPipIdValue(pipIdValue);
+            return m_pipGraphFragmentContext.RemapPipIdValue(pipIdValue);
         }
 
         private class PipDataEntriesPointerInlineReader : InliningReader
         {
             private byte[] m_pipDatabuffer = new byte[1024];
+            private readonly InliningReader m_baseInliningReader;
 
-            public PipDataEntriesPointerInlineReader(Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true)
+            public PipDataEntriesPointerInlineReader(InliningReader baseInliningReader, Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true)
                 : base(stream, pathTable, debug, leaveOpen)
             {
+                m_baseInliningReader = baseInliningReader;
             }
 
             protected override BinaryStringSegment ReadBinaryStringSegment(ref byte[] buffer)
@@ -145,7 +146,7 @@ namespace BuildXL.Pips.Operations
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        yield return PipDataEntry.Deserialize(this);
+                        yield return PipDataEntry.Deserialize(m_baseInliningReader);
                     }
                 }
             }

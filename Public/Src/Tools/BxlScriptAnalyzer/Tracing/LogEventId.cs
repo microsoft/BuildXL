@@ -45,6 +45,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
         GraphFragmentMissingOutputFile =  7240,
         GraphFragmentInvalidOutputFile = 7241,
         GraphFragmentMissingGraph = 7242,
+        GraphFragmentExceptionOnSerializingFragment = 7243,
 
         // Max: 7499
     }

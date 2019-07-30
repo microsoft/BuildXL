@@ -1423,9 +1423,7 @@ namespace BuildXL.FrontEnd.Core
                             version: StringId.Create(FrontEndContext.StringTable, module.Descriptor.Version),
                             location: moduleLocation,
                             resolverKind: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverKind),
-                            resolverName: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverName)
-                        )
-                    );
+                            resolverName: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverName)));
 
                     foreach (var spec in module.Specs.Keys)
                     {
@@ -1433,8 +1431,7 @@ namespace BuildXL.FrontEnd.Core
                             new SpecFilePip(
                                 FileArtifact.CreateSourceFile(spec),
                                 moduleLocation,
-                                module.Descriptor.Id)
-                        );
+                                module.Descriptor.Id));
                     }
                 }
             }
@@ -1489,7 +1486,7 @@ namespace BuildXL.FrontEnd.Core
             var progressMessages = remainingItems
                 .Where(item => item.Item1.PipsDeserialized > 0)
                 .Take(10)
-                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPips})"))
+                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPipsToDeserialized})"))
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
 

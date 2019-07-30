@@ -4368,7 +4368,7 @@ namespace BuildXL.Scheduler.Tracing
             string deletedPaths);
 
         [GeneratedEvent(
-            (ushort)LogEventId.FailedToLoadPipGraphFragment,
+            (ushort)LogEventId.FailedToAddFragmentPipToGraph,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -4378,6 +4378,15 @@ namespace BuildXL.Scheduler.Tracing
             LoggingContext context,
             string fragmentName,
             string pipDescription);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ExceptionOnDeserializingPipGraphFragment,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Engine,
+            Message = "An exception occured during deserialization of pip graph fragment '{path}': {exceptionMessage}")]
+        public abstract void ExceptionOnDeserializingPipGraphFragment(LoggingContext context, string path, string exceptionMessage);
     }
 }
 #pragma warning restore CA1823 // Unused field

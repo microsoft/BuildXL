@@ -193,6 +193,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 lastFailure: failure);
         }
 
+
         private async Task<bool> TryConnectChannelAsync(TimeSpan timeout, string operation, Stopwatch watch = null)
         {
             watch = watch ?? Stopwatch.StartNew();
@@ -203,9 +204,12 @@ namespace BuildXL.Engine.Distribution.Grpc
                 await Channel.ConnectAsync(DateTime.UtcNow.Add(timeout));
                 Logger.Log.GrpcTrace(m_loggingContext, $"Connected to {Channel.Target}. ChannelState {Channel.State}. Duration {watch.ElapsedMilliseconds}ms");
             }
-            catch (OperationCanceledException e)
+            catch (Exception e)
             {
+#pragma warning disable EPC12 // Suspicious exception handling: only Message property is observed in exception block.
                 Logger.Log.GrpcTrace(m_loggingContext, $"Failed to connect to {Channel.Target}. Duration {watch.ElapsedMilliseconds}ms. ChannelState {Channel.State}. Failure {e.Message}");
+#pragma warning restore EPC12 // Suspicious exception handling: only Message property is observed in exception block.
+
                 return false;
             }
 

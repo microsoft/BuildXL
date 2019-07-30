@@ -6,7 +6,7 @@ import * as ILRepack from "Sdk.Managed.Tools.ILRepack";
 import * as Shared from "Sdk.Managed.Shared";
 
 namespace Hashing {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451AndNetStandard20;
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451;
 
     @@public
     export const dll = BuildXLSdk.library({

@@ -68,34 +68,40 @@ namespace BuildXL.Execution.Analyzer
             : base(input)
         {
             m_inner = new XLGToDBAnalyzerInner(input);
-            m_actionBlock = new ActionBlockSlim<Action>(1, action => action());
+            m_actionBlock = new ActionBlockSlim<Action>(12, action => action());
         }
 
+        /// <inheritdoc/>
         public override bool CanHandleEvent(ExecutionEventId eventId, uint workerId, long timestamp, int eventPayloadSize)
         {
             return m_inner.CanHandleEvent(eventId, workerId, timestamp, eventPayloadSize);
         }
 
+        /// <inheritdoc/>
         protected override void ReportUnhandledEvent<TEventData>(TEventData data)
         {
+            var workerId = CurrentEventWorkerId;
             m_actionBlock.Post(() =>
             {
-                m_inner.WorkerID.Value = CurrentEventWorkerId;
-                data.Metadata.LogToTarget(data, m_inner);
+                m_inner.ProcessEvent(data, workerId);
             });
         }
 
+        /// <inheritdoc/>
         public override void Prepare()
         {
             m_inner.Prepare();
         }
 
+        /// <inheritdoc/>
         public override int Analyze()
         {
             m_actionBlock.Complete();
+            m_actionBlock.CompletionAsync().GetAwaiter().GetResult();
             return m_inner.Analyze();
         }
 
+        /// <inheritdoc/>
         public override void Dispose()
         {
             m_inner.Dispose();
@@ -124,13 +130,27 @@ namespace BuildXL.Execution.Analyzer
 
         private Stopwatch m_stopWatch;
 
-        private uint m_eventCount;
+        private int m_eventCount;
 
 
         public XLGToDBAnalyzerInner(AnalysisInput input) : base(input)
         {
             m_stopWatch = new Stopwatch();
             m_stopWatch.Start();
+        }
+
+        internal void ProcessEvent<TEventData>(TEventData data, uint workerId) where TEventData : struct, IExecutionLogEventData<TEventData>
+        {
+            var eventCount = Interlocked.Increment(ref m_eventCount);
+
+            if (eventCount % 10000 == 0)
+            {
+                Console.WriteLine("Processed {0} events so far.", eventCount);
+                Console.WriteLine("Total time elapsed: {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
+            }
+
+            WorkerID.Value = workerId;
+            data.Metadata.LogToTarget(data, this);
         }
 
         /// <inheritdoc/>
@@ -173,7 +193,7 @@ namespace BuildXL.Execution.Analyzer
         {
             var ec = new EventCount_XLGpp
             {
-                Value = m_eventCount
+                Value = (uint)m_eventCount
             };
             WriteToDb(Encoding.ASCII.GetBytes("EventCount"), ec.ToByteArray());
         }
@@ -183,14 +203,6 @@ namespace BuildXL.Execution.Analyzer
         {
             if (m_accessorSucceeded && eventId != ExecutionEventId.ObservedInputs)
             {
-                m_eventCount++;
-                WorkerID.Value = workerId;
-
-                if (m_eventCount % 10000 == 0)
-                {
-                    Console.WriteLine("Processed {0} events so far.", m_eventCount);
-                    Console.WriteLine("Total time elapsed: {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
-                }
                 return true;
             }
             return false;
@@ -391,9 +403,11 @@ namespace BuildXL.Execution.Analyzer
             WriteToDb(eq.ToByteArray(), pipExecDirectoryOutputEvent.ToByteArray());
         }
 
+        /// <summary>
+        /// Write a key/value pair to the db
+        /// </summary>
         public void WriteToDb(byte[] key, byte[] value)
         {
-            Console.WriteLine("Processing Event {0}", m_eventCount);
             Analysis.IgnoreResult(
               m_accessor.Use(database =>
               {

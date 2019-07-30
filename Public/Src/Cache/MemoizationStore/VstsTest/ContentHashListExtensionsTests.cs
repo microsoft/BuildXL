@@ -92,8 +92,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsTest
             {
                 byte[] iByteArray = new byte[i];
                 Array.Copy(byteArray, iByteArray, i);
-                List<byte> byteList = iByteArray.ToList();
-                ByteArrayComparer.Instance.GetHashCode(byteList).Equals(ByteArrayComparer.Instance.GetHashCode(byteList)).Should().BeTrue();
+                ByteArrayComparer.Instance.GetHashCode(iByteArray).Equals(ByteArrayComparer.Instance.GetHashCode(iByteArray)).Should().BeTrue();
             }
         }
     }

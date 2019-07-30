@@ -13,7 +13,7 @@ export {BuildXLSdk};
 export const NetFx = BuildXLSdk.NetFx;
 
 namespace Default {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet451AndNetStandard20;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet451;
 
     @@public
     export const deployment: Deployment.Definition =

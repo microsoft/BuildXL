@@ -7,7 +7,7 @@ import * as Shared from "Sdk.Managed.Shared";
 import * as NetCoreApp from "Sdk.Managed.Frameworks.NetCoreApp3.0";
 
 namespace Interfaces {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451AndNetStandard20;
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451;
 
     @@public
     export const dll = BuildXLSdk.library({
@@ -19,10 +19,6 @@ namespace Interfaces {
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Runtime.Serialization.dll,
                 NetFx.System.Xml.dll,
-            ]),
-            ...(qualifier.targetFramework !== "netstandard2.0" ? [] :
-            [
-                importFrom("System.Threading.Tasks.Dataflow").pkg,
             ]),
             importFrom("System.Interactive.Async").pkg,
         ],

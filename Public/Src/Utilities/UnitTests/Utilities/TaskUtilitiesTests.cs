@@ -161,26 +161,23 @@ namespace Test.BuildXL.Utilities
         [Fact]
         public async Task TestParallelAlgorithmsCancellationTokenAsync()
         {
-            for (int i = 0; i < 10; i++)
-            {
-                // cancel after 2 minutes
-                var cts = new CancellationTokenSource();
-                cts.CancelAfter(TimeSpan.FromSeconds(2));
+            // cancel after 2 seconds
+            var cts = new CancellationTokenSource();
+            cts.CancelAfter(TimeSpan.FromSeconds(2));
 
-                // run something that never ends in parallel 
-                await ParallelAlgorithms.WhenDoneAsync(
-                    degreeOfParallelism: 20,
-                    cts.Token,
-                    action: (scheduleItem, item) =>
-                    {
-                        // keep rescheduling the same item forever
-                        scheduleItem(item);
-                        return Task.Delay(TimeSpan.FromMilliseconds(10));
-                    },
-                    items: Enumerable.Range(0, 1000));
+            // run something that never ends in parallel 
+            await ParallelAlgorithms.WhenDoneAsync(
+                degreeOfParallelism: 20,
+                cts.Token,
+                action: (scheduleItem, item) =>
+                {
+                    // keep rescheduling the same item forever
+                    scheduleItem(item);
+                    return Task.Delay(TimeSpan.FromMilliseconds(10));
+                },
+                items: Enumerable.Range(0, 1000));
 
-                XAssert.IsTrue(cts.IsCancellationRequested);
-            }
+            XAssert.IsTrue(cts.IsCancellationRequested);
         }
     }
 }

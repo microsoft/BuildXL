@@ -19,10 +19,6 @@ namespace Hashing {
                 NetFx.System.Runtime.Serialization.dll,
                 NetFx.System.Xml.dll,
             ]),
-            ...(qualifier.targetFramework !== "netstandard2.0" ? [] :
-            [
-                importFrom("System.Threading.Tasks.Dataflow").pkg,
-            ]),
             importFrom("System.Interactive.Async").pkg,
         ],
         allowUnsafeBlocks: true,

@@ -759,7 +759,8 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         [Theory]
         [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
-        [InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+        //[InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+                              // NOTE: this is difficult to test reliably because the test depends on pips running in a particular order
         public void AbsentFileProbeFollowedByDynamicWriteIsBlockedWhenPipsAreIndependent(bool forceDependency)
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
@@ -803,7 +804,8 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         [Theory]
         [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
-        [InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+        //[InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+                              // NOTE: this is difficult to test reliably because the test depends on pips running in a particular order
         public void DynamicWriteFollowedByAbsentPathFileProbeIsBlockedWhenPipsAreIndependent(bool forceDependency)
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
@@ -884,7 +886,8 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         [Theory]
         [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
-        [InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+        //[InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+                              // NOTE: this is difficult to test reliably because the test depends on pips running in a particular order
         public void AbsentFileProbeFollowedByDynamicWriteIsBlockedOnProbeCacheReplayWhenPipsAreIndependent(bool forceDependency)
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
@@ -943,7 +946,8 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         [Theory]
         [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
-        [InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+        //[InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+                              // NOTE: this is difficult to test reliably because the test depends on pips running in a particular order
         public void DynamicWriteFollowedByAbsentPathFileProbeIsBlockedOnWriterCacheReplayWhenPipsAreIndependent(bool forceDependency)
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
@@ -1194,7 +1198,8 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         [Theory]
         [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
-        [InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+        //[InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+                              // NOTE: this is difficult to test reliably because the test depends on pips running in a particular order
         public void AbsentPathProbeInUndeclaredOpaquesUnsafeModeCachedPip(bool forceDependency)
         {
             var opaqueDir = Path.Combine(ObjectRoot, "opaquedir");

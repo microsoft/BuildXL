@@ -425,7 +425,6 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                 "DEFTEMP",
 
                 ...addIf(isDotNetCoreBuild,
-                    "FEATURE_CORECLR",
                     "FEATURE_SAFE_PROCESS_HANDLE",
                     "DISABLE_FEATURE_VSEXTENSION_INSTALL_CHECK",
                     "DISABLE_FEATURE_HTMLWRITER",
@@ -438,12 +437,8 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     "FEATURE_ARIA_TELEMETRY"
                 ),
                 ...addIf(isTargetRuntimeOsx,
-                    "PLATFORM_OSX",
                     "FEATURE_THROTTLE_EVAL_SCHEDULER"
                 ),
-                ...addIf(qualifier.targetFramework === "net451", "NET_FRAMEWORK_451"),
-                ...addIf(qualifier.targetFramework === "net472", "NET_FRAMEWORK_472"),
-                ...addIf(qualifier.targetFramework === "netcoreapp3.0", "NET_COREAPP_30"),
             ],
             references: [
                 ...(args.skipDefaultReferences ? [] : [

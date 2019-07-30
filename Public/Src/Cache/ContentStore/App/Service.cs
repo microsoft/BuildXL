@@ -81,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             var cancellationTokenSource = new CancellationTokenSource();
 
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
             var configuration = new ServiceConfiguration(caches, serverDataRootPath, maxConnections, gracefulShutdownSeconds, grpcPort, grpcPortFileName);
             if (!configuration.IsValid)
             {

@@ -111,7 +111,7 @@ namespace BuildXL.Utilities.Tracing
 
             int processorId = 0;
 
-#if FEATURE_CORECLR
+#if NET_CORE
             if (OperatingSystemHelper.IsUnixOS)
             {
                 processorId = Thread.GetCurrentProcessorId() % AssumedLogicalProcessorCount;

@@ -1410,7 +1410,7 @@ namespace BuildXL.Native.IO.Windows
         {
             Contract.Requires(!string.IsNullOrEmpty(appName));
 
-#if FEATURE_CORECLR
+#if NET_CORE
             var homeFolder = Environment.GetEnvironmentVariable("LOCALAPPDATA");
             if (string.IsNullOrEmpty(homeFolder))
             {
@@ -1509,7 +1509,7 @@ namespace BuildXL.Native.IO.Windows
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
             path = FileSystemWin.ToLongPathIfExceedMaxPath(path);
 
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
             FileSystemRights fileSystemRights =
                 FileSystemRights.WriteData |
                 FileSystemRights.AppendData |

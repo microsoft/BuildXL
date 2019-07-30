@@ -69,7 +69,7 @@ namespace BuildXL
             mi.ProcessorName = OperatingSystemHelper.GetProcessorName();
             mi.ProcessorIdentifier = OperatingSystemHelper.GetProcessorIdentifier();
 
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
             try {
                 mi.EnvironmentVersion = Environment.Version.ToString(4);
             }
@@ -78,7 +78,7 @@ namespace BuildXL
 #endif
                 // Fallback for .NETCore3.0, which currently reports "3.0.0" only
                 mi.EnvironmentVersion = Environment.Version.ToString();
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
             }
 #endif
             mi.InstalledMemoryMB = OperatingSystemHelper.GetPhysicalMemorySize().MB;

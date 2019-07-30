@@ -39,40 +39,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public const string LongPathPrefix = @"\\?\";
 
-#if PLATFORM_OSX
-        private const int MaxPathUnix = 1024;
-
-        /// <summary>
-        /// Maximum path length.
-        /// </summary>
-        public static int MaxPath { get; } = MaxPathUnix;
-
-        /// <summary>
-        /// Maximum number of hard links a single file can have.
-        /// </summary>
-        public const int MaxLinks = (int)ushort.MaxValue;
-
-        /// <summary>
-        /// There is no distinction between short paths and long paths on unix platforms.
-        /// So this property returns false, becaus paths longer then MaxShortPath are not valid.
-        /// </summary>
-        public static bool LongPathsSupported { get; } = false;
-
-        /// <summary>
-        /// The same as MaxPathUnix for unix platform.
-        /// </summary>
-        public const int MaxDirectoryPath = MaxPathUnix;
-
-        /// <summary>
-        /// The same as MaxPathUnix for unix platform.
-        /// </summary>
-        public const int MaxLongPath = MaxPathUnix;
-
-        /// <summary>
-        /// The same as MaxPathUnix for unix platform.
-        /// </summary>
-        public const int MaxShortPath = MaxPathUnix;
-#else
+#if PLATFORM_WIN
         /// <summary>
         /// Maximum path length when long paths are not supported.
         /// </summary>
@@ -123,6 +90,41 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// Maximum number of hard links a single file can have.
         /// </summary>
         public const int MaxLinks = 1024;
+
+#else
+
+        private const int MaxPathUnix = 1024;
+
+        /// <summary>
+        /// Maximum path length.
+        /// </summary>
+        public static int MaxPath { get; } = MaxPathUnix;
+
+        /// <summary>
+        /// Maximum number of hard links a single file can have.
+        /// </summary>
+        public const int MaxLinks = (int)ushort.MaxValue;
+
+        /// <summary>
+        /// There is no distinction between short paths and long paths on unix platforms.
+        /// So this property returns false, becaus paths longer then MaxShortPath are not valid.
+        /// </summary>
+        public static bool LongPathsSupported { get; } = false;
+
+        /// <summary>
+        /// The same as MaxPathUnix for unix platform.
+        /// </summary>
+        public const int MaxDirectoryPath = MaxPathUnix;
+
+        /// <summary>
+        /// The same as MaxPathUnix for unix platform.
+        /// </summary>
+        public const int MaxLongPath = MaxPathUnix;
+
+        /// <summary>
+        /// The same as MaxPathUnix for unix platform.
+        /// </summary>
+        public const int MaxShortPath = MaxPathUnix;
 #endif
 
         // ReSharper disable once InconsistentNaming

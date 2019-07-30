@@ -157,7 +157,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
         }
 
         [Theory]
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
         [InlineData("http2://asd.sdfs.com", FailureType.InvalidUri)]
         [InlineData("1http://asd.sdfs.com", FailureType.InvalidUri)]
 #else

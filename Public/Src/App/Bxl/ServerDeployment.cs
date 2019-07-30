@@ -108,7 +108,7 @@ namespace BuildXL
                     }
                 });
 
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
             var ngenExe = Path.Combine(System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory(), @"ngen.exe");
             var destExe = Path.Combine(destDir, System.AppDomain.CurrentDomain.FriendlyName);
 

@@ -102,7 +102,7 @@ namespace BuildXL.Processes
             // In the case of a no replay, this case can happen if the file got into the cache as a static output, but later was made a shared opaque
             // output without a content change.
 
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
             // Make sure we allow for attribute writing first
             var writeAttributesDenied = !FileUtilities.HasWritableAccessControl(expandedPath);
             if (writeAttributesDenied)
@@ -116,7 +116,7 @@ namespace BuildXL.Processes
             }
             finally
             {
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
                 // Restore the attributes as they were originally set
                 if (writeAttributesDenied)
                 {

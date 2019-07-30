@@ -22,7 +22,7 @@ namespace ContentStoreTest.Distributed.Redis.Credentials
 
         private const string ConnectionString = "ConnectionString1234";
 
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
         private const string ConnectionStringProviderScript = @"@echo off
 
 IF /I ""%1"" EQU """" (

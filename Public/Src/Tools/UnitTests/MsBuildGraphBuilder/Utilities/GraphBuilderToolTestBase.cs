@@ -14,12 +14,12 @@ namespace Test.ProjectGraphBuilder.Utilities
         /// <nodoc/>
         public GraphBuilderToolTestBase(ITestOutputHelper output) : base(output) {}
 
-#if FEATURE_CORECLR
-        /// <nodoc/>
-        protected bool RunningUnderDotNetCore => true;
-#else
+#if NET_FRAMEWORK
         /// <nodoc/>
         protected bool RunningUnderDotNetCore => false;
+#else
+        /// <nodoc/>
+        protected bool RunningUnderDotNetCore => true;
 #endif
         /// <nodoc/>
         protected MsBuildAssemblyLoader AssemblyLoader => new MsBuildAssemblyLoader(RunningUnderDotNetCore);

@@ -6,7 +6,7 @@ using System.Linq;
 using Microsoft.Win32;
 using static BuildXL.Interop.Windows.Memory;
 
-#if FEATURE_CORECLR
+#if NET_CORE
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
@@ -53,7 +53,7 @@ namespace BuildXL.Utilities
         /// <remarks>This is used for as long as we have older .NET Framework dependencies</remarks>
         public static readonly bool IsUnixOS = Environment.OSVersion.Platform == PlatformID.Unix;
 
-#if FEATURE_CORECLR
+#if NET_CORE
 
         // Sysctl constants to query CPU information
         private static string MACHDEP_CPU_BRAND_STRING = "machdep.cpu.brand_string";
@@ -96,7 +96,7 @@ namespace BuildXL.Utilities
             {
                 return GetOSVersionWindows();
             }
-#if FEATURE_CORECLR
+#if NET_CORE
             else if (IsMacOS)
             {
                 return string.Format("macOS {0}.{1}.{2}", CurrentMacOSVersion.Major, CurrentMacOSVersion.Minor, CurrentMacOSVersion.Build);
@@ -115,7 +115,7 @@ namespace BuildXL.Utilities
             {
                 return GetProcessorNameWindows();
             }
-#if FEATURE_CORECLR
+#if NET_CORE
             else if (IsMacOS)
             {
                 return ProcessorNameAndIdentifierMacOS.Item1;
@@ -134,7 +134,7 @@ namespace BuildXL.Utilities
             {
                 return GetProcessorIdentifierWindows();
             }
-#if FEATURE_CORECLR
+#if NET_CORE
             else if (IsMacOS)
             {
                 return ProcessorNameAndIdentifierMacOS.Item2;
@@ -153,7 +153,7 @@ namespace BuildXL.Utilities
             {
                 return GetPhysicalMemorySizeWindows();
             }
-#if FEATURE_CORECLR
+#if NET_CORE
             else if (IsMacOS)
             {
                 return GetPhysicalMemorySizeMacOS();
@@ -340,7 +340,7 @@ namespace BuildXL.Utilities
 
         #region macOS Helpers
 
-#if FEATURE_CORECLR
+#if NET_CORE
         private static Version GetOSVersionMacOS()
         {
             try

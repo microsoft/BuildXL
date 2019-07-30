@@ -27,7 +27,7 @@ namespace BuildXL.Utilities
     /// the cache.
     ///     </para>
     /// </remarks>
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
     public sealed class ObjectPool<T> where T : class
     {
         // Number of times a creator was invoked.
@@ -278,7 +278,7 @@ namespace BuildXL.Utilities
         }
     }
 
-#else
+#else // PLATFORM_WIN
 
     public sealed class ObjectPool<T> where T : class
     {
@@ -514,5 +514,5 @@ namespace BuildXL.Utilities
         }
     }
 
-#endif
+#endif // PLATFORM_WIN
 }

@@ -39,7 +39,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </summary>
         public bool Contains(PathTable pathTable, AbsolutePath childPath, bool isTopDirectoryOnly = true)
         {
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
             Contract.Requires(pathTable != null);
             Contract.Requires(childPath.IsValid);                
 #else

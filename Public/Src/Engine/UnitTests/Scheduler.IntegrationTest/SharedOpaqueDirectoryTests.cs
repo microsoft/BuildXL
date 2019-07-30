@@ -923,12 +923,12 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // run second time -- PipA should come from cache, PipB should run but still hit the same violation
             var secondResult = RunScheduler();
-            secondResult.AssertCacheHitWithoutAssertingSuccess(pipA.Process.PipId);
 
             if (forceDependency)
             {
                 firstResult.AssertSuccess();
                 secondResult.AssertSuccess();
+                secondResult.AssertCacheHitWithoutAssertingSuccess(pipA.Process.PipId);
             }
             else
             {

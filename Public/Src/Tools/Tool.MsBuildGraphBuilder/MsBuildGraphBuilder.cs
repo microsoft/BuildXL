@@ -188,6 +188,8 @@ namespace MsBuildGraphBuilderTool
                 }
 
                 var envVarResult = environmentVariablesLogger.PotentialEnvironmentVariableReads;
+                var reads = envVarResult.Succeeded ? envVarResult.Result : (IReadOnlyCollection<string>)null;
+
                 if (!envVarResult.Succeeded)
                 {
                     reporter.ReportMessage(envVarResult.Failure.Describe());
@@ -197,7 +199,7 @@ namespace MsBuildGraphBuilderTool
                     projectGraphWithPredictions, 
                     assemblyPathsToLoad, 
                     locatedMsBuildPath,
-                    envVarResult.Result);
+                    reads);
             }
             catch (InvalidProjectFileException e)
             {

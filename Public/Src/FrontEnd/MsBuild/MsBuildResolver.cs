@@ -156,6 +156,16 @@ namespace BuildXL.FrontEnd.MsBuild
                             .Where(project => ProjectMatchesQualifier(project, qualifier))
                             .ToReadOnlySet();
 
+            IEnumerable<KeyValuePair<string, string>> pipEnvironment = m_msBuildWorkspaceResolver.UserDefinedEnvironment;
+
+            // If a unique environment wasn't specified and the project graph determined the environment variables affecting the build,
+            // we're going to give the subset of those environment variables to the Pip.
+            if (m_msBuildResolverSettings.Environment == null && result.EnvironmentVariablesAffectingBuild != null)
+            {
+                var graphedEnvVars = result.EnvironmentVariablesAffectingBuild.ToHashSet();
+                pipEnvironment = m_msBuildWorkspaceResolver.UserDefinedEnvironment.Where(kvp => graphedEnvVars.Contains(kvp.Key));
+            }
+
             var graphConstructor = new PipGraphConstructor(
                 m_context, 
                 m_host, 
@@ -163,8 +173,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 m_msBuildResolverSettings, 
                 result.MsBuildLocation, 
                 result.DotNetExeLocation,
-                m_frontEndName, 
-                m_msBuildWorkspaceResolver.UserDefinedEnvironment, 
+                m_frontEndName,
+                pipEnvironment, 
                 m_msBuildWorkspaceResolver.UserDefinedPassthroughVariables);
 
             return graphConstructor.TrySchedulePipsForFilesAsync(filteredBuildFiles, qualifierId);

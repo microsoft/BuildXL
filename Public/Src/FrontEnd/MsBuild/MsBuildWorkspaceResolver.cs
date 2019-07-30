@@ -538,8 +538,6 @@ namespace BuildXL.FrontEnd.MsBuild
                     standardError);
             }
 
-            TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses, outputFile.GetParent(m_context.PathTable));
-
             var serializer = JsonSerializer.Create(ProjectGraphSerializationSettings.Settings);
             serializer.Converters.Add(new AbsolutePathJsonConverter(m_context.PathTable));
             serializer.Converters.Add(new ValidAbsolutePathEnumerationJsonConverter());
@@ -548,6 +546,8 @@ namespace BuildXL.FrontEnd.MsBuild
             using (var reader = new JsonTextReader(sr))
             {
                 var projectGraphWithPredictionsResult = serializer.Deserialize<ProjectGraphWithPredictionsResult<AbsolutePath>>(reader);
+
+                TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses, outputFile.GetParent(m_context.PathTable), projectGraphWithPredictionsResult.EnvironmentVariablesAffectingBuild);
 
                 // A successfully constructed graph should always have a valid path to MsBuild
                 Contract.Assert(!projectGraphWithPredictionsResult.Succeeded || projectGraphWithPredictionsResult.PathToMsBuild.IsValid);
@@ -586,15 +586,27 @@ namespace BuildXL.FrontEnd.MsBuild
             return false;
         }
 
-        private void TrackFilesAndEnvironment(ISet<ReportedFileAccess> fileAccesses, AbsolutePath frontEndFolder)
+        private void TrackFilesAndEnvironment(ISet<ReportedFileAccess> fileAccesses, AbsolutePath frontEndFolder, IEnumerable<string> environmentVariablesAffectingBuild)
         {
             // Register all build parameters passed to the graph construction process
             // Observe passthrough variables are explicitly skipped: we don't want the engine to track them
-            // TODO: we actually need the build parameters *used* by the graph construction process, but for now this is a compromise to keep
-            // graph caching sound. We need to modify this when MsBuild static graph API starts providing used env vars.
-            foreach (string key in m_userDefinedEnvironment.Keys)
+
+            // If a specific environment wasn't passed in AND if the graph's env vars parameter is NOT null
+            // (meaning we successfully retrieved the list of environment variables that affect
+            // the build during evaluation), then tell the engine to track them.
+            if (m_resolverSettings.Environment == null && environmentVariablesAffectingBuild != null)
             {
-                m_host.Engine.TryGetBuildParameter(key, MsBuildFrontEnd.Name, out _);
+                foreach (string environmentVariable in environmentVariablesAffectingBuild)
+                {
+                    m_host.Engine.TryGetBuildParameter(environmentVariable, MsBuildFrontEnd.Name, out _);
+                }
+            }
+            else
+            {
+                foreach (string key in m_userDefinedEnvironment.Keys)
+                {
+                    m_host.Engine.TryGetBuildParameter(key, MsBuildFrontEnd.Name, out _);
+                }
             }
 
             FrontEndUtilities.TrackToolFileAccesses(m_host.Engine, m_context, MsBuildFrontEnd.Name, fileAccesses, frontEndFolder);

@@ -821,9 +821,9 @@ namespace IntegrationTest.BuildXL.Scheduler
                                             description: "PipA");
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             var pipA = SchedulePipBuilder(builderA);
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
 
             // Probe the absent file. Even though it was deleted by the previous pip, we should get a absent file probe violation
-            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
             var builderB = CreatePipBuilder(new Operation[]
                                             {
                                                 forceDependency
@@ -971,15 +971,12 @@ namespace IntegrationTest.BuildXL.Scheduler
                                                 Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
                                             },
                                             description: "PipB");
-            var pipB = SchedulePipBuilder(builderB);
             builderB.AddUntrackedFile(pipAoutput);
+            var pipB = SchedulePipBuilder(builderB);
 
-            // run once to cache pipA
+            // run two times
             var firstResult = RunScheduler();
-
-            // run second time -- PipA should come from cache, PipB should run but still hit the same violation when pips are independent
             var secondResult = RunScheduler();
-            secondResult.AssertCacheHitWithoutAssertingSuccess(pipA.Process.PipId);
 
             if (forceDependency)
             {

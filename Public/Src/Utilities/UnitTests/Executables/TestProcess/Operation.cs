@@ -24,7 +24,6 @@ namespace Test.BuildXL.Executables.TestProcess
     {
         private const int NumArgsExpected = 6;
         private const int ERROR_ALREADY_EXISTS = 183;
-        private const int ERROR_ACCESS_DENIED = 5;
         private const string StdErrMoniker = "stderr";
         private const string WaitToFinishMoniker = "wait";
         private const string AllUppercasePath = "allUpper";
@@ -1083,8 +1082,7 @@ namespace Test.BuildXL.Executables.TestProcess
             while (true)
             {
                 var maybeExistence = FileUtilities.TryProbePathExistence(PathAsString, followSymlink: false);
-                if ((maybeExistence.Succeeded && maybeExistence.Result == PathExistence.ExistsAsFile) ||
-                    (!maybeExistence.Succeeded && maybeExistence.Failure.NativeErrorCode == ERROR_ACCESS_DENIED))
+                if (!maybeExistence.Succeeded || maybeExistence.Result == PathExistence.ExistsAsFile)
                 {
                     return;
                 }

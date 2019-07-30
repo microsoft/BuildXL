@@ -97,7 +97,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
 
             var serializer = new PipGraphFragmentSerializer();
 
-            // TODO: topologically sort all pips.
             serializer.Serialize(m_description, Context, new PipGraphFragmentContext(), m_absoluteOutputPath, PipGraph.RetrieveScheduledPips().ToList());
 
             return base.FinalizeAnalysis();

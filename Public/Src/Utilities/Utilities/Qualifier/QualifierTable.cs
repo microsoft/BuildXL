@@ -350,7 +350,7 @@ namespace BuildXL.Utilities.Qualifier
         [Pure]
         public bool IsValidQualifierId(QualifierId qualifierId)
         {
-            return qualifierId.IsValid && qualifierId.Id < this.m_qualifiers.Count;
+            return qualifierId.IsValid && qualifierId.Id < m_qualifiers.Count;
         }
 
         /// <summary>
@@ -359,7 +359,7 @@ namespace BuildXL.Utilities.Qualifier
         [Pure]
         public bool IsValidQualifierSpaceId(QualifierSpaceId qualifierSpaceId)
         {
-            return qualifierSpaceId.IsValid && qualifierSpaceId.Id < this.m_qualifierSpaces.Count;
+            return qualifierSpaceId.IsValid && qualifierSpaceId.Id < m_qualifierSpaces.Count;
         }
 
         /// <nodoc />

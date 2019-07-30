@@ -1423,9 +1423,7 @@ namespace BuildXL.FrontEnd.Core
                             version: StringId.Create(FrontEndContext.StringTable, module.Descriptor.Version),
                             location: moduleLocation,
                             resolverKind: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverKind),
-                            resolverName: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverName)
-                        )
-                    );
+                            resolverName: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverName)));
 
                     foreach (var spec in module.Specs.Keys)
                     {
@@ -1433,8 +1431,7 @@ namespace BuildXL.FrontEnd.Core
                             new SpecFilePip(
                                 FileArtifact.CreateSourceFile(spec),
                                 moduleLocation,
-                                module.Descriptor.Id)
-                        );
+                                module.Descriptor.Id));
                     }
                 }
             }

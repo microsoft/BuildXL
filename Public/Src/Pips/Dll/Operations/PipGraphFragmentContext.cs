@@ -28,7 +28,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Maps a directory artifact from the variable name representing the serialized version to the directory artifact in the pip graph.
         /// All uses of that directory artifact variable name will get remapped to the new value.
-        /// Variables names should be used for partially sealled directories which need to be used by other fragments.
+        /// Variables names should be used for partially sealed directories which need to be used by other fragments.
         /// The directory map should be used by opaques which can be accessed by path, or sealled directories which don't need to be used outside the fragment.
         /// </summary>
         private ConcurrentBigMap<FullSymbol, DirectoryArtifact> m_variableNameToDirectoryMap = new ConcurrentBigMap<FullSymbol, DirectoryArtifact>();

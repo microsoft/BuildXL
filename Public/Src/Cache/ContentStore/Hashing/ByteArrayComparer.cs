@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Utils
@@ -203,13 +204,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
         ///     Static comparison method for when the caller does not want to create an instance
         ///     of this class.
         /// </summary>
+#if FEATURE_CORECLR
+        public static bool ArraysEqual(byte[] x, byte[] y)
+        {
+            return x.AsSpan().SequenceEqual(y.AsSpan());
+        }
+#else
         public static unsafe bool ArraysEqual(byte[] x, byte[] y)
         {
             // Adapted from: https://gist.github.com/airbreather/90c5fd3ba9d77fcd7c106db3beeb569b
             // (https://stackoverflow.com/questions/43289/comparing-two-byte-arrays-in-net, Joe Amenta's answer).
-            // TODO: Once we get to NetCore 2.2+, consider ReadOnlyMemory<byte>.SequenceEqual which should be
-            // faster per the SO thread. In testing on net472 at the time of moving to this implementation
-            // this implementation was 50%-100% faster.
             
             // Copyright (c) 2008-2013 Hafthor Stefansson
             // Distributed under the MIT/X11 software license
@@ -266,5 +270,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
                 return true;
             }
         }
+#endif
     }
 }

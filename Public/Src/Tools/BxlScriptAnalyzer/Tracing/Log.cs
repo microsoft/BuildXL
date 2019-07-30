@@ -317,6 +317,15 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void GraphFragmentMissingGraph(LoggingContext context);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.GraphFragmentExceptionOnSerializingFragment,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = "An exception occured when The GraphFragment Analyzer serialized the graph fragment to '{file}': {exceptionMessage}",
+            Keywords = DefaultKeywords | (int)Keywords.UserError)]
+        public abstract void GraphFragmentExceptionOnSerializingFragment(LoggingContext context, string file, string exceptionMessage);
+
         #endregion
     }
 }

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Pips;
@@ -68,7 +69,15 @@ namespace BuildXL.Scheduler.Graph
                     return false;
                 }
 
-                return deserializer.Deserialize(filePath, pip => AddPipToGraph(description, pip), description);
+                try
+                {
+                    return deserializer.Deserialize(filePath, pip => AddPipToGraph(description, pip), description);
+                }
+                catch (Exception e) when (e is BuildXLException || e is IOException)
+                {
+                    Logger.Log.ExceptionOnDeserializingPipGraphFragment(m_loggingContext, filePath.ToString(m_context.PathTable), e.ToString());
+                    return false;
+                }
             });
 
             m_readFragmentTasks[id] = (deserializer, readFragmentTask);

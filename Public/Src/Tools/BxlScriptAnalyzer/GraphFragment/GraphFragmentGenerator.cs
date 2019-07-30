@@ -93,7 +93,16 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             }
 
             var serializer = new PipGraphFragmentSerializer(Context, new PipGraphFragmentContext());
-            serializer.Serialize(m_absoluteOutputPath, PipGraph.RetrieveScheduledPips().ToList(), m_description);
+
+            try
+            {
+                serializer.Serialize(m_absoluteOutputPath, PipGraph.RetrieveScheduledPips().ToList(), m_description);
+            }
+            catch (Exception e) when (e is BuildXLException || e is IOException)
+            {
+                Logger.GraphFragmentExceptionOnSerializingFragment(LoggingContext, m_absoluteOutputPath.ToString(Context.PathTable), e.ToString());
+                return false;
+            }
 
             return base.FinalizeAnalysis();
         }

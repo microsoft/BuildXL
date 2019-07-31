@@ -3,12 +3,9 @@
 
 using System;
 using System.IO;
-using System.Text;
 using BuildXL.Analyzers.Core.XLGPlusPlus;
-using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
-using Google.Protobuf;
+
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -62,7 +59,7 @@ namespace BuildXL.Execution.Analyzer
         private static void WriteDominoInvocationHelp(HelpWriter writer)
         {
             writer.WriteBanner("BXL Invocation \"Analyzer\"");
-            writer.WriteModeOption(nameof(AnalysisMode.BXLInvocationXLG), "Gets and outputs information related to BXL invocation events from the database.");
+            writer.WriteModeOption(nameof(AnalysisMode.BXLInvocationXLG), "Gets and outputs information related to BXL invocation events from RocksDB.");
             writer.WriteOption("inputDir", "Required. The directory to read the RocksDB database from", shortName: "i");
             writer.WriteOption("outputFile", "Required. The file where to write the results", shortName: "o");
         }
@@ -88,15 +85,13 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override int Analyze()
         {
-            var dataStore = new XLGppDataStore(storeDirectory: InputDirPath);
+            var dataStore = new XldbDataStore(storeDirectory: InputDirPath);
+            File.AppendAllLines(OutputFilePath, dataStore.GetBXLInvocationEvents());
 
-            File.WriteAllLines(OutputFilePath, dataStore.GetEventsByType_V0(ExecutionEventId_XLGpp.DominoInvocation));
-            File.AppendAllLines(OutputFilePath, dataStore.GetBXLInvocationEvents_V0());
-
-            //dataStore.GetStoredData_V0();
             return 0;
         }
-
+        
+        /// <inheritdoc/>
         protected override bool ReadEvents()
         {
             // Do nothing. This analyzer does not read events.

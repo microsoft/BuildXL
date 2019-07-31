@@ -8,24 +8,23 @@ import "tools/google/protobuf/duration.proto";
 
 package BuildXL.Execution.Analyzer;
 
-option csharp_namespace = "BuildXL.Execution.Analyzer";
+option csharp_namespace = "BuildXL.Execution.Analyzer.Xldb";
 
 //
 //  Generic Event Info (key, count, etc)
 //
 
 // Message that keeps track of total number of events processed
-message EventCount_XLGpp{
+message EventCount{
     uint32 Value = 1;
 }
 
 // Event query should be of this format. It also serves as the key to the DB
-message EventTypeQuery_XLGpp{
-    
+message EventTypeQuery{
     // ID of the Event - required
-    ExecutionEventId_XLGpp EventTypeID = 1; 
+    ExecutionEventId EventTypeID = 1; 
     
-    // Other ideas to keep in EventTypeQuery_XLGpp were as follows:
+    // Other ideas to keep in EventTypeQuery were as follows:
     // string (or int64) Path (or hash of path) = 2;
     // string RewriteContent = 3;
     // int32 WorkerID = 4;
@@ -43,17 +42,17 @@ message EventTypeQuery_XLGpp{
 // just within a particular enum. If there are conflicting enum values, append the name of the enum in front.
 // ie: ChooseWorkerCpu ---> PipExecutionStep_ChooseWorkerCpu
 
-enum ExecutionEventId_XLGpp{
+enum ExecutionEventId{
     FileArtifactContentDecided = 0;
     WorkerList = 1;
-    PipExecutionPerformance = 2;
+    ExecutionEventId_PipExecutionPerformance = 2;
     DirectoryMembershipHashed = 3;
 
-        // Deprecated in favor of ProcessFingerprintComputation (enum 10)
+    // Deprecated in favor of ProcessFingerprintComputation (enum 10)
     ObservedInputs = 4; 
 
     ProcessExecutionMonitoringReported = 5;
-    ExtraEventDataReported = 6;
+    ExecutionEventId_ExtraEventDataReported = 6;
     DependencyViolationReported = 7;
     PipExecutionStepPerformanceReported = 8;
     ResourceUsageReported = 9;
@@ -63,14 +62,14 @@ enum ExecutionEventId_XLGpp{
     DominoInvocation = 13;
 }
 
-enum PipOutputOrigin_XLGpp{
+enum PipOutputOrigin{
     Produced = 0;
     UpToDate = 1;
     DeployedFromCache = 2;
     NotMaterialized = 3;
 }
 
-enum PipExecutionStep_XLGpp{
+enum PipExecutionStep{
     PipExecutionStep_None = 0;
     Start = 1;
     Cancel = 2;
@@ -89,7 +88,7 @@ enum PipExecutionStep_XLGpp{
     Done = 15;
 }
 
-enum WorkDispatcher_DispatcherKind_XLGpp{
+enum WorkDispatcher_DispatcherKind{
     WorkDispatcherKind_None = 0;
     IO = 1;
     WorkDispatcher_DispatcherKind_CPU = 2;
@@ -100,7 +99,7 @@ enum WorkDispatcher_DispatcherKind_XLGpp{
     Materialize = 7;
 }
 
-enum FileMonitoringViolationAnalyzer_DependencyViolationType_XLGpp{
+enum FileMonitoringViolationAnalyzer_DependencyViolationType{
     DoubleWrite = 0;
     ReadRace = 1;
     UndeclaredOrderedRead = 2;
@@ -116,12 +115,12 @@ enum FileMonitoringViolationAnalyzer_DependencyViolationType_XLGpp{
     WriteToTempPathInsideSharedOpaque = 12;
 }
 
-enum FileMonitoringViolationAnalyzer_AccessLevel_XLGpp{
+enum FileMonitoringViolationAnalyzer_AccessLevel{
     FileMonitoringViolationAnalyzer_AccessLevel_Read = 0;
     FileMonitoringViolationAnalyzer_AccessLevel_Write = 1;
 }
 
-enum PipCacheMissType_XLGpp{
+enum PipCacheMissType{
     Invalid = 0;
     MissForDescriptorsDueToStrongFingerprints = 53;
     MissForDescriptorsDueToWeakFingerprints = 54;
@@ -135,7 +134,7 @@ enum PipCacheMissType_XLGpp{
     MissForProcessConfiguredUncacheable = 61;
 }
 
-enum ExecutionSampler_LimitingResource_XLGpp{
+enum ExecutionSampler_LimitingResource{
     GraphShape = 0;
     ExecutionSampler_LimitingResource_CPU = 1;
     Disk = 2;
@@ -146,7 +145,7 @@ enum ExecutionSampler_LimitingResource_XLGpp{
     Other = 7;
 }
 
-enum CreationDisposition_XLGpp{
+enum CreationDisposition{
     // First enum value in proto must be 0
     CreationDisposition_DEFAULT_ZERO = 0;
     CREATE_NEW = 1;
@@ -156,7 +155,7 @@ enum CreationDisposition_XLGpp{
     TRUNCATE_EXISTING = 5;
 }
 
-enum DesiredAccess_XLGpp{
+enum DesiredAccess{
     // First enum value in proto must be 0
     DesiredAccess_DEFAULT_ZERO = 0;
     DELETE = 0x00010000;
@@ -171,7 +170,7 @@ enum DesiredAccess_XLGpp{
     GENERIC_READ = -2147483648;
 }
 
-enum FlagsAndAttributes_XLGpp{
+enum FlagsAndAttributes{
     // First enum value in proto must be 0
     FlagsAndAttributes_DEFAULT_ZERO = 0;
     FILE_ATTRIBUTE_READONLY = 0x00000001;
@@ -195,26 +194,26 @@ enum FlagsAndAttributes_XLGpp{
     FILE_FLAG_WRITE_THROUGH = -2147483648;
 }
 
-enum ShareMode_XLGpp{
+enum ShareMode{
     FILE_SHARE_NONE = 0x0;
     FILE_SHARE_READ = 0x1;
     FILE_SHARE_WRITE = 0x2;
     FILE_SHARE_DELETE = 0x4;
 }
 
-enum FileAccessStatus_XLGpp{
+enum FileAccessStatus{
     FileAccessStatus_None = 0;
     Allowed = 1;
     Denied = 2;
     CannotDetermineByPolicy = 3;
 }
 
-enum FileAccessStatusMethod_XLGpp{
+enum FileAccessStatusMethod{
     PolicyBased = 0;
     FileExistenceBased = 1;
 }
 
-enum RequestedAccess_XLGpp{
+enum RequestedAccess{
     RequestedAccess_None = 0;
     RequestedAccess_Read = 1;
     RequestedAccess_Write = 2;
@@ -227,7 +226,7 @@ enum RequestedAccess_XLGpp{
     All = 31;
 }
 
-enum ReportedFileOperation_XLGpp{
+enum ReportedFileOperation{
     Unknown = 0;
     CreateFile = 1;
     GetFileAttributes = 2;
@@ -290,12 +289,12 @@ enum ReportedFileOperation_XLGpp{
     KAuthVNodeProb = 59;
 }
 
-enum FingerprintComputationKind_XLGpp{
+enum FingerprintComputationKind{
     Execution = 0;
     CacheCheck = 1;
 }
 
-enum ObservedInputType_XLGpp{
+enum ObservedInputType{
     AbsentPathProbe = 0;
     FileContentRead = 1;
     DirectoryEnumeration = 2;
@@ -303,13 +302,13 @@ enum ObservedInputType_XLGpp{
     ExistingFileProbe = 4;
 }
 
-enum PreserveOutputsMode_XLGpp{
+enum PreserveOutputsMode{
     Disabled = 0;
     Enabled = 1;
     Reset = 2;
 }
 
-enum SandboxKind_XLGpp{
+enum SandboxKind{
     SandboxKind_None = 0;
     Default = 1;
     WinDetours = 2;
@@ -317,53 +316,49 @@ enum SandboxKind_XLGpp{
     MacOsKextIgnoreFileAccesses = 4;
 }
 
-enum DoubleWritePolicy_XLGpp{
+enum DoubleWritePolicy{
     DoubleWritesAreErrors = 0;
     AllowSameContentDoubleWrites = 1;
     UnsafeFirstDoubleWriteWins = 2;
 }
 
-message AbsolutePath_XLGpp{
+message AbsolutePath{
     string Value = 1;
 }
 
-message ContentHash_XLGpp{
+message ContentHash{
     string Value = 1;
 }
 
-message FileArtifact_XLGpp{
-    AbsolutePath_XLGpp path = 1;
+message FileArtifact{
+    AbsolutePath path = 1;
 
     int32 RewriteCount = 2;
-
-    bool IsSourceFile = 3; 
-
-    bool IsOutputFile = 4;
 }
 
-message FileContentInfo_XLGpp{
+message FileContentInfo{
     // [IsKnownExistenceFlag | Existence | IsKnownLengthFlag | Length]; 
     int64 LengthAndExistence = 1;
 
-    ContentHash_XLGpp Hash = 2;
+    ContentHash Hash = 2;
 }
 
-message PipExecutionPerformance_XLGpp{
-    int32 PipExecutionLevel = 3;
+message PipExecutionPerformance{
+    int32 PipExecutionLevel = 1;
 
-    google.protobuf.Timestamp ExecutionStart = 4;
+    google.protobuf.Timestamp ExecutionStart = 2;
     
-    google.protobuf.Timestamp ExecutionStop = 5;
+    google.protobuf.Timestamp ExecutionStop = 3;
 }
 
-message ProcessPipExecutionPerformance_XLGpp{
+message ProcessPipExecutionPerformance{
     google.protobuf.Duration ProcessExecutionTime = 1;
     
-    IOTypeCounters_XLGpp ReadCounters = 2;
+    IOTypeCounters ReadCounters = 2;
 
-    IOTypeCounters_XLGpp WriteCounters = 3;
+    IOTypeCounters WriteCounters = 3;
 
-    IOTypeCounters_XLGpp OtherCounters = 4;
+    IOTypeCounters OtherCounters = 4;
     
     google.protobuf.Duration UserTime = 5;
 
@@ -375,14 +370,14 @@ message ProcessPipExecutionPerformance_XLGpp{
 
     uint32 NumberOfProcesses = 9;
 
-    FileMonitoringViolationCounters_XLGpp FileMonitoringViolationCounters = 10;
+    FileMonitoringViolationCounters FileMonitoringViolationCounters = 10;
 
-    Fingerprint_XLGpp Fingerprint = 11;
+    Fingerprint Fingerprint = 11;
 
     uint64 CacheDescriptorId = 12;
 }
 
-message FileMonitoringViolationCounters_XLGpp{
+message FileMonitoringViolationCounters{
     int32 NumFileAccessesWhitelistedButNotCacheable = 1;
 
     int32 NumFileAccessesWhitelistedAndCacheable = 2;
@@ -390,30 +385,30 @@ message FileMonitoringViolationCounters_XLGpp{
     int32 NumFileAccessViolationsNotWhitelisted = 3;
 }
 
-message Fingerprint_XLGpp{
+message Fingerprint{
     int32 Length = 1;
 
     bytes Bytes = 2;
 }
 
-message IOTypeCounters_XLGpp{
+message IOTypeCounters{
     uint64 OperationCount = 1;
 
     uint64 TransferCOunt = 2;
 }
 
-message ReportedProcess_XLGpp{
+message ReportedProcess{
     string Path = 1;
 
     uint32 ProcessId = 2;
 
     string ProcessArgs = 3;
 
-    IOTypeCounters_XLGpp ReadCounters = 4;
+    IOTypeCounters ReadCounters = 4;
 
-    IOTypeCounters_XLGpp WriteCounters = 5;
+    IOTypeCounters WriteCounters = 5;
 
-    IOTypeCounters_XLGpp OtherCounters = 6;
+    IOTypeCounters OtherCounters = 6;
 
     google.protobuf.Timestamp CreationTime = 7;
 
@@ -428,39 +423,39 @@ message ReportedProcess_XLGpp{
     uint32 ParentProcessId = 12;
 }
 
-message ReportedFileAccess_XLGpp{
-    CreationDisposition_XLGpp CreationDisposition = 1;
+message ReportedFileAccess{
+    CreationDisposition CreationDisposition = 1;
 
-    DesiredAccess_XLGpp DesiredAccess = 2;
+    DesiredAccess DesiredAccess = 2;
 
     uint32 Error = 3;
 
     uint64 Usn = 4;
 
-    FlagsAndAttributes_XLGpp FlagsAndAttributes = 5;
+    FlagsAndAttributes FlagsAndAttributes = 5;
 
     string Path = 6;
 
     string ManifestPath = 7;
 
-    ReportedProcess_XLGpp Process = 8;
+    ReportedProcess Process = 8;
 
-    ShareMode_XLGpp ShareMode = 9;
+    ShareMode ShareMode = 9;
 
-    FileAccessStatus_XLGpp Status = 10;
+    FileAccessStatus Status = 10;
 
-    FileAccessStatusMethod_XLGpp Method = 11;
+    FileAccessStatusMethod Method = 11;
 
-    RequestedAccess_XLGpp RequestedAccess = 12;
+    RequestedAccess RequestedAccess = 12;
 
-    ReportedFileOperation_XLGpp Operation = 13;
+    ReportedFileOperation Operation = 13;
 
     bool ExplicitlyReported = 14;
 
     string EnumeratePattern = 15;
 }
 
-message ProcessDetouringStatusData_XLGpp{
+message ProcessDetouringStatusData{
     uint64 ProcessID = 1;
 
     uint32 ReportStatus = 2;
@@ -484,22 +479,22 @@ message ProcessDetouringStatusData_XLGpp{
     uint32 Error = 11;
 }
 
-message WeakContentFingerPrint_XLGpp{
-    Fingerprint_XLGpp Hash = 1;
+message WeakContentFingerPrint{
+    Fingerprint Hash = 1;
 }
 
-message StrongContentFingerPrint_XLGpp{
-    Fingerprint_XLGpp Hash = 1;
+message StrongContentFingerPrint{
+    Fingerprint Hash = 1;
 }
 
-message ObservedPathEntry_XLGpp{
-    AbsolutePath_XLGpp Path = 1;
+message ObservedPathEntry{
+    AbsolutePath Path = 1;
 
     string EnumeratePatternRegex = 2;
 }
 
-message IUnsafeSandboxConfiguration_XLGpp{
-    PreserveOutputsMode_XLGpp PreserveOutputs = 1;
+message UnsafeSandboxConfiguration{
+    PreserveOutputsMode PreserveOutputs = 1;
 
     bool MonitorFileAccesses = 2;
 
@@ -521,7 +516,7 @@ message IUnsafeSandboxConfiguration_XLGpp{
 
     bool MonitorZwCreateOpenQueryFile = 11;
 
-    SandboxKind_XLGpp SandboxKind = 12;
+    SandboxKind SandboxKind = 12;
 
     bool UnexpectedFileAccessesAreErrors = 13;
 
@@ -529,29 +524,29 @@ message IUnsafeSandboxConfiguration_XLGpp{
 
     bool IgnoreDynamicWritesOnAbsentProbes = 15;
 
-    DoubleWritePolicy_XLGpp DoubleWritePolicy = 16;
+    DoubleWritePolicy DoubleWritePolicy = 16;
 
     bool IgnoreUndeclaredAccessesUnderSharedOpaques = 17;
 }
 
-message UnsafeOptions_XLGpp{
-    ContentHash_XLGpp PreserveOutputsSalt = 1;
+message UnsafeOptions{
+    ContentHash PreserveOutputsSalt = 1;
 
-    IUnsafeSandboxConfiguration_XLGpp UnsafeConfiguration = 2;
+    UnsafeSandboxConfiguration UnsafeConfiguration = 2;
 }
 
-message StringId_XLGpp{
+message StringId{
     int32 Value = 1;
 }
 
-message ObservedInput_XLGpp{
-    ObservedInputType_XLGpp Type = 1;
+message ObservedInput{
+    ObservedInputType Type = 1;
 
-    ContentHash_XLGpp Hash = 2;
+    ContentHash Hash = 2;
 
-    ObservedPathEntry_XLGpp PathEntry = 3;
+    ObservedPathEntry PathEntry = 3;
 
-    AbsolutePath_XLGpp Path = 4;
+    AbsolutePath Path = 4;
 
     bool IsSearchPath = 5;
 
@@ -560,50 +555,50 @@ message ObservedInput_XLGpp{
     bool DirectoryEnumeration = 7;
 }
 
-message ObservedPathSet_XLGpp{
-    repeated ObservedPathEntry_XLGpp Paths = 1;
+message ObservedPathSet{
+    repeated ObservedPathEntry Paths = 1;
 
-    repeated StringId_XLGpp ObservedAccessedFileNames = 2;
+    repeated StringId ObservedAccessedFileNames = 2;
 
-    UnsafeOptions_XLGpp UnsafeOptions = 3;
+    UnsafeOptions UnsafeOptions = 3;
 }
 
-message ProcessStrongFingerprintComputationData_XLGpp{
-    ObservedPathSet_XLGpp PathSet = 1;
+message ProcessStrongFingerprintComputationData{
+    ObservedPathSet PathSet = 1;
 
-    ContentHash_XLGpp PathSetHash = 2;
+    ContentHash PathSetHash = 2;
 
-    repeated ObservedPathEntry_XLGpp PathEntries = 3;
+    repeated ObservedPathEntry PathEntries = 3;
 
-    UnsafeOptions_XLGpp UnsafeOptions = 4;
+    UnsafeOptions UnsafeOptions = 4;
 
-    repeated StringId_XLGpp ObservedAccessedFileNames = 5;
+    repeated StringId ObservedAccessedFileNames = 5;
 
-    repeated StrongContentFingerPrint_XLGpp PriorStrongFingerprints = 6;
+    repeated StrongContentFingerPrint PriorStrongFingerprints = 6;
 
     bool Succeeded = 7;
 
     bool IsStrongFingerprintHit = 8;
 
-    StrongContentFingerPrint_XLGpp ComputedStrongFingerprint = 9;
+    StrongContentFingerPrint ComputedStrongFingerprint = 9;
 
-    repeated ObservedInput_XLGpp ObservedInputs = 10;
+    repeated ObservedInput ObservedInputs = 10;
 }
 
-message DirectoryFingerprint_XLGpp{
-    ContentHash_XLGpp Hash = 1;
+message DirectoryFingerprint{
+    ContentHash Hash = 1;
 }
 
-message DirectoryOutput_XLGpp{
-    DirectoryArtifact_XLGpp DirectoryArtifact = 1;
+message DirectoryOutput{
+    DirectoryArtifact DirectoryArtifact = 1;
     
-    repeated FileArtifact_XLGpp fileArtifactArray = 2;
+    repeated FileArtifact fileArtifactArray = 2;
 }
 
-message DirectoryArtifact_XLGpp{
+message DirectoryArtifact{
     bool IsValid = 1;
 
-    AbsolutePath_XLGpp Path = 2;
+    AbsolutePath Path = 2;
 
     uint32 PartialSealID = 3;
 
@@ -615,20 +610,20 @@ message DirectoryArtifact_XLGpp{
 //
 
 // The FileArtifactContentDecided Event message
-message FileArtifactContentDecidedEvent_XLGpp{
+message FileArtifactContentDecidedEvent{
     string UUID = 99;
 
     uint32 WorkerID = 1;
 
-    FileArtifact_XLGpp FileArtifact = 2;
+    FileArtifact FileArtifact = 2;
 
-    FileContentInfo_XLGpp FileContentInfo = 3;
+    FileContentInfo FileContentInfo = 3;
 
-    PipOutputOrigin_XLGpp OutputOrigin = 4;
+    PipOutputOrigin OutputOrigin = 4;
 }
 
 // The WorkerList Event message
-message WorkerListEvent_XLGpp{
+message WorkerListEvent{
     string UUID = 99;
 
     uint32 WorkerID = 1;
@@ -637,28 +632,27 @@ message WorkerListEvent_XLGpp{
 }
 
 // The PipExecutionPerformance Event message
-message PipExecutionPerformanceEvent_XLGpp{
-
+message PipExecutionPerformanceEvent{
     string UUID = 99;
 
     uint32 WorkerID = 1;
 
     uint32 PipID = 2;
 
-    PipExecutionPerformance_XLGpp PipExecutionPerformance = 3;
+    PipExecutionPerformance PipExecutionPerformance = 3;
 
-    ProcessPipExecutionPerformance_XLGpp ProcessPipExecutionPerformance = 4;
+    ProcessPipExecutionPerformance ProcessPipExecutionPerformance = 4;
 }
 
 // The DirectoryMembershipHashed Event message
-message DirectoryMembershipHashedEvent_XLGpp{
+message DirectoryMembershipHashedEvent{
     string UUID = 99;
 
     uint32 WorkerID = 1;
 
-    DirectoryFingerprint_XLGpp DirectoryFingerprint = 3;
+    DirectoryFingerprint DirectoryFingerprint = 3;
 
-    AbsolutePath_XLGpp Directory = 4;
+    AbsolutePath Directory = 4;
 
     bool IsStatic = 5;
 
@@ -666,31 +660,30 @@ message DirectoryMembershipHashedEvent_XLGpp{
 
     uint32 PipID = 7;
 
-    repeated AbsolutePath_XLGpp Members = 8;
+    repeated AbsolutePath Members = 8;
 
     string EnumeratePatternRegex = 9;
-
 }
 
 // The ProcessExecutionMonitoringReported Event message
-message ProcessExecutionMonitoringReportedEvent_XLGpp{
+message ProcessExecutionMonitoringReportedEvent{
     string UUID = 99;
 
     uint32 WorkerID = 1;
 
     uint32 PipID = 2;
 
-    repeated ReportedProcess_XLGpp ReportedProcesses = 3;
+    repeated ReportedProcess ReportedProcesses = 3;
 
-    repeated ReportedFileAccess_XLGpp ReportedFileAccesses = 4;
+    repeated ReportedFileAccess ReportedFileAccesses = 4;
     
-    repeated ReportedFileAccess_XLGpp WhitelistedReportedFileAccesses = 5;
+    repeated ReportedFileAccess WhitelistedReportedFileAccesses = 5;
 
-    repeated ProcessDetouringStatusData_XLGpp ProcessDetouringStatuses = 6;
+    repeated ProcessDetouringStatusData ProcessDetouringStatuses = 6;
 }
 
 // The ExtraEventDataReported Event message
-message ExtraEventDataReported_XLGpp{
+message ExtraEventDataReported{
     string UUID = 99;
 
     uint32 WorkerID = 1;
@@ -721,7 +714,7 @@ message ExtraEventDataReported_XLGpp{
 
     string FingerprintSalt = 14;
 
-    ContentHash_XLGpp SearchPathToolsHash = 15;
+    ContentHash SearchPathToolsHash = 15;
 
     bool UnexpectedFileAccessesAreErrors = 16;
 
@@ -739,7 +732,7 @@ message ExtraEventDataReported_XLGpp{
 }
 
 // The DependencyViolationReported Event message
-message DependencyViolationReportedEvent_XLGpp{
+message DependencyViolationReportedEvent{
     string UUID = 99;
 
     uint32 WorkerID = 1;
@@ -748,15 +741,15 @@ message DependencyViolationReportedEvent_XLGpp{
 
     uint32 RelatedPipID = 3;
 
-    FileMonitoringViolationAnalyzer_DependencyViolationType_XLGpp ViolationType = 4;
+    FileMonitoringViolationAnalyzer_DependencyViolationType ViolationType = 4;
 
-    FileMonitoringViolationAnalyzer_AccessLevel_XLGpp AccessLevel = 5;
+    FileMonitoringViolationAnalyzer_AccessLevel AccessLevel = 5;
 
-    AbsolutePath_XLGpp Path = 6;
+    AbsolutePath Path = 6;
 }
 
 // The PipExecutionStepPerformanceReported Event message
-message PipExecutionStepPerformanceReportedEvent_XLGpp{
+message PipExecutionStepPerformanceReportedEvent{
     string UUID = 99;
 
     uint32 WorkerID = 1;
@@ -767,13 +760,13 @@ message PipExecutionStepPerformanceReportedEvent_XLGpp{
 
     google.protobuf.Duration Duration = 4;
 
-    PipExecutionStep_XLGpp Step = 5;
+    PipExecutionStep Step = 5;
 
-    WorkDispatcher_DispatcherKind_XLGpp Dispatcher = 6;
+    WorkDispatcher_DispatcherKind Dispatcher = 6;
 }
 
 // The StatusReported Event message
-message StatusReportedEvent_XLGpp{
+message StatusReportedEvent{
     string UUID = 99;
 
     uint32 WorkerID = 1;
@@ -799,7 +792,6 @@ message StatusReportedEvent_XLGpp{
     int32 ProcessWorkingSetMB = 11;
 
     int32 CpuWaiting = 12;
-
     
     int32 CpuRunning = 13;
 
@@ -817,7 +809,7 @@ message StatusReportedEvent_XLGpp{
 
     repeated int64 PipsSucceededAllTypes = 20;
 
-    ExecutionSampler_LimitingResource_XLGpp LimitingResource = 21;
+    ExecutionSampler_LimitingResource LimitingResource = 21;
 
     int32 UnresponsivenessFactor = 22;
 
@@ -827,50 +819,49 @@ message StatusReportedEvent_XLGpp{
 }
 
 // The ProcessFingerprintComputation Event message
-message ProcessFingerprintComputationEvent_XLGpp{
+message ProcessFingerprintComputationEvent{
     string UUID = 99;
 
     uint32 WorkerID = 1;
     
-    FingerprintComputationKind_XLGpp Kind = 2;
+    FingerprintComputationKind Kind = 2;
 
     uint32 PipID = 3;
     
-    WeakContentFingerPrint_XLGpp WeakFingerprint = 4;
+    WeakContentFingerPrint WeakFingerprint = 4;
 
-    repeated ProcessStrongFingerprintComputationData_XLGpp StrongFingerprintComputations = 5;
+    repeated ProcessStrongFingerprintComputationData StrongFingerprintComputations = 5;
 }
 
 // The PipCacheMiss Event message
-message PipCacheMissEvent_XLGpp{
+message PipCacheMissEvent{
     string UUID = 99;
 
     uint32 WorkerID = 1;
 
     uint32 PipID = 2;
 
-    PipCacheMissType_XLGpp CacheMissType = 3;
+    PipCacheMissType CacheMissType = 3;
 }
 
 // The PipExecutionDirectoryOutputs Event message
-message PipExecutionDirectoryOutputsEvent_XLGpp{
+message PipExecutionDirectoryOutputsEvent{
     string UUID = 99;
 
     uint32 WorkerID = 1;
 
-    repeated DirectoryOutput_XLGpp DirectoryOutput = 2;
+    repeated DirectoryOutput DirectoryOutput = 2;
 }
 
 // The BXLInvocation Event message
-message BXLInvocationEvent_XLGpp{
-    // Unique identifier for the event - required, TODO: Remove as it may not be needed.
+message BXLInvocationEvent{
     string UUID = 99;
 
     uint32 WorkerID = 1;
 
-    AbsolutePath_XLGpp SubstSource = 2;
+    AbsolutePath SubstSource = 2;
     
-    AbsolutePath_XLGpp SubstTarget = 3;
+    AbsolutePath SubstTarget = 3;
 
     bool IsSubstSourceValid = 4;
     

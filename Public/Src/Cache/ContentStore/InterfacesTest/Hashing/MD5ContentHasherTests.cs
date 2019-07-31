@@ -3,7 +3,7 @@
 
 using BuildXL.Cache.ContentStore.Hashing;
 using Xunit;
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
 using MD5Cng = System.Security.Cryptography.MD5Cng;
 #else
 using MD5Cng = System.Security.Cryptography.MD5CryptoServiceProvider;

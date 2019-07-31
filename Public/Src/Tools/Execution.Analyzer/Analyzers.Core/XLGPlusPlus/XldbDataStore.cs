@@ -4,16 +4,14 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using BuildXL.Engine.Cache.KeyValueStores;
-using BuildXL.Execution.Analyzer;
-using BuildXL.Scheduler.Tracing;
+using BuildXL.Execution.Analyzer.Xldb;
 using BuildXL.Utilities;
 using Google.Protobuf;
 
 namespace BuildXL.Analyzers.Core.XLGPlusPlus
 {
-    public class XLGppDataStore: IDisposable
+    public sealed class XldbDataStore : IDisposable
     {
         /// <summary>
         /// Rocks DB Accessor for XLG++ data
@@ -23,7 +21,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// <summary>
         /// Open the datastore and populate the KeyValueStoreAccessor for the XLG++ DB
         /// </summary>
-        public XLGppDataStore(string storeDirectory,
+        public XldbDataStore(string storeDirectory,
             bool defaultColumnKeyTracked = false,
             IEnumerable<string> additionalColumns = null,
             IEnumerable<string> additionalKeyTrackedColumns = null,
@@ -56,12 +54,12 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// Gets all the events of a certain type from the DB
         /// </summary>
         /// <returns>List of event objects recovered from DB </returns>
-        public IEnumerable<string> GetEventsByType_V0(ExecutionEventId_XLGpp eventTypeID)
+        public IEnumerable<string> GetEventsByType(ExecutionEventId eventTypeID)
         {
-            Contract.Assert(Accessor != null, "XLGppStore must be initialized via OpenDatastore first");
+            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
             var storedEvents = new List<string>();
-            var eventQuery = new EventTypeQuery_XLGpp
+            var eventQuery = new EventTypeQuery
             {
                 EventTypeID = eventTypeID,
             };
@@ -72,44 +70,44 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
                     {
                         switch (eventTypeID)
                         {
-                            case ExecutionEventId_XLGpp.FileArtifactContentDecided:
-                                storedEvents.Add(FileArtifactContentDecidedEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                            case ExecutionEventId.FileArtifactContentDecided:
+                                storedEvents.Add(FileArtifactContentDecidedEvent.Parser.ParseFrom(kvp.Value).ToString());
                                 break;
-                            case ExecutionEventId_XLGpp.WorkerList:
-                                storedEvents.Add(WorkerListEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                            case ExecutionEventId.WorkerList:
+                                storedEvents.Add(WorkerListEvent.Parser.ParseFrom(kvp.Value).ToString());
                                 break;
-                            case ExecutionEventId_XLGpp.PipExecutionPerformance:
-                                storedEvents.Add(PipExecutionPerformanceEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                            case ExecutionEventId.PipExecutionPerformance:
+                                storedEvents.Add(PipExecutionPerformanceEvent.Parser.ParseFrom(kvp.Value).ToString());
                                 break;
-                            case ExecutionEventId_XLGpp.DirectoryMembershipHashed:
-                                storedEvents.Add(DirectoryMembershipHashedEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                            case ExecutionEventId.DirectoryMembershipHashed:
+                                storedEvents.Add(DirectoryMembershipHashedEvent.Parser.ParseFrom(kvp.Value).ToString());
                                 break;
-                            case ExecutionEventId_XLGpp.ProcessExecutionMonitoringReported:
-                                storedEvents.Add(ProcessExecutionMonitoringReportedEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                            case ExecutionEventId.ProcessExecutionMonitoringReported:
+                                storedEvents.Add(ProcessExecutionMonitoringReportedEvent.Parser.ParseFrom(kvp.Value).ToString());
                                 break;
-                            case ExecutionEventId_XLGpp.ProcessFingerprintComputation:
-                                storedEvents.Add(ProcessFingerprintComputationEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                            case ExecutionEventId.ProcessFingerprintComputation:
+                                storedEvents.Add(ProcessFingerprintComputationEvent.Parser.ParseFrom(kvp.Value).ToString());
                                 break;
-                            case ExecutionEventId_XLGpp.ExtraEventDataReported:
-                                storedEvents.Add(ExtraEventDataReported_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                            case ExecutionEventId.ExtraEventDataReported:
+                                storedEvents.Add(ExtraEventDataReported.Parser.ParseFrom(kvp.Value).ToString());
                                 break;
-                            case ExecutionEventId_XLGpp.DependencyViolationReported:
-                                storedEvents.Add(DependencyViolationReportedEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                            case ExecutionEventId.DependencyViolationReported:
+                                storedEvents.Add(DependencyViolationReportedEvent.Parser.ParseFrom(kvp.Value).ToString());
                                 break;
-                            case ExecutionEventId_XLGpp.PipExecutionStepPerformanceReported:
-                                storedEvents.Add(PipExecutionStepPerformanceReportedEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                            case ExecutionEventId.PipExecutionStepPerformanceReported:
+                                storedEvents.Add(PipExecutionStepPerformanceReportedEvent.Parser.ParseFrom(kvp.Value).ToString());
                                 break;
-                            case ExecutionEventId_XLGpp.PipCacheMiss:
-                                storedEvents.Add(PipCacheMissEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                            case ExecutionEventId.PipCacheMiss:
+                                storedEvents.Add(PipCacheMissEvent.Parser.ParseFrom(kvp.Value).ToString());
                                 break;
-                            case ExecutionEventId_XLGpp.ResourceUsageReported:
-                                storedEvents.Add(StatusReportedEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                            case ExecutionEventId.ResourceUsageReported:
+                                storedEvents.Add(StatusReportedEvent.Parser.ParseFrom(kvp.Value).ToString());
                                 break;
-                            case ExecutionEventId_XLGpp.DominoInvocation:
-                                storedEvents.Add(BXLInvocationEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                            case ExecutionEventId.DominoInvocation:
+                                storedEvents.Add(BXLInvocationEvent.Parser.ParseFrom(kvp.Value).ToString());
                                 break;
-                            case ExecutionEventId_XLGpp.PipExecutionDirectoryOutputs:
-                                storedEvents.Add(PipExecutionDirectoryOutputsEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                            case ExecutionEventId.PipExecutionDirectoryOutputs:
+                                storedEvents.Add(PipExecutionDirectoryOutputsEvent.Parser.ParseFrom(kvp.Value).ToString());
                                 break;
                             default:
                                 break;
@@ -117,7 +115,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
                     }
                 })
             );
-            
+
             return storedEvents;
         }
 
@@ -125,73 +123,73 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// Gets all the File Artifact Content Decided Events
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<string> GetFileArtifactContentDecidedEvents_V0() => GetEventsByType_V0(ExecutionEventId_XLGpp.FileArtifactContentDecided);
+        public IEnumerable<string> GetFileArtifactContentDecidedEvents() => GetEventsByType(ExecutionEventId.FileArtifactContentDecided);
 
         /// <summary>
         /// Gets all the Worker List Events
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<string> GetWorkerListEvents_V0() => GetEventsByType_V0(ExecutionEventId_XLGpp.WorkerList);
+        public IEnumerable<string> GetWorkerListEvents() => GetEventsByType(ExecutionEventId.WorkerList);
 
         /// <summary>
         /// Gets all the Pip Execution Performance Events
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<string> GetPipExecutionPerformanceEvents_V0() => GetEventsByType_V0(ExecutionEventId_XLGpp.PipExecutionPerformance);
+        public IEnumerable<string> GetPipExecutionPerformanceEvents() => GetEventsByType(ExecutionEventId.PipExecutionPerformance);
 
         /// <summary>
         /// Gets all the Directory Membership Hashed Events
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<string> GetDirectoryMembershipHashedEvents_V0() => GetEventsByType_V0(ExecutionEventId_XLGpp.DirectoryMembershipHashed);
+        public IEnumerable<string> GetDirectoryMembershipHashedEvents() => GetEventsByType(ExecutionEventId.DirectoryMembershipHashed);
 
         /// <summary>
         /// Gets all the Process Execution Monitoring Reported Events
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<string> GetProcessExecutionMonitoringReportedEvents_V0() => GetEventsByType_V0(ExecutionEventId_XLGpp.ProcessExecutionMonitoringReported);
+        public IEnumerable<string> GetProcessExecutionMonitoringReportedEvents() => GetEventsByType(ExecutionEventId.ProcessExecutionMonitoringReported);
 
         /// <summary>
         /// Gets all the Extra Event Data Reported Events
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<string> GetExtraEventDataReportedEvents_V0() => GetEventsByType_V0(ExecutionEventId_XLGpp.ExtraEventDataReported);
+        public IEnumerable<string> GetExtraEventDataReportedEvents() => GetEventsByType(ExecutionEventId.ExtraEventDataReported);
 
         /// <summary>
         /// Gets all the Dependency Violation Reported Events
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<string> GetDependencyViolationReportedEvents_V0() => GetEventsByType_V0(ExecutionEventId_XLGpp.DependencyViolationReported);
+        public IEnumerable<string> GetDependencyViolationReportedEvents() => GetEventsByType(ExecutionEventId.DependencyViolationReported);
 
         /// <summary>
         /// Gets all the Pip Execution Step Performance Reported Events
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<string> GetPipExecutionStepPerformanceReportedEvents_V0() => GetEventsByType_V0(ExecutionEventId_XLGpp.PipExecutionStepPerformanceReported);
+        public IEnumerable<string> GetPipExecutionStepPerformanceReportedEvents() => GetEventsByType(ExecutionEventId.PipExecutionStepPerformanceReported);
 
         /// <summary>
         /// Gets all the Status Reported Events
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<string> GetStatusReportedEvents_V0() => GetEventsByType_V0(ExecutionEventId_XLGpp.ResourceUsageReported);
+        public IEnumerable<string> GetStatusReportedEvents() => GetEventsByType(ExecutionEventId.ResourceUsageReported);
 
         /// <summary>
         /// Gets all the Pip Cache Miss Events
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<string> GetPipCacheMissEvents_V0() => GetEventsByType_V0(ExecutionEventId_XLGpp.PipCacheMiss);
+        public IEnumerable<string> GetPipCacheMissEvents() => GetEventsByType(ExecutionEventId.PipCacheMiss);
 
         /// <summary>
         /// Gets all the BXL Invocation Events
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<string> GetBXLInvocationEvents_V0() => GetEventsByType_V0(ExecutionEventId_XLGpp.DominoInvocation);
+        public IEnumerable<string> GetBXLInvocationEvents() => GetEventsByType(ExecutionEventId.DominoInvocation);
 
         /// <summary>
         /// Gets all the Pip Execution Directory Outputs Events
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<string> GetPipExecutionDirectoryOutputsEvents_V0() => GetEventsByType_V0(ExecutionEventId_XLGpp.PipExecutionDirectoryOutputs);
+        public IEnumerable<string> GetPipExecutionDirectoryOutputsEvents() => GetEventsByType(ExecutionEventId.PipExecutionDirectoryOutputs);
 
 
         /// <summary>
@@ -199,8 +197,6 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// </summary>
         public void Dispose()
         {
-            Contract.Assert(Accessor != null, "XLGppStore must be initialized via OpenDatastore first");
-
             Accessor.Dispose();
         }
 
@@ -209,9 +205,9 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// NOTE: For internal testing/Debugging only!
         /// </summary>
         /// <returns>Stored data in string format</returns>
-        public string GetStoredData_V0()
+        public string GetStoredData()
         {
-            Contract.Assert(Accessor != null, "XLGppStore must be initialized via OpenDatastore first");
+            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
             string value = null;
             Analysis.IgnoreResult(

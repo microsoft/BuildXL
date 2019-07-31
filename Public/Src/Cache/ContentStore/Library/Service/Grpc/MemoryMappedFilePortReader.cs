@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             string content = string.Empty;
 
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
             try
             {
                 using (var file = GetMemoryMappedFile(_fileName))

@@ -1107,6 +1107,13 @@ namespace BuildXL.Engine
                 mutableConfig.Distribution.EarlyWorkerRelease = false;
             }
 
+            // When running in cloudbuild we want to ignore the user setting the interactive flag
+            // and force it to be false since we never want to pop up UI there.
+            if (mutableConfig.InCloudBuild())
+            {
+                mutableConfig.Interactive = false;
+            }
+
             // HACK HACK HACK
             // To deal with using Dedup hash while config still uses VSO hash
             // HACK HACK HACK
@@ -1675,7 +1682,6 @@ namespace BuildXL.Engine
                                         LaunchBuildExplorer(loggingContext, binDirectory);
                                     }
                                 }
-
                             }
 
                             try

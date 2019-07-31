@@ -1159,10 +1159,15 @@ namespace BuildXL.FrontEnd.Nuget
                 .Append(" -Verbosity detailed")
                 .AppendFormat(" -ConfigFile  \"{0}\"", layout.NugetConfig.ToString(PathTable))
                 .Append(" -PackageSaveMode nuspec")
-                .Append(" -NonInteractive")
                 .Append(" -NoCache")
                 // Currently we have to hack nuget to MsBuild version 4 which should come form the current CLR.
                 .Append(" -MsBuildVersion 4");
+
+            if (!m_host.Configuration.Interactive)
+            {
+                // Prevent Nuget from showing any UI when not in interactive mode
+                argumentsBuilder.Append(" -NonInteractive");
+            }
 
             var arguments = argumentsBuilder.ToString();
 

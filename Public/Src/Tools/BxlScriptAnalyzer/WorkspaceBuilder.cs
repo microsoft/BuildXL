@@ -13,7 +13,6 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.FrontEnd.Core;
-using BuildXL.FrontEnd.Script.Analyzer.Analyzers;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Sdk;
@@ -134,6 +133,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
             var commandlineConfig = GetCommandLineConfiguration(configuration, phase, configFile);
 
+            // Don't release workspace so that analyses can still be done if the min required phase is evaluation.
+            // TODO: Hack -- when phase Evaluate is use, then release workspace. This is for Office to be performant.
+            commandlineConfig.FrontEnd.ReleaseWorkspaceBeforeEvaluation = !phase.HasFlag(EnginePhases.Evaluate);
+
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(commandlineConfig, pathTable, bxlExeLocation: null);
 
             var statistics = new FrontEndStatistics(progressHandler);
@@ -174,7 +177,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 
                 if (frontEndEngineAbstraction == null)
                 {
-                    if ((phase & EnginePhases.Schedule) != 0)
+                    if (phase.HasFlag(EnginePhases.Schedule))
                     {
                         var mountsTable = MountsTable.CreateAndRegister(loggingContext, engineContext, config, commandlineConfig.Startup.Properties);
                         frontEndEngineAbstraction = new FrontEndEngineImplementation(
@@ -254,14 +257,16 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
             Contract.Assert(frontEndHostController != null);
 
-            // If workspace construction is successfull, we run the linter on all specs.
-            // This makes sure the workspace will carry all the errors that will occur when running the same specs in the regular engine path
-            workspace = CreateLintedWorkspace(
-                frontEndHostController.GetWorkspace(),
-
-                frontEndContext.LoggingContext,
-                config.FrontEnd,
-                pathTable);
+            if (workspace != null)
+            {
+                // If workspace construction is successfull, we run the linter on all specs.
+                // This makes sure the workspace will carry all the errors that will occur when running the same specs in the regular engine path
+                workspace = CreateLintedWorkspace(
+                    workspace,
+                    frontEndContext.LoggingContext,
+                    config.FrontEnd,
+                    pathTable);
+            }
 
             return true;
         }
@@ -378,20 +383,23 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 return false;
             }
 
-            // Find strict subset of specs in workspace that should be analyzed
-            var collectedFilesToAnalyze = CollectFilesToAnalyze(
-                workspace,
-                pathTable,
-                configFilePath,
-                evaluationFilter);
-
-            if (collectedFilesToAnalyze.Count == 0)
+            if (workspace != null)
             {
-                logger.ErrorFilterHasNoMatchingSpecs(loggingContext, filter);
-                return false;
-            }
+                // Find strict subset of specs in workspace that should be analyzed
+                var collectedFilesToAnalyze = CollectFilesToAnalyze(
+                        workspace,
+                        pathTable,
+                        configFilePath,
+                        evaluationFilter);
 
-            filesToAnalyze = collectedFilesToAnalyze;
+                if (collectedFilesToAnalyze.Count == 0)
+                {
+                    logger.ErrorFilterHasNoMatchingSpecs(loggingContext, filter);
+                    return false;
+                }
+
+                filesToAnalyze = collectedFilesToAnalyze;
+            }
 
             return true;
         }

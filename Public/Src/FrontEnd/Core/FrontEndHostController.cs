@@ -1351,8 +1351,11 @@ namespace BuildXL.FrontEnd.Core
             // Register the meta pips for the modules and the specs with the graph
             RegisterModuleAndSpecPips(Workspace);
 
-            // Workspace has been converted and is not needed anymore
-            CleanWorkspaceMemory();
+            if (FrontEndConfiguration.ReleaseWorkspaceBeforeEvaluation)
+            {
+                // Workspace has been converted and is not needed anymore
+                CleanWorkspaceMemory();
+            }
 
             // Evaluate with progress reporting
             List<ModuleEvaluationProgress> items = qualifierIds

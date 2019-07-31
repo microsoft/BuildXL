@@ -298,5 +298,10 @@ namespace BuildXL.Utilities.Configuration
         /// which means pips and graph will be cached ignoring environment variables specified in this configure
         /// </remarks>
         IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
+
+        /// <summary>
+        /// Wheather or not to release workspace before evaluation.
+        /// </summary>
+        bool ReleaseWorkspaceBeforeEvaluation { get; }
     }
 }

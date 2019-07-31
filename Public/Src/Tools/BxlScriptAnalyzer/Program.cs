@@ -95,14 +95,17 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
                 int errorCount = 0;
 
-                // TODO: Make this multi-threaded. For now since we are developing keeping simple loop to maintain easy debugging.
-                foreach (var kv in filesToAnalyze)
+                if (filesToAnalyze != null)
                 {
-                    foreach (var analyzer in arguments.Analyzers)
+                    // TODO: Make this multi-threaded. For now since we are developing keeping simple loop to maintain easy debugging.
+                    foreach (var kv in filesToAnalyze)
                     {
-                        if (!analyzer.AnalyzeSourceFile(workspace, kv.Key, kv.Value))
+                        foreach (var analyzer in arguments.Analyzers)
                         {
-                            Interlocked.Increment(ref errorCount);
+                            if (!analyzer.AnalyzeSourceFile(workspace, kv.Key, kv.Value))
+                            {
+                                Interlocked.Increment(ref errorCount);
+                            }
                         }
                     }
                 }

@@ -33,5 +33,8 @@ namespace Library {
         runtimeContent: [
             importFrom("Sdk.SelfHost.Sqlite").runtimeLibs,
         ],
+        internalsVisibleTo: [
+            "BuildXL.Cache.MemoizationStore.Test"
+        ]
     });
 }

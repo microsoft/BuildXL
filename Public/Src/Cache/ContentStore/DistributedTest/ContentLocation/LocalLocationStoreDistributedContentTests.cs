@@ -2090,7 +2090,7 @@ namespace ContentStoreTest.Distributed.Sessions
                            new RocksDbContentLocationDatabaseConfiguration(storeLocationRoot / "rocksdb")
                            {
                                // Don't GC
-                               LocalDatabaseGarbageCollectionInterval = Timeout.InfiniteTimeSpan,
+                               GarbageCollectionInterval = Timeout.InfiniteTimeSpan,
                                TestInitialCheckpointPath = _testDatabasePath,
 
                            },

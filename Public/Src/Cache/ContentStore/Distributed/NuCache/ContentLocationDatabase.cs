@@ -50,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private Timer _gcTimer;
         private NagleQueue<(ShortHash hash, EntryOperation op, OperationReason reason, int modificationCount)> _nagleOperationTracer;
         private readonly ContentLocationDatabaseConfiguration _configuration;
-        private bool _isGarbageCollectionEnabled;
+        private bool _isContentGarbageCollectionEnabled;
 
         /// <summary>
         /// Fine-grained locks that is used for all operations that mutate records.
@@ -116,28 +116,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Prepares the database for read only or read/write mode. This operation assumes no operations are underway
         /// while running. It is the responsibility of the caller to ensure that is so.
         /// </summary>
-        public void SetDatabaseMode(bool isDatabaseWritable)
+        public void SetContentDatabaseMode(bool isContentDatabaseWriteable)
         {
-            ConfigureGarbageCollection(isDatabaseWritable);
-            ConfigureInMemoryDatabaseCache(isDatabaseWritable);
-        }
-
-        /// <summary>
-        /// Configures the behavior of the database's garbage collection
-        /// </summary>
-        private void ConfigureGarbageCollection(bool shouldDoGc)
-        {
-            if (_isGarbageCollectionEnabled != shouldDoGc)
-            {
-                _isGarbageCollectionEnabled = shouldDoGc;
-                var nextGcTimeSpan = _isGarbageCollectionEnabled ? _configuration.LocalDatabaseGarbageCollectionInterval : Timeout.InfiniteTimeSpan;
-                _gcTimer?.Change(nextGcTimeSpan, Timeout.InfiniteTimeSpan);
-            }
+            _isContentGarbageCollectionEnabled = isContentDatabaseWriteable;
+            ConfigureInMemoryDatabaseCache(isContentDatabaseWriteable);
         }
 
         private void ConfigureInMemoryDatabaseCache(bool isDatabaseWritable)
         {
-            if (_configuration.CacheEnabled)
+            if (_configuration.ContentCacheEnabled)
             {
                 // This clear is actually safe, as no operations should happen concurrently with this function.
                 _inMemoryCache.UnsafeClear();
@@ -168,16 +155,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            if (_configuration.LocalDatabaseGarbageCollectionInterval != Timeout.InfiniteTimeSpan)
+            if (_configuration.GarbageCollectionInterval != Timeout.InfiniteTimeSpan)
             {
                 _gcTimer = new Timer(
                     _ => GarbageCollect(context),
                     null,
-                    _isGarbageCollectionEnabled ? _configuration.LocalDatabaseGarbageCollectionInterval : Timeout.InfiniteTimeSpan,
+                    _configuration.GarbageCollectionInterval,
                     Timeout.InfiniteTimeSpan);
             }
 
-            if (_configuration.CacheEnabled && _configuration.CacheFlushingMaximumInterval != Timeout.InfiniteTimeSpan)
+            if (_configuration.ContentCacheEnabled && _configuration.CacheFlushingMaximumInterval != Timeout.InfiniteTimeSpan)
             {
                 _inMemoryCacheFlushTimer = new Timer(
                     _ => {
@@ -285,17 +272,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             using (var cancellableContext = TrackShutdown(context))
             {
-                DoGarbageCollect(cancellableContext);
+                var tasks = new List<Task> { Task.Run(() => DoGarbageCollectMetadata(cancellableContext)) };
+                if (_isContentGarbageCollectionEnabled)
+                {
+                    tasks.Add(Task.Run(() => DoGarbageCollectContent(cancellableContext)));
+                }
+                Task.WaitAll(tasks.ToArray());
             }
 
             lock (this)
             {
                 if (!ShutdownStarted)
                 {
-                    if (_isGarbageCollectionEnabled)
-                    {
-                        _gcTimer?.Change(_configuration.LocalDatabaseGarbageCollectionInterval, Timeout.InfiniteTimeSpan);
-                    }
+                    _gcTimer?.Change(_configuration.GarbageCollectionInterval, Timeout.InfiniteTimeSpan);
                 }
             }
         }
@@ -303,7 +292,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Collect unreachable entries from the local database.
         /// </summary>
-        private void DoGarbageCollect(OperationContext context)
+        private void DoGarbageCollectContent(OperationContext context)
         {
             Tracer.Debug(context, "Start garbage collection of a local database.");
 
@@ -695,6 +684,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         ///     Result providing the call's completion status.
         /// </returns>
         public abstract IEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context);
+
+        /// <summary>
+        /// Perform garbage collection of metadata entries.
+        /// </summary>
+        /// <param name="context">
+        ///     Tracing context.
+        /// </param>
+        /// <returns>
+        ///     Result providing the call's completion status.
+        /// </returns>
+        protected abstract void DoGarbageCollectMetadata(OperationContext context);
 
         private object GetLock(ShortHash hash)
         {

@@ -313,7 +313,6 @@ namespace BuildXL.Utilities.Tracing
         // Reserved = 318,
 
         // Free slot 319,
-
         // Reserved = 320,
         // Reserved = 321,
         // Reserved = 322,

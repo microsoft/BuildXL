@@ -41,7 +41,8 @@ namespace Test.BuildXL.FrontEnd.Nuget
                 PackageDownloadResult.FromRemote(
                     new PackageIdentity("nuget", nugetPackage.Id, nugetPackage.Version, nugetPackage.Alias),
                     AbsolutePath.Create(m_context.PathTable, A("X", "Pkgs", "TestPkg", "1.999", "TestPkg.nuspec")),
-                    paths));
+                    paths,
+                    "testPackageHash"));
 
             return NugetAnalyzedPackage.TryAnalyzeNugetPackage(m_context, m_monikers, XDocument.Parse(xml), packageOnDisk, packagesOnConfig, false);
         }

@@ -134,12 +134,9 @@ namespace BuildXL.FrontEnd.Sdk
         public PackageSource Source { get; }
 
         /// <summary>
-        /// True if the generated spec's format hasn't been changed.
+        /// Identitifier for the files making up the package
         /// </summary>
-        /// <remarks>
-        /// Property should be used only when <see cref="Source"/> is PackageSource.FromDisk.
-        /// </remarks>
-        public bool SpecsFormatIsUpToDate { get; }
+        public string FingerprintHash { get; }
 
         /// <nodoc />
         public bool IsValid => Contents.Count != 0 && TargetLocation.IsValid;
@@ -150,41 +147,44 @@ namespace BuildXL.FrontEnd.Sdk
             AbsolutePath targetLocation,
             IReadOnlyList<RelativePath> contents,
             PackageSource source,
-            bool specsFormatIsUpToDate = false)
+            string fingerprint = null)
         {
             m_packageIdentity = packageIdentity;
             TargetLocation = targetLocation;
             Contents = contents;
             Source = source;
-            SpecsFormatIsUpToDate = specsFormatIsUpToDate;
+            FingerprintHash = fingerprint;
         }
 
         /// <nodoc />
         public static PackageDownloadResult RecoverableError(PackageIdentity packageIdentity) => FromCache(
             packageIdentity,
             AbsolutePath.Invalid,
-            CollectionUtilities.EmptyArray<RelativePath>());
+            CollectionUtilities.EmptyArray<RelativePath>(),
+            string.Empty);
 
         /// <nodoc />
         public static PackageDownloadResult FromDisk(
             PackageIdentity packageIdentity,
             AbsolutePath targetLocation,
             IReadOnlyList<RelativePath> contents,
-            bool specsFormatIsUpToDate)
-            => new PackageDownloadResult(packageIdentity, targetLocation, contents, PackageSource.Disk, specsFormatIsUpToDate);
+            string fingerprint)
+            => new PackageDownloadResult(packageIdentity, targetLocation, contents, PackageSource.Disk, fingerprint);
         
         /// <nodoc />
         public static PackageDownloadResult FromCache(
             PackageIdentity packageIdentity,
             AbsolutePath targetLocation,
-            IReadOnlyList<RelativePath> contents)
-            => new PackageDownloadResult(packageIdentity, targetLocation, contents, PackageSource.Cache);
+            IReadOnlyList<RelativePath> contents,
+            string fingerprint)
+            => new PackageDownloadResult(packageIdentity, targetLocation, contents, PackageSource.Cache, fingerprint);
         
         /// <nodoc />
         public static PackageDownloadResult FromRemote(
             PackageIdentity packageIdentity,
             AbsolutePath targetLocation,
-            IReadOnlyList<RelativePath> contents)
-            => new PackageDownloadResult(packageIdentity, targetLocation, contents, PackageSource.RemoteStore);
+            IReadOnlyList<RelativePath> contents,
+            string fingerprint)
+            => new PackageDownloadResult(packageIdentity, targetLocation, contents, PackageSource.RemoteStore, fingerprint);
     }
 }

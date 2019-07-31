@@ -6,7 +6,6 @@ using System.IO;
 using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.ToolSupport;
 
-
 namespace BuildXL.Execution.Analyzer
 {
 

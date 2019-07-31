@@ -54,7 +54,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// Gets all the events of a certain type from the DB
         /// </summary>
         /// <returns>List of event objects recovered from DB </returns>
-        public IEnumerable<string> GetEventsByType(Execution.Analyzer.Xldb.ExecutionEventId eventTypeID)
+        public IEnumerable<string> GetEventsByType(ExecutionEventId eventTypeID)
         {
             Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
@@ -68,36 +68,12 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
                 {
                     foreach (var kvp in database.PrefixSearch(eventQuery.ToByteArray()))
                     {
-                        Console.WriteLine(BXLInvocationEvent.Parser.ParseFrom(kvp.Value));
                         storedEvents.Add(BXLInvocationEvent.Parser.ParseFrom(kvp.Value).ToString());
                     }
                 })
             );
 
             return storedEvents;
-        }
-
-        /// <summary>
-        /// Method to test if the appropriate things have been stored in DB.
-        /// NOTE: For internal testing/Debugging only!
-        /// </summary>
-        /// <returns>Stored data in string format</returns>
-        public string GetStoredData()
-        {
-            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
-
-            string value = null;
-            Analysis.IgnoreResult(
-                Accessor.Use(database =>
-                {
-                    database.TryGetValue("foo", out value);
-                    foreach (var kvp in database.PrefixSearch("b"))
-                    {
-                        Console.WriteLine("The key is {0}, and the value is {1}", kvp.Key, kvp.Value);
-                    }
-                })
-            );
-            return value;
         }
 
         public void Dispose()

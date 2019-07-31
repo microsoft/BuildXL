@@ -1272,7 +1272,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 // FileSystem has no GetAccessControl API, so we must bypass it here.  We can relax the restriction to PassThroughFileSystem once we implement GetAccessControl in IAbsFileSystem.
                 bool denyAclExists = true;
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
                 const string worldSidValue = "Everyone";
                 var security = File.GetAccessControl(contentFile.Path);
                 var fileSystemAccessRules =

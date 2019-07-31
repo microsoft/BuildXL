@@ -15,6 +15,11 @@ export * from "Sdk.Managed.Shared";
 
 export declare const qualifier : Shared.TargetFrameworks.All;
 
+/**
+ * The define constants to conditionalize managed code based on target runtime platform to compile
+ */
+const targetRuntimeDefines = getTargetRuntimeDefines();
+
 @@public
 export interface Template {
     managedLibrary?: Arguments;
@@ -180,6 +185,8 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         defines: [
             ...(qualifier.configuration === "debug" ? ["DEBUG"] : []),
             "TRACE",
+            ...framework.conditionalCompileDefines,
+            ...targetRuntimeDefines,
             ...(args.defineConstants || []),
             // Defining a special symbol that can be used in C# code for using new API available in .NET 4.6.1+
             ...(qualifier.targetFramework !== "net451" ? ["NET461Plus"] : []),
@@ -466,3 +473,19 @@ function concatNamespaceFragments(parent: string, child: string): string {
     if (child === undefined || child === "") return parent;
     return parent + "." + child;
 }
+
+/**
+ * The define constants to conditionalize managed code based on target runtime platform to compile
+ */
+function getTargetRuntimeDefines() : string[] {
+    switch (qualifier.targetRuntime)
+    {
+        case "win-x64":
+            return ["PLATFORM_WIN", "PLATFORM_X64"];
+        case "osx-x64":
+            return ["PLATFORM_OSX", "PLATFORM_X64"];
+        default:
+            Contract.fail("Unexpected targetRuntime");
+    }
+}
+

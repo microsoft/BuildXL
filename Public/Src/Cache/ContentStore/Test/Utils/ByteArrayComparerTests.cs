@@ -62,37 +62,6 @@ namespace ContentStoreTest.Utils
         }
 
         [Fact]
-        public void ListEqualsTrue()
-        {
-            var x = new List<byte> {1, 2, 3};
-            var y = new List<byte> {1, 2, 3};
-            Assert.True(_comparer.Equals(x, y));
-        }
-
-        [Fact]
-        public void ListEqualsTrueSelf()
-        {
-            var x = new List<byte> {1, 2, 3};
-            Assert.True(_comparer.Equals(x, x));
-        }
-
-        [Fact]
-        public void ListEqualsFalseDifferentLengths()
-        {
-            var x = new List<byte> {1, 2, 3};
-            var y = new List<byte> {1, 2};
-            Assert.False(_comparer.Equals(x, y));
-        }
-
-        [Fact]
-        public void ListEqualsFalseDifferentValues()
-        {
-            var x = new List<byte> {1, 2, 3};
-            var y = new List<byte> {1, 2, 2};
-            Assert.False(_comparer.Equals(x, y));
-        }
-
-        [Fact]
         public void HashCodeDifferent()
         {
             byte[] b1 = {0, 1, 2, 3, 4, 5, 6};

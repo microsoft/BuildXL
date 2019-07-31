@@ -10,7 +10,7 @@ set SCRIPTROOT=%~dp0Shared\Scripts\
 set EXE_DIR=%~dp0out\Bin\Debug\net472
 set FINGERPRINT_ERROR_DIR=\\fsu\shares\MsEng\Domino\RunCheckInTests-FingerprintErrorReports
 set BUILDXL_ARGS=
-set RUN_PART_A=0
+set RUN_PART_A=1
 set RUN_PART_B=1
 set MINIMAL_LAB=0
 
@@ -69,7 +69,6 @@ if EXIST %ENLISTMENTROOT%\Out\frontend\Nuget\specs (
     rmdir /S /Q %ENLISTMENTROOT%\Out\frontend\Nuget\specs
 )
 
-echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
 set start=%time%
 set stepName=Building 'debug\net472' and 'debug\win-x64' using Lkg and deploying to RunCheckinTests
 call :StatusMessage %stepName%
@@ -138,7 +137,6 @@ endlocal && exit /b 0
     exit /b 0
 
 :PartB
-echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
     set start=!time!
     set stepName=Running BuildXL on the CoreCLR with a minimal end to end scenario
     call :StatusMessage !stepName!
@@ -150,7 +148,6 @@ echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
         if !CORECLR_ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!
 
-echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
     set start=!time!
     set stepName=Running Example DotNetCoreBuild on CoreCLR
     call :StatusMessage !stepName!
@@ -160,7 +157,6 @@ echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
         if !EXAMPLE_BUILD_ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!
 
-echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
     set start=!time!
     set stepName=Performing a /cleanonly build
     call :StatusMessage !stepName!
@@ -168,7 +164,6 @@ echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!
 
-echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
     set start=!time!
     set stepName=Building detached to produce stable fingerprints file
     call :StatusMessage !stepName!
@@ -186,7 +181,6 @@ echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!
 
-echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
     set start=!time!
     set stepName=Building using BuildXL a second time to ensure all tasks are cached
     call :StatusMessage !stepName!
@@ -198,13 +192,11 @@ echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
         call :RunBxl /cacheGraph- /scriptShowSlowest -Use RunCheckinTests -minimal %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints2 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable /logPrefix:!SECOND_PREFIX!
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
 
-echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
         REM Produce a fingerprint file of the second run.
         set SECOND_FINGERPRINT_LOG=!COMPARE_FINGERPRINTS_LOGS_DIR!!SECOND_PREFIX!.fgrprnt.txt
         %EXE_DIR%\bxlAnalyzer.exe /mode:FingerprintText /xl:!COMPARE_FINGERPRINTS_LOGS_DIR!!SECOND_PREFIX!.xlg /compress- /o:!SECOND_FINGERPRINT_LOG!
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
 
-echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
         REM Compare fingerprints
         fc !FIRST_FINGERPRINT_LOG! !SECOND_FINGERPRINT_LOG! > !SECOND_FINGERPRINT_LOG!.diff.txt
         if !ERRORLEVEL! NEQ 0 (
@@ -223,7 +215,6 @@ echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
             exit /b 1
         )
 
-echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
         REM verify fully cached
         call :VerifyLogIsFullyCached !COMPARE_FINGERPRINTS_LOGS_DIR!!SECOND_PREFIX!.log
         if !ERRORLEVEL! NEQ 0 (
@@ -389,9 +380,9 @@ echo NUGET_CREDENTIALPROVIDERS_PATH %NUGET_CREDENTIALPROVIDERS_PATH%
     )
     REM BUG: 1199393: Temporary have to hack the generated nuspecs since the coreclr run doesn't run under b:
     rmdir /s/q %ENLISTMENTROOT%\Out\frontend\Nuget\specs
-
     REM Restore credential provider path.
     set NUGET_CREDENTIALPROVIDERS_PATH=%OLD_NUGET_CREDENTIALPROVIDERS_PATH%
+
     exit /b 0
 
 :VerifyLogIsFullyCached

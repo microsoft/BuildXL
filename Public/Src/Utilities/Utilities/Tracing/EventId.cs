@@ -312,7 +312,7 @@ namespace BuildXL.Utilities.Tracing
         PipRetryDueToExitedWithAzureWatsonExitCode = 317,
         // Reserved = 318,
 
-        PipIpcFailedDueToInfrastructureError = 319,
+        // Free slot 319,
 
         // Reserved = 320,
         // Reserved = 321,

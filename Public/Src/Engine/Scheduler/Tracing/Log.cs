@@ -155,7 +155,7 @@ namespace BuildXL.Scheduler.Tracing
             string message);
 
         [GeneratedEvent(
-            (ushort)EventId.PipIpcFailedDueToInfrastructureError,
+            (ushort)LogEventId.PipIpcFailedDueToInfrastructureError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),

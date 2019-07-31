@@ -599,11 +599,9 @@ namespace Tool.DropDaemon
 
         private static IpcResultStatus ParseIpcStatus(string statusString, IpcResultStatus defaultValue = IpcResultStatus.ExecutionError)
         {
-            return Enum
-                .GetValues(typeof(IpcResultStatus))
-                .Cast<IpcResultStatus?>()
-                .Where(status => status.ToString() == statusString)
-                .FirstOrDefault() ?? defaultValue;
+            return Enum.TryParse<IpcResultStatus>(statusString, out var value)
+                ? value
+                : defaultValue;
         }
 
         /// <summary>

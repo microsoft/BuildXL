@@ -124,13 +124,19 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var context = new Context(Logger);
             var weakFingerprint = Fingerprint.Random();
             var selector1 = Selector.Random();
+            var selector2 = Selector.Random();
             var strongFingerprint1 = new StrongFingerprint(weakFingerprint, selector1);
+            var strongFingerprint2 = new StrongFingerprint(weakFingerprint, selector2);
             var contentHashListWithDeterminism1 = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
-            
+            var contentHashListWithDeterminism2 = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
+
             return RunTestAsync(context,
                 funcAsync: async (store, session) => {
                     await session.AddOrGetContentHashListAsync(context, strongFingerprint1, contentHashListWithDeterminism1, Token).ShouldBeSuccess();
                     _clock.Increment();
+
+                    // Notice we don't increment the clock here
+                    await session.AddOrGetContentHashListAsync(context, strongFingerprint2, contentHashListWithDeterminism2, Token).ShouldBeSuccess();
 
                     RocksDbContentLocationDatabase database = (store as RocksDbMemoizationStore)?.Database;
                     Contract.Assert(database != null);
@@ -138,11 +144,12 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     var ctx = new OperationContext(context);
                     database.GarbageCollect(ctx);
 
-                    var result = database.GetContentHashList(ctx, strongFingerprint1).ShouldBeSuccess();
-                    result.ContentHashListWithDeterminism.ContentHashList.Should().BeNull();
-                    result.ContentHashListWithDeterminism.Determinism.Should().Be(CacheDeterminism.None);
+                    var r1 = database.GetContentHashList(ctx, strongFingerprint1).ShouldBeSuccess().ContentHashListWithDeterminism;
+                    r1.ContentHashList.Should().BeNull();
+                    r1.Determinism.Should().Be(CacheDeterminism.None);
 
-                    await Task.CompletedTask;
+                    var r2 = database.GetContentHashList(ctx, strongFingerprint2).ShouldBeSuccess().ContentHashListWithDeterminism;
+                    r2.Should().BeEquivalentTo(contentHashListWithDeterminism2);
                 },
                 createStoreFunc: CreateStoreInternal);
 

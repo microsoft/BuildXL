@@ -224,6 +224,7 @@ namespace BuildXL.Utilities.Tracing
                         Contract.Assert(LogStream.Position <= (position + header.EventPayloadSize), "Event handler read beyond the event payload");
                     }
 
+                    // Instead of computing (m_nextReadPosition.Value - LogStream.Position), just seek forward to m_nextReadPosition.Value (less memory used)
                     if (LogStream.Position != m_nextReadPosition.Value)
                     {
                         LogStream.Seek(m_nextReadPosition.Value, SeekOrigin.Begin);

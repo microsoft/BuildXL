@@ -4,16 +4,14 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using BuildXL.Engine.Cache.KeyValueStores;
-using BuildXL.Execution.Analyzer;
-using BuildXL.Scheduler.Tracing;
+using BuildXL.Execution.Analyzer.XLGpp;
 using BuildXL.Utilities;
 using Google.Protobuf;
 
 namespace BuildXL.Analyzers.Core.XLGPlusPlus
 {
-    public class XLGppDataStore: IDisposable
+    public sealed class XLGppDataStore : IDisposable
     {
         /// <summary>
         /// Rocks DB Accessor for XLG++ data
@@ -56,12 +54,12 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// Gets all the events of a certain type from the DB
         /// </summary>
         /// <returns>List of event objects recovered from DB </returns>
-        public IEnumerable<string> GetEventsByType_V0(ExecutionEventId_XLGpp eventTypeID)
+        public IEnumerable<string> GetEventsByType_V0(Execution.Analyzer.XLGpp.ExecutionEventId eventTypeID)
         {
             Contract.Assert(Accessor != null, "XLGppStore must be initialized via OpenDatastore first");
 
             var storedEvents = new List<string>();
-            var eventQuery = new EventTypeQuery_XLGpp
+            var eventQuery = new EventTypeQuery
             {
                 EventTypeID = eventTypeID,
             };
@@ -70,12 +68,12 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
                 {
                     foreach (var kvp in database.PrefixSearch(eventQuery.ToByteArray()))
                     {
-                        Console.WriteLine(BXLInvocationEvent_XLGpp.Parser.ParseFrom(kvp.Value));
-                        storedEvents.Add(BXLInvocationEvent_XLGpp.Parser.ParseFrom(kvp.Value).ToString());
+                        Console.WriteLine(BXLInvocationEvent.Parser.ParseFrom(kvp.Value));
+                        storedEvents.Add(BXLInvocationEvent.Parser.ParseFrom(kvp.Value).ToString());
                     }
                 })
             );
-            
+
             return storedEvents;
         }
 
@@ -104,8 +102,6 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
 
         public void Dispose()
         {
-            Contract.Assert(Accessor != null, "XLGppStore must be initialized via OpenDatastore first");
-
             Accessor.Dispose();
         }
     }

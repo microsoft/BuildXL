@@ -3,12 +3,9 @@
 
 using System;
 using System.IO;
-using System.Text;
 using BuildXL.Analyzers.Core.XLGPlusPlus;
-using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
-using Google.Protobuf;
+
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -62,7 +59,7 @@ namespace BuildXL.Execution.Analyzer
         private static void WriteDominoInvocationHelp(HelpWriter writer)
         {
             writer.WriteBanner("BXL Invocation \"Analyzer\"");
-            writer.WriteModeOption(nameof(AnalysisMode.BXLInvocationXLG), "Gets and outputs information related to BXL invocation events from the database.");
+            writer.WriteModeOption(nameof(AnalysisMode.BXLInvocationXLG), "Gets and outputs information related to BXL invocation events from RocksDB.");
             writer.WriteOption("inputDir", "Required. The directory to read the RocksDB database from", shortName: "i");
             writer.WriteOption("outputFile", "Required. The file where to write the results", shortName: "o");
         }
@@ -83,7 +80,7 @@ namespace BuildXL.Execution.Analyzer
         {
             var dataStore = new XLGppDataStore(storeDirectory: InputDirPath);
 
-            File.WriteAllLines(OutputFilePath, dataStore.GetEventsByType_V0(ExecutionEventId_XLGpp.DominoInvocation));
+            File.WriteAllLines(OutputFilePath, dataStore.GetEventsByType_V0(XLGpp.ExecutionEventId.DominoInvocation));
 
             return 0;
         }

@@ -569,7 +569,6 @@ namespace Tool.DropDaemon
             }
         }
 
-
         private delegate TResult ErrorFactory<TResult>(string message, IpcResultStatus status);
 
         private static Task<IIpcResult> WrapDropErrorsIntoIpcResult(Func<Task<IIpcResult>> factory)

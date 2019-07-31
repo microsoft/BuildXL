@@ -19,19 +19,22 @@ namespace Test.Tool.Analyzers
     /// </summary>
     public class XLGToDBAnalyzerTests : AnalyzerTestBase
     {
-        private AbsolutePath DirPath { get; set; }
+        private AbsolutePath OutputDirPath { get; set; }
+        private AbsolutePath TestDirPath { get; set; }
+
         public XLGToDBAnalyzerTests(ITestOutputHelper output) : base(output)
         {
             AnalysisMode = AnalysisMode.XlgToDb;
 
-            DirPath = Combine(AbsolutePath.Create(Context.PathTable, TemporaryDirectory), "xlgtodb");
+            OutputDirPath = Combine(AbsolutePath.Create(Context.PathTable, TemporaryDirectory), "XlgToDb");
+            TestDirPath = Combine(AbsolutePath.Create(Context.PathTable, TemporaryDirectory), "XlgToDbTest");
 
             ModeSpecificDefaultArgs = new Option[]
             {
                 new Option
                 {
                     Name = "outputDir",
-                    Value = DirPath.ToString(Context.PathTable)
+                    Value = OutputDirPath.ToString(Context.PathTable)
                 }
             };
         }
@@ -39,7 +42,7 @@ namespace Test.Tool.Analyzers
         /// <summary>
         /// This test makes sure that a RocksDB database was created. 
         /// If a DB is created, and events have been populated, one or more sst 
-        /// files will also be created, and this test makes sure there is at least 
+        /// files will also be created, and this test makes sure there is at least one
         /// such sst file that is present.
         /// </summary>
         [Fact]
@@ -47,7 +50,7 @@ namespace Test.Tool.Analyzers
         {
             Configuration.Logging.LogExecution = true;
 
-            var file = FileArtifact.CreateOutputFile(Combine(DirPath, "blah.txt"));
+            var file = FileArtifact.CreateOutputFile(Combine(TestDirPath, "blah.txt"));
 
             var pipA = CreateAndSchedulePipBuilder(new Operation[]
             {
@@ -64,7 +67,7 @@ namespace Test.Tool.Analyzers
 
             var analyzerRes = RunAnalyzer(buildA).AssertSuccess();
 
-            XAssert.AreNotEqual(Directory.GetFiles(DirPath.ToString(Context.PathTable), "*.sst").Length, 0);
+            XAssert.AreNotEqual(Directory.GetFiles(OutputDirPath.ToString(Context.PathTable), "*.sst").Length, 0);
         }
     }
 }

@@ -1,13 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 import * as Managed from "Sdk.Managed";
 import * as GrpcSdk from "Sdk.Protocols.Grpc";
 
 namespace Execution.Analyzer {
-
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "bxlanalyzer",
@@ -17,10 +14,14 @@ namespace Execution.Analyzer {
         skipDocumentationGeneration: true,
         sources: [
             ...globR(d`.`, "*.cs"),
-            ...GrpcSdk.generate({proto: [f`Analyzers.core\XLGPlusPlus\Events.proto`]}).sources,
+            ...GrpcSdk.generate({
+                proto: globR(d`.`, "*.proto"),
+                includes: [importFrom("Google.Protobuf.Tools").Contents.all],
+            }).sources,
         ],
         references: [
-            ...addIf(BuildXLSdk.isFullFramework,
+            ...addIf(
+                BuildXLSdk.isFullFramework,
                 NetFx.System.IO.dll,
                 NetFx.System.Web.dll,
                 NetFx.System.Xml.dll,
@@ -51,18 +52,14 @@ namespace Execution.Analyzer {
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("Google.Protobuf").pkg,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("Microsoft.TeamFoundationServer.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
-            importFrom("Google.Protobuf").pkg,
         ],
-        internalsVisibleTo: [
-            "Test.Tool.Analyzers",
-        ],
-        defineConstants: addIf(BuildXLSdk.Flags.isVstsArtifactsEnabled,
-            "FEATURE_VSTS_ARTIFACTSERVICES"
-        ),
+        internalsVisibleTo: ["Test.Tool.Analyzers"],
+        defineConstants: addIf(BuildXLSdk.Flags.isVstsArtifactsEnabled, "FEATURE_VSTS_ARTIFACTSERVICES"),
     });
 }

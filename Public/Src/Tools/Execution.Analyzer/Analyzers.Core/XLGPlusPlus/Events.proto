@@ -8,7 +8,7 @@ import "tools/google/protobuf/duration.proto";
 
 package BuildXL.Execution.Analyzer;
 
-option csharp_namespace = "BuildXL.Execution.Analyzer.XLGpp";
+option csharp_namespace = "BuildXL.Execution.Analyzer.Xldb";
 
 //
 //  Generic Event Info (key, count, etc)

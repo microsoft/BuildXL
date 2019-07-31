@@ -5,13 +5,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Engine.Cache.KeyValueStores;
-using BuildXL.Execution.Analyzer.XLGpp;
+using BuildXL.Execution.Analyzer.Xldb;
 using BuildXL.Utilities;
 using Google.Protobuf;
 
 namespace BuildXL.Analyzers.Core.XLGPlusPlus
 {
-    public sealed class XLGppDataStore : IDisposable
+    public sealed class XldbDataStore : IDisposable
     {
         /// <summary>
         /// Rocks DB Accessor for XLG++ data
@@ -21,7 +21,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// <summary>
         /// Open the datastore and populate the KeyValueStoreAccessor for the XLG++ DB
         /// </summary>
-        public XLGppDataStore(string storeDirectory,
+        public XldbDataStore(string storeDirectory,
             bool defaultColumnKeyTracked = false,
             IEnumerable<string> additionalColumns = null,
             IEnumerable<string> additionalKeyTrackedColumns = null,
@@ -54,9 +54,9 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// Gets all the events of a certain type from the DB
         /// </summary>
         /// <returns>List of event objects recovered from DB </returns>
-        public IEnumerable<string> GetEventsByType_V0(Execution.Analyzer.XLGpp.ExecutionEventId eventTypeID)
+        public IEnumerable<string> GetEventsByType(Execution.Analyzer.Xldb.ExecutionEventId eventTypeID)
         {
-            Contract.Assert(Accessor != null, "XLGppStore must be initialized via OpenDatastore first");
+            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
             var storedEvents = new List<string>();
             var eventQuery = new EventTypeQuery
@@ -82,9 +82,9 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// NOTE: For internal testing/Debugging only!
         /// </summary>
         /// <returns>Stored data in string format</returns>
-        public string GetStoredData_V0()
+        public string GetStoredData()
         {
-            Contract.Assert(Accessor != null, "XLGppStore must be initialized via OpenDatastore first");
+            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
             string value = null;
             Analysis.IgnoreResult(

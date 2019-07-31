@@ -78,9 +78,9 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override int Analyze()
         {
-            var dataStore = new XLGppDataStore(storeDirectory: InputDirPath);
+            var dataStore = new XldbDataStore(storeDirectory: InputDirPath);
 
-            File.WriteAllLines(OutputFilePath, dataStore.GetEventsByType_V0(XLGpp.ExecutionEventId.DominoInvocation));
+            File.WriteAllLines(OutputFilePath, dataStore.GetEventsByType(Xldb.ExecutionEventId.DominoInvocation));
 
             return 0;
         }

@@ -13,35 +13,35 @@ using BuildXL.Utilities;
 namespace BuildXL.Execution.Analyzer
 {
     /// <summary>
-    /// Extension methods for XLGpp ProtoBuf conversions.
+    /// Extension methods for Xldb ProtoBuf conversions.
     /// </summary>
-    public static class XLGppProtobufExtensions
+    public static class XldbProtobufExtensions
     {
         /// <nodoc />
-        public static XLGpp.FileArtifactContentDecidedEvent ToFileArtifactContentDecidedEvent(this FileArtifactContentDecidedEventData data, uint workerID, PathTable pathTable)
+        public static Xldb.FileArtifactContentDecidedEvent ToFileArtifactContentDecidedEvent(this FileArtifactContentDecidedEventData data, uint workerID, PathTable pathTable)
         {
             var Uuid = Guid.NewGuid().ToString();
 
-            return new XLGpp.FileArtifactContentDecidedEvent()
+            return new Xldb.FileArtifactContentDecidedEvent()
             {
                 UUID = Uuid,
                 WorkerID = workerID,
                 FileArtifact = data.FileArtifact.ToFileArtifact(pathTable),
-                FileContentInfo = new XLGpp.FileContentInfo
+                FileContentInfo = new Xldb.FileContentInfo
                 {
                     LengthAndExistence = data.FileContentInfo.SerializedLengthAndExistence,
-                    Hash = new XLGpp.ContentHash() { Value = data.FileContentInfo.Hash.ToString() }
+                    Hash = new Xldb.ContentHash() { Value = data.FileContentInfo.Hash.ToString() }
                 },
-                OutputOrigin = (XLGpp.PipOutputOrigin)data.OutputOrigin
+                OutputOrigin = (Xldb.PipOutputOrigin)data.OutputOrigin
             };
         }
 
         /// <nodoc />
-        public static XLGpp.WorkerListEvent ToWorkerListEvent(this WorkerListEventData data, uint workerID)
+        public static Xldb.WorkerListEvent ToWorkerListEvent(this WorkerListEventData data, uint workerID)
         {
             var Uuid = Guid.NewGuid().ToString();
 
-            var workerListEvent = new XLGpp.WorkerListEvent
+            var workerListEvent = new Xldb.WorkerListEvent
             {
                 UUID = Uuid
             };
@@ -51,34 +51,34 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static XLGpp.PipExecutionPerformanceEvent ToPipExecutionPerformanceEvent(this PipExecutionPerformanceEventData data)
+        public static Xldb.PipExecutionPerformanceEvent ToPipExecutionPerformanceEvent(this PipExecutionPerformanceEventData data)
         {
-            var pipExecPerfEvent = new XLGpp.PipExecutionPerformanceEvent();
+            var pipExecPerfEvent = new Xldb.PipExecutionPerformanceEvent();
             var Uuid = Guid.NewGuid().ToString();
 
-            var pipExecPerformance = new XLGpp.PipExecutionPerformance();
+            var pipExecPerformance = new Xldb.PipExecutionPerformance();
             pipExecPerformance.PipExecutionLevel = (int)data.ExecutionPerformance.ExecutionLevel;
             pipExecPerformance.ExecutionStart = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.ExecutionPerformance.ExecutionStart);
             pipExecPerformance.ExecutionStop = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.ExecutionPerformance.ExecutionStop);
 
-            var processPipExecPerformance = new XLGpp.ProcessPipExecutionPerformance();
+            var processPipExecPerformance = new Xldb.ProcessPipExecutionPerformance();
             var performance = data.ExecutionPerformance as ProcessPipExecutionPerformance;
             if (performance != null)
             {
                 processPipExecPerformance.ProcessExecutionTime = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(performance.ProcessExecutionTime);
-                processPipExecPerformance.ReadCounters = new XLGpp.IOTypeCounters()
+                processPipExecPerformance.ReadCounters = new Xldb.IOTypeCounters()
                 {
                     OperationCount = performance.IO.ReadCounters.OperationCount,
                     TransferCOunt = performance.IO.ReadCounters.TransferCount
                 };
 
-                processPipExecPerformance.WriteCounters = new XLGpp.IOTypeCounters()
+                processPipExecPerformance.WriteCounters = new Xldb.IOTypeCounters()
                 {
                     OperationCount = performance.IO.WriteCounters.OperationCount,
                     TransferCOunt = performance.IO.WriteCounters.TransferCount
                 };
 
-                processPipExecPerformance.OtherCounters = new XLGpp.IOTypeCounters()
+                processPipExecPerformance.OtherCounters = new Xldb.IOTypeCounters()
                 {
                     OperationCount = performance.IO.OtherCounters.OperationCount,
                     TransferCOunt = performance.IO.OtherCounters.TransferCount
@@ -90,7 +90,7 @@ namespace BuildXL.Execution.Analyzer
                 processPipExecPerformance.PeakMemoryUsageMb = performance.PeakMemoryUsageMb;
                 processPipExecPerformance.NumberOfProcesses = performance.NumberOfProcesses;
 
-                processPipExecPerformance.FileMonitoringViolationCounters = new XLGpp.FileMonitoringViolationCounters()
+                processPipExecPerformance.FileMonitoringViolationCounters = new Xldb.FileMonitoringViolationCounters()
                 {
                     NumFileAccessesWhitelistedAndCacheable = performance.FileMonitoringViolations.NumFileAccessesWhitelistedAndCacheable,
                     NumFileAccessesWhitelistedButNotCacheable = performance.FileMonitoringViolations.NumFileAccessesWhitelistedButNotCacheable,
@@ -114,17 +114,17 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static XLGpp.DirectoryMembershipHashedEvent ToDirectoryMembershipHashedEvent(this DirectoryMembershipHashedEventData data, uint workerID, PathTable pathTable)
+        public static Xldb.DirectoryMembershipHashedEvent ToDirectoryMembershipHashedEvent(this DirectoryMembershipHashedEventData data, uint workerID, PathTable pathTable)
         {
             var Uuid = Guid.NewGuid().ToString();
 
-            var directoryMembershipEvent = new XLGpp.DirectoryMembershipHashedEvent()
+            var directoryMembershipEvent = new Xldb.DirectoryMembershipHashedEvent()
             {
                 UUID = Uuid,
                 WorkerID = workerID,
-                DirectoryFingerprint = new XLGpp.DirectoryFingerprint()
+                DirectoryFingerprint = new Xldb.DirectoryFingerprint()
                 {
-                    Hash = new XLGpp.ContentHash() { Value = data.DirectoryFingerprint.Hash.ToString() }
+                    Hash = new Xldb.ContentHash() { Value = data.DirectoryFingerprint.Hash.ToString() }
                 },
                 Directory = data.Directory.ToAbsolutePath(pathTable),
                 IsStatic = data.IsSearchPath,
@@ -139,11 +139,11 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static XLGpp.ProcessExecutionMonitoringReportedEvent ToProcessExecutionMonitoringReportedEvent(this ProcessExecutionMonitoringReportedEventData data, uint workerID, PathTable pathTable)
+        public static Xldb.ProcessExecutionMonitoringReportedEvent ToProcessExecutionMonitoringReportedEvent(this ProcessExecutionMonitoringReportedEventData data, uint workerID, PathTable pathTable)
         {
             var Uuid = Guid.NewGuid().ToString();
 
-            var processExecutionMonitoringReportedEvent = new XLGpp.ProcessExecutionMonitoringReportedEvent
+            var processExecutionMonitoringReportedEvent = new Xldb.ProcessExecutionMonitoringReportedEvent
             {
                 UUID = Uuid,
                 WorkerID = workerID,
@@ -160,7 +160,7 @@ namespace BuildXL.Execution.Analyzer
 
             foreach (var processDetouringStatus in data.ProcessDetouringStatuses)
             {
-                processExecutionMonitoringReportedEvent.ProcessDetouringStatuses.Add(new XLGpp.ProcessDetouringStatusData()
+                processExecutionMonitoringReportedEvent.ProcessDetouringStatuses.Add(new Xldb.ProcessDetouringStatusData()
                 {
                     ProcessID = processDetouringStatus.ProcessId,
                     ReportStatus = processDetouringStatus.ReportStatus,
@@ -180,17 +180,17 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static XLGpp.ProcessFingerprintComputationEvent ToProcessFingerprintComputationEvent(this ProcessFingerprintComputationEventData data, uint workerID, PathTable pathTable)
+        public static Xldb.ProcessFingerprintComputationEvent ToProcessFingerprintComputationEvent(this ProcessFingerprintComputationEventData data, uint workerID, PathTable pathTable)
         {
             var Uuid = Guid.NewGuid().ToString();
 
-            var processFingerprintComputationEvent = new XLGpp.ProcessFingerprintComputationEvent
+            var processFingerprintComputationEvent = new Xldb.ProcessFingerprintComputationEvent
             {
                 UUID = Uuid,
                 WorkerID = workerID,
-                Kind = (XLGpp.FingerprintComputationKind)data.Kind,
+                Kind = (Xldb.FingerprintComputationKind)data.Kind,
                 PipID = data.PipId.Value,
-                WeakFingerprint = new XLGpp.WeakContentFingerPrint()
+                WeakFingerprint = new Xldb.WeakContentFingerPrint()
                 {
                     Hash = data.WeakFingerprint.Hash.ToFingerprint()
                 },
@@ -198,17 +198,17 @@ namespace BuildXL.Execution.Analyzer
 
             foreach (var strongFingerprintComputation in data.StrongFingerprintComputations)
             {
-                var processStrongFingerprintComputationData = new XLGpp.ProcessStrongFingerprintComputationData()
+                var processStrongFingerprintComputationData = new Xldb.ProcessStrongFingerprintComputationData()
                 {
                     PathSet = strongFingerprintComputation.PathSet.ToObservedPathSet(pathTable),
-                    PathSetHash = new XLGpp.ContentHash()
+                    PathSetHash = new Xldb.ContentHash()
                     {
                         Value = strongFingerprintComputation.PathSetHash.ToString()
                     },
                     UnsafeOptions = strongFingerprintComputation.UnsafeOptions.ToUnsafeOptions(),
                     Succeeded = strongFingerprintComputation.Succeeded,
                     IsStrongFingerprintHit = strongFingerprintComputation.IsStrongFingerprintHit,
-                    ComputedStrongFingerprint = new XLGpp.StrongContentFingerPrint()
+                    ComputedStrongFingerprint = new Xldb.StrongContentFingerPrint()
                     {
                         Hash = strongFingerprintComputation.ComputedStrongFingerprint.Hash.ToFingerprint()
                     }
@@ -219,17 +219,17 @@ namespace BuildXL.Execution.Analyzer
                         pathEntry => pathEntry.ToObservedPathEntry(pathTable)));
                 processStrongFingerprintComputationData.ObservedAccessedFileNames.AddRange(
                     strongFingerprintComputation.ObservedAccessedFileNames.Select(
-                        observedAccessedFileName => new XLGpp.StringId() { Value = observedAccessedFileName.Value }));
+                        observedAccessedFileName => new Xldb.StringId() { Value = observedAccessedFileName.Value }));
                 processStrongFingerprintComputationData.PriorStrongFingerprints.AddRange(
                     strongFingerprintComputation.PriorStrongFingerprints.Select(
-                        priorStrongFingerprint => new XLGpp.StrongContentFingerPrint() { Hash = priorStrongFingerprint.Hash.ToFingerprint() }));
+                        priorStrongFingerprint => new Xldb.StrongContentFingerPrint() { Hash = priorStrongFingerprint.Hash.ToFingerprint() }));
 
                 foreach (var observedInput in strongFingerprintComputation.ObservedInputs)
                 {
-                    processStrongFingerprintComputationData.ObservedInputs.Add(new XLGpp.ObservedInput()
+                    processStrongFingerprintComputationData.ObservedInputs.Add(new Xldb.ObservedInput()
                     {
-                        Type = (XLGpp.ObservedInputType)observedInput.Type,
-                        Hash = new XLGpp.ContentHash()
+                        Type = (Xldb.ObservedInputType)observedInput.Type,
+                        Hash = new Xldb.ContentHash()
                         {
                             Value = observedInput.Hash.ToString()
                         },
@@ -248,11 +248,11 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static XLGpp.ExtraEventDataReported ToExtraEventDataReported(this ExtraEventData data, uint workerID)
+        public static Xldb.ExtraEventDataReported ToExtraEventDataReported(this ExtraEventData data, uint workerID)
         {
             var Uuid = Guid.NewGuid().ToString();
 
-            return new XLGpp.ExtraEventDataReported
+            return new Xldb.ExtraEventDataReported
             {
                 UUID = Uuid,
                 WorkerID = workerID,
@@ -269,7 +269,7 @@ namespace BuildXL.Execution.Analyzer
                 IgnoreGetFinalPathNameByHandle = data.IgnoreGetFinalPathNameByHandle,
                 FingerprintVersion = (int)data.FingerprintVersion,
                 FingerprintSalt = data.FingerprintSalt,
-                SearchPathToolsHash = new XLGpp.ContentHash() { Value = data.SearchPathToolsHash.ToString() },
+                SearchPathToolsHash = new Xldb.ContentHash() { Value = data.SearchPathToolsHash.ToString() },
                 UnexpectedFileAccessesAreErrors = data.UnexpectedFileAccessesAreErrors,
                 MonitorFileAccesses = data.MonitorFileAccesses,
                 MaskUntrackedAccesses = data.MaskUntrackedAccesses,
@@ -281,60 +281,60 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static XLGpp.DependencyViolationReportedEvent ToDependencyViolationReportedEvent(this DependencyViolationEventData data, uint workerID, PathTable pathTable)
+        public static Xldb.DependencyViolationReportedEvent ToDependencyViolationReportedEvent(this DependencyViolationEventData data, uint workerID, PathTable pathTable)
         {
             var Uuid = Guid.NewGuid().ToString();
 
-            return new XLGpp.DependencyViolationReportedEvent()
+            return new Xldb.DependencyViolationReportedEvent()
             {
                 UUID = Uuid,
                 WorkerID = workerID,
                 ViolatorPipID = data.ViolatorPipId.Value,
                 RelatedPipID = data.RelatedPipId.Value,
-                ViolationType = (XLGpp.FileMonitoringViolationAnalyzer_DependencyViolationType)data.ViolationType,
-                AccessLevel = (XLGpp.FileMonitoringViolationAnalyzer_AccessLevel)data.AccessLevel,
+                ViolationType = (Xldb.FileMonitoringViolationAnalyzer_DependencyViolationType)data.ViolationType,
+                AccessLevel = (Xldb.FileMonitoringViolationAnalyzer_AccessLevel)data.AccessLevel,
                 Path = data.Path.ToAbsolutePath(pathTable)
             };
         }
 
         /// <nodoc />
-        public static XLGpp.PipExecutionStepPerformanceReportedEvent ToPipExecutionStepPerformanceReportedEvent(this PipExecutionStepPerformanceEventData data, uint workerID)
+        public static Xldb.PipExecutionStepPerformanceReportedEvent ToPipExecutionStepPerformanceReportedEvent(this PipExecutionStepPerformanceEventData data, uint workerID)
         {
             var Uuid = Guid.NewGuid().ToString();
 
-            var pipExecStepPerformanceEvent = new XLGpp.PipExecutionStepPerformanceReportedEvent
+            var pipExecStepPerformanceEvent = new Xldb.PipExecutionStepPerformanceReportedEvent
             {
                 UUID = Uuid,
                 WorkerID = workerID,
                 PipID = data.PipId.Value,
                 StartTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.StartTime),
                 Duration = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(data.Duration),
-                Step = (XLGpp.PipExecutionStep)data.Step,
-                Dispatcher = (XLGpp.WorkDispatcher_DispatcherKind)data.Dispatcher
+                Step = (Xldb.PipExecutionStep)data.Step,
+                Dispatcher = (Xldb.WorkDispatcher_DispatcherKind)data.Dispatcher
             };
 
             return pipExecStepPerformanceEvent;
         }
 
         /// <nodoc />
-        public static XLGpp.PipCacheMissEvent ToPipCacheMissEvent(this PipCacheMissEventData data, uint workerID)
+        public static Xldb.PipCacheMissEvent ToPipCacheMissEvent(this PipCacheMissEventData data, uint workerID)
         {
             var Uuid = Guid.NewGuid().ToString();
-            return new XLGpp.PipCacheMissEvent()
+            return new Xldb.PipCacheMissEvent()
             {
                 UUID = Uuid,
                 WorkerID = workerID,
                 PipID = data.PipId.Value,
-                CacheMissType = (XLGpp.PipCacheMissType)data.CacheMissType
+                CacheMissType = (Xldb.PipCacheMissType)data.CacheMissType
             };
         }
 
         /// <nodoc />
-        public static XLGpp.StatusReportedEvent ToResourceUsageReportedEvent(this StatusEventData data, uint workerID)
+        public static Xldb.StatusReportedEvent ToResourceUsageReportedEvent(this StatusEventData data, uint workerID)
         {
             var Uuid = Guid.NewGuid().ToString();
 
-            var statusReportedEvent = new XLGpp.StatusReportedEvent()
+            var statusReportedEvent = new Xldb.StatusReportedEvent()
             {
                 UUID = Uuid,
                 WorkerID = workerID,
@@ -354,7 +354,7 @@ namespace BuildXL.Execution.Analyzer
                 LookupWaiting = data.LookupWaiting,
                 LookupRunning = data.LookupRunning,
                 ExternalProcesses = data.ExternalProcesses,
-                LimitingResource = (XLGpp.ExecutionSampler_LimitingResource)data.LimitingResource,
+                LimitingResource = (Xldb.ExecutionSampler_LimitingResource)data.LimitingResource,
                 UnresponsivenessFactor = data.UnresponsivenessFactor,
                 ProcessPipsPending = data.ProcessPipsPending,
                 ProcessPipsAllocatedSlots = data.ProcessPipsAllocatedSlots
@@ -368,12 +368,12 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static XLGpp.BXLInvocationEvent ToBXLInvocationEvent(this DominoInvocationEventData data, uint workerID, PathTable pathTable)
+        public static Xldb.BXLInvocationEvent ToBXLInvocationEvent(this DominoInvocationEventData data, uint workerID, PathTable pathTable)
         {
             var loggingConfig = data.Configuration.Logging;
             var Uuid = Guid.NewGuid().ToString();
 
-            var bxlInvEvent = new XLGpp.BXLInvocationEvent
+            var bxlInvEvent = new Xldb.BXLInvocationEvent
             {
                 UUID = Uuid,
                 WorkerID = workerID,
@@ -387,19 +387,19 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static XLGpp.PipExecutionDirectoryOutputsEvent ToPipExecutionDirectoryOutputsEvent(this PipExecutionDirectoryOutputs data, uint workerID, PathTable pathTable)
+        public static Xldb.PipExecutionDirectoryOutputsEvent ToPipExecutionDirectoryOutputsEvent(this PipExecutionDirectoryOutputs data, uint workerID, PathTable pathTable)
         {
             var Uuid = Guid.NewGuid().ToString();
 
-            var pipExecDirectoryOutputEvent = new XLGpp.PipExecutionDirectoryOutputsEvent();
+            var pipExecDirectoryOutputEvent = new Xldb.PipExecutionDirectoryOutputsEvent();
             pipExecDirectoryOutputEvent.UUID = Uuid;
             pipExecDirectoryOutputEvent.WorkerID = workerID;
 
             foreach (var (directoryArtifact, fileArtifactArray) in data.DirectoryOutputs)
             {
-                var directoryOutput = new XLGpp.DirectoryOutput()
+                var directoryOutput = new Xldb.DirectoryOutput()
                 {
-                    DirectoryArtifact = new XLGpp.DirectoryArtifact()
+                    DirectoryArtifact = new Xldb.DirectoryArtifact()
                     {
                         IsValid = directoryArtifact.IsValid,
                         Path = directoryArtifact.Path.ToAbsolutePath(pathTable),
@@ -417,53 +417,53 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static XLGpp.ReportedFileAccess ToReportedFileAccess(this ReportedFileAccess reportedFileAccess, PathTable pathTable)
+        public static Xldb.ReportedFileAccess ToReportedFileAccess(this ReportedFileAccess reportedFileAccess, PathTable pathTable)
         {
-            return new XLGpp.ReportedFileAccess()
+            return new Xldb.ReportedFileAccess()
             {
-                CreationDisposition = (XLGpp.CreationDisposition)reportedFileAccess.CreationDisposition,
-                DesiredAccess = (XLGpp.DesiredAccess)reportedFileAccess.DesiredAccess,
+                CreationDisposition = (Xldb.CreationDisposition)reportedFileAccess.CreationDisposition,
+                DesiredAccess = (Xldb.DesiredAccess)reportedFileAccess.DesiredAccess,
                 Error = reportedFileAccess.Error,
                 Usn = reportedFileAccess.Usn.Value,
-                FlagsAndAttributes = (XLGpp.FlagsAndAttributes)reportedFileAccess.FlagsAndAttributes,
+                FlagsAndAttributes = (Xldb.FlagsAndAttributes)reportedFileAccess.FlagsAndAttributes,
                 Path = reportedFileAccess.Path,
                 ManifestPath = reportedFileAccess.ManifestPath.ToString(pathTable, PathFormat.HostOs),
                 Process = reportedFileAccess.Process.ToReportedProcess(),
-                ShareMode = (XLGpp.ShareMode)reportedFileAccess.ShareMode,
-                Status = (XLGpp.FileAccessStatus)reportedFileAccess.Status,
-                Method = (XLGpp.FileAccessStatusMethod)reportedFileAccess.Method,
-                RequestedAccess = (XLGpp.RequestedAccess)reportedFileAccess.RequestedAccess,
-                Operation = (XLGpp.ReportedFileOperation)reportedFileAccess.Operation,
+                ShareMode = (Xldb.ShareMode)reportedFileAccess.ShareMode,
+                Status = (Xldb.FileAccessStatus)reportedFileAccess.Status,
+                Method = (Xldb.FileAccessStatusMethod)reportedFileAccess.Method,
+                RequestedAccess = (Xldb.RequestedAccess)reportedFileAccess.RequestedAccess,
+                Operation = (Xldb.ReportedFileOperation)reportedFileAccess.Operation,
                 ExplicitlyReported = reportedFileAccess.ExplicitlyReported,
                 EnumeratePattern = reportedFileAccess.EnumeratePattern
             };
         }
 
         /// <nodoc />
-        public static XLGpp.ObservedPathSet ToObservedPathSet(this ObservedPathSet pathSet, PathTable pathTable)
+        public static Xldb.ObservedPathSet ToObservedPathSet(this ObservedPathSet pathSet, PathTable pathTable)
         {
-            var observedPathSet = new XLGpp.ObservedPathSet();
+            var observedPathSet = new Xldb.ObservedPathSet();
             observedPathSet.Paths.AddRange(pathSet.Paths.Select(pathEntry => pathEntry.ToObservedPathEntry(pathTable)));
             observedPathSet.ObservedAccessedFileNames.AddRange(
                 pathSet.ObservedAccessedFileNames.Select(
-                    observedAccessedFileName => new XLGpp.StringId() { Value = observedAccessedFileName.Value }));
+                    observedAccessedFileName => new Xldb.StringId() { Value = observedAccessedFileName.Value }));
             observedPathSet.UnsafeOptions = pathSet.UnsafeOptions.ToUnsafeOptions();
 
             return observedPathSet;
         }
 
         /// <nodoc />
-        public static XLGpp.UnsafeOptions ToUnsafeOptions(this UnsafeOptions unsafeOption)
+        public static Xldb.UnsafeOptions ToUnsafeOptions(this UnsafeOptions unsafeOption)
         {
-            var unsafeOpt = new XLGpp.UnsafeOptions()
+            var unsafeOpt = new Xldb.UnsafeOptions()
             {
-                PreserveOutputsSalt = new XLGpp.ContentHash()
+                PreserveOutputsSalt = new Xldb.ContentHash()
                 {
                     Value = unsafeOption.PreserveOutputsSalt.ToString()
                 },
-                UnsafeConfiguration = new XLGpp.UnsafeSandboxConfiguration()
+                UnsafeConfiguration = new Xldb.UnsafeSandboxConfiguration()
                 {
-                    PreserveOutputs = (XLGpp.PreserveOutputsMode)unsafeOption.UnsafeConfiguration.PreserveOutputs,
+                    PreserveOutputs = (Xldb.PreserveOutputsMode)unsafeOption.UnsafeConfiguration.PreserveOutputs,
                     MonitorFileAccesses = unsafeOption.UnsafeConfiguration.MonitorFileAccesses,
                     IgnoreZwRenameFileInformation = unsafeOption.UnsafeConfiguration.IgnoreZwRenameFileInformation,
                     IgnoreZwOtherFileInformation = unsafeOption.UnsafeConfiguration.IgnoreZwOtherFileInformation,
@@ -474,7 +474,7 @@ namespace BuildXL.Execution.Analyzer
                     ExistingDirectoryProbesAsEnumerations = unsafeOption.UnsafeConfiguration.ExistingDirectoryProbesAsEnumerations,
                     MonitorNtCreateFile = unsafeOption.UnsafeConfiguration.MonitorNtCreateFile,
                     MonitorZwCreateOpenQueryFile = unsafeOption.UnsafeConfiguration.MonitorZwCreateOpenQueryFile,
-                    SandboxKind = (XLGpp.SandboxKind)unsafeOption.UnsafeConfiguration.SandboxKind,
+                    SandboxKind = (Xldb.SandboxKind)unsafeOption.UnsafeConfiguration.SandboxKind,
                     UnexpectedFileAccessesAreErrors = unsafeOption.UnsafeConfiguration.UnexpectedFileAccessesAreErrors,
                     IgnoreGetFinalPathNameByHandle = unsafeOption.UnsafeConfiguration.IgnoreGetFinalPathNameByHandle,
                     IgnoreDynamicWritesOnAbsentProbes = unsafeOption.UnsafeConfiguration.IgnoreDynamicWritesOnAbsentProbes,
@@ -484,24 +484,24 @@ namespace BuildXL.Execution.Analyzer
 
             if (unsafeOption.UnsafeConfiguration.DoubleWritePolicy != null)
             {
-                unsafeOpt.UnsafeConfiguration.DoubleWritePolicy = (XLGpp.DoubleWritePolicy)unsafeOption.UnsafeConfiguration.DoubleWritePolicy;
+                unsafeOpt.UnsafeConfiguration.DoubleWritePolicy = (Xldb.DoubleWritePolicy)unsafeOption.UnsafeConfiguration.DoubleWritePolicy;
             }
             return unsafeOpt;
         }
 
         /// <nodoc />
-        public static XLGpp.AbsolutePath ToAbsolutePath(this AbsolutePath path, PathTable pathTable)
+        public static Xldb.AbsolutePath ToAbsolutePath(this AbsolutePath path, PathTable pathTable)
         {
-            return new XLGpp.AbsolutePath()
+            return new Xldb.AbsolutePath()
             {
                 Value = path.ToString(pathTable, PathFormat.HostOs)
             };
         }
 
         /// <nodoc />
-        public static XLGpp.FileArtifact ToFileArtifact(this FileArtifact fileArtifact, PathTable pathTable)
+        public static Xldb.FileArtifact ToFileArtifact(this FileArtifact fileArtifact, PathTable pathTable)
         {
-            return new XLGpp.FileArtifact
+            return new Xldb.FileArtifact
             {
                 Path = fileArtifact.Path.ToAbsolutePath(pathTable),
                 RewriteCount = fileArtifact.RewriteCount,
@@ -509,24 +509,24 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static XLGpp.ReportedProcess ToReportedProcess(this ReportedProcess reportedProcess)
+        public static Xldb.ReportedProcess ToReportedProcess(this ReportedProcess reportedProcess)
         {
-            return new XLGpp.ReportedProcess()
+            return new Xldb.ReportedProcess()
             {
                 Path = reportedProcess.Path,
                 ProcessId = reportedProcess.ProcessId,
                 ProcessArgs = reportedProcess.ProcessArgs,
-                ReadCounters = new XLGpp.IOTypeCounters
+                ReadCounters = new Xldb.IOTypeCounters
                 {
                     OperationCount = reportedProcess.IOCounters.ReadCounters.OperationCount,
                     TransferCOunt = reportedProcess.IOCounters.ReadCounters.TransferCount
                 },
-                WriteCounters = new XLGpp.IOTypeCounters
+                WriteCounters = new Xldb.IOTypeCounters
                 {
                     OperationCount = reportedProcess.IOCounters.WriteCounters.OperationCount,
                     TransferCOunt = reportedProcess.IOCounters.WriteCounters.TransferCount
                 },
-                OtherCounters = new XLGpp.IOTypeCounters
+                OtherCounters = new Xldb.IOTypeCounters
                 {
                     OperationCount = reportedProcess.IOCounters.OtherCounters.OperationCount,
                     TransferCOunt = reportedProcess.IOCounters.OtherCounters.TransferCount
@@ -541,9 +541,9 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static XLGpp.ObservedPathEntry ToObservedPathEntry(this ObservedPathEntry pathEntry, PathTable pathTable)
+        public static Xldb.ObservedPathEntry ToObservedPathEntry(this ObservedPathEntry pathEntry, PathTable pathTable)
         {
-            return new XLGpp.ObservedPathEntry()
+            return new Xldb.ObservedPathEntry()
             {
                 Path = pathEntry.Path.ToAbsolutePath(pathTable),
                 EnumeratePatternRegex = pathEntry.EnumeratePatternRegex ?? ""
@@ -551,9 +551,9 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static XLGpp.Fingerprint ToFingerprint(this Fingerprint fingerprint)
+        public static Xldb.Fingerprint ToFingerprint(this Fingerprint fingerprint)
         {
-            return new XLGpp.Fingerprint()
+            return new Xldb.Fingerprint()
             {
                 Length = fingerprint.Length,
                 Bytes = Google.Protobuf.ByteString.CopyFrom(fingerprint.ToByteArray())

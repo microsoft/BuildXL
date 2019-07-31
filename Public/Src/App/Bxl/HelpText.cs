@@ -1038,6 +1038,11 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_Help);
 
             hw.WriteOption(
+                "/interactive[+|-]",
+                Strings.HelpText_DisplayHelp_Interactive,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/noLogo",
                 Strings.HelpText_DisplayHelp_NoLogo);
 

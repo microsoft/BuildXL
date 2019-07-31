@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using BuildXL.Engine.Cache.KeyValueStores;
@@ -38,6 +39,11 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("/outputDir parameter is required");
             }
 
+            if (Directory.Exists(outputDirPath) && Directory.EnumerateFileSystemEntries(outputDirPath).Any())
+            {
+                throw Error("Directory provided exists and is non-empty. Aborting analyzer.");
+            }
+
             return new XLGToDBAnalyzer(GetAnalysisInput())
             {
                 OutputDirPath = outputDirPath,
@@ -51,7 +57,7 @@ namespace BuildXL.Execution.Analyzer
         {
             writer.WriteBanner("XLG to DB \"Analyzer\"");
             writer.WriteModeOption(nameof(AnalysisMode.XlgToDb), "Dumps event data from the xlg into a database.");
-            writer.WriteOption("outputDir", "Required. The directory to write out the RocksDB database", shortName: "o");
+            writer.WriteOption("outputDir", "Required. The new (or existing, but empty) directory to write out the RocksDB database", shortName: "o");
         }
     }
 
@@ -155,13 +161,6 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override void Prepare()
         {
-            // If a directory exists and it contains sst files (meaning it was a previous RocksDB instance), delete the directory
-            // Also this way you don't accidentally nuke a directory that you passed in, but wasn't a previous RocksDB instance.
-            if (Directory.Exists(OutputDirPath) && Directory.GetFiles(OutputDirPath, "*.sst").Length > 0)
-            {
-                Directory.Delete(path: OutputDirPath, recursive: true);
-            }
-
             var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath);
 
             if (accessor.Succeeded)
@@ -180,21 +179,21 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override int Analyze()
         {
-            m_accessor.Dispose();
             Console.WriteLine("Num events ingested = {0}", m_eventCount);
             Console.WriteLine("Total time elapsed: {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
-            return 0;
-        }
-
-        /// <inheritdoc/>
-        public override void Dispose()
-        {
             var ec = new Xldb.EventCount
             {
                 Value = (uint)m_eventCount
             };
 
             WriteToDb(Encoding.ASCII.GetBytes("EventCount"), ec.ToByteArray());
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public override void Dispose()
+        {
+            m_accessor.Dispose();
         }
 
         /// <inheritdoc/>

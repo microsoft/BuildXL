@@ -6,7 +6,6 @@ using System.IO;
 using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.ToolSupport;
 
-
 namespace BuildXL.Execution.Analyzer
 {
 
@@ -90,7 +89,7 @@ namespace BuildXL.Execution.Analyzer
 
             return 0;
         }
-        
+
         /// <inheritdoc/>
         protected override bool ReadEvents()
         {

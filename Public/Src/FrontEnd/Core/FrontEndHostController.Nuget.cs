@@ -21,6 +21,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Core
@@ -102,7 +103,7 @@ namespace BuildXL.FrontEnd.Core
                 );
 
                 // Step: Return descriptor indicating it wasn't restored from the cache
-                return PackageDownloadResult.FromRemote(package, packageTargetFolder, possiblePackageContents.Result);
+                return PackageDownloadResult.FromRemote(package, packageTargetFolder, possiblePackageContents.Result, weakPackageFingerprint);
             }
         }
 
@@ -159,7 +160,7 @@ namespace BuildXL.FrontEnd.Core
                 .Select(p => RelativePath.Create(PathTable.StringTable, p))
                 .ToList();
 
-            fromDisk = PackageDownloadResult.FromDisk(package, packageFolder, contents, possibleHashContent.Result.SpecsFormatIsUpToDate);
+            fromDisk = PackageDownloadResult.FromDisk(package, packageFolder, contents, possibleHashContent.Result.FingerprintHash);
             packageHash = possibleHashContent.Result;
             return fromDisk.IsValid;
         }
@@ -194,7 +195,7 @@ namespace BuildXL.FrontEnd.Core
                 .Select(p => RelativePath.Create(PathTable.StringTable, p))
                 .ToList();
 
-            fromDisk = PackageDownloadResult.FromDisk(package, packageFolder, contents, possibleHashContent.Result.SpecsFormatIsUpToDate);
+            fromDisk = PackageDownloadResult.FromDisk(package, packageFolder, contents, possibleHashContent.Result.FingerprintHash);
             packageHash = possibleHashContent.Result;
 
             // .NET Core builds do not support nuget at all, so we use files from disk regardless of their correctness
@@ -290,7 +291,8 @@ namespace BuildXL.FrontEnd.Core
                 return PackageDownloadResult.FromCache(
                     package,
                     packageTargetFolder,
-                    packageDescriptor.Contents.Select(c => RelativePath.Create(FrontEndContext.StringTable, c.Key)).ToList());
+                    packageDescriptor.Contents.Select(c => RelativePath.Create(FrontEndContext.StringTable, c.Key)).ToList(),
+                    weakPackageFingerprintHash.Hash.ToHex());
             }
 
             // Step: Try to bring all the contents of the package locally from the content cache.
@@ -362,7 +364,7 @@ namespace BuildXL.FrontEnd.Core
                 return PackageDownloadResult.RecoverableError(package);
             }
 
-            var newPackageHash = new PackageHashFile(weakPackageFingerprintHash.Hash.ToHex(), weakPackageFingerprint, packagesContent, specsFormatIsUpToDate: false);
+            var newPackageHash = new PackageHashFile(weakPackageFingerprintHash.Hash.ToHex(), weakPackageFingerprint, packagesContent);
             TryUpdatePackageHashFile(loggingContext, package, packageHashFile, packageHash, newPackageHash);
 
             m_logger.PackageRestoredFromCache(loggingContext, package.GetFriendlyName());
@@ -397,7 +399,8 @@ namespace BuildXL.FrontEnd.Core
             return PackageDownloadResult.FromCache(
                 package,
                 packageTargetFolder,
-                packageDescriptor.Contents.Select(c => RelativePath.Create(FrontEndContext.StringTable, c.Key)).ToList());
+                packageDescriptor.Contents.Select(c => RelativePath.Create(FrontEndContext.StringTable, c.Key)).ToList(),
+                weakPackageFingerprintHash.Hash.ToHex());
         }
 
         private async Task<Possible<Unit>> TryAddPackageToCache(
@@ -471,7 +474,7 @@ namespace BuildXL.FrontEnd.Core
 
             // The content should have relative paths
             var content = packageContents.Select(rp => rp.ToString(PathTable.StringTable)).ToList();
-            var newHash = new PackageHashFile(weakPackageFingerprintHash.Hash.ToHex(), weakPackageFingerprint, content, specsFormatIsUpToDate: false);
+            var newHash = new PackageHashFile(weakPackageFingerprintHash.Hash.ToHex(), weakPackageFingerprint, content);
             TryUpdatePackageHashFile(loggingContext, package, GetPackageHashFile(packageTargetFolder), oldHash: null, newHash: newHash);
 
             return Unit.Void;

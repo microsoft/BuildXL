@@ -11,6 +11,9 @@ namespace BuildXL.Pips
     /// <summary>
     /// Manager to add binary pip fragments to a pip graph builder
     /// </summary>
+    /// <remarks>
+    /// TODO: Should this implement <see cref="IPipGraph"/>?
+    /// </remarks>
     public interface IPipGraphFragmentManager
     {
         /// <summary>
@@ -26,5 +29,15 @@ namespace BuildXL.Pips
         /// Get a list of (fragment description, fragment load task)
         /// </summary>
         IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> GetAllFragmentTasks();
+
+        /// <summary>
+        /// Adds a module pip.
+        /// </summary>
+        bool AddModulePip(ModulePip modulePip);
+
+        /// <summary>
+        /// Adds a spec file pip.
+        /// </summary>
+        bool AddSpecFilePip(SpecFilePip specFilePip);
     }
 }

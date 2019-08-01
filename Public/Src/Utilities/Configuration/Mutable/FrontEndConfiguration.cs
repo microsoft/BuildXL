@@ -19,6 +19,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnabledPolicyRules = new List<string>();
             LogStatistics = true;
             GlobalUnsafePassthroughEnvironmentVariables = new List<string>();
+            ReleaseWorkspaceBeforeEvaluation = true;
         }
 
         /// <nodoc />
@@ -66,6 +67,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ShowSlowestElementsStatistics = template.ShowSlowestElementsStatistics;
             ShowLargestFilesStatistics = template.ShowLargestFilesStatistics;
             GlobalUnsafePassthroughEnvironmentVariables = new List<string>(template.GlobalUnsafePassthroughEnvironmentVariables);
+            ReleaseWorkspaceBeforeEvaluation = template.ReleaseWorkspaceBeforeEvaluation;
         }
 
         /// <inheritdoc />
@@ -194,5 +196,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <inheritdoc /> 
         IReadOnlyList<string> IFrontEndConfiguration.GlobalUnsafePassthroughEnvironmentVariables => GlobalUnsafePassthroughEnvironmentVariables;
 
+        /// <inheritdoc /> 
+        public bool ReleaseWorkspaceBeforeEvaluation { get; set; }
     }
 }

@@ -41,6 +41,7 @@ namespace BuildXL.Scheduler.Graph
         private readonly ConcurrentBigMap<long, Lazy<bool>> m_pipUnify = new ConcurrentBigMap<long, Lazy<bool>>();
 
         private readonly ConcurrentBigMap<long, PipId> m_semiStableHashToPipId = new ConcurrentBigMap<long, PipId>();
+        private readonly ConcurrentBigMap<long, DirectoryArtifact> m_semiStableHashToDirectory = new ConcurrentBigMap<long, DirectoryArtifact>();
 
         /// <summary>
         /// PipGraphFragmentManager
@@ -130,16 +131,30 @@ namespace BuildXL.Scheduler.Graph
                         break;
                     case PipType.SealDirectory:
                         var sealDirectory = pip as SealDirectory;
-                        if (sealDirectory.Kind == SealDirectoryKind.Opaque || sealDirectory.Kind == SealDirectoryKind.SharedOpaque)
+                        Contract.Assert(sealDirectory.Kind != SealDirectoryKind.SharedOpaque, "Shared opaque is currently not supported.");
+
+                        if (sealDirectory.Kind == SealDirectoryKind.Opaque)
                         {
+                            // Output directories were added when the producing pips were added.
                             return true;
                         }
 
-                        added = true;
                         var oldDirectory = sealDirectory.Directory;
                         sealDirectory.ResetDirectoryArtifact();
-                        var mappedDirectory = m_pipGraph.AddSealDirectory(sealDirectory, default);
-                        m_fragmentContext.AddDirectoryMapping(oldDirectory, mappedDirectory);
+
+                        var mappedDirectory = AddSealDirectory(sealDirectory, d =>
+                        {
+                            var newDirectory = m_pipGraph.AddSealDirectory(d, default);
+                            if (newDirectory.IsValid)
+                            {
+                                m_fragmentContext.AddDirectoryMapping(oldDirectory, newDirectory);
+                            }
+
+                            return newDirectory;
+                        });
+
+                        added = mappedDirectory.IsValid;
+
                         break;
                     case PipType.Ipc:
                         (added, _) = AddPip(pip as IpcPip, i => m_pipGraph.AddIpcPip(i, default));
@@ -164,13 +179,15 @@ namespace BuildXL.Scheduler.Graph
             }
         }
 
-        private bool AddModulePip(ModulePip modulePip) => 
+        /// <inheritdoc />
+        public bool AddModulePip(ModulePip modulePip) => 
             m_modulePipUnify.GetOrAdd(
                 modulePip.Module, 
                 false, 
                 (mid, data) => new Lazy<bool>(() => m_pipGraph.AddModule(modulePip))).Item.Value.Value;
 
-        private bool AddSpecFilePip(SpecFilePip specFilePip) => 
+        /// <inheritdoc />
+        public bool AddSpecFilePip(SpecFilePip specFilePip) => 
             m_specFilePipUnify.GetOrAdd(
                 specFilePip.SpecFile,
                 false, 
@@ -195,11 +212,31 @@ namespace BuildXL.Scheduler.Graph
                 (ssh, data) => new Lazy<bool>(() =>
                 {
                     bool addInner = addPip(pip);
-                    m_semiStableHashToPipId[pip.SemiStableHash] = pip.PipId;
+                    m_semiStableHashToPipId[pip.SemiStableHash] = pip.PipId; // PipId is set by addPip.
                     return addInner;
                 })).Item.Value.Value;
 
             return (added, m_semiStableHashToPipId[pip.SemiStableHash]);
+        }
+
+        private DirectoryArtifact AddSealDirectory(SealDirectory sealDirectory, Func<SealDirectory, DirectoryArtifact> addSealDirectory)
+        {
+            if (sealDirectory.SemiStableHash == 0)
+            {
+                return addSealDirectory(sealDirectory);
+            }
+
+            bool added = m_pipUnify.GetOrAdd(
+                sealDirectory.SemiStableHash,
+                0,
+                (ssh, data) => new Lazy<bool>(() =>
+                {
+                    DirectoryArtifact directory = addSealDirectory(sealDirectory);
+                    m_semiStableHashToDirectory[sealDirectory.SemiStableHash] = sealDirectory.Directory; // PipId is set by addPip.
+                    return directory.IsValid;
+                })).Item.Value.Value;
+
+            return m_semiStableHashToDirectory[sealDirectory.SemiStableHash];
         }
     }
 }

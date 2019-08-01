@@ -155,6 +155,19 @@ namespace BuildXL.Scheduler.Tracing
             string message);
 
         [GeneratedEvent(
+            (ushort)LogEventId.PipIpcFailedDueToInfrastructureError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "IPC operation '{operation}' could not be executed via IPC moniker '{moniker}' because of an infrastructure error. Error: {message}")]
+        internal abstract void PipIpcFailedDueToInfrastructureError(
+            LoggingContext loggingContext,
+            string operation,
+            string moniker,
+            string message);
+
+        [GeneratedEvent(
             (ushort)EventId.PipCopyFileFromUntrackableDir,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

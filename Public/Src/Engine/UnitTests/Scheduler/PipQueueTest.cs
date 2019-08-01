@@ -97,7 +97,7 @@ namespace Test.BuildXL.Scheduler
                     maxDegreeOfParallelism: (Environment.ProcessorCount + 2) / 3,
                     debug: false))
                 {
-                    var executionEnvironment = new PipQueueTestExecutionEnvironment(context, config, pipTable, GetSandboxedKextConnection());
+                    var executionEnvironment = new PipQueueTestExecutionEnvironment(context, config, pipTable, Path.Combine(TestOutputDirectory, "temp"), GetSandboxedKextConnection());
 
                     Func<RunnablePip, Task<PipResult>> taskFactory = async (runnablePip) =>
                         {
@@ -292,7 +292,7 @@ namespace Test.BuildXL.Scheduler
 
             private readonly IFileMonitoringViolationAnalyzer m_disabledFileMonitoringViolationAnalyzer = new DisabledFileMonitoringViolationAnalyzer();
             
-            public PipQueueTestExecutionEnvironment(BuildXLContext context, IConfiguration configuration, PipTable pipTable, IKextConnection sandboxedKextConnection = null)
+            public PipQueueTestExecutionEnvironment(BuildXLContext context, IConfiguration configuration, PipTable pipTable, string tempDirectory, IKextConnection sandboxedKextConnection = null)
             {
                 Contract.Requires(context != null);
                 Contract.Requires(configuration != null);
@@ -319,6 +319,7 @@ namespace Test.BuildXL.Scheduler
                 m_producers = new ConcurrentDictionary<FileArtifact, Pip>();
                 m_filesystemView = new TestPipGraphFilesystemView(Context.PathTable);
                 var fileSystemView = new FileSystemView(Context.PathTable, m_filesystemView, LocalDiskContentStore);
+                TempCleaner = new TestMoveDeleteCleaner(tempDirectory);
 
                 State = new PipExecutionState(
                     configuration,
@@ -592,6 +593,8 @@ namespace Test.BuildXL.Scheduler
             public ProcessInContainerManager ProcessInContainerManager { get; }
 
             public VmInitializer VmInitializer { get; }
+
+            public ITempCleaner TempCleaner { get; }
         }
     }
 

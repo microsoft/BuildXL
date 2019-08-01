@@ -28,7 +28,7 @@ namespace BuildXL.Execution.Analyzer
                 else if (opt.Name.StartsWith("pip", StringComparison.OrdinalIgnoreCase) ||
                     opt.Name.StartsWith("p", StringComparison.OrdinalIgnoreCase))
                 {
-                    pipId = Convert.ToInt64(ParseStringOption(opt), 16);
+                    pipId = ParseSemistableHash(opt);
                 }
                 else
                 {

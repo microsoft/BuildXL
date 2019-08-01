@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
+using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -13,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Host.Service.Internal;
+using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.Stores;
 
 namespace BuildXL.Cache.MemoizationStore.Sessions
@@ -33,7 +36,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         public LocalCache(
             ILogger logger,
             AbsolutePath rootPath,
-            SQLiteMemoizationStoreConfiguration memoConfig,
+            MemoizationStoreConfiguration memoConfig,
             LocalCacheConfiguration localCacheConfiguration,
             ConfigurationModel configurationModel = null,
             IClock clock = null,
@@ -58,7 +61,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ILogger logger,
             AbsolutePath rootPathForStream,
             AbsolutePath rootPathForPath,
-            SQLiteMemoizationStoreConfiguration memoConfig,
+            MemoizationStoreConfiguration memoConfig,
             ConfigurationModel configurationModelForStream = null,
             ConfigurationModel configurationModelForPath = null,
             IClock clock = null,
@@ -88,7 +91,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ServiceClientRpcConfiguration rpcConfiguration,
             uint retryIntervalSeconds,
             uint retryCount,
-            SQLiteMemoizationStoreConfiguration memoConfig,
+            MemoizationStoreConfiguration memoConfig,
             IClock clock = null,
             string scenarioName = null)
             : this(
@@ -111,12 +114,12 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             IAbsFileSystem fileSystem,
             IClock clock,
             ConfigurationModel configurationModel,
-            SQLiteMemoizationStoreConfiguration memoConfig,
+            MemoizationStoreConfiguration memoConfig,
             ContentStoreSettings contentStoreSettings,
             LocalCacheConfiguration localCacheConfiguration)
             : base(
                 () => localCacheConfiguration.EnableContentServer
-                    ? (IContentStore) new ServiceClientContentStore(
+                    ? (IContentStore)new ServiceClientContentStore(
                         logger,
                         fileSystem,
                         localCacheConfiguration.CacheName,
@@ -125,18 +128,39 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                         (uint)localCacheConfiguration.RetryCount,
                         scenario: localCacheConfiguration.ScenarioName)
                     : new FileSystemContentStore(
-                        fileSystem, 
+                        fileSystem,
                         clock,
                         rootPath,
                         configurationModel: configurationModel,
                         settings: contentStoreSettings),
-                () => new SQLiteMemoizationStore(
-                    logger,
-                    clock ?? SystemClock.Instance,
-                    memoConfig),
+                CreateMemoizationStoreFactory(logger, clock, memoConfig),
                 PersistentId.Load(fileSystem, rootPath / IdFileName))
         {
             _fileSystem = fileSystem;
+        }
+
+        private static Func<IMemoizationStore> CreateMemoizationStoreFactory(ILogger logger, IClock clock, MemoizationStoreConfiguration config)
+        {
+            Contract.Requires(config != null);
+
+            if (config is SQLiteMemoizationStoreConfiguration sqliteConfig)
+            {
+                return () => new SQLiteMemoizationStore(
+                    logger,
+                    clock ?? SystemClock.Instance,
+                    sqliteConfig);
+            }
+            else if (config is RocksDbMemoizationStoreConfiguration rocksDbConfig)
+            {
+                return () => new RocksDbMemoizationStore(
+                    logger,
+                    clock ?? SystemClock.Instance,
+                    rocksDbConfig);
+            }
+            else
+            {
+                throw new NotSupportedException($"Configuration type '{config.GetType()}' for memoization store is unhandled.");
+            }
         }
 
         private LocalCache(
@@ -147,17 +171,14 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             IClock clock,
             ConfigurationModel configurationModelForStream,
             ConfigurationModel configurationModelForPath,
-            SQLiteMemoizationStoreConfiguration memoConfig,
+            MemoizationStoreConfiguration memoConfig,
             bool checkLocalFiles,
             bool emptyFileHashShortcutEnabled)
             : base(
                 () => new StreamPathContentStore(
                     () => new FileSystemContentStore(fileSystem, clock ?? SystemClock.Instance, rootPathForStream, configurationModelForStream, settings: new ContentStoreSettings() { CheckFiles = checkLocalFiles, UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled }),
                     () => new FileSystemContentStore(fileSystem, clock ?? SystemClock.Instance, rootPathForPath, configurationModelForPath, settings: new ContentStoreSettings() { CheckFiles = checkLocalFiles, UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled })),
-                () => new SQLiteMemoizationStore(
-                    logger,
-                    clock ?? SystemClock.Instance,
-                    memoConfig),
+                CreateMemoizationStoreFactory(logger, clock, memoConfig),
                 PersistentId.Load(fileSystem, rootPathForPath / IdFileName))
         {
             _fileSystem = fileSystem;
@@ -169,12 +190,11 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             IAbsFileSystem fileSystem,
             IClock clock,
             ServiceClientContentStoreConfiguration configuration,
-            SQLiteMemoizationStoreConfiguration memoConfig)
+            MemoizationStoreConfiguration memoConfig)
             : base(
                 () => new ServiceClientContentStore(
                     logger, fileSystem, configuration),
-                () => new SQLiteMemoizationStore(
-                    logger, clock ?? SystemClock.Instance, memoConfig),
+                CreateMemoizationStoreFactory(logger, clock, memoConfig),
                 PersistentId.Load(fileSystem, rootPath / IdFileName))
         {
             _fileSystem = fileSystem;

@@ -76,7 +76,7 @@ namespace BuildXL.Storage.Tracing
 
         [GeneratedEvent(
             (int)LogEventId.SavingChangeTracker,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.ChangeDetection,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -402,7 +402,7 @@ namespace BuildXL.Storage.Tracing
 
         [GeneratedEvent(
             (int)LogEventId.StorageLoadFileContentTable,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Storage,
@@ -673,7 +673,7 @@ namespace BuildXL.Storage.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.ConflictDirectoryMembershipFingerprint,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,

@@ -6,7 +6,7 @@ namespace Test {
     export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.MemoizationStore.Test",
         sources: globR(d`.`,"*.cs"),
-        skipTestRun: BuildXLSdk.restrictTestRunToDebugNet461OnWindows,
+        skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         runTestArgs: {
             skipGroups: ["Performance"], // Don't run the performance tests in our normal validation flow
             parallelBucketCount: 12,
@@ -17,12 +17,7 @@ namespace Test {
                 NetFx.System.Xml.dll,
                 NetFx.System.Xml.Linq.dll
             ),
-            ...(BuildXLSdk.isDotNetCoreBuild
-                // TODO: This is to get a .Net Core build, but it may not pass tests
-                ? [importFrom("System.Data.SQLite.Core").withQualifier({targetFramework: "net461"}).pkg]
-                // Gets around issue of 461 needed netstandard 2.0 lib
-                : [importFrom("System.Data.SQLite.Core").pkg]
-            ),
+            ContentStore.Distributed.dll,
             ContentStore.Hashing.dll,
             ContentStore.UtilitiesCore.dll,
             ContentStore.Interfaces.dll,
@@ -35,6 +30,7 @@ namespace Test {
             Library.dll,
 
             importFrom("BuildXL.Utilities").dll,
+            importFrom("System.Data.SQLite.Core").pkg,
             importFrom("System.Interactive.Async").pkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],

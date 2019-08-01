@@ -757,68 +757,101 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(EventId.FileMonitoringError);
         }
 
-        [Fact]
-        public void AbsentFileProbeFollowedByDynamicWriteIsBlocked()
+        [Theory]
+        [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
+        //[InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+                              // NOTE: this is difficult to test reliably because the test depends on pips running in a particular order
+        public void AbsentFileProbeFollowedByDynamicWriteIsBlockedWhenPipsAreIndependent(bool forceDependency)
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             FileArtifact absentFile = CreateOutputFileArtifact(sharedOpaqueDir);
-
+            var dummyOut = CreateOutputFileArtifact(prefix: "dummyOut");
             var builderA = CreatePipBuilder(new Operation[]
                                                    {
                                                        Operation.Probe(absentFile, doNotInfer: true),
-                                                       Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+                                                       Operation.WriteFile(dummyOut) // dummy output
                                                    });
-            var resA = SchedulePipBuilder(builderA);
+            var pipA = SchedulePipBuilder(builderA);
 
             // PipB writes absentFile into a shared opaque directory sharedopaquedir.
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
             var builderB = CreatePipBuilder(new Operation[]
                                                    {
-                                                       Operation.ReadFile(resA.ProcessOutputs.GetOutputFiles().First()), // force a dependency
+                                                       forceDependency
+                                                           ? Operation.ReadFile(pipAoutput)                                // force a BuildXL dependency
+                                                           : Operation.WaitUntilFileExists(pipAoutput, doNotInfer: true),  // force that writing to 'absentFile' happens after pipA
                                                        Operation.WriteFile(absentFile, doNotInfer: true),
                                                    });
             builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
-            var resB = SchedulePipBuilder(builderB);
+            builderB.AddUntrackedFile(pipAoutput);
+            var pipB = SchedulePipBuilder(builderB);
 
-            RunScheduler().AssertFailure();
+            if (forceDependency)
+            {
+                RunScheduler().AssertSuccess();
+            }
+            else
+            {
+                RunScheduler().AssertFailure();
 
-            // We are expecting a write after an absent path probe
-            AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
-            AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+                // We are expecting a write after an absent path probe
+                AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
+                AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory);
+                AssertErrorEventLogged(EventId.FileMonitoringError);
+            }
         }
 
-        [Fact]
-        public void DynamicWriteFollowedByAbsentPathFileProbeIsBlocked()
+        [Theory]
+        [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
+        //[InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+                              // NOTE: this is difficult to test reliably because the test depends on pips running in a particular order
+        public void DynamicWriteFollowedByAbsentPathFileProbeIsBlockedWhenPipsAreIndependent(bool forceDependency)
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             FileArtifact absentFile = CreateOutputFileArtifact(sharedOpaqueDir);
+            var dummyOut = CreateOutputFileArtifact(prefix: "dummyOut");
 
             // Write and delete 'absentFile' under a shared opaque.
             var builderA = CreatePipBuilder(new Operation[]
-                                                   {
-                                                        Operation.WriteFile(absentFile, doNotInfer: true),
-                                                        Operation.DeleteFile(absentFile, doNotInfer: true),
-                                                        Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
-                                                   });
+                                            {
+                                                Operation.WriteFile(absentFile, doNotInfer: true),
+                                                Operation.DeleteFile(absentFile, doNotInfer: true),
+                                                Operation.WriteFile(dummyOut) // dummy output
+                                            },
+                                            description: "PipA");
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
-            var resA = SchedulePipBuilder(builderA);
+            var pipA = SchedulePipBuilder(builderA);
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
 
             // Probe the absent file. Even though it was deleted by the previous pip, we should get a absent file probe violation
             var builderB = CreatePipBuilder(new Operation[]
-                                                   {
-                                                        Operation.ReadFile(resA.ProcessOutputs.GetOutputFiles().First()), // force a dependency
-                                                        Operation.Probe(absentFile, doNotInfer: true),
-                                                        Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
-                                                   });
+                                            {
+                                                forceDependency
+                                                    ? Operation.ReadFile(pipAoutput)                                // force a BuildXL dependency
+                                                    : Operation.WaitUntilFileExists(pipAoutput, doNotInfer: true),  // force that probing 'absentFile' happens after pipA
+                                                Operation.Probe(absentFile, doNotInfer: true),
+                                                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+                                            },
+                                            description: "PipB");
+            builderB.AddUntrackedFile(pipAoutput);
             var resB = SchedulePipBuilder(builderB);
 
-            RunScheduler().AssertFailure();
+            FileUtilities.DeleteFile(pipAoutput.Path.ToString(Context.PathTable));
 
-            // We are expecting a write on an absent path probe
-            AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            if (forceDependency)
+            {
+                RunScheduler().AssertSuccess();
+            }
+            else
+            {
+                RunScheduler().AssertFailure();
+
+                // We are expecting a write on an absent path probe
+                AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
+                AssertErrorEventLogged(EventId.FileMonitoringError);
+            }
         }
 
         [Fact]
@@ -851,82 +884,118 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
         }
 
-        [Fact]
-        public void AbsentFileProbeFollowedByDynamicWriteIsBlockedOnProbeCacheReplay()
+        [Theory]
+        [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
+        //[InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+                              // NOTE: this is difficult to test reliably because the test depends on pips running in a particular order
+        public void AbsentFileProbeFollowedByDynamicWriteIsBlockedOnProbeCacheReplayWhenPipsAreIndependent(bool forceDependency)
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             FileArtifact absentFileUnderSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
-            var filePipA = CreateOutputFileArtifact();
+            var dummyOut = CreateOutputFileArtifact(prefix: "dummyOut");
 
             // PipA probes absentFileUnderSharedOpaque under an opaque directory.
             var builderA = CreatePipBuilder(new Operation[]
                 {
                     Operation.Probe(absentFileUnderSharedOpaque, doNotInfer: true),
-                    Operation.WriteFile(filePipA) // dummy output
+                    Operation.WriteFile(dummyOut) // dummy output
                 });
             var pipA = SchedulePipBuilder(builderA);
 
             // PipB writes absentFileUnderSharedOpaque into a shared opaque directory sharedopaquedir.
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
             var builderB = CreatePipBuilder(new Operation[] 
                 {
-                    Operation.ReadFile(pipA.ProcessOutputs.GetOutputFiles().First()), // force a dependency
+                    forceDependency
+                        ? Operation.ReadFile(pipAoutput)                                // force a BuildXL dependency
+                        : Operation.WaitUntilFileExists(pipAoutput, doNotInfer: true),  // force that writing to 'absentFile' happens after pipA
                     Operation.WriteFile(absentFileUnderSharedOpaque, doNotInfer: true),
                 });
             builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderB.AddUntrackedFile(pipAoutput);
             var pipB = SchedulePipBuilder(builderB);
-            
+
+            FileUtilities.DeleteFile(pipAoutput.Path.ToString(Context.PathTable));
+
             // run once to cache pipA
-            RunScheduler().AssertFailure();
+            var firstResult = RunScheduler();
 
             FileUtilities.DeleteDirectoryContents(sharedOpaqueDir, deleteRootDirectory: true);
+            FileUtilities.DeleteFile(pipAoutput.Path.ToString(Context.PathTable));
 
             // run second time -- PipA should come from cache, PipB should run but still hit the same violation
-            var result = RunScheduler().AssertFailure();
-            result.AssertCacheHitWithoutAssertingSuccess(pipA.Process.PipId);
+            var secondResult = RunScheduler();
 
-            // We are expecting a write after an absent path probe (one message per run)
-            AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe, 2);
-            AssertErrorEventLogged(EventId.FileMonitoringError, 2);
+            if (forceDependency)
+            {
+                firstResult.AssertSuccess();
+                secondResult.AssertSuccess();
+                secondResult.AssertCacheHitWithoutAssertingSuccess(pipA.Process.PipId);
+            }
+            else
+            {
+                firstResult.AssertFailure();
+                secondResult.AssertFailure();
+
+                // We are expecting a write after an absent path probe (one message per run)
+                AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe, 2);
+                AssertErrorEventLogged(EventId.FileMonitoringError, 2);
+            }
         }
 
-        [Fact]
-        public void DynamicWriteFollowedByAbsentPathFileProbeIsBlockedOnWriterCacheReplay()
+        [Theory]
+        [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
+        //[InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+                              // NOTE: this is difficult to test reliably because the test depends on pips running in a particular order
+        public void DynamicWriteFollowedByAbsentPathFileProbeIsBlockedOnWriterCacheReplayWhenPipsAreIndependent(bool forceDependency)
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             FileArtifact absentFileUnderSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
-            var filePipA = CreateOutputFileArtifact();
-            var filePipB = CreateOutputFileArtifact();
-            
+            var dummyOut = CreateOutputFileArtifact(prefix: "dummy-out");
             var builderA = CreatePipBuilder(new Operation[]
-                                                   {
-                                                        Operation.WriteFile(absentFileUnderSharedOpaque, doNotInfer: true),
-                                                        Operation.DeleteFile(absentFileUnderSharedOpaque, doNotInfer: true),
-                                                        Operation.WriteFile(filePipA) // dummy output
-                                                   });
+                                            {
+                                                Operation.WriteFile(absentFileUnderSharedOpaque, doNotInfer: true),
+                                                Operation.DeleteFile(absentFileUnderSharedOpaque, doNotInfer: true),
+                                                Operation.WriteFile(dummyOut) // dummy output
+                                            },
+                                            description: "PipA");
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
             var pipA = SchedulePipBuilder(builderA);
-            
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
+
             // Probe the absent file. Even though it was deleted by the previous pip, we should get a absent file probe violation
             var builderB = CreatePipBuilder(new Operation[]
-                                                   {
-                                                        Operation.ReadFile(pipA.ProcessOutputs.GetOutputFiles().First()), // force a dependency
-                                                        Operation.Probe(absentFileUnderSharedOpaque, doNotInfer: true),
-                                                        Operation.WriteFile(filePipB) // dummy output
-                                                   });
+                                            {
+                                                forceDependency
+                                                    ? Operation.ReadFile(pipAoutput)                                // force a BuildXL dependency
+                                                    : Operation.WaitUntilFileExists(pipAoutput, doNotInfer: true),  // force that probing 'absentFile' happens after pipA
+                                                Operation.Probe(absentFileUnderSharedOpaque, doNotInfer: true),
+                                                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+                                            },
+                                            description: "PipB");
+            builderB.AddUntrackedFile(pipAoutput);
             var pipB = SchedulePipBuilder(builderB);
 
-            // run once to cache pipA
-            RunScheduler().AssertFailure();
+            // run two times
+            var firstResult = RunScheduler();
+            var secondResult = RunScheduler();
 
-            // run second time -- PipA should come from cache, PipB should run but still hit the same violation
-            var result = RunScheduler().AssertFailure();
-            result.AssertCacheHitWithoutAssertingSuccess(pipA.Process.PipId);
-
-            // We are expecting a write on an absent path probe (one message per run)
-            AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe, 2);
-            AssertErrorEventLogged(EventId.FileMonitoringError, 2);
+            if (forceDependency)
+            {
+                firstResult.AssertSuccess();
+                secondResult.AssertSuccess();
+            }
+            else
+            {
+                // We are expecting a write on an absent path probe (one message per run)
+                firstResult.AssertFailure();
+                secondResult.AssertFailure();
+                AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe, 2);
+                AssertErrorEventLogged(EventId.FileMonitoringError, 2);
+                IgnoreWarnings();
+            }
         }
 
         [Feature(Features.DirectoryEnumeration)]
@@ -1127,51 +1196,64 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
         }
 
-        [Fact]
-        public void AbsentPathProbeInUndeclaredOpaquesUnsafeModeCachedPip()
+        [Theory]
+        [InlineData(true)]  // when there is an explicit dependency between the two pips --> allowed
+        //[InlineData(false)] // when there is NO explicit dependency between the two pips --> DependencyViolationWriteOnAbsentPathProbe error
+                              // NOTE: this is difficult to test reliably because the test depends on pips running in a particular order
+        public void AbsentPathProbeInUndeclaredOpaquesUnsafeModeCachedPip(bool forceDependency)
         {
             var opaqueDir = Path.Combine(ObjectRoot, "opaquedir");
             AbsolutePath opaqueDirPath = AbsolutePath.Create(Context.PathTable, opaqueDir);
             FileArtifact absentFile = CreateOutputFileArtifact(opaqueDir);
+            var dummyOut = CreateOutputFileArtifact(prefix: "dummyOut");
 
             var builderA = CreatePipBuilder(new Operation[]
                                             {
                                                 Operation.Probe(absentFile, doNotInfer: true),
-                                                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+                                                Operation.WriteFile(dummyOut)
                                             });
             builderA.AbsentPathProbeUnderOpaquesMode = Process.AbsentPathProbeInUndeclaredOpaquesMode.Unsafe;
-            var resA = SchedulePipBuilder(builderA);
-
+            var pipA = SchedulePipBuilder(builderA);
+            var pipAoutput = pipA.ProcessOutputs.GetOutputFile(dummyOut);
             var builderB = CreatePipBuilder(new Operation[]
                                             {
-                                                Operation.ReadFile(resA.ProcessOutputs.GetOutputFiles().First()), // force a dependency
+                                                forceDependency
+                                                    ? Operation.ReadFile(pipAoutput)                                // force a BuildXL dependency
+                                                    : Operation.WaitUntilFileExists(pipAoutput, doNotInfer: true),  // force that writing to 'absentFile' happens after pipA
                                                 Operation.WriteFile(absentFile, doNotInfer: true),
                                                 Operation.DeleteFile(absentFile, doNotInfer: true),
                                                 Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
                                             });
             builderB.AddOutputDirectory(opaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderB.AddUntrackedFile(pipAoutput);
             SchedulePipBuilder(builderB);
 
-            // first run -- cache pipA, pipB should fail
-            RunScheduler().AssertFailure();
-            AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
-            AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
-
-            // second run -- in Unsafe mode, the outcome of the build (pass/fail) currently depends on
-            // the fact whether a pip was incrementally skipped or not: 
-            var result = RunScheduler();
-            if (Configuration.Schedule.IncrementalScheduling)
+            if (forceDependency)
             {
-                result.AssertSuccess();
-                result.AssertCacheHit(resA.Process.PipId);
+                RunScheduler().AssertSuccess();
             }
             else
             {
-                result.AssertFailure();
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                // first run -- cache pipA, pipB should fail
+                RunScheduler().AssertFailure();
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
                 AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory);
+                AssertErrorEventLogged(EventId.FileMonitoringError);
+
+                // second run -- in Unsafe mode, the outcome of the build (pass/fail) currently depends on
+                // the fact whether a pip was incrementally skipped or not: 
+                var result = RunScheduler();
+                if (Configuration.Schedule.IncrementalScheduling)
+                {
+                    result.AssertSuccess();
+                    result.AssertCacheHit(pipA.Process.PipId);
+                }
+                else
+                {
+                    result.AssertFailure();
+                    AssertErrorEventLogged(EventId.FileMonitoringError);
+                    AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
+                }
             }
         }
 

@@ -672,43 +672,6 @@ int CallDetouredCreateFileWWithGenericAllAccess()
     return (int)GetLastError();
 }
 
-int CallDetouredCreateFileWForProbingOnly()
-{
-    HANDLE hFile = CreateFileW(
-        L"input\\CreateFileWForProbingOnly.lnk",
-        0,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 
-        NULL, 
-        OPEN_EXISTING, 
-        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, 
-        NULL);
-
-    if (hFile == INVALID_HANDLE_VALUE)
-    {
-        return (int)GetLastError();
-    }
-
-    CloseHandle(hFile);
-
-    hFile = CreateFileW(
-        L"input\\CreateFileWForProbingOnly.lnk",
-        FILE_READ_ATTRIBUTES | FILE_READ_EA,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-        NULL,
-        OPEN_EXISTING,
-        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
-        NULL);
-
-    if (hFile == INVALID_HANDLE_VALUE)
-    {
-        return (int)GetLastError();
-    }
-
-    CloseHandle(hFile);
-
-    return (int)GetLastError();
-}
-
 int CallDetouredMoveFileExWForRenamingDirectory()
 {
     DWORD attributes = GetFileAttributesW(L"OutputDirectory\\NewDirectory");
@@ -1179,7 +1142,6 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallDetouredGetFinalPathNameByHandle);
     IF_COMMAND(CallAccessInvalidFile);
     IF_COMMAND(CallDetouredCreateFileWWithGenericAllAccess);
-    IF_COMMAND(CallDetouredCreateFileWForProbingOnly);
     IF_COMMAND(CallDetouredMoveFileExWForRenamingDirectory);
     IF_COMMAND(CallDetouredSetFileInformationByHandleForRenamingDirectory);
     IF_COMMAND(CallDetouredZwSetFileInformationByHandleForRenamingDirectory);
@@ -1219,6 +1181,8 @@ static void SymlinkTests(const string& verb)
     IF_COMMAND(CallAccessJunctionSymlink_Junction);
     IF_COMMAND(CallAccessOnChainOfJunctions);
     IF_COMMAND(CallDetouredAccessesCreateSymlinkForQBuild);
+    IF_COMMAND(CallDetouredCreateFileWForSymlinkProbeOnlyWithReparsePointFlag);
+    IF_COMMAND(CallDetouredCreateFileWForSymlinkProbeOnlyWithoutReparsePointFlag);
     
 #undef IF_COMMAND1
 #undef IF_COMMAND2

@@ -155,6 +155,19 @@ namespace BuildXL.Scheduler.Tracing
             string message);
 
         [GeneratedEvent(
+            (ushort)LogEventId.PipIpcFailedDueToInfrastructureError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "IPC operation '{operation}' could not be executed via IPC moniker '{moniker}' because of an infrastructure error. Error: {message}")]
+        internal abstract void PipIpcFailedDueToInfrastructureError(
+            LoggingContext loggingContext,
+            string operation,
+            string moniker,
+            string message);
+
+        [GeneratedEvent(
             (ushort)EventId.PipCopyFileFromUntrackableDir,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -3401,7 +3414,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (int)EventId.InvalidMetadataStaticOutputNotFound,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly, 
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
@@ -3410,7 +3423,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (int)EventId.InvalidMetadataRequiredOutputIsAbsent,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
@@ -3844,7 +3857,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.UnexpectedlySmallObservedInputCount,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
@@ -3968,7 +3981,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.CreateSymlinkFromSymlinkMap,
-            EventGenerators = EventGenerators.LocalAndTelemetryAndStatistic,
+            EventGenerators = EventGenerators.LocalOnly | Generators.Statistics,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,

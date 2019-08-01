@@ -173,18 +173,18 @@ namespace BuildXL.Execution.Analyzer
             return new DiffAnalyzer(input, this);
         }
 
-        protected override void ReadEvents()
+        protected override bool ReadEvents()
         {
             // NOTE: Read the execution log twice on a failed XLG. First to collect failed pips, then to
             // collect file access data. This is a memory optimization because loading all file accesses
             // can use a lot of memory.
 
             // First pass to get failed pips and transitive dependencies
-             var stopwatch = new System.Diagnostics.Stopwatch();
+            var stopwatch = new System.Diagnostics.Stopwatch();
             stopwatch.Start();
             Console.WriteLine($"Pass 1 of 2: Collect failed pips");
             m_pass = Pass.CollectFailedPips;
-            base.ReadEvents();
+            var result = base.ReadEvents();
             stopwatch.Stop();
             Console.WriteLine($"Done reading pass 1 : duration = [{stopwatch.Elapsed}]");
 
@@ -198,9 +198,11 @@ namespace BuildXL.Execution.Analyzer
             Console.WriteLine("Pass 2 of 2: Collect file accesses pips");
             stopwatch.Start();
             m_pass = Pass.CollectFileAccesses;
-            base.ReadEvents();
+            result &= base.ReadEvents();
             stopwatch.Stop();
             Console.WriteLine($"Done reading pass 2 : duration = [{stopwatch.Elapsed}]");
+
+            return result;
         }
 
         public override int Analyze()

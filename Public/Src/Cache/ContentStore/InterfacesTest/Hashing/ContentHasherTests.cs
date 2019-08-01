@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                 return SHA256HashInfo.Instance;
             }
 
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
             if (algorithmType == typeof(MD5Cng))
 #else
             if (algorithmType == typeof(MD5CryptoServiceProvider))

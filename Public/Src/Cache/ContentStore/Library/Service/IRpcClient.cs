@@ -78,5 +78,10 @@ namespace BuildXL.Cache.ContentStore.Service
             ContentHash contentHash,
             AbsolutePath path,
             FileRealizationMode realizationMode);
+
+        /// <summary>
+        /// Remove given content from all sessions.
+        /// </summary>
+        Task<DeleteResult> DeleteContentAsync(Context context, ContentHash hash);
     }
 }

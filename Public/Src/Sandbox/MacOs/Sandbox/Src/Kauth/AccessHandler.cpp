@@ -205,6 +205,22 @@ static bool VNodeMatchesPath(vnode_t vp, vfs_context_t ctx, const char *path)
     return result;
 }
 
+const char* AccessHandler::IgnoreCatalinaDataPartitionPrefix(const char* path)
+{
+    if (!sandbox_->GetConfig().enableCatalinaDataPartitionFiltering)
+    {
+        return path;
+    }
+
+    const char *marker = path;
+    if (strprefix(marker, kCatalinaDataPartitionPrefix))
+    {
+        marker += kAdjustedCatalinaPrefixLength;
+    }
+
+    return marker;
+}
+
 bool AccessHandler::CheckAccess(vnode_t vp,
                                 vfs_context_t ctx,
                                 CheckFunc checker,
@@ -225,7 +241,8 @@ bool AccessHandler::CheckAccess(vnode_t vp,
     {
         // update policy and check again
         sandbox_->Counters()->numHardLinkRetries++;
-        *policy = PolicyForPath(lastLookupPath);
+
+        *policy = PolicyForPath(IgnoreCatalinaDataPartitionPrefix(lastLookupPath));
         checker(*policy, isDir, result);
         return true;
     }
@@ -245,7 +262,7 @@ AccessCheckResult AccessHandler::CheckAndReportInternal(FileOperation operation,
     Stopwatch stopwatch;
 
     // 1: check operation against given policy
-    PolicyResult policy = PolicyForPath(path);
+    PolicyResult policy = PolicyForPath(IgnoreCatalinaDataPartitionPrefix(path));
     AccessCheckResult result = AccessCheckResult::Invalid();
     if (vp != nullptr && ctx != nullptr)
     {

@@ -415,7 +415,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         {
             Assert.True(
                 value != null,
-                "Expected value to not be null" +
+                "Expected value to not be null " +
                 GetMessage(format, args));
         }
 
@@ -431,7 +431,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         {
             Assert.True(
                 value == null,
-                "Expected object to be null" +
+                "Expected object to be null " +
                 GetMessage(format, args));
         }
 

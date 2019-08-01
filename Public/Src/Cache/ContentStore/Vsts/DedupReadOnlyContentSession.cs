@@ -178,6 +178,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return pinResult;
             }
 
+            VstsBlobIdentifier blobId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier());
+            VstsDedupIdentifier dedupId = blobId.ToDedupIdentifier();
+
+            if (dedupId.AlgorithmId == Hashing.ChunkDedupIdentifier.ChunkAlgorithmId)
+            {
+                // No need to optimize since pinning a chunk is always a fast operation.
+                return await PinImplAsync(context, contentHash);
+            }
+
             // Since pinning the whole tree can be an expensive operation, we have optimized how we call it. Depending on the current
             //  keepUntil of the root node, which is unexpensive to check, the operation will behave differently:
             //      The pin operation will be ignored if it is greater than ignorePinThreshold, to reduce amount of calls
@@ -187,8 +196,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
             //          behavior, to avoid waiting on a potentially long operation. We're confident returning a success because we
             //          know that the content is there even though we still have to extend it's keepUntil
 
-            VstsBlobIdentifier blobId = ToVstsBlobIdentifier(contentHash.ToBlobIdentifier());
-            VstsDedupIdentifier dedupId = blobId.ToDedupIdentifier();
             var keepUntilResult = await CheckNodeKeepUntilAsync(context, dedupId);
             if (!keepUntilResult.Succeeded)
             {
@@ -720,7 +727,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     keepUntil = added.Receipts[dedupId].KeepUntil.KeepUntil;
                 });
 
-            return new Result<DateTime?>(keepUntil);
+            return new Result<DateTime?>(keepUntil, isNullAllowed: true);
         }
 
         #endregion

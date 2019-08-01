@@ -100,6 +100,8 @@ public:
     void stop(IOService *provider) override;
 
     void Configure(const KextConfig *config);
+    inline const KextConfig GetConfig() { return config_; }
+
     UInt32 GetReportQueueEntryCount();
 
     IOReturn AllocateNewClient(pid_t clientPid);

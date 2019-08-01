@@ -80,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.App
                             useCompression: useCompressionForCopies,
                             bufferSize: bufferSizeForGrpcCopies)
                         : (IAbsolutePathFileCopier)new DistributedCopier(),
-                    pathTransformer: useDistributedGrpc ? new GrpcDistributedPathTransformer() : (IAbsolutePathTransformer)new DistributedPathTransformer(),
+                    pathTransformer: useDistributedGrpc ? new GrpcDistributedPathTransformer(_logger) : (IAbsolutePathTransformer)new DistributedPathTransformer(),
                     dcs: dcs,
                     host: host,
                     cacheName: cacheName,

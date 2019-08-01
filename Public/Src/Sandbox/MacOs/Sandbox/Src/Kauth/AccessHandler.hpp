@@ -45,6 +45,10 @@ private:
         }
     }
 
+    const char *IgnoreCatalinaDataPartitionPrefix(const char* path);
+    const char *kCatalinaDataPartitionPrefix = "/System/Volumes/Data/";
+    const size_t kAdjustedCatalinaPrefixLength = strlen("/System/Volumes/Data");
+
 protected:
 
     BuildXLSandbox* GetSandbox()   const { return sandbox_; }

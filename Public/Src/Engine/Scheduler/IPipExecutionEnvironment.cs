@@ -6,6 +6,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
@@ -189,6 +190,11 @@ namespace BuildXL.Scheduler
         /// VM initializer.
         /// </summary>
         VmInitializer VmInitializer { get; }
+
+        /// <summary>
+        /// Temp directory cleaner
+        /// </summary>
+        ITempCleaner TempCleaner { get; }
     }
 
     /// <summary>

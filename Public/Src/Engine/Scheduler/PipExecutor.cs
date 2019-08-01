@@ -646,6 +646,15 @@ namespace BuildXL.Scheduler
                         connectionString,
                         ipcResult.Payload);
                 }
+                else if (ipcResult.ExitCode == IpcResultStatus.TransmissionError)
+                {
+                    // we separate transmission errors here, so they can be properly classified as InfrastructureErrors
+                    Logger.Log.PipIpcFailedDueToInfrastructureError(
+                        operationContext,
+                        operation.Payload,
+                        connectionString,
+                        ipcResult.Payload);
+                }
                 else
                 {
                     Logger.Log.PipIpcFailed(
@@ -1353,7 +1362,8 @@ namespace BuildXL.Scheduler
                                     buildEngineDirectory: configuration.Layout.BuildEngineDirectory,
                                     directoryTranslator: environment.DirectoryTranslator,
                                     remainingUserRetryCount: remainingUserRetries,
-                                    vmInitializer: environment.VmInitializer);
+                                    vmInitializer: environment.VmInitializer,
+                                    tempDirectoryCleaner: environment.TempCleaner);
 
                                 registerQueryRamUsageMb(
                                     () =>
@@ -2727,7 +2737,8 @@ namespace BuildXL.Scheduler
                 disableConHostSharing: configuration.Engine.DisableConHostSharing,
                 pipDataRenderer: pipDataRenderer,
                 directoryTranslator: environment.DirectoryTranslator,
-                vmInitializer: environment.VmInitializer);
+                vmInitializer: environment.VmInitializer,
+                tempDirectoryCleaner: environment.TempCleaner);
 
             if (!await executor.TryInitializeWarningRegexAsync())
             {

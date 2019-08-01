@@ -2020,36 +2020,36 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        private static Task AssertProcessFailsExecution(
+        private Task AssertProcessFailsExecution(
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
             FileAccessWhitelist fileAccessWhitelist = null,
             SandboxedProcessPipExecutionResultWrapper resultWrapper = null)
         {
-            return AssertProcessCompletesWithStatus(SandboxedProcessPipExecutionStatus.ExecutionFailed, context, config, process, fileAccessWhitelist, resultWrapper);
+            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.ExecutionFailed, context, config, process, fileAccessWhitelist, resultWrapper);
         }
 
-        private static Task AssertProcessFailsPreparation(
+        private Task AssertProcessFailsPreparation(
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
             FileAccessWhitelist fileAccessWhitelist = null)
         {
-            return AssertProcessCompletesWithStatus(SandboxedProcessPipExecutionStatus.PreparationFailed, context, config, process, fileAccessWhitelist);
+            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.PreparationFailed, context, config, process, fileAccessWhitelist);
         }
 
-        private static Task AssertProcessSucceedsAsync(
+        private Task AssertProcessSucceedsAsync(
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
             FileAccessWhitelist fileAccessWhitelist = null,
             IDirectoryArtifactContext directoryArtifactContext = null)
         {
-            return AssertProcessCompletesWithStatus(SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessWhitelist, directoryArtifactContext: directoryArtifactContext);
+            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessWhitelist, directoryArtifactContext: directoryArtifactContext);
         }
 
-        private static async Task AssertProcessCompletesWithStatus(
+        private async Task AssertProcessCompletesWithStatusAsync(
             SandboxedProcessPipExecutionStatus status,
             BuildXLContext context,
             ISandboxConfiguration config,
@@ -2087,7 +2087,7 @@ namespace Test.BuildXL.Processes.Detours
             return File.ReadAllText(path, maybeOutput.Item2);
         }
 
-        private static Task<SandboxedProcessPipExecutionResult> RunProcess(
+        private Task<SandboxedProcessPipExecutionResult> RunProcess(
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
@@ -2115,7 +2115,8 @@ namespace Test.BuildXL.Processes.Detours
                 false,
                 new PipEnvironment(),
                 validateDistribution: false,
-                directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty).RunAsync(sandboxedKextConnection: GetSandboxedKextConnection());
+                directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty,
+                tempDirectoryCleaner: MoveDeleteCleaner).RunAsync(sandboxedKextConnection: GetSandboxedKextConnection());
         }
 
         private static void VerifyExitCode(BuildXLContext context, SandboxedProcessPipExecutionResult result, int expectedExitCode)

@@ -65,6 +65,12 @@ export const framework : Shared.Framework = {
     // Deployment style for .NET Core applications currently defaults to self-contained
     applicationDeploymentStyle: "selfContained",
     runtimeContentProvider: runtimeContentProvider,
+    
+    conditionalCompileDefines: [
+        "NET_CORE",
+        "NET_COREAPP",
+        "NET_COREAPP_30"
+    ],
 };
 
 function createDefaultAssemblies() : Shared.Assembly[] {

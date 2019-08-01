@@ -15,7 +15,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Vsts;
 using BuildXL.Storage;
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 #else
 using System.Net;
@@ -70,9 +70,9 @@ namespace BuildXL.Cache.BuildCacheAdapter
 
             VssCredentialsFactory credentialsFactory;
 
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
             string userName = null; // when running on .NET Framework, user name doesn't have to be explicitly provided
-#if FEATURE_CORECLR
+#if NET_CORE
             userName = GetAadUserNameUpn();
 #endif
             credentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper(s => logger.Debug(s)), userName);

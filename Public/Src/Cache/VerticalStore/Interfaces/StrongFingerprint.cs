@@ -4,11 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Cache.Interfaces
 {

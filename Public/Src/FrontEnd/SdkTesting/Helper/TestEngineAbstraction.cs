@@ -200,7 +200,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         }
 
         /// <inheritdoc />
-        public override Task<ContentHash> GetFileContentHashAsync(string path, bool trackFile = true)
+        public override Task<ContentHash> GetFileContentHashAsync(string path, bool trackFile = true, HashType hashType = HashType.Unknown)
         {
             throw new NotImplementedException();
         }

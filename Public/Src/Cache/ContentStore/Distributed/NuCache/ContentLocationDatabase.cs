@@ -633,6 +633,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Performs a compare exchange operation on metadata, while ensuring all invariants are kept. If the
+        /// fingerprint is not present, then it is inserted.
+        /// </summary>
+        /// <param name="context">
+        ///     Tracing context.
+        /// </param>
+        /// <param name="strongFingerprint">
+        ///     Full key for ContentHashList value.
+        /// </param>
+        /// <param name="expected">
+        ///     Expected value.
+        /// </param>
+        /// <param name="replacement">
+        ///     Value to put in case the expected value matches.
+        /// </param>
+        /// <returns>
+        ///     Result providing the call's completion status. True if the replacement was completed successfully,
+        ///     false otherwise.
+        /// </returns>
+        public abstract Possible<bool> CompareExchange(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement);
+
+        /// <summary>
         /// Load a ContentHashList.
         /// </summary>
         /// <param name="context">
@@ -645,23 +667,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         ///     Result providing the call's completion status.
         /// </returns>
         public abstract GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint);
-
-        /// <summary>
-        /// Store a ContentHashList
-        /// </summary>
-        /// <param name="context">
-        ///     Tracing context.
-        /// </param>
-        /// <param name="strongFingerprint">
-        ///     Full key for ContentHashList value.
-        /// </param>
-        /// <param name="contentHashListWithDeterminism">
-        ///     The value, and associated determinism guarantee, to store.
-        /// </param>
-        /// <returns>
-        ///     Result providing the call's completion status.
-        /// </returns>
-        public abstract AddOrGetContentHashListResult AddOrGetContentHashList(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism);
 
         /// <summary>
         /// Gets known selectors for a given weak fingerprint.

@@ -459,6 +459,19 @@ namespace BuildXL.Engine.Tracing
             string toState,
             string caller);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.DistributionWorkerFinish,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "Worker {ipAddress}:{port} will get disconnected by {caller}")]
+                public abstract void DistributionWorkerFinish(
+            LoggingContext context,
+            string ipAddress,
+            int port,
+            string caller);
+
         public void DistributionSendBondCallFormat(
             LoggingContext context,
             RpcMachineData receiverData,
@@ -669,8 +682,8 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.InfrastructureError,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Failing pip step {step} because execution request could not be sent to worker {workerName}: {errorMessage}")]
-        public abstract void DistributionExecutePipFailedNetworkFailure(LoggingContext context, string pipDescription, string workerName, string errorMessage, string step);
+            Message = "[{pipDescription}] Failing pip step {step} by {callerName} because execution request could not be sent to worker {workerName}: {errorMessage}")]
+        public abstract void DistributionExecutePipFailedNetworkFailure(LoggingContext context, string pipDescription, string workerName, string errorMessage, string step, string callerName);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionExecutePipFailedNetworkFailureWarning,
@@ -678,8 +691,8 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.InfrastructureError,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Failing pip step {step} because execution request could not be sent to worker {workerName}: {errorMessage}")]
-        public abstract void DistributionExecutePipFailedNetworkFailureWarning(LoggingContext context, string pipDescription, string workerName, string errorMessage, string step);
+            Message = "[{pipDescription}] Failing pip step {step} by {callerName} because execution request could not be sent to worker {workerName}: {errorMessage}")]
+        public abstract void DistributionExecutePipFailedNetworkFailureWarning(LoggingContext context, string pipDescription, string workerName, string errorMessage, string step, string callerName);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionAttachReceived,
@@ -885,6 +898,15 @@ namespace BuildXL.Engine.Tracing
             EventTask = (ushort)Tasks.Distribution,
             Message = "DDB_DEBUG: {message}")]
         internal abstract void DistributionDebugMessage(LoggingContext loggingContext, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DistributionWorkerUnexpectedFailureAfterMasterExits,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "After we received an exit request from the master, worker exits with an unexpected reason due to a failure in one of the master-related calls (e.g., attach, notify).")]
+        public abstract void DistributionWorkerUnexpectedFailureAfterMasterExits(LoggingContext context);
 
         #endregion
 

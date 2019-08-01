@@ -25,4 +25,9 @@ export const framework : Shared.Framework = {
     requiresPortablePdb: false,
 
     runtimeConfigStyle: "appConfig",
+    
+    conditionalCompileDefines: [
+        "NET_FRAMEWORK",
+        "NET_FRAMEWORK_472"
+    ],
 };

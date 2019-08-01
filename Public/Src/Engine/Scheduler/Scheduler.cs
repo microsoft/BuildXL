@@ -145,7 +145,7 @@ namespace BuildXL.Scheduler
         /// <see cref="FingerprintStore"/> directory name.
         /// </summary>
         public const string FingerprintStoreDirectory = "FingerprintStore";
-        
+
         #endregion Constants
 
         #region State
@@ -252,7 +252,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Cleans temp directories in background
         /// </summary>
-        private readonly TempCleaner m_tempCleaner;
+        public ITempCleaner TempCleaner { get; }
 
         /// <summary>
         /// The pip graph
@@ -994,7 +994,7 @@ namespace BuildXL.Scheduler
             LoggingContext loggingContext,
             string buildEngineFingerprint,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules = null,
-            TempCleaner tempCleaner = null,
+            ITempCleaner tempCleaner = null,
             Task<PipRuntimeTimeTable> runningTimeTableTask = null,
             PerformanceCollector performanceCollector = null,
             string fingerprintSalt = null,
@@ -1095,7 +1095,7 @@ namespace BuildXL.Scheduler
             // is complete. GetDummyProvenance may be called during execution (after the schedule phase)
             GetDummyProvenance();
 
-            m_tempCleaner = tempCleaner;
+            TempCleaner = tempCleaner;
 
             // Ensure that when the cancellationToken is signaled, we respond with the
             // internal cancellation process.
@@ -1265,18 +1265,18 @@ namespace BuildXL.Scheduler
             m_serviceManager.Start(loggingContext, OperationTracker);
             m_apiServer?.Start(loggingContext);
             m_chooseWorkerCpu = new ChooseWorkerCpu(
-                loggingContext, 
-                m_configuration.Schedule.MaxChooseWorkerCpu, 
+                loggingContext,
+                m_configuration.Schedule.MaxChooseWorkerCpu,
                 m_workers,
-                m_pipQueue, 
-                PipGraph, 
+                m_pipQueue,
+                PipGraph,
                 m_fileContentManager);
 
             m_chooseWorkerCacheLookup = new ChooseWorkerCacheLookup(
-                loggingContext, 
-                m_configuration.Schedule.MaxChooseWorkerCacheLookup, 
-                m_configuration.Distribution.DistributeCacheLookups, 
-                m_workers, 
+                loggingContext,
+                m_configuration.Schedule.MaxChooseWorkerCacheLookup,
+                m_configuration.Distribution.DistributeCacheLookups,
+                m_workers,
                 m_pipQueue);
 
             ExecutionLog?.DominoInvocation(new DominoInvocationEventData(m_configuration));
@@ -2057,7 +2057,7 @@ namespace BuildXL.Scheduler
                     m_pipQueue.AdjustIOParallelDegree(m_perfInfo);
                 }
 
-                if (m_scheduleConfiguration.EarlyWorkerRelease && IsDistributedMaster)
+                if (m_configuration.Distribution.EarlyWorkerRelease && IsDistributedMaster)
                 {
                     PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
                 }
@@ -2081,7 +2081,7 @@ namespace BuildXL.Scheduler
 
             // If the available remote workers perform at that multiplier capacity in future, how many process pips we can concurrently execute:
             int totalProcessSlots = LocalWorker.TotalProcessSlots +
-               (int)Math.Ceiling(m_scheduleConfiguration.EarlyWorkerReleaseMultiplier * Workers.Where(a => a.IsRemote && a.IsAvailable).Sum(a => a.TotalProcessSlots));
+               (int)Math.Ceiling(m_configuration.Distribution.EarlyWorkerReleaseMultiplier * Workers.Where(a => a.IsRemote && a.IsAvailable).Sum(a => a.TotalProcessSlots));
 
             // Release worker if numProcessPipsWaiting can be satisfied by remaining workers
             if (numProcessPipsWaiting > 0 && (numProcessPipsWaiting < totalProcessSlots - workerToReleaseCandidate.TotalProcessSlots))
@@ -2621,7 +2621,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(runnablePip.PipType == PipType.Process);
             Contract.Requires(runnablePip.Result.HasValue);
             // Only allow this to be null in testing
-            if (m_tempCleaner == null)
+            if (TempCleaner == null)
             {
                 Contract.Assert(m_testHooks != null);
                 return;
@@ -2642,7 +2642,7 @@ namespace BuildXL.Scheduler
             // temp directories are not considered as outputs.
             if (process.TempDirectory.IsValid)
             {
-                m_tempCleaner.RegisterDirectoryToDelete(process.TempDirectory.ToString(Context.PathTable), deleteRootDirectory: true);
+                TempCleaner.RegisterDirectoryToDelete(process.TempDirectory.ToString(Context.PathTable), deleteRootDirectory: true);
             }
 
             foreach (var additionalTempDirectory in process.AdditionalTempDirectories)
@@ -2650,7 +2650,7 @@ namespace BuildXL.Scheduler
                 // Unlike process.TempDirectory, which is invalid for pips without temp directories,
                 // AdditionalTempDirectories should not have invalid paths added
                 Contract.Requires(additionalTempDirectory.IsValid);
-                m_tempCleaner.RegisterDirectoryToDelete(additionalTempDirectory.ToString(Context.PathTable), deleteRootDirectory: true);
+                TempCleaner.RegisterDirectoryToDelete(additionalTempDirectory.ToString(Context.PathTable), deleteRootDirectory: true);
             }
 
             // Only for successful run scheduling temporary outputs for deletion
@@ -2661,7 +2661,7 @@ namespace BuildXL.Scheduler
                 // CanBeReferencedOrCached() is false for e.g. 'intermediate' outputs, and deleting them proactively can be a nice space saving
                 if (!output.CanBeReferencedOrCached())
                 {
-                    m_tempCleaner.RegisterFileToDelete(output.Path.ToString(Context.PathTable));
+                    TempCleaner.RegisterFileToDelete(output.Path.ToString(Context.PathTable));
                 }
             }
         }
@@ -2790,11 +2790,11 @@ namespace BuildXL.Scheduler
             ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo ? RunningTimeTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents : (ushort)0;
 
             var runnablePip = RunnablePip.Create(
-                m_executePhaseLoggingContext, 
-                this, 
-                pipId, 
-                pipType, 
-                priority ?? GetPipPriority(pipId), 
+                m_executePhaseLoggingContext,
+                this,
+                pipId,
+                pipType,
+                priority ?? GetPipPriority(pipId),
                 m_executePipFunc,
                 cpuUsageInPercent);
 
@@ -2973,7 +2973,7 @@ namespace BuildXL.Scheduler
             if (runnablePip.AcquiredResourceWorker != null)
             {
                 // These steps run on the chosen worker so don't release the resources until they are completed.
-                // MaterializeOutputs can be also run on the workers; but we can release resources before that. 
+                // MaterializeOutputs can be also run on the workers; but we can release resources before that.
                 if (nextStep != PipExecutionStep.CacheLookup &&
                     nextStep != PipExecutionStep.ExecuteNonProcessPip &&
                     nextStep != PipExecutionStep.ExecuteProcess &&
@@ -4739,6 +4739,9 @@ namespace BuildXL.Scheduler
                             {
                                 ReportQueueSizeMB = m_configuration.Sandbox.KextReportQueueSizeMb,
                                 EnableReportBatching = m_configuration.Sandbox.KextEnableReportBatching,
+#if !PLATFORM_WIN
+                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher,
+#endif
                                 ResourceThresholds = new Sandbox.ResourceThresholds
                                 {
                                     CpuUsageBlockPercent = m_configuration.Sandbox.KextThrottleCpuUsageBlockThresholdPercent,
@@ -4845,7 +4848,7 @@ namespace BuildXL.Scheduler
                 incrementalSchedulingStateFactory = new IncrementalSchedulingStateFactory(
                     loggingContext,
                     analysisMode: false,
-                    tempDirectoryCleaner: m_tempCleaner);
+                    tempDirectoryCleaner: TempCleaner);
             }
 
             if (m_fileChangeTracker.IsBuildingInitialChangeTrackingSet)
@@ -5852,7 +5855,7 @@ namespace BuildXL.Scheduler
             LoggingContext loggingContext)
         {
             var executionLogPath = configuration.Logging.ExecutionLog;
-            if (configuration.Logging.LogExecution && executionLogPath.IsValid && (configuration.Engine.Phase & EnginePhases.Execute) != 0)
+            if (configuration.Logging.LogExecution && executionLogPath.IsValid && configuration.Engine.Phase.HasFlag(EnginePhases.Execute))
             {
                 var executionLogPathString = executionLogPath.ToString(context.PathTable);
 

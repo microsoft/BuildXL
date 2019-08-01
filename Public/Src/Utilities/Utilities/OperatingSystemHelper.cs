@@ -6,7 +6,7 @@ using System.Linq;
 using Microsoft.Win32;
 using static BuildXL.Interop.Windows.Memory;
 
-#if FEATURE_CORECLR
+#if NET_CORE
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
@@ -53,7 +53,7 @@ namespace BuildXL.Utilities
         /// <remarks>This is used for as long as we have older .NET Framework dependencies</remarks>
         public static readonly bool IsUnixOS = Environment.OSVersion.Platform == PlatformID.Unix;
 
-#if FEATURE_CORECLR
+#if NET_CORE
 
         // Sysctl constants to query CPU information
         private static string MACHDEP_CPU_BRAND_STRING = "machdep.cpu.brand_string";
@@ -67,6 +67,15 @@ namespace BuildXL.Utilities
         /// Indicates if BuildXL is running on macOS
         /// </summary>
         public static readonly bool IsMacOS = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+
+        private static readonly Version CurrentMacOSVersion = GetOSVersionMacOS();
+
+#if PLATFORM_OSX
+        /// <summary>
+        /// Indicates if Catalina (10.15) or a higher macOS version is running on the host
+        /// </summary>
+        public static readonly bool IsMacOSCatalinaOrHigher = CurrentMacOSVersion.Major >= 10 && CurrentMacOSVersion.Minor >= 15;
+#endif
 
         private static readonly Tuple<string, string> ProcessorNameAndIdentifierMacOS =
             IsMacOS ? GetProcessorNameAndIdentifierMacOS() : Tuple.Create(String.Empty, String.Empty);
@@ -87,10 +96,10 @@ namespace BuildXL.Utilities
             {
                 return GetOSVersionWindows();
             }
-#if FEATURE_CORECLR
+#if NET_CORE
             else if (IsMacOS)
             {
-                return GetOSVersionMacOS();
+                return string.Format("macOS {0}.{1}.{2}", CurrentMacOSVersion.Major, CurrentMacOSVersion.Minor, CurrentMacOSVersion.Build);
             }
 #endif
             // Extend this once we start supporting Linux etc.
@@ -106,7 +115,7 @@ namespace BuildXL.Utilities
             {
                 return GetProcessorNameWindows();
             }
-#if FEATURE_CORECLR
+#if NET_CORE
             else if (IsMacOS)
             {
                 return ProcessorNameAndIdentifierMacOS.Item1;
@@ -125,7 +134,7 @@ namespace BuildXL.Utilities
             {
                 return GetProcessorIdentifierWindows();
             }
-#if FEATURE_CORECLR
+#if NET_CORE
             else if (IsMacOS)
             {
                 return ProcessorNameAndIdentifierMacOS.Item2;
@@ -144,7 +153,7 @@ namespace BuildXL.Utilities
             {
                 return GetPhysicalMemorySizeWindows();
             }
-#if FEATURE_CORECLR
+#if NET_CORE
             else if (IsMacOS)
             {
                 return GetPhysicalMemorySizeMacOS();
@@ -322,7 +331,7 @@ namespace BuildXL.Utilities
                 {
                     result = "4.5";
                 }
-                
+
                 // This code should never execute. A non-null release key should mean
                 // that 4.5 or later is installed.
                 return result != null;
@@ -330,9 +339,9 @@ namespace BuildXL.Utilities
         }
 
         #region macOS Helpers
-#if FEATURE_CORECLR
 
-        private static string GetOSVersionMacOS()
+#if NET_CORE
+        private static Version GetOSVersionMacOS()
         {
             try
             {
@@ -349,11 +358,7 @@ namespace BuildXL.Utilities
                                 string versionString = stringElement.Value;
                                 if (versionString != null)
                                 {
-                                    Version version = Version.Parse(versionString);
-                                    if (version.Major > 10 || (version.Major == 10 && version.Minor >= 13))
-                                    {
-                                        return string.Format("macOS High Sierra Version {0}.{1}.{2}", version.Major, version.Minor, version.Build);
-                                    }
+                                    return Version.Parse(versionString);
                                 }
                             }
                         }
@@ -366,7 +371,8 @@ namespace BuildXL.Utilities
             }
 #pragma warning restore ERP022
 
-            return String.Empty;
+            // Fallback is version 0.0
+            return new Version();
         }
 
         // This could potentially be replaced by a C wrapper querying the system information, the sysctl is just more convinient currently

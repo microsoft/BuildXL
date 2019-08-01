@@ -745,7 +745,7 @@ namespace BuildXL.Engine
             LoggingContext loggingContext,
             IConfiguration configuration,
             IEnumerable<string> nonScrubbablePaths,
-            ITempDirectoryCleaner tempCleaner)
+            ITempCleaner tempCleaner)
         {
             var pathsToScrub = new List<string>();
             if (configuration.Engine.Scrub && mountPathExpander != null)
@@ -837,7 +837,7 @@ namespace BuildXL.Engine
             PathTable pathTable,
             IConfiguration configuration,
             IEnumerable<string> extraNonScrubbablePaths,
-            [CanBeNull] ITempDirectoryCleaner tempCleaner)
+            [CanBeNull] ITempCleaner tempCleaner)
         {
             var nonScrubbablePaths = new List<string>(new[]
             {
@@ -923,7 +923,7 @@ namespace BuildXL.Engine
         {
             Contract.Requires(!HasFailed, "Build has already failed. Engine should have bailed out");
 
-            if ((configuration.Engine.Phase & EnginePhases.Schedule) == 0)
+            if (!configuration.Engine.Phase.HasFlag(EnginePhases.Schedule))
             {
                 return true;
             }
@@ -1999,7 +1999,7 @@ namespace BuildXL.Engine
             PipGraphCacheDescriptor cacheDescriptor,
             EngineSerializer serializer,
             FileContentTable fileContentTable,
-            ITempDirectoryCleaner tempDirectoryCleaner)
+            ITempCleaner tempDirectoryCleaner)
         {
             if (cacheDescriptor != null)
             {

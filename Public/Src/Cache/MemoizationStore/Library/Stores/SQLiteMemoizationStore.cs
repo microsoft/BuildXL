@@ -100,12 +100,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             )
             : base(
                   () => new SQLiteMemoizationStoreTracer(logger, Component),
-                  config.WithDatabasePath(MakeDatabasePath(config.DatabaseFilePath, DefaultDatabaseFileName))
+                  config.Database.WithDatabasePath(MakeDatabasePath(config.Database.DatabaseFilePath, DefaultDatabaseFileName))
                   )
         {
             Contract.Requires(config != null);
-            Contract.Requires(config.DatabaseFilePath != null);
-            Contract.Requires(config.DatabaseFilePath.Parent.Path.Length > 0);
+            Contract.Requires(config.Database.DatabaseFilePath != null);
+            Contract.Requires(config.Database.DatabaseFilePath.Parent.Path.Length > 0);
             Contract.Requires(clock != null);
 
             _fileSystem = new PassThroughFileSystem(logger);

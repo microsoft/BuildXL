@@ -15,7 +15,7 @@ namespace BuildXL.Engine.Distribution
     /// </summary>
     public class NotifyMasterExecutionLogTarget : ExecutionLogFileTarget
     {
-        private bool m_isDisposed = false;
+        private volatile bool m_isDisposed = false;
 
         internal NotifyMasterExecutionLogTarget(uint workerId, IMasterClient masterClient, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex, DistributionServices services)
             : this(new NotifyStream(workerId, masterClient, services), context, logId, lastStaticAbsolutePathIndex)

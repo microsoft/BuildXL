@@ -52,7 +52,7 @@ export function activate(context: ExtensionContext) {
         debug: {
             module: "DScript Language Server",
             transport: TransportKind.pipe,
-            runtime: context.asAbsolutePath(`../../../../../Out/objects/tempdeployment/debug/net472/win-x64/VsCodeVsix/extension/bin/${exeName}`),
+            runtime: context.asAbsolutePath(`../../../../../Out/objects/tempdeployment/debug/netcoreapp3.0/win-x64/VsCodeVsix/extension/bin/${exeName}`),
         },
     }
     

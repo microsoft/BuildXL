@@ -36,7 +36,7 @@ namespace BuildXL.Engine
             MasterService masterService,
             CacheInitializationTask cacheInitializerTask,
             PipExecutionContext context,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             var pathTable = context.PathTable;
             bool isDistributedMaster = configuration.Distribution.BuildRole == DistributedBuildRoles.Master;

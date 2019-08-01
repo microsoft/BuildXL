@@ -45,7 +45,7 @@ namespace BuildXL.Native.IO.Unix
             string path,
             bool deleteRootDirectory = false,
             Func<string, bool> shouldDelete = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            ITempCleaner tempDirectoryCleaner = null,
             CancellationToken? cancellationToken = default)
         {
             DeleteDirectoryContentsInternal(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, cancellationToken);
@@ -55,7 +55,7 @@ namespace BuildXL.Native.IO.Unix
             string path,
             bool deleteRootDirectory,
             Func<string, bool> shouldDelete,
-            ITempDirectoryCleaner tempDirectoryCleaner,
+            ITempCleaner tempDirectoryCleaner,
             CancellationToken? cancellationToken)
         {
             int remainingChildCount = 0;
@@ -135,7 +135,7 @@ namespace BuildXL.Native.IO.Unix
         public Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(
             string path,
             bool waitUntilDeletionFinished = true,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             try
             {
@@ -159,7 +159,7 @@ namespace BuildXL.Native.IO.Unix
         public void DeleteFile(
             string path,
             bool waitUntilDeletionFinished = true,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
             bool successfullyDeletedFile = false;

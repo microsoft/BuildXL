@@ -149,7 +149,8 @@ namespace Test.BuildXL.Processes.Detours
                 directoryArtifactContext: TestDirectoryArtifactContext.Empty,
                 buildEngineDirectory: binDirectory,
                 directoryTranslator: directoryTranslator,
-                isQbuildIntegrated: isQuickBuildIntegrated).RunAsync(sandboxedKextConnection: GetSandboxedKextConnection());
+                isQbuildIntegrated: isQuickBuildIntegrated,
+                tempDirectoryCleaner: MoveDeleteCleaner).RunAsync(sandboxedKextConnection: GetSandboxedKextConnection());
         }
 
         [Fact]
@@ -6229,8 +6230,10 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
-        public async Task CallDetouredCreateFileWForProbingOnly()
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CallDetouredCreateFileWForProbingOnly(bool withReparsePointFlag)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
@@ -6245,13 +6248,15 @@ namespace Test.BuildXL.Processes.Detours
                     pathTable,
                     "CreateFileWForProbingOnly.lnk",
                     "CreateFileWForProbingOnly.txt",
-                    "CallDetouredCreateFileWForProbingOnly",
+                    withReparsePointFlag
+                    ? "CallDetouredCreateFileWForSymlinkProbeOnlyWithReparsePointFlag"
+                    : "CallDetouredCreateFileWForSymlinkProbeOnlyWithoutReparsePointFlag",
                     isDirectoryTest: false,
                     createSymlink: true,
                     addCreateFileInDirectoryToDependencies: false,
                     createFileInDirectory: false,
                     addFirstFileKind: AddFileOrDirectoryKinds.AsDependency,
-                    addSecondFileOrDirectoryKind: AddFileOrDirectoryKinds.None,
+                    addSecondFileOrDirectoryKind: AddFileOrDirectoryKinds.AsDependency,
                     makeSecondUntracked: true,
                     createdInputPaths: createdInputPaths);
 
@@ -6270,13 +6275,25 @@ namespace Test.BuildXL.Processes.Detours
 
                 VerifyNormalSuccess(context, result);
 
+                var pathsToFalsify = withReparsePointFlag
+                    ? new[] { createdInputPaths["CreateFileWForProbingOnly.txt"] }
+                    : new AbsolutePath[0];
+
+                var observationsToVerify = new List<(AbsolutePath abosultePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus)>
+                {
+                    (createdInputPaths["CreateFileWForProbingOnly.lnk"], RequestedAccess.Probe, FileAccessStatus.Allowed)
+                };
+
+                if (!withReparsePointFlag)
+                {
+                    observationsToVerify.Add((createdInputPaths["CreateFileWForProbingOnly.txt"], RequestedAccess.Probe, FileAccessStatus.Allowed));
+                }
+
                 VerifyFileAccesses(
                     context,
                     result.AllReportedFileAccesses,
-                    new[]
-                    {
-                        (createdInputPaths["CreateFileWForProbingOnly.lnk"], RequestedAccess.Probe, FileAccessStatus.Allowed),
-                    });
+                    observationsToVerify.ToArray(),
+                    pathsToFalsify: pathsToFalsify);
             }
         }
 

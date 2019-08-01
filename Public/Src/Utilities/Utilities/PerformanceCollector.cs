@@ -233,7 +233,7 @@ namespace BuildXL.Utilities
         private static double BytesToKbits(long bytes)
         {
             // Convert to Kbits
-            return bytes / 1024.0 * 8;
+            return (bytes / 1024.0) * 8;
         }
 
         private void ReschedulerTimer()

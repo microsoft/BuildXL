@@ -59,7 +59,7 @@ enum ExecutionEventId{
     ProcessFingerprintComputation = 10;
     PipCacheMiss = 11;
     PipExecutionDirectoryOutputs = 12;
-    DominoInvocation = 13;
+    BxlInvocation = 13;
 }
 
 enum PipOutputOrigin{

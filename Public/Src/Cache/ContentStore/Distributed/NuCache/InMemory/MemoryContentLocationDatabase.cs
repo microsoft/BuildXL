@@ -130,7 +130,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         }
 
         /// <inheritdoc />
-        protected override void DoGarbageCollectMetadata(OperationContext context)
+        protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
         {
             throw new NotImplementedException();
         }

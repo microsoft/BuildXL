@@ -701,57 +701,48 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override void DoGarbageCollectMetadata(OperationContext context)
+        protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
         {
-            context.PerformOperation(Tracer, () =>
-            {
+            return _keyValueStore.Use(store => {
                 var cutoffTimeUtc = (Clock.UtcNow - _configuration.MetadataGarbageCollectionProtectionTime).ToFileTimeUtc();
+                int removedEntries = 0;
+                int scannedEntries = 0;
+                ulong dbSizeInBytesAfterGc = 0;
+                ulong dbRemovedBytesDuringGc = 0;
 
-                return _keyValueStore.Use(store => {
-                    Tracer.Debug(context, "Local database's garbage collection for metadata is starting");
-
-                    using (var stopwatch = Counters[ContentLocationDatabaseCounters.GarbageCollectMetadata].Start())
+                // TODO(jubayard): we may want to use a single WriteBatch here if this ends up affecting perf
+                foreach (var kvp in store.PrefixSearch((byte[])null, columnFamilyName: nameof(Columns.Metadata)))
+                {
+                    if (context.Token.IsCancellationRequested)
                     {
-                        int removedEntries = 0;
-                        int scannedEntries = 0;
-                        ulong dbSizeInBytesAfterGc = 0;
-
-                        // TODO(jubayard): we may want to use a single WriteBatch here if this ends up affecting perf
-                        foreach (var kvp in store.PrefixSearch((byte[])null, columnFamilyName: nameof(Columns.Metadata)))
-                        {
-                            if (context.Token.IsCancellationRequested)
-                            {
-                                break;
-                            }
-
-                            scannedEntries++;
-                            Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Increment();
-
-                            var strongFingerprint = DeserializeStrongFingerprint(kvp.Key);
-                            var lastAccessTimeUtc = DeserializeMetadataLastAccessTimeUtc(kvp.Value);
-
-                            if (lastAccessTimeUtc < cutoffTimeUtc)
-                            {
-                                var metadata = DeserializeMetadataEntry(kvp.Value);
-                                WipeMetadata(store, kvp.Key, metadata);
-
-                                removedEntries++;
-                                Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Increment();
-                            } else
-                            {
-                                dbSizeInBytesAfterGc += (ulong)kvp.Key.LongLength + (ulong)kvp.Value.LongLength;
-                            }
-                        }
-
-                        Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries={scannedEntries}, RemovedEntries={removedEntries}, EntriesAfterGc={scannedEntries - removedEntries}, DbSizeInBytesAfterGc={dbSizeInBytesAfterGc}");
+                        break;
                     }
 
-                    return Unit.Void;
-                }).ToBoolResult();
-            }).ThrowIfFailure();
+                    scannedEntries++;
+                    Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Increment();
+                    
+                    var lastAccessTimeUtc = DeserializeMetadataLastAccessTimeUtc(kvp.Value);
+                    if (lastAccessTimeUtc < cutoffTimeUtc)
+                    {
+                        RemoveMetadata(store, kvp.Key);
+
+                        dbRemovedBytesDuringGc += (ulong)kvp.Key.Length + (ulong)kvp.Value.Length;
+                        removedEntries++;
+                        Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Increment();
+                    }
+                    else
+                    {
+                        dbSizeInBytesAfterGc += (ulong)kvp.Key.Length + (ulong)kvp.Value.Length;
+                    }
+                }
+
+                Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries={scannedEntries}, RemovedEntries={removedEntries}, EntriesAfterGc={scannedEntries - removedEntries}, DbSizeInBytesAfterGc={dbSizeInBytesAfterGc}, DbRemovedBytesDuringGc={dbRemovedBytesDuringGc}");
+
+                return Unit.Void;
+            }).ToBoolResult();
         }
 
-        private void WipeMetadata(IBuildXLKeyValueStore store, byte[] strongFingerprint, MetadataEntry metadata)
+        private void RemoveMetadata(IBuildXLKeyValueStore store, byte[] strongFingerprint)
         {
             // TODO(jubayard): Right now, this only removes the metadata, we can also remove content in the future. For
             // that, we'll need the metadata and a reverse index stored.

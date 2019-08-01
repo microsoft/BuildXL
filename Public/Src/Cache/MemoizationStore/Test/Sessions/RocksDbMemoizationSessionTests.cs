@@ -151,10 +151,10 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     var r2 = database.GetContentHashList(ctx, strongFingerprint2).ShouldBeSuccess().ContentHashListWithDeterminism;
                     r2.Should().BeEquivalentTo(contentHashListWithDeterminism2);
                 },
-                createStoreFunc: CreateStoreInternal);
+                createStoreFunc: createStoreInternal);
 
             // This is needed because type errors arise if you inline
-            IMemoizationStore CreateStoreInternal(DisposableDirectory disposableDirectory)
+            IMemoizationStore createStoreInternal(DisposableDirectory disposableDirectory)
             {
                 return CreateStore(testDirectory: disposableDirectory, configMutator: (configuration) =>
                 {

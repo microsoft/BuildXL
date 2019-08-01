@@ -50,7 +50,7 @@ config({
                     // If you need to consume packages make sure they are upstreamed in that feed.
                   }
                 : {
-                    "buildxl-selfhost" : "https://dotnet.myget.org/F/buildxl-selfhost/api/v3/index.json",
+                    "buildxl-selfhost" : "https://pkgs.dev.azure.com/ms/BuildXL/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
                     "nuget.org" : "http://api.nuget.org/v3/index.json",
                     "roslyn-tools" : "https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json",
                     "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json",

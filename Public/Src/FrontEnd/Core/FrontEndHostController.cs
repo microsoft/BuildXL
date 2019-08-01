@@ -1419,22 +1419,39 @@ namespace BuildXL.FrontEnd.Core
                     }
 
                     var moduleLocation = new LocationData(module.Definition.ModuleConfigFile, 0, 0);
-                    PipGraph.AddModule(
-                        new ModulePip(
+
+                    var modulePip = new ModulePip(
                             module: module.Descriptor.Id,
                             identity: StringId.Create(FrontEndContext.StringTable, module.Descriptor.Name),
                             version: StringId.Create(FrontEndContext.StringTable, module.Descriptor.Version),
                             location: moduleLocation,
                             resolverKind: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverKind),
-                            resolverName: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverName)));
+                            resolverName: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverName));
+
+                    if (PipGraphFragmentManager != null)
+                    {
+                        PipGraphFragmentManager.AddModulePip(modulePip);
+                    }
+                    else
+                    {
+                        PipGraph.AddModule(modulePip);
+                    }
 
                     foreach (var spec in module.Specs.Keys)
                     {
-                        PipGraph.AddSpecFile(
-                            new SpecFilePip(
+                        var specFilePip = new SpecFilePip(
                                 FileArtifact.CreateSourceFile(spec),
                                 moduleLocation,
-                                module.Descriptor.Id));
+                                module.Descriptor.Id);
+
+                        if (PipGraphFragmentManager != null)
+                        {
+                            PipGraphFragmentManager.AddSpecFilePip(specFilePip);
+                        }
+                        else
+                        {
+                            PipGraph.AddSpecFile(specFilePip);
+                        }
                     }
                 }
             }

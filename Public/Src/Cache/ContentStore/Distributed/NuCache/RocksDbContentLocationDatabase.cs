@@ -123,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Info(context, $"Creating rocksdb store at '{storeLocation}'.");
 
                 var possibleStore = KeyValueStoreAccessor.Open(storeLocation,
-                    additionalColumns: new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) });
+                    additionalColumns: new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) }, rotateLogs: true);
                 if (possibleStore.Succeeded)
                 {
                     var oldKeyValueStore = _keyValueStore;

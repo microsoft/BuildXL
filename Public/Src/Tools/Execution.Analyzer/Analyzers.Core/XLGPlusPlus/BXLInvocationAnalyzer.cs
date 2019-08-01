@@ -69,7 +69,14 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     internal sealed class BXLInvocationAnalyzer : Analyzer
     {
+        /// <summary>
+        /// Input directory path that contains the RocksDB sst files
+        /// </summary>
         public string InputDirPath;
+
+        /// <summary>
+        /// Output file path where the results will be written to.
+        /// </summary>
         public string OutputFilePath;
 
         public BXLInvocationAnalyzer(AnalysisInput input) : base(input) { }
@@ -78,10 +85,16 @@ namespace BuildXL.Execution.Analyzer
         public override int Analyze()
         {
             var dataStore = new XldbDataStore(storeDirectory: InputDirPath);
-
-            File.WriteAllLines(OutputFilePath, dataStore.GetEventsByType(Xldb.ExecutionEventId.DominoInvocation));
+            File.AppendAllLines(OutputFilePath, dataStore.GetBXLInvocationEvents());
 
             return 0;
+        }
+
+        /// <inheritdoc/>
+        protected override bool ReadEvents()
+        {
+            // Do nothing. This analyzer does not read events.
+            return true;
         }
     }
 }

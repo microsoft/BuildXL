@@ -375,7 +375,7 @@ namespace BuildXL.Execution.Analyzer
             var bxlInvEvent = data.ToBXLInvocationEvent(WorkerID.Value, PathTable);
             var eq = new Xldb.EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.DominoInvocation,
+                EventTypeID = Xldb.ExecutionEventId.BxlInvocation,
                 UUID = bxlInvEvent.UUID
             };
 

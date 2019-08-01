@@ -923,7 +923,7 @@ namespace BuildXL.Engine
         {
             Contract.Requires(!HasFailed, "Build has already failed. Engine should have bailed out");
 
-            if ((configuration.Engine.Phase & EnginePhases.Schedule) == 0)
+            if (!configuration.Engine.Phase.HasFlag(EnginePhases.Schedule))
             {
                 return true;
             }

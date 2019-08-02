@@ -68,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         {
             Contract.Requires(token != null);
             Token = token;
-            TokenUpdated?.Invoke(this, null);
+            TokenUpdated?.Invoke(this, token);
         }
     }
 }

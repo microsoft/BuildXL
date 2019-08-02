@@ -1039,9 +1039,10 @@ namespace BuildXL.Utilities.Tracing
         ApiServerForwarderIpcServerMessage = 12100,
         ApiServerInvalidOperation = 12101,
         ApiServerOperationReceived = 12102,
-        ApiServerMaterializeFileExecuted = 12103,
+        ApiServerMaterializeFileSucceeded = 12103,
         ApiServerReportStatisticsExecuted = 12104,
         ApiServerGetSealedDirectoryContentExecuted = 12105,
+        ErrorApiServerMaterializeFileFailed = 12106,
 
         // Copy file cont'd.
         PipCopyFileSourceFileDoesNotExist = 12201,

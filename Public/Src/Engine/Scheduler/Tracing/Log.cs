@@ -3829,13 +3829,22 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ApiServerInvalidOperation(LoggingContext loggingContext, string operation, string reason);
 
         [GeneratedEvent(
-            (ushort)EventId.ApiServerMaterializeFileExecuted,
+            (ushort)EventId.ApiServerMaterializeFileSucceeded,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "[{ShortProductName} API Server] Operation MaterializeFile('{file}') executed. Succeeded: {succeeded}.")]
-        internal abstract void ApiServerMaterializeFileExecuted(LoggingContext loggingContext, string file, bool succeeded);
+            Message = "[{ShortProductName} API Server] Operation MaterializeFile('{file}') succeeded.")]
+        internal abstract void ApiServerMaterializeFileSucceeded(LoggingContext loggingContext, string file);
+
+        [GeneratedEvent(
+            (ushort)EventId.ErrorApiServerMaterializeFileFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{ShortProductName} API Server] Operation MaterializeFile('{file}') failed. Reason: {reason}.")]
+        internal abstract void ErrorApiServerMaterializeFileFailed(LoggingContext loggingContext, string file, string reason);
 
         [GeneratedEvent(
             (ushort)EventId.ApiServerReportStatisticsExecuted,

@@ -119,21 +119,29 @@ namespace Test.Tool.Analyzers
 
             var dataStore = new XldbDataStore(storeDirectory: OutputDirPath.ToString(Context.PathTable));
             var pipCount = LastGraph.RetrievePipReferencesOfType(PipType.Process).Count();
+            var fileCount = LastGraph.AllFiles.Count();
 
-            var files = string.Join(", ", LastGraph.AllFiles.ToList().Select(i => i.Path.ToString(Context.PathTable, PathFormat.HostOs)));
-            XAssert.AreEqual(dataStore.GetFileArtifactContentDecidedEvents().Count(), LastGraph.AllFiles.Count(), files);
-            XAssert.AreEqual(dataStore.GetWorkerListEvents().Count(), 0);
-            XAssert.AreEqual(dataStore.GetPipExecutionPerformanceEvents().Count(), pipCount);
-            XAssert.AreEqual(dataStore.GetDirectoryMembershipHashedEvents().Count(), 1);
-            XAssert.AreEqual(dataStore.GetProcessExecutionMonitoringReportedEvents().Count(), pipCount);
-            XAssert.AreEqual(dataStore.GetProcessFingerprintComputationEvents().Count(), 8);
-            XAssert.AreEqual(dataStore.GetExtraEventDataReportedEvents().Count(), 1);
-            XAssert.AreEqual(dataStore.GetDependencyViolationReportedEvents().Count(), 0);
-            XAssert.AreEqual(dataStore.GetPipExecutionStepPerformanceReportedEvents().Count(), 42);
-            XAssert.AreEqual(dataStore.GetPipCacheMissEvents().Count(), pipCount);
-            XAssert.AreEqual(dataStore.GetStatusReportedEvents().Count(), 1);
-            XAssert.AreEqual(dataStore.GetBXLInvocationEvents().Count(), 1);
-            XAssert.AreEqual(dataStore.GetPipExecutionDirectoryOutputsEvents().Count(), 4);
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                XAssert.AreEqual(fileCount + 1, dataStore.GetFileArtifactContentDecidedEvents().Count());
+            }
+            else
+            {
+                XAssert.AreEqual(fileCount, dataStore.GetFileArtifactContentDecidedEvents().Count());
+            }
+
+            XAssert.AreEqual(0, dataStore.GetWorkerListEvents().Count());
+            XAssert.AreEqual(pipCount, dataStore.GetPipExecutionPerformanceEvents().Count());
+            XAssert.AreEqual(1, dataStore.GetDirectoryMembershipHashedEvents().Count());
+            XAssert.AreEqual(pipCount, dataStore.GetProcessExecutionMonitoringReportedEvents().Count());
+            XAssert.AreEqual(8, dataStore.GetProcessFingerprintComputationEvents().Count());
+            XAssert.AreEqual(1, dataStore.GetExtraEventDataReportedEvents().Count());
+            XAssert.AreEqual(0, dataStore.GetDependencyViolationReportedEvents().Count());
+            XAssert.AreEqual(42, dataStore.GetPipExecutionStepPerformanceReportedEvents().Count());
+            XAssert.AreEqual(pipCount, dataStore.GetPipCacheMissEvents().Count());
+            XAssert.AreEqual(1, dataStore.GetStatusReportedEvents().Count());
+            XAssert.AreEqual(1, dataStore.GetBXLInvocationEvents().Count());
+            XAssert.AreEqual(4, dataStore.GetPipExecutionDirectoryOutputsEvents().Count());
         }
     }
 }

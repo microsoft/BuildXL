@@ -864,6 +864,10 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "tempDirectory",
                             opt => layoutConfiguration.TempDirectory = CommandLineUtilities.ParsePathOption(opt, pathTable)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "temporary_PreserveOutputsForIncrementalTool",
+                            sign =>
+                            sandboxConfiguration.PreserveOutputsForIncrementalTool = sign),
                         OptionHandlerFactory.CreateOption(
                             "traceInfo",
                             opt => ParsePropertyOption(opt, loggingConfiguration.TraceInfo)),

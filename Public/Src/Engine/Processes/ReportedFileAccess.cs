@@ -218,20 +218,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Determines whether the current violation is a write violation
         /// </summary>
-        public bool IsWriteViolation
-        {
-            get {
-                switch (RequestedAccess)
-                {
-                    case RequestedAccess.All:
-                    case RequestedAccess.Write:
-                    case RequestedAccess.ReadWrite:
-                        return true;
-                    default:
-                        return false;
-                }
-            }
-        }
+        public bool IsWriteViolation => (RequestedAccess & RequestedAccess.Write) != 0;
 
         /// <summary>
         /// Describes the operation that cause this reported file access, including all parameter value, except the path

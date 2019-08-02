@@ -112,6 +112,10 @@ namespace BuildXL.Utilities.Configuration
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
         public static readonly Setting<string> BuildXLUserName = CreateSetting("BUILDXL_USERNAME", value => value);
 
+        /// <summary>
+        /// Defines whether file sizes and hashes should be exported into the json graph
+        /// </summary>
+        public static readonly Setting<bool> RuntimeCacheMissAllPips = CreateSetting("BuildXLRuntimeCacheMissAllPips", value => value == "1");
 
         #region Distribution-related timeouts
 

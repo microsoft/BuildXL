@@ -167,6 +167,23 @@ namespace BuildXL.Processes
         /// </summary>
         private ISandboxedProcess m_activeProcess;
 
+        IReadOnlyList<string> m_incrementalToolFragments;
+
+        /// <summary>
+        /// Whether the process invokes an incremental tool with preserveOutputs mode.
+        /// </summary>
+        private bool IsIncrementalPreserveOutputPip => m_shouldPreserveOutputs && m_pip.IncrementalTool;
+
+        private readonly ObjectCache<string, bool> m_incrementalToolMatchCache = new ObjectCache<string, bool>(37);
+
+        /// <summary>
+        /// Whether apply fake timestamp or not.
+        /// </summary>
+        /// <remarks>
+        /// We do not apply fake timestamps for process pips that invoke an incremental tool with preserveOutputs mode.
+        /// </remarks>
+        private bool NoFakeTimestamp => IsIncrementalPreserveOutputPip;
+
         /// <summary>
         /// Creates an executor for a process pip. Execution can then be started with <see cref="RunAsync" />.
         /// </summary>
@@ -196,7 +213,8 @@ namespace BuildXL.Processes
             int remainingUserRetryCount = 0,
             bool isQbuildIntegrated = false,
             VmInitializer vmInitializer = null,
-            SubstituteProcessExecutionInfo shimInfo = null)
+            SubstituteProcessExecutionInfo shimInfo = null,
+            IReadOnlyList<RelativePath> incrementalTools = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -310,6 +328,12 @@ namespace BuildXL.Processes
             }
 
             m_vmInitializer = vmInitializer;
+
+            m_incrementalToolFragments = new List<string>(
+                            incrementalTools?.Select(toolSuffix =>
+                                // Append leading separator to ensure suffix only matches valid relative path fragments
+                                Path.DirectorySeparatorChar + toolSuffix.ToString(context.StringTable)) ??
+                            Enumerable.Empty<string>());
         }
 
         /// <inheritdoc />
@@ -1875,7 +1899,7 @@ namespace BuildXL.Processes
                         if (!directoryOutputIds.Contains(directory.Path))
                         {
                             // Directories here represent inputs, we want to apply the timestamp faking logic
-                            var mask = ~FileAccessPolicy.AllowRealInputTimestamps;
+                            var mask = NoFakeTimestamp ? ~FileAccessPolicy.Deny: ~FileAccessPolicy.AllowRealInputTimestamps;
                             // Allow read accesses and reporting. Reporting is needed since these may be dynamic accesses and we need to cross check them
                             var values = FileAccessPolicy.AllowReadIfNonexistent | FileAccessPolicy.AllowRead | FileAccessPolicy.ReportAccess;
 
@@ -1959,7 +1983,7 @@ namespace BuildXL.Processes
                 // to it. Explicitly block this (no need to check if this is under a shared opaque, since otherwise
                 // it didn't have write access to begin with). Observe we already know this is not a rewrite since dynamic rewrites
                 // are not allowed by construction under shared opaques.
-                mask: ~FileAccessPolicy.AllowRealInputTimestamps & ~FileAccessPolicy.AllowWrite);
+                mask: (NoFakeTimestamp ? ~FileAccessPolicy.Deny : ~FileAccessPolicy.AllowRealInputTimestamps) & ~FileAccessPolicy.AllowWrite);
 
             allInputPathsUnderSharedOpaques.Add(path);
 
@@ -1979,7 +2003,7 @@ namespace BuildXL.Processes
                 m_fileAccessManifest.AddPath(
                         currentPath,
                         values: FileAccessPolicy.AllowRead | FileAccessPolicy.AllowReadIfNonexistent, // we don't need access reporting here
-                        mask: ~FileAccessPolicy.AllowRealInputTimestamps); // but block real timestamps
+                        mask: NoFakeTimestamp ? ~FileAccessPolicy.Deny : ~FileAccessPolicy.AllowRealInputTimestamps); // but block real timestamps
 
                 allInputPathsUnderSharedOpaques.Add(currentPath);
                 currentPath = currentPath.GetParent(m_pathTable);
@@ -2052,7 +2076,7 @@ namespace BuildXL.Processes
                 // to it. Explicitly block this, since we want inputs to not be written. Observe we already know 
                 // this is not a rewrite.
                 mask: m_excludeReportAccessMask &
-                      ~FileAccessPolicy.AllowRealInputTimestamps &
+                      (NoFakeTimestamp ? ~FileAccessPolicy.Deny : ~FileAccessPolicy.AllowRealInputTimestamps) &
                       (pathIsUnderSharedOpaque ? 
                           ~FileAccessPolicy.AllowWrite: 
                           FileAccessPolicy.MaskNothing)); 
@@ -2863,7 +2887,11 @@ namespace BuildXL.Processes
                     // (and for NtQueryDirectoryFile, we can't always report the individual probes anyway).
                     if (reported.RequestedAccess == RequestedAccess.EnumerationProbe)
                     {
-                        continue;
+                        // If it is an incremental tool and the pip allows preserving outputs, do not ignore. 
+                        if (!IsIncrementalToolAccess(reported))
+                        {
+                            continue;
+                        }
                     }
 
                     AbsolutePath parsedPath;
@@ -2977,8 +3005,15 @@ namespace BuildXL.Processes
                             // To treat the paths as file probes, all accesses to the path must be the probe access.
                             isProbe &= access.RequestedAccess == RequestedAccess.Probe;
 
+                            if (access.RequestedAccess == RequestedAccess.Probe
+                                && access.Operation == ReportedFileOperation.ReparsePointTarget
+                                && IsIncrementalToolAccess(access))
+                            {
+                                isProbe = false;
+                            }
+                            
                             // TODO: Remove this when WDG can grog this feature with no flag.
-                            if (m_sandboxConfig.UnsafeSandboxConfiguration.ExistingDirectoryProbesAsEnumerations ||
+                                if (m_sandboxConfig.UnsafeSandboxConfiguration.ExistingDirectoryProbesAsEnumerations ||
                                 access.RequestedAccess == RequestedAccess.Enumerate)
                             {
                                 hasEnumeration = true;
@@ -4029,6 +4064,41 @@ namespace BuildXL.Processes
             }
 
             return false;
+        }
+
+        private bool IsIncrementalToolAccess(ReportedFileAccess access)
+        {
+            if (!IsIncrementalPreserveOutputPip)
+            {
+                return false;
+            }
+
+            string toolPath = access.Process.Path;
+
+            if (m_incrementalToolFragments.Count == 0)
+            {
+                return false;
+            }
+
+            bool result;
+            if (m_incrementalToolMatchCache.TryGetValue(toolPath, out result))
+            {
+                return result;
+            }
+
+            result = false;
+            foreach (var incrementalToolSuffix in m_incrementalToolFragments)
+            {
+                if (toolPath.EndsWith(incrementalToolSuffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    result = true;
+                    break;
+                }
+            }
+
+            // Cache the result
+            m_incrementalToolMatchCache.AddItem(toolPath, result);
+            return result;
         }
     }
 }

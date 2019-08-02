@@ -154,6 +154,12 @@ namespace BuildXL.Pips
         public virtual bool IsPreservedOutputsPip() => false;
 
         /// <summary>
+        /// Checks if pip runs tool with incremental capability.
+        /// </summary>
+        /// <returns></returns>
+        public virtual bool IsIncrementalTool() => false;
+
+        /// <summary>
         /// Checks if pip using a non-empty preserveOutputWhitelist
         /// </summary>
         /// <returns></returns>
@@ -246,6 +252,8 @@ namespace BuildXL.Pips
         }
 
         public override bool IsPreservedOutputsPip() => (ProcessOptions & Process.Options.AllowPreserveOutputs) != 0;
+
+        public override bool IsIncrementalTool() => (ProcessOptions & Process.Options.IncrementalTool) == Process.Options.IncrementalTool;
 
         public override bool HasPreserveOutputWhitelist() => (ProcessOptions & Process.Options.HasPreserveOutputWhitelist) != 0;
 

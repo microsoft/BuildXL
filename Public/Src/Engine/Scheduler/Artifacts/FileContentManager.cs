@@ -101,6 +101,11 @@ namespace BuildXL.Scheduler.Artifacts
         private readonly SemaphoreSlim m_materializationSemaphore = new SemaphoreSlim(EngineEnvironmentSettings.MaterializationConcurrency);
 
         /// <summary>
+        /// Preserved output files which were up to date during cache lookup
+        /// </summary>
+        private readonly ConcurrentBigSet<FileArtifact> m_preservedUpToDateCacheLookupFiles = new ConcurrentBigSet<FileArtifact>();
+
+        /// <summary>
         /// Pending materializations
         /// </summary>
         private readonly ConcurrentBigMap<FileArtifact, Task<PipOutputOrigin>> m_materializationTasks = new ConcurrentBigMap<FileArtifact, Task<PipOutputOrigin>>();
@@ -550,27 +555,24 @@ namespace BuildXL.Scheduler.Artifacts
 
                 return result;
             }
-            else
+
+            using (var state = GetPipArtifactsState())
             {
-                using (var state = GetPipArtifactsState())
+                state.PipInfo = pipInfo;
+                state.VerifyMaterializationOnly = true;
+                foreach (var fileAndContentHash in filesAndContentHashes)
                 {
-                    state.VerifyMaterializationOnly = true;
-
-                    foreach (var fileAndContentHash in filesAndContentHashes)
-                    {
-                        FileArtifact file = fileAndContentHash.fileArtifact;
-                        ContentHash hash = fileAndContentHash.contentHash;
-                        state.PipInfo = pipInfo;
-                        state.AddMaterializationFile(
-                            fileToMaterialize: file,
-                            allowReadOnly: true,
-                            materializationInfo: FileMaterializationInfo.CreateWithUnknownLength(hash),
-                            materializationCompletion: TaskSourceSlim.Create<PipOutputOrigin>(),
-                            symlinkTarget: AbsolutePath.Invalid);
-                    }
-
-                    return await PlaceFilesAsync(operationContext, pipInfo, state, materialize: true);
+                    FileArtifact file = fileAndContentHash.fileArtifact;
+                    ContentHash hash = fileAndContentHash.contentHash;
+                    state.AddMaterializationFile(
+                        fileToMaterialize: file,
+                        allowReadOnly: true,
+                        materializationInfo: FileMaterializationInfo.CreateWithUnknownLength(hash),
+                        materializationCompletion: TaskSourceSlim.Create<PipOutputOrigin>(),
+                        symlinkTarget: AbsolutePath.Invalid);
                 }
+
+                return await PlaceFilesAsync(operationContext, pipInfo, state, materialize: true);
             }
         }
 
@@ -2267,12 +2269,24 @@ namespace BuildXL.Scheduler.Artifacts
                         if (!isAvailable)
                         {
                             Possible<ContentDiscoveryResult, Failure>? existingContent = null;
-
                             bool isPreservedOutputFile = IsPreservedOutputFile(pipInfo.UnderlyingPip, materializingOutputs, fileArtifact);
+
                             bool shouldDiscoverContentOnDisk =
                                 Configuration.Schedule.ReuseOutputsOnDisk ||
                                 !Configuration.Schedule.StoreOutputsToCache ||
                                 isPreservedOutputFile;
+
+                            var assumeContentUpToDate = isPreservedOutputFile &&
+                               Configuration.Distribution.BuildRole == DistributedBuildRoles.None
+                                && m_preservedUpToDateCacheLookupFiles.Contains(fileArtifact);
+
+                            if (materializingOutputs && state != null && assumeContentUpToDate)
+                            {
+                                // During materialize assume the content is materialized on disk
+                                state.SetMaterializationSuccess(currentFileIndex, ContentMaterializationOrigin.UpToDate, operationContext);
+                                isAvailable = true;
+                                shouldDiscoverContentOnDisk = false;
+                            }
 
                             if (shouldDiscoverContentOnDisk)
                             {
@@ -2324,9 +2338,14 @@ namespace BuildXL.Scheduler.Artifacts
                                 {
                                     // Content is up to date and available, so just mark the file as successfully materialized.
                                     state?.SetMaterializationSuccess(currentFileIndex, ContentMaterializationOrigin.UpToDate, operationContext);
+
+                                    if (isPreservedOutputFile)
+                                    {
+                                        m_preservedUpToDateCacheLookupFiles.Add(fileArtifact);
+                                    }
                                 }
                             }
-                            else
+                            else if (!isAvailable)
                             {
                                 if (shouldDiscoverContentOnDisk)
                                 {

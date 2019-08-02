@@ -17,7 +17,6 @@ namespace App {
             // CLAP only exists for full framework net35. Ignoring the fact that this doesn't work on netcoreapp
             importFrom("CLAP").withQualifier({targetFramework:"net472"}).pkg, 
 
-            importFrom("System.Data.SQLite.Core").pkg,
             importFrom("System.Interactive.Async").pkg,
         ],
         tools: {

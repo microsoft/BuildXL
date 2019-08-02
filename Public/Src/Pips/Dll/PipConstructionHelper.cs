@@ -277,7 +277,7 @@ namespace BuildXL.Pips
 
             PipData usage = PipDataBuilder.CreatePipData(Context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, description != null
                 ? new PipDataAtom[] { description }
-                : new PipDataAtom[] { "'", directoryRoot, " [", contents.Length.ToString(CultureInfo.InvariantCulture), " files]" });
+                : new PipDataAtom[] { "'", directoryRoot, "' [", contents.Length.ToString(CultureInfo.InvariantCulture), " files]" });
 
             var pip = new SealDirectory(
                 directoryRoot,

@@ -28,8 +28,6 @@ namespace BuildXL.Scheduler.Graph
 
         private readonly PipExecutionContext m_context;
 
-        private readonly PipGraphFragmentContext m_fragmentContext;
-
         private readonly LoggingContext m_loggingContext;
 
         private readonly ConcurrentBigMap<ModuleId, Lazy<bool>> m_modulePipUnify = new ConcurrentBigMap<ModuleId, Lazy<bool>>();
@@ -51,7 +49,6 @@ namespace BuildXL.Scheduler.Graph
             m_loggingContext = loggingContext;
             m_context = context;
             m_pipGraph = pipGraph;
-            m_fragmentContext = new PipGraphFragmentContext();
         }
 
         /// <summary>
@@ -59,7 +56,7 @@ namespace BuildXL.Scheduler.Graph
         /// </summary>
         public Task<bool> AddFragmentFileToGraph(int id, AbsolutePath filePath, int[] dependencyIds, string description)
         {
-            var deserializer = new PipGraphFragmentSerializer(m_context, m_fragmentContext);
+            var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
 
             Task<bool> readFragmentTask = Task.Run(() =>
             {
@@ -72,7 +69,7 @@ namespace BuildXL.Scheduler.Graph
 
                 try
                 {
-                    return deserializer.Deserialize(filePath, pip => AddPipToGraph(description, pip), description);
+                    return deserializer.Deserialize(filePath, (fragmentContext, provenance, pip) => AddPipToGraph(fragmentContext, provenance, pip), description);
                 }
                 catch (Exception e) when (e is BuildXLException || e is IOException)
                 {
@@ -93,7 +90,7 @@ namespace BuildXL.Scheduler.Graph
             return m_readFragmentTasks.Select(x => x.Value).ToList();
         }
 
-        private bool AddPipToGraph(string description, Pip pip)
+        private bool AddPipToGraph(PipGraphFragmentContext fragmentContext, PipGraphFragmentProvenance provenance, Pip pip)
         {
             try
             {
@@ -116,12 +113,6 @@ namespace BuildXL.Scheduler.Graph
                     case PipType.Process:
                         var process = pip as Process;
                         (added, newPipId) = AddPip(process, p => m_pipGraph.AddProcess(p, default));
-
-                        if (process.IsService)
-                        {
-                            m_fragmentContext.AddPipIdValueMapping(originalPipId.Value, newPipId.Value);
-                        }
-
                         break;
                     case PipType.CopyFile:
                         (added, _) = AddPip(pip as CopyFile, c => m_pipGraph.AddCopyFile(c, default));
@@ -142,17 +133,9 @@ namespace BuildXL.Scheduler.Graph
                         var oldDirectory = sealDirectory.Directory;
                         sealDirectory.ResetDirectoryArtifact();
 
-                        var mappedDirectory = AddSealDirectory(sealDirectory, d =>
-                        {
-                            var newDirectory = m_pipGraph.AddSealDirectory(d, default);
-                            if (newDirectory.IsValid)
-                            {
-                                m_fragmentContext.AddDirectoryMapping(oldDirectory, newDirectory);
-                            }
-
-                            return newDirectory;
-                        });
-
+                        var mappedDirectory = AddSealDirectory(sealDirectory, d => m_pipGraph.AddSealDirectory(d, default));
+                        
+                        fragmentContext.AddDirectoryMapping(oldDirectory, mappedDirectory);
                         added = mappedDirectory.IsValid;
 
                         break;
@@ -166,16 +149,16 @@ namespace BuildXL.Scheduler.Graph
 
                 if (!added)
                 {
-                    Logger.Log.FailedToAddFragmentPipToGraph(m_loggingContext, description, pip.GetDescription(m_context));
+                    Logger.Log.FailedToAddFragmentPipToGraph(m_loggingContext, provenance.Description, pip.GetDescription(m_context));
                     return false;
                 }
 
                 return true;
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                Logger.Log.FailedToAddFragmentPipToGraph(m_loggingContext, description, pip.GetDescription(m_context));
-                throw;
+                Logger.Log.ExceptionOnAddingFragmentPipToGraph(m_loggingContext, provenance.Description, pip.GetDescription(m_context), e.ToString());
+                return false;
             }
         }
 
@@ -232,7 +215,7 @@ namespace BuildXL.Scheduler.Graph
                 (ssh, data) => new Lazy<bool>(() =>
                 {
                     DirectoryArtifact directory = addSealDirectory(sealDirectory);
-                    m_semiStableHashToDirectory[sealDirectory.SemiStableHash] = sealDirectory.Directory; // PipId is set by addPip.
+                    m_semiStableHashToDirectory[sealDirectory.SemiStableHash] = sealDirectory.Directory; // New directory artifact is set when adding seal directory.
                     return directory.IsValid;
                 })).Item.Value.Value;
 

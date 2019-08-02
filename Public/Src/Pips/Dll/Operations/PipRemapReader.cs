@@ -40,24 +40,7 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public override DirectoryArtifact ReadDirectoryArtifact()
         {
-            var isDirectoryStoredAsVariableName = base.ReadBoolean();
-            DirectoryArtifact directoryArtifact;
-            if (isDirectoryStoredAsVariableName)
-            {
-                var directoryArtifactVariableName = base.ReadFullSymbol();
-                var serializedDirectoryArtifact = base.ReadDirectoryArtifact();
-                if (!m_pipGraphFragmentContext.TryGetDirectoryArtifactForVariableName(directoryArtifactVariableName, out directoryArtifact))
-                {
-                    directoryArtifact = serializedDirectoryArtifact;
-                    m_pipGraphFragmentContext.AddDirectoryMapping(directoryArtifactVariableName, directoryArtifact);
-                }
-            }
-            else
-            {
-                directoryArtifact = base.ReadDirectoryArtifact();
-            }
-
-            return m_pipGraphFragmentContext.RemapDirectory(directoryArtifact);
+            return m_pipGraphFragmentContext.RemapDirectory(base.ReadDirectoryArtifact());
         }
 
         /// <summary>
@@ -98,31 +81,6 @@ namespace BuildXL.Pips.Operations
         public override StringId ReadPipDataEntriesPointer()
         {
             return m_pipDataEntriesPointerInlineReader.ReadStringId();
-        }
-
-        /// <summary>
-        /// Reads the value of a pip id
-        /// </summary>
-        public override uint ReadPipIdValue()
-        {
-            var isPipIdValueStoredAsVariableName = base.ReadBoolean();
-            uint pipIdValue;
-            if (isPipIdValueStoredAsVariableName)
-            {
-                var pipIdValueVariableName = base.ReadFullSymbol();
-                var serializedPipIdValue = base.ReadPipIdValue();
-                if (!m_pipGraphFragmentContext.TryGetPipIdValueForVariableName(pipIdValueVariableName, out pipIdValue))
-                {
-                    pipIdValue = serializedPipIdValue;
-                    m_pipGraphFragmentContext.AddPipIdValueMapping(pipIdValueVariableName, pipIdValue);
-                }
-            }
-            else
-            {
-                pipIdValue = base.ReadPipIdValue();
-            }
-
-            return m_pipGraphFragmentContext.RemapPipIdValue(pipIdValue);
         }
 
         private class PipDataEntriesPointerInlineReader : InliningReader

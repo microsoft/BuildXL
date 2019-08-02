@@ -4373,11 +4373,17 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Engine,
-            Message = "[{pipDescription}] Unable to add pip from fragment {fragmentName}.")]
-        public abstract void FailedToAddFragmentPipToGraph(
-            LoggingContext context,
-            string fragmentName,
-            string pipDescription);
+            Message = "[{pipDescription}] Unable to add the pip from fragment '{fragmentName}'.")]
+        public abstract void FailedToAddFragmentPipToGraph(LoggingContext context, string fragmentName, string pipDescription);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ExceptionOnAddingFragmentPipToGraph,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Engine,
+            Message = "[{pipDescription}] An exception occured when adding the pip from fragment '{fragmentName}': {exceptionMessage}")]
+        public abstract void ExceptionOnAddingFragmentPipToGraph(LoggingContext context, string fragmentName, string pipDescription, string exceptionMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.ExceptionOnDeserializingPipGraphFragment,
@@ -4387,6 +4393,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Engine,
             Message = "An exception occured during deserialization of pip graph fragment '{path}': {exceptionMessage}")]
         public abstract void ExceptionOnDeserializingPipGraphFragment(LoggingContext context, string path, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DebugFragment,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Engine,
+            Message = "{message}")]
+        public abstract void DebugFragment(LoggingContext context, string message);
     }
 }
 #pragma warning restore CA1823 // Unused field

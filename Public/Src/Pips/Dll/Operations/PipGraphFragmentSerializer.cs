@@ -64,21 +64,27 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Deserializes a pip graph fragment and call the given handleDeserializedPip function on each pip deserialized.
         /// </summary>
-        public bool Deserialize(AbsolutePath filePath, Func<Pip, bool> handleDeserializedPip, string fragmentDescriptionOverride = null)
+        public bool Deserialize(
+            AbsolutePath filePath, 
+            Func<PipGraphFragmentContext, PipGraphFragmentProvenance, Pip, bool> handleDeserializedPip = null, 
+            string fragmentDescriptionOverride = null)
         {
+            Contract.Requires(filePath.IsValid);
+            
             string fileName = filePath.ToString(m_pipExecutionContext.PathTable);
             using (var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (var reader = new PipRemapReader(m_pipExecutionContext, m_pipGraphFragmentContext, stream))
             {
                 string serializedDescription = reader.ReadNullableString();
                 FragmentDescription = (fragmentDescriptionOverride ?? serializedDescription) ?? filePath.ToString(m_pipExecutionContext.PathTable);
+                var provenance = new PipGraphFragmentProvenance(filePath, FragmentDescription);
 
                 m_totalPipsToDeserialize = reader.ReadInt32();
 
                 for(int i = 0; i < m_totalPipsToDeserialize; i++)
                 {
                     var pip = Pip.Deserialize(reader);
-                    var success = handleDeserializedPip?.Invoke(pip);
+                    var success = handleDeserializedPip?.Invoke(m_pipGraphFragmentContext, provenance, pip);
                     if (success.HasValue & !success.Value)
                     {
                         return false;
@@ -98,16 +104,6 @@ namespace BuildXL.Pips.Operations
         {
             Contract.Requires(filePath.IsValid);
             Contract.Requires(pipsToSerialize != null);
-
-            // Populate module identities
-            foreach (var pip in pipsToSerialize)
-            {
-                if (pip.PipType == PipType.Module)
-                {
-                    var modulePip = (ModulePip)pip;
-                    m_pipGraphFragmentContext.AddModuleIdentity(modulePip.Module, modulePip.Identity);
-                }
-            }
 
             string fileName = filePath.ToString(m_pipExecutionContext.PathTable);
             using (var stream = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write, FileShare.None))

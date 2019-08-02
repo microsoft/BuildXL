@@ -15,7 +15,6 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             if (ResultBase.ResultExceptionTextProcessor == null)
             {
-
                 // Ensure exception strings have demystified stack tracks
                 ResultBase.ResultExceptionTextProcessor = ex => ex.ToStringDemystified();
             }

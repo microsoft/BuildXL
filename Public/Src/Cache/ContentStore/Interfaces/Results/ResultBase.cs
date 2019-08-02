@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
@@ -60,8 +61,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 // the full exception string is captured in the ResultBase.Diagnostics
                 // property
                 ErrorMessage = string.IsNullOrEmpty(message)
-                    ? $"{exception.GetType().Name}: {exception.Message}"
-                    : $"{message}: {exception.GetType().Name}: {exception.Message}";
+                    ? $"{exception.GetType().Name}: {GetErrorMessageFromException(exception)}"
+                    : $"{message}: {exception.GetType().Name}: {GetErrorMessageFromException(exception)}";
 
                 // Indicate that diagnostics should lazily be computed from exception.
                 _hasLazyDiagnostics = true;
@@ -248,11 +249,27 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                    exception is TypeLoadException ||
                    exception is ArgumentException ||
                    exception is IndexOutOfRangeException ||
-                   exception is UnauthorizedAccessException || 
+                   exception is UnauthorizedAccessException ||
                    exception is OutOfMemoryException ||
                    exception.GetType().Name == "ContractException" ||
                    exception is InvalidOperationException ||
                    (exception is AggregateException ae && ae.Flatten().InnerExceptions.Any(e => IsCritical(e)));
+        }
+
+        /// <summary>
+        /// Gets full log event message including inner exceptions from the given exception
+        /// </summary>
+        private static string GetErrorMessageFromException(Exception exception)
+        {
+            return string.Join(": " + Environment.NewLine, getExceptionMessages());
+
+            IEnumerable<string> getExceptionMessages()
+            {
+                for (Exception currentException = exception; currentException != null; currentException = currentException.InnerException)
+                {
+                    yield return currentException.Message;
+                }
+            }
         }
 
         /// <summary>

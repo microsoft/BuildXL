@@ -161,7 +161,7 @@ namespace BuildXL.Scheduler
             string absoluteFilePath = cmd.File.Path.ToString(m_context.PathTable);
 
             // if file materialization failed, log an error here immediately, so that this errors gets picked up as the root cause 
-            // (which is evetually used to compute the "ErrorBucket") instead of whatever fallout ends up happening (e.g., IPC pip fails)
+            // (i.e., the "ErrorBucket") instead of whatever fallout ends up happening (e.g., IPC pip fails)
             if (!succeeded)
             {
                 Tracing.Logger.Log.ErrorApiServerMaterializeFileFailed(m_loggingContext, absoluteFilePath, result.ToString());

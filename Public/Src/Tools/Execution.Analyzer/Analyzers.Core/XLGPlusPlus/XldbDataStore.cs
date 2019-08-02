@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Text;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Execution.Analyzer.Xldb;
 using BuildXL.Utilities;
@@ -18,6 +19,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// </summary>
         private KeyValueStoreAccessor Accessor { get; set; }
         private Dictionary<ExecutionEventId, MessageParser> m_eventParserDictionary = new Dictionary<ExecutionEventId, MessageParser>();
+        public static string EventCountKey = "EventCount";
 
         /// <summary>
         /// Open the datastore and populate the KeyValueStoreAccessor for the XLG++ DB
@@ -125,6 +127,11 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         public IEnumerable<string> GetProcessExecutionMonitoringReportedEvents() => GetEventsByType(ExecutionEventId.ProcessExecutionMonitoringReported);
 
         /// <summary>
+        /// Gets all the Process Execution Monitoring Reported Events
+        /// </summary>
+        public IEnumerable<string> GetProcessFingerprintComputationEvents() => GetEventsByType(ExecutionEventId.ProcessFingerprintComputation);
+
+        /// <summary>
         /// Gets all the Extra Event Data Reported Events
         /// </summary>
         public IEnumerable<string> GetExtraEventDataReportedEvents() => GetEventsByType(ExecutionEventId.ExtraEventDataReported);
@@ -158,6 +165,24 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// Gets all the Pip Execution Directory Outputs Events
         /// </summary>
         public IEnumerable<string> GetPipExecutionDirectoryOutputsEvents() => GetEventsByType(ExecutionEventId.PipExecutionDirectoryOutputs);
+
+        /// <summary>
+        /// Gets the total number of stored xlg events in the database
+        /// </summary>
+        public uint GetEventCount()
+        {
+            uint eventCount = 0;
+
+            Analysis.IgnoreResult(
+                Accessor.Use(database =>
+                {
+                    database.TryGetValue(Encoding.ASCII.GetBytes(EventCountKey), out var eventCountObj);
+                    eventCount = EventCount.Parser.ParseFrom(eventCountObj).Value;
+                })
+            );
+
+            return eventCount;
+        }
 
         /// <summary>
         /// Closes the connection to the DB

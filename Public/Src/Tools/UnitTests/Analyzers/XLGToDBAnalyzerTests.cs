@@ -1,7 +1,11 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.Execution.Analyzer;
 using BuildXL.Utilities;
 using Test.BuildXL.Executables.TestProcess;
@@ -25,8 +29,9 @@ namespace Test.Tool.Analyzers
         public XLGToDBAnalyzerTests(ITestOutputHelper output) : base(output)
         {
             AnalysisMode = AnalysisMode.XlgToDb;
+            var uniqueDirPath = Guid.NewGuid().ToString();
 
-            OutputDirPath = Combine(AbsolutePath.Create(Context.PathTable, TemporaryDirectory), "XlgToDb");
+            OutputDirPath = Combine(AbsolutePath.Create(Context.PathTable, TemporaryDirectory), "XlgToDb-", uniqueDirPath);
             TestDirPath = Combine(AbsolutePath.Create(Context.PathTable, TemporaryDirectory), "XlgToDbTest");
 
             ModeSpecificDefaultArgs = new Option[]
@@ -68,6 +73,63 @@ namespace Test.Tool.Analyzers
             var analyzerRes = RunAnalyzer(buildA).AssertSuccess();
 
             XAssert.AreNotEqual(Directory.GetFiles(OutputDirPath.ToString(Context.PathTable), "*.sst").Length, 0);
+        }
+
+        /// <summary>
+        /// This test makes sure that the number of events logged (per event type) match 
+        /// what is expected based on the build schedule that we manually populate and build.
+        /// </summary>
+        [Fact]
+        public void DBEventCountVerification()
+        {
+            Configuration.Logging.LogExecution = true;
+
+            var fileOne = FileArtifact.CreateOutputFile(Combine(TestDirPath, "foo.txt"));
+            var fileTwo = FileArtifact.CreateOutputFile(Combine(TestDirPath, "bar.txt"));
+            var dirOne = CreateOutputDirectoryArtifact(Combine(TestDirPath, "baz").ToString(Context.PathTable));
+            Directory.CreateDirectory(ArtifactToString(dirOne));
+
+            var pipA = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(fileOne),
+            }).Process;
+
+            var pipB = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(fileTwo),
+            }).Process;
+
+            var pipC = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(fileOne),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            }).Process;
+
+            var pipD = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.EnumerateDir(dirOne),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            }).Process;
+
+            var buildA = RunScheduler().AssertSuccess();
+
+            var analyzerRes = RunAnalyzer(buildA).AssertSuccess();
+
+            var dataStore = new XldbDataStore(storeDirectory: OutputDirPath.ToString(Context.PathTable));
+
+            XAssert.AreEqual(dataStore.GetFileArtifactContentDecidedEvents().Count(), 5);
+            XAssert.AreEqual(dataStore.GetWorkerListEvents().Count(), 0);
+            XAssert.AreEqual(dataStore.GetPipExecutionPerformanceEvents().Count(), 4);
+            XAssert.AreEqual(dataStore.GetDirectoryMembershipHashedEvents().Count(), 0);
+            XAssert.AreEqual(dataStore.GetProcessExecutionMonitoringReportedEvents().Count(), 4);
+            XAssert.AreEqual(dataStore.GetProcessFingerprintComputationEvents().Count(), 8);
+            XAssert.AreEqual(dataStore.GetExtraEventDataReportedEvents().Count(), 1);
+            XAssert.AreEqual(dataStore.GetDependencyViolationReportedEvents().Count(), 0);
+            XAssert.AreEqual(dataStore.GetPipExecutionStepPerformanceReportedEvents().Count(), 42);
+            XAssert.AreEqual(dataStore.GetPipCacheMissEvents().Count(), 4);
+            XAssert.AreEqual(dataStore.GetStatusReportedEvents().Count(), 1);
+            XAssert.AreEqual(dataStore.GetBXLInvocationEvents().Count(), 1);
+            XAssert.AreEqual(dataStore.GetPipExecutionDirectoryOutputsEvents().Count(), 4);
         }
     }
 }

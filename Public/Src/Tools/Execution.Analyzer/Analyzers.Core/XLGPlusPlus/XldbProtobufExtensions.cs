@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics;
 using System.Linq;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Pips;
@@ -390,7 +391,6 @@ namespace BuildXL.Execution.Analyzer
         public static Xldb.PipExecutionDirectoryOutputsEvent ToPipExecutionDirectoryOutputsEvent(this PipExecutionDirectoryOutputs data, uint workerID, PathTable pathTable)
         {
             var Uuid = Guid.NewGuid().ToString();
-
             var pipExecDirectoryOutputEvent = new Xldb.PipExecutionDirectoryOutputsEvent();
             pipExecDirectoryOutputEvent.UUID = Uuid;
             pipExecDirectoryOutputEvent.WorkerID = workerID;

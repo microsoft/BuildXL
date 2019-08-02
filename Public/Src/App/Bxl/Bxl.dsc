@@ -75,7 +75,6 @@ namespace Main {
             importFrom("BuildXL.FrontEnd").CMake.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("System.Data.SQLite.Core").pkg,
         ],
         internalsVisibleTo: [
             "IntegrationTest.BuildXL.Scheduler",

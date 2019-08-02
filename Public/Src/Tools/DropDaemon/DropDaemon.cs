@@ -19,9 +19,11 @@ using BuildXL.Storage;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
+using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Tool.ServicePipDaemon;
@@ -419,7 +421,7 @@ namespace Tool.DropDaemon
 
             return dropCreationEvent.Succeeded
                 ? IpcResult.Success(I($"Drop {DropName} created."))
-                : new IpcResult(IpcResultStatus.ExecutionError, dropCreationEvent.ErrorMessage);
+                : new IpcResult(ParseIpcStatus(dropCreationEvent.AdditionalInformation), dropCreationEvent.ErrorMessage);
         }
 
         /// <summary>
@@ -470,7 +472,7 @@ namespace Tool.DropDaemon
 
             return dropFinalizationEvent.Succeeded
                 ? IpcResult.Success(I($"Drop {DropName} finalized"))
-                : new IpcResult(IpcResultStatus.ExecutionError, dropFinalizationEvent.ErrorMessage);
+                : new IpcResult(ParseIpcStatus(dropFinalizationEvent.AdditionalInformation), dropFinalizationEvent.ErrorMessage);
         }
 
         /// <inheritdoc />
@@ -567,27 +569,48 @@ namespace Tool.DropDaemon
             }
         }
 
+        private delegate TResult ErrorFactory<TResult>(string message, IpcResultStatus status);
+
         private static Task<IIpcResult> WrapDropErrorsIntoIpcResult(Func<Task<IIpcResult>> factory)
         {
-            return HandleKnownErrors(
+            return HandleKnownErrorsAsync(
                 factory,
-                (errorMessage) => new IpcResult(IpcResultStatus.ExecutionError, errorMessage));
+                (errorMessage, status) => new IpcResult(status, errorMessage));
         }
 
         private static Task<TDropEvent> WrapDropErrorsIntoDropEtwEvent<TDropEvent>(Func<Task<TDropEvent>> factory) where TDropEvent : DropOperationBaseEvent
         {
-            return HandleKnownErrors(
+            return HandleKnownErrorsAsync(
                 factory,
-                (errorMessage) =>
+                (errorMessage, errorKind) =>
                 {
                     var dropEvent = Activator.CreateInstance<TDropEvent>();
                     dropEvent.Succeeded = false;
                     dropEvent.ErrorMessage = errorMessage;
+                    dropEvent.AdditionalInformation = RenderIpcStatus(errorKind);
                     return dropEvent;
                 });
         }
 
-        private static async Task<TResult> HandleKnownErrors<TResult>(Func<Task<TResult>> factory, Func<string, TResult> errorValueFactory)
+        private static string RenderIpcStatus(IpcResultStatus status)
+        {
+            return status.ToString();
+        }
+
+        private static IpcResultStatus ParseIpcStatus(string statusString, IpcResultStatus defaultValue = IpcResultStatus.ExecutionError)
+        {
+            return Enum.TryParse<IpcResultStatus>(statusString, out var value)
+                ? value
+                : defaultValue;
+        }
+
+        /// <summary>
+        /// BuildXL's classification of different <see cref="IpcResultStatus"/> values:
+        ///   - <see cref="IpcResultStatus.InvalidInput"/>      --> <see cref="Keywords.UserError"/>
+        ///   - <see cref="IpcResultStatus.TransmissionError"/> --> <see cref="Keywords.InfrastructureError"/>
+        ///   - all other errors                                --> InternalError
+        /// </summary>
+        private static async Task<TResult> HandleKnownErrorsAsync<TResult>(Func<Task<TResult>> factory, ErrorFactory<TResult> errorValueFactory)
         {
             try
             {
@@ -595,15 +618,22 @@ namespace Tool.DropDaemon
             }
             catch (VssUnauthorizedException e)
             {
-                return errorValueFactory("[DROP AUTH ERROR] " + e.Message);
+                return errorValueFactory("[DROP AUTH ERROR] " + e.Message, IpcResultStatus.InvalidInput);
+            }
+            catch (VssResourceNotFoundException e)
+            {
+                return errorValueFactory("[DROP SERVICE ERROR] " + e.Message, IpcResultStatus.TransmissionError);
             }
             catch (DropServiceException e)
             {
-                return errorValueFactory("[DROP SERVICE ERROR] " + e.Message);
+                var status = e.Message.Contains("already exists") 
+                    ? IpcResultStatus.InvalidInput
+                    : IpcResultStatus.TransmissionError;
+                return errorValueFactory("[DROP SERVICE ERROR] " + e.Message, status);
             }
             catch (DaemonException e)
             {
-                return errorValueFactory("[DAEMON ERROR] " + e.Message);
+                return errorValueFactory("[DAEMON ERROR] " + e.Message, IpcResultStatus.ExecutionError);
             }
         }
 

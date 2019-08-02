@@ -718,7 +718,13 @@ namespace Test.BuildXL.FrontEnd.Core
                              Schedule =
                              {
                                  MaxProcesses = DegreeOfParallelism,
-                                 DisableProcessRetryOnResourceExhaustion = true
+                                 DisableProcessRetryOnResourceExhaustion = true,
+                             },
+                             // DS tests don't need the extra I/O this adds
+                             Logging =
+                             {
+                                LogExecution = false,
+                                StoreFingerprints = false,
                              },
                              Layout =
                              {

@@ -22,6 +22,12 @@ export const framework : Shared.Framework = {
     requiresPortablePdb: true,
 
     runtimeConfigStyle: "none",
+    
+    conditionalCompileDefines: [
+        "NET_CORE",
+        "NET_STANDARD",
+        "NET_STANDARD_20",
+    ],
 };
 
 function createDefaultAssemblies() : Shared.Assembly[] {

@@ -118,7 +118,7 @@ namespace Test.BuildXL.Storage
 
         private static void WithReadableStream(string path, Func<AsyncFileStream, Task> action)
         {
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
             using (var io = new IOCompletionManager())
 #else
             IIOCompletionManager io = null;

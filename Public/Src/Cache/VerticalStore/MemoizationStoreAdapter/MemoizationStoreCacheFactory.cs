@@ -361,7 +361,9 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             if (config.UseRocksDbMemoizationStore)
             {
                 return new RocksDbMemoizationStoreConfiguration() {
-                    Database = new RocksDbContentLocationDatabaseConfiguration(cacheRoot / "RocksDbMemoizationStore"),
+                    Database = new RocksDbContentLocationDatabaseConfiguration(cacheRoot / "RocksDbMemoizationStore") {
+                        CleanOnInitialize = false,
+                    },
                 };
             }
             else

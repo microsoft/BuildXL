@@ -24,7 +24,7 @@ namespace ContentStoreTest.Logging
             : base(TestGlobal.Logger)
         {
         }
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
         [Fact]
         public void FatalMethodSucceeds()
         {

@@ -95,8 +95,9 @@ namespace Test.BuildXL.FrontEnd.Nuget
             XAssert.IsTrue(result.Succeeded);
             XAssert.IsTrue(result.Result.IsValid);
             var generatedContent = result.Result.GetParent(pathTable).ToString(pathTable);
-
-            XAssert.AreEqual(2, Directory.EnumerateFiles(generatedContent, "*.*", SearchOption.AllDirectories).Count());
+            var expectedGeneratedSpecCount = 2;
+            var expectedGeneratedMetataFileCount = 1;
+            XAssert.AreEqual(expectedGeneratedSpecCount + expectedGeneratedMetataFileCount, Directory.EnumerateFiles(generatedContent, "*.*", SearchOption.AllDirectories).Count());
 
             // package file is tested already
             var packageDsc = Path.Combine(generatedContent, "package.dsc");
@@ -108,6 +109,49 @@ namespace Test.BuildXL.FrontEnd.Nuget
             XAssert.IsTrue(packageText.Contains("packageRoot = d`"));
             XAssert.IsTrue(packageText.Contains("f`${packageRoot}/Folder/a.txt`"));
             XAssert.IsTrue(packageText.Contains("f`${packageRoot}/Folder/b.txt`"));
+        }
+
+        [Fact]
+        public void TestSpecGeneratorIncrementality()
+        {
+            // make sure we can generate a package
+            var specOutput = GenerateSpecAndValidateExistence("1.2");
+
+            // Delete the file and make sure that it is correctly recreated
+            File.Delete(specOutput);
+            specOutput = GenerateSpecAndValidateExistence("1.2");
+
+            // Scribble some marker at the end of the file. Use this to make sure the file isn't regenerated if
+            // nothing else changes
+            const string DummyMarker = "DummyMarker";
+            File.AppendAllText(specOutput, DummyMarker);
+            specOutput = GenerateSpecAndValidateExistence("1.2");
+            XAssert.IsTrue(File.ReadAllText(specOutput).Contains(DummyMarker));
+
+            // Change the version of the package (which flows into the fingerprint). This should cause the package
+            // to get regenerated
+            specOutput = GenerateSpecAndValidateExistence("1.3");
+            XAssert.IsFalse(File.ReadAllText(specOutput).Contains(DummyMarker));
+        }
+
+        private string GenerateSpecAndValidateExistence(string version)
+        {
+            // Setup state
+            var pathTable = m_testContext.PathTable;
+            var packageOnDisk = CreateTestPackageOnDisk(includeScriptSpec: false, version: version);
+            var nugetResolver = CreateWorkspaceNugetResolverForTesting();
+            var analyzedPackage = nugetResolver.AnalyzeNugetPackage(packageOnDisk, false);
+            XAssert.IsTrue(analyzedPackage.Succeeded);
+            var allPackages = new Dictionary<string, NugetAnalyzedPackage> { [packageOnDisk.Package.Id] = analyzedPackage.Result };
+            XAssert.IsTrue(analyzedPackage.Succeeded);
+
+            // Generate a spec. We just look at the first result since there's only one spec
+            var results = nugetResolver.GenerateSpecsForDownloadedPackages(allPackages);
+            var result = results.FirstOrDefault().Value;
+            XAssert.IsTrue(result.Succeeded);
+            var path = result.Result.ToString(pathTable);
+            XAssert.IsTrue(File.Exists(path));
+            return path;
         }
 
         [Fact]
@@ -157,7 +201,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
         }
 
         [Theory]
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
         [InlineData("http2://asd.sdfs.com", FailureType.InvalidUri)]
         [InlineData("1http://asd.sdfs.com", FailureType.InvalidUri)]
 #else
@@ -222,11 +266,13 @@ $@"module({{
                 PackageDownloadResult.FromCache(
                     new PackageIdentity("nuget", packageName, version, string.Empty),
                     AbsolutePath.Create(m_testContext.PathTable, pkgFolder),
-                    relativePaths)
+                    relativePaths,
+                    packageName + version + pkgFolder)
                 : PackageDownloadResult.FromRemote(
                     new PackageIdentity("nuget", packageName, version, string.Empty),
                     AbsolutePath.Create(m_testContext.PathTable, pkgFolder),
-                    relativePaths);
+                    relativePaths,
+                    packageName + version + pkgFolder);
         }
 
         private RelativePath CreateFile(string pkgFolder, string relativePath, string contents)

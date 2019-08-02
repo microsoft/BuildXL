@@ -37,11 +37,11 @@ namespace BuildXL.Native.IO
         /// The <code>work</code> function is invoked a few times; its parameter indicates if the invocation is the last one before
         /// finally giving up; its return value indicates if all work has finished successfully and no further attempt is needed.
         /// </param>
-        /// <param name="logExceptions">
-        /// Whether exceptions unhandled by the caller should be logged. By default, exceptions will be logged.
+        /// <param name="rethrowException">
+        /// Whether exception unhandled by the caller should be re-thrown, breaking the retry loop. By default, exception will be ignored and work() will be retried.
         /// </param>
-        /// <param name="rethrowExceptions">
-        /// Whether exceptions unhandled by the caller should be re-thrown, breaking the retry loop. By default, exceptions will be ignored and work() will be retried.
+        /// <param name="onException">
+        /// Handle exception. By default, exceptions will be ignored and work() will be retried.
         /// </param>
         /// <param name="numberOfAttempts">
         /// Total number of attempts to complete when trying an action that may fail.
@@ -57,14 +57,13 @@ namespace BuildXL.Native.IO
         /// </remarks>
         public static bool RetryOnFailure(
             Func<bool, bool> work, 
-            bool logExceptions = true, 
-            bool rethrowExceptions = false,
+            bool rethrowException = false,
+            Action<Exception> onException = null,
             int numberOfAttempts = DefaultNumberOfAttempts,
             int initialTimeoutMs = DefaultInitialTimeoutMs,
             int postTimeoutMultiplier = DefaultPostTimeoutMultiplier)
         {
             Contract.Requires(work != null);
-            Contract.Requires(logExceptions || rethrowExceptions);
             Contract.Requires(numberOfAttempts > 0);
 
             int timeoutMs = initialTimeoutMs;
@@ -83,17 +82,15 @@ namespace BuildXL.Native.IO
                 }
                 catch (Exception e)
                 {
-                    // Give the caller opportunity to re-throw the exception to break the retry loop
-                    if (rethrowExceptions)
+                    if (rethrowException)
                     {
                         throw;
                     }
-                    
-                    // Only log exceptions if they are not being re-thrown already
-                    if (logExceptions)
-                    {
-                        Tracing.Logger.Log.RetryOnFailureException(Events.StaticContext, e.ToString());
-                    }
+
+                    onException?.Invoke(e);
+
+                    // For diagnostic purpose.
+                    Tracing.Logger.Log.RetryOnFailureException(Events.StaticContext, e.ToString());
                 }
             }
 
@@ -104,15 +101,14 @@ namespace BuildXL.Native.IO
         /// Async version of <see cref="RetryOnFailure"/>.
         /// </summary>
         public static async Task<bool> RetryOnFailureAsync(
-            Func<bool, Task<bool>> work, 
-            bool logExceptions = true, 
-            bool rethrowExceptions = false,
+            Func<bool, Task<bool>> work,
+            bool rethrowException = false,
+            Action<Exception> onException = null,
             int numberOfAttempts = DefaultNumberOfAttempts,
             int initialTimeoutMs = DefaultInitialTimeoutMs,
             int postTimeoutMultiplier = DefaultPostTimeoutMultiplier)
         {
             Contract.Requires(work != null);
-            Contract.Requires(logExceptions || rethrowExceptions);
             Contract.Requires(numberOfAttempts > 0);
 
             int timeoutMs = initialTimeoutMs;
@@ -131,17 +127,15 @@ namespace BuildXL.Native.IO
                 }
                 catch (Exception e)
                 {
-                    // Give the caller opportunity to re-throw the exception to break the retry loop
-                    if (rethrowExceptions)
+                    if (rethrowException)
                     {
                         throw;
                     }
 
-                    // Only log exceptions if they are not being re-thrown already
-                    if (logExceptions)
-                    {
-                        Tracing.Logger.Log.RetryOnFailureException(Events.StaticContext, e.ToString());
-                    }
+                    onException?.Invoke(e);
+
+                    // For diagnostic purpose.
+                    Tracing.Logger.Log.RetryOnFailureException(Events.StaticContext, e.ToString());
                 }
             }
 
@@ -153,14 +147,13 @@ namespace BuildXL.Native.IO
         /// </summary>
         public static Possible<TResult, Failure> RetryOnFailure<TResult>(
           Func<bool, Possible<TResult, Failure>> work,
-          bool logExceptions = true,
-          bool rethrowExceptions = false,
+          bool rethrowException = false,
+          Action<Exception> onException = null,
           int numberOfAttempts = DefaultNumberOfAttempts,
           int initialTimeoutMs = DefaultInitialTimeoutMs,
           int postTimeoutMultiplier = DefaultPostTimeoutMultiplier)
         {
             Contract.Requires(work != null);
-            Contract.Requires(logExceptions || rethrowExceptions);
             Contract.Requires(numberOfAttempts > 0);
 
             Possible<TResult, Failure>? possiblyResult = null;
@@ -171,15 +164,17 @@ namespace BuildXL.Native.IO
                     possiblyResult = work(isLastRetry);
                     return possiblyResult.Value.Succeeded;
                 },
-                logExceptions, rethrowExceptions, numberOfAttempts, initialTimeoutMs, postTimeoutMultiplier);
+                rethrowException: rethrowException,
+                onException: e =>
+                {
+                    onException?.Invoke(e);
+                    possiblyResult = new Failure<Exception>(e);
+                },
+                numberOfAttempts,
+                initialTimeoutMs,
+                postTimeoutMultiplier);
 
-            // Since work returns Possible<TResult, Failure>, we expect it to gracefully handle any exception
-            // (i.e., return a failure instead of throwing an exception). However, there is no guarantee that
-            // it would behave this way. 
-            if (!possiblyResult.HasValue)
-            {
-                Contract.Assert(false, $"An operation resulted in an unhandled exception in all of the '{numberOfAttempts}' retry attempts");
-            }
+            Contract.Assert(possiblyResult.HasValue, "Retry should have a value");
 
             return possiblyResult.Value;
         }
@@ -189,14 +184,13 @@ namespace BuildXL.Native.IO
         /// </summary>
         public static async Task<Possible<TResult, Failure>> RetryOnFailureAsync<TResult>(
             Func<bool, Task<Possible<TResult, Failure>>> work,
-            bool logExceptions = true,
-            bool rethrowExceptions = false,
+            bool rethrowException = false,
+            Action<Exception> onException = null,
             int numberOfAttempts = DefaultNumberOfAttempts,
             int initialTimeoutMs = DefaultInitialTimeoutMs,
             int postTimeoutMultiplier = DefaultPostTimeoutMultiplier)
         {
             Contract.Requires(work != null);
-            Contract.Requires(logExceptions || rethrowExceptions);
             Contract.Requires(numberOfAttempts > 0);
 
             Possible<TResult>? possiblyResult = null;
@@ -207,15 +201,17 @@ namespace BuildXL.Native.IO
                     possiblyResult = await work(isLastRetry);
                     return possiblyResult.Value.Succeeded;
                 },
-                logExceptions, rethrowExceptions, numberOfAttempts, initialTimeoutMs, postTimeoutMultiplier);
+                rethrowException: rethrowException,
+                onException: e =>
+                {
+                    onException?.Invoke(e);
+                    possiblyResult = new Failure<Exception>(e);
+                },
+                numberOfAttempts, 
+                initialTimeoutMs, 
+                postTimeoutMultiplier);
 
-            // Since work returns Possible<TResult, Failure>, we expect it to gracefully handle any exception
-            // (i.e., return a failure instead of throwing an exception). However, there is no guarantee that
-            // it would behave this way. 
-            if (!possiblyResult.HasValue)
-            {
-                Contract.Assert(false, $"An operation resulted in an unhandled exception in all of the '{numberOfAttempts}' retry attempts");
-            }
+            Contract.Assert(possiblyResult.HasValue, "Retry should have a value");
 
             return possiblyResult.Value;
         }

@@ -4,7 +4,7 @@
 using System;
 using BuildXL.Interop.Windows;
 
-#if FEATURE_CORECLR
+#if NET_CORE
 using System.Runtime.InteropServices;
 #endif
 
@@ -31,7 +31,7 @@ namespace BuildXL.Interop
         /// </summary>
         public static OperatingSystem CurrentOS()
         {
-#if FEATURE_CORECLR
+#if NET_CORE
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 return OperatingSystem.Unix;

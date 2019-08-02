@@ -50,7 +50,7 @@ config({
                     // If you need to consume packages make sure they are upstreamed in that feed.
                   }
                 : {
-                    "buildxl-selfhost" : "https://dotnet.myget.org/F/buildxl-selfhost/api/v3/index.json",
+                    "buildxl-selfhost" : "https://pkgs.dev.azure.com/ms/BuildXL/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
                     "nuget.org" : "http://api.nuget.org/v3/index.json",
                     "roslyn-tools" : "https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json",
                     "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json",
@@ -121,10 +121,7 @@ config({
                 { id: "Newtonsoft.Json", version: "11.0.2" },
                 { id: "Newtonsoft.Json", version: "10.0.3", alias: "Newtonsoft.Json.v10" },
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
-                { id: "System.Data.SQLite", version: "1.0.109.2" },
                 { id: "System.Data.SQLite.Core", version: "1.0.109.2" },
-                { id: "System.Data.SQLite.EF6", version: "1.0.102.0" },
-                { id: "System.Data.SQLite.Linq", version: "1.0.102.0" },
                 { id: "System.Reflection.Metadata", version: "1.6.0" },
                 { id: "System.Threading.Tasks.Dataflow", version: "4.9.0" },
 
@@ -193,6 +190,7 @@ config({
                 { id: "Grpc.Core", version: "1.18.0" },
                 { id: "Grpc.Tools", version: "1.18.0" },
                 { id: "Google.Protobuf", version: "3.7.0" },
+                { id: "Google.Protobuf.Tools", version: "3.7.0" },
                 { id: "Redis-64", version: "3.0.503" },
 
                 // Testing

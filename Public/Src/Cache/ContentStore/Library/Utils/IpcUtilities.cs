@@ -154,7 +154,9 @@ namespace BuildXL.Cache.ContentStore.Utils
             //
             // When we create this handle, we grant only Synchronize, which is why here we have
             // to work around this issue by directly p-invoking OpenEvent from kernel32.dll.
-#if FEATURE_CORECLR
+#if NET_FRAMEWORK
+            return EventWaitHandle.TryOpenExisting(name, EventWaitHandleRights.Synchronize, out handle);
+#else
             handle = null;
             SafeWaitHandle myHandle = OpenEvent((uint)EventWaitHandleRights.Synchronize, false, name);
             if (myHandle.IsInvalid)
@@ -167,8 +169,6 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             handle = (EventWaitHandle) EventWaitHandleConstructor.Invoke(new[] { myHandle });
             return true;
-#else
-            return EventWaitHandle.TryOpenExisting(name, EventWaitHandleRights.Synchronize, out handle);
 #endif
         }
 

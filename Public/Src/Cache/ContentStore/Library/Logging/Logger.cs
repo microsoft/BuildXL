@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Timers;
 
 namespace BuildXL.Cache.ContentStore.Logging
@@ -168,7 +169,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         public void Error(Exception exception, string messageFormat, params object[] messageArgs)
         {
             var messageIn = string.Format(CultureInfo.CurrentCulture, messageFormat, messageArgs);
-            var message = string.Format(CultureInfo.CurrentCulture, "{0}, Exception=[{1}]", messageIn, exception);
+            var message = string.Format(CultureInfo.CurrentCulture, "{0}, Exception=[{1}]", messageIn, ResultBase.GetExceptionString(exception));
             LogString(Severity.Error, message);
             Flush();
         }

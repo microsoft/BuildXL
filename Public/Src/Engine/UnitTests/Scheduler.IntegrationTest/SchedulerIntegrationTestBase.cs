@@ -53,6 +53,8 @@ namespace Test.BuildXL.Scheduler
 
         private PipGraph m_lastGraph;
 
+        public PipGraph LastGraph => m_lastGraph;
+
         private JournalState m_journalState;
 
         /// <summary>

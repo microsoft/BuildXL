@@ -19,7 +19,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// </summary>
         private KeyValueStoreAccessor Accessor { get; set; }
         private Dictionary<ExecutionEventId, MessageParser> m_eventParserDictionary = new Dictionary<ExecutionEventId, MessageParser>();
-        public static string EventCountKey = "EventCount";
+        public const string EventCountKey = "EventCount";
 
         /// <summary>
         /// Open the datastore and populate the KeyValueStoreAccessor for the XLG++ DB

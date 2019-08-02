@@ -2,11 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.Execution.Analyzer;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -31,8 +31,8 @@ namespace Test.Tool.Analyzers
             AnalysisMode = AnalysisMode.XlgToDb;
             var uniqueDirPath = Guid.NewGuid().ToString();
 
-            OutputDirPath = Combine(AbsolutePath.Create(Context.PathTable, TemporaryDirectory), "XlgToDb-", uniqueDirPath);
-            TestDirPath = Combine(AbsolutePath.Create(Context.PathTable, TemporaryDirectory), "XlgToDbTest");
+            OutputDirPath = Combine(AbsolutePath.Create(Context.PathTable, ObjectRoot), "XlgToDb-", uniqueDirPath);
+            TestDirPath = Combine(AbsolutePath.Create(Context.PathTable, SourceRoot), "XlgToDbTest");
 
             ModeSpecificDefaultArgs = new Option[]
             {
@@ -57,12 +57,12 @@ namespace Test.Tool.Analyzers
 
             var file = FileArtifact.CreateOutputFile(Combine(TestDirPath, "blah.txt"));
 
-            var pipA = CreateAndSchedulePipBuilder(new Operation[]
+            var pipA = CreateAndSchedulePipBuilder(new []
             {
                 Operation.WriteFile(file),
             }).Process;
 
-            var pipB = CreateAndSchedulePipBuilder(new Operation[]
+            var pipB = CreateAndSchedulePipBuilder(new []
             {
                 Operation.ReadFile(file),
                 Operation.WriteFile(CreateOutputFileArtifact())
@@ -86,28 +86,30 @@ namespace Test.Tool.Analyzers
 
             var fileOne = FileArtifact.CreateOutputFile(Combine(TestDirPath, "foo.txt"));
             var fileTwo = FileArtifact.CreateOutputFile(Combine(TestDirPath, "bar.txt"));
-            var dirOne = CreateOutputDirectoryArtifact(Combine(TestDirPath, "baz").ToString(Context.PathTable));
-            Directory.CreateDirectory(ArtifactToString(dirOne));
+            var dirOne = Path.Combine(ReadonlyRoot, "baz");
+            Directory.CreateDirectory(dirOne);
+            File.WriteAllText(Path.Combine(dirOne, "abc.txt"), "text");
+            File.WriteAllText(Path.Combine(dirOne, "xyz.txt"), "text12");
 
-            var pipA = CreateAndSchedulePipBuilder(new Operation[]
+            var pipA = CreateAndSchedulePipBuilder(new []
             {
                 Operation.WriteFile(fileOne),
             }).Process;
 
-            var pipB = CreateAndSchedulePipBuilder(new Operation[]
+            var pipB = CreateAndSchedulePipBuilder(new []
             {
                 Operation.WriteFile(fileTwo),
             }).Process;
 
-            var pipC = CreateAndSchedulePipBuilder(new Operation[]
+            var pipC = CreateAndSchedulePipBuilder(new []
             {
                 Operation.ReadFile(fileOne),
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
 
-            var pipD = CreateAndSchedulePipBuilder(new Operation[]
+            var pipD = CreateAndSchedulePipBuilder(new []
             {
-                Operation.EnumerateDir(dirOne),
+                Operation.EnumerateDir(new DirectoryArtifact(AbsolutePath.Create(Context.PathTable, dirOne), 0, false)),
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
 
@@ -117,11 +119,11 @@ namespace Test.Tool.Analyzers
 
             var dataStore = new XldbDataStore(storeDirectory: OutputDirPath.ToString(Context.PathTable));
 
-            XAssert.AreEqual(dataStore.GetFileArtifactContentDecidedEvents().Count(), 5);
+            XAssert.AreEqual(dataStore.GetFileArtifactContentDecidedEvents().Count(), LastGraph.AllFiles.Count());
             XAssert.AreEqual(dataStore.GetWorkerListEvents().Count(), 0);
-            XAssert.AreEqual(dataStore.GetPipExecutionPerformanceEvents().Count(), 4);
-            XAssert.AreEqual(dataStore.GetDirectoryMembershipHashedEvents().Count(), 0);
-            XAssert.AreEqual(dataStore.GetProcessExecutionMonitoringReportedEvents().Count(), 4);
+            XAssert.AreEqual(dataStore.GetPipExecutionPerformanceEvents().Count(), LastGraph.RetrievePipReferencesOfType(PipType.Process).Count());
+            XAssert.AreEqual(dataStore.GetDirectoryMembershipHashedEvents().Count(), 1);
+            XAssert.AreEqual(dataStore.GetProcessExecutionMonitoringReportedEvents().Count(), LastGraph.RetrievePipReferencesOfType(PipType.Process).Count());
             XAssert.AreEqual(dataStore.GetProcessFingerprintComputationEvents().Count(), 8);
             XAssert.AreEqual(dataStore.GetExtraEventDataReportedEvents().Count(), 1);
             XAssert.AreEqual(dataStore.GetDependencyViolationReportedEvents().Count(), 0);

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
@@ -14,6 +15,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
     /// </summary>
     public class ResultBase
     {
+        /// <summary>
+        /// Global preprocessor for error text for result errors. This allows for the exception string demystification code
+        /// to be injected dynamically without requiring a dependency on BuildXL.Utilities. Generally adding new dependencies
+        /// to this assembly is an involved process so this is here as a workaround.
+        /// </summary>
+        internal static Func<Exception, string> ResultExceptionTextProcessor { get; set; }
+
         /// <summary>
         /// Constructor for creating successful result instances.
         /// </summary>
@@ -42,17 +50,22 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 ErrorMessage = string.IsNullOrEmpty(message)
                     ? other.Result.ErrorMessage
                     : $"{message}: {other.Result.ErrorMessage}";
-                Diagnostics = other.Result.Diagnostics;
+                _hasLazyDiagnostics = other.Result._hasLazyDiagnostics;
+                _diagnostics = other.Result._diagnostics;
                 IsCancelled = other.Result.IsCancelled;
                 Exception = other.InnerException;
             }
             else
             {
+                // NOTE: The use of Exception.Message is intentional here as
+                // the full exception string is captured in the ResultBase.Diagnostics
+                // property
                 ErrorMessage = string.IsNullOrEmpty(message)
-                    ? $"{exception.GetType().Name}: {exception}"
-                    : $"{message}: {exception.GetType().Name}: {exception}";
+                    ? $"{exception.GetType().Name}: {GetErrorMessageFromException(exception)}"
+                    : $"{message}: {exception.GetType().Name}: {GetErrorMessageFromException(exception)}";
 
-                Diagnostics = CreateDiagnostics(exception);
+                // Indicate that diagnostics should lazily be computed from exception.
+                _hasLazyDiagnostics = true;
                 Exception = exception;
             }
         }
@@ -67,7 +80,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             ErrorMessage = string.IsNullOrEmpty(message)
                 ? other.ErrorMessage
                 : $"{message}: {other.ErrorMessage}";
-            Diagnostics = other.Diagnostics;
+            _diagnostics = other._diagnostics;
+            _hasLazyDiagnostics = other._hasLazyDiagnostics;
             Exception = other.Exception;
             IsCancelled = other.IsCancelled;
         }
@@ -103,9 +117,32 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public readonly string ErrorMessage;
 
         /// <summary>
+        /// Indicates that diagnostics should lazily be computed from exception
+        /// </summary>
+        private bool _hasLazyDiagnostics;
+        private string _diagnostics;
+
+        /// <summary>
         /// Optional verbose diagnostic information about the result (either error or success).
         /// </summary>
-        public string Diagnostics;
+        public string Diagnostics
+        {
+            get
+            {
+                // Lazily initialize diagnostics (if specified)
+                if (_hasLazyDiagnostics && _diagnostics == null && Exception != null)
+                {
+                    _diagnostics = CreateDiagnostics(Exception);
+                }
+
+                return _diagnostics;
+            }
+            set
+            {
+                _hasLazyDiagnostics = false;
+                _diagnostics = value;
+            }
+        }
 
         /// <summary>
         /// Gets or sets elapsed time of corresponding call.
@@ -212,11 +249,42 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                    exception is TypeLoadException ||
                    exception is ArgumentException ||
                    exception is IndexOutOfRangeException ||
-                   exception is UnauthorizedAccessException || 
+                   exception is UnauthorizedAccessException ||
                    exception is OutOfMemoryException ||
                    exception.GetType().Name == "ContractException" ||
                    exception is InvalidOperationException ||
                    (exception is AggregateException ae && ae.Flatten().InnerExceptions.Any(e => IsCritical(e)));
+        }
+
+        /// <summary>
+        /// Gets full log event message including inner exceptions from the given exception
+        /// </summary>
+        private static string GetErrorMessageFromException(Exception exception)
+        {
+            return string.Join(": " + Environment.NewLine, getExceptionMessages());
+
+            IEnumerable<string> getExceptionMessages()
+            {
+                for (Exception currentException = exception; currentException != null; currentException = currentException.InnerException)
+                {
+                    yield return currentException.Message;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets a preprocessed equivalent of <see cref="Exception.ToString"/> if <see cref="ResultBase.ResultExceptionTextProcessor"/> is specified. Otherwise,
+        /// just returns <see cref="Exception.ToString"/>.
+        /// </summary>
+        internal static string GetExceptionString(Exception ex)
+        {
+            var processErrorText = ResultExceptionTextProcessor;
+            if (processErrorText != null)
+            {
+                return processErrorText(ex);
+            }
+
+            return ex.ToString();
         }
 
         private static string CreateDiagnostics(Exception exception)
@@ -235,15 +303,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                     }
 
                     sb.AppendLine("Exception #" + i);
-                    sb.Append(e);
+                    sb.Append(GetExceptionString(e));
                     i++;
                 }
 
                 return sb.ToString();
             }
 
-            return exception.ToString();
+            return GetExceptionString(exception);
         }
-
     }
 }

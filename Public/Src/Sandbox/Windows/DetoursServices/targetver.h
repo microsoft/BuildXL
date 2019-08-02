@@ -3,7 +3,7 @@
 
 #pragma once
 
-#if !defined(MAC_OS_SANDBOX)
+#if !defined(MAC_OS_SANDBOX) && !defined(MAC_OS_LIBRARY)
 // BuildXL should run on Win7+.
 #include <WinSDKVer.h>
 #define _WIN32_WINNT _WIN32_WINNT_WIN7

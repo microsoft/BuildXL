@@ -99,20 +99,20 @@ function updateKextVersionSourceFile() {
 function updateBuildXLConfigDscFile() {
     local _newVersion=$1
 
-    updateSingleLineInFile          \
-        ${buildxlDir}/config.microsoftInternal.dsc    \
-        "runtime.osx-x64.BuildXL"   \
-        'version: ".*"'             \
+    updateSingleLineInFile                         \
+        ${buildxlDir}/config.microsoftInternal.dsc \
+        "runtime.osx-x64.BuildXL"                  \
+        'version: ".*"'                            \
         'version: "'$_newVersion'"'
 }
 
 function updateRequiredKextVersion() {
     local _newVersion=$1
 
-    updateSingleLineInFile                                                   \
-        ${buildxlDir}/Public/Src/Engine/Processes/SandboxedKextConnection.cs \
-        "public const string RequiredKextVersionNumber = "                   \
-        ' = ".*"'                                                            \
+    updateSingleLineInFile                                                 \
+        ${buildxlDir}/Public/Src/Engine/Processes/SandboxConnectionKext.cs \
+        "public const string RequiredKextVersionNumber = "                 \
+        ' = ".*"'                                                          \
         ' = "'$_newVersion'"'
 }
 

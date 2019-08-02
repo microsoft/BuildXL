@@ -26,7 +26,7 @@ namespace BuildXL.Processes
     /// <summary>
     /// Implementation of <see cref="ISandboxedProcess"/> that relies on our kernel extension for Mac
     /// </summary>
-    public sealed class SandboxedProcessMacKext : UnSandboxedProcess
+    public sealed class SandboxedProcessMac : UnsandboxedProcess
     {
         private const string TimeUtil = "/usr/bin/time";
 
@@ -57,7 +57,7 @@ namespace BuildXL.Processes
 
         private readonly CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
 
-        private IKextConnection KextConnection => ProcessInfo.SandboxedKextConnection;
+        private ISandboxConnection SandboxConnectionKext => ProcessInfo.SandboxConnection;
 
         private TimeSpan ChildProcessTimeout => ProcessInfo.NestedProcessTerminationTimeout;
 
@@ -74,7 +74,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Timeout period for inactivity from the sandbox kernel extension.
         /// </summary>
-        internal TimeSpan ReportQueueProcessTimeout => KextConnection.IsInTestMode ? TimeSpan.FromSeconds(100) : TimeSpan.FromMinutes(45);
+        internal TimeSpan ReportQueueProcessTimeout => SandboxConnectionKext.IsInTestMode ? TimeSpan.FromSeconds(100) : TimeSpan.FromMinutes(45);
 
         private Task m_processTreeTimeoutTask;
 
@@ -85,7 +85,7 @@ namespace BuildXL.Processes
 
         private bool IgnoreReportedAccesses { get; }
 
-        /// <see cref="IKextConnection.MeasureCpuTimes"/>
+        /// <see cref="ISandboxConnection.MeasureCpuTimes"/>
         private bool MeasureCpuTime { get; }
 
         /// <summary>
@@ -94,17 +94,17 @@ namespace BuildXL.Processes
         public string ExecutableAbsolutePath => Process.StartInfo.FileName;
 
         /// <nodoc />
-        public SandboxedProcessMacKext(SandboxedProcessInfo info, bool ignoreReportedAccesses = false, bool? overrideMeasureTime = null)
+        public SandboxedProcessMac(SandboxedProcessInfo info, bool ignoreReportedAccesses = false, bool? overrideMeasureTime = null)
             : base(info)
         {
             Contract.Requires(info.FileAccessManifest != null);
-            Contract.Requires(info.SandboxedKextConnection != null);
+            Contract.Requires(info.SandboxConnection != null);
 
             IgnoreReportedAccesses = ignoreReportedAccesses;
 
             MeasureCpuTime =  overrideMeasureTime.HasValue
                 ? overrideMeasureTime.Value
-                : info.SandboxedKextConnection.MeasureCpuTimes;
+                : info.SandboxConnection.MeasureCpuTimes;
 
             m_reports = new SandboxedProcessReports(
                 info.FileAccessManifest,
@@ -172,7 +172,7 @@ namespace BuildXL.Processes
                     values: FileAccessPolicy.AllowReadAlways);
             }
 
-            if (!KextConnection.NotifyKextPipStarted(ProcessInfo.FileAccessManifest, this))
+            if (!SandboxConnectionKext.NotifyPipStarted(ProcessInfo.FileAccessManifest, this))
             {
                 ThrowCouldNotStartProcess("Failed to notify kernel extension about process start, make sure the extension is loaded");
             }
@@ -197,7 +197,7 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override async Task KillAsync()
         {
-            LogProcessState("SandboxedProcessMacKext::KillAsync");
+            LogProcessState("SandboxedProcessMac::KillAsync");
 
             // In the case that the process gets shut down by either its timeout or e.g. SandboxedProcessPipExecutor
             // detecting resource usage issues and calling KillAsync(), we flag the process with m_processKilled so we
@@ -248,7 +248,7 @@ namespace BuildXL.Processes
 
             // at this point this pip is done executing (it's only left to construct SandboxedProcessResult,
             // which is done by the base class) so notify the sandbox kernel extension connection manager about it.
-            KextConnection.NotifyKextProcessFinished(PipId, this);
+            SandboxConnectionKext.NotifyProcessFinished(PipId, this);
 
             return IgnoreReportedAccesses ? null : m_reports;
         }
@@ -288,7 +288,7 @@ namespace BuildXL.Processes
         private void KillAllChildProcesses()
         {
             m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveProcesses());
-            NotifyKextPipTerminated(PipId, m_survivingChildProcesses);
+            NotifyPipTerminated(PipId, m_survivingChildProcesses);
         }
 
         private bool ShouldWaitForSurvivingChildProcesses()
@@ -318,13 +318,13 @@ namespace BuildXL.Processes
             m_pendingReports.Post(report);
         }
 
-        private void NotifyKextPipTerminated(long pipId, IEnumerable<ReportedProcess> survivingChildProcesses)
+        private void NotifyPipTerminated(long pipId, IEnumerable<ReportedProcess> survivingChildProcesses)
         {
             // TODO: bundle this into a single message
             var distinctProcessIds = new HashSet<uint>(survivingChildProcesses.Select(p => p.ProcessId));
             foreach (var processId in distinctProcessIds)
             {
-                KextConnection.NotifyKextPipProcessTerminated(pipId, (int)processId);
+                SandboxConnectionKext.NotifyPipProcessTerminated(pipId, (int)processId);
             }
         }
 
@@ -443,11 +443,11 @@ namespace BuildXL.Processes
                         break;
                     }
 
-                    var minEnqueueTime = KextConnection.MinReportQueueEnqueueTime;
+                    var minEnqueueTime = SandboxConnectionKext.MinReportQueueEnqueueTime;
 
                     // Ensure we time out if the sandbox stops sending any events within ReportQueueProcessTimeout
                     if (minEnqueueTime != 0 &&
-                        KextConnection.CurrentDrought >= ReportQueueProcessTimeout &&
+                        SandboxConnectionKext.CurrentDrought >= ReportQueueProcessTimeout &&
                         CurrentRunningTime() >= ReportQueueProcessTimeout)
                     {
                         LogProcessState("Process timed out due to inactivity from sandbox kernel extension report queue: " +
@@ -476,7 +476,7 @@ namespace BuildXL.Processes
                         else
                         {
                             LogProcessState($"Process exited but still waiting for reports :: exit time = {m_processExitTimeNs}, " +
-                                $"min enqueue time = {minEnqueueTime}, current drought = {KextConnection.CurrentDrought.TotalMilliseconds}ms");
+                                $"min enqueue time = {minEnqueueTime}, current drought = {SandboxConnectionKext.CurrentDrought.TotalMilliseconds}ms");
                         }
                     }
 
@@ -497,7 +497,7 @@ namespace BuildXL.Processes
         {
             if (ProcessInfo.FileAccessManifest.ReportFileAccesses)
             {
-                LogProcessState("Kext report received: " + AccessReportToString(report));
+                LogProcessState("Access report received: " + AccessReportToString(report));
             }
 
             Counters.IncrementCounter(SandboxedProcessCounters.AccessReportCount);
@@ -670,7 +670,7 @@ namespace BuildXL.Processes
             }
         }
 
-        private string AccessReportToString(AccessReport report)
+        internal static string AccessReportToString(AccessReport report)
         {
             var operation       = report.DecodeOperation();
             var pid             = report.Pid.ToString("X");

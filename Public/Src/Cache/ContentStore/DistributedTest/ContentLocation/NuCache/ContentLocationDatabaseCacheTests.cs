@@ -51,7 +51,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             var database = ContentLocationDatabase.Create(Clock, configuration, () => new MachineId[] { });
             await database.StartupAsync(operationContext).ShouldBeSuccess();
-            database.SetContentDatabaseMode(isContentDatabaseWriteable: true);
+            database.SetDatabaseMode(isDatabaseWriteable: true);
 
             action(operationContext, database);
 

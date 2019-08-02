@@ -240,6 +240,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     {
                         CleanOnInitialize = false,
                         GarbageCollectionInterval = TimeSpan.FromSeconds(config.RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds),
+                        MetadataGarbageCollectionEnabled = true,
                         MetadataGarbageCollectionProtectionTime = TimeSpan.FromSeconds(config.RocksDbMemoizationStoreGarbageCollectionProtectionTimeInSeconds),
                     },
                 };

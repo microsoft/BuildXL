@@ -158,6 +158,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             {
                 return CreateStore(testDirectory: disposableDirectory, configMutator: (configuration) =>
                 {
+                    configuration.MetadataGarbageCollectionEnabled = true;
                     configuration.MetadataGarbageCollectionProtectionTime = TimeSpan.FromMilliseconds(1);
                     // Disables automatic GC
                     configuration.GarbageCollectionInterval = Timeout.InfiniteTimeSpan;

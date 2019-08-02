@@ -50,7 +50,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private Timer _gcTimer;
         private NagleQueue<(ShortHash hash, EntryOperation op, OperationReason reason, int modificationCount)> _nagleOperationTracer;
         private readonly ContentLocationDatabaseConfiguration _configuration;
+
         private bool _isContentGarbageCollectionEnabled;
+        private bool _isMetadataGarbageCollectionEnabled;
+        private bool IsGarbageCollectionEnabled => _isContentGarbageCollectionEnabled || _isMetadataGarbageCollectionEnabled;
 
         /// <summary>
         /// Fine-grained locks that is used for all operations that mutate records.
@@ -91,6 +94,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _getInactiveMachines = getInactiveMachines;
 
             _inMemoryCache = new FlushableCache(configuration, this);
+
+            _isMetadataGarbageCollectionEnabled = configuration.MetadataGarbageCollectionEnabled;
         }
 
         /// <summary>
@@ -116,10 +121,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Prepares the database for read only or read/write mode. This operation assumes no operations are underway
         /// while running. It is the responsibility of the caller to ensure that is so.
         /// </summary>
-        public void SetContentDatabaseMode(bool isContentDatabaseWriteable)
+        public void SetDatabaseMode(bool isDatabaseWriteable)
         {
-            _isContentGarbageCollectionEnabled = isContentDatabaseWriteable;
-            ConfigureInMemoryDatabaseCache(isContentDatabaseWriteable);
+            ConfigureGarbageCollection(isDatabaseWriteable);
+            ConfigureInMemoryDatabaseCache(isDatabaseWriteable);
+        }
+
+        /// <summary>	
+        /// Configures the behavior of the database's garbage collection	
+        /// </summary>	
+        private void ConfigureGarbageCollection(bool isDatabaseWriteable)
+        {
+            if (IsGarbageCollectionEnabled != isDatabaseWriteable)
+            {
+                _isContentGarbageCollectionEnabled = isDatabaseWriteable;
+                _isMetadataGarbageCollectionEnabled = _configuration.MetadataGarbageCollectionEnabled && isDatabaseWriteable;
+
+                var nextGcTimeSpan = IsGarbageCollectionEnabled ? _configuration.GarbageCollectionInterval : Timeout.InfiniteTimeSpan;
+                _gcTimer?.Change(nextGcTimeSpan, Timeout.InfiniteTimeSpan);
+            }
         }
 
         private void ConfigureInMemoryDatabaseCache(bool isDatabaseWritable)
@@ -160,7 +180,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _gcTimer = new Timer(
                     _ => GarbageCollect(context),
                     null,
-                    _configuration.GarbageCollectionInterval,
+                    IsGarbageCollectionEnabled ? _configuration.GarbageCollectionInterval : Timeout.InfiniteTimeSpan,
                     Timeout.InfiniteTimeSpan);
             }
 
@@ -275,11 +295,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     using (var cancellableContext = TrackShutdown(context))
                     {
-                        // Metadata GC could remove content, and hence runs first in order to avoid extra work later on
-                        var metadataGcResult = GarbageCollectMetadata(cancellableContext);
-                        if (!metadataGcResult.Succeeded)
+                        if (_isMetadataGarbageCollectionEnabled)
                         {
-                            return metadataGcResult;
+                            // Metadata GC could remove content, and hence runs first in order to avoid extra work later on
+                            var metadataGcResult = GarbageCollectMetadata(cancellableContext);
+                            if (!metadataGcResult.Succeeded)
+                            {
+                                return metadataGcResult;
+                            }
                         }
 
                         if (_isContentGarbageCollectionEnabled)

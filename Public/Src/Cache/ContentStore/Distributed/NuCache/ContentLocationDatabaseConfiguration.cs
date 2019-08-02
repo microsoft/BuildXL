@@ -74,7 +74,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public TimeSpan CacheFlushingMaximumInterval { get; set; } = TimeSpan.FromMinutes(1);
 
         /// <summary>
+        /// Whether to enable garbage collection of metadata
+        /// </summary>
+        public bool MetadataGarbageCollectionEnabled { get; set; } = false;
+
+        /// <summary>
         /// Minimum amount of time to protect a metadata entry since its last usage time.
+        ///
+        /// Only useful when <see cref="MetadataGarbageCollectionEnabled"/> is true.
         /// </summary>
         public TimeSpan MetadataGarbageCollectionProtectionTime { get; set; } = TimeSpan.FromHours(2);
     }

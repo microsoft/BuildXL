@@ -118,17 +118,19 @@ namespace Test.Tool.Analyzers
             var analyzerRes = RunAnalyzer(buildA).AssertSuccess();
 
             var dataStore = new XldbDataStore(storeDirectory: OutputDirPath.ToString(Context.PathTable));
+            var pipCount = LastGraph.RetrievePipReferencesOfType(PipType.Process).Count();
 
-            XAssert.AreEqual(dataStore.GetFileArtifactContentDecidedEvents().Count(), LastGraph.AllFiles.Count());
+            var files = string.Join(", ", LastGraph.AllFiles.ToList().Select(i => i.Path.ToString(Context.PathTable, PathFormat.HostOs)));
+            XAssert.AreEqual(dataStore.GetFileArtifactContentDecidedEvents().Count(), LastGraph.AllFiles.Count(), files);
             XAssert.AreEqual(dataStore.GetWorkerListEvents().Count(), 0);
-            XAssert.AreEqual(dataStore.GetPipExecutionPerformanceEvents().Count(), LastGraph.RetrievePipReferencesOfType(PipType.Process).Count());
+            XAssert.AreEqual(dataStore.GetPipExecutionPerformanceEvents().Count(), pipCount);
             XAssert.AreEqual(dataStore.GetDirectoryMembershipHashedEvents().Count(), 1);
-            XAssert.AreEqual(dataStore.GetProcessExecutionMonitoringReportedEvents().Count(), LastGraph.RetrievePipReferencesOfType(PipType.Process).Count());
+            XAssert.AreEqual(dataStore.GetProcessExecutionMonitoringReportedEvents().Count(), pipCount);
             XAssert.AreEqual(dataStore.GetProcessFingerprintComputationEvents().Count(), 8);
             XAssert.AreEqual(dataStore.GetExtraEventDataReportedEvents().Count(), 1);
             XAssert.AreEqual(dataStore.GetDependencyViolationReportedEvents().Count(), 0);
             XAssert.AreEqual(dataStore.GetPipExecutionStepPerformanceReportedEvents().Count(), 42);
-            XAssert.AreEqual(dataStore.GetPipCacheMissEvents().Count(), 4);
+            XAssert.AreEqual(dataStore.GetPipCacheMissEvents().Count(), pipCount);
             XAssert.AreEqual(dataStore.GetStatusReportedEvents().Count(), 1);
             XAssert.AreEqual(dataStore.GetBXLInvocationEvents().Count(), 1);
             XAssert.AreEqual(dataStore.GetPipExecutionDirectoryOutputsEvents().Count(), 4);

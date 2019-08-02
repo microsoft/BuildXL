@@ -162,7 +162,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         {
             /// <summary>
             /// Value that indicates the store has no versioning or the versioning should be ignored when opening the store.
-            /// Note that in addition to any versioning passed during <see cref="KeyValueStoreAccessor.OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool)"/>,
+            /// Note that in addition to any versioning passed during <see cref="KeyValueStoreAccessor.OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool, bool)"/>,
             /// all stores using <see cref="KeyValueStoreAccessor"/> are also inherently versioned on <see cref="AccessorVersionHash"/>.
             /// </summary>
             public const int IgnoreStore = -1;
@@ -187,7 +187,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
         /// <summary>
         /// Opens or creates a key value store and returns a <see cref="KeyValueStoreAccessor"/> to the store.
-        /// <see cref="OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool)"/>
+        /// <see cref="OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool, bool)"/>
         /// to open or create a versioned key value store.
         /// </summary>
         /// <param name="storeDirectory">
@@ -225,6 +225,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// On failure to open an existing store at the given directory, whether an attempt to delete the existing store should be made
         /// to create a new one in its place. This will cause data loss of the old store.
         /// </param>
+        /// <param name="rotateLogs">
+        /// Have RocksDb rotate logs, useful for debugging performance issues. See <see cref="RocksDbStore"/> for details on this.
+        /// </param>
         public static Possible<KeyValueStoreAccessor> Open(
             string storeDirectory,
             bool defaultColumnKeyTracked = false,
@@ -233,7 +236,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             Action<Failure> failureHandler = null,
             bool openReadOnly = false,
             bool dropMismatchingColumns = false,
-            bool onFailureDeleteExistingStoreAndRetry = false)
+            bool onFailureDeleteExistingStoreAndRetry = false,
+            bool rotateLogs = false)
         {
             return OpenWithVersioning(
                 storeDirectory,
@@ -244,7 +248,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 failureHandler,
                 openReadOnly,
                 dropMismatchingColumns,
-                onFailureDeleteExistingStoreAndRetry);
+                onFailureDeleteExistingStoreAndRetry,
+                rotateLogs);
         }
 
         /// <summary>
@@ -288,6 +293,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// On failure to open an existing store at the given directory, whether an attempt to delete the existing store should be made
         /// to create a new one in its place. This will cause data loss of the old store.
         /// </param>
+        /// <param name="rotateLogs">
+        /// Have RocksDb rotate logs, useful for debugging performance issues. See <see cref="RocksDbStore"/> for details on this.
+        /// </param>
         public static Possible<KeyValueStoreAccessor> OpenWithVersioning(
             string storeDirectory,
             int storeVersion,
@@ -297,7 +305,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             Action<Failure> failureHandler = null,
             bool openReadOnly = false,
             bool dropMismatchingColumns = false,
-            bool onFailureDeleteExistingStoreAndRetry = false)
+            bool onFailureDeleteExistingStoreAndRetry = false,
+            bool rotateLogs = false)
         {
             // First attempt
             var possibleAccessor = OpenInternal(
@@ -309,7 +318,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     failureHandler,
                     openReadOnly,
                     dropMismatchingColumns,
-                    createNew: !FileUtilities.DirectoryExistsNoFollow(storeDirectory));
+                    createNew: !FileUtilities.DirectoryExistsNoFollow(storeDirectory),
+                    rotateLogs: rotateLogs);
 
             if (!possibleAccessor.Succeeded 
                 && onFailureDeleteExistingStoreAndRetry /* Fall-back on deleting the store and creating a new one */
@@ -324,7 +334,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     failureHandler,
                     openReadOnly,
                     dropMismatchingColumns,
-                    createNew: true);
+                    createNew: true,
+                    rotateLogs: rotateLogs);
             }
 
             return possibleAccessor;
@@ -339,7 +350,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             Action<Failure> failureHandler,
             bool openReadOnly,
             bool dropMismatchingColumns,
-            bool createNew)
+            bool createNew,
+            bool rotateLogs)
         {
             KeyValueStoreAccessor accessor = null;
             bool useVersioning = storeVersion != VersionConstants.IgnoreStore;
@@ -402,7 +414,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     failureHandler,
                     openReadOnly,
                     dropMismatchingColumns,
-                    createNew);
+                    createNew,
+                    rotateLogs);
             }
             catch (Exception ex)
             {
@@ -514,7 +527,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             Action<Failure> failureHandler,
             bool openReadOnly,
             bool dropColumns,
-            bool createdNewStore)
+            bool createdNewStore,
+            bool rotateLogs)
         {
             Contract.Assert(storeVersion != VersionConstants.InvalidStore, "No store should pass the invalid store version since it is not safe to open an invalid store.");
             StoreDirectory = storeDirectory;
@@ -528,7 +542,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 additionalColumns,
                 additionalKeyTrackedColumns,
                 openReadOnly,
-                dropColumns);
+                dropColumns,
+                rotateLogs);
 
             m_failureHandler = failureHandler;
         }

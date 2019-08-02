@@ -4739,7 +4739,7 @@ namespace BuildXL.Scheduler
                             {
                                 ReportQueueSizeMB = m_configuration.Sandbox.KextReportQueueSizeMb,
                                 EnableReportBatching = m_configuration.Sandbox.KextEnableReportBatching,
-#if PLATFORM_OSX
+#if !PLATFORM_WIN
                                 EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher,
 #endif
                                 ResourceThresholds = new Sandbox.ResourceThresholds
@@ -5855,7 +5855,7 @@ namespace BuildXL.Scheduler
             LoggingContext loggingContext)
         {
             var executionLogPath = configuration.Logging.ExecutionLog;
-            if (configuration.Logging.LogExecution && executionLogPath.IsValid && (configuration.Engine.Phase & EnginePhases.Execute) != 0)
+            if (configuration.Logging.LogExecution && executionLogPath.IsValid && configuration.Engine.Phase.HasFlag(EnginePhases.Execute))
             {
                 var executionLogPathString = executionLogPath.ToString(context.PathTable);
 

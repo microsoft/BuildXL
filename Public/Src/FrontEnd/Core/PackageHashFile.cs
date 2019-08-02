@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using TypeScript.Net.Extensions;
 
 namespace BuildXL.FrontEnd.Core
@@ -30,13 +31,12 @@ namespace BuildXL.FrontEnd.Core
 
         // The file format change will force specs regeneration.
         // Change the version if the nuget spec generation has changed in a backward incompatible way.
-        private const string HashFileFormatVersion = "8";
-        private const string GeneratedSpecsVersion = "15";
+        private const string HashFileFormatVersion = "9";
 
         /// <summary>
         /// The minimal number of lines for the hash file.
         /// </summary>
-        private const int MinNumberOfLines = 4;
+        private const int MinNumberOfLines = 3;
 
         /// <summary>
         /// Fingerprint hash of a nuget package.
@@ -53,13 +53,8 @@ namespace BuildXL.FrontEnd.Core
         /// </summary>
         public IReadOnlyList<string> Content { get; }
 
-        /// <summary>
-        /// Returns true if the spec format is still up-to-date.
-        /// </summary>
-        public bool SpecsFormatIsUpToDate { get; }
-
         /// <nodoc/>
-        public PackageHashFile(string fingerprintHash, string fingerprintText, IReadOnlyList<string> content, bool specsFormatIsUpToDate)
+        public PackageHashFile(string fingerprintHash, string fingerprintText, IReadOnlyList<string> content)
         {
             Contract.Requires(!string.IsNullOrEmpty(fingerprintHash));
             Contract.Requires(!string.IsNullOrEmpty(fingerprintText));
@@ -69,7 +64,6 @@ namespace BuildXL.FrontEnd.Core
             FingerprintHash = fingerprintHash;
             FingerprintText = fingerprintText;
             Content = new List<string>(content.OrderBy(id => id));
-            SpecsFormatIsUpToDate = specsFormatIsUpToDate;
         }
 
         /// <summary>
@@ -123,10 +117,8 @@ namespace BuildXL.FrontEnd.Core
                 return new PackageHashFileFailure(FormattableStringEx.I($"Package hash file has different version. Expected version: {HashFileFormatVersion}, actual version: {version}."));
             }
 
-            var specsFileVersion = content[1];
-
-            var fingerprintHash = content[2];
-            var fingerprintText = content[3];
+            var fingerprintHash = content[1];
+            var fingerprintText = content[2];
 
             var files = content.Skip(MinNumberOfLines).Where(s => !string.IsNullOrEmpty(s)).ToArray();
             if (files.Length == 0)
@@ -134,7 +126,7 @@ namespace BuildXL.FrontEnd.Core
                 return new PackageHashFileFailure(FormattableStringEx.I($"Package hash file does not have package content files."));
             }
 
-            return new PackageHashFile(fingerprintHash, fingerprintText, files, specsFormatIsUpToDate: specsFileVersion == GeneratedSpecsVersion);
+            return new PackageHashFile(fingerprintHash, fingerprintText, files);
         }
 
         /// <summary>
@@ -144,7 +136,6 @@ namespace BuildXL.FrontEnd.Core
         {
             var sb = new StringBuilder();
             sb.AppendLine(HashFileFormatVersion)
-                .AppendLine(GeneratedSpecsVersion)
                 .AppendLine(hashFile.FingerprintHash)
                 .AppendLine(hashFile.FingerprintText);
 

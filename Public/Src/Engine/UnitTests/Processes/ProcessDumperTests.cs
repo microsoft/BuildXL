@@ -108,7 +108,8 @@ namespace Test.BuildXL.Processes
 
                     AssertFileExists(Path.Combine(dumpPath, "1_cmd.exe.dmp"));
 
-#if !FEATURE_CORECLR // ConHost is not launched with the CoreCLR through the xUnit runner
+#if NET_FRAMEWORK
+                    // ConHost is not launched with the CoreCLR through the xUnit runner
                     AssertFileExists(Path.Combine(dumpPath, "1_2_cmd.exe.dmp"));
                     AssertFileExists(Path.Combine(dumpPath, "1_2_1_cmd.exe.dmp"));
                     AssertFileExists(Path.Combine(dumpPath, "1_2_1_1_PING.EXE.dmp"));

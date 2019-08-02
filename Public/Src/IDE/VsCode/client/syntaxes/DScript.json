@@ -385,16 +385,16 @@
             "begin": "(\")(\\./|/|\\.\\./)",
             "beginCaptures": {
                 "1": {
-                    "name": "string.interpolated.path.content.dsc"
+                    "name": "entity.name.tag.css.dsc"
                 },
                 "2": {
-                    "name": "string.interpolated.path.separator.dsc"
+                    "name": "entity.name.tag.dsc"
                 }
             },
             "end": "\"",
             "endCaptures": {
                 "0": {
-                    "name": "string.interpolated.path.content.dsc"
+                    "name": "entity.name.tag.css.dsc"
                 }
             },
             "patterns": [
@@ -409,7 +409,7 @@
         "import-literal-contents-double": {
             "begin": ".*?",
             "end": "(?=(\"|/))",
-            "name": "string.interpolated.path.content.dsc",
+            "name": "entity.name.tag.css.dsc",
             "patterns": [
                 {
                     "include": "#string-character-escape"
@@ -420,16 +420,16 @@
             "begin": "(')(\\./|/|\\.\\./)",
             "beginCaptures": {
                 "1": {
-                    "name": "string.interpolated.path.content.dsc"
+                    "name": "entity.name.tag.css.dsc"
                 },
                 "2": {
-                    "name": "string.interpolated.path.separator.dsc"
+                    "name": "entity.name.tag.dsc"
                 }
             },
             "end": "'",
             "endCaptures": {
                 "0": {
-                    "name": "string.interpolated.path.content.dsc"
+                    "name": "entity.name.tag.css.dsc"
                 }
             },
             "patterns": [
@@ -444,7 +444,7 @@
         "import-literal-contents-single": {
             "begin": ".*?",
             "end": "(?=('|/))",
-            "name": "string.interpolated.path.content.dsc",
+            "name": "entity.name.tag.css.dsc",
             "patterns": [
                 {
                     "include": "#string-character-escape"
@@ -455,7 +455,7 @@
         "import-literal-package-double": {
             "begin": "\"",
             "end": "\"|(?:[^\\\\\\n]$)",
-            "name": "string.double.importPackage.dsc",
+            "name": "string.regexp.import.dsc",
             "patterns": [
                 {
                     "include": "#string-character-escape"
@@ -465,7 +465,7 @@
         "import-literal-package-single": {
             "begin": "'",
             "end": "\\'|(?:[^\\\\\\n]$)",
-            "name": "string.single.importPackage.dsc",
+            "name": "string.regexp.import.dsc",
             "patterns": [
                 {
                     "include": "#string-character-escape"
@@ -1047,16 +1047,16 @@
             "begin": "(f)(`)",
             "beginCaptures": {
                 "1": {
-                    "name": "string.interpolated.path.operator.dsc"
+                    "name": "punctuation.definition.tag.path.dsc"
                 },
                 "2": {
-                    "name": "string.interpolated.path.quote.dsc"
+                    "name": "punctuation.definition.tag.path.dsc"
                 }
             },
             "end": "(?<!`)(`)(?!`)",
             "endCaptures": {
                 "0": {
-                    "name": "string.interpolated.path.quote.dsc"
+                    "name": "punctuation.definition.tag.path.dsc"
                 }
             },
             "name": "meta.template.dsc",
@@ -1076,16 +1076,16 @@
             "begin": "(f|p|d|a|r)(`)",
             "beginCaptures": {
                 "1": {
-                    "name": "string.interpolated.path.operator.dsc"
+                    "name": "punctuation.definition.tag.path.dsc"
                 },
                 "2": {
-                    "name": "string.interpolated.path.quote.dsc"
+                    "name": "punctuation.definition.tag.path.dsc"
                 }
             },
             "end": "(`)(?!`)",
             "endCaptures": {
                 "0": {
-                    "name": "string.interpolated.path.quote.dsc"
+                    "name": "punctuation.definition.tag.path.dsc"
                 }
             },
             "name": "meta.template.dsc",
@@ -1104,7 +1104,7 @@
         "path-literal-contents": {
             "begin": ".*?",
             "end": "(?=(\\$\\{|((?<!`)(`)(?!`))|/|\\\\))",
-            "name": "string.interpolated.path.content.dsc",
+            "name": "entity.name.tag.css.dsc",
             "patterns": [
                 {
                     "include": "#string-character-escape"
@@ -1113,11 +1113,11 @@
         },
         "path-literal-separator": {
             "match": "(\\\\|/)",
-            "name": "string.interpolated.path.separator.dsc"
+            "name": "entity.name.tag.dsc"
         },
         "qualifier-variable": {
             "match": "\\b(qualifier)\\b",
-            "name": "variable.qualifier.dsc"
+            "name": "constant.numeric.qualifier.dsc"
         },
         "template": {
             "begin": "`",
@@ -1174,7 +1174,7 @@
         },
         "template-variable": {
             "match": "\\b(template)\\b",
-            "name": "variable.template.dsc"
+            "name": "constant.numeric.template.dsc"
         },
         "this-literal": {
             "match": "\\b(this)\\b",
@@ -1464,5 +1464,25 @@
         }
     },
     "scopeName": "source.dsc",
-    "uuid": "ef98eb90-bf9b-11e4-bb52-0800200c9a66"
+    "uuid": "ef98eb90-bf9b-11e4-bb52-0800200c9a66",
+    "settings": [
+        {
+            "name": "DScript path literals content",
+            "scope": [
+                "entity.name.tag.css"
+            ],
+            "settings": {
+                "foreground": "#ff0000"
+            }
+        },
+        {
+            "name": "DScript path literals operator",
+            "scope": [
+                "punctuation.definition.tag.path"
+            ],
+            "settings": {
+                "foreground": "#ff0000"
+            }
+        }
+    ]
 }

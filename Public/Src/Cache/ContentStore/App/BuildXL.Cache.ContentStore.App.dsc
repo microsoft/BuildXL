@@ -51,8 +51,5 @@ namespace App {
                 keyFile: undefined, // This must be unsigned so it can consume CLAP
             },
         },
-        runtimeContent: [
-            importFrom("Sdk.SelfHost.Sqlite").runtimeLibs,
-        ]
     });
 }

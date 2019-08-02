@@ -161,18 +161,6 @@
         "path": "./syntaxes/DScript.json"
       }
     ],
-    "themes": [
-      {
-        "label": "BuildXL DScript Dark",
-        "uiTheme": "vs-dark",
-        "path": "./themes/dark_dscript.json"
-      },
-      {
-        "label": "BuildXL DScript Light",
-        "uiTheme": "vs",
-        "path": "./themes/light_dscript.json"
-      }
-    ],
     "configuration": {
       "type": "object",
       "title": "%configuration.DScript%",

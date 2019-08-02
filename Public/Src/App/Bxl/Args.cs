@@ -525,6 +525,9 @@ namespace BuildXL
                             "injectCacheMisses",
                             opt => HandleArtificialCacheMissOption(opt, cacheConfiguration)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "interactive",
+                            sign => configuration.Interactive = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "historicMetadataCache",
                             sign => cacheConfiguration.HistoricMetadataCache = sign),
                         OptionHandlerFactory.CreateBoolOption(

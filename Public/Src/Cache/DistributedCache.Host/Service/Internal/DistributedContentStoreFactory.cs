@@ -357,7 +357,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         private AzureBlobStorageCredentials CreateAzureBlobCredentialsFromSasToken(string secretName, UpdatingSasToken updatingSasToken)
         {
             var storageCredentials = new StorageCredentials(sasToken: updatingSasToken.Token.Token);
-            updatingSasToken.TokenUpdated += (updatingToken, sasToken) =>
+updatingSasToken.TokenUpdated += (_, sasToken) =>
             {
                 _logger.Debug($"Updating SAS token for Azure Storage secret {secretName}");
                 storageCredentials.UpdateSASToken(sasToken.Token);

@@ -740,11 +740,11 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.WorkerReleasedEarly,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "{workerName} is released. Drain duration: {drainDurationMs}ms. Disconnect duration: {disconnectDurationMs}ms.",
+            Message = "{workerName} is released. Drain duration: {drainDurationMs}ms. Disconnect duration: {disconnectDurationMs}ms. Is drain successful: {isDrainedWithSuccess}",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void WorkerReleasedEarly(LoggingContext context, string workerName, long drainDurationMs, long disconnectDurationMs);
+        public abstract void WorkerReleasedEarly(LoggingContext context, string workerName, long drainDurationMs, long disconnectDurationMs, bool isDrainedWithSuccess);
 
         [GeneratedEvent(
             (ushort)EventId.StorageCacheGetContentError,

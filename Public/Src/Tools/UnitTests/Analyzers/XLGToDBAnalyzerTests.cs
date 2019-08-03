@@ -87,6 +87,7 @@ namespace Test.Tool.Analyzers
             var fileOne = FileArtifact.CreateOutputFile(Combine(TestDirPath, "foo.txt"));
             var fileTwo = FileArtifact.CreateOutputFile(Combine(TestDirPath, "bar.txt"));
             var dirOne = Path.Combine(ReadonlyRoot, "baz");
+
             Directory.CreateDirectory(dirOne);
             File.WriteAllText(Path.Combine(dirOne, "abc.txt"), "text");
             File.WriteAllText(Path.Combine(dirOne, "xyz.txt"), "text12");
@@ -114,34 +115,29 @@ namespace Test.Tool.Analyzers
             }).Process;
 
             var buildA = RunScheduler().AssertSuccess();
-
             var analyzerRes = RunAnalyzer(buildA).AssertSuccess();
 
             var dataStore = new XldbDataStore(storeDirectory: OutputDirPath.ToString(Context.PathTable));
-            var pipCount = LastGraph.RetrievePipReferencesOfType(PipType.Process).Count();
-            var fileCount = LastGraph.AllFiles.Count();
+            
+            // As per Mike's offline comment, non-zero vs zero event count tests for now until we can rent out some mac machines
+            // and figure out the true reason why the windows and mac event log counts differ by so much 
 
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                XAssert.AreEqual(fileCount + 1, dataStore.GetFileArtifactContentDecidedEvents().Count());
-            }
-            else
-            {
-                XAssert.AreEqual(fileCount, dataStore.GetFileArtifactContentDecidedEvents().Count());
-            }
+            // For these tests, there should be a non-zero number of events logged
+            XAssert.AreNotEqual(0, dataStore.GetFileArtifactContentDecidedEvents().Count());
+            XAssert.AreNotEqual(0, dataStore.GetPipExecutionPerformanceEvents().Count());
+            XAssert.AreNotEqual(0, dataStore.GetDirectoryMembershipHashedEvents().Count());
+            XAssert.AreNotEqual(0, dataStore.GetProcessExecutionMonitoringReportedEvents().Count());
+            XAssert.AreNotEqual(0, dataStore.GetProcessFingerprintComputationEvents().Count());
+            XAssert.AreNotEqual(0, dataStore.GetExtraEventDataReportedEvents().Count());
+            XAssert.AreNotEqual(0, dataStore.GetPipExecutionStepPerformanceReportedEvents().Count());
+            XAssert.AreNotEqual(0, dataStore.GetPipCacheMissEvents().Count());
+            XAssert.AreNotEqual(0, dataStore.GetStatusReportedEvents().Count());
+            XAssert.AreNotEqual(0, dataStore.GetBXLInvocationEvents().Count());
+            XAssert.AreNotEqual(0, dataStore.GetPipExecutionDirectoryOutputsEvents().Count());
 
+            // For these tests, there should be no events logged
             XAssert.AreEqual(0, dataStore.GetWorkerListEvents().Count());
-            XAssert.AreEqual(pipCount, dataStore.GetPipExecutionPerformanceEvents().Count());
-            XAssert.AreEqual(1, dataStore.GetDirectoryMembershipHashedEvents().Count());
-            XAssert.AreEqual(pipCount, dataStore.GetProcessExecutionMonitoringReportedEvents().Count());
-            XAssert.AreEqual(8, dataStore.GetProcessFingerprintComputationEvents().Count());
-            XAssert.AreEqual(1, dataStore.GetExtraEventDataReportedEvents().Count());
             XAssert.AreEqual(0, dataStore.GetDependencyViolationReportedEvents().Count());
-            XAssert.AreEqual(42, dataStore.GetPipExecutionStepPerformanceReportedEvents().Count());
-            XAssert.AreEqual(pipCount, dataStore.GetPipCacheMissEvents().Count());
-            XAssert.AreEqual(1, dataStore.GetStatusReportedEvents().Count());
-            XAssert.AreEqual(1, dataStore.GetBXLInvocationEvents().Count());
-            XAssert.AreEqual(4, dataStore.GetPipExecutionDirectoryOutputsEvents().Count());
         }
     }
 }

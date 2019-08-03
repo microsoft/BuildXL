@@ -66,6 +66,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ShowSlowestElementsStatistics = template.ShowSlowestElementsStatistics;
             ShowLargestFilesStatistics = template.ShowLargestFilesStatistics;
             GlobalUnsafePassthroughEnvironmentVariables = new List<string>(template.GlobalUnsafePassthroughEnvironmentVariables);
+            UnsafeOptimizedAstConversion = template.UnsafeOptimizedAstConversion;
         }
 
         /// <inheritdoc />
@@ -194,5 +195,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <inheritdoc /> 
         IReadOnlyList<string> IFrontEndConfiguration.GlobalUnsafePassthroughEnvironmentVariables => GlobalUnsafePassthroughEnvironmentVariables;
 
+        /// <inheritdoc /> 
+        public bool UnsafeOptimizedAstConversion { get; set; }
     }
 }

@@ -991,6 +991,11 @@ namespace BuildXL
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreSetFileInformationByHandle = sign,
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques",
+                            sign =>
+                            sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreUndeclaredAccessesUnderSharedOpaques = sign,
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnoreValidateExistingFileAccessesForOutputs",
                             sign => { /* Do nothing Office and WDG are still passing this flag even though it is deprecated. */ }),
                         OptionHandlerFactory.CreateBoolOption(
@@ -1014,6 +1019,11 @@ namespace BuildXL
                             sign =>
                             sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorFileAccesses = sign,
                             isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_OptimizedAstConversion",
+                            sign =>
+                            frontEndConfiguration.UnsafeOptimizedAstConversion = sign,
+                            isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "unsafe_PreserveOutputs",
                             (opt, sign) =>
@@ -1036,11 +1046,6 @@ namespace BuildXL
                                     unsafeUnexpectedFileAccessesAreErrorsSet = true;
                                 }
                             },
-                            isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques",
-                            sign =>
-                            sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreUndeclaredAccessesUnderSharedOpaques = sign,
                             isUnsafe: true),
                         // </ end unsafe options>
                          OptionHandlerFactory.CreateBoolOption(

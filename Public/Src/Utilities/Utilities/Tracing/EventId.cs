@@ -570,6 +570,7 @@ namespace BuildXL.Utilities.Tracing
         ConfigUnsafeAllowMissingOutput = 928,
         ConfigIgnoreValidateExistingFileAccessesForOutputs = 929,
         ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques = 930,
+        ConfigUnsafeOptimizedAstConversion = 931,
 
         // Elsewhere  = 932,
 

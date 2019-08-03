@@ -229,7 +229,6 @@ namespace BuildXL.Processes
 
             var reportFileAccesses = ProcessInfo.FileAccessManifest?.ReportFileAccesses == true;
             var fileAccesses = reportFileAccesses ? (reports?.FileAccesses ?? s_emptyFileAccessesSet) : null;
-            var processTimes = GetProcessTimes();
             return new SandboxedProcessResult
             {
                 ExitCode                            = m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
@@ -248,7 +247,7 @@ namespace BuildXL.Processes
                 MessageProcessingFailure            = reports?.MessageProcessingFailure,
                 DumpCreationException               = m_dumpCreationException,
                 DumpFileDirectory                   = ProcessInfo.TimeoutDumpDirectory,
-                PrimaryProcessTimes                 = processTimes,
+                PrimaryProcessTimes                 = GetProcessTimes(),
                 SurvivingChildProcesses             = CoalesceProcesses(GetSurvivingChildProcesses())
             };
         }

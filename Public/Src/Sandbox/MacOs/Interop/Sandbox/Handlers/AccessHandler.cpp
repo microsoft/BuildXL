@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#ifdef ES_SANDBOX
+
 #include "AccessHandler.hpp"
 #include "OpNames.hpp"
 
@@ -146,3 +148,5 @@ AccessCheckResult AccessHandler::CheckAndReportInternal(FileOperation operation,
     ReportFileOpAccess(operation, policy, result, audit_token_to_pid(msg->process->audit_token));
     return result;
 }
+
+#endif

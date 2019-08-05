@@ -41,8 +41,6 @@
 		3C6495E421A6E3E70083FD3A /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C6495E321A6E3E60083FD3A /* libz.tbd */; };
 		3C80E70821347B9700ECBD6E /* io.h in Headers */ = {isa = PBXBuildFile; fileRef = 3C80E70621347B9700ECBD6E /* io.h */; };
 		3C80E70921347B9700ECBD6E /* io.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C80E70721347B9700ECBD6E /* io.c */; };
-		3C85C77522F0595500BC3989 /* libbsm.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C85C77422F0594800BC3989 /* libbsm.tbd */; settings = {ATTRIBUTES = (Weak, ); }; };
-		3C85C77722F0595900BC3989 /* libEndpointSecurity.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C85C77622F0595900BC3989 /* libEndpointSecurity.tbd */; settings = {ATTRIBUTES = (Weak, ); }; };
 		3CD0BB4022F2E035008C0AC9 /* AccessHandler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C44208122F1F5B1000E1003 /* AccessHandler.cpp */; };
 		3CD0BB4122F2E035008C0AC9 /* AccessHandler.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3C44208822F1F5B2000E1003 /* AccessHandler.hpp */; };
 		3CD0BB4222F2E84A008C0AC9 /* IOHandler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C44208022F1F5B1000E1003 /* IOHandler.cpp */; };
@@ -145,8 +143,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3C85C77722F0595900BC3989 /* libEndpointSecurity.tbd in Frameworks */,
-				3C85C77522F0595500BC3989 /* libbsm.tbd in Frameworks */,
 				3C5C178E212EF6E900F4100F /* CoreFoundation.framework in Frameworks */,
 				3C05DAEA20E3740100488EF5 /* IOKit.framework in Frameworks */,
 			);

@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#ifdef ES_SANDBOX
+
 #include <signal.h>
 #include "ESSandbox.h"
 #include "BuildXLSandboxShared.hpp"
@@ -352,3 +354,5 @@ void const ESSandbox::SendAccessReport(AccessReport &report, SandboxedPip *pip)
     log_debug("Enqueued PID(%d), Root PID(%d), PIP(%#llX), Operation: %{public}s, Path: %{public}s, Status: %d",
               report.pid, report.rootPid, report.pipId, OpNames[report.operation], report.path, report.status);
 }
+
+#endif /* ES_SANDBOX */

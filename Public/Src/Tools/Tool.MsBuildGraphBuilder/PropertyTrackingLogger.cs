@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Utilities;
@@ -11,24 +12,12 @@ using Microsoft.Build.Framework;
 namespace ProjectGraphBuilder
 {
     /// <summary>
-    /// 
+    /// Logger that handles property tracking events.
     /// </summary>
     internal sealed class PropertyTrackingLogger : ILogger
     {
-        private readonly HashSet<string> m_variablesRead = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> m_sdkResolversNotTrackingEnvVars = new HashSet<string>();
-
-        public IEnumerable<string> PotentialEnvironmentVariablesReads
-        {
-            get
-            {
-                // Return a copy of what's there to minimize threading issues.
-                lock (m_variablesRead)
-                {
-                    return m_variablesRead.ToArray();
-                }
-            }
-        }
+        private readonly ConcurrentDictionary<string, object> m_variablesRead = new ConcurrentDictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, object> m_sdkResolversNotTrackingEnvVars = new ConcurrentDictionary<string, object>();
 
         public void Initialize(IEventSource eventSource)
         {
@@ -36,24 +25,15 @@ namespace ProjectGraphBuilder
                                           {
                                               if (args is EnvironmentVariableReadEventArgs evrArgs)
                                               {
-                                                  lock(m_variablesRead)
-                                                  {
-                                                      m_variablesRead.Add(evrArgs.EnvironmentVariableName);
-                                                  }
+                                                  m_variablesRead[evrArgs.EnvironmentVariableName] = null;
                                               }
                                               else if (args is UninitializedPropertyReadEventArgs upArgs)
                                               {
-                                                  lock(m_variablesRead)
-                                                  {
-                                                      m_variablesRead.Add(upArgs.PropertyName);
-                                                  }
+                                                  m_variablesRead[upArgs.PropertyName] = null;
                                               }
                                               else if (args is SdkResolverDoesNotTrackEnvironmentVariablesEventArgs trackArgs)
                                               {
-                                                  lock (m_sdkResolversNotTrackingEnvVars)
-                                                  {
-                                                      m_sdkResolversNotTrackingEnvVars.Add(trackArgs.SdkResolverName);
-                                                  }
+                                                  m_sdkResolversNotTrackingEnvVars[trackArgs.SdkResolverName] = null;
                                               }
                                           };
         }
@@ -66,20 +46,16 @@ namespace ProjectGraphBuilder
 
         public string Parameters { get; set; }
 
+        /// <summary>
+        /// The list of environment variables that would be read by the build system if present.
+        /// </summary>
         public Possible<IReadOnlyCollection<string>> PotentialEnvironmentVariableReads
         {
             get
             {
                 if (m_sdkResolversNotTrackingEnvVars.Count == 0)
                 {
-                    string[] copy;
-
-                    lock (m_variablesRead)
-                    {
-                        copy = m_variablesRead.ToArray();
-                    }
-
-                    return new Possible<IReadOnlyCollection<string>>(copy);
+                    return new Possible<IReadOnlyCollection<string>>(m_variablesRead.Keys.ToArray());
                 }
 
                 string errorMessage = null;

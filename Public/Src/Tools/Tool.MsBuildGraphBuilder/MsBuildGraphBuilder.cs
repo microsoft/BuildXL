@@ -187,6 +187,8 @@ namespace MsBuildGraphBuilderTool
                         locatedMsBuildPath);
                 }
 
+                // Get the possible environment variable reads from the logger.
+                // If there was a failure, report the failure message.
                 var envVarResult = environmentVariablesLogger.PotentialEnvironmentVariableReads;
                 var reads = envVarResult.Succeeded ? envVarResult.Result : (IReadOnlyCollection<string>)null;
 

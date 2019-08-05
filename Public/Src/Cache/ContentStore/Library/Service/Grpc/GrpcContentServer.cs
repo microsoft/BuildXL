@@ -45,6 +45,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly int _gzipSizeBarrier;
         private readonly ByteArrayPool _pool;
 
+        private readonly Dictionary<string, IContentSession> _requestCopySessionByCacheName = new Dictionary<string, IContentSession>();
+        private readonly SemaphoreSlim _requestCopySessionSemaphore = new SemaphoreSlim(1);
+
         /// <nodoc />
         public GrpcContentServer(
             ILogger logger,
@@ -208,7 +211,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     FileExistenceResult result = await store.CheckFileExistsAsync(cacheContext, hash);
                     if (result.Succeeded)
                     {
-                        return new ExistenceResponse{ Header = ResponseHeader.Success(startTime) };
+                        return new ExistenceResponse { Header = ResponseHeader.Success(startTime) };
                     }
                 }
             }
@@ -292,18 +295,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             OperationStarted();
 
             var startTime = DateTime.UtcNow;
-            var cacheContext = new Context(new Guid(request.TraceId), _logger);
+            var cacheContext = new OperationContext(new Context(new Guid(request.TraceId), _logger), cancellationToken);
 
-            var sessionResult = await _sessionHandler.CreateSessionAsync(new OperationContext(cacheContext), Guid.NewGuid().ToString(), request.CacheName, ImplicitPin.None, Capabilities.ContentOnly);
-
-            if (!sessionResult.Succeeded)
-            {
-                return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, sessionResult.ErrorMessage) };
-            }
-
-            var (sessionId, path) = sessionResult.Value;
-
-            var session = _sessionHandler.GetSession(sessionId);
+            var session = await GetRequestCopySessionAsync(cacheContext, request.CacheName);
 
             string errorMessage;
             if (session is IFileCopyingSession copyingSession)
@@ -323,7 +317,46 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, errorMessage) };
-            
+
+            // Creating sessions is an expensive operation, so all RequestCopyFile operations will share a single session.
+            async Task<Result<IContentSession>> GetRequestCopySessionAsync(OperationContext context, string cacheName)
+            {
+                if (!_requestCopySessionByCacheName.ContainsKey(cacheName))
+                {
+                    await _requestCopySessionSemaphore.WaitAsync();
+                    try
+                    {
+                        if (!_requestCopySessionByCacheName.ContainsKey(cacheName))
+                        {
+                            var createSessionResult = await _sessionHandler.CreateSessionAsync(context, Guid.NewGuid().ToString(), cacheName, ImplicitPin.None, Capabilities.ContentOnly);
+                            if (createSessionResult.Succeeded)
+                            {
+                                var session = _sessionHandler.GetSession(createSessionResult.Value.sessionId);
+
+                                var startupResult = await session.StartupAsync(context);
+                                if (startupResult.Succeeded)
+                                {
+                                    _requestCopySessionByCacheName[cacheName] = session;
+                                }
+                                else
+                                {
+                                    return new Result<IContentSession>(startupResult);
+                                }
+                            }
+                            else
+                            {
+                                return new Result<IContentSession>(createSessionResult);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        _requestCopySessionSemaphore.Release();
+                    }
+                }
+
+                return new Result<IContentSession>(_requestCopySessionByCacheName[cacheName]);
+            }
         }
 
         private delegate Task<Result<(long Chunks, long Bytes)>> StreamContentDelegate(Stream input, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct);

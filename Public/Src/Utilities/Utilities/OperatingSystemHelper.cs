@@ -6,7 +6,7 @@ using System.Linq;
 using Microsoft.Win32;
 using static BuildXL.Interop.Windows.Memory;
 
-#if NET_CORE
+#if PLATFORM_OSX
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
@@ -53,8 +53,17 @@ namespace BuildXL.Utilities
         /// <remarks>This is used for as long as we have older .NET Framework dependencies</remarks>
         public static readonly bool IsUnixOS = Environment.OSVersion.Platform == PlatformID.Unix;
 
-#if NET_CORE
+        /// <summary>
+        /// Indicates if Catalina (10.15) or a higher macOS version is running on the host
+        /// </summary>
+        public static readonly bool IsMacOSCatalinaOrHigher = 
+#if PLATFORM_OSX
+            CurrentMacOSVersion.Major >= 10 && CurrentMacOSVersion.Minor >= 15;
+#else
+            false;
+#endif
 
+#if PLATFORM_OSX
         // Sysctl constants to query CPU information
         private static string MACHDEP_CPU_BRAND_STRING = "machdep.cpu.brand_string";
         private static string MACHDEP_CPU_MODEL = "machdep.cpu.model";
@@ -70,13 +79,6 @@ namespace BuildXL.Utilities
 
         private static readonly Version CurrentMacOSVersion = GetOSVersionMacOS();
 
-#if PLATFORM_OSX
-        /// <summary>
-        /// Indicates if Catalina (10.15) or a higher macOS version is running on the host
-        /// </summary>
-        public static readonly bool IsMacOSCatalinaOrHigher = CurrentMacOSVersion.Major >= 10 && CurrentMacOSVersion.Minor >= 15;
-#endif
-
         private static readonly Tuple<string, string> ProcessorNameAndIdentifierMacOS =
             IsMacOS ? GetProcessorNameAndIdentifierMacOS() : Tuple.Create(String.Empty, String.Empty);
 
@@ -85,7 +87,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static readonly bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
 
-#endif
+#endif // PLATFORM_OSX
 
         /// <summary>
         /// Gets the current OS description e.g. "Windows 10 Enterprise 10.0.10240"
@@ -96,12 +98,13 @@ namespace BuildXL.Utilities
             {
                 return GetOSVersionWindows();
             }
-#if NET_CORE
+#if PLATFORM_OSX
             else if (IsMacOS)
             {
                 return string.Format("macOS {0}.{1}.{2}", CurrentMacOSVersion.Major, CurrentMacOSVersion.Minor, CurrentMacOSVersion.Build);
             }
 #endif
+
             // Extend this once we start supporting Linux etc.
             throw new NotImplementedException("Getting OS version string is not supported on this platform!");
         }
@@ -115,12 +118,13 @@ namespace BuildXL.Utilities
             {
                 return GetProcessorNameWindows();
             }
-#if NET_CORE
+#if PLATFORM_OSX
             else if (IsMacOS)
             {
                 return ProcessorNameAndIdentifierMacOS.Item1;
             }
-#endif
+#endif // PLATFORM_OSX
+
             // Extend this once we start supporting Linux etc.
             throw new NotImplementedException("Getting CPU name is not supported on this platform!");
         }
@@ -134,12 +138,13 @@ namespace BuildXL.Utilities
             {
                 return GetProcessorIdentifierWindows();
             }
-#if NET_CORE
+#if PLATFORM_OSX
             else if (IsMacOS)
             {
                 return ProcessorNameAndIdentifierMacOS.Item2;
             }
-#endif
+#endif // PLATFORM_OSX
+
             // Extend this once we start supporting Linux etc.
             throw new NotImplementedException("Getting CPU identifier is not supported on this platform!");
         }
@@ -153,12 +158,13 @@ namespace BuildXL.Utilities
             {
                 return GetPhysicalMemorySizeWindows();
             }
-#if NET_CORE
+#if PLATFORM_OSX
             else if (IsMacOS)
             {
                 return GetPhysicalMemorySizeMacOS();
             }
-#endif
+#endif // PLATFORM_OSX
+
             // Extend this once we start supporting Linux etc.
             throw new NotImplementedException("Getting physical memory size is not supported on this platform!");
         }
@@ -340,7 +346,7 @@ namespace BuildXL.Utilities
 
         #region macOS Helpers
 
-#if NET_CORE
+#if PLATFORM_OSX
         private static Version GetOSVersionMacOS()
         {
             try
@@ -429,7 +435,7 @@ namespace BuildXL.Utilities
             return new FileSize(physicalPages * pageSize);
         }
 
-#endif
+#endif // PLATFORM_OSX
 
         #endregion
     }

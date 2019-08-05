@@ -174,7 +174,7 @@ namespace BuildXL.Utilities.Configuration
         #endregion
 
         /// <summary>
-        /// Defines whether file sizes and hashes should be exported into the json graph
+        /// Enables runtime cache miss analyzer perform for all pips.
         /// </summary>
         public static readonly Setting<bool> RuntimeCacheMissAllPips = CreateSetting("BuildXLRuntimeCacheMissAllPips", value => value == "1");
 

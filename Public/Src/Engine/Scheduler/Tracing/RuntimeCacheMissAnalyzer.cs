@@ -227,8 +227,7 @@ namespace BuildXL.Scheduler.Tracing
                 return false;
             }
 
-            if (!EngineEnvironmentSettings.RuntimeCacheMissAllPips 
-                && m_changedPips.WasVisited(pipId.ToNodeId()))
+            if (m_changedPips.WasVisited(pipId.ToNodeId()))
             {
                 return false;
             }

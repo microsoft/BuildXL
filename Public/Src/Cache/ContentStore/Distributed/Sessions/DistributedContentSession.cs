@@ -188,7 +188,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private async Task<BoolResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, UrgencyHint urgencyHint)
         {
-            var getLocationsResult = await ContentLocationStore.GetBulkAsync(context, new[] { hash }, context.Token, urgencyHint);
+            var hashArray = new[] { hash };
+
+            // First check in local location store, then global if failed.
+            var getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Local);
+            if (!getLocationsResult.Succeeded || getLocationsResult.ContentHashesInfo[0].Locations.Count == 0)
+            {
+                getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Global);
+            }
+
             if (getLocationsResult.Succeeded)
             {
                 if (getLocationsResult.ContentHashesInfo[0].Locations.Count == 1)

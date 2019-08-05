@@ -174,6 +174,11 @@ namespace BuildXL.Utilities.Configuration
         #endregion
 
         /// <summary>
+        /// Defines whether file sizes and hashes should be exported into the json graph
+        /// </summary>
+        public static readonly Setting<bool> RuntimeCacheMissAllPips = CreateSetting("BuildXLRuntimeCacheMissAllPips", value => value == "1");
+
+        /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>
         public static void SetVariable(string name, string value)

@@ -2,15 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Linq;
-using Microsoft.Win32;
-using static BuildXL.Interop.Windows.Memory;
-
-#if PLATFORM_OSX
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
-#endif
+using Microsoft.Win32;
+using static BuildXL.Interop.Windows.Memory;
 
 namespace BuildXL.Utilities
 {
@@ -384,9 +381,9 @@ namespace BuildXL.Utilities
                 process.WaitForExit(ProcessTimeoutMilliseconds);
 
                 // Format of standard output looks like this: 'option_name: value'
-                var sysctlOutput = result.Split(Environment.NewLine);
+                var sysctlOutput = result.Split(Environment.NewLine.ToCharArray());
                 var cpuDescription =
-                    sysctlOutput.Select(x => x.Split(":")).Where(y => y.Length == 2).ToDictionary(z => z[0], z => z[1].Trim());
+                    sysctlOutput.Select(x => x.Split(':')).Where(y => y.Length == 2).ToDictionary(z => z[0], z => z[1].Trim());
 
                 var name = cpuDescription[MACHDEP_CPU_BRAND_STRING];
                 var identifier = string.Format("Family {0} Model {1} Stepping {2}, {3}",

@@ -72,6 +72,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 fileCopier,
                 fileCopier,
                 storeFactory.PathTransformer,
+                copyRequester: null,
                 ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.FileRecordsExist,
                 tempPath,
                 FileSystem,

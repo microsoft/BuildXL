@@ -130,6 +130,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 fileCopier,
                 fileCopier,
                 pathTransformer,
+                copyRequester: null,
                 ContentAvailabilityGuarantee,
                 tempPath,
                 FileSystem,

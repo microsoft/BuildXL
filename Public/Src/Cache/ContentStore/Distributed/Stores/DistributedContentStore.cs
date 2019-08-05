@@ -85,6 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IFileExistenceChecker<T> fileExistenceChecker,
             IFileCopier<T> fileCopier,
             IPathTransformer<T> pathTransform,
+            ICopyRequester copyRequester,
             ReadOnlyDistributedContentSession<T>.ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             AbsolutePath tempFolderForCopies,
             IAbsFileSystem fileSystem,
@@ -107,6 +108,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                   fileExistenceChecker,
                   fileCopier,
                   pathTransform,
+                  copyRequester,
                   contentAvailabilityGuarantee,
                   tempFolderForCopies,
                   fileSystem,
@@ -139,6 +141,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IFileExistenceChecker<T> fileExistenceChecker,
             IFileCopier<T> fileCopier,
             IPathTransformer<T> pathTransform,
+            ICopyRequester copyRequester,
             ReadOnlyDistributedContentSession<T>.ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             AbsolutePath tempFolderForCopies,
             IAbsFileSystem fileSystem,
@@ -176,6 +179,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     fileSystem,
                     fileCopier,
                     fileExistenceChecker,
+                    copyRequester,
                     pathTransform,
                     contentLocationStore);
             };

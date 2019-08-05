@@ -114,6 +114,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Reports about new reputation for a given location.
         /// </summary>
         void ReportReputation(MachineLocation location, MachineReputation reputation);
+
+        /// <summary>
+        /// Returns all the known machine locations.
+        /// </summary>
+        MachineLocation[] GetKnownMachineLocations();
     }
 
     /// <summary>

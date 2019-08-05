@@ -62,7 +62,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         // The method used for remote pins depends on which pin configuraiton is enabled.
         private readonly RemotePinAsync _remotePinner;
 
-        private readonly byte[] _localCacheRootMachineData;
         private readonly ContentAvailabilityGuarantee _contentAvailabilityGuarantee;
         private BackgroundTaskTracker _backgroundTaskTracker;
 
@@ -71,6 +70,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// </summary>
         internal readonly IContentLocationStore ContentLocationStore;
 
+        /// <summary>
+        /// The machine location for the current cache.
+        /// </summary>
+        protected readonly byte[] LocalCacheRootMachineData;
 
         /// <summary>
         /// The content session that actually stores content.
@@ -80,12 +83,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedContentSession<T>));
 
+        /// <nodoc />
+        protected readonly DistributedContentCopier<T> DistributedCopier;
+
         /// <summary>
         /// Updates content tracker lazily or eagerly based on local age.
         /// </summary>
         private readonly ContentTrackerUpdater _contentTrackerUpdater;
 
-        private readonly DistributedContentCopier<T> _distributedCopier;
         private readonly DistributedContentStoreSettings _settings;
 
         /// <summary>
@@ -110,7 +115,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             Inner = inner;
             ContentLocationStore = contentLocationStore;
-            _localCacheRootMachineData = localMachineLocation;
+            LocalCacheRootMachineData = localMachineLocation;
             _contentAvailabilityGuarantee = contentAvailabilityGuarantee;
             _settings = settings;
 
@@ -127,7 +132,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
 
             _contentTrackerUpdater = contentTrackerUpdater;
-            _distributedCopier = contentCopier;
+            DistributedCopier = contentCopier;
         }
 
         /// <inheritdoc />
@@ -565,7 +570,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return BoolResult.Success;
         }
 
-        private async Task<PutResult> TryCopyAndPutAsync(Context context, ContentHashWithSizeAndLocations hashInfo, CancellationToken cts, UrgencyHint urgencyHint, bool trace = true)
+        /// <nodoc />
+        protected async Task<PutResult> TryCopyAndPutAsync(Context context, ContentHashWithSizeAndLocations hashInfo, CancellationToken cts, UrgencyHint urgencyHint, bool trace = true)
         {
             if (trace)
             {
@@ -590,7 +596,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                 byte[] bytes = null;
 
-                var putResult = await _distributedCopier.TryCopyAndPutAsync(
+                var putResult = await DistributedCopier.TryCopyAndPutAsync(
                     operationContext,
                     hashInfo,
                     handleCopyAsync: async args =>
@@ -827,7 +833,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             // If we have enough records that we would be satisfied if they were verified, verify them.
             // Skip this step if no IO slots are available; if we would have to spend time waiting on them, we might as well just move on to copying.
-            if (locations.Count >= minVerifiedCount && _distributedCopier.CurrentIoGateCount > 0)
+            if (locations.Count >= minVerifiedCount && DistributedCopier.CurrentIoGateCount > 0)
             {
                 var verify = await VerifyAsync(operationContext, remote, cancel);
                 Tracer.Info(operationContext, $"For hash {remote.ContentHash.ToShortString()}, of {locations.Count} remote records, verified {verify.Present.Count} remote copies present and {verify.Absent.Count} remote copies absent.");
@@ -938,7 +944,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         // throttling, its own timeout) than we want or expect; we should dig into this.
         private async Task<DistributedContentCopier<T>.VerifyResult> VerifyAsync(Context context, ContentHashWithSizeAndLocations remote, CancellationToken cancel)
         {
-            var verifyResult = await _distributedCopier.VerifyAsync(context, remote, cancel);
+            var verifyResult = await DistributedCopier.VerifyAsync(context, remote, cancel);
 
             var absent = verifyResult.Absent;
             if (absent.Count > 0)
@@ -991,7 +997,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         protected override CounterSet GetCounters()
         {
             var set = base.GetCounters();
-            set.Merge(_distributedCopier.GetCounters());
+            set.Merge(DistributedCopier.GetCounters());
             return set;
         }
     }

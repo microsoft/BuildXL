@@ -130,5 +130,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return _idByLocationMap.TryGetValue(machineLocation, out machineId);
         }
+
+        /// <summary>
+        /// Gets all locations that are currently known.
+        /// </summary>
+        public MachineLocation[] GetKnownLocations() => _idByLocationMap.Keys.ToArray();
     }
 }

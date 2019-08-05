@@ -182,6 +182,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _arguments.Copier,
                     _arguments.Copier,
                     _arguments.PathTransformer,
+                    _arguments.CopyRequester,
                     contentAvailabilityGuarantee,
                     localCacheRoot,
                     _fileSystem,

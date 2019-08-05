@@ -1306,6 +1306,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return _blobAdapter.GetBlobAsync(context, hash);
         }
 
+        /// <inheritdoc />
+        public MachineLocation[] GetKnownMachineLocations() => _idsByLocation.Keys.ToArray();
+
         /// <summary>
         /// Gets the page size used in bulk Redis queries.
         /// </summary>

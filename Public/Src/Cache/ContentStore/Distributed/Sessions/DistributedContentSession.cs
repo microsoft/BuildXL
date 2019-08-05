@@ -2,11 +2,15 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -22,9 +26,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     /// A content location based content session with an inner content session for storage.
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class DistributedContentSession<T> : ReadOnlyDistributedContentSession<T>, IContentSession
+    public class DistributedContentSession<T> : ReadOnlyDistributedContentSession<T>, IContentSession, IFileCopyingSession
         where T : PathBase
     {
+        private static Random Random = new Random();
         /// <summary>
         /// Initializes a new instance of the <see cref="DistributedContentSession{T}"/> class.
         /// </summary>
@@ -49,6 +54,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 contentTrackerUpdater: contentTrackerUpdater,
                 settings)
         {
+        }
+
+        /// <inheritdoc />
+        public Task<PutResult> TryCopyAndPutAsync(Context context, ContentHash hash, string machineLocation)
+        {
+            var hashWithLocation = new ContentHashWithSizeAndLocations(hash, locations: new[] { new MachineLocation(machineLocation) });
+            return TryCopyAndPutAsync(context, hashWithLocation, CancellationToken.None, UrgencyHint.Nominal);
         }
 
         /// <inheritdoc />
@@ -144,17 +156,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 result = await putAsync(Inner);
             }
 
-            return await RegisterPutAsync(context, context.Token, UrgencyHint.Nominal, result);
+            var putResult = await RegisterPutAsync(context, UrgencyHint.Nominal, result);
+
+            RequestProactiveCopyIfNeededAsync(context, putResult.ContentHash, UrgencyHint.Nominal).FireAndForget(context);
+
+            return putResult;
         }
 
-        private async Task<PutResult> RegisterPutAsync(Context context, CancellationToken cts, UrgencyHint urgencyHint, PutResult putResult)
+        private async Task<PutResult> RegisterPutAsync(OperationContext context, UrgencyHint urgencyHint, PutResult putResult)
         {
             if (putResult.Succeeded)
             {
                 var updateResult = await ContentLocationStore.RegisterLocalLocationAsync(
                     context,
                     new [] { new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize) },
-                    cts,
+                    context.Token,
                     urgencyHint);
 
                 if (!updateResult.Succeeded)
@@ -164,6 +180,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
 
             return putResult;
+        }
+
+        private async Task<BoolResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, UrgencyHint urgencyHint)
+        {
+            var getLocationsResult = await ContentLocationStore.GetBulkAsync(context, new[] { hash }, context.Token, urgencyHint);
+            if (getLocationsResult.Succeeded)
+            {
+                if (getLocationsResult.ContentHashesInfo[0].Locations.Count == 1)
+                {
+                    var locations = ContentLocationStore.GetKnownMachineLocations();
+                    var location = locations[Random.Next(locations.Length)];
+
+                    return await DistributedCopier.RequestCopyFileAsync(context, hash, location, new MachineLocation(LocalCacheRootMachineData));
+                }
+
+                return BoolResult.Success;
+            }
+
+            return new BoolResult(getLocationsResult);
         }
     }
 }

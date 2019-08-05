@@ -44,44 +44,6 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// Writes a directory artifact
-        /// </summary>
-        public override void Write(DirectoryArtifact value)
-        {
-            FullSymbol variableName;
-            if (m_pipGraphFragmentContext.TryGetVariableNameForDirectory(value, out variableName))
-            {
-                m_inliningWriter.Write(true);
-                m_inliningWriter.Write(variableName);
-                m_inliningWriter.Write(value);
-            }
-            else
-            {
-                m_inliningWriter.Write(false);
-                m_inliningWriter.Write(value);
-            }
-        }
-
-        /// <summary>
-        /// Writes a pip id value
-        /// </summary>
-        public override void WritePipIdValue(uint value)
-        {
-            FullSymbol variableName;
-            if (m_pipGraphFragmentContext.TryGetVariableNameForPipIdValue(value, out variableName))
-            {
-                m_inliningWriter.Write(true);
-                m_inliningWriter.Write(variableName);
-                m_inliningWriter.Write(value);
-            }
-            else
-            {
-                m_inliningWriter.Write(false);
-                m_inliningWriter.Write(value);
-            }
-        }
-
-        /// <summary>
         /// Writes a path atom
         /// </summary>
         public override void Write(PathAtom value)

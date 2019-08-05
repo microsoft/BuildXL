@@ -297,10 +297,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             var startTime = DateTime.UtcNow;
             var cacheContext = new OperationContext(new Context(new Guid(request.TraceId), _logger), cancellationToken);
 
-            var session = await GetRequestCopySessionAsync(cacheContext, request.CacheName);
+            var sessionResult = await GetRequestCopySessionAsync(cacheContext, request.CacheName);
+            if (!sessionResult.Succeeded)
+            {
+                return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, sessionResult.ErrorMessage) };
+            }
 
             string errorMessage;
-            if (session is IFileCopyingSession copyingSession)
+            if (sessionResult.Value is IFileCopyingSession copyingSession)
             {
                 var putResult = await copyingSession.TryCopyAndPutAsync(cacheContext, request.ContentHash.ToContentHash((HashType)request.HashType), request.MachineLocation);
 
@@ -313,7 +317,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
             else
             {
-                errorMessage = $"Could not copy file since {session.GetType()} does not implement {typeof(IFileCopyingSession)}";
+                errorMessage = $"Could not copy file since {sessionResult.Value.GetType()} does not implement {typeof(IFileCopyingSession)}";
             }
 
             return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, errorMessage) };

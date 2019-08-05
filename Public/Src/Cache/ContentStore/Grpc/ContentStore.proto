@@ -23,7 +23,7 @@ service ContentServer {
     rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse) {}
 
     rpc RemoveFromTracker(RemoveFromTrackerRequest) returns (RemoveFromTrackerResponse) {}
-    
+
     rpc CopyFile(CopyFileRequest) returns (stream CopyFileResponse) {}
 
     rpc CheckFileExists(ExistenceRequest) returns (ExistenceResponse) {}

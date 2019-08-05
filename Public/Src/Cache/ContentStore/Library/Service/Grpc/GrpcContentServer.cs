@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Compression;
@@ -622,11 +621,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         private async Task<T> RunFuncAndReportAsync<T>(
-            int? sessionId,
+            int sessionId,
             Func<IContentSession, Task<T>> taskFunc,
             Func<string, T> failFunc)
         {
-            if (!_sessionHandler.TryGetSession(sessionId.Value, out var session))
+            if (!_sessionHandler.TryGetSession(sessionId, out var session))
             {
                 return failFunc($"Could not find session for session ID {sessionId}");
             }

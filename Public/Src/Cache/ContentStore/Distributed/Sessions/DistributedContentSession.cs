@@ -30,6 +30,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         where T : PathBase
     {
         private static Random Random = new Random();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="DistributedContentSession{T}"/> class.
         /// </summary>
@@ -158,7 +159,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             var putResult = await RegisterPutAsync(context, UrgencyHint.Nominal, result);
 
-            RequestProactiveCopyIfNeededAsync(context, putResult.ContentHash, UrgencyHint.Nominal).FireAndForget(context);
+            if (putResult.Succeeded)
+            {
+                RequestProactiveCopyIfNeededAsync(context, putResult.ContentHash, UrgencyHint.Nominal).FireAndForget(context);
+            }
 
             return putResult;
         }

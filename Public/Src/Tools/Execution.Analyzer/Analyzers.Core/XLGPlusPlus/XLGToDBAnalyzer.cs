@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
@@ -186,7 +187,7 @@ namespace BuildXL.Execution.Analyzer
                 Value = (uint)m_eventCount
             };
 
-            WriteToDb(Encoding.ASCII.GetBytes("EventCount"), ec.ToByteArray());
+            WriteToDb(Encoding.ASCII.GetBytes(XldbDataStore.EventCountKey), ec.ToByteArray());
             return 0;
         }
 

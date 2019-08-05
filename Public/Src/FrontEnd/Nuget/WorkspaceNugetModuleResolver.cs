@@ -1249,7 +1249,7 @@ namespace BuildXL.FrontEnd.Nuget
                         disableConHostSharing: true,
                         ContainerConfiguration.DisabledIsolation,
                         loggingContext: m_context.LoggingContext,
-                        sandboxedKextConnection: m_useMonoBasedNuGet ? new FakeKextConnection() : null)
+                        sandboxConnection: m_useMonoBasedNuGet ? new SandboxConnectionFake() : null)
                     {
                         Arguments = arguments,
                         WorkingDirectory = layout.TempDirectory.ToString(PathTable),
@@ -1354,7 +1354,7 @@ namespace BuildXL.FrontEnd.Nuget
             }
         }
 
-        private class FakeKextConnection : IKextConnection
+        private class SandboxConnectionFake : ISandboxConnection
         {
             public int NumberOfKextConnections => 1;
 
@@ -1378,11 +1378,11 @@ namespace BuildXL.FrontEnd.Nuget
 
             public bool NotifyUsage(uint cpuUsage, uint availableRamMB) { return true; }
 
-            public bool NotifyKextPipStarted(FileAccessManifest fam, SandboxedProcessMacKext process) { return true; }
+            public bool NotifyPipStarted(FileAccessManifest fam, SandboxedProcessMac process) { return true; }
 
-            public void NotifyKextPipProcessTerminated(long pipId, int processId) { }
+            public void NotifyPipProcessTerminated(long pipId, int processId) { }
 
-            public bool NotifyKextProcessFinished(long pipId, SandboxedProcessMacKext process) { return true; }
+            public bool NotifyProcessFinished(long pipId, SandboxedProcessMac process) { return true; }
 
             public void ReleaseResources() { }
         }

@@ -27,7 +27,7 @@ namespace BuildXL.Processes
     /// <summary>
     /// An implementation of <see cref="ISandboxedProcess"/> that doesn't perform any sandboxing.
     /// </summary>
-    public class UnSandboxedProcess : ISandboxedProcess
+    public class UnsandboxedProcess : ISandboxedProcess
     {
         private static readonly ISet<ReportedFileAccess> s_emptyFileAccessesSet = new HashSet<ReportedFileAccess>();
         private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromMinutes(SandboxConfiguration.DefaultProcessTimeoutInMinutes);
@@ -92,7 +92,7 @@ namespace BuildXL.Processes
         protected virtual bool HasSandboxFailures => false;
 
         /// <nodoc />
-        public UnSandboxedProcess(SandboxedProcessInfo info)
+        public UnsandboxedProcess(SandboxedProcessInfo info)
         {
             Contract.Requires(info != null);
 
@@ -270,7 +270,7 @@ namespace BuildXL.Processes
 
             ProcessDumper.TryDumpProcessAndChildren(ProcessId, ProcessInfo.TimeoutDumpDirectory, out m_dumpCreationException);
 
-            LogProcessState($"UnSandboxedProcess::KillAsync()");
+            LogProcessState($"UnsandboxedProcess::KillAsync()");
             return m_processExecutor.KillAsync();
         }
 

@@ -150,7 +150,7 @@ namespace Test.BuildXL.Processes.Detours
                 buildEngineDirectory: binDirectory,
                 directoryTranslator: directoryTranslator,
                 isQbuildIntegrated: isQuickBuildIntegrated,
-                tempDirectoryCleaner: MoveDeleteCleaner).RunAsync(SandboxConnection: GetSandboxConnection());
+                tempDirectoryCleaner: MoveDeleteCleaner).RunAsync(GetSandboxConnection());
         }
 
         [Fact]

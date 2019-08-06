@@ -206,7 +206,7 @@ namespace BuildXL.Processes
         public int GetLastMessageCount() => 0;
 
         /// <inheritdoc />
-        public virtual async Task<SandboxedProcessResult> GetResultAsync()
+        public async Task<SandboxedProcessResult> GetResultAsync()
         {
             Contract.Requires(Started);
 
@@ -229,13 +229,13 @@ namespace BuildXL.Processes
 
             var reportFileAccesses = ProcessInfo.FileAccessManifest?.ReportFileAccesses == true;
             var fileAccesses = reportFileAccesses ? (reports?.FileAccesses ?? s_emptyFileAccessesSet) : null;
-
             return new SandboxedProcessResult
             {
                 ExitCode                            = m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
                 Killed                              = Killed,
                 TimedOut                            = m_processExecutor.TimedOut,
                 HasDetoursInjectionFailures         = HasSandboxFailures,
+                JobAccountingInformation            = GetJobAccountingInfo(),
                 StandardOutput                      = m_output.Freeze(),
                 StandardError                       = m_error.Freeze(),
                 HasReadWriteToReadFileAccessRequest = reports?.HasReadWriteToReadFileAccessRequest ?? false,
@@ -391,6 +391,12 @@ namespace BuildXL.Processes
         {
             // 'Dispatch.GetProcessTimes()' doesn't work because the process has already exited
             return CpuTimes.Zeros;
+        }
+
+        /// <nodoc/>
+        internal virtual JobObject.AccountingInformation GetJobAccountingInfo()
+        {
+            return default;
         }
 
         private ProcessTimes GetProcessTimes()

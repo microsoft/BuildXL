@@ -7,16 +7,15 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using BuildXL.Interop;
+using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
-using BuildXL.Interop.MacOS;
 using static BuildXL.Interop.MacOS.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -28,23 +27,30 @@ namespace BuildXL.Processes
     /// </summary>
     public sealed class SandboxedProcessMac : UnsandboxedProcess
     {
-        private const string TimeUtil = "/usr/bin/time";
+        private class PerfAggregator
+        {
+            internal PerformanceCollector.Aggregation KernelTimeMs { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation UserTimeMs { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation JobKernelTimeMs { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation JobUserTimeMs { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation PeakMemoryBytes { get; } = new PerformanceCollector.Aggregation();
+        }
+
+        /// <summary>
+        /// Interval at which the process is probed for its counters (e.g., CPU time, memory usage, etc.)
+        /// </summary>
+        public static readonly TimeSpan PerfProbeInternal = TimeSpan.FromSeconds(2);
 
         private readonly SandboxedProcessReports m_reports;
 
         private readonly ActionBlock<AccessReport> m_pendingReports;
 
+        private readonly Timer m_perfTimer;
+        private readonly PerfAggregator m_perfAggregator;
+
         private IEnumerable<ReportedProcess> m_survivingChildProcesses;
 
         private long m_processKilledFlag = 0;
-
-        private string m_lastStdErrLine = null;
-        private CpuTimes m_cpuTimes = null;
-
-        private const string RealGrp = "real";
-        private const string UserGrp = "user";
-        private const string SysGrp  = "sys";
-        private static readonly Regex s_timeRegex = new Regex($@"\s+(?<{RealGrp}>\d+\.\d*) real\s+(?<{UserGrp}>\d+\.\d*) user\s+(?<{SysGrp}>\d+\.\d*) sys\s*$");
 
         /// <summary>
         /// Returns the associated PipId
@@ -106,6 +112,14 @@ namespace BuildXL.Processes
                 ? overrideMeasureTime.Value
                 : info.SandboxConnection.MeasureCpuTimes;
 
+            m_perfAggregator = new PerfAggregator();
+
+            m_perfTimer = new Timer(
+                callback: UpdatePerfCounters,
+                state: this,
+                dueTime: Timeout.InfiniteTimeSpan, // don't automatically start the timer
+                period: Timeout.InfiniteTimeSpan);
+
             m_reports = new SandboxedProcessReports(
                 info.FileAccessManifest,
                 info.PathTable,
@@ -127,6 +141,33 @@ namespace BuildXL.Processes
             ProcessStarted += () => OnProcessStartedAsync().GetAwaiter().GetResult();
         }
 
+        private static void UpdatePerfCounters(object state)
+        {
+            var proc = (SandboxedProcessMac)state;
+            var buffer = new Process.ProcessTimesInfo();
+
+            // get processor times for the root process itself
+            int errCode = Interop.MacOS.Process.GetProcessTimes(proc.ProcessId, ref buffer, includeChildProcesses: false);
+            if (errCode == 0)
+            {
+                proc.m_perfAggregator.KernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
+                proc.m_perfAggregator.UserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
+            }
+
+            // get processor times for the process tree
+            errCode = Interop.MacOS.Process.GetProcessTimes(proc.ProcessId, ref buffer, includeChildProcesses: true);
+            if (errCode == 0)
+            {
+                proc.m_perfAggregator.JobKernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
+                proc.m_perfAggregator.JobUserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
+            }
+
+            proc.m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakMemoryUsage(default, proc.ProcessId));
+
+            // reschedule the timer to fire again in PerfProbeInterval time (2 seconds)
+            proc.m_perfTimer.Change(dueTime: PerfProbeInternal, period: Timeout.InfiniteTimeSpan);
+        }
+
         /// <inheritdoc />
         protected override System.Diagnostics.Process CreateProcess()
         {
@@ -135,6 +176,10 @@ namespace BuildXL.Processes
             process.StartInfo.FileName = "/bin/sh";
             process.StartInfo.Arguments = string.Empty;
             process.StartInfo.RedirectStandardInput = true;
+
+            // Stop the perf timer when the process exits
+            // NOTE: even if the timer fires after the process has exited, nothing bad should happen
+            process.Exited += (o, e) => m_perfTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
             return process;
         }
@@ -165,11 +210,8 @@ namespace BuildXL.Processes
 
             if (MeasureCpuTime)
             {
-                // Allow read access for /usr/bin/time
-                ProcessInfo.FileAccessManifest.AddPath(
-                    AbsolutePath.Create(PathTable, TimeUtil),
-                    mask: FileAccessPolicy.MaskNothing,
-                    values: FileAccessPolicy.AllowReadAlways);
+                // start the timer now
+                m_perfTimer.Change(dueTime: TimeSpan.FromSeconds(0), period: Timeout.InfiniteTimeSpan);
             }
 
             if (!SandboxConnectionKext.NotifyPipStarted(ProcessInfo.FileAccessManifest, this))
@@ -216,14 +258,7 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         protected override IEnumerable<ReportedProcess> GetSurvivingChildProcesses()
         {
-            if (MeasureCpuTime && ProcessInfo.AllowedSurvivingChildProcessNames?.Any() == true)
-            {
-                return m_survivingChildProcesses.Where(p => p.Path != TimeUtil);
-            }
-            else
-            {
-                return m_survivingChildProcesses;
-            }
+            return m_survivingChildProcesses;
         }
 
         /// <summary>
@@ -256,6 +291,7 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override void Dispose()
         {
+            m_perfTimer.Dispose();
             m_timeoutTaskCancelationSource.Cancel();
 
             var reportCount = Counters.GetCounterValue(SandboxedProcessCounters.AccessReportCount);
@@ -303,7 +339,6 @@ namespace BuildXL.Processes
             var aliveProcessesNames = CoalesceProcesses(GetCurrentlyActiveProcesses()).Select(p => Path.GetFileName(p.Path));
             return aliveProcessesNames
                 .Except(AllowedSurvivingChildProcessNames)
-                .Except(MeasureCpuTime ? new[] { Path.GetFileName(TimeUtil) } : CollectionUtilities.EmptyArray<string>())
                 .Any();
         }
 
@@ -333,9 +368,8 @@ namespace BuildXL.Processes
             string processStdinFileName = await FlushStandardInputToFileIfNeededAsync();
             string redirectedStdin      = processStdinFileName != null ? $" < {processStdinFileName}" : string.Empty;
             string escapedArguments     = ProcessInfo.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
-            string maybeTime            = MeasureCpuTime ? TimeUtil : string.Empty;
 
-            string line = I($"exec {maybeTime} {ProcessInfo.FileName} {escapedArguments} {redirectedStdin}");
+            string line = I($"exec {ProcessInfo.FileName} {escapedArguments} {redirectedStdin}");
 
             LogProcessState("Feeding stdin: " + line);
             await Process.StandardInput.WriteLineAsync(line);
@@ -344,63 +378,31 @@ namespace BuildXL.Processes
 
         internal override void FeedStdErr(SandboxedProcessOutputBuilder builder, string line)
         {
-            if (line == null) // designates EOF
-            {
-                // extract cpu times from the last recorder line (which should be the output of /usr/bin/time)
-                m_cpuTimes = ExtractCpuTimes(m_lastStdErrLine, out string unprocessedFragment);
-
-                // feed whatever wasn't consumed
-                FeedOutputBuilder(builder, unprocessedFragment);
-
-                // feed EOF
-                FeedOutputBuilder(builder, null);
-            }
-            else
-            {
-                // feed previous line (if any)
-                if (m_lastStdErrLine != null)
-                {
-                    FeedOutputBuilder(builder, m_lastStdErrLine);
-                }
-
-                // update previous line
-                m_lastStdErrLine = line;
-            }
-        }
-
-        private static CpuTimes ExtractCpuTimes(string line, out string unprocessedPrefix)
-        {
-            if (line == null)
-            {
-                unprocessedPrefix = line;
-                return null;
-            }
-            
-            Match m = s_timeRegex.Match(line);
-            if (!m.Success)
-            {
-                unprocessedPrefix = line;
-                return null;
-            }
-
-            unprocessedPrefix = line.Substring(0, m.Index);
-            return new CpuTimes(
-                user: ToTimeSpan(m.Groups[UserGrp]), 
-                system: ToTimeSpan(m.Groups[SysGrp]));
-
-            TimeSpan ToTimeSpan(Group grp)
-            {
-                float seconds = float.Parse(grp.Value);
-                long millis = (long)Math.Round(seconds * 1000);
-                return TimeSpan.FromMilliseconds(millis);
-            }
+            FeedOutputBuilder(builder, line);
         }
 
         /// <nodoc />
         [NotNull]
         internal override CpuTimes GetCpuTimes()
         {
-            return m_cpuTimes ?? base.GetCpuTimes();
+            return !MeasureCpuTime
+                ? base.GetCpuTimes()
+                : new CpuTimes(
+                    user: TimeSpan.FromMilliseconds(m_perfAggregator.UserTimeMs.Latest),
+                    system: TimeSpan.FromMilliseconds(m_perfAggregator.KernelTimeMs.Latest));
+        }
+
+        // <inheritdoc />
+        internal override JobObject.AccountingInformation GetJobAccountingInfo()
+        {
+            return !MeasureCpuTime
+                ? base.GetJobAccountingInfo()
+                : new JobObject.AccountingInformation
+                {
+                    PeakMemoryUsage = (ulong)m_perfAggregator.PeakMemoryBytes.Maximum,
+                    KernelTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobKernelTimeMs.Latest),
+                    UserTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobUserTimeMs.Latest),
+                };
         }
 
         private void ReportProcessCreated()

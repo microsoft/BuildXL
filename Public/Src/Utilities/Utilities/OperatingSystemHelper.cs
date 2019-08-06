@@ -2,15 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Linq;
-using Microsoft.Win32;
-using static BuildXL.Interop.Windows.Memory;
-
-#if NET_CORE
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
-#endif
+using Microsoft.Win32;
+using static BuildXL.Interop.Windows.Memory;
 
 namespace BuildXL.Utilities
 {
@@ -48,12 +45,30 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Indicates if BuildXL is running on macOS
+        /// </summary>
+        public static readonly bool IsMacOS = 
+#if PLATFORM_OSX
+            true;
+#else
+            false;
+#endif
+
+        /// <summary>
         /// Indicates if BuildXL is running on a Unix based operating system
         /// </summary>
         /// <remarks>This is used for as long as we have older .NET Framework dependencies</remarks>
         public static readonly bool IsUnixOS = Environment.OSVersion.Platform == PlatformID.Unix;
 
-#if NET_CORE
+        private static readonly Lazy<Version> CurrentMacOSVersion = new Lazy<Version>(() => GetOSVersionMacOS());
+
+        private static readonly Tuple<string, string> ProcessorNameAndIdentifierMacOS =
+            IsMacOS ? GetProcessorNameAndIdentifierMacOS() : Tuple.Create(String.Empty, String.Empty);
+
+        /// <summary>
+        /// Indicates if Catalina (10.15) or a higher macOS version is running on the host
+        /// </summary>
+        public static readonly bool IsMacOSCatalinaOrHigher = IsMacOS && CurrentMacOSVersion.Value.Major >= 10 && CurrentMacOSVersion.Value.Minor >= 15;
 
         // Sysctl constants to query CPU information
         private static string MACHDEP_CPU_BRAND_STRING = "machdep.cpu.brand_string";
@@ -64,30 +79,6 @@ namespace BuildXL.Utilities
         private const int ProcessTimeoutMilliseconds = 1000;
 
         /// <summary>
-        /// Indicates if BuildXL is running on macOS
-        /// </summary>
-        public static readonly bool IsMacOS = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-
-        private static readonly Version CurrentMacOSVersion = GetOSVersionMacOS();
-
-#if PLATFORM_OSX
-        /// <summary>
-        /// Indicates if Catalina (10.15) or a higher macOS version is running on the host
-        /// </summary>
-        public static readonly bool IsMacOSCatalinaOrHigher = CurrentMacOSVersion.Major >= 10 && CurrentMacOSVersion.Minor >= 15;
-#endif
-
-        private static readonly Tuple<string, string> ProcessorNameAndIdentifierMacOS =
-            IsMacOS ? GetProcessorNameAndIdentifierMacOS() : Tuple.Create(String.Empty, String.Empty);
-
-        /// <summary>
-        /// Indicates if BuildXL is running on Linux
-        /// </summary>
-        public static readonly bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
-
-#endif
-
-        /// <summary>
         /// Gets the current OS description e.g. "Windows 10 Enterprise 10.0.10240"
         /// </summary>
         public static string GetOSVersion()
@@ -96,12 +87,11 @@ namespace BuildXL.Utilities
             {
                 return GetOSVersionWindows();
             }
-#if NET_CORE
             else if (IsMacOS)
             {
-                return string.Format("macOS {0}.{1}.{2}", CurrentMacOSVersion.Major, CurrentMacOSVersion.Minor, CurrentMacOSVersion.Build);
+                return string.Format("macOS {0}.{1}.{2}", CurrentMacOSVersion.Value.Major, CurrentMacOSVersion.Value.Minor, CurrentMacOSVersion.Value.Build);
             }
-#endif
+
             // Extend this once we start supporting Linux etc.
             throw new NotImplementedException("Getting OS version string is not supported on this platform!");
         }
@@ -115,12 +105,11 @@ namespace BuildXL.Utilities
             {
                 return GetProcessorNameWindows();
             }
-#if NET_CORE
             else if (IsMacOS)
             {
                 return ProcessorNameAndIdentifierMacOS.Item1;
             }
-#endif
+
             // Extend this once we start supporting Linux etc.
             throw new NotImplementedException("Getting CPU name is not supported on this platform!");
         }
@@ -134,12 +123,11 @@ namespace BuildXL.Utilities
             {
                 return GetProcessorIdentifierWindows();
             }
-#if NET_CORE
             else if (IsMacOS)
             {
                 return ProcessorNameAndIdentifierMacOS.Item2;
             }
-#endif
+
             // Extend this once we start supporting Linux etc.
             throw new NotImplementedException("Getting CPU identifier is not supported on this platform!");
         }
@@ -153,12 +141,11 @@ namespace BuildXL.Utilities
             {
                 return GetPhysicalMemorySizeWindows();
             }
-#if NET_CORE
             else if (IsMacOS)
             {
                 return GetPhysicalMemorySizeMacOS();
             }
-#endif
+
             // Extend this once we start supporting Linux etc.
             throw new NotImplementedException("Getting physical memory size is not supported on this platform!");
         }
@@ -340,7 +327,6 @@ namespace BuildXL.Utilities
 
         #region macOS Helpers
 
-#if NET_CORE
         private static Version GetOSVersionMacOS()
         {
             try
@@ -395,9 +381,9 @@ namespace BuildXL.Utilities
                 process.WaitForExit(ProcessTimeoutMilliseconds);
 
                 // Format of standard output looks like this: 'option_name: value'
-                var sysctlOutput = result.Split(Environment.NewLine);
+                var sysctlOutput = result.Split(Environment.NewLine.ToCharArray());
                 var cpuDescription =
-                    sysctlOutput.Select(x => x.Split(":")).Where(y => y.Length == 2).ToDictionary(z => z[0], z => z[1].Trim());
+                    sysctlOutput.Select(x => x.Split(':')).Where(y => y.Length == 2).ToDictionary(z => z[0], z => z[1].Trim());
 
                 var name = cpuDescription[MACHDEP_CPU_BRAND_STRING];
                 var identifier = string.Format("Family {0} Model {1} Stepping {2}, {3}",
@@ -428,8 +414,6 @@ namespace BuildXL.Utilities
 
             return new FileSize(physicalPages * pageSize);
         }
-
-#endif
 
         #endregion
     }

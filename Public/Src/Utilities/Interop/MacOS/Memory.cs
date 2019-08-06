@@ -58,7 +58,7 @@ namespace BuildXL.Interop.MacOS
             => GetRamUsageInfo(ref buffer, Marshal.SizeOf(buffer));
 
         /// <summary>
-        /// Returns a process peak working set size to the caller
+        /// Returns a process peak working set size in bytes
         /// </summary>
         /// <param name="pid">The process id to check</param>
         /// <param name="buffer">A long pointer to hold the process peak memory usage</param>

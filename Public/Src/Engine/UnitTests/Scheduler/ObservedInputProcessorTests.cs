@@ -1129,7 +1129,7 @@ namespace Test.BuildXL.Scheduler
                 context.PathTable,
                 AbsolutePath.Create(context.PathTable, Path.Combine(TestOutputDirectory, "config.dc")));
 
-            DummyPipExecutionEnvironment dummy = new DummyPipExecutionEnvironment(LoggingContext, context, config, sandboxedKextConnection: GetSandboxedKextConnection());
+            DummyPipExecutionEnvironment dummy = new DummyPipExecutionEnvironment(LoggingContext, context, config, sandboxConnection: GetSandboxConnection());
             DirectoryMembershipFingerprinter fingerprinter = new DirectoryMembershipFingerprinter(LoggingContext, context);
 
             DirectoryMembershipFingerprinterRule excludeFiles =

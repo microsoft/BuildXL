@@ -340,7 +340,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     var updatingSasToken = secret as UpdatingSasToken;
                     Contract.Assert(!(updatingSasToken is null));
 
-                    credentials.Add(CreateAzureBlobCredentialsFromSasToken(updatingSasToken));
+                    credentials.Add(CreateAzureBlobCredentialsFromSasToken(secretName, updatingSasToken));
                 }
                 else
                 {
@@ -354,11 +354,12 @@ namespace BuildXL.Cache.Host.Service.Internal
             return credentials.ToArray();
         }
 
-        private static AzureBlobStorageCredentials CreateAzureBlobCredentialsFromSasToken(UpdatingSasToken updatingSasToken)
+        private AzureBlobStorageCredentials CreateAzureBlobCredentialsFromSasToken(string secretName, UpdatingSasToken updatingSasToken)
         {
             var storageCredentials = new StorageCredentials(sasToken: updatingSasToken.Token.Token);
-            updatingSasToken.TokenUpdated += (token, sasToken) =>
+updatingSasToken.TokenUpdated += (_, sasToken) =>
             {
+                _logger.Debug($"Updating SAS token for Azure Storage secret {secretName}");
                 storageCredentials.UpdateSASToken(sasToken.Token);
             };
 

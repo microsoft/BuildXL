@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Text;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Execution.Analyzer.Xldb;
 using BuildXL.Utilities;
@@ -18,6 +19,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// </summary>
         private KeyValueStoreAccessor Accessor { get; set; }
         private Dictionary<ExecutionEventId, MessageParser> m_eventParserDictionary = new Dictionary<ExecutionEventId, MessageParser>();
+        public const string EventCountKey = "EventCount";
 
         /// <summary>
         /// Open the datastore and populate the KeyValueStoreAccessor for the XLG++ DB
@@ -78,23 +80,26 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
                 EventTypeID = eventTypeID,
             };
 
-            Analysis.IgnoreResult(
-                Accessor.Use(database =>
+            var maybeFound = Accessor.Use(database =>
+            {
+                foreach (var kvp in database.PrefixSearch(eventQuery.ToByteArray()))
                 {
-                    foreach (var kvp in database.PrefixSearch(eventQuery.ToByteArray()))
+                    if (m_eventParserDictionary.TryGetValue(eventTypeID, out var parser))
                     {
-                        if (m_eventParserDictionary.TryGetValue(eventTypeID, out var parser))
-                        {
-                            storedEvents.Add(parser.ParseFrom(kvp.Value).ToString());
-                        }
-                        else
-                        {
-                            // We will never reach here since this is a private method and we explicitly control which ExecutionEventIDs are passed in (ie. the public facing helper methods below)
-                            _ = Contract.AssertFailure("Invalid Execution Event ID passed in. Exiting");
-                        }
+                        storedEvents.Add(parser.ParseFrom(kvp.Value).ToString());
                     }
-                })
-            );
+                    else
+                    {
+                        // We will never reach here since this is a private method and we explicitly control which ExecutionEventIDs are passed in (ie. the public facing helper methods below)
+                        _ = Contract.AssertFailure("Invalid Execution Event ID passed in. Exiting");
+                    }
+                }
+            });
+
+            if (!maybeFound.Succeeded)
+            {
+                maybeFound.Failure.Throw();
+            }
 
             return storedEvents;
         }
@@ -123,6 +128,11 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// Gets all the Process Execution Monitoring Reported Events
         /// </summary>
         public IEnumerable<string> GetProcessExecutionMonitoringReportedEvents() => GetEventsByType(ExecutionEventId.ProcessExecutionMonitoringReported);
+
+        /// <summary>
+        /// Gets all the Process Execution Monitoring Reported Events
+        /// </summary>
+        public IEnumerable<string> GetProcessFingerprintComputationEvents() => GetEventsByType(ExecutionEventId.ProcessFingerprintComputation);
 
         /// <summary>
         /// Gets all the Extra Event Data Reported Events
@@ -158,6 +168,25 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// Gets all the Pip Execution Directory Outputs Events
         /// </summary>
         public IEnumerable<string> GetPipExecutionDirectoryOutputsEvents() => GetEventsByType(ExecutionEventId.PipExecutionDirectoryOutputs);
+
+        /// <summary>
+        /// Gets the total number of stored xlg events in the database, 0 if the accessor was unsuccesful.
+        /// </summary>
+        public uint GetEventCount()
+        {
+            var maybeFound = Accessor.Use(database =>
+            {
+                database.TryGetValue(Encoding.ASCII.GetBytes(EventCountKey), out var eventCountObj);
+                return EventCount.Parser.ParseFrom(eventCountObj).Value;
+            });
+
+            if (!maybeFound.Succeeded)
+            {
+                maybeFound.Failure.Throw();
+            }
+
+            return maybeFound.Result;
+        }
 
         /// <summary>
         /// Closes the connection to the DB

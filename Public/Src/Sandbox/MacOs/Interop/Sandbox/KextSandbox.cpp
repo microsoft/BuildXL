@@ -1,17 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#include <IOKit/IOKitLib.h>
-#include <IOKit/IODataQueueClient.h>
 #include <IOKit/kext/KextManager.h>
-
-#include <signal.h>
-#include <mach/mach_time.h>
-
-#include "Sandbox.h"
-#include "StringOperations.h"
-
-os_log_t logger = os_log_create(kBuildXLBundleIdentifier, "Logger");
+#include "KextSandbox.h"
 
 class AutoRelease
 {
@@ -37,11 +28,6 @@ extern "C"
     bool SendClientAttached(KextConnectionInfo info);
 
 #pragma mark IOKit Service and Connection initialization
-
-    void SetLogger(os_log_t newLogger)
-    {
-        logger = newLogger;
-    }
 
     static kern_return_t openMacSanboxIOKitService(io_connect_t *connect)
     {
@@ -241,13 +227,6 @@ extern "C"
         CFDictionaryApplyFunction(kextInfo, GetCurrentKextVersion, &c);
     }
 
-#pragma mark Exported interop functions
-
-    int NormalizePathAndReturnHash(const BYTE *path, BYTE *buffer, int bufferSize)
-    {
-        return NormalizeAndHashPath((PCPathChar)path, buffer, bufferSize);
-    }
-
 #pragma mark SendPipStatus functions
 
     static bool SendPipStatus(const pid_t processId, pipid_t pipId, const char *const payload, int payloadLength,
@@ -277,16 +256,6 @@ extern "C"
 
         log_debug("SendPipStatus succeeded for action: %d", data.action);
         return true;
-    }
-
-    bool SendPipStarted(const pid_t processId, pipid_t pipId, const char *const famBytes, int famBytesLength, KextConnectionInfo info)
-    {
-        return SendPipStatus(processId, pipId, famBytes, famBytesLength, kBuildXLSandboxActionSendPipStarted, info);
-    }
-
-    bool SendPipProcessTerminated(pipid_t pipId, pid_t processId, KextConnectionInfo info)
-    {
-        return SendPipStatus(processId, pipId, NULL, 0, kBuildXLSandboxActionSendPipProcessTerminated, info);
     }
 
     bool CheckForDebugMode(bool *isDebugModeEnabled, KextConnectionInfo info)
@@ -424,4 +393,14 @@ extern "C"
     {
         return mach_absolute_time();
     }
+};
+
+bool KEXT_SendPipStarted(const pid_t processId, pipid_t pipId, const char *const famBytes, int famBytesLength, KextConnectionInfo info)
+{
+    return SendPipStatus(processId, pipId, famBytes, famBytesLength, kBuildXLSandboxActionSendPipStarted, info);
+}
+
+bool KEXT_SendPipProcessTerminated(pipid_t pipId, pid_t processId, KextConnectionInfo info)
+{
+    return SendPipStatus(processId, pipId, NULL, 0, kBuildXLSandboxActionSendPipProcessTerminated, info);
 }

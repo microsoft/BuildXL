@@ -1,10 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#ifndef Sandbox_h
-#define Sandbox_h
-
-#import "BuildXLSandboxShared.hpp"
+#ifndef KextSandbox_h
+#define KextSandbox_h
 
 #define KEXT_SERVICE_NOT_FOUND                     0x1
 #define KEXT_SERVICE_COULD_NOT_OPEN                0x2
@@ -16,36 +14,22 @@
 #define KEXT_THREAD_ID_ERROR                       0x80
 #define KEXT_WRONG_BUFFER_SIZE                     0x100
 
-#define REPORT_QUEUE_SUCCESS                      0x1000
-#define REPORT_QUEUE_CONNECTION_ERROR             0x1001
-#define REPORT_QUEUE_DEQUEUE_ERROR                0x1002
+#include "Common.h"
+
+typedef struct {
+    int error;
+    uint connection;
+    IONotificationPortRef port;
+} KextConnectionInfo;
+
+typedef struct {
+    int error;
+    mach_vm_address_t address;
+    mach_port_t port;
+} KextSharedMemoryInfo;
 
 extern "C"
 {
-    void SetLogger(os_log_t newLogger);
-
-    /*!
-     * Normalized path is stored in 'buffer'.  That buffer must be 'bufferSize' bytes long.
-     *
-     * @param path Path to normalize and hash.
-     * @param buffer Buffer where the normalized path is stored.
-     * @param bufferSize The size of 'buffer' in bytes.
-     * @result Hash of the normalized path.
-     */
-    int NormalizePathAndReturnHash(const BYTE *path, BYTE *buffer, int bufferSize);
-
-    typedef struct {
-        int error;
-        uint connection;
-        IONotificationPortRef port;
-    } KextConnectionInfo;
-
-    typedef struct {
-        int error;
-        mach_vm_address_t address;
-        mach_port_t port;
-    } KextSharedMemoryInfo;
-
     void InitializeKextConnection(KextConnectionInfo *info, long infoSize);
     void InitializeKextSharedMemory(KextSharedMemoryInfo *memoryInfo, long memoryInfoSize, KextConnectionInfo info);
 
@@ -53,9 +37,6 @@ extern "C"
     void DeinitializeKextSharedMemory(KextSharedMemoryInfo memoryInfo, KextConnectionInfo info);
 
     bool Configure(KextConfig config, KextConnectionInfo info);
-
-    bool SendPipStarted(const pid_t processId, pipid_t pipId, const char *const famBytes, int famBytesLength, KextConnectionInfo info);
-    bool SendPipProcessTerminated(pipid_t pipId, pid_t processId, KextConnectionInfo info);
     bool CheckForDebugMode(bool *isDebugModeEnabled, KextConnectionInfo info);
 
     /*!
@@ -69,13 +50,15 @@ extern "C"
     typedef void (__cdecl *FailureNotificationCallback)(void *, IOReturn);
     bool SetFailureNotificationHandler(FailureNotificationCallback callback, KextConnectionInfo info);
 
-    typedef void (__cdecl *AccessReportCallback)(AccessReport, int);
     __cdecl void ListenForFileAccessReports(AccessReportCallback callback, long accessReportSize, mach_vm_address_t address, mach_port_t port);
 
     uint64_t GetMachAbsoluteTime(void);
     __cdecl void KextVersionString(char *version, int size);
 
     bool IntrospectKernelExtension(KextConnectionInfo info, IntrospectResponse *result);
-}
+};
 
-#endif /* sandbox_h */
+bool KEXT_SendPipStarted(const pid_t processId, pipid_t pipId, const char *const famBytes, int famBytesLength, KextConnectionInfo info);
+bool KEXT_SendPipProcessTerminated(pipid_t pipId, pid_t processId, KextConnectionInfo info);
+
+#endif /* KextSandbox_h */

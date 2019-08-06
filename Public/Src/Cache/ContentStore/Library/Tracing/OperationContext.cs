@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Tracing.Internal
@@ -17,6 +18,14 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
     /// </summary>
     public readonly struct OperationContext
     {
+        static OperationContext()
+        {
+            // Ensure result exceptions are demystified.
+            // This class is called almost ubiquitously by code utilizing the cache. So this ensures that most
+            // cases are covered without needing to handle all executables.
+            BuildXL.Cache.ContentStore.Utils.ResultsExtensions.InitializeResultExceptionPreprocessing();
+        }
+
         /// <summary>
         /// Tracing context for an operation.
         /// </summary>

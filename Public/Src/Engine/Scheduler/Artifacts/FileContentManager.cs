@@ -1034,13 +1034,12 @@ namespace BuildXL.Scheduler.Artifacts
         /// <summary>
         /// Attempts to materialize the given file
         /// </summary>
-        public async Task<bool> TryMaterializeFile(FileArtifact outputFile)
+        public async Task<ArtifactMaterializationResult> TryMaterializeFileAsync(FileArtifact outputFile)
         {
             var producer = GetDeclaredProducer(outputFile);
             using (var operationContext = OperationTracker.StartOperation(PipExecutorCounter.FileContentManagerTryMaterializeFileDuration, m_host.LoggingContext))
             {
-                return ArtifactMaterializationResult.Succeeded
-                    == await TryMaterializeFilesAsync(producer, operationContext, new[] { outputFile }, materializatingOutputs: true, isDeclaredProducer: true);
+                return await TryMaterializeFilesAsync(producer, operationContext, new[] { outputFile }, materializatingOutputs: true, isDeclaredProducer: true);
             }
         }
 

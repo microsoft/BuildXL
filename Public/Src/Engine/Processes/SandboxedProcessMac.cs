@@ -143,7 +143,7 @@ namespace BuildXL.Processes
 
         private static void UpdatePerfCounters(object state)
         {
-            var proc = (SandboxedProcessMacKext)state;
+            var proc = (SandboxedProcessMac)state;
             var buffer = new Interop.MacOS.Process.ProcessTimesInfo();
 
             // get processor times for the root process itself

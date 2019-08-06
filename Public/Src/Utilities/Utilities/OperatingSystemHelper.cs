@@ -54,6 +54,9 @@ namespace BuildXL.Utilities
             false;
 #endif
 
+        /// <summary>
+        /// Indicates if BuildXL is running on .NET Core
+        /// </summary>
         public static readonly bool IsDotNetCore =
 #if NET_CORE
             true;

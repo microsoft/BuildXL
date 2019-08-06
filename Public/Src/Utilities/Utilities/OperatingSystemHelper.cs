@@ -263,7 +263,7 @@ namespace BuildXL.Utilities
         public static string GetRuntimeFrameworkNameAndVersion()
         {
             return IsDotNetCore
-                ? Assembly.GetEntryAssembly()?.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName ?? ".NETCore"
+                ? Assembly.GetEntryAssembly()?.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName ?? ".NETCoreApp"
                 : AppDomain.CurrentDomain.SetupInformation.TargetFrameworkName;
         }
 

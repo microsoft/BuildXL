@@ -620,7 +620,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Runs the process pip (uncached).
         /// </summary>
-        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, IKextConnection sandboxedKextConnection = null)
+        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, ISandboxConnection sandboxConnection = null)
         {
             try
             {
@@ -682,7 +682,7 @@ namespace BuildXL.Processes
                         m_containerConfiguration,
                         m_pip.TestRetries,
                         m_loggingContext,
-                        sandboxedKextConnection: sandboxedKextConnection)
+                        sandboxConnection: sandboxConnection)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,

@@ -35,11 +35,11 @@ namespace Test.BuildXL.Scheduler
 
         protected override bool SandboxingWithKextEnabled => OperatingSystemHelper.IsUnixOS;
 
-        protected override bool InitSandboxedKextConnection(LoggingContext loggingContext, IKextConnection kextConnection = null)
+        protected override bool InitSandboxConnectionKext(LoggingContext loggingContext, ISandboxConnection SandboxConnectionKext = null)
         {
             if (SandboxingWithKextEnabled)
             {
-                SandboxedKextConnection = kextConnection ?? XunitBuildXLTest.GetSandboxedKextConnection();
+                SandboxConnection = SandboxConnectionKext ?? XunitBuildXLTest.GetSandboxConnection();
             }
 
             return false;

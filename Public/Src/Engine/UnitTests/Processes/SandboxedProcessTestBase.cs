@@ -44,7 +44,7 @@ namespace Test.BuildXL.Processes
                 this,
                 process.Executable.Path.ToString(Context.PathTable),
                 detoursEventListener: detoursListener,
-                sandboxedKextConnection: GetSandboxedKextConnection(),
+                sandboxConnection: GetSandboxConnection(),
                 disableConHostSharing: disableConHostSharing,
                 fileAccessManifest: fileAccessManifest)
             {

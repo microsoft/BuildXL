@@ -117,8 +117,8 @@ namespace BuildXL.Processes
             m_perfTimer = new Timer(
                 callback: UpdatePerfCounters,
                 state: this,
-                Timeout.InfiniteTimeSpan, // don't automatically start the timer
-                PerfProbeInternal);
+                dueTime: Timeout.InfiniteTimeSpan, // don't automatically start the timer
+                period: Timeout.InfiniteTimeSpan);
 
             m_reports = new SandboxedProcessReports(
                 info.FileAccessManifest,
@@ -144,7 +144,7 @@ namespace BuildXL.Processes
         private static void UpdatePerfCounters(object state)
         {
             var proc = (SandboxedProcessMac)state;
-            var buffer = new Interop.MacOS.Process.ProcessTimesInfo();
+            var buffer = new Process.ProcessTimesInfo();
 
             // get processor times for the root process itself
             int errCode = Interop.MacOS.Process.GetProcessTimes(proc.ProcessId, ref buffer, includeChildProcesses: false);
@@ -163,6 +163,9 @@ namespace BuildXL.Processes
             }
 
             proc.m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakMemoryUsage(default, proc.ProcessId));
+
+            // reschedule the timer to fire again in PerfProbeInterval time (2 seconds)
+            proc.m_perfTimer.Change(dueTime: PerfProbeInternal, period: Timeout.InfiniteTimeSpan);
         }
 
         /// <inheritdoc />
@@ -208,7 +211,7 @@ namespace BuildXL.Processes
             if (MeasureCpuTime)
             {
                 // start the timer now
-                m_perfTimer.Change(TimeSpan.FromSeconds(0), PerfProbeInternal);
+                m_perfTimer.Change(dueTime: TimeSpan.FromSeconds(0), period: Timeout.InfiniteTimeSpan);
             }
 
             if (!SandboxConnectionKext.NotifyPipStarted(ProcessInfo.FileAccessManifest, this))

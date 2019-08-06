@@ -105,7 +105,7 @@ namespace Test.BuildXL.Scheduler.Utils
             bool allowUnspecifiedSealedDirectories = false,
             PipTable pipTable = null,
             IIpcProvider ipcProvider = null,
-            ISandboxConnection SandboxConnection = null)
+            ISandboxConnection sandboxConnection = null)
         {
             Contract.Requires(context != null);
             Contract.Requires(config != null);
@@ -131,7 +131,7 @@ namespace Test.BuildXL.Scheduler.Utils
             Cache = pipCache;
             FileAccessWhitelist = fileAccessWhitelist;
             m_allowUnspecifiedSealedDirectories = allowUnspecifiedSealedDirectories;
-            m_sandboxConnectionKext = SandboxConnection;
+            m_sandboxConnectionKext = sandboxConnection;
 
             if (Cache == null)
             {

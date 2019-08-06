@@ -458,7 +458,7 @@ namespace Test.BuildXL.Scheduler
                     return;
                 }
 
-                Environment = new DummyPipExecutionEnvironment(CreateLoggingContextForTest(), m_context, Configuration, SandboxConnection: GetSandboxConnection());
+                Environment = new DummyPipExecutionEnvironment(CreateLoggingContextForTest(), m_context, Configuration, sandboxConnection: GetSandboxConnection());
                 FileContentManager = new FileContentManager(Environment, new NullOperationTracker());
                 UntrackedOpContext = OperationContext.CreateUntracked(Environment.LoggingContext);
 

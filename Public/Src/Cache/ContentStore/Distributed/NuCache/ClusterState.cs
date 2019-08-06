@@ -133,8 +133,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
-        /// Gets all locations that are currently known.
+        /// Gets a random locations excluding the specified location. Returns default if operation is not possible.
         /// </summary>
-        public MachineLocation GetRandomMachineLocation() => _idByLocationMap.Keys.ElementAt(ThreadSafeRandom.Generator.Next(_idByLocationMap.Keys.Count));
+        public MachineLocation GetRandomMachineLocation(MachineLocation except)
+        {
+            if (_idByLocationMap.Keys.Where(location => !location.Equals(except)).Any())
+            {
+                MachineLocation location;
+                do
+                {
+                    location = _idByLocationMap.Keys.ElementAt(ThreadSafeRandom.Generator.Next(_idByLocationMap.Keys.Count));
+                }
+                while (location.Equals(except));
+
+                return location;
+            }
+
+            return default;
+        }
     }
 }

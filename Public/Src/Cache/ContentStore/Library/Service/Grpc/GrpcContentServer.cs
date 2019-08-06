@@ -336,16 +336,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             if (createSessionResult.Succeeded)
                             {
                                 var session = _sessionHandler.GetSession(createSessionResult.Value.sessionId);
-
-                                var startupResult = await session.StartupAsync(context);
-                                if (startupResult.Succeeded)
-                                {
-                                    _requestCopySessionByCacheName[cacheName] = session;
-                                }
-                                else
-                                {
-                                    return new Result<IContentSession>(startupResult);
-                                }
+                                _requestCopySessionByCacheName[cacheName] = session;
                             }
                             else
                             {

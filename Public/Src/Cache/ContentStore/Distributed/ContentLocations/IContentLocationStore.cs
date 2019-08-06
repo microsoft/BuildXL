@@ -116,9 +116,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
         void ReportReputation(MachineLocation location, MachineReputation reputation);
 
         /// <summary>
-        /// Returns all the known machine locations.
+        /// Returns a random machine location, excluding the specified location. Returns default if operation is not possible.
         /// </summary>
-        MachineLocation GetRandomMachineLocation();
+        MachineLocation GetRandomMachineLocation(MachineLocation except);
     }
 
     /// <summary>

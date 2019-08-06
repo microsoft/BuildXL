@@ -173,6 +173,11 @@ namespace BuildXL.Utilities.Configuration
         #endregion
 
         /// <summary>
+        /// Enables runtime cache miss analyzer perform for all pips.
+        /// </summary>
+        public static readonly Setting<bool> RuntimeCacheMissAllPips = CreateSetting("BuildXLRuntimeCacheMissAllPips", value => value == "1");
+
+        /// <summary>
         /// Sets the variable for consumption by settings
         /// </summary>
         public static void SetVariable(string name, string value)

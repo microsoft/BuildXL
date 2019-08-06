@@ -2,13 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -18,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
@@ -29,8 +27,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     public class DistributedContentSession<T> : ReadOnlyDistributedContentSession<T>, IContentSession, IFileCopyingSession
         where T : PathBase
     {
-        private static Random Random = new Random();
-
         /// <summary>
         /// Initializes a new instance of the <see cref="DistributedContentSession{T}"/> class.
         /// </summary>
@@ -202,7 +198,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 if (getLocationsResult.ContentHashesInfo[0].Locations.Count == 1)
                 {
                     var locations = ContentLocationStore.GetKnownMachineLocations();
-                    var location = locations[Random.Next(locations.Length)];
+                    var location = locations[ThreadSafeRandom.Generator.Next(locations.Length)];
 
                     return await DistributedCopier.RequestCopyFileAsync(context, hash, location, new MachineLocation(LocalCacheRootMachineData));
                 }

@@ -924,7 +924,9 @@ namespace BuildXL
                         translatedLogDirectory,
                         m_configuration.InCloudBuild(),
                         Directory.GetCurrentDirectory(),
-                        m_initialConfiguration.Startup.ConfigFile.ToString(m_pathTable));
+                        m_initialConfiguration.Startup.ConfigFile.ToString(m_pathTable),
+                        OperatingSystemHelper.IsDotNetCore
+                        );
 
                     // "o" means it is round-trippable. It happens to be ISO-8601.
                     Logger.Log.StartupTimestamp(

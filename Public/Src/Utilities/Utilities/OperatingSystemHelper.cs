@@ -54,6 +54,13 @@ namespace BuildXL.Utilities
             false;
 #endif
 
+        public static readonly bool IsDotNetCore =
+#if NET_CORE
+            true;
+#else
+            false;
+#endif
+
         /// <summary>
         /// Indicates if BuildXL is running on a Unix based operating system
         /// </summary>
@@ -325,7 +332,7 @@ namespace BuildXL.Utilities
             }
         }
 
-        #region macOS Helpers
+#region macOS Helpers
 
         private static Version GetOSVersionMacOS()
         {
@@ -415,6 +422,6 @@ namespace BuildXL.Utilities
             return new FileSize(physicalPages * pageSize);
         }
 
-        #endregion
+#endregion
     }
 }

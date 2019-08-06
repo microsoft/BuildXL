@@ -54,7 +54,7 @@ namespace BuildXL.App.Tracing
             // Prevent this from going to the log. It is only for ETW and telemetry. DominoInvocationForLocalLog is for the log.
             Keywords = (int)Keywords.SelectivelyEnabled,
             Message = AppInvocationMessage)]
-        public abstract void DominoInvocation(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig);
+        public abstract void DominoInvocation(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig, bool isDotNetCore);
 
         /// <summary>
         /// This is the event that populates the local log file. It differs from DominoInvocation in that it contains the raw commandline without any truncation
@@ -65,7 +65,7 @@ namespace BuildXL.App.Tracing
             EventLevel = Level.Verbose,
             EventOpcode = (byte)EventOpcode.Start,
             Message = AppInvocationMessage)]
-        public abstract void DominoInvocationForLocalLog(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig);
+        public abstract void DominoInvocationForLocalLog(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig, bool isDotNetCore);
 
         [GeneratedEvent(
             (ushort)EventId.StartupTimestamp,
@@ -775,10 +775,11 @@ namespace BuildXL.App.Tracing
             string logDirectory,
             bool inCloudBuild,
             string startupDirectory,
-            string mainConfigurationFile)
+            string mainConfigurationFile,
+            bool isDotNetCore)
         {
-            Log.DominoInvocation(context, ScrubCommandLine(commandLine, 100000, 100000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
-            Log.DominoInvocationForLocalLog(context, commandLine, buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
+            Log.DominoInvocation(context, ScrubCommandLine(commandLine, 100000, 100000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile, isDotNetCore);
+            Log.DominoInvocationForLocalLog(context, commandLine, buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile, isDotNetCore);
 
             if (inCloudBuild)
             {
@@ -790,7 +791,7 @@ namespace BuildXL.App.Tracing
                     // Truncate the command line that gets to the CB event to avoid exceeding the max event payload of 64kb
                     CommandLineArgs = commandLine?.Substring(0, Math.Min(commandLine.Length, 4 * 1024)),
                     DominoVersion = buildInfo.CommitId,
-                    Environment = environment,
+                    Environment = isDotNetCore ? "[.NETCore] " + environment : environment,
                     LogDirectory = logDirectory,
                 });
             }

@@ -284,6 +284,7 @@ namespace BuildXL.Engine
                     buildEngineFingerprint: buildEngineFingerprint,
                     vmInitializer: VmInitializer.CreateFromEngine(
                         configuration.Layout.BuildEngineDirectory.ToString(context.PathTable),
+                        vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
                         message => Logger.Log.StartInitializingVm(loggingContext, message),
                         message => Logger.Log.EndInitializingVm(loggingContext, message),
                         message => Logger.Log.InitializingVm(loggingContext, message)));
@@ -1661,6 +1662,7 @@ namespace BuildXL.Engine
                         buildEngineFingerprint: buildEngineFingerprint,
                         vmInitializer: VmInitializer.CreateFromEngine(
                             newConfiguration.Layout.BuildEngineDirectory.ToString(newContext.PathTable),
+                            vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
                             message => Logger.Log.StartInitializingVm(loggingContext, message),
                             message => Logger.Log.EndInitializingVm(loggingContext, message),
                             message => Logger.Log.InitializingVm(loggingContext, message)));

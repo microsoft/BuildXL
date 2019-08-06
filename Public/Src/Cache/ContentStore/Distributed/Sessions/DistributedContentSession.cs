@@ -2,8 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,7 +14,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
@@ -28,6 +28,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     public class DistributedContentSession<T> : ReadOnlyDistributedContentSession<T>, IContentSession, IFileCopyingSession
         where T : PathBase
     {
+        private enum Counters
+        {
+            GetLocationsSatisfiedFromLocal,
+            GetLocationsSatisfiedFromRemote
+        }
+
+        private CounterCollection<Counters> _counters = new CounterCollection<Counters>();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="DistributedContentSession{T}"/> class.
         /// </summary>
@@ -192,6 +200,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (!getLocationsResult.Succeeded || getLocationsResult.ContentHashesInfo[0].Locations.Count == 0)
             {
                 getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Global);
+
+                if (getLocationsResult.Succeeded)
+                {
+                    _counters[Counters.GetLocationsSatisfiedFromRemote].Increment();
+                }
+            }
+            else
+            {
+                _counters[Counters.GetLocationsSatisfiedFromLocal].Increment();
             }
 
             if (getLocationsResult.Succeeded)
@@ -214,5 +231,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             return new BoolResult(getLocationsResult);
         }
+
+        /// <inheritdoc />
+        protected override CounterSet GetCounters() =>
+            base.GetCounters()
+                .Merge(_counters.ToCounterSet());
     }
 }

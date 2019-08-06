@@ -179,7 +179,7 @@ namespace BuildXL.Processes
 
             // Stop the perf timer when the process exits
             // NOTE: even if the timer fires after the process has exited, nothing bad should happen
-            process.Exited += (o, e) => m_perfTimer.Change(Timeout.InfiniteTimeSpan, PerfProbeInternal);
+            process.Exited += (o, e) => m_perfTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
             return process;
         }

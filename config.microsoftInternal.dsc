@@ -14,7 +14,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
 
     // Runtime dependencies used for macOS deployments
-    { id: "runtime.osx-x64.BuildXL", version: "1.97.99" },
+    { id: "runtime.osx-x64.BuildXL", version: "1.98.99" },
     { id: "Aria.Cpp.SDK", version: "8.5.6" },
 
     { id: "CB.QTest", version: "19.7.18.221046" },

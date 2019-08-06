@@ -213,7 +213,7 @@ namespace BuildXL.Scheduler
         /// A kernel extension connection object for macOS sandboxing
         /// </summary>
         [CanBeNull]
-        protected IKextConnection SandboxedKextConnection;
+        protected ISandboxConnection SandboxConnection;
 
         /// <summary>
         /// Workers
@@ -4110,7 +4110,7 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
-        IKextConnection IPipExecutionEnvironment.SandboxedKextConnection => !SandboxingWithKextEnabled ? null : SandboxedKextConnection;
+        ISandboxConnection IPipExecutionEnvironment.SandboxConnection => !SandboxingWithKextEnabled ? null : SandboxConnection;
 
         /// <summary>
         /// Content and metadata cache for prior pip outputs.
@@ -4668,7 +4668,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Initialize runtime state, optionally apply a filter and schedule all ready pips
         /// </summary>
-        public bool InitForMaster(LoggingContext loggingContext, RootFilter filter = null, SchedulerState schedulerState = null, IKextConnection kextConnection = null)
+        public bool InitForMaster(LoggingContext loggingContext, RootFilter filter = null, SchedulerState schedulerState = null, ISandboxConnection sandboxConnectionKext = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Assert(!IsInitialized);
@@ -4705,7 +4705,7 @@ namespace BuildXL.Scheduler
                 // This logging context must be set prior to any scheduling, as it might be accessed.
                 m_executePhaseLoggingContext = pm.LoggingContext;
 
-                m_hasFailures = m_hasFailures || InitSandboxedKextConnection(loggingContext, kextConnection);
+                m_hasFailures = m_hasFailures || InitSandboxConnectionKext(loggingContext, sandboxConnectionKext);
 
                 PrioritizeAndSchedule(pm.LoggingContext, nodesToSchedule);
 
@@ -4718,16 +4718,16 @@ namespace BuildXL.Scheduler
         /// Initilizes the kernel extension connection if required and reports back success or failure, allowing
         /// for a graceful terminaton of BuildXL.
         /// </summary>
-        protected virtual bool InitSandboxedKextConnection(LoggingContext loggingContext, IKextConnection kextConnection = null)
+        protected virtual bool InitSandboxConnectionKext(LoggingContext loggingContext, ISandboxConnection sandboxConnection = null)
         {
             if (SandboxingWithKextEnabled)
             {
                 try
                 {
                     // Setup the kernel extension connection so we can potentially execute pips later
-                    if (kextConnection == null)
+                    if (sandboxConnection == null)
                     {
-                        var config = new KextConnection.Config
+                        var config = new SandboxConnectionKext.Config
                         {
                             MeasureCpuTimes = m_configuration.Sandbox.KextMeasureProcessCpuTimes,
                             FailureCallback = (int status, string description) =>
@@ -4750,7 +4750,11 @@ namespace BuildXL.Scheduler
                                 }
                             }
                         };
-                        kextConnection = new KextConnection(config);
+                        
+                        sandboxConnection = OperatingSystemHelper.IsMacOSCatalinaOrHigher 
+                            ? ((ISandboxConnection) new SandboxConnectionES()) 
+                            : ((ISandboxConnection) new SandboxConnectionKext(config));
+
                         if (m_performanceAggregator != null && config.KextConfig.Value.ResourceThresholds.IsProcessThrottlingEnabled())
                         {
                             m_performanceAggregator.MachineCpu.OnChange += (aggregator) =>
@@ -4760,12 +4764,12 @@ namespace BuildXL.Scheduler
                                 uint availableRamMB = double.IsNaN(availableRam) || double.IsInfinity(availableRam)
                                     ? 0
                                     : Convert.ToUInt32(Math.Round(availableRam));
-                                kextConnection.NotifyUsage(cpuUsageBasisPoints, availableRamMB);
+                                sandboxConnection.NotifyUsage(cpuUsageBasisPoints, availableRamMB);
                             };
-                        }
+                        }   
                     }
 
-                    SandboxedKextConnection = kextConnection;
+                    SandboxConnection = sandboxConnection;
                 }
                 catch (BuildXLException ex)
                 {
@@ -4959,7 +4963,7 @@ namespace BuildXL.Scheduler
 
             InitSchedulerRuntimeState(loggingContext, schedulerState: null);
             InitPipStates(loggingContext);
-            m_hasFailures = m_hasFailures || InitSandboxedKextConnection(loggingContext);
+            m_hasFailures = m_hasFailures || InitSandboxConnectionKext(loggingContext);
 
             Contract.Assert(!HasFailed || loggingContext.ErrorWasLogged, "Scheduler encountered errors during initialization, but none were logged.");
             return !HasFailed;
@@ -6400,7 +6404,7 @@ namespace BuildXL.Scheduler
             m_cancellationTokenRegistration.Dispose();
 
             ExecutionLog?.Dispose();
-            SandboxedKextConnection?.Dispose();
+            SandboxConnection?.Dispose();
 
             LocalWorker.Dispose();
             m_allWorker?.Dispose();

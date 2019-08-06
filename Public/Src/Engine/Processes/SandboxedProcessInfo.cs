@@ -64,7 +64,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// A macOS kernel extension connection.
         /// </summary>
-        public IKextConnection SandboxedKextConnection;
+        public ISandboxConnection SandboxConnection;
 
         /// <summary>
         /// Holds the path remapping information for a process that needs to run in a container
@@ -81,8 +81,8 @@ namespace BuildXL.Processes
             bool testRetries = false,
             LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
-            IKextConnection sandboxedKextConnection = null)
-            : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxedKextConnection)
+            ISandboxConnection sandboxConnection = null)
+            : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxConnection)
         {
         }
 
@@ -99,7 +99,7 @@ namespace BuildXL.Processes
             bool testRetries = false,
             LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
-            IKextConnection sandboxedKextConnection = null)
+            ISandboxConnection sandboxConnection = null)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(fileStorage != null);
@@ -117,7 +117,7 @@ namespace BuildXL.Processes
             NestedProcessTerminationTimeout = DefaultNestedProcessTerminationTimeout;
             LoggingContext = loggingContext;
             DetoursEventListener = detoursEventListener;
-            SandboxedKextConnection = sandboxedKextConnection;
+            SandboxConnection = sandboxConnection;
             ContainerConfiguration = containerConfiguration;
         }
 
@@ -132,7 +132,7 @@ namespace BuildXL.Processes
             bool testRetries = false,
             LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
-            IKextConnection sandboxedKextConnection = null,
+            ISandboxConnection sandboxConnection = null,
             ContainerConfiguration containerConfiguration = null,
             FileAccessManifest fileAccessManifest = null)
             : this(
@@ -145,7 +145,7 @@ namespace BuildXL.Processes
                   testRetries,
                   loggingContext,
                   detoursEventListener,
-                  sandboxedKextConnection)
+                  sandboxConnection)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(fileStorage != null);

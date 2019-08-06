@@ -880,10 +880,12 @@ namespace BuildXL
                 relatedActivityId = Guid.NewGuid();
             }
 
+            var sessionId = ComputeSessionId(relatedActivityId);
+
             LoggingContext topLevelContext = new LoggingContext(
                 relatedActivityId,
                 Branding.ProductExecutableName,
-                new LoggingContext.SessionInfo(Guid.NewGuid().ToString(), ComputeEnvironment(m_configuration), relatedActivityId));
+                new LoggingContext.SessionInfo(sessionId.ToString(), ComputeEnvironment(m_configuration), relatedActivityId));
 
             // As the most of filesystem operations are defined as static, we need to reset counters not to add values between server-mode builds.
             FileUtilities.CreateCounters();
@@ -977,6 +979,47 @@ namespace BuildXL
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Computes session identifier which allows easier searching in Kusto for 
+        /// builds based traits: Cloudbuild BuildId (i.e. RelatedActivityId), ExecutionEnvironment, Distributed build role
+        /// 
+        /// Search for masters: '| where sessionId has "0001-FFFF"'
+        /// Search for workers: '| where sessionId has "0002-FFFF"'
+        /// Search for office metabuild: '| where sessionId has "FFFF-0F"'
+        /// </summary>
+        private Guid ComputeSessionId(Guid relatedActivityId)
+        {
+            var bytes = relatedActivityId.ToByteArray();
+            var executionEnvironment = m_configuration.Logging.Environment;
+            var distributedBuildRole = m_configuration.Distribution.BuildRole;
+            var inCloudBuild = m_configuration.InCloudBuild();
+
+            // SessionId:
+            // 00-03: 00-03 from random guid
+            var randomBytes = Guid.NewGuid().ToByteArray();
+            for (int i = 0; i <= 3; i++)
+            {
+                bytes[i] = randomBytes[i];
+            }
+
+            // 04-05: BuildRole
+            bytes[4] = 0;
+            bytes[5] = (byte)distributedBuildRole;
+
+            // 06-07: InCloudBuild = FFFF, !InCloudBuild = 0000
+            var inCloudBuildSpecifier = inCloudBuild ? byte.MaxValue : (byte)0;
+            bytes[6] = inCloudBuildSpecifier;
+            bytes[7] = inCloudBuildSpecifier;
+
+            // 08-09: executionEnvironment
+            bytes[8] = (byte)(((int)executionEnvironment >> 8) & 0xFF);
+            bytes[9] = (byte)((int)executionEnvironment & 0xFF);
+
+            // 10-15: 10-15 from relatedActivityId
+            // Do nothing byte array is initially seeded from related activity id
+            return new Guid(bytes);
         }
 
         private static void LogTelemetryShutdownInfo(LoggingContext loggingContext, long elapsedMilliseconds)

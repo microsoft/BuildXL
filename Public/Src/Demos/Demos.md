@@ -55,7 +55,7 @@ var info =
         WorkingDirectory = workingDirectory,
         PipSemiStableHash = 0,
         PipDescription = "Simple sandbox demo",
-        SandboxedKextConnection = OperatingSystemHelper.IsUnixOS ? new SandboxedKextConnection(numberOfKextConnections: 2) : null
+        SandboxConnection = OperatingSystemHelper.IsUnixOS ? new SandboxConnectionKext() : null
     };
 ``` 
 

@@ -108,6 +108,8 @@ param(
 
     [switch]$PatchDev = $false,
 
+    [switch]$DisableInteractive = $false,
+
     [switch]$DoNotUseDefaultCacheConfigFilePath = $false,
 
     [switch]$UseL3Cache = $true,
@@ -510,6 +512,10 @@ if ($shouldDeploy -and $shouldClean) {
     if (Test-Path -PathType Container $deployDeployment.buildDir) {
         rmdir -Recurse $deployDeployment.buildDir;
     }
+}
+
+if (-not $DisableInteractive) {
+    $AdditionalBuildXLArguments += "/Interactive+"
 }
 
 # let any freeform filter arguments take precedence over the default filter

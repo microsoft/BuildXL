@@ -617,6 +617,11 @@ namespace BuildXL.Pips.Operations
         public bool AllowPreserveOutputs => (ProcessOptions & Options.AllowPreserveOutputs) != 0;
 
         /// <summary>
+        /// Indicates the process run for tool that has incremental build capability.
+        /// </summary>
+        public bool IncrementalTool => (ProcessOptions & Options.IncrementalTool) == Options.IncrementalTool;
+
+        /// <summary>
         /// Indicates whether this is a light process.
         /// </summary>
         public bool IsLight => (ProcessOptions & Options.IsLight) != 0;

@@ -181,12 +181,9 @@ export function runQTest(args: QTestArguments): Result {
             qTestContextInfoPath,
         ],
         untrackedScopes: [
-            d`d:/data`,
-            d`d:/app`,
             // Untracking Recyclebin here to primarily unblock user scenarios that
             // deal with soft-delete and restoration of files from recycle bin.
             d`${sandboxDir.pathRoot}/$Recycle.Bin`,
-            ...addIf(Environment.hasVariable("QAUTHMATERIALROOT"), Environment.getDirectoryValue("QAUTHMATERIALROOT")),
         ]
     };
 

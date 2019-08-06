@@ -415,6 +415,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             _pendingEventProcessingStates = new ConcurrentQueue<SharedEventProcessingState>();
             _eventHubClient.StartProcessing(context, sequencePoint, _currentEventProcessor).ThrowIfFailure();
 
+            if (_partitionReceiver == null)
+            {
+                _partitionReceiver = _eventHubClient.CreateReceiver(
+                    _configuration.ConsumerGroupName,
+                    PartitionId,
+                    GetInitialOffset(context, sequencePoint),
+                    new ReceiverOptions()
+                    {
+                        Identifier = _hostName
+                    });
+
+                _partitionReceiver.SetReceiveHandler(_currentEventProcessor);
+            }
+
+            _pendingEventProcessingStates = new ConcurrentQueue<SharedEventProcessingState>();
             _lastProcessedSequencePoint = sequencePoint;
             return BoolResult.Success;
         }
@@ -423,7 +438,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         protected override BoolResult DoSuspendProcessing(OperationContext context)
         {
             // TODO: Make these async (bug 1365340)
-            _eventHubClient.SuspendProcessing(context).ThrowIfFailure();
+            UnregisterEventProcessorIfNecessary();
             _pendingEventProcessingStates = new ConcurrentQueue<SharedEventProcessingState>();
             return BoolResult.Success;
         }

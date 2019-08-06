@@ -31,6 +31,7 @@ namespace BuildXL.Processes
 
         private readonly ConcurrentDictionary<long, SandboxedProcessMac> m_pipProcesses = new ConcurrentDictionary<long, SandboxedProcessMac>();
 
+        // TODO: remove at some later point
         private Sandbox.KextConnectionInfo m_fakeKextConnectionInfo = new Sandbox.KextConnectionInfo();
         private Sandbox.ESConnectionInfo m_esConnectionInfo;
         private readonly Thread m_workerThread;
@@ -77,8 +78,9 @@ namespace BuildXL.Processes
 #endif
 
             m_workerThread = new Thread(() => StartReceivingAccessReports());
-            m_workerThread.IsBackground = true;
+            m_workerThread.Name = "EndpointSecurityCallbackProcessor";
             m_workerThread.Priority = ThreadPriority.Highest;
+            m_workerThread.IsBackground = true;
             m_workerThread.Start();
         }
 

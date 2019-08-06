@@ -9,9 +9,10 @@
 
 #include "IOHandler.hpp"
 
+// initialized below in InitializeEndpointSecuritySandbox (which is called once by the host process)
 static ESSandbox *sandbox;
 
-dispatch_queue_t serialQueue = dispatch_queue_create("com.blah.queue", DISPATCH_QUEUE_SERIAL);
+dispatch_queue_t serialQueue = dispatch_queue_create("com.microsoft.buildxl.queue", DISPATCH_QUEUE_SERIAL);
 
 void processEndpointSecurityEvent(es_client_t *client, const es_message_t *msg, pid_t host)
 {

@@ -37,7 +37,7 @@ namespace BuildXL.App.Tracing
         public static Logger Log => m_log;
 
         [SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Starup directory: {startupDirectory}, Main configuration file: {mainConfig}";
+        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Starup directory: {startupDirectory}, Main configuration file: {mainConfig}, Running on .NET Core: {isDotNetCore}";
 
         /// <summary>
         /// CAUTION!!
@@ -791,7 +791,7 @@ namespace BuildXL.App.Tracing
                     // Truncate the command line that gets to the CB event to avoid exceeding the max event payload of 64kb
                     CommandLineArgs = commandLine?.Substring(0, Math.Min(commandLine.Length, 4 * 1024)),
                     DominoVersion = buildInfo.CommitId,
-                    Environment = isDotNetCore ? "[.NETCore] " + environment : environment,
+                    Environment = environment,
                     LogDirectory = logDirectory,
                 });
             }

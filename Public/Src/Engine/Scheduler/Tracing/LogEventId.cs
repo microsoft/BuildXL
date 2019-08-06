@@ -79,6 +79,8 @@ namespace BuildXL.Scheduler.Tracing
 
         PipCacheMetadataBelongToAnotherPip = 3700,
 
+        PipIpcFailedDueToInfrastructureError = 3701,
+
         // RESERVED TO [5000, 5050] (BuildXL.Scheduler.dll)
 
         // Dependency violations / analysis

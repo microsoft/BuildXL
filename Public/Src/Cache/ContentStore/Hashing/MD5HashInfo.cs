@@ -37,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     MD5 Content hasher
         /// </summary>
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
         private sealed class MD5ContentHasher : ContentHasher<MD5Cng>
 #else
         private sealed class MD5ContentHasher : ContentHasher<MD5CryptoServiceProvider>

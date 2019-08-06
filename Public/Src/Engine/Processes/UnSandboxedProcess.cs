@@ -281,7 +281,7 @@ namespace BuildXL.Processes
         {
             Contract.Requires(Process == null);
 
-#if PLATFORM_OSX
+#if !PLATFORM_WIN
             var mode = GetFilePermissionsForFilePath(ProcessInfo.FileName, followSymlink: false);
             if (mode < 0)
             {

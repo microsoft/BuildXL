@@ -303,5 +303,14 @@ namespace BuildXL.Utilities.Configuration
         /// Wheather or not to release workspace before evaluation.
         /// </summary>
         bool ReleaseWorkspaceBeforeEvaluation { get; }
+
+        /// <summary>
+        /// Uses optimized AST conversion.
+        /// </summary>
+        /// <remarks>
+        /// This option is unsafe as it disables analyses and skips converting constructs that are not needed for evaluation, like types.
+        /// This option is suitable if the specs are machine generated.
+        /// </remarks>
+        bool UnsafeOptimizedAstConversion { get; }
     }
 }

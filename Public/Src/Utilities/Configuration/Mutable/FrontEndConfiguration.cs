@@ -68,6 +68,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ShowLargestFilesStatistics = template.ShowLargestFilesStatistics;
             GlobalUnsafePassthroughEnvironmentVariables = new List<string>(template.GlobalUnsafePassthroughEnvironmentVariables);
             ReleaseWorkspaceBeforeEvaluation = template.ReleaseWorkspaceBeforeEvaluation;
+            UnsafeOptimizedAstConversion = template.UnsafeOptimizedAstConversion;
         }
 
         /// <inheritdoc />
@@ -198,5 +199,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc /> 
         public bool ReleaseWorkspaceBeforeEvaluation { get; set; }
+        /// <inheritdoc /> 
+        public bool UnsafeOptimizedAstConversion { get; set; }
     }
 }

@@ -30,7 +30,6 @@ namespace BuildXL.Cache.Host.Service
 
             var factory = new ContentServerFactory(arguments);
 
-            // await _lifetimeManager.StartingService();
             await host.OnStartingServiceAsync();
 
             using (var server = factory.Create())
@@ -39,16 +38,12 @@ namespace BuildXL.Cache.Host.Service
 
                 try
                 {
-                    // Removed this, because it is kind-of useless...
-                    // _serviceHealthyAction(false);
-
                     var startupResult = await server.StartupAsync(context);
                     if (!startupResult)
                     {
                         throw new CacheException(startupResult.ToString());
                     }
 
-                    // _serviceHealthyAction(true);
                     host.OnStartedService();
 
                     logger.Info("Service started");
@@ -66,7 +61,6 @@ namespace BuildXL.Cache.Host.Service
                         logger.Warning("Failed to shutdown local content server: {0}", result);
                     }
 
-                    // await _lifetimeManager.TeardownCompleted();
                     host.OnTeardownCompleted();
                 }
             }

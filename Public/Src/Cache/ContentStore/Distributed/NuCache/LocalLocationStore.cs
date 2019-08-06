@@ -1238,7 +1238,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets all locations that are currently known.
         /// </summary>
-        public MachineLocation[] GetKnownLocations() => ClusterState.GetKnownLocations();
+        public MachineLocation GetRandomMachineLocation() => ClusterState.GetRandomMachineLocation();
 
         /// <summary>
         /// Adapts <see cref="LocalLocationStore"/> to interface needed for content locations (<see cref="DistributedCentralStorage.ILocationStore"/>) by

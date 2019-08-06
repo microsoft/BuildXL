@@ -1307,7 +1307,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         }
 
         /// <inheritdoc />
-        public MachineLocation[] GetKnownMachineLocations() => _idsByLocation.Keys.ToArray();
+        public MachineLocation GetRandomMachineLocation() => _idsByLocation.Keys.ElementAt(ThreadSafeRandom.Generator.Next(_idsByLocation.Keys.Count));
 
         /// <summary>
         /// Gets the page size used in bulk Redis queries.

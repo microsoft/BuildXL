@@ -73,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// <summary>
         /// The machine location for the current cache.
         /// </summary>
-        protected readonly byte[] LocalCacheRootMachineData;
+        protected readonly MachineLocation LocalCacheRootMachineLocation;
 
         /// <summary>
         /// The content session that actually stores content.
@@ -115,7 +115,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             Inner = inner;
             ContentLocationStore = contentLocationStore;
-            LocalCacheRootMachineData = localMachineLocation;
+            LocalCacheRootMachineLocation = new MachineLocation(localMachineLocation);
             _contentAvailabilityGuarantee = contentAvailabilityGuarantee;
             _settings = settings;
 

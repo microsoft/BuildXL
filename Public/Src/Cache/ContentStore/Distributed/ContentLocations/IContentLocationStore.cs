@@ -118,7 +118,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Returns all the known machine locations.
         /// </summary>
-        MachineLocation[] GetKnownMachineLocations();
+        MachineLocation GetRandomMachineLocation();
     }
 
     /// <summary>

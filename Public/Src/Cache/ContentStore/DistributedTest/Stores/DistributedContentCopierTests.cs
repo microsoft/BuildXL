@@ -227,7 +227,7 @@ namespace ContentStoreTest.Distributed.Stores
             public Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash contentHash) => null;
 
             /// <inheritdoc />
-            public MachineLocation[] GetKnownMachineLocations() => Array.Empty<MachineLocation>();
+            public MachineLocation GetRandomMachineLocation() => default;
 
             /// <inheritdoc />
             public bool AreBlobsSupported => false;

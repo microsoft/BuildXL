@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Threading;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -134,6 +135,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets all locations that are currently known.
         /// </summary>
-        public MachineLocation[] GetKnownLocations() => _idByLocationMap.Keys.ToArray();
+        public MachineLocation GetRandomMachineLocation() => _idByLocationMap.Keys.ElementAt(ThreadSafeRandom.Generator.Next(_idByLocationMap.Keys.Count));
     }
 }

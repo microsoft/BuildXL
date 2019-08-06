@@ -233,14 +233,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             MachineReputationTracker.ReportReputation(location, reputation);
 
         /// <inheritdoc />
-        public MachineLocation[] GetKnownMachineLocations()
+        public MachineLocation GetRandomMachineLocation()
         {
             if (_configuration.HasReadMode(ContentLocationMode.Redis))
             {
-                return _redisContentLocationStore.GetKnownMachineLocations();
+                return _redisContentLocationStore.GetRandomMachineLocation();
             }
 
-            return _localLocationStore.GetKnownLocations();
+            return _localLocationStore.GetRandomMachineLocation();
         }
 
         #region IDistributedLocationStore Members

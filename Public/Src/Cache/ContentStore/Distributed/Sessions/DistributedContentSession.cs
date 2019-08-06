@@ -2,6 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,7 +17,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
@@ -157,7 +158,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             if (putResult.Succeeded)
             {
-                RequestProactiveCopyIfNeededAsync(context, putResult.ContentHash, UrgencyHint.Nominal).FireAndForget(context);
+                RequestProactiveCopyIfNeededAsync(context, putResult.ContentHash).FireAndForget(context);
             }
 
             return putResult;
@@ -182,7 +183,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return putResult;
         }
 
-        private async Task<BoolResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, UrgencyHint urgencyHint)
+        private async Task<BoolResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash)
         {
             var hashArray = new[] { hash };
 
@@ -195,12 +196,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             if (getLocationsResult.Succeeded)
             {
-                if (getLocationsResult.ContentHashesInfo[0].Locations.Count == 1)
+                if (getLocationsResult.ContentHashesInfo[0].Locations.Count <= 1)
                 {
-                    var locations = ContentLocationStore.GetKnownMachineLocations();
-                    var location = locations[ThreadSafeRandom.Generator.Next(locations.Length)];
+                    MachineLocation location;
+                    do
+                    {
+                        location = ContentLocationStore.GetRandomMachineLocation();
+                    }
+                    while (location.Equals(LocalCacheRootMachineLocation));
 
-                    return await DistributedCopier.RequestCopyFileAsync(context, hash, location, new MachineLocation(LocalCacheRootMachineData));
+                    return await DistributedCopier.RequestCopyFileAsync(context, hash, location, LocalCacheRootMachineLocation);
                 }
 
                 return BoolResult.Success;

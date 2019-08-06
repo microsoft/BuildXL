@@ -226,6 +226,7 @@ namespace Transformer {
          * If the list is not empty, only given paths are preserved and the rest is deleted
          */
         preserveOutputWhitelist?: (File | Directory)[];
+        incrementalTool?: boolean;
     }
 
     /**

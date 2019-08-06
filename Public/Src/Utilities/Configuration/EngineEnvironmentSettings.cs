@@ -112,7 +112,6 @@ namespace BuildXL.Utilities.Configuration
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
         public static readonly Setting<string> BuildXLUserName = CreateSetting("BUILDXL_USERNAME", value => value);
 
-
         #region Distribution-related timeouts
 
         /// <summary>

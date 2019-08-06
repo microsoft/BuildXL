@@ -257,5 +257,10 @@ namespace BuildXL.Utilities.Configuration
         /// which means pips and graph will be cached ignoring paths specified in this configure
         /// </remarks>
         IReadOnlyList<AbsolutePath> GlobalUnsafeUntrackedScopes { get; }
+
+        /// <summary>
+        /// Temporary flag to use tool incremental behavior when preserve outputs is enabled.
+        /// </summary>
+        bool PreserveOutputsForIncrementalTool { get; }
     }
 }

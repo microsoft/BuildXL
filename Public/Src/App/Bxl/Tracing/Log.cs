@@ -37,7 +37,7 @@ namespace BuildXL.App.Tracing
         public static Logger Log => m_log;
 
         [SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Starup directory: {startupDirectory}, Main configuration file: {mainConfig}, Running on .NET Core: {isDotNetCore}";
+        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Runtime Framework: '{machineInfo.RuntimeFrameworkName}', Starup directory: {startupDirectory}, Main configuration file: {mainConfig}";
 
         /// <summary>
         /// CAUTION!!
@@ -54,7 +54,7 @@ namespace BuildXL.App.Tracing
             // Prevent this from going to the log. It is only for ETW and telemetry. DominoInvocationForLocalLog is for the log.
             Keywords = (int)Keywords.SelectivelyEnabled,
             Message = AppInvocationMessage)]
-        public abstract void DominoInvocation(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig, bool isDotNetCore);
+        public abstract void DominoInvocation(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig);
 
         /// <summary>
         /// This is the event that populates the local log file. It differs from DominoInvocation in that it contains the raw commandline without any truncation
@@ -65,7 +65,7 @@ namespace BuildXL.App.Tracing
             EventLevel = Level.Verbose,
             EventOpcode = (byte)EventOpcode.Start,
             Message = AppInvocationMessage)]
-        public abstract void DominoInvocationForLocalLog(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig, bool isDotNetCore);
+        public abstract void DominoInvocationForLocalLog(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig);
 
         [GeneratedEvent(
             (ushort)EventId.StartupTimestamp,
@@ -775,11 +775,10 @@ namespace BuildXL.App.Tracing
             string logDirectory,
             bool inCloudBuild,
             string startupDirectory,
-            string mainConfigurationFile,
-            bool isDotNetCore)
+            string mainConfigurationFile)
         {
-            Log.DominoInvocation(context, ScrubCommandLine(commandLine, 100000, 100000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile, isDotNetCore);
-            Log.DominoInvocationForLocalLog(context, commandLine, buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile, isDotNetCore);
+            Log.DominoInvocation(context, ScrubCommandLine(commandLine, 100000, 100000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
+            Log.DominoInvocationForLocalLog(context, commandLine, buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
 
             if (inCloudBuild)
             {

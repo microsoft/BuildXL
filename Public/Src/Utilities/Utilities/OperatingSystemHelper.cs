@@ -4,7 +4,9 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Xml.Linq;
 using Microsoft.Win32;
 using static BuildXL.Interop.Windows.Memory;
@@ -249,6 +251,20 @@ namespace BuildXL.Utilities
             }
 
             return "No .NET Framework is detected";
+        }
+
+        /// <summary>
+        /// Returns the current runtime version.
+        /// 
+        /// On .NET Core, the return string is something like ".NETCoreApp, Version=v2.0"
+        /// 
+        /// On .NET Framework, the return string is something like ".NETFramework, Version = v4.7.2".
+        /// </summary>
+        public static string GetRuntimeFrameworkNameAndVersion()
+        {
+            return IsDotNetCore
+                ? Assembly.GetEntryAssembly()?.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName ?? "unknown"
+                : AppDomain.CurrentDomain.SetupInformation.TargetFrameworkName;
         }
 
         /// <summary>

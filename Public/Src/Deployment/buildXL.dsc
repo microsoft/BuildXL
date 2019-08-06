@@ -23,6 +23,10 @@ namespace BuildXL {
             importFrom("BuildXL.Tools").BxlScriptAnalyzer.exe,
             importFrom("BuildXL.Cache.VerticalStore").Analyzer.exe,
 
+            ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [
+                importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
+            ]),
+
             // tools
             ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [{
                 subfolder: r`tools`,
@@ -62,37 +66,14 @@ namespace BuildXL {
                             }).exe
                         ]
                     },
-                    ...(BuildXLSdk.Flags.deployExperimentalTools
-                        ? [
-                            {
-                                subfolder: r`NinjaGraphBuilder`,
-                                contents: [
-                                    importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
-                                    importFrom("BuildXL.Tools.Ninjson").pkg.contents
-                                ]
-                            },
-                            {
-                                subfolder: r`CMakeRunner`,
-                                contents: [
-                                    importFrom("BuildXL.Tools").CMakeRunner.exe,
-                                ]
-                            }
-                          ]
-                        : []),
                     {
-                        subfolder: r`SandboxedProcessExecutor`,
+                        subfolder: r`CMakeNinja`,
                         contents: [
-                            importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
+                            importFrom("BuildXL.Tools").CMakeRunner.exe,
+                            importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
+                            importFrom("BuildXL.Tools.Ninjson").pkg.contents
                         ]
                     },
-                    ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal && !BuildXLSdk.isTargetRuntimeOsx,
-                        () =>
-                        [{
-                            subfolder: r`VmCommandProxy`,
-                            contents: [
-                                importFrom("CloudBuild.VmCommandProxy").pkg.contents
-                            ]
-                        }]),
                 ]
             }])
         ]

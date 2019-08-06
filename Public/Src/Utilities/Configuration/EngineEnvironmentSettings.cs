@@ -52,6 +52,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> DebugGraphFingerprintSalt = CreateSetting("BUILDXL_GRAPH_FINGERPRINT_SALT", value => ProcessFingerprintSalt(value));
 
         /// <summary>
+        /// Path pointing to VM command proxy needed for build in VM feature.
+        /// </summary>
+        public static readonly Setting<string> VmCommandProxyPath = CreateSetting("BUILDXL_VMCOMMANDPROXY_PATH", value => value);
+
+        /// <summary>
         /// Bypass NuGet up to date checks
         /// </summary>
         public static readonly Setting<bool> BypassNugetDownload = CreateSetting("BuildXLBypassNugetDownload", value => value == "1");

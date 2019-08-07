@@ -29,7 +29,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
     {
         private const string CredentialProvidersPathEnvVariable = "ARTIFACT_CREDENTIALPROVIDERS_PATH";
 
-        private const int NameUserPrincipal = 8;
+        private const int NameUserPrincipal = 5;
 
         [DllImport("Secur32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -38,11 +38,11 @@ namespace BuildXL.Cache.BuildCacheAdapter
             [Out] StringBuilder nameBuffer,
             ref long bufferSize);
 
-        private static string GetAadUserNameUpn()
+        private static string GetAadUserNameUpn(int kind = NameUserPrincipal)
         {
             long maxLength = 1024;
             var sb = new StringBuilder(capacity: (int)maxLength);
-            return GetUserNameExW(NameUserPrincipal, sb, ref maxLength)
+            return GetUserNameExW(kind, sb, ref maxLength)
                 ? sb.ToString()
                 : null;
         }
@@ -73,6 +73,14 @@ namespace BuildXL.Cache.BuildCacheAdapter
 #if PLATFORM_WIN
             string userName = null; // when running on .NET Framework, user name doesn't have to be explicitly provided
 #if NET_CORE
+            for (int i = 0; i < 10; i++)
+            {
+                var n = GetAadUserNameUpn(i);
+                var msg = $"======= AadName({i}) = '{n}'".Replace("{", "{{").Replace("}", "}}");
+                logger.Always(msg, new string[0]);
+                Console.WriteLine(msg);
+            }
+
             userName = GetAadUserNameUpn();
 #endif
             credentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper(s => logger.Debug(s)), userName);

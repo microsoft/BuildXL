@@ -4,7 +4,9 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Xml.Linq;
 using Microsoft.Win32;
 using static BuildXL.Interop.Windows.Memory;
@@ -49,6 +51,16 @@ namespace BuildXL.Utilities
         /// </summary>
         public static readonly bool IsMacOS = 
 #if PLATFORM_OSX
+            true;
+#else
+            false;
+#endif
+
+        /// <summary>
+        /// Indicates if BuildXL is running on .NET Core
+        /// </summary>
+        public static readonly bool IsDotNetCore =
+#if NET_CORE
             true;
 #else
             false;
@@ -242,6 +254,20 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Returns the current runtime version.
+        /// 
+        /// On .NET Core, the return string is something like ".NETCoreApp, Version=v2.0"
+        /// 
+        /// On .NET Framework, the return string is something like ".NETFramework, Version = v4.7.2".
+        /// </summary>
+        public static string GetRuntimeFrameworkNameAndVersion()
+        {
+            return IsDotNetCore
+                ? Assembly.GetEntryAssembly()?.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName ?? ".NETCoreApp"
+                : AppDomain.CurrentDomain.SetupInformation.TargetFrameworkName;
+        }
+
+        /// <summary>
         /// Checks the installed .NET Framework version on the machine by looking up the registry.
         /// </summary>
         /// <remarks>
@@ -325,7 +351,7 @@ namespace BuildXL.Utilities
             }
         }
 
-        #region macOS Helpers
+#region macOS Helpers
 
         private static Version GetOSVersionMacOS()
         {
@@ -415,6 +441,6 @@ namespace BuildXL.Utilities
             return new FileSize(physicalPages * pageSize);
         }
 
-        #endregion
+#endregion
     }
 }

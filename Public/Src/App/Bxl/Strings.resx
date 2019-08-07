@@ -947,7 +947,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Include outputs of filter along with all downstream copies of the outputs via copy pips.</value>
   </data>
   <data name="HelpText_DisplayHelp_Filter_RequiredInputsFunction" xml:space="preserve">
-    <value>Include the immediate inputs (outputs of direct dependencies) for the pips specified filter.</value>
+    <value>Include the immediate inputs (outputs of direct dependencies) for the pips specified filter. If pip is a matching neighbor of one of the matching pips for the inner filter, it will be excluded.</value>
   </data>
   <data name="App_Errors_LogsDirectory" xml:space="preserve">
     <value>    {0} ERROR(S). Log Directory: {1}</value>

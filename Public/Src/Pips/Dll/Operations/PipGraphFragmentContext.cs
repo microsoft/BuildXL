@@ -16,10 +16,19 @@ namespace BuildXL.Pips.Operations
         /// Maps a directory artifact from the serialized version to the directory artifact in the pip graph.
         /// All uses of that directory artifact will get remapped to the new value.
         /// </summary>
-        private ConcurrentBigMap<DirectoryArtifact, DirectoryArtifact> m_directoryMap = new ConcurrentBigMap<DirectoryArtifact, DirectoryArtifact>();
+        private readonly ConcurrentBigMap<DirectoryArtifact, DirectoryArtifact> m_directoryMap = new ConcurrentBigMap<DirectoryArtifact, DirectoryArtifact>();
 
         /// <summary>
-        /// Add directory mapping, so all pips using the old directory artifact get mapped to the new one.
+        /// Maps an old pip id to a new pip id.
+        /// All uses of that pip id will get remapped to the new value.
+        /// </summary>
+        /// <remarks>
+        /// This new pip id is imporatant for handling service and IPC pips where the relation between them are represented as pip id.
+        /// </remarks>
+        private readonly ConcurrentBigMap<PipId, PipId> m_pipIdMap = new ConcurrentBigMap<PipId, PipId>();
+
+        /// <summary>
+        /// Adds a directory artifact mapping.
         /// </summary>
         public void AddDirectoryMapping(DirectoryArtifact oldDirectory, DirectoryArtifact mappedDirectory)
         {
@@ -28,16 +37,24 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// Get the DirectoryArtifact corresponding to a pip fragment DirectoryArtifact.
+        /// Gets remapped directory artifact.
         /// </summary>
-        internal DirectoryArtifact RemapDirectory(DirectoryArtifact directoryArtifact)
-        {
-            if (m_directoryMap.TryGetValue(directoryArtifact, out var mappedDirectory))
-            {
-                return mappedDirectory;
-            }
+        internal DirectoryArtifact RemapDirectory(DirectoryArtifact directoryArtifact) => 
+            m_directoryMap.TryGetValue(directoryArtifact, out var mappedDirectory) ? mappedDirectory : directoryArtifact;
 
-            return directoryArtifact;
+        /// <summary>
+        /// Adds a pip id mapping.
+        /// </summary>
+        public void AddPipIdMapping(PipId oldPipId, PipId newPipId)
+        {
+            bool added = m_pipIdMap.TryAdd(oldPipId, newPipId);
+            Contract.Assert(added);
         }
+
+        /// <summary>
+        /// Gets remapped pip id.
+        /// </summary>
+        internal PipId RemapPipId(PipId pipId) =>
+            m_pipIdMap.TryGetValue(pipId, out var mappedPipId) ? mappedPipId : pipId;
     }
 }

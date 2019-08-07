@@ -35,53 +35,26 @@ namespace BuildXL.Pips.Operations
             m_pipDataEntriesPointerInlineReader = new PipDataEntriesPointerInlineReader(m_inliningReader, stream, pipExecutionContext.PathTable, debug, leaveOpen);
         }
 
-        /// <summary>
-        /// Read a directory artifact
-        /// </summary>
-        public override DirectoryArtifact ReadDirectoryArtifact()
-        {
-            return m_pipGraphFragmentContext.RemapDirectory(base.ReadDirectoryArtifact());
-        }
+        /// <inheritdoc />
+        public override PipId ReadPipId() => m_pipGraphFragmentContext.RemapPipId(base.ReadPipId());
 
-        /// <summary>
-        /// Reads an absolute path
-        /// </summary>
-        public override AbsolutePath ReadAbsolutePath()
-        {
-            return m_inliningReader.ReadAbsolutePath();
-        }
+        /// <inheritdoc />
+        public override DirectoryArtifact ReadDirectoryArtifact() => m_pipGraphFragmentContext.RemapDirectory(base.ReadDirectoryArtifact());
 
-        /// <summary>
-        /// Reads a string id
-        /// </summary>
-        public override StringId ReadStringId()
-        {
-            return m_inliningReader.ReadStringId();
-        }
+        /// <inheritdoc />
+        public override AbsolutePath ReadAbsolutePath() => m_inliningReader.ReadAbsolutePath();
 
-        /// <summary>
-        /// Reads a path atom
-        /// </summary>
-        public override PathAtom ReadPathAtom()
-        {
-            return m_inliningReader.ReadPathAtom();
-        }
+        /// <inheritdoc />
+        public override StringId ReadStringId() => m_inliningReader.ReadStringId();
 
-        /// <summary>
-        /// Reads a full symbol
-        /// </summary>
-        public override FullSymbol ReadFullSymbol()
-        {
-            return FullSymbol.Create(m_pipExecutionContext.SymbolTable, ReadString());
-        }
+        /// <inheritdoc />
+        public override PathAtom ReadPathAtom() => m_inliningReader.ReadPathAtom();
 
-        /// <summary>
-        /// Reads a pip data entries pointer.
-        /// </summary>
-        public override StringId ReadPipDataEntriesPointer()
-        {
-            return m_pipDataEntriesPointerInlineReader.ReadStringId();
-        }
+        /// <inheritdoc />
+        public override FullSymbol ReadFullSymbol() => FullSymbol.Create(m_pipExecutionContext.SymbolTable, ReadString());
+
+        /// <inheritdoc />
+        public override StringId ReadPipDataEntriesPointer() => m_pipDataEntriesPointerInlineReader.ReadStringId();
 
         private class PipDataEntriesPointerInlineReader : InliningReader
         {

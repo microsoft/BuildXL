@@ -194,7 +194,9 @@ namespace BuildXL.Scheduler.Graph
                 m_untrackedPathsAndScopes = new ConcurrentBigMap<AbsolutePath, PipId>();
                 m_sourceFiles = new ConcurrentBigMap<AbsolutePath, PipId>();
 
-                m_lazyApiServerMoniker = Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
+                m_lazyApiServerMoniker = configuration.Schedule.UseFixedApiServerMoniker
+                    ? Lazy.Create(() => IpcFactory.GetFixedMoniker())
+                    : Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
 
                 LockManager = new LockManager();
 

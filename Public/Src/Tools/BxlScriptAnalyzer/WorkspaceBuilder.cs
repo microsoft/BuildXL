@@ -136,6 +136,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             // Don't release workspace so that analyses can still be done if the min required phase is evaluation.
             // TODO: Hack -- when phase Evaluate is use, then release workspace. This is for Office to be performant.
             commandlineConfig.FrontEnd.ReleaseWorkspaceBeforeEvaluation = !phase.HasFlag(EnginePhases.Evaluate);
+            commandlineConfig.FrontEnd.UnsafeOptimizedAstConversion = true;
+            commandlineConfig.Schedule.UseFixedApiServerMoniker = true;
 
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(commandlineConfig, pathTable, bxlExeLocation: null);
 

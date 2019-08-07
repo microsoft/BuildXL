@@ -97,7 +97,6 @@ namespace BuildXL.Scheduler.Graph
                 PipId originalPipId = pip.PipId;
                 pip.ResetPipId();
                 bool added = false;
-                PipId newPipId = default;
 
                 switch (pip.PipType)
                 {
@@ -111,8 +110,7 @@ namespace BuildXL.Scheduler.Graph
                         added = AddValuePip(pip as ValuePip);
                         break;
                     case PipType.Process:
-                        var process = pip as Process;
-                        (added, newPipId) = AddPip(process, p => m_pipGraph.AddProcess(p, default));
+                        (added, _) = AddProcessPip(fragmentContext, pip as Process);
                         break;
                     case PipType.CopyFile:
                         (added, _) = AddPip(pip as CopyFile, c => m_pipGraph.AddCopyFile(c, default));
@@ -121,26 +119,10 @@ namespace BuildXL.Scheduler.Graph
                         (added, _) = AddPip(pip as WriteFile, w => m_pipGraph.AddWriteFile(w, default));
                         break;
                     case PipType.SealDirectory:
-                        var sealDirectory = pip as SealDirectory;
-                        Contract.Assert(sealDirectory.Kind != SealDirectoryKind.SharedOpaque, "Shared opaque is currently not supported.");
-
-                        if (sealDirectory.Kind == SealDirectoryKind.Opaque)
-                        {
-                            // Output directories were added when the producing pips were added.
-                            return true;
-                        }
-
-                        var oldDirectory = sealDirectory.Directory;
-                        sealDirectory.ResetDirectoryArtifact();
-
-                        var mappedDirectory = AddSealDirectory(sealDirectory, d => m_pipGraph.AddSealDirectory(d, default));
-                        
-                        fragmentContext.AddDirectoryMapping(oldDirectory, mappedDirectory);
-                        added = mappedDirectory.IsValid;
-
+                        (added, _) = AddSealDirectory(fragmentContext, pip as SealDirectory);
                         break;
                     case PipType.Ipc:
-                        (added, _) = AddPip(pip as IpcPip, i => m_pipGraph.AddIpcPip(i, default));
+                        (added, _) = AddIpcPip(fragmentContext, pip as IpcPip);
                         break;
                     default:
                         Contract.Assert(false, "Pip graph fragment tried to add an unknown pip type to the graph: " + pip.PipType);
@@ -160,6 +142,65 @@ namespace BuildXL.Scheduler.Graph
                 Logger.Log.ExceptionOnAddingFragmentPipToGraph(m_loggingContext, provenance.Description, pip.GetDescription(m_context), e.ToString());
                 return false;
             }
+        }
+
+        private (bool added, PipId newPipId) AddSealDirectory(PipGraphFragmentContext fragmentContext, SealDirectory sealDirectory)
+        {
+            Contract.Requires(fragmentContext != null);
+            Contract.Requires(sealDirectory != null);
+            Contract.Requires(sealDirectory.Kind != SealDirectoryKind.SharedOpaque, "Shared opaque is currently not supported");
+
+            if (sealDirectory.Kind == SealDirectoryKind.Opaque)
+            {
+                // Output directories were added when the producing pips were added.
+                return (true, PipId.Invalid);
+            }
+
+            var oldDirectory = sealDirectory.Directory;
+            sealDirectory.ResetDirectoryArtifact();
+
+            var mappedDirectory = AddSealDirectory(sealDirectory, d => m_pipGraph.AddSealDirectory(d, default));
+
+            fragmentContext.AddDirectoryMapping(oldDirectory, mappedDirectory);
+
+            return (mappedDirectory.IsValid, sealDirectory.PipId);
+        }
+
+        private (bool added, PipId newPipId) AddProcessPip(PipGraphFragmentContext fragmentContext, Process process)
+        {
+            Contract.Requires(fragmentContext != null);
+            Contract.Requires(process != null);
+
+            PipId oldPipId = process.PipId;
+
+            var result = AddPip(process, p => m_pipGraph.AddProcess(p, default));
+
+            if (process.ServiceInfo != null)
+            {
+                if (process.ServiceInfo.IsStartOrShutdownKind)
+                {
+                    fragmentContext.AddPipIdMapping(oldPipId, process.PipId);
+                }
+            }
+
+            return result;
+        }
+
+        private (bool added, PipId newPipId) AddIpcPip(PipGraphFragmentContext fragmentContext, IpcPip ipcPip)
+        {
+            Contract.Requires(fragmentContext != null);
+            Contract.Requires(ipcPip != null);
+
+            PipId oldPipId = ipcPip.PipId;
+            var result = AddPip(ipcPip, i => m_pipGraph.AddIpcPip(i, default));
+
+            if (ipcPip.IsServiceFinalization)
+            {
+                // Service pip needs the mapping upon deserialization. 
+                fragmentContext.AddPipIdMapping(oldPipId, ipcPip.PipId);
+            }
+
+            return result;
         }
 
         /// <inheritdoc />
@@ -182,7 +223,7 @@ namespace BuildXL.Scheduler.Graph
                 false,
                 (file, data) => new Lazy<bool>(() => m_pipGraph.AddOutputValue(valuePip))).Item.Value.Value;
 
-        private (bool, PipId) AddPip<T>(T pip, Func<T, bool> addPip) where T : Pip
+        private (bool added, PipId newPipId) AddPip<T>(T pip, Func<T, bool> addPip) where T : Pip
         {
             if (pip.SemiStableHash == 0)
             {

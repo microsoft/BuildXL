@@ -259,9 +259,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
             Contract.Assert(frontEndHostController != null);
 
-            if (workspace != null)
+            workspace = frontEndHostController.GetWorkspace();
+
+            if (phase == EnginePhases.AnalyzeWorkspace)
             {
-                // If workspace construction is successfull, we run the linter on all specs.
+                // If workspace construction is successful, we run the linter on all specs.
                 // This makes sure the workspace will carry all the errors that will occur when running the same specs in the regular engine path
                 workspace = CreateLintedWorkspace(
                     workspace,
@@ -385,7 +387,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 return false;
             }
 
-            if (workspace != null)
+            if (phase == EnginePhases.AnalyzeWorkspace)
             {
                 // Find strict subset of specs in workspace that should be analyzed
                 var collectedFilesToAnalyze = CollectFilesToAnalyze(
@@ -401,6 +403,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 }
 
                 filesToAnalyze = collectedFilesToAnalyze;
+            }
+            else
+            {
+                filesToAnalyze = new Dictionary<AbsolutePath, ISourceFile>();
             }
 
             return true;

@@ -77,7 +77,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
             //   (2) running on .NET Core.
             // When a credential provider is specified, specifying AAD user name will override it and we don't want to do that.
             // When running on .NET Framework, VsoCredentialHelper will automatically obtain currently logged on AAD user name.
-            string userName = isCredentialProviderSpecified && Utilities.OperatingSystemHelper.IsDotNetCore;
+            string userName = isCredentialProviderSpecified && Utilities.OperatingSystemHelper.IsDotNetCore
                 ? GetAadUserNameUpn()
                 : null;
             credentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper(s => logger.Debug(s)), userName);

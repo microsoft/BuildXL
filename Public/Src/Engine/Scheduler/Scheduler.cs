@@ -1099,7 +1099,7 @@ namespace BuildXL.Scheduler
 
             // Ensure that when the cancellationToken is signaled, we respond with the
             // internal cancellation process.
-            m_cancellationTokenRegistration = context.CancellationToken.Register(RequestTermination);
+            m_cancellationTokenRegistration = context.CancellationToken.Register(() => RequestTermination());
 
             m_serviceManager = new SchedulerServiceManager(graph, context);
             m_pipFragmentRenderer = this.CreatePipFragmentRenderer();
@@ -2357,7 +2357,7 @@ namespace BuildXL.Scheduler
                     {
                         Logger.Log.ScheduleTerminatingDueToPipFailure(m_executePhaseLoggingContext, pipDescription);
 
-                        RequestTermination();
+                        RequestTermination(false);
                     }
 
                     Contract.Assert(m_executePhaseLoggingContext.ErrorWasLogged, I($"Should have logged error for pip: {pipDescription}"));
@@ -6382,7 +6382,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Inform the scheduler that we want to terminate ASAP (but with clean shutdown as needed).
         /// </summary>
-        private void RequestTermination()
+        private void RequestTermination(bool cancelQueue = true)
         {
             // This flag prevents normally-scheduled pips (i.e., by refcount) from starting (thus m_numPipsQueuedOrRunning should
             // reach zero quickly). But we do allow further pips to run inline (see RunPipInline); that's safe from an error
@@ -6392,8 +6392,11 @@ namespace BuildXL.Scheduler
             // A build that got canceled certainly didn't succeed.
             m_hasFailures = true;
 
-            // TODO: Send a notification to the workers in distributed builds.
-            m_pipQueue.Cancel();
+            if (cancelQueue)
+            {
+                // We cancel the queue for more aggressive but still graceful cancellation. 
+                m_pipQueue.Cancel();
+            }
         }
 
         #endregion

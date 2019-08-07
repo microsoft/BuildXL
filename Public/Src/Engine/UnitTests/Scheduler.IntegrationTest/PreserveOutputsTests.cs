@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
@@ -567,6 +568,48 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             XAssert.AreEqual(CONTENT_TWICE, preservedOutputContent);
             XAssert.AreEqual(CONTENT_TWICE, copiedOutputContent);
+        }
+
+        /// <summary>
+        /// IncrementalTool. 
+        /// </summary>
+        [Fact]
+        public void IncrementalPreserveOutputTool()
+        {
+            Configuration.Schedule.IncrementalScheduling = false;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+            Configuration.IncrementalTools = new List<RelativePath>
+            {
+                RelativePath.Create(Context.StringTable, TestProcessToolName)
+            };
+
+            AbsolutePath readonlyRootPath;
+            AbsolutePath.TryCreate(Context.PathTable, ReadonlyRoot, out readonlyRootPath);
+
+            // Create /readonly/a.txt
+            FileArtifact aTxtFile = CreateFileArtifactWithName("a.txt", ReadonlyRoot);
+            WriteSourceFile(aTxtFile);
+
+            DirectoryArtifact readonlyRootDir = SealDirectory(readonlyRootPath, SealDirectoryKind.SourceAllDirectories);
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.Probe(aTxtFile, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            builder.AddInputDirectory(readonlyRootDir);
+
+            builder.Options |= Process.Options.AllowPreserveOutputs;
+            builder.Options |= Process.Options.IncrementalTool;
+
+            var pip = SchedulePipBuilder(builder).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            WriteSourceFile(aTxtFile);
+            RunScheduler().AssertCacheMiss(pip.PipId);
         }
 
         /// <summary>

@@ -1363,7 +1363,8 @@ namespace BuildXL.Scheduler
                                     directoryTranslator: environment.DirectoryTranslator,
                                     remainingUserRetryCount: remainingUserRetries,
                                     vmInitializer: environment.VmInitializer,
-                                    tempDirectoryCleaner: environment.TempCleaner);
+                                    tempDirectoryCleaner: environment.TempCleaner,
+                                    incrementalTools: configuration.IncrementalTools);
 
                                 registerQueryRamUsageMb(
                                     () =>
@@ -1384,7 +1385,7 @@ namespace BuildXL.Scheduler
                                     environment.SetMaxExternalProcessRan();
                                 }
 
-                                result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxedKextConnection: environment.SandboxedKextConnection);
+                                result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection);
 
                                 ++retryCount;
 
@@ -2738,7 +2739,8 @@ namespace BuildXL.Scheduler
                 pipDataRenderer: pipDataRenderer,
                 directoryTranslator: environment.DirectoryTranslator,
                 vmInitializer: environment.VmInitializer,
-                tempDirectoryCleaner: environment.TempCleaner);
+                tempDirectoryCleaner: environment.TempCleaner,
+                incrementalTools: configuration.IncrementalTools);
 
             if (!await executor.TryInitializeWarningRegexAsync())
             {

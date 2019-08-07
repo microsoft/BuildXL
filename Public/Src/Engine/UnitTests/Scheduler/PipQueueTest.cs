@@ -43,7 +43,7 @@ using Xunit.Abstractions;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Scheduler.FileSystem;
 using Test.BuildXL.Scheduler.Utils;
-using KextConnection = BuildXL.Processes.KextConnection;
+using SandboxConnectionKext = BuildXL.Processes.SandboxConnectionKext;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities.VmCommandProxy;
 
@@ -97,7 +97,7 @@ namespace Test.BuildXL.Scheduler
                     maxDegreeOfParallelism: (Environment.ProcessorCount + 2) / 3,
                     debug: false))
                 {
-                    var executionEnvironment = new PipQueueTestExecutionEnvironment(context, config, pipTable, Path.Combine(TestOutputDirectory, "temp"), GetSandboxedKextConnection());
+                    var executionEnvironment = new PipQueueTestExecutionEnvironment(context, config, pipTable, Path.Combine(TestOutputDirectory, "temp"), GetSandboxConnection());
 
                     Func<RunnablePip, Task<PipResult>> taskFactory = async (runnablePip) =>
                         {
@@ -288,11 +288,11 @@ namespace Test.BuildXL.Scheduler
 
             private readonly TestPipGraphFilesystemView m_filesystemView;
             private readonly ConcurrentBigMap<DirectoryArtifact, int[]> m_sealContentsById;
-            private readonly IKextConnection m_sandboxedKextConnection;
+            private readonly ISandboxConnection m_sandboxConnectionKext;
 
             private readonly IFileMonitoringViolationAnalyzer m_disabledFileMonitoringViolationAnalyzer = new DisabledFileMonitoringViolationAnalyzer();
             
-            public PipQueueTestExecutionEnvironment(BuildXLContext context, IConfiguration configuration, PipTable pipTable, string tempDirectory, IKextConnection sandboxedKextConnection = null)
+            public PipQueueTestExecutionEnvironment(BuildXLContext context, IConfiguration configuration, PipTable pipTable, string tempDirectory, ISandboxConnection SandboxConnection = null)
             {
                 Contract.Requires(context != null);
                 Contract.Requires(configuration != null);
@@ -313,7 +313,7 @@ namespace Test.BuildXL.Scheduler
                 Cache = InMemoryCacheFactory.Create();
                 LocalDiskContentStore = new LocalDiskContentStore(LoggingContext, context.PathTable, FileContentTable, tracker);
 
-                m_sandboxedKextConnection = sandboxedKextConnection;
+                m_sandboxConnectionKext = SandboxConnection;
                 m_expectedWrittenContent = new ConcurrentDictionary<FileArtifact, ContentHash>();
                 m_wellKnownFiles = new ConcurrentDictionary<FileArtifact, ContentHash>();
                 m_producers = new ConcurrentDictionary<FileArtifact, Pip>();
@@ -588,7 +588,7 @@ namespace Test.BuildXL.Scheduler
 
             SemanticPathExpander IFileContentManagerHost.SemanticPathExpander => PathExpander;
 
-            public IKextConnection SandboxedKextConnection => m_sandboxedKextConnection;
+            public ISandboxConnection SandboxConnection => m_sandboxConnectionKext;
 
             public ProcessInContainerManager ProcessInContainerManager { get; }
 

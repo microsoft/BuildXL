@@ -20,12 +20,12 @@ using static BuildXL.Interop.MacOS.Sandbox.AccessReport;
 
 namespace Test.BuildXL.Processes
 {
-    public class SandboxedProcessMacKextTest : SandboxedProcessTestBase
+    public class SandboxedProcessMacTest : SandboxedProcessTestBase
     {
-        public SandboxedProcessMacKextTest(ITestOutputHelper output)
+        public SandboxedProcessMacTest(ITestOutputHelper output)
             : base(output) { }
 
-        private class KextConnection : IKextConnection
+        private class Connection : ISandboxConnection
         {
             public ulong MinReportQueueEnqueueTime { get; set; }
 
@@ -47,20 +47,20 @@ namespace Test.BuildXL.Processes
 
             public bool NotifyUsage(uint cpuUsage, uint availableRamMB) { return true; }
 
-            public bool NotifyKextPipStarted(FileAccessManifest fam, SandboxedProcessMacKext process) { return true; }
+            public bool NotifyPipStarted(FileAccessManifest fam, SandboxedProcessMac process) { return true; }
 
-            public void NotifyKextPipProcessTerminated(long pipId, int processId) { }
+            public void NotifyPipProcessTerminated(long pipId, int processId) { }
 
-            public bool NotifyKextProcessFinished(long pipId, SandboxedProcessMacKext process) { return true; }
+            public bool NotifyProcessFinished(long pipId, SandboxedProcessMac process) { return true; }
 
             public void ReleaseResources() { }
         }
 
-        private readonly KextConnection s_connection = new KextConnection();
+        private readonly Connection s_connection = new Connection();
 
         private class ReportInstruction
         {
-            public SandboxedProcessMacKext Process;
+            public SandboxedProcessMac Process;
             public Sandbox.AccessReportStatistics Stats;
             public int Pid;
             public FileOperation Operation;
@@ -71,7 +71,7 @@ namespace Test.BuildXL.Processes
         [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
         public async Task CheckProcessTreeTimoutOnReportQueueStarvationAsync()
         {
-            var processInfo = CreateProcessInfoWithKextConnection(Operation.Echo("hi"));
+            var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Echo("hi"));
 
             // Set the last enqueue time to now
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
@@ -93,14 +93,14 @@ namespace Test.BuildXL.Processes
         [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
         public async Task CheckProcessTreeTimoutOnReportQueueStarvationAndStuckRootProcessAsync()
         {
-            var processInfo = CreateProcessInfoWithKextConnection(Operation.Block());
+            var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Block());
 
             // Set the last enqueue time to now
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
 
             // NOTE: Not wrapping this process in 'time' because KillAsync can only kill 'time' and the its child process (from 'Operation.Block').
-            //       This is only because we are using a mock KextConnection here; in production, a real kext connection 
-            //       notifies the kext which kills the surviving processes.
+            //       This is only because we are using a mock sandbox connection here; in production, a real connection instance
+            //       notifies the sandbox which kills the surviving processes.
             var process = CreateAndStartSandboxedProcess(processInfo, measureTime: false);
             var taskCancelationSource = new CancellationTokenSource();
 
@@ -118,7 +118,7 @@ namespace Test.BuildXL.Processes
         [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
         public async Task CheckProcessTreeTimoutOnNestedChildProcessTimeoutWhenRootProcessExitedAsync()
         {
-            var processInfo = CreateProcessInfoWithKextConnection(Operation.Echo("hi"));
+            var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Echo("hi"));
             processInfo.NestedProcessTerminationTimeout = TimeSpan.FromMilliseconds(100);
 
             // Set the last enqueue time to now
@@ -182,22 +182,22 @@ namespace Test.BuildXL.Processes
                 $"instead it contains: {string.Join(", ", result.SurvivingChildProcesses.Select(p => p.Path))}");
         }
 
-        private SandboxedProcessInfo CreateProcessInfoWithKextConnection(Operation op)
+        private SandboxedProcessInfo CreateProcessInfoWithSandboxConnection(Operation op)
         {
             var processInfo = ToProcessInfo(ToProcess(op));
-            processInfo.SandboxedKextConnection = s_connection;
+            processInfo.SandboxConnection = s_connection;
 
             return processInfo;
         }
 
-        private SandboxedProcessMacKext CreateAndStartSandboxedProcess(SandboxedProcessInfo info, bool? measureTime = null)
+        private SandboxedProcessMac CreateAndStartSandboxedProcess(SandboxedProcessInfo info, bool? measureTime = null)
         {
-            var process = new SandboxedProcessMacKext(info, overrideMeasureTime: measureTime);
+            var process = new SandboxedProcessMac(info, overrideMeasureTime: measureTime);
             process.Start();
             return process;
         }
 
-        private void ContinouslyPostAccessReports(SandboxedProcessMacKext process, CancellationToken token, List<ReportInstruction> instructions = null)
+        private void ContinouslyPostAccessReports(SandboxedProcessMac process, CancellationToken token, List<ReportInstruction> instructions = null)
         {
             Analysis.IgnoreResult(
                 Task.Run(async () =>
@@ -230,7 +230,7 @@ namespace Test.BuildXL.Processes
             );
         }
 
-        private static Sandbox.AccessReport PostAccessReport(SandboxedProcessMacKext proc, FileOperation operation, Sandbox.AccessReportStatistics stats,
+        private static Sandbox.AccessReport PostAccessReport(SandboxedProcessMac proc, FileOperation operation, Sandbox.AccessReportStatistics stats,
                                                              int pid = 1234, string path = "/dummy/path", bool allowed = true)
         {
             var report = new Sandbox.AccessReport

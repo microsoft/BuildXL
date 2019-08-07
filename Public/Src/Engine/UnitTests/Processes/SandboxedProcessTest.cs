@@ -1051,7 +1051,7 @@ namespace Test.BuildXL.Processes
             {
                 PipSemiStableHash = 0,
                 PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                SandboxedKextConnection = GetSandboxedKextConnection()
+                SandboxConnection = GetSandboxConnection()
             };
 
             try
@@ -1131,7 +1131,7 @@ namespace Test.BuildXL.Processes
                 info.FileAccessManifest.PipId = GetNextPipId();
                 info.FileAccessManifest.ReportFileAccesses = true;
                 info.FileAccessManifest.FailUnexpectedFileAccesses = false;
-                info.SandboxedKextConnection = GetSandboxedKextConnection();
+                info.SandboxConnection = GetSandboxConnection();
 
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);

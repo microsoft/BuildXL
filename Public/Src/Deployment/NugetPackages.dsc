@@ -20,6 +20,11 @@ namespace NugetPackages {
         ? r`${qualifier.configuration}/pkgs`
         : r`${qualifier.configuration}/public/pkgs`;
 
+    const reducedDeploymentOptions: Managed.Deployment.FlattenOptions = {
+        skipPdb: true,
+        skipXml: true,
+    };
+
     const net472 = !canBuildAllPackagesOnThisHost ? undefined : pack({
         id: `${packageNamePrefix}.net472`,
         deployment: BuildXL.withQualifier({
@@ -27,6 +32,7 @@ namespace NugetPackages {
             targetFramework: "net472",
             targetRuntime: "win-x64"
         }).deployment,
+        deploymentOptions: reducedDeploymentOptions
     });
 
     const winX64 = !canBuildAllPackagesOnThisHost ? undefined : pack({
@@ -36,6 +42,7 @@ namespace NugetPackages {
             targetFramework: "netcoreapp3.0",
             targetRuntime: "win-x64"
         }).deployment,
+        deploymentOptions: reducedDeploymentOptions
     });
 
     const osxX64 = pack({
@@ -45,6 +52,7 @@ namespace NugetPackages {
             targetFramework: "netcoreapp3.0",
             targetRuntime: "osx-x64"
         }).deployment,
+        deploymentOptions: reducedDeploymentOptions
     });
 
     const sdks = pack({
@@ -139,7 +147,14 @@ namespace NugetPackages {
         targetLocation: packageTargetFolder,
     });
 
-    export function pack(args: {id: string, deployment: Deployment.Definition, copyContentFiles?: boolean, dependencies?: (Nuget.Dependency | Managed.ManagedNugetPackage)[]}) : File {
+    export function pack(args: {
+        id: string, 
+        deployment: Deployment.Definition, 
+        deploymentOptions?: Managed.Deployment.FlattenOptions,
+        copyContentFiles?: boolean, 
+        dependencies?: (Nuget.Dependency | Managed.ManagedNugetPackage)[]
+    }) : File {
+
         const dependencies : Nuget.Dependency[] = (args.dependencies || [])
             .map(dep => {
                 if (isManagedPackage(dep)) {
@@ -148,7 +163,7 @@ namespace NugetPackages {
                     return dep;
                 }
             });
-
+        
         return Nuget.pack({
             metadata:  {
                 id: args.id,
@@ -168,6 +183,7 @@ namespace NugetPackages {
                     : undefined,
             },
             deployment: args.deployment,
+            deploymentOptions: args.deploymentOptions,
             noPackageAnalysis: true,
             noDefaultExcludes: true,
         }).nuPkg;

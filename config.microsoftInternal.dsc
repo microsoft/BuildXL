@@ -15,7 +15,7 @@ export const pkgs = isMicrosoftInternal ? [
 
     // Runtime dependencies used for macOS deployments
     { id: "runtime.osx-x64.BuildXL", version: "1.98.99" },
-    { id: "Aria.Cpp.SDK", version: "8.5.6" },
+    { id: "Aria.Cpp.SDK", version: "8.5.7" },
 
     { id: "CB.QTest", version: "19.7.18.221046" },
 

@@ -570,8 +570,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return BoolResult.Success;
         }
 
-        /// <nodoc />
-        protected async Task<PutResult> TryCopyAndPutAsync(Context context, ContentHashWithSizeAndLocations hashInfo, CancellationToken cts, UrgencyHint urgencyHint, bool trace = true)
+        private async Task<PutResult> TryCopyAndPutAsync(Context context, ContentHashWithSizeAndLocations hashInfo, CancellationToken cts, UrgencyHint urgencyHint, bool trace = true)
         {
             if (trace)
             {

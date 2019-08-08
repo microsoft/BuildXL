@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
-using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 {
@@ -26,7 +25,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         private readonly Context _context;
         private readonly int _grpcPort;
         private readonly bool _useCompression;
-        private readonly GrpcDistributedPathTransformer _pathTransformer;
 
         private readonly GrpcCopyClientCache _clientCache;
 
@@ -40,8 +38,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             _useCompression = useCompression;
 
             _clientCache = new GrpcCopyClientCache(context, maxGrpcClientCount, maxGrpcClientAgeMinutes, grpcClientCleanupDelayMinutes, bufferSize: bufferSize);
-
-            _pathTransformer = new GrpcDistributedPathTransformer(_context.Logger);
         }
 
         /// <inheritdoc />

@@ -1309,7 +1309,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <inheritdoc />
         public MachineLocation GetRandomMachineLocation(MachineLocation except)
         {
-            if (_idsByLocation.Keys.Where(location => !location.Equals(except)).Any())
+            if (_idsByLocation.Keys.Any(location => !location.Equals(except)))
             {
                 MachineLocation location;
                 do

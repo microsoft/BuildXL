@@ -137,7 +137,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public MachineLocation GetRandomMachineLocation(MachineLocation except)
         {
-            if (_idByLocationMap.Keys.Where(location => !location.Equals(except)).Any())
+            if (_idByLocationMap.Keys.Any(location => !location.Equals(except)))
             {
                 MachineLocation location;
                 do

@@ -576,7 +576,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void IncrementalPreserveOutputTool()
         {
-            Configuration.Schedule.IncrementalScheduling = false;
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
             Configuration.IncrementalTools = new List<RelativePath>
             {

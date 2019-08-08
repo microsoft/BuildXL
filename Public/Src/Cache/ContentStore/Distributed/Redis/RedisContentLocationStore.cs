@@ -1309,12 +1309,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <inheritdoc />
         public MachineLocation GetRandomMachineLocation(MachineLocation except)
         {
-            if (_idsByLocation.Keys.Any(location => !location.Equals(except)))
+            // ConcurrentDictionary.Keys is an expensive operation, so make sure to only call it once.
+            var locations = _idsByLocation.Keys;
+            if (locations.Any(location => !location.Equals(except)))
             {
                 MachineLocation location;
                 do
                 {
-                    location = _idsByLocation.Keys.ElementAt(ThreadSafeRandom.Generator.Next(_idsByLocation.Keys.Count));
+                    location = locations.ElementAt(ThreadSafeRandom.Generator.Next(locations.Count));
                 }
                 while (location.Equals(except));
 

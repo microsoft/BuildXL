@@ -137,19 +137,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public MachineLocation GetRandomMachineLocation(MachineLocation except)
         {
-            if (_idByLocationMap.Keys.Any(location => !location.Equals(except)))
+            using (_lock.AcquireReadLock())
             {
-                MachineLocation location;
-                do
+                if (_locationByIdMap.Any(location => !location.Equals(except)))
                 {
-                    location = _idByLocationMap.Keys.ElementAt(ThreadSafeRandom.Generator.Next(_idByLocationMap.Keys.Count));
+                    MachineLocation location;
+                    do
+                    {
+                        location = _locationByIdMap[ThreadSafeRandom.Generator.Next(_locationByIdMap.Length)];
+                    }
+                    while (location.Equals(default) || location.Equals(except));
+
+                    return location;
                 }
-                while (location.Equals(except));
 
-                return location;
+                return default;
             }
-
-            return default;
         }
     }
 }

@@ -197,6 +197,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                         PinConfiguration = pinConfiguration,
                         EmptyFileHashShortcutEnabled = _distributedSettings.EmptyFileHashShortcutEnabled,
                         RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
+                        EnableProactiveCopy = _distributedSettings.EnableProactiveCopy,
                     },
                     replicaCreditInMinutes: _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.ReplicaCreditInMinutes : null,
                     enableRepairHandling: _distributedSettings.IsRepairHandlingEnabled,

@@ -80,6 +80,9 @@ namespace ContentStoreTest.Distributed.Sessions
             base.Dispose(disposing);
         }
 
+        /// <nodoc />
+        protected virtual bool EnableProactiveCopy => false;
+
         protected override IContentStore CreateStore(
             Context context,
             TestFileCopier fileCopier,
@@ -175,7 +178,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     CheckFiles = true,
                     UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled,
                     UseLegacyQuotaKeeperImplementation = false,
-                }
+                },
+                enableProactiveCopy: EnableProactiveCopy
                 );
 
             distributedContentStore.DisposeContentStoreFactory = false;

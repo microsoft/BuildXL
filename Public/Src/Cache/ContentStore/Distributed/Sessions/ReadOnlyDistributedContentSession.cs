@@ -91,7 +91,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// </summary>
         private readonly ContentTrackerUpdater _contentTrackerUpdater;
 
-        private readonly DistributedContentStoreSettings _settings;
+        /// <summary>
+        /// Settings for the session.
+        /// </summary>
+        protected readonly DistributedContentStoreSettings Settings;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ReadOnlyDistributedContentSession{T}"/> class.
@@ -117,7 +120,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             ContentLocationStore = contentLocationStore;
             LocalCacheRootMachineLocation = new MachineLocation(localMachineLocation);
             _contentAvailabilityGuarantee = contentAvailabilityGuarantee;
-            _settings = settings;
+            Settings = settings;
 
             _pinCache = pinCache;
 
@@ -184,7 +187,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // we can avoid the overhead of the paging and action-block logic there.
 
             // If pin better is off, continue the old behavior of re-directing to the bulk method.
-            if (_settings.PinConfiguration == null)
+            if (Settings.PinConfiguration == null)
             {
                 var bulkResults = await PinAsync(operationContext, new[] { contentHash }, operationContext.Token, urgencyHint);
                 return await bulkResults.SingleAwaitIndexed();
@@ -362,7 +365,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 hashes => _remotePinner(operationContext, hashes, operationContext.Token, urgencyHint),
                 result => result.Succeeded,
                 // Exclude the empty hash because it is a special case which is hard coded for place/openstream/pin.
-                async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Where(x => !(_settings.EmptyFileHashShortcutEnabled && contentHashes[x.Index].IsEmptyHash())).Select(x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
+                async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Where(x => !(Settings.EmptyFileHashShortcutEnabled && contentHashes[x.Index].IsEmptyHash())).Select(x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
         }
 
         /// <inheritdoc />
@@ -516,7 +519,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                             return result.WithIndex(indexed.Index);
                         },
-                        new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = _settings.ParallelCopyFilesLimit, });
+                        new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Settings.ParallelCopyFilesLimit, });
 
                 // TODO: Better way ? (bug 1365340)
                 copyFilesLocallyBlock.PostAll(getBulkResult.ContentHashesInfo.AsIndexed());
@@ -604,7 +607,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         PutResult innerPutResult;
                         long actualSize = copyFileResult.Size ?? hashInfo.Size;
-                        if (_settings.UseTrustedHash && actualSize >= _settings.TrustedHashFileSizeBoundary && Inner is ITrustedContentSession trustedInner)
+                        if (Settings.UseTrustedHash && actualSize >= Settings.TrustedHashFileSizeBoundary && Inner is ITrustedContentSession trustedInner)
                         {
                             // The file has already been hashed, so we can trust the hash of the file.
                             innerPutResult = await trustedInner.PutTrustedFileAsync(context, new ContentHashWithSize(hashInfo.ContentHash, actualSize), tempLocation, FileRealizationMode.Move, cts, urgencyHint);
@@ -707,7 +710,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             // Create an action block to process all the requested remote pins while limiting the number of simultaneously executed.
             var pinnings = new List<RemotePinning>(hashes.Count);
-            var pinningOptions = new ExecutionDataflowBlockOptions() { CancellationToken = cancel, MaxDegreeOfParallelism = _settings.PinConfiguration?.MaxIOOperations ?? 1 };
+            var pinningOptions = new ExecutionDataflowBlockOptions() { CancellationToken = cancel, MaxDegreeOfParallelism = Settings.PinConfiguration?.MaxIOOperations ?? 1 };
             var pinningAction = new ActionBlock<RemotePinning>(async pinning => await PinRemoteAsync(operationContext, pinning, cancel, isLocal: origin == GetBulkOrigin.Local), pinningOptions);
 
             // Process the requests in pages so we can make bulk calls, but not too big bulk calls, to the content location store.
@@ -794,7 +797,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return PinResult.ContentNotFound;
             }
 
-            if (_settings.PinConfiguration == null)
+            if (Settings.PinConfiguration == null)
             {
                 if (_contentAvailabilityGuarantee == ContentAvailabilityGuarantee.FileRecordsExist)
                 {
@@ -802,7 +805,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 }
                 else if (_contentAvailabilityGuarantee == ContentAvailabilityGuarantee.RedundantFileRecordsOrCheckFileExistence)
                 {
-                    if (locations.Count >= _settings.AssumeAvailableReplicaCount)
+                    if (locations.Count >= Settings.AssumeAvailableReplicaCount)
                     {
                         return PinResult.Success;
                     }
@@ -818,7 +821,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             // Calculate the minimum number of remote verified and unverified copies for us to
             // return a successful pin at the given risk level.
-            ComputePinThresholds(remote, _settings.PinConfiguration.PinRisk, out var minVerifiedCount, out var minUnverifiedCount, out var pinCacheTimeToLive);
+            ComputePinThresholds(remote, Settings.PinConfiguration.PinRisk, out var minVerifiedCount, out var minUnverifiedCount, out var pinCacheTimeToLive);
             Contract.Assert(minVerifiedCount > 0);
             Contract.Assert(minUnverifiedCount >= minVerifiedCount);
 
@@ -901,12 +904,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         // Future refinements of this method could use machine reputation and file lifetime knowledge to improve this model.
         private void ComputePinThresholds(ContentHashWithSizeAndLocations remote, double risk, out int minVerifiedCount, out int minUnverifiedCount, out TimeSpan pinCacheTimeToLive)
         {
-            Contract.Assert(_settings.PinConfiguration != null);
+            Contract.Assert(Settings.PinConfiguration != null);
             Contract.Assert(remote != null);
             Contract.Assert((risk > 0.0) && (risk < 1.0));
 
-            double verifiedRisk = _settings.PinConfiguration.MachineRisk;
-            double unverifiedRisk = _settings.PinConfiguration.MachineRisk + (_settings.PinConfiguration.FileRisk * (1.0 - _settings.PinConfiguration.MachineRisk));
+            double verifiedRisk = Settings.PinConfiguration.MachineRisk;
+            double unverifiedRisk = Settings.PinConfiguration.MachineRisk + (Settings.PinConfiguration.FileRisk * (1.0 - Settings.PinConfiguration.MachineRisk));
 
             Contract.Assert((verifiedRisk > 0.0) && (verifiedRisk < 1.0));
             Contract.Assert((unverifiedRisk > 0.0) && (unverifiedRisk < 1.0));
@@ -919,7 +922,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             minVerifiedCount = (int)Math.Ceiling(lnRisk / lnVerifiedRisk);
             minUnverifiedCount = (int)Math.Ceiling(lnRisk / lnUnverifiedRisk);
 
-            if (_pinCache == null || _settings.PinConfiguration.PinCacheReplicaCreditRetentionMinutes <= 0)
+            if (_pinCache == null || Settings.PinConfiguration.PinCacheReplicaCreditRetentionMinutes <= 0)
             {
                 pinCacheTimeToLive = TimeSpan.Zero;
             }
@@ -931,8 +934,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 // r = PinCacheReplicaCreditRetentionMinutes
                 // d = PinCacheReplicaCreditRetentionDecay
                 // n = replica count
-                var decay = _settings.PinConfiguration.PinCacheReplicaCreditRetentionDecay;
-                var pinCacheTimeToLiveMinutes = _settings.PinConfiguration.PinCacheReplicaCreditRetentionMinutes * (1 - Math.Pow(decay, remote.Locations.Count)) / (1 - decay);
+                var decay = Settings.PinConfiguration.PinCacheReplicaCreditRetentionDecay;
+                var pinCacheTimeToLiveMinutes = Settings.PinConfiguration.PinCacheReplicaCreditRetentionMinutes * (1 - Math.Pow(decay, remote.Locations.Count)) / (1 - decay);
                 pinCacheTimeToLive = TimeSpan.FromMinutes(pinCacheTimeToLiveMinutes);
             }
         }

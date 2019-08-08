@@ -100,7 +100,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             int trustedHashFileSizeBoundary = -1,
             long parallelHashingFileSizeBoundary = -1,
             int maxConcurrentCopyOperations = 512,
-            ContentStoreSettings contentStoreSettings = null)
+            ContentStoreSettings contentStoreSettings = null,
+            bool enableProactiveCopy = false)
             : this (
                   localMachineLocation,
                   innerContentStoreFunc,
@@ -121,6 +122,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                       MaxConcurrentCopyOperations = maxConcurrentCopyOperations,
                       RetryIntervalForCopies = retryIntervalForCopies,
                       PinConfiguration = pinConfiguration,
+                      EnableProactiveCopy = enableProactiveCopy
                   },
                   replicaCreditInMinutes,
                   clock,

@@ -3,16 +3,13 @@
 
 using System;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -157,7 +154,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             var putResult = await RegisterPutAsync(context, UrgencyHint.Nominal, result);
 
-            if (putResult.Succeeded)
+            if (putResult.Succeeded && Settings.EnableProactiveCopy)
             {
                 RequestProactiveCopyIfNeededAsync(context, putResult.ContentHash).FireAndForget(context);
             }

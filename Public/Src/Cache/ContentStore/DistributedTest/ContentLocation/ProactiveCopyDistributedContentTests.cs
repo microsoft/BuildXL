@@ -11,7 +11,6 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
-using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -46,6 +45,8 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             return Enumerable.Range(0, storeCount).Select(i => PortExtensions.GetNextAvailablePort()).ToArray();
         }
+
+        protected override bool EnableProactiveCopy => true;
 
         protected override IContentStore CreateStore(
             Context context,

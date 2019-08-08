@@ -303,24 +303,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, sessionResult.ErrorMessage) };
             }
 
-            string errorMessage;
-            if (sessionResult.Value is IFileCopyingSession copyingSession)
-            {
-                var putResult = await copyingSession.TryCopyAndPutAsync(cacheContext, request.ContentHash.ToContentHash((HashType)request.HashType), request.MachineLocation);
+            var pinResult = await sessionResult.Value.PinAsync(cacheContext, request.ContentHash.ToContentHash((HashType)request.HashType), cancellationToken);
 
-                if (putResult.Succeeded)
-                {
-                    return new RequestCopyFileResponse { Header = ResponseHeader.Success(startTime) };
-                }
-
-                errorMessage = putResult.ErrorMessage;
-            }
-            else
+            if (pinResult.Succeeded)
             {
-                errorMessage = $"Could not copy file since {sessionResult.Value.GetType()} does not implement {typeof(IFileCopyingSession)}";
+                return new RequestCopyFileResponse { Header = ResponseHeader.Success(startTime) };
             }
 
-            return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, errorMessage) };
+            return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, pinResult.ErrorMessage) };
 
             // Creating sessions is an expensive operation, so all RequestCopyFile operations will share a single session.
             async Task<Result<IContentSession>> GetRequestCopySessionAsync(OperationContext context, string cacheName)

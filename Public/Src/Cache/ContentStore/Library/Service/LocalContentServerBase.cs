@@ -74,7 +74,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Collection of stores by name.
         /// </summary>
-        protected readonly Dictionary<string, TStore> StoresByName = new Dictionary<string, TStore>();
+        internal readonly Dictionary<string, TStore> StoresByName = new Dictionary<string, TStore>();
 
         /// <nodoc />
         protected LocalContentServerBase(

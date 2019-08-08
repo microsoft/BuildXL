@@ -70,12 +70,14 @@ namespace ContentStoreTest.Distributed.Sessions
         protected override IContentStore CreateStore(
             Context context,
             TestFileCopier fileCopier,
+            ICopyRequester copyRequester,
             DisposableDirectory testDirectory,
             int index,
             bool enableDistributedEviction,
             int? replicaCreditInMinutes,
             bool enableRepairHandling,
-            bool emptyFileHashShortcutEnabled)
+            bool emptyFileHashShortcutEnabled,
+            object additionalArgs)
         {
             var rootPath = testDirectory.Path / "Root";
             var tempPath = testDirectory.Path / "Temp";
@@ -130,7 +132,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 fileCopier,
                 fileCopier,
                 pathTransformer,
-                copyRequester: null,
+                copyRequester,
                 ContentAvailabilityGuarantee,
                 tempPath,
                 FileSystem,

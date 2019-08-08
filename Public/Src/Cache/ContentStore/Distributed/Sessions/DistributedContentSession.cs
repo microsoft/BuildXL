@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     /// A content location based content session with an inner content session for storage.
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class DistributedContentSession<T> : ReadOnlyDistributedContentSession<T>, IContentSession, IFileCopyingSession
+    public class DistributedContentSession<T> : ReadOnlyDistributedContentSession<T>, IContentSession
         where T : PathBase
     {
         private enum Counters
@@ -60,13 +60,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 contentTrackerUpdater: contentTrackerUpdater,
                 settings)
         {
-        }
-
-        /// <inheritdoc />
-        public Task<PutResult> TryCopyAndPutAsync(Context context, ContentHash hash, string machineLocation)
-        {
-            var hashWithLocation = new ContentHashWithSizeAndLocations(hash, locations: new[] { new MachineLocation(machineLocation) });
-            return TryCopyAndPutAsync(context, hashWithLocation, CancellationToken.None, UrgencyHint.Nominal);
         }
 
         /// <inheritdoc />

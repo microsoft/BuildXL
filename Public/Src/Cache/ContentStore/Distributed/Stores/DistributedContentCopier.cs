@@ -233,8 +233,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             var targetPath = new AbsolutePath(targetLocation.Path);
             var segments = targetPath.GetSegments();
-            var cacheName = segments[segments.Count - 1];
-            var targetMachineName = segments[0];
+            var cacheName = "Default";//segments[segments.Count - 1];
+            var targetMachineName = targetPath.IsLocal ? "localhost" : segments[0];
 
             return GatedIoOperationAsync(ts => _copyRequester.RequestCopyFileAsync(context, hash, targetMachineName, cacheName, sourceLocation.Path), context.Token);
         }

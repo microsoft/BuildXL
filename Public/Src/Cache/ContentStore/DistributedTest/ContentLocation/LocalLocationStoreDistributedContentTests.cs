@@ -53,7 +53,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         private readonly ConcurrentDictionary<(Guid, int), LocalRedisProcessDatabase> _localDatabases = new ConcurrentDictionary<(Guid, int), LocalRedisProcessDatabase>();
 
-        private PinConfiguration PinConfiguration { get; set; }
+        protected PinConfiguration PinConfiguration { get; set; }
 
         private readonly Dictionary<int, RedisContentLocationStoreConfiguration> _configurations
             = new Dictionary<int, RedisContentLocationStoreConfiguration>();
@@ -83,12 +83,14 @@ namespace ContentStoreTest.Distributed.Sessions
         protected override IContentStore CreateStore(
             Context context,
             TestFileCopier fileCopier,
+            ICopyRequester copyRequester,
             DisposableDirectory testDirectory,
             int index,
             bool enableDistributedEviction,
             int? replicaCreditInMinutes,
             bool enableRepairHandling,
-            bool emptyFileHashShortcutEnabled)
+            bool emptyFileHashShortcutEnabled,
+            object additionalArgs)
         {
             var rootPath = testDirectory.Path / "Root";
             var tempPath = testDirectory.Path / "Temp";
@@ -158,7 +160,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 fileCopier,
                 fileCopier,
                 pathTransformer,
-                copyRequester: null,
+                copyRequester,
                 ContentAvailabilityGuarantee,
                 tempPath,
                 FileSystem,
@@ -2066,13 +2068,13 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         private static readonly TimeSpan LocalDatabaseEntryTimeToLive = TimeSpan.FromMinutes(3);
-        private const int SafeToLazilyUpdateMachineCountThreshold = 3;
-        private const int ReplicaCreditInMinutes = 3;
+        protected const int SafeToLazilyUpdateMachineCountThreshold = 3;
+        protected const int ReplicaCreditInMinutes = 3;
         protected bool _enableReconciliation;
-        private ContentLocationMode _readMode = ContentLocationMode.LocalLocationStore;
-        private ContentLocationMode _writeMode = ContentLocationMode.LocalLocationStore;
-        private bool _enableSecondaryRedis = false;
-        private AbsolutePath _testDatabasePath = null;
+        protected ContentLocationMode _readMode = ContentLocationMode.LocalLocationStore;
+        protected ContentLocationMode _writeMode = ContentLocationMode.LocalLocationStore;
+        protected bool _enableSecondaryRedis = false;
+        protected AbsolutePath _testDatabasePath = null;
 
         private RedisContentLocationStoreConfiguration CreateRedisContentLocationStoreConfiguration(
             AbsolutePath storeLocationRoot,

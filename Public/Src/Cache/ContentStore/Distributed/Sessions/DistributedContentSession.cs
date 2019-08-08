@@ -216,7 +216,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         return new BoolResult("Could not request copy because it was not possible to select a random machine location.");
                     }
 
-                    return await DistributedCopier.RequestCopyFileAsync(context, hash, location, LocalCacheRootMachineLocation);
+                    return await DistributedCopier.RequestCopyFileAsync(context, hash, location);
                 }
 
                 return BoolResult.Success;

@@ -195,10 +195,8 @@ enum CopyCompression {
 // RequestCopyFile
 message RequestCopyFileRequest {
     string traceId = 1;
-    string machineLocation = 2;
-    int32 hashType = 3;
-    bytes contentHash = 4;
-    string cacheName = 5;
+    int32 hashType = 2;
+    bytes contentHash = 3;
 }
 
 message RequestCopyFileResponse {

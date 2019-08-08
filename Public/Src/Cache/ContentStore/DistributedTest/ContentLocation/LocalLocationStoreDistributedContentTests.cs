@@ -1719,7 +1719,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var worker0 = context.GetFirstWorker();
                     var worker1 = context.EnumerateWorkers().ElementAt(1);
                     var workerSession = sessions[context.GetFirstWorkerIndex()];
-                    var workerContentStore = (IRepairStore)context.Stores[context.GetFirstWorkerIndex()];
+                    var workerContentStore = (IRepairStore)context.GetDistributedStore(context.GetFirstWorkerIndex());
                     var master = context.GetMaster();
 
                     // Insert random file in session 0

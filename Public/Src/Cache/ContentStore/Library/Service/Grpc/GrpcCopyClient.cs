@@ -226,7 +226,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Requests host to copy a file from another source machine.
         /// </summary>
-        public async Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash, string sourceMachine, string targetCacheName)
+        public async Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash)
         {
             try
             {
@@ -234,9 +234,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 {
                     TraceId = context.Id.ToString(),
                     ContentHash = hash.ToByteString(),
-                    HashType = (int)hash.HashType,
-                    MachineLocation = sourceMachine,
-                    CacheName = targetCacheName
+                    HashType = (int)hash.HashType
                 };
 
                 var response = await _client.RequestCopyFileAsync(request);

@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly int _gzipSizeBarrier;
         private readonly ByteArrayPool _pool;
 
-        private readonly Dictionary<string, IContentSession> _requestCopySessionByCacheName = new Dictionary<string, IContentSession>();
+        private IContentSession _requestCopySession;
         private readonly SemaphoreSlim _requestCopySessionSemaphore = new SemaphoreSlim(1);
 
         /// <nodoc />
@@ -297,7 +297,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             var startTime = DateTime.UtcNow;
             var cacheContext = new OperationContext(new Context(new Guid(request.TraceId), _logger), cancellationToken);
 
-            var sessionResult = await GetRequestCopySessionAsync(cacheContext, request.CacheName);
+            var sessionResult = await GetRequestCopySessionAsync(cacheContext);
             if (!sessionResult.Succeeded)
             {
                 return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, sessionResult.ErrorMessage) };
@@ -313,20 +313,20 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, pinResult.ErrorMessage) };
 
             // Creating sessions is an expensive operation, so all RequestCopyFile operations will share a single session.
-            async Task<Result<IContentSession>> GetRequestCopySessionAsync(OperationContext context, string cacheName)
+            async Task<Result<IContentSession>> GetRequestCopySessionAsync(OperationContext context)
             {
-                if (!_requestCopySessionByCacheName.ContainsKey(cacheName))
+                if (_requestCopySession == null)
                 {
                     await _requestCopySessionSemaphore.WaitAsync();
                     try
                     {
-                        if (!_requestCopySessionByCacheName.ContainsKey(cacheName))
+                        if (_requestCopySession == null)
                         {
-                            var createSessionResult = await _sessionHandler.CreateSessionAsync(context, Guid.NewGuid().ToString(), cacheName, ImplicitPin.None, Capabilities.ContentOnly);
+                            var createSessionResult = await _sessionHandler.CreateSessionAsync(context, Guid.NewGuid().ToString(), cacheName: null, ImplicitPin.None, Capabilities.ContentOnly);
                             if (createSessionResult.Succeeded)
                             {
                                 var session = _sessionHandler.GetSession(createSessionResult.Value.sessionId);
-                                _requestCopySessionByCacheName[cacheName] = session;
+                                _requestCopySession = session;
                             }
                             else
                             {
@@ -340,7 +340,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     }
                 }
 
-                return new Result<IContentSession>(_requestCopySessionByCacheName[cacheName]);
+                return new Result<IContentSession>(_requestCopySession);
             }
         }
 

@@ -105,6 +105,18 @@ namespace ContentStoreTest.Distributed.Sessions
             internal TransitioningContentLocationStore GetLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore);
 
+            internal IContentStore GetDistributedStore(int idx)
+            {
+                var store = Stores[idx];
+
+                if (store is TestInProcessServiceClientContentStore scs)
+                {
+                    return ((SessionCapturingStore)scs.Server.StoresByName.Values.First()).Inner;
+                }
+
+                return store;
+            }
+
             internal int GetMasterIndex()
             {
                 for (int i = 0; i < Sessions.Count; i++)

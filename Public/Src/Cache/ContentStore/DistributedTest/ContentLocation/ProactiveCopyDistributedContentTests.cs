@@ -147,26 +147,26 @@ namespace ContentStoreTest.Distributed.Sessions
 
     internal class SessionCapturingStore : IContentStore
     {
-        private IContentStore _inner;
+        public IContentStore Inner;
         public IList<IContentSession> ContentSessions { get; set; } = new List<IContentSession>();
         public IList<IReadOnlyContentSession> ReadOnlyContentSessions { get; set; } = new List<IReadOnlyContentSession>();
 
         public SessionCapturingStore(IContentStore inner)
         {
-            _inner = inner;
+            Inner = inner;
         }
 
-        public bool StartupCompleted => _inner.StartupCompleted;
+        public bool StartupCompleted => Inner.StartupCompleted;
 
-        public bool StartupStarted => _inner.StartupStarted;
+        public bool StartupStarted => Inner.StartupStarted;
 
-        public bool ShutdownCompleted => _inner.ShutdownCompleted;
+        public bool ShutdownCompleted => Inner.ShutdownCompleted;
 
-        public bool ShutdownStarted => _inner.ShutdownStarted;
+        public bool ShutdownStarted => Inner.ShutdownStarted;
 
         public CreateSessionResult<IReadOnlyContentSession> CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
         {
-            var sessionResult = _inner.CreateReadOnlySession(context, name, implicitPin);
+            var sessionResult = Inner.CreateReadOnlySession(context, name, implicitPin);
             if (sessionResult.Succeeded)
             {
                 ReadOnlyContentSessions.Add(sessionResult.Session);
@@ -176,7 +176,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
-            var sessionResult = _inner.CreateSession(context, name, implicitPin);
+            var sessionResult = Inner.CreateSession(context, name, implicitPin);
             if (sessionResult.Succeeded)
             {
                 ContentSessions.Add(sessionResult.Session);
@@ -184,16 +184,16 @@ namespace ContentStoreTest.Distributed.Sessions
             return sessionResult;
         }
 
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash) => _inner.DeleteAsync(context, contentHash);
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash) => Inner.DeleteAsync(context, contentHash);
 
-        public void Dispose() => _inner.Dispose();
+        public void Dispose() => Inner.Dispose();
 
-        public Task<GetStatsResult> GetStatsAsync(Context context) => _inner.GetStatsAsync(context);
+        public Task<GetStatsResult> GetStatsAsync(Context context) => Inner.GetStatsAsync(context);
 
-        public void PostInitializationCompleted(Context context, BoolResult result) => _inner.PostInitializationCompleted(context, result);
+        public void PostInitializationCompleted(Context context, BoolResult result) => Inner.PostInitializationCompleted(context, result);
 
-        public Task<BoolResult> ShutdownAsync(Context context) => _inner.ShutdownAsync(context);
+        public Task<BoolResult> ShutdownAsync(Context context) => Inner.ShutdownAsync(context);
 
-        public Task<BoolResult> StartupAsync(Context context) => _inner.StartupAsync(context);
+        public Task<BoolResult> StartupAsync(Context context) => Inner.StartupAsync(context);
     }
 }

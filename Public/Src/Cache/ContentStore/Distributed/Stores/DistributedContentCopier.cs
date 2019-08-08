@@ -229,14 +229,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Requests another machine to copy from the current machine.
         /// </summary>
-        public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, MachineLocation sourceLocation)
+        public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation)
         {
             var targetPath = new AbsolutePath(targetLocation.Path);
-            var segments = targetPath.GetSegments();
-            var cacheName = "Default";//segments[segments.Count - 1];
-            var targetMachineName = targetPath.IsLocal ? "localhost" : segments[0];
+            var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
 
-            return GatedIoOperationAsync(ts => _copyRequester.RequestCopyFileAsync(context, hash, targetMachineName, cacheName, sourceLocation.Path), context.Token);
+            return GatedIoOperationAsync(ts => _copyRequester.RequestCopyFileAsync(context, hash, targetMachineName), context.Token);
         }
 
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();

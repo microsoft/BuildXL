@@ -104,11 +104,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash, string targetMachineName, string targetCacheName, string sourceLocation)
+        public async Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash, string targetMachineName)
         {
             using (var clientWrapper = await _clientCache.CreateAsync(targetMachineName, _grpcPort, _useCompression))
             {
-                return await clientWrapper.Value.RequestCopyFileAsync(context, hash, sourceLocation, targetCacheName);
+                return await clientWrapper.Value.RequestCopyFileAsync(context, hash);
             }
         }
     }

@@ -63,9 +63,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <param name="context">The context of the operation</param>
         /// <param name="hash">The hash of the file to be copied.</param>
         /// <param name="targetMachineName">The machine that should copy the file</param>
-        /// <param name="targetCacheName">The name of the cache to which the file should be put</param>
-        /// <param name="sourceLocation">The source machine location of the file</param>
         /// <returns></returns>
-        Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash, string targetMachineName, string targetCacheName, string sourceLocation);
+        Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash, string targetMachineName);
     }
 }

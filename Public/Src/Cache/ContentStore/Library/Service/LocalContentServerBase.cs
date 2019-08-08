@@ -754,6 +754,11 @@ namespace BuildXL.Cache.ContentStore.Service
             ImplicitPin implicitPin,
             Capabilities capabilities)
         {
+            if (cacheName == null)
+            {
+                cacheName = _tempFolderForStreamsByCacheName.Keys.First();
+            }
+
             var result = await CreateTempDirectoryAndSessionAsync(
                 context,
                 sessionIdHint: null, // SessionId must be recreated for new sessions.

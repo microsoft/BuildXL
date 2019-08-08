@@ -44,7 +44,7 @@ config({
                 credentialProviders: [
 					{ 
 					  toolUrl: "NugetProvider/CredentialProviderBuildXL.exe",
-					  hash: "BB60E7B4CC5A8ED7709CEE5765C19DE79003E31802F1687BECA59E5ABAAD3AD200"
+					  hash: "6FE1A045BC90874749C63EBA0918A48B684EE35E855D81DD9B6B85333FF2E5F300"
 					}
 				]
             },

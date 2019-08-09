@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             GetLocationsSatisfiedFromRemote
         }
 
-        private CounterCollection<Counters> _counters = new CounterCollection<Counters>();
+        private readonly CounterCollection<Counters> _counters = new CounterCollection<Counters>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DistributedContentSession{T}"/> class.
@@ -181,45 +181,51 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return putResult;
         }
 
-        private async Task<BoolResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash)
+        private Task<BoolResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash)
         {
-            var hashArray = new[] { hash };
-
-            // First check in local location store, then global if failed.
-            var getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Local);
-            if (!getLocationsResult.Succeeded || getLocationsResult.ContentHashesInfo[0].Locations.Count == 0)
-            {
-                getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Global);
-
-                if (getLocationsResult.Succeeded)
+            return context.PerformOperationAsync(
+                Tracer,
+                traceErrorsOnly: true,
+                operation: async () =>
                 {
-                    _counters[Counters.GetLocationsSatisfiedFromRemote].Increment();
-                }
-            }
-            else
-            {
-                _counters[Counters.GetLocationsSatisfiedFromLocal].Increment();
-            }
+                    var hashArray = new[] { hash };
 
-            if (getLocationsResult.Succeeded)
-            {
-                // Only request copy when this is the only machine where the content is located.
-                if (getLocationsResult.ContentHashesInfo[0].Locations.Count <= 1)
-                {
-                    var getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: LocalCacheRootMachineLocation);
-
-                    if (!getLocationResult.Succeeded)
+                    // First check in local location store, then global if failed.
+                    var getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Local);
+                    if (getLocationsResult.Succeeded && getLocationsResult.ContentHashesInfo[0].Locations.Count > 0)
                     {
-                        return new BoolResult(getLocationResult);
+                        _counters[Counters.GetLocationsSatisfiedFromLocal].Increment();
+                    }
+                    else
+                    {
+                        getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Global);
+
+                        if (getLocationsResult.Succeeded)
+                        {
+                            _counters[Counters.GetLocationsSatisfiedFromRemote].Increment();
+                        }
                     }
 
-                    return await DistributedCopier.RequestCopyFileAsync(context, hash, getLocationResult.Value);
-                }
+                    if (!getLocationsResult.Succeeded)
+                    {
+                        return new BoolResult(getLocationsResult);
+                    }
 
-                return BoolResult.Success;
-            }
+                    // Only request copy when this is the only machine where the content is located.
+                    if (getLocationsResult.ContentHashesInfo[0].Locations.Count <= 1)
+                    {
+                        var getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: LocalCacheRootMachineLocation);
 
-            return new BoolResult(getLocationsResult);
+                        if (!getLocationResult.Succeeded)
+                        {
+                            return new BoolResult(getLocationResult);
+                        }
+
+                        return await DistributedCopier.RequestCopyFileAsync(context, hash, getLocationResult.Value);
+                    }
+
+                    return BoolResult.Success;
+                });
         }
 
         /// <inheritdoc />

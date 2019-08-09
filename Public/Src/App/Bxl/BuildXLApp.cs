@@ -764,6 +764,10 @@ namespace BuildXL
             {
                 return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), BucketMessage: string.Empty);
             }
+            else if (listener.CountsPerEventId((EventId)SchedulerEventId.ProblematicWorkerExit) >= 1)
+            {
+                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: SchedulerEventId.ProblematicWorkerExit.ToString(), BucketMessage: string.Empty);
+            }
             else if (listener.InternalErrorDetails.Count > 0)
             {
                 return (ExitKind: ExitKind.InternalError, ErrorBucket: listener.InternalErrorDetails.FirstErrorName, BucketMessage: listener.InternalErrorDetails.FirstErrorMessage);

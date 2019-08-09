@@ -2347,17 +2347,20 @@ namespace BuildXL.Scheduler
                     // We stop on the first error only on the master or single-machine builds.
                     // During cancellation, master coordinates with workers to stop the build.
 
+                    // ErrorsLoggedById is a ConcurrentBag. Its Contains() isn't particularly performant. It copies everything to a new list and then enumerates that.
                     bool hasMaterializationErrorHappened = m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFromCacheFailure)
                         || m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFailureUnrelatedToCache);
 
-                    // Early terminate the build if StopOnFirstError is enabled or a materialization error is occurred. 
-                    bool earlyTerminate = m_scheduleConfiguration.StopOnFirstError || hasMaterializationErrorHappened;
+                    // Early terminate the build if 
+                    // (1) StopOnFirstError is enabled or 
+                    // (2) a materialization error is occurred in a distributed build.
+                    bool earlyTerminate = m_scheduleConfiguration.StopOnFirstError || (hasMaterializationErrorHappened && IsDistributedMaster);
 
                     if (!IsTerminating && earlyTerminate)
                     {
                         Logger.Log.ScheduleTerminatingDueToPipFailure(m_executePhaseLoggingContext, pipDescription);
 
-                        RequestTermination(false);
+                        RequestTermination(cancelQueue: false);
                     }
 
                     Contract.Assert(m_executePhaseLoggingContext.ErrorWasLogged, I($"Should have logged error for pip: {pipDescription}"));

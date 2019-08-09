@@ -231,10 +231,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation)
         {
-            var targetPath = new AbsolutePath(targetLocation.Path);
-            var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
+            return context.PerformOperationAsync(
+                Tracer,
+                traceOperationStarted: false,
+                operation: () =>
+                {
+                    var targetPath = new AbsolutePath(targetLocation.Path);
+                    var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
 
-            return GatedIoOperationAsync(ts => _copyRequester.RequestCopyFileAsync(context, hash, targetMachineName), context.Token);
+                    return GatedIoOperationAsync(ts => _copyRequester.RequestCopyFileAsync(context, hash, targetMachineName), context.Token);
+                });
         }
 
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();

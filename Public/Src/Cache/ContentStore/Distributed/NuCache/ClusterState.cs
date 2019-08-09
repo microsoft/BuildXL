@@ -81,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Requires(unknownMachines != null);
 
-            foreach(var entry in unknownMachines)
+            foreach (var entry in unknownMachines)
             {
                 AddMachine(entry.Key, entry.Value);
             }
@@ -114,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using (_lock.AcquireReadLock())
             {
-                if (machine.Index <_locationByIdMap.Length)
+                if (machine.Index < _locationByIdMap.Length)
                 {
                     machineLocation = _locationByIdMap[machine.Index];
                     return machineLocation.Data != null;
@@ -138,19 +138,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except)
         {
-            if (_idByLocationMap.Keys.Any(location => !location.Equals(except)))
+            using (_lock.AcquireReadLock())
             {
-                MachineLocation location;
-                do
+                if (_locationByIdMap.Any(location => !location.Equals(except)))
                 {
-                    location = _idByLocationMap.Keys.ElementAt(ThreadSafeRandom.Generator.Next(_idByLocationMap.Keys.Count));
+                    MachineLocation location;
+                    do
+                    {
+                        location = _locationByIdMap[ThreadSafeRandom.Generator.Next(_locationByIdMap.Length)];
+                    }
+                    while (location.Equals(default) || location.Equals(except));
+
+                    return new Result<MachineLocation>(location);
                 }
-                while (location.Equals(except));
 
-                return new Result<MachineLocation>(location);
+                return new Result<MachineLocation>("Could not select a machine location.");
             }
-
-            return new Result<MachineLocation>("Could not select a machine location.");
         }
     }
 }

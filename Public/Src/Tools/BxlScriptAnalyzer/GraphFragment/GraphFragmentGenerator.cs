@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Pips.Operations;
@@ -96,7 +97,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
 
             try
             {
-                serializer.Serialize(m_absoluteOutputPath, PipGraph.RetrieveScheduledPips().ToList(), m_description);
+                var pips = PipGraph.RetrieveScheduledPips().ToList();
+                var finalPipList = TopSort(pips);
+                finalPipList = StableSortPips(pips, finalPipList);
+                serializer.Serialize(m_absoluteOutputPath, finalPipList, pips.Count, m_description);
             }
             catch (Exception e) when (e is BuildXLException || e is IOException)
             {
@@ -105,6 +109,71 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             }
 
             return base.FinalizeAnalysis();
+        }
+
+        /// <summary>
+        /// The pips should be in a similar order to how they were originally inserted into the graph
+        /// </summary>
+        private static List<List<Pip>> StableSortPips(List<Pip> pips, List<List<Pip>> finalPipList)
+        {
+            Dictionary<Pip, int> order = new Dictionary<Pip, int>();
+            for (int i = 0; i < pips.Count; i++)
+            {
+                order[pips[i]] = i;
+            }
+
+            finalPipList = finalPipList.Select(pipGroup => pipGroup.OrderBy(pip => order[pip]).ToList()).ToList();
+            return finalPipList;
+        }
+
+        private List<List<Pip>> TopSort(List<Pip> pips)
+        {
+            Dictionary<Pip, int> childrenLeftToVisit = new Dictionary<Pip, int>();
+            List<List<Pip>> finalPipList = new List<List<Pip>>();
+
+            finalPipList.Add(new List<Pip>());
+            int totalAdded = 0;
+            foreach (var pip in pips)
+            {
+                childrenLeftToVisit[pip] = 0;
+            }
+            foreach (var pip in pips)
+            {
+                foreach (var dependent in (PipGraph.RetrievePipImmediateDependents(pip) ?? Enumerable.Empty<Pip>()))
+                {
+                    childrenLeftToVisit[dependent]++;
+                }
+            }
+
+            foreach (var pip in pips)
+            {
+                if (childrenLeftToVisit[pip] == 0)
+                {
+                    totalAdded++;
+                    finalPipList[0].Add(pip);
+                }
+            }
+
+            int currentLevel = 0;
+            while (totalAdded < pips.Count)
+            {
+                finalPipList.Add(new List<Pip>());
+                foreach (var pip in finalPipList[currentLevel])
+                {
+                    foreach (var dependent in PipGraph.RetrievePipImmediateDependents(pip) ?? Enumerable.Empty<Pip>())
+                    {
+                        if (--childrenLeftToVisit[dependent] == 0)
+                        {
+                            totalAdded++;
+                            finalPipList[currentLevel + 1].Add(dependent);
+                        }
+                    }
+                }
+
+                currentLevel++;
+            }
+
+            return finalPipList;
         }
 
         private struct OptionName

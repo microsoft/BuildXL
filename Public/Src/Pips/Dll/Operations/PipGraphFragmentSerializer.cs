@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Utilities;
 
 namespace BuildXL.Pips.Operations
@@ -65,12 +66,12 @@ namespace BuildXL.Pips.Operations
         /// Deserializes a pip graph fragment and call the given handleDeserializedPip function on each pip deserialized.
         /// </summary>
         public bool Deserialize(
-            AbsolutePath filePath, 
-            Func<PipGraphFragmentContext, PipGraphFragmentProvenance, Pip, bool> handleDeserializedPip = null, 
+            AbsolutePath filePath,
+            Func<PipGraphFragmentContext, PipGraphFragmentProvenance, Pip, bool> handleDeserializedPip = null,
             string fragmentDescriptionOverride = null)
         {
             Contract.Requires(filePath.IsValid);
-            
+            bool successful = true;
             string fileName = filePath.ToString(m_pipExecutionContext.PathTable);
             using (var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (var reader = new PipRemapReader(m_pipExecutionContext, m_pipGraphFragmentContext, stream))
@@ -78,29 +79,50 @@ namespace BuildXL.Pips.Operations
                 string serializedDescription = reader.ReadNullableString();
                 FragmentDescription = (fragmentDescriptionOverride ?? serializedDescription) ?? filePath.ToString(m_pipExecutionContext.PathTable);
                 var provenance = new PipGraphFragmentProvenance(filePath, FragmentDescription);
-
                 m_totalPipsToDeserialize = reader.ReadInt32();
-
-                for(int i = 0; i < m_totalPipsToDeserialize; i++)
+                try
                 {
-                    var pip = Pip.Deserialize(reader);
-                    var success = handleDeserializedPip?.Invoke(m_pipGraphFragmentContext, provenance, pip);
-                    if (success.HasValue & !success.Value)
+                    m_deserializedPipCount = 0;
+                    while (m_deserializedPipCount < m_totalPipsToDeserialize)
                     {
-                        return false;
-                    }
+                        var deserializedPips = new List<Pip>();
+                        while (true)
+                        {
+                            deserializedPips.Add(Pip.Deserialize(reader));
 
-                    Interlocked.Increment(ref m_deserializedPipCount);
+                            // All pips in the same level are added to the graph in parallel
+                            // This boolean indicated whether or not the end of the level.
+                            bool levelEnd = reader.ReadBoolean();
+                            if (levelEnd)
+                            {
+                                break;
+                            }
+                        }
+
+                        Parallel.ForEach(deserializedPips, new ParallelOptions(), deserializedPip =>
+                        {
+                            if (!(handleDeserializedPip?.Invoke(m_pipGraphFragmentContext, provenance, deserializedPip)).Value)
+                            {
+                                successful = false;
+                            }
+                            Interlocked.Increment(ref m_deserializedPipCount);
+                        });
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    return false;
                 }
             }
 
-            return true;
+            return successful;
         }
 
         /// <summary>
         /// Serializes list of pips to a file.
         /// </summary>
-        public void Serialize(AbsolutePath filePath, IReadOnlyCollection<Pip> pipsToSerialize, string fragmentDescription = null)
+        public void Serialize(AbsolutePath filePath, IReadOnlyCollection<IReadOnlyCollection<Pip>> pipsToSerialize, int totalPipCount, string fragmentDescription = null)
         {
             Contract.Requires(filePath.IsValid);
             Contract.Requires(pipsToSerialize != null);
@@ -112,13 +134,29 @@ namespace BuildXL.Pips.Operations
                 FragmentDescription = fragmentDescription ?? fileName;
                 writer.WriteNullableString(FragmentDescription);
 
-                m_totalPipsToSerialize = pipsToSerialize.Count;
-                writer.Write(pipsToSerialize.Count);
-
-                foreach (var pip in pipsToSerialize)
+                writer.Write(totalPipCount);
+                m_serializedPipCount = 0;
+                foreach (var pipGroup in pipsToSerialize)
                 {
-                    pip.Serialize(writer);
-                    Interlocked.Increment(ref m_serializedPipCount);
+                    int i = 0;
+                    foreach (var pip in pipGroup)
+                    {
+                        pip.Serialize(writer);
+
+                        // All pips in the same level are added to the graph in parallel
+                        // This boolean indicated whether or not the end of the level.
+                        if (i != (pipGroup.Count - 1))
+                        {
+                            writer.Write(false);
+                        }
+                        else
+                        {
+                            writer.Write(true);
+                        }
+
+                        i++;
+                        Interlocked.Increment(ref m_serializedPipCount);
+                    }
                 }
             }
         }

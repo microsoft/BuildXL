@@ -1470,7 +1470,7 @@ namespace BuildXL.Scheduler.Graph
                 {
                     Contract.Assume(
                         !input.IsOutputFile,
-                        "Output artifact has no producer. This should be impossible by construction, since creating an output file artifact is supposed to require scheduling a producer.");
+                        "Output artifact: " + input.Path.ToString(Context.PathTable) + " has no producer. This should be impossible by construction, since creating an output file artifact is supposed to require scheduling a producer.");
                 }
 
                 return true;

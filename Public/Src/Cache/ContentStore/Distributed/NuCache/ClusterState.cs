@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Threading;
 
@@ -135,7 +136,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets a random locations excluding the specified location. Returns default if operation is not possible.
         /// </summary>
-        public MachineLocation GetRandomMachineLocation(MachineLocation except)
+        public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except)
         {
             if (_idByLocationMap.Keys.Any(location => !location.Equals(except)))
             {
@@ -146,10 +147,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
                 while (location.Equals(except));
 
-                return location;
+                return new Result<MachineLocation>(location);
             }
 
-            return default;
+            return new Result<MachineLocation>("Could not select a machine location.");
         }
     }
 }

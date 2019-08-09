@@ -206,14 +206,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 // Only request copy when this is the only machine where the content is located.
                 if (getLocationsResult.ContentHashesInfo[0].Locations.Count <= 1)
                 {
-                    var location = ContentLocationStore.GetRandomMachineLocation(except: LocalCacheRootMachineLocation);
+                    var getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: LocalCacheRootMachineLocation);
 
-                    if (location.Equals(default))
+                    if (!getLocationResult.Succeeded)
                     {
-                        return new BoolResult("Could not request copy because it was not possible to select a random machine location.");
+                        return new BoolResult(getLocationResult);
                     }
 
-                    return await DistributedCopier.RequestCopyFileAsync(context, hash, location);
+                    return await DistributedCopier.RequestCopyFileAsync(context, hash, getLocationResult.Value);
                 }
 
                 return BoolResult.Success;

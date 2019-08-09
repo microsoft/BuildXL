@@ -118,7 +118,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Returns a random machine location, excluding the specified location. Returns default if operation is not possible.
         /// </summary>
-        MachineLocation GetRandomMachineLocation(MachineLocation except);
+        Result<MachineLocation> GetRandomMachineLocation(MachineLocation except);
     }
 
     /// <summary>

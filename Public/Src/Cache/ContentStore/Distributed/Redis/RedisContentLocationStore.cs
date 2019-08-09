@@ -1307,7 +1307,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         }
 
         /// <inheritdoc />
-        public MachineLocation GetRandomMachineLocation(MachineLocation except)
+        public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except)
         {
             if (_idsByLocation.Keys.Any(location => !location.Equals(except)))
             {
@@ -1318,10 +1318,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 }
                 while (location.Equals(except));
 
-                return location;
+                return new Result<MachineLocation>(location);
             }
 
-            return default;
+            return new Result<MachineLocation>("Could not select a machine location.");
         }
 
         /// <summary>

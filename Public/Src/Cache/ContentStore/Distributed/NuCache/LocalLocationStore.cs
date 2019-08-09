@@ -1238,7 +1238,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets a random machine location, excluding a specified location.
         /// </summary>
-        public MachineLocation GetRandomMachineLocation(MachineLocation except) => ClusterState.GetRandomMachineLocation(except);
+        public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except) => ClusterState.GetRandomMachineLocation(except);
 
         /// <summary>
         /// Adapts <see cref="LocalLocationStore"/> to interface needed for content locations (<see cref="DistributedCentralStorage.ILocationStore"/>) by

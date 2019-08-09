@@ -198,6 +198,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                         EmptyFileHashShortcutEnabled = _distributedSettings.EmptyFileHashShortcutEnabled,
                         RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
                         EnableProactiveCopy = _distributedSettings.EnableProactiveCopy,
+                        ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
                     },
                     replicaCreditInMinutes: _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.ReplicaCreditInMinutes : null,
                     enableRepairHandling: _distributedSettings.IsRepairHandlingEnabled,

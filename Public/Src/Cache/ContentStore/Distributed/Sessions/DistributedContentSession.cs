@@ -192,7 +192,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                     // First check in local location store, then global if failed.
                     var getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Local);
-                    if (getLocationsResult.Succeeded && getLocationsResult.ContentHashesInfo[0].Locations.Count > 0)
+                    if (getLocationsResult.Succeeded && getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
                     {
                         _counters[Counters.GetLocationsSatisfiedFromLocal].Increment();
                     }
@@ -211,20 +211,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         return new BoolResult(getLocationsResult);
                     }
 
-                    // Only request copy when this is the only machine where the content is located.
-                    if (getLocationsResult.ContentHashesInfo[0].Locations.Count <= 1)
+                    if (getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
                     {
-                        var getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: LocalCacheRootMachineLocation);
-
-                        if (!getLocationResult.Succeeded)
-                        {
-                            return new BoolResult(getLocationResult);
-                        }
-
-                        return await DistributedCopier.RequestCopyFileAsync(context, hash, getLocationResult.Value);
+                        return BoolResult.Success;
                     }
 
-                    return BoolResult.Success;
+                    var getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: LocalCacheRootMachineLocation);
+
+                    if (!getLocationResult.Succeeded)
+                    {
+                        return new BoolResult(getLocationResult);
+                    }
+
+                    return await DistributedCopier.RequestCopyFileAsync(context, hash, getLocationResult.Value);
                 });
         }
 

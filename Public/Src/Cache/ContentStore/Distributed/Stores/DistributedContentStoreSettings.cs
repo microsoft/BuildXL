@@ -141,6 +141,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public bool EnableProactiveCopy { get; set; } = false;
 
         /// <summary>
+        /// Maximum number of locations which should trigger a proactive copy.
+        /// </summary>
+        public int ProactiveCopyLocationsThreshold { get; set; } = 1;
+
+        /// <summary>
         /// Defines pinning behavior
         /// </summary>
         public PinConfiguration PinConfiguration { get; set; } // Can be null.

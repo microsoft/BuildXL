@@ -6,13 +6,14 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Threading;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using static BuildXL.Scheduler.Graph.PipGraph;
@@ -28,23 +29,25 @@ namespace BuildXL.Scheduler.Graph
         private readonly PipExecutionContext m_pipExecutionContext;
         private readonly SealedDirectoryTable m_sealDirectoryTable;
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
-        private readonly ConcurrentDictionary<ModuleId, ModulePip> m_modules = new ConcurrentDictionary<ModuleId, ModulePip>();
         private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
         private WindowsOsDefaults m_windowsOsDefaults;
         private MacOsDefaults m_macOsDefaults;
         private readonly object m_osDefaultLock = new object();
+        private int m_nextPipId = 0;
 
         /// <summary>
         /// Creates an instance of <see cref="GraphFragmentBuilder"/>.
         /// </summary>
-        public GraphFragmentBuilder(LoggingContext loggingContext, PipExecutionContext pipExecutionContext)
+        public GraphFragmentBuilder(LoggingContext loggingContext, PipExecutionContext pipExecutionContext, IConfiguration configuration)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(pipExecutionContext != null);
 
             m_loggingContext = loggingContext;
             m_pipExecutionContext = pipExecutionContext;
-            m_lazyApiServerMoniker = Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
+            m_lazyApiServerMoniker = configuration.Schedule.UseFixedApiServerMoniker
+                ? Lazy.Create(() => IpcFactory.GetFixedMoniker())
+                : Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
             m_sealDirectoryTable = new SealedDirectoryTable(m_pipExecutionContext.PathTable);
         }
 
@@ -54,7 +57,7 @@ namespace BuildXL.Scheduler.Graph
         private bool AddPip(Pip pip)
         {
             m_pips.Enqueue(pip);
-            pip.PipId = new PipId((uint)m_pips.Count);
+            pip.PipId = new PipId((uint)Interlocked.Increment(ref m_nextPipId));
             return true;
         }
 
@@ -67,7 +70,6 @@ namespace BuildXL.Scheduler.Graph
         /// <inheritdoc />
         public bool AddModule([NotNull] ModulePip module)
         {
-            m_modules[module.Module] = module;
             return AddPip(module);
         }
 

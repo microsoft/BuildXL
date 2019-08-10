@@ -237,7 +237,7 @@ namespace BuildXL.Scheduler.Graph
 
                     if (!IsImmutable)
                     {
-                        StringId apiServerMonikerId = m_lazyApiServerMoniker.IsValueCreated
+                        StringId apiServerMonikerId = m_lazyApiServerMoniker.IsValueCreated || m_servicePipToServiceInfoMap.Count > 0
                             ? StringId.Create(Context.StringTable, m_lazyApiServerMoniker.Value.Id)
                             : StringId.Invalid;
 
@@ -1470,9 +1470,12 @@ namespace BuildXL.Scheduler.Graph
                 }
                 else
                 {
-                    Contract.Assume(
-                        !input.IsOutputFile,
-                        "Output artifact has no producer. This should be impossible by construction, since creating an output file artifact is supposed to require scheduling a producer.");
+                    if (input.IsOutputFile)
+                    {
+                        Contract.Assert(
+                            false,
+                            I($"Output artifact '{input.Path.ToString(Context.PathTable)}' has no producer. This should be impossible by construction, since creating an output file artifact is supposed to require scheduling a producer."));
+                    }
                 }
 
                 return true;

@@ -65,7 +65,7 @@ namespace BuildXL.Pips.Operations
         public virtual void Write(PipId value)
         {
             Start<PipId>();
-            WritePipIdValue(value.Value);
+            Write(value.Value);
             End();
         }
 

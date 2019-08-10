@@ -5,8 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Pips.Operations
 {
@@ -28,12 +31,12 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Total pips deserialized so far.
         /// </summary>
-        public int PipsDeserialized => Volatile.Read(ref m_deserializedPipCount);
+        public int PipsDeserialized => Stats.PipsDeserialized;
 
         /// <summary>
         /// Total pips serialized so far.
         /// </summary>
-        public int PipsSerialized => Volatile.Read(ref m_serializedPipCount);
+        public int PipsSerialized => Stats.PipsSerialized;
 
         /// <summary>
         /// Description of the fragment, for printing on the console
@@ -44,10 +47,12 @@ namespace BuildXL.Pips.Operations
         private readonly PipGraphFragmentContext m_pipGraphFragmentContext;
 
         private volatile int m_totalPipsToDeserialize = 0;
-        private int m_deserializedPipCount = 0;
-
         private volatile int m_totalPipsToSerialize = 0;
-        private int m_serializedPipCount = 0;
+        
+        /// <summary>
+        /// Detailed statistics of serialization and deserialization.
+        /// </summary>
+        public readonly SerializeStats Stats = new SerializeStats();
 
         /// <summary>
         /// Creates an instance of <see cref="PipGraphFragmentSerializer"/>.
@@ -66,7 +71,7 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public bool Deserialize(
             AbsolutePath filePath, 
-            Func<PipGraphFragmentContext, PipGraphFragmentProvenance, Pip, bool> handleDeserializedPip = null, 
+            Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, bool> handleDeserializedPip = null, 
             string fragmentDescriptionOverride = null)
         {
             Contract.Requires(filePath.IsValid);
@@ -84,13 +89,23 @@ namespace BuildXL.Pips.Operations
                 for(int i = 0; i < m_totalPipsToDeserialize; i++)
                 {
                     var pip = Pip.Deserialize(reader);
-                    var success = handleDeserializedPip?.Invoke(m_pipGraphFragmentContext, provenance, pip);
+
+                    // Pip id is not deserialized when pip is deserialized.
+                    // Pip id must be read separately. To be able to add a pip to the graph, the pip id of the pip
+                    // is assumed to be unset, and is set when the pip gets inserted into the pip table.
+                    // Thus, one should not assign the pip id of the deserialized pip with the deserialized pip id.
+                    // Do not use reader.ReadPipId() for reading the deserialized pip id. The method reader.ReadPipId() 
+                    // remaps the pip id to a new pip id.
+                    var pipId = new PipId(reader.ReadUInt32());
+
+                    var success = handleDeserializedPip?.Invoke(m_pipGraphFragmentContext, provenance, pipId, pip);
+
                     if (success.HasValue & !success.Value)
                     {
                         return false;
                     }
 
-                    Interlocked.Increment(ref m_deserializedPipCount);
+                    Stats.Increment(pip, serialize: false);
                 }
             }
 
@@ -118,8 +133,97 @@ namespace BuildXL.Pips.Operations
                 foreach (var pip in pipsToSerialize)
                 {
                     pip.Serialize(writer);
+
+                    // Pip id is not serialized when pip is serialized. 
+                    // Pip id is serialized as part of serializing the pip table. However, since pip table is not
+                    // part of graph fragment, then pip id needs to be serialized separately here.
+                    writer.Write(pip.PipId.Value);
+
+                    Stats.Increment(pip, serialize: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Class tracking for statistics of serialization/deserialization.
+        /// </summary>
+        public class SerializeStats
+        {
+            private readonly int[] m_pips;
+            private readonly int[] m_serviceKinds;
+            private int m_serializedPipCount;
+            private int m_deserializedPipCount;
+
+            /// <summary>
+            /// Number of serialized pips.
+            /// </summary>
+            public int PipsSerialized => Volatile.Read(ref m_serializedPipCount);
+
+            /// <summary>
+            /// Number of deserialized pips.
+            /// </summary>
+            public int PipsDeserialized => Volatile.Read(ref m_deserializedPipCount);
+
+            /// <summary>
+            /// Creates an instance of <see cref="SerializeStats"/>.
+            /// </summary>
+            public SerializeStats()
+            {
+                m_pips = new int[(int)PipType.Max];
+                m_serviceKinds = new int[(int)Enum.GetValues(typeof(ServicePipKind)).Cast<ServicePipKind>().Max() + 1];
+            }
+
+            /// <summary>
+            /// Increments stats.
+            /// </summary>
+            public void Increment(Pip pip, bool serialize)
+            {
+                if (serialize)
+                {
                     Interlocked.Increment(ref m_serializedPipCount);
                 }
+                else
+                {
+                    Interlocked.Increment(ref m_deserializedPipCount);
+                }
+
+                ++m_pips[(int)pip.PipType];
+
+                if (pip.PipType == PipType.Process)
+                {
+                    Process process = pip as Process;
+                    if (process.ServiceInfo != null && process.ServiceInfo != ServiceInfo.None)
+                    {
+                        ++m_serviceKinds[(int)process.ServiceInfo.Kind];
+                    }
+                }
+            }
+
+            /// <inheritdoc />
+            public override string ToString()
+            {
+                var builder = new StringBuilder();
+                builder.AppendLine();
+                builder.AppendLine($"    Serialized pips: {PipsSerialized}");
+                builder.AppendLine($"    Deserialized pips: {PipsDeserialized}");
+                for (int i = 0; i < m_pips.Length; ++i)
+                {
+                    PipType pipType = (PipType)i;
+                    builder.AppendLine($"    {pipType.ToString()}: {m_pips[i]}");
+                    if (pipType == PipType.Process)
+                    {
+                        for (int j = 0; j < m_serviceKinds.Length; ++j)
+                        {
+                            ServicePipKind servicePipKind = (ServicePipKind)j;
+                            if (servicePipKind != ServicePipKind.None)
+                            {
+                                builder.AppendLine($"        {servicePipKind.ToString()}: {m_serviceKinds[j]}");
+                            }
+                        }
+                    }
+                }
+
+                return builder.ToString();
             }
         }
     }

@@ -36,7 +36,10 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <inheritdoc />
-        public override PipId ReadPipId() => m_pipGraphFragmentContext.RemapPipId(base.ReadPipId());
+        public override PipId RemapPipId(PipId pipId) => m_pipGraphFragmentContext.RemapPipId(pipId);
+
+        /// <inheritdoc />
+        public override PipId ReadPipId() => RemapPipId(base.ReadPipId());
 
         /// <inheritdoc />
         public override DirectoryArtifact ReadDirectoryArtifact() => m_pipGraphFragmentContext.RemapDirectory(base.ReadDirectoryArtifact());

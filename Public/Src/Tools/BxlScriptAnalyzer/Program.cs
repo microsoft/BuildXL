@@ -10,7 +10,6 @@ using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Script.Analyzer
 {
@@ -72,6 +71,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     arguments.Analyzers.Max(a => a.RequiredPhases),
                     arguments.Config,
                     arguments.Filter,
+                    arguments.OutputDirectory,
+                    arguments.ObjectDirectory,
                     out var workspace,
                     out var pipGraph,
                     out var filesToAnalyze,

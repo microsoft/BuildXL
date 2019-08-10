@@ -21,6 +21,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
         private string m_description;
         private readonly OptionName m_outputFileOption = new OptionName("OutputFile", "o");
         private readonly OptionName m_descriptionOption = new OptionName("Description", "d");
+        private readonly OptionName m_outputDirectoryForEvaluationOption = new OptionName("OutputDirectoryForEvaluation");
 
         private AbsolutePath m_absoluteOutputPath;
 
@@ -33,15 +34,13 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
         /// <inheritdoc />
         public override bool HandleOption(CommandLineUtilities.Option opt)
         {
-            if (string.Equals(m_outputFileOption.LongName, opt.Name, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(m_outputFileOption.ShortName, opt.Name, StringComparison.OrdinalIgnoreCase))
+            if (m_outputFileOption.Match(opt.Name))
             {
                 m_outputFile = CommandLineUtilities.ParsePathOption(opt);
                 return true;
             }
 
-            if (string.Equals(m_descriptionOption.LongName, opt.Name, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(m_descriptionOption.ShortName, opt.Name, StringComparison.OrdinalIgnoreCase))
+            if (m_descriptionOption.Match(opt.Name))
             {
                 m_description = opt.Value;
                 return true;
@@ -97,6 +96,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             try
             {
                 serializer.Serialize(m_absoluteOutputPath, PipGraph.RetrieveScheduledPips().ToList(), m_description);
+                Logger.GraphFragmentSerializationStats(LoggingContext, serializer.FragmentDescription, serializer.Stats.ToString());
             }
             catch (Exception e) when (e is BuildXLException || e is IOException)
             {
@@ -115,7 +115,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             public OptionName(string name)
             {
                 LongName = name;
-                ShortName = null;
+                ShortName = name;
             }
 
             public OptionName(string longName, string shortName)
@@ -123,6 +123,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
                 LongName = longName;
                 ShortName = shortName;
             }
+
+            public bool Match(string option) =>
+                string.Equals(option, LongName, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(option, ShortName, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

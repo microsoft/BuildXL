@@ -4417,9 +4417,18 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void ExceptionOnDeserializingPipGraphFragment(LoggingContext context, string path, string exceptionMessage);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DeserializationStatsPipGraphFragment,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Engine,
+            Message = "Deserialization stats of graph fragment '{fragmentDescription}': {stats}")]
+        public abstract void DeserializationStatsPipGraphFragment(LoggingContext context, string fragmentDescription, string stats);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DebugFragment,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Engine,
             Message = "{message}")]

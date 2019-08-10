@@ -63,5 +63,10 @@ namespace BuildXL.Pips.Operations
         /// IPC moniker (<see cref="BuildXL.Ipc.Interfaces.IIpcMoniker"/> to be rendered dynamically, before the pip is executed.
         /// </summary>
         IpcMoniker,
+
+        /// <summary>
+        /// File id, i.e., path and its rewrite count.
+        /// </summary>
+        FileId,
     }
 }

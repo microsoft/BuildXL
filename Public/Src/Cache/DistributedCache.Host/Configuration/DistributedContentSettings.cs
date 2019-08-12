@@ -491,6 +491,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool OverrideUnixFileAccessMode { get; set; } = false;
 
+        [DataMember]
+        public bool EnableProactiveCopy { get; set; } = false;
+
+        [DataMember]
+        public int ProactiveCopyLocationsThreshold { get; set; } = 1;
+
         #endregion
 
         /// <summary>

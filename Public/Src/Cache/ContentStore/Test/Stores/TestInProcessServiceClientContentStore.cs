@@ -28,7 +28,7 @@ namespace ContentStoreTest.Stores
         private readonly ILogger _logger;
         private readonly ServiceConfiguration _configuration;
         private readonly TimeSpan? _heartbeatInterval;
-        private LocalContentServer _server;
+        public LocalContentServer Server;
         private string _overrideCacheName;
         private bool _doNotStartService;
 
@@ -58,18 +58,19 @@ namespace ContentStoreTest.Stores
             ServiceConfiguration serviceConfiguration,
             uint retryIntervalSeconds = DefaultRetryIntervalSeconds,
             uint retryCount = DefaultRetryCount,
-            LocalServerConfiguration localContentServerConfiguration = null)
+            LocalServerConfiguration localContentServerConfiguration = null,
+            Func<AbsolutePath, IContentStore> contentStoreFactory = null)
             : base(logger, fileSystem, CreateConfiguration(cacheName, scenario + TestBase.ScenarioSuffix, serviceConfiguration, retryIntervalSeconds, retryCount))
         {
             _fileSystem = fileSystem;
             _logger = logger;
             _heartbeatInterval = heartbeatInterval;
             _configuration = serviceConfiguration;
-            _server = new LocalContentServer(
+            Server = new LocalContentServer(
                 _fileSystem,
                 _logger,
                 Configuration.Scenario,
-                path => new FileSystemContentStore(FileSystem, SystemClock.Instance, path),
+                contentStoreFactory ?? (path => new FileSystemContentStore(FileSystem, SystemClock.Instance, path)),
                 localContentServerConfiguration?.OverrideServiceConfiguration(_configuration) ?? TestConfigurationHelper.CreateLocalContentServerConfiguration(_configuration));
             SetThreadPoolSizes();
         }
@@ -104,14 +105,14 @@ namespace ContentStoreTest.Stores
                 throw new InvalidOperationException();
             }
 
-            await _server.ShutdownAsync(context).ShouldBeSuccess();
-            _server.Dispose();
+            await Server.ShutdownAsync(context).ShouldBeSuccess();
+            Server.Dispose();
 
-            _server = new LocalContentServer(
+            Server = new LocalContentServer(
                 _fileSystem, _logger, Configuration.Scenario, path => new FileSystemContentStore(FileSystem, SystemClock.Instance, path),
                 TestConfigurationHelper.CreateLocalContentServerConfiguration(_configuration));
 
-            var startupResult = await _server.StartupAsync(context);
+            var startupResult = await Server.StartupAsync(context);
             if (!startupResult.Succeeded)
             {
                 throw new InvalidOperationException($"Server startup Failed {startupResult.ErrorMessage}:{startupResult.Diagnostics}");
@@ -120,8 +121,8 @@ namespace ContentStoreTest.Stores
 
         public async Task ShutdownServerAsync(Context context)
         {
-            await _server.ShutdownAsync(context).ShouldBeSuccess();
-            _server.Dispose();
+            await Server.ShutdownAsync(context).ShouldBeSuccess();
+            Server.Dispose();
         }
 
         protected override async Task<BoolResult> PreStartupAsync(Context context)
@@ -131,7 +132,7 @@ namespace ContentStoreTest.Stores
                 return BoolResult.Success;
             }
 
-            var r = await Task.Run(() => _server.StartupAsync(context));
+            var r = await Task.Run(() => Server.StartupAsync(context));
 
             if (r.Succeeded)
             {
@@ -146,8 +147,8 @@ namespace ContentStoreTest.Stores
 
         protected override Task<BoolResult> PostShutdownAsync(Context context)
         {
-            return !_doNotStartService && !_server.ShutdownStarted
-                ? _server.ShutdownAsync(context)
+            return !_doNotStartService && !Server.ShutdownStarted
+                ? Server.ShutdownAsync(context)
                 : Task.FromResult(BoolResult.Success);
         }
 
@@ -204,7 +205,7 @@ namespace ContentStoreTest.Stores
 
         protected override void DisposeCore()
         {
-            _server?.Dispose();
+            Server?.Dispose();
 
             base.DisposeCore();
         }

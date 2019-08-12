@@ -3,7 +3,6 @@
 
 using System;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -11,9 +10,10 @@ using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
@@ -25,6 +25,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     public class DistributedContentSession<T> : ReadOnlyDistributedContentSession<T>, IContentSession
         where T : PathBase
     {
+        private enum Counters
+        {
+            GetLocationsSatisfiedFromLocal,
+            GetLocationsSatisfiedFromRemote
+        }
+
+        private readonly CounterCollection<Counters> _counters = new CounterCollection<Counters>();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="DistributedContentSession{T}"/> class.
         /// </summary>
@@ -144,17 +152,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 result = await putAsync(Inner);
             }
 
-            return await RegisterPutAsync(context, context.Token, UrgencyHint.Nominal, result);
+            var putResult = await RegisterPutAsync(context, UrgencyHint.Nominal, result);
+
+            if (putResult.Succeeded && Settings.EnableProactiveCopy)
+            {
+                RequestProactiveCopyIfNeededAsync(context, putResult.ContentHash).FireAndForget(context);
+            }
+
+            return putResult;
         }
 
-        private async Task<PutResult> RegisterPutAsync(Context context, CancellationToken cts, UrgencyHint urgencyHint, PutResult putResult)
+        private async Task<PutResult> RegisterPutAsync(OperationContext context, UrgencyHint urgencyHint, PutResult putResult)
         {
             if (putResult.Succeeded)
             {
                 var updateResult = await ContentLocationStore.RegisterLocalLocationAsync(
                     context,
                     new [] { new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize) },
-                    cts,
+                    context.Token,
                     urgencyHint);
 
                 if (!updateResult.Succeeded)
@@ -165,5 +180,56 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             return putResult;
         }
+
+        private Task<BoolResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                traceErrorsOnly: true,
+                operation: async () =>
+                {
+                    var hashArray = new[] { hash };
+
+                    // First check in local location store, then global if failed.
+                    var getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Local);
+                    if (getLocationsResult.Succeeded && getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
+                    {
+                        _counters[Counters.GetLocationsSatisfiedFromLocal].Increment();
+                    }
+                    else
+                    {
+                        getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Global);
+
+                        if (getLocationsResult.Succeeded)
+                        {
+                            _counters[Counters.GetLocationsSatisfiedFromRemote].Increment();
+                        }
+                    }
+
+                    if (!getLocationsResult.Succeeded)
+                    {
+                        return new BoolResult(getLocationsResult);
+                    }
+
+                    if (getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
+                    {
+                        return BoolResult.Success;
+                    }
+
+                    var getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: LocalCacheRootMachineLocation);
+
+                    if (!getLocationResult.Succeeded)
+                    {
+                        return new BoolResult(getLocationResult);
+                    }
+
+                    return await DistributedCopier.RequestCopyFileAsync(context, hash, getLocationResult.Value);
+                });
+        }
+
+        /// <inheritdoc />
+        protected override CounterSet GetCounters() =>
+            base.GetCounters()
+                .Merge(_counters.ToCounterSet());
     }
 }

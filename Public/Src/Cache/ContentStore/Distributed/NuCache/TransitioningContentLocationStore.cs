@@ -232,6 +232,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public void ReportReputation(MachineLocation location, MachineReputation reputation) =>
             MachineReputationTracker.ReportReputation(location, reputation);
 
+        /// <inheritdoc />
+        public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except)
+        {
+            if (_configuration.HasReadMode(ContentLocationMode.Redis))
+            {
+                return _redisContentLocationStore.GetRandomMachineLocation(except);
+            }
+
+            return _localLocationStore.GetRandomMachineLocation(except);
+        }
+
         #region IDistributedLocationStore Members
 
         /// <inheritdoc />

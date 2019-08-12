@@ -38,6 +38,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
         private readonly DisposableDirectory _tempFolderForCopies;
         private readonly IFileCopier<T> _remoteFileCopier;
+        private readonly ICopyRequester _copyRequester;
         private readonly IFileExistenceChecker<T> _remoteFileExistenceChecker;
         private readonly IPathTransformer<T> _pathTransformer;
         private readonly IContentLocationStore _contentLocationStore;
@@ -63,6 +64,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IAbsFileSystem fileSystem,
             IFileCopier<T> fileCopier,
             IFileExistenceChecker<T> fileExistenceChecker,
+            ICopyRequester copyRequester,
             IPathTransformer<T> pathTransformer,
             IContentLocationStore contentLocationStore)
         {
@@ -73,6 +75,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _tempFolderForCopies = new DisposableDirectory(fileSystem, workingDirectory / "Temp");
             _remoteFileCopier = fileCopier;
             _remoteFileExistenceChecker = fileExistenceChecker;
+            _copyRequester = copyRequester;
             _contentLocationStore = contentLocationStore;
             _pathTransformer = pathTransformer;
             _fileSystem = fileSystem;
@@ -221,6 +224,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 Tracer.TrackMetric(c, "RemoteCopyFileFailed", 1);
                 _counters[DistributedContentCopierCounters.RemoteFilesFailedCopy].Increment();
             }
+        }
+
+        /// <summary>
+        /// Requests another machine to copy from the current machine.
+        /// </summary>
+        public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                traceOperationStarted: false,
+                operation: () =>
+                {
+                    var targetPath = new AbsolutePath(targetLocation.Path);
+                    var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
+
+                    return GatedIoOperationAsync(ts => _copyRequester.RequestCopyFileAsync(context, hash, targetMachineName), context.Token);
+                });
         }
 
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();

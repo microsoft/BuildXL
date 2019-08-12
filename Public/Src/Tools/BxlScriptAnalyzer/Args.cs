@@ -142,6 +142,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
             writer.WriteOption(nameof(Config), "Optional main config file to be used.", shortName: "c");
             writer.WriteOption(nameof(Filter), "The filter representing the scope of script specs that should be analyzed.", shortName: "f");
+            writer.WriteOption(nameof(ObjectDirectory), "Optional path to the object directory.");
+            writer.WriteOption(nameof(OutputDirectory), "Optional path to the output directory.");
             writer.WriteOption("Analyzer", "One or more analyzers to run. Subsequent arguments are analyzer specific.", shortName: "a");
             writer.WriteOption($"{nameof(Fix)}[+|-]", "Whether the analyzer should fix the specs.");
 

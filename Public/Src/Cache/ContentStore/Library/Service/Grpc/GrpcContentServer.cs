@@ -45,9 +45,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly int _gzipSizeBarrier;
         private readonly ByteArrayPool _pool;
 
-        private IContentSession _requestCopySession;
-        private readonly SemaphoreSlim _requestCopySessionSemaphore = new SemaphoreSlim(1);
-
         /// <nodoc />
         public GrpcContentServer(
             ILogger logger,

@@ -140,12 +140,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using (_lock.AcquireReadLock())
             {
-                if (_locationByIdMap.Any(location => !location.Equals(except)))
+                if (_locationByIdMap.Where((location, index) => !_inactiveMachinesSet[index]).Any(location => !location.Equals(except)))
                 {
-                    MachineLocation location;
+                    MachineLocation location = default;
                     do
                     {
-                        location = _locationByIdMap[ThreadSafeRandom.Generator.Next(_locationByIdMap.Length)];
+                        var index = ThreadSafeRandom.Generator.Next(MaxMachineId + 1);
+                        if (!_inactiveMachinesSet[index])
+                        {
+                            location = _locationByIdMap[index];
+                        }
                     }
                     while (location.Equals(default) || location.Equals(except));
 

@@ -952,6 +952,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/unsafe_OptimizedAstConversion[+|-]",
+                Strings.HelpText_DisplayHelp_OptimizedAstConversion,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/unsafe_PreserveOutputs[+|-|:Reset]",
                 Strings.HelpText_DisplayHelp_PreserveOutputs,
                 HelpLevel.Verbose);
@@ -1036,6 +1041,11 @@ namespace BuildXL
             hw.WriteOption(
                 "/help:[standard|verbose]",
                 Strings.HelpText_DisplayHelp_Help);
+
+            hw.WriteOption(
+                "/interactive[+|-]",
+                Strings.HelpText_DisplayHelp_Interactive,
+                HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/noLogo",

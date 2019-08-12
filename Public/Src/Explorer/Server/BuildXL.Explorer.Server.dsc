@@ -15,7 +15,7 @@ namespace Server {
         rootNamespace: "BuildXL.Explorer.Server",
         skipDocumentationGeneration: true,
         // We filter out obj and bin folders since we sometimes still develop with an msbuild file for F5 debugging of aspnet apps which is not yet available in BuildXL's IDE integraiotn.
-        sources: (<File[]>globR(d`.`, "*.cs")).filter(f => !f.isWithin(d`obj`) && !f.isWithin(d`bin`)),
+        sources: (<File[]>globR(d`.`, "*.cs")).filter(f => !(<File>f).isWithin(d`obj`) && !(<File>f).isWithin(d`bin`)),
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
               // TODO: revisit this!

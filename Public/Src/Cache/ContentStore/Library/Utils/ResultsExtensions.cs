@@ -2,11 +2,24 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Synchronization;
+using BuildXL.Utilities;
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
     internal static class ResultsExtensions
     {
+        /// <summary>
+        /// Ensures result exceptions are demystified.
+        /// </summary>
+        internal static void InitializeResultExceptionPreprocessing()
+        {
+            if (ResultBase.ResultExceptionTextProcessor == null)
+            {
+                // Ensure exception strings have demystified stack tracks
+                ResultBase.ResultExceptionTextProcessor = ex => ex.ToStringDemystified();
+            }
+        }
+
         /// <nodoc />
         public static TResult WithLockAcquisitionDuration<TResult, TLockKey>(this TResult result, in LockSet<TLockKey>.LockHandle handle)
             where TResult : ResultBase

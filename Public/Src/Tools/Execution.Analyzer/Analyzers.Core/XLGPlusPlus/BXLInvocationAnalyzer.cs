@@ -3,12 +3,8 @@
 
 using System;
 using System.IO;
-using System.Text;
 using BuildXL.Analyzers.Core.XLGPlusPlus;
-using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
-using Google.Protobuf;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -62,7 +58,7 @@ namespace BuildXL.Execution.Analyzer
         private static void WriteDominoInvocationHelp(HelpWriter writer)
         {
             writer.WriteBanner("BXL Invocation \"Analyzer\"");
-            writer.WriteModeOption(nameof(AnalysisMode.BXLInvocationXLG), "Gets and outputs information related to BXL invocation events from the database.");
+            writer.WriteModeOption(nameof(AnalysisMode.BXLInvocationXLG), "Gets and outputs information related to BXL invocation events from RocksDB.");
             writer.WriteOption("inputDir", "Required. The directory to read the RocksDB database from", shortName: "i");
             writer.WriteOption("outputFile", "Required. The file where to write the results", shortName: "o");
         }
@@ -73,7 +69,14 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     internal sealed class BXLInvocationAnalyzer : Analyzer
     {
+        /// <summary>
+        /// Input directory path that contains the RocksDB sst files
+        /// </summary>
         public string InputDirPath;
+
+        /// <summary>
+        /// Output file path where the results will be written to.
+        /// </summary>
         public string OutputFilePath;
 
         public BXLInvocationAnalyzer(AnalysisInput input) : base(input) { }
@@ -81,11 +84,17 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override int Analyze()
         {
-            var dataStore = new XLGppDataStore(storeDirectory: InputDirPath);
-
-            File.WriteAllLines(OutputFilePath, dataStore.GetEventsByType((int)ExecutionEventId.DominoInvocation));
+            var dataStore = new XldbDataStore(storeDirectory: InputDirPath);
+            File.AppendAllLines(OutputFilePath, dataStore.GetBXLInvocationEvents());
 
             return 0;
+        }
+
+        /// <inheritdoc/>
+        protected override bool ReadEvents()
+        {
+            // Do nothing. This analyzer does not read events.
+            return true;
         }
     }
 }

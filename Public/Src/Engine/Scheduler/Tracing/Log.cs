@@ -155,6 +155,19 @@ namespace BuildXL.Scheduler.Tracing
             string message);
 
         [GeneratedEvent(
+            (ushort)LogEventId.PipIpcFailedDueToInfrastructureError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "IPC operation '{operation}' could not be executed via IPC moniker '{moniker}' because of an infrastructure error. Error: {message}")]
+        internal abstract void PipIpcFailedDueToInfrastructureError(
+            LoggingContext loggingContext,
+            string operation,
+            string moniker,
+            string message);
+
+        [GeneratedEvent(
             (ushort)EventId.PipCopyFileFromUntrackableDir,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -727,11 +740,11 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.WorkerReleasedEarly,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "{workerName} is released. Drain duration: {drainDurationMs}ms. Disconnect duration: {disconnectDurationMs}ms.",
+            Message = "{workerName} is released. Drain duration: {drainDurationMs}ms. Disconnect duration: {disconnectDurationMs}ms. Is drain successful: {isDrainedWithSuccess}",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void WorkerReleasedEarly(LoggingContext context, string workerName, long drainDurationMs, long disconnectDurationMs);
+        public abstract void WorkerReleasedEarly(LoggingContext context, string workerName, long drainDurationMs, long disconnectDurationMs, bool isDrainedWithSuccess);
 
         [GeneratedEvent(
             (ushort)EventId.StorageCacheGetContentError,
@@ -3816,13 +3829,22 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ApiServerInvalidOperation(LoggingContext loggingContext, string operation, string reason);
 
         [GeneratedEvent(
-            (ushort)EventId.ApiServerMaterializeFileExecuted,
+            (ushort)EventId.ApiServerMaterializeFileSucceeded,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "[{ShortProductName} API Server] Operation MaterializeFile('{file}') executed. Succeeded: {succeeded}.")]
-        internal abstract void ApiServerMaterializeFileExecuted(LoggingContext loggingContext, string file, bool succeeded);
+            Message = "[{ShortProductName} API Server] Operation MaterializeFile('{file}') succeeded.")]
+        internal abstract void ApiServerMaterializeFileSucceeded(LoggingContext loggingContext, string file);
+
+        [GeneratedEvent(
+            (ushort)EventId.ErrorApiServerMaterializeFileFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{ShortProductName} API Server] Operation MaterializeFile('{file}') failed. Reason: {reason}.")]
+        internal abstract void ErrorApiServerMaterializeFileFailed(LoggingContext loggingContext, string file, string reason);
 
         [GeneratedEvent(
             (ushort)EventId.ApiServerReportStatisticsExecuted,

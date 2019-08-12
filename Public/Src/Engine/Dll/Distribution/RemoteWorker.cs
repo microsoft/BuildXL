@@ -318,6 +318,12 @@ namespace BuildXL.Engine.Distribution
             await Task.Yield();
 
             m_isConnectionLost = true;
+
+            // Connection is lost. As the worker might have pending tasks, 
+            // Scheduler might decide to release the worker due to insufficient amount of remaining work, which is not related to the connection issue.
+            // In that case, we wait for DrainCompletion task source when releasing the worker.
+            // We need to finish DrainCompletion task here to prevent hanging.
+            DrainCompletion.TrySetResult(false);
             await FinishAsync(null);
         }
 
@@ -429,6 +435,7 @@ namespace BuildXL.Engine.Distribution
             }
             
             var drainStopwatch = new StopwatchVar();
+            bool isDrainedWithSuccess = true;
 
             using (drainStopwatch.Start())
             {
@@ -437,13 +444,13 @@ namespace BuildXL.Engine.Distribution
                 // We only set DrainCompletion in case of Stopping state.
                 if (AcquiredSlots != 0)
                 {
-                    await DrainCompletion.Task;
+                    isDrainedWithSuccess = await DrainCompletion.Task;
                 }
             }
 
             m_masterService.Environment.Counters.AddToCounter(PipExecutorCounter.RemoteWorker_EarlyReleaseDrainDurationMs, (long)drainStopwatch.TotalElapsed.TotalMilliseconds);
 
-            Contract.Assert(m_pipCompletionTasks.IsEmpty, "There cannot be pending completion tasks when AcquiredSlots is 0");
+            Contract.Assert(m_pipCompletionTasks.IsEmpty || !isDrainedWithSuccess, "There cannot be pending completion tasks when we drain the pending tasks successfully");
 
             var disconnectStopwatch = new StopwatchVar();
 
@@ -457,7 +464,8 @@ namespace BuildXL.Engine.Distribution
                 m_appLoggingContext,
                 Name,
                 (long)drainStopwatch.TotalElapsed.TotalMilliseconds,
-                (long)disconnectStopwatch.TotalElapsed.TotalMilliseconds);
+                (long)disconnectStopwatch.TotalElapsed.TotalMilliseconds,
+                isDrainedWithSuccess);
         }
 
         private async Task DisconnectAsync(string buildFailure = null)

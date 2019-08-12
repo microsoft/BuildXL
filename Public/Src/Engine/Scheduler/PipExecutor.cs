@@ -646,6 +646,15 @@ namespace BuildXL.Scheduler
                         connectionString,
                         ipcResult.Payload);
                 }
+                else if (ipcResult.ExitCode == IpcResultStatus.TransmissionError)
+                {
+                    // we separate transmission errors here, so they can be properly classified as InfrastructureErrors
+                    Logger.Log.PipIpcFailedDueToInfrastructureError(
+                        operationContext,
+                        operation.Payload,
+                        connectionString,
+                        ipcResult.Payload);
+                }
                 else
                 {
                     Logger.Log.PipIpcFailed(
@@ -1354,7 +1363,8 @@ namespace BuildXL.Scheduler
                                     directoryTranslator: environment.DirectoryTranslator,
                                     remainingUserRetryCount: remainingUserRetries,
                                     vmInitializer: environment.VmInitializer,
-                                    tempDirectoryCleaner: environment.TempCleaner);
+                                    tempDirectoryCleaner: environment.TempCleaner,
+                                    incrementalTools: configuration.IncrementalTools);
 
                                 registerQueryRamUsageMb(
                                     () =>
@@ -1375,7 +1385,7 @@ namespace BuildXL.Scheduler
                                     environment.SetMaxExternalProcessRan();
                                 }
 
-                                result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxedKextConnection: environment.SandboxedKextConnection);
+                                result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection);
 
                                 ++retryCount;
 
@@ -2729,7 +2739,8 @@ namespace BuildXL.Scheduler
                 pipDataRenderer: pipDataRenderer,
                 directoryTranslator: environment.DirectoryTranslator,
                 vmInitializer: environment.VmInitializer,
-                tempDirectoryCleaner: environment.TempCleaner);
+                tempDirectoryCleaner: environment.TempCleaner,
+                incrementalTools: configuration.IncrementalTools);
 
             if (!await executor.TryInitializeWarningRegexAsync())
             {

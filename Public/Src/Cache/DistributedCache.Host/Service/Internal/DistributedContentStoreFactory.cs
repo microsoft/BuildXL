@@ -182,6 +182,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _arguments.Copier,
                     _arguments.Copier,
                     _arguments.PathTransformer,
+                    _arguments.CopyRequester,
                     contentAvailabilityGuarantee,
                     localCacheRoot,
                     _fileSystem,
@@ -194,6 +195,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                         ParallelHashingFileSizeBoundary = _distributedSettings.ParallelHashingFileSizeBoundary,
                         MaxConcurrentCopyOperations = _distributedSettings.MaxConcurrentCopyOperations,
                         PinConfiguration = pinConfiguration,
+                        EmptyFileHashShortcutEnabled = _distributedSettings.EmptyFileHashShortcutEnabled,
+                        RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
+                        EnableProactiveCopy = _distributedSettings.EnableProactiveCopy,
+                        ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
                     },
                     replicaCreditInMinutes: _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.ReplicaCreditInMinutes : null,
                     enableRepairHandling: _distributedSettings.IsRepairHandlingEnabled,
@@ -338,7 +343,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     var updatingSasToken = secret as UpdatingSasToken;
                     Contract.Assert(!(updatingSasToken is null));
 
-                    credentials.Add(CreateAzureBlobCredentialsFromSasToken(updatingSasToken));
+                    credentials.Add(CreateAzureBlobCredentialsFromSasToken(secretName, updatingSasToken));
                 }
                 else
                 {
@@ -352,11 +357,12 @@ namespace BuildXL.Cache.Host.Service.Internal
             return credentials.ToArray();
         }
 
-        private static AzureBlobStorageCredentials CreateAzureBlobCredentialsFromSasToken(UpdatingSasToken updatingSasToken)
+        private AzureBlobStorageCredentials CreateAzureBlobCredentialsFromSasToken(string secretName, UpdatingSasToken updatingSasToken)
         {
             var storageCredentials = new StorageCredentials(sasToken: updatingSasToken.Token.Token);
-            updatingSasToken.TokenUpdated += (token, sasToken) =>
+updatingSasToken.TokenUpdated += (_, sasToken) =>
             {
+                _logger.Debug($"Updating SAS token for Azure Storage secret {secretName}");
                 storageCredentials.UpdateSASToken(sasToken.Token);
             };
 

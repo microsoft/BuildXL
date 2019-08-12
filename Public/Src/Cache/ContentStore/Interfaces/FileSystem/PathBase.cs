@@ -91,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         ///     Return normalized, parsed path segments.
         /// </summary>
-        protected static IReadOnlyCollection<string> ParseSegments(string path, bool relative)
+        protected static IReadOnlyList<string> ParseSegments(string path, bool relative)
         {
             Contract.Requires(path != null);
 

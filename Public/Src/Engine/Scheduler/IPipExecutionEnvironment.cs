@@ -163,7 +163,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Kernel connection, needed to instrument sandboxed processes / pips on macOS
         /// </summary>
-        BuildXL.Processes.IKextConnection SandboxedKextConnection { get; }
+        BuildXL.Processes.ISandboxConnection SandboxConnection { get; }
 
         /// <summary>
         /// Sets the maximum number of external processes run concurrently so far.

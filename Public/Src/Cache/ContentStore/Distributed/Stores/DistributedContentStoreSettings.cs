@@ -130,16 +130,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public int ParallelCopyFilesLimit { get; set; } = DefaultParallelCopyFilesLimit;
 
-        private IReadOnlyList<TimeSpan> _retryIntervalForCopies = CacheCopierDefaultRetryIntervals;
-
         /// <summary>
         /// Delays for retries for file copies
         /// </summary>
-        public IReadOnlyList<TimeSpan> RetryIntervalForCopies
-        {
-            get => _retryIntervalForCopies ?? CacheCopierDefaultRetryIntervals;
-            set => _retryIntervalForCopies = value;
-        }
+        public IReadOnlyList<TimeSpan> RetryIntervalForCopies { get; set; } = CacheCopierDefaultRetryIntervals;
+
+        /// <summary>
+        /// Whether proactive copies are enabled.
+        /// </summary>
+        public bool EnableProactiveCopy { get; set; } = false;
+
+        /// <summary>
+        /// Maximum number of locations which should trigger a proactive copy.
+        /// </summary>
+        public int ProactiveCopyLocationsThreshold { get; set; } = 1;
 
         /// <summary>
         /// Defines pinning behavior

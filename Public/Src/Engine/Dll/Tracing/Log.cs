@@ -1113,6 +1113,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)EventId.ConfigUnsafeOptimizedAstConversion,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_OptimizedAstConversion enabled: Some analyses during AST conversions are disabled and some AST constructs, like types, are not converted.")]
+        public abstract void ConfigUnsafeOptimizedAstConversion(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)EventId.ConfigUnsafeLazySymlinkCreation,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

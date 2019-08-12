@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             Contract.Requires(port > 0 && port <= 65535); // Limit on computers' ports.
 
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
             var fileName = $@"Global\{_baseFileName}";
             try
             {
@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             _logger.Always($"Trying to expose GRPC port {port} at memory mapped file '{fileName}'");
 
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
             var file = MemoryMappedFile.CreateNew(
                 fileName,
                 FileSize,

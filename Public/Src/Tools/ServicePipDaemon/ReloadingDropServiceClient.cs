@@ -104,13 +104,13 @@ namespace Tool.ServicePipDaemon
 
                 if (retryIntervalEnumerator.MoveNext())
                 {
-                    m_logger.Warning("[{2}] Exception caught: {0}  Waiting {1} before retrying.", e.ToString(), retryIntervalEnumerator.Current, operationId.Value);
+                    m_logger.Warning("[{2}] Waiting {1} before retrying on exception: {0}", e.ToString(), retryIntervalEnumerator.Current, operationId.Value);
                     await Task.Delay(retryIntervalEnumerator.Current);
                     return await RetryAsync(operationName, fn, cancellationToken, retryIntervalEnumerator, reloadFirst: true, operationId: operationId);
                 }
                 else
                 {
-                    m_logger.Warning("[{1}] Exception caught: {0}; failing because number of retries were exhausted", e.ToString(), operationId.Value);
+                    m_logger.Error("[{1}] Failing because number of retries were exhausted.  Final exception: {0};", e.ToString(), operationId.Value);
                     throw;
                 }
             }

@@ -4,7 +4,9 @@
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 // ReSharper disable All
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
@@ -49,4 +51,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
     /// Represents an interface that allows copying files form a remote source to a local path using absolute paths.
     /// </summary>
     public interface IAbsolutePathFileCopier : IFileCopier<AbsolutePath>, IFileExistenceChecker<AbsolutePath> { }
+
+    /// <summary>
+    /// Requests another machine to copy from the current machine.
+    /// </summary>
+    public interface ICopyRequester
+    {
+        /// <summary>
+        /// Requests another machine to copy a file.
+        /// </summary>
+        /// <param name="context">The context of the operation</param>
+        /// <param name="hash">The hash of the file to be copied.</param>
+        /// <param name="targetMachineName">The machine that should copy the file</param>
+        Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash, string targetMachineName);
+    }
 }

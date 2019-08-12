@@ -407,6 +407,44 @@ namespace Test.BuildXL.Scheduler
             AssertSetEquals(expectedDependencyOutputs, actualDependentsOutputs);
         }
 
+        [Theory]
+        [InlineData(ClosureMode.DirectExcludingSelf)]
+        [InlineData(ClosureMode.TransitiveIncludingSelf)]
+        public void TestMultipleRequiredInputsFilter(ClosureMode closureMode)
+        {
+            // P0 -> P1 -> P2 -> Seal -> P3 (P3 doesn't matter in this test case, just to reuse the existing SetupDependenciesFilterGraph funcion)
+            FileArtifact o0, o1, o2;
+            Process p1, p2;
+            PipGraph graph;
+            SetupSimpleDependenciesFilterGraph(out o0, out o1, out o2, out p1, out p2, out graph);
+
+            var filter =
+                new RootFilter(
+                    new DependenciesFilter(
+                        new BinaryFilter(new SpecFileFilter(p2.Provenance.Token.Path, null, MatchMode.FilePath, false, false, specDependencies: false), FilterOperator.Or, new SpecFileFilter(p1.Provenance.Token.Path, null, MatchMode.FilePath, false, false, specDependencies: false)),
+                        closureMode));
+            var actualDependentsOutputs = graph.FilterOutputs(filter);
+            HashSet<FileOrDirectoryArtifact> expectedDependencyOutputs;
+            if (closureMode == ClosureMode.DirectExcludingSelf)
+            {
+                expectedDependencyOutputs = new HashSet<FileOrDirectoryArtifact>
+                                               {
+                                                   FileOrDirectoryArtifact.Create(o0),
+                                               };
+            }
+            else
+            {
+                expectedDependencyOutputs = new HashSet<FileOrDirectoryArtifact>
+                                               {
+                                                   FileOrDirectoryArtifact.Create(o0),
+                                                   FileOrDirectoryArtifact.Create(o1),
+                                                   FileOrDirectoryArtifact.Create(o2),
+                                               };
+            }
+
+            AssertSetEquals(expectedDependencyOutputs, actualDependentsOutputs);
+        }
+
         private void SetupDependenciesFilterGraph(out FileArtifact o0, out FileArtifact o1, out FileArtifact o2, out Process p2, out PipGraph graph)
         {
             o0 = CreateOutputFileArtifact();
@@ -427,6 +465,35 @@ namespace Test.BuildXL.Scheduler
                 dependencies: new[] { CreateSourceFile() },
                 outputs: new[] { outputOfProcessInSpecOfP1 },
                 provenance: CreateProvenance(specPath: p1.Provenance.Token.Path));
+
+            p2 = CreateAndScheduleProcess(
+                dependencies: new[] { o1 },
+                outputs: new[] { o2 });
+
+            var seal = CreateAndScheduleSealDirectory(o2.Path.GetParent(Context.PathTable), SealDirectoryKind.Partial, o2);
+
+            Process p3 = CreateAndScheduleProcess(
+                dependencies: new FileArtifact[] { },
+                directoryDependencies: new[] { seal.Directory },
+                outputs: new[] { o3 });
+
+            graph = PipGraphBuilder.Build();
+        }
+        
+        private void SetupSimpleDependenciesFilterGraph(out FileArtifact o0, out FileArtifact o1, out FileArtifact o2, out Process p1, out Process p2, out PipGraph graph)
+        {
+            o0 = CreateOutputFileArtifact();
+            o1 = CreateOutputFileArtifact();
+            o2 = CreateOutputFileArtifact();
+            var o3 = CreateOutputFileArtifact();
+
+            Process p0 = CreateAndScheduleProcess(
+                dependencies: new[] { CreateSourceFile() },
+                outputs: new[] { o0 });
+
+            p1 = CreateAndScheduleProcess(
+                dependencies: new[] { o0 },
+                outputs: new[] { o1 });
 
             p2 = CreateAndScheduleProcess(
                 dependencies: new[] { o1 },

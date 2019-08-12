@@ -284,6 +284,7 @@ namespace BuildXL.Engine
                     buildEngineFingerprint: buildEngineFingerprint,
                     vmInitializer: VmInitializer.CreateFromEngine(
                         configuration.Layout.BuildEngineDirectory.ToString(context.PathTable),
+                        vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
                         message => Logger.Log.StartInitializingVm(loggingContext, message),
                         message => Logger.Log.EndInitializingVm(loggingContext, message),
                         message => Logger.Log.InitializingVm(loggingContext, message)));
@@ -923,7 +924,7 @@ namespace BuildXL.Engine
         {
             Contract.Requires(!HasFailed, "Build has already failed. Engine should have bailed out");
 
-            if ((configuration.Engine.Phase & EnginePhases.Schedule) == 0)
+            if (!configuration.Engine.Phase.HasFlag(EnginePhases.Schedule))
             {
                 return true;
             }
@@ -1661,6 +1662,7 @@ namespace BuildXL.Engine
                         buildEngineFingerprint: buildEngineFingerprint,
                         vmInitializer: VmInitializer.CreateFromEngine(
                             newConfiguration.Layout.BuildEngineDirectory.ToString(newContext.PathTable),
+                            vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
                             message => Logger.Log.StartInitializingVm(loggingContext, message),
                             message => Logger.Log.EndInitializingVm(loggingContext, message),
                             message => Logger.Log.InitializingVm(loggingContext, message)));

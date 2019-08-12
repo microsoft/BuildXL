@@ -1306,6 +1306,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return _blobAdapter.GetBlobAsync(context, hash);
         }
 
+        /// <inheritdoc />
+        public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except)
+        {
+            // ConcurrentDictionary.Keys is an expensive operation, so make sure to only call it once.
+            var locations = _idsByLocation.Keys;
+            if (locations.Any(location => !location.Equals(except)))
+            {
+                MachineLocation location;
+                do
+                {
+                    location = locations.ElementAt(ThreadSafeRandom.Generator.Next(locations.Count));
+                }
+                while (location.Equals(except));
+
+                return new Result<MachineLocation>(location);
+            }
+
+            return new Result<MachineLocation>("Could not select a machine location.");
+        }
+
         /// <summary>
         /// Gets the page size used in bulk Redis queries.
         /// </summary>

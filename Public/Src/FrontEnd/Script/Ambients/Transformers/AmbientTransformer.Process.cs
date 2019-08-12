@@ -163,6 +163,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_unsafeAllowPreservedOutputs;
         private SymbolAtom m_unsafePassThroughEnvironmentVariables;
         private SymbolAtom m_unsafePreserveOutputWhitelist;
+        private SymbolAtom m_unsafeIncrementalTool;
 
         private SymbolAtom m_semaphoreInfoLimit;
         private SymbolAtom m_semaphoreInfoName;
@@ -310,6 +311,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_unsafeAllowPreservedOutputs = Symbol("allowPreservedOutputs");
             m_unsafePassThroughEnvironmentVariables = Symbol("passThroughEnvironmentVariables");
             m_unsafePreserveOutputWhitelist = Symbol("preserveOutputWhitelist");
+            m_unsafeIncrementalTool = Symbol("incrementalTool");
 
             // Semaphore info.
             m_semaphoreInfoLimit = Symbol("limit");
@@ -1179,6 +1181,17 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeAllowPreservedOutputs) == true)
             {
                 processBuilder.Options |= Process.Options.AllowPreserveOutputs;
+
+                if (context.FrontEndHost.Configuration.Sandbox.PreserveOutputsForIncrementalTool)
+                {
+                    processBuilder.Options |= Process.Options.IncrementalTool;
+                }
+            }
+
+            // UnsafeExecuteArguments.incrementalTool
+            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeIncrementalTool) == true)
+            {
+                processBuilder.Options |= Process.Options.IncrementalTool;
             }
 
             // UnsafeExecuteArguments.passThroughEnvironmentVariables

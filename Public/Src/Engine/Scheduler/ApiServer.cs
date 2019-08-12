@@ -115,7 +115,7 @@ namespace BuildXL.Scheduler
             var materializeFileCmd = cmd as MaterializeFileCommand;
             if (materializeFileCmd != null)
             {
-                var result = await ExecuteCommandWithStats(ExecuteMaterializeFile, materializeFileCmd, ref m_numMaterializeFile);
+                var result = await ExecuteCommandWithStats(ExecuteMaterializeFileAsync, materializeFileCmd, ref m_numMaterializeFile);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -140,9 +140,9 @@ namespace BuildXL.Scheduler
 
         /// <summary>
         /// Executes <see cref="MaterializeFileCommand"/>.  First check that <see cref="MaterializeFileCommand.File"/>
-        /// and <see cref="MaterializeFileCommand.FullFilePath"/> match, then delegates to <see cref="FileContentManager.TryMaterializeFile"/>.
+        /// and <see cref="MaterializeFileCommand.FullFilePath"/> match, then delegates to <see cref="FileContentManager.TryMaterializeFileAsync"/>.
         /// </summary>
-        private async Task<IIpcResult> ExecuteMaterializeFile(MaterializeFileCommand cmd)
+        private async Task<IIpcResult> ExecuteMaterializeFileAsync(MaterializeFileCommand cmd)
         {
             Contract.Requires(cmd != null);
 
@@ -156,8 +156,21 @@ namespace BuildXL.Scheduler
                     "file path ids differ; file = " + cmd.File.Path.ToString(m_context.PathTable) + ", file path = " + cmd.FullFilePath);
             }
 
-            bool succeeded = await m_fileContentManager.TryMaterializeFile(cmd.File);
-            Tracing.Logger.Log.ApiServerMaterializeFileExecuted(m_loggingContext, cmd.File.Path.ToString(m_context.PathTable), succeeded);
+            var result = await m_fileContentManager.TryMaterializeFileAsync(cmd.File);
+            bool succeeded = result == ArtifactMaterializationResult.Succeeded;
+            string absoluteFilePath = cmd.File.Path.ToString(m_context.PathTable);
+
+            // if file materialization failed, log an error here immediately, so that this errors gets picked up as the root cause 
+            // (i.e., the "ErrorBucket") instead of whatever fallout ends up happening (e.g., IPC pip fails)
+            if (!succeeded)
+            {
+                Tracing.Logger.Log.ErrorApiServerMaterializeFileFailed(m_loggingContext, absoluteFilePath, result.ToString());
+            }
+            else
+            {
+                Tracing.Logger.Log.ApiServerMaterializeFileSucceeded(m_loggingContext, absoluteFilePath);
+            }
+
             return IpcResult.Success(cmd.RenderResult(succeeded));
         }
 

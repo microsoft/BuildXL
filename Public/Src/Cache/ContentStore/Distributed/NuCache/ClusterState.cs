@@ -6,6 +6,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Threading;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -79,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Requires(unknownMachines != null);
 
-            foreach(var entry in unknownMachines)
+            foreach (var entry in unknownMachines)
             {
                 AddMachine(entry.Key, entry.Value);
             }
@@ -112,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using (_lock.AcquireReadLock())
             {
-                if (machine.Index <_locationByIdMap.Length)
+                if (machine.Index < _locationByIdMap.Length)
                 {
                     machineLocation = _locationByIdMap[machine.Index];
                     return machineLocation.Data != null;
@@ -129,6 +131,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool TryResolveMachineId(MachineLocation machineLocation, out MachineId machineId)
         {
             return _idByLocationMap.TryGetValue(machineLocation, out machineId);
+        }
+
+        /// <summary>
+        /// Gets a random locations excluding the specified location. Returns default if operation is not possible.
+        /// </summary>
+        public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except)
+        {
+            using (_lock.AcquireReadLock())
+            {
+                if (_locationByIdMap.Where((location, index) => !_inactiveMachinesSet[index]).Any(location => !location.Equals(except)))
+                {
+                    MachineLocation location = default;
+                    do
+                    {
+                        var index = ThreadSafeRandom.Generator.Next(MaxMachineId + 1);
+                        if (!_inactiveMachinesSet[index])
+                        {
+                            location = _locationByIdMap[index];
+                        }
+                    }
+                    while (location.Equals(default) || location.Equals(except));
+
+                    return new Result<MachineLocation>(location);
+                }
+
+                return new Result<MachineLocation>("Could not select a machine location.");
+            }
         }
     }
 }

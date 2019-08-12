@@ -601,6 +601,7 @@ namespace BuildXL.Cache.ContentStore.App
         internal DistributedCacheServiceArguments CreateDistributedCacheServiceArguments(
             IAbsolutePathFileCopier copier,
             IAbsolutePathTransformer pathTransformer,
+            ICopyRequester copyRequester,
             DistributedContentSettings dcs,
             HostInfo host,
             string cacheName,
@@ -625,7 +626,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs);
 
-            return new DistributedCacheServiceArguments(_logger, copier, pathTransformer, distributedCacheServiceHost, host, ct, dataRootPath, config, null);
+            return new DistributedCacheServiceArguments(_logger, copier, pathTransformer, copyRequester, distributedCacheServiceHost, host, ct, dataRootPath, config, null);
         }
     }
 }
